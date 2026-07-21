@@ -1,11 +1,13 @@
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta } from '../types';
-import { rpcRequest } from './provider';
+import { jest } from '@jest/globals';
+
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { rpcRequest } from './provider.js';
 import {
   decodeRevert,
   extractRevert,
   OnChainFailureError,
-} from './revert-reason';
+} from './revert-reason.js';
 
 jest.mock('./provider', () => ({
   ...jest.requireActual('./provider'),

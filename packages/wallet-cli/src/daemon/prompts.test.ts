@@ -5,6 +5,7 @@
 // only types.
 import type Confirm from '@inquirer/confirm';
 import type Password from '@inquirer/password';
+import { jest } from '@jest/globals';
 
 jest.unstable_mockModule('@inquirer/confirm', () => ({
   __esModule: true,
@@ -23,7 +24,7 @@ describe('confirmPurge', () => {
     const confirm = (await import('@inquirer/confirm'))
       .default as unknown as ConfirmMock;
     confirm.mockResolvedValue(true);
-    const { confirmPurge } = await import('./prompts');
+    const { confirmPurge } = await import('./prompts.js');
 
     const result = await confirmPurge();
 
@@ -38,7 +39,7 @@ describe('confirmPurge', () => {
     const confirm = (await import('@inquirer/confirm'))
       .default as unknown as ConfirmMock;
     confirm.mockResolvedValue(false);
-    const { confirmPurge } = await import('./prompts');
+    const { confirmPurge } = await import('./prompts.js');
 
     expect(await confirmPurge()).toBe(false);
   });
@@ -49,7 +50,7 @@ describe('promptPassword', () => {
     const password = (await import('@inquirer/password'))
       .default as unknown as PasswordMock;
     password.mockResolvedValue('hunter2');
-    const { promptPassword } = await import('./prompts');
+    const { promptPassword } = await import('./prompts.js');
 
     const result = await promptPassword();
 

@@ -1,9 +1,9 @@
+import { jest } from '@jest/globals';
 /* eslint-disable */
 /**
  * Shared service mocks for Perps service tests
  * Provides reusable mock implementations for ServiceContext and related types
  */
-
 import {
   type ServiceContext,
   type PerpsControllerState,

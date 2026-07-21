@@ -1,5 +1,7 @@
-import { RewardsIntegrationService } from '../../../src/services/RewardsIntegrationService';
-import type { PerpsPlatformDependencies } from '../../../src/types';
+import { jest } from '@jest/globals';
+
+import { RewardsIntegrationService } from '../../../src/services/RewardsIntegrationService.js';
+import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
 /* eslint-disable */
 import {
   createMockEvmAccount,

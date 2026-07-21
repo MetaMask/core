@@ -1,15 +1,18 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import {
   CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
   DELEGATION_MANAGER_ADDRESSES,
-} from '../constants';
-import { SimulationChainNotSupportedError, SimulationError } from '../errors';
-import { projectLogger } from '../logger';
-import type { GetSimulationConfig } from '../types';
+} from '../constants.js';
+import {
+  SimulationChainNotSupportedError,
+  SimulationError,
+} from '../errors.js';
+import { projectLogger } from '../logger.js';
+import type { GetSimulationConfig } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'simulation-api');
 

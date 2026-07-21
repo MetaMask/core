@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import {
   ConstantBackoff,
@@ -6,13 +7,13 @@ import {
 } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
 
-import { buildRootMessenger } from '../../tests/helpers';
+import { buildRootMessenger } from '../../tests/helpers.js';
 import {
   withMockedCommunications,
   withNetworkClient,
-} from '../../tests/network-client/helpers';
-import { DEFAULT_MAX_CONSECUTIVE_FAILURES } from '../rpc-service/rpc-service';
-import { NetworkClientType } from '../types';
+} from '../../tests/network-client/helpers.js';
+import { DEFAULT_MAX_CONSECUTIVE_FAILURES } from '../rpc-service/rpc-service.js';
+import { NetworkClientType } from '../types.js';
 
 describe('createNetworkClient - RPC endpoint events', () => {
   for (const networkClientType of Object.values(NetworkClientType)) {

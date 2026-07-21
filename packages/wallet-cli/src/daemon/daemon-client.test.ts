@@ -1,10 +1,11 @@
+import { jest } from '@jest/globals';
 import type { JsonRpcResponse } from '@metamask/utils';
 import { EventEmitter } from 'node:events';
 import { createConnection } from 'node:net';
 import type { Socket } from 'node:net';
 
-import { sendCommand, pingDaemon } from './daemon-client';
-import { readLine, writeLine } from './socket-line';
+import { sendCommand, pingDaemon } from './daemon-client.js';
+import { readLine, writeLine } from './socket-line.js';
 
 jest.mock('node:net');
 jest.mock('./socket-line');

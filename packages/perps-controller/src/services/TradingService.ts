@@ -4,15 +4,15 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from '../constants/eventNames';
-import { isTPSLOrder } from '../constants/orderTypes';
-import { PerpsMeasurementName } from '../constants/performanceMetrics';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
+} from '../constants/eventNames.js';
+import { isTPSLOrder } from '../constants/orderTypes.js';
+import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import {
   PerpsAnalyticsEvent,
   PerpsTraceNames,
   PerpsTraceOperations,
-} from '../types';
+} from '../types/index.js';
 import type {
   PerpsProvider,
   OrderParams,
@@ -30,10 +30,10 @@ import type {
   UpdatePositionTPSLParams,
   PerpsAnalyticsProperties,
   PerpsPlatformDependencies,
-} from '../types';
-import { ensureError } from '../utils/errorUtils';
-import type { RewardsIntegrationService } from './RewardsIntegrationService';
-import type { ServiceContext } from './ServiceContext';
+} from '../types/index.js';
+import { ensureError } from '../utils/errorUtils.js';
+import type { RewardsIntegrationService } from './RewardsIntegrationService.js';
+import type { ServiceContext } from './ServiceContext.js';
 
 /**
  * Controller-level dependencies for TradingService.
@@ -2362,7 +2362,7 @@ export class TradingService {
           ? PERPS_EVENT_VALUE.DIRECTION.LONG
           : PERPS_EVENT_VALUE.DIRECTION.SHORT,
         [PERPS_EVENT_PROPERTY.ORDER_TYPE]: 'market',
-        [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
+        [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value ?? 1,
         [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
         [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
         ...this.#buildAttributionProperties(trackingData),
@@ -2395,7 +2395,7 @@ export class TradingService {
               ? PERPS_EVENT_VALUE.DIRECTION.LONG
               : PERPS_EVENT_VALUE.DIRECTION.SHORT,
             [PERPS_EVENT_PROPERTY.ORDER_TYPE]: 'market',
-            [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
+            [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value ?? 1,
             [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ACTION]: flipAction,

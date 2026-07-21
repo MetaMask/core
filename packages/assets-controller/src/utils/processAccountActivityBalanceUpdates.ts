@@ -1,12 +1,12 @@
 import type { BalanceUpdate } from '@metamask/core-backend';
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 
 import type {
   AssetBalance,
   AssetMetadata,
   Caip19AssetId,
   DataResponse,
-} from '../types';
+} from '../types.js';
 
 /**
  * Convert AccountActivityMessage balance updates into a {@link DataResponse}

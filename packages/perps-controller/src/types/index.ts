@@ -6,8 +6,8 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { CandlePeriod, TimeDuration } from '../constants/chartConfig';
-import type { CandleData, OrderType } from './perps-types';
+import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type { CandleData, OrderType } from './perps-types.js';
 
 /**
  * Connection states for WebSocket management.
@@ -1961,8 +1961,8 @@ export function isVersionGatedFeatureFlag(
 // These types live in separate files within types/ and need to be accessible
 // from the root barrel via `export * from './types'`.
 // ============================================================================
-export type * from './perps-types';
-export * from './transactionTypes';
+export type * from './perps-types.js';
+export * from './transactionTypes.js';
 // hyperliquid-types: selective export to avoid OrderType clash with main types
 export type {
   AssetPosition,
@@ -1980,4 +1980,4 @@ export type {
   MetaAndAssetCtxsResponse,
   PredictedFundingsResponse,
   SpotMetaResponse,
-} from './hyperliquid-types';
+} from './hyperliquid-types.js';

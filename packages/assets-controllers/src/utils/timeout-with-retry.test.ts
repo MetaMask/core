@@ -1,5 +1,7 @@
-import { flushPromises } from '../../../../tests/helpers';
-import { timeoutWithRetry } from './timeout-with-retry';
+import { jest } from '@jest/globals';
+
+import { flushPromises } from '../../../../tests/helpers.js';
+import { timeoutWithRetry } from './timeout-with-retry.js';
 
 describe('timeoutWithRetry', () => {
   const timeout = 1000;

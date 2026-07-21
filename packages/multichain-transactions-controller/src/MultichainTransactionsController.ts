@@ -24,7 +24,7 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import type { MultichainTransactionsControllerMethodActions } from './MultichainTransactionsController-method-action-types';
+import type { MultichainTransactionsControllerMethodActions } from './MultichainTransactionsController-method-action-types.js';
 
 const controllerName = 'MultichainTransactionsController';
 
@@ -451,9 +451,7 @@ export class MultichainTransactionsController extends BaseController<
 
     this.update((state) => {
       Object.entries(updatedTransactions).forEach(([accountId, chainsData]) => {
-        if (!state.nonEvmTransactions[accountId]) {
-          state.nonEvmTransactions[accountId] = {};
-        }
+        state.nonEvmTransactions[accountId] ??= {};
 
         Object.entries(chainsData).forEach(([chain, transactions]) => {
           state.nonEvmTransactions[accountId][chain as CaipChainId] = {

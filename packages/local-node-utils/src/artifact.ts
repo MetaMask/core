@@ -1,7 +1,7 @@
 /* eslint-disable import-x/no-nodejs-modules */
 import { createHash } from 'node:crypto';
 
-import type { ArtifactConfig, ArtifactPlatformConfig } from './types';
+import type { ArtifactConfig, ArtifactPlatformConfig } from './types.js';
 
 export function mergeArtifactConfig(
   defaults: ArtifactConfig,

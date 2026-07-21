@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ChainId, toChecksumHexAddress } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -17,22 +18,25 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 import { add0x, KnownCaipNamespace } from '@metamask/utils';
 import type { Patch } from 'immer';
 
-import { flushPromises } from '../../../tests/helpers';
-import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
+import { flushPromises } from '../../../tests/helpers.js';
+import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil.js';
 import type {
   AbstractTokenPricesService,
   EvmAssetWithMarketData,
-} from './token-prices-service/abstract-token-prices-service';
-import { ZERO_ADDRESS } from './token-prices-service/codefi-v2';
-import { controllerName, TokenRatesController } from './TokenRatesController';
+} from './token-prices-service/abstract-token-prices-service.js';
+import { ZERO_ADDRESS } from './token-prices-service/codefi-v2.js';
+import {
+  controllerName,
+  TokenRatesController,
+} from './TokenRatesController.js';
 import type {
   MarketDataDetails,
   Token,
   TokenRatesControllerMessenger,
   TokenRatesControllerState,
-} from './TokenRatesController';
-import { getDefaultTokensState } from './TokensController';
-import type { TokensControllerState } from './TokensController';
+} from './TokenRatesController.js';
+import { getDefaultTokensState } from './TokensController.js';
+import type { TokensControllerState } from './TokensController.js';
 
 const defaultSelectedAddress = '0x1111111111111111111111111111111111111111';
 
@@ -112,8 +116,7 @@ describe('TokenRatesController', () => {
     it('should not fail if tokenPricesService does not have setNativeAssetIdentifiers', async () => {
       const tokenPricesService = buildMockTokenPricesService();
       // Explicitly remove setNativeAssetIdentifiers to simulate an old service
-      delete (tokenPricesService as Partial<AbstractTokenPricesService>)
-        .setNativeAssetIdentifiers;
+      delete tokenPricesService.setNativeAssetIdentifiers;
 
       await withController(
         {

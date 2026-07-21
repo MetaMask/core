@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
-import type { ClaimStatusEnum } from './constants';
+import type { ClaimStatusEnum } from './constants.js';
 
 export type Attachment = {
   publicUrl: string;

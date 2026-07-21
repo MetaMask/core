@@ -1,17 +1,19 @@
+import { jest } from '@jest/globals';
+
 import {
   KnownNotifications,
   KnownRpcMethods,
   KnownSessionProperties,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-} from './constants';
+} from './constants.js';
 import {
   isSupportedAccount,
   isSupportedMethod,
   isSupportedNotification,
   isSupportedScopeString,
   isSupportedSessionProperty,
-} from './supported';
+} from './supported.js';
 
 describe('Scope Support', () => {
   describe('isSupportedNotification', () => {

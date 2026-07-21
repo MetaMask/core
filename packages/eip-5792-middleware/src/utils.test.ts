@@ -1,21 +1,16 @@
+import { jest } from '@jest/globals';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { JsonRpcError, providerErrors } from '@metamask/rpc-errors';
-import type { StructError } from '@metamask/superstruct';
-import { any, validate } from '@metamask/superstruct';
+import { any, object, string } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
-import { EIP5792ErrorCode } from './constants';
-import type { EIP5792Messenger } from './types';
+import { EIP5792ErrorCode } from './constants.js';
+import type { EIP5792Messenger } from './types.js';
 import {
   getAccountKeyringType,
   validateAndNormalizeKeyholder,
   validateParams,
-} from './utils';
-
-jest.mock('@metamask/superstruct', () => ({
-  ...jest.requireActual('@metamask/superstruct'),
-  validate: jest.fn(),
-}));
+} from './utils.js';
 
 describe('getAccountKeyringType', () => {
   const mockMessenger = {
@@ -361,33 +356,19 @@ describe('validateAndNormalizeKeyholder', () => {
 });
 
 describe('validateParams', () => {
-  const validateMock = jest.mocked(validate);
-  const STRUCT_ERROR_MOCK = {
-    failures: () => [
-      {
-        path: ['test1', 'test2'],
-        message: 'test message',
-      },
-      {
-        path: ['test3'],
-        message: 'test message 2',
-      },
-    ],
-  } as StructError;
-
   it('does now throw if superstruct returns no error', () => {
-    validateMock.mockReturnValue([undefined, undefined]);
     expect(() => validateParams({}, any())).not.toThrow();
   });
 
   it('throws if superstruct returns error', () => {
-    validateMock.mockReturnValue([STRUCT_ERROR_MOCK, undefined]);
+    const struct = object({ test1: object({ test2: string() }), test3: string() });
 
-    expect(() => validateParams({}, any())).toThrowErrorMatchingInlineSnapshot(`
+    expect(() => validateParams({ test1: { test2: 42 }, test3: 42 }, struct))
+      .toThrowErrorMatchingInlineSnapshot(`
         "Invalid params
 
-        test1 > test2 - test message
-        test3 - test message 2"
+        test1 > test2 - Expected a string, but received: 42
+        test3 - Expected a string, but received: 42"
       `);
   });
 });

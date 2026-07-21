@@ -3,7 +3,7 @@ import PortStream from 'extension-port-stream';
 import type { Duplex } from 'stream';
 import type { Runtime } from 'webextension-polyfill-ts';
 
-import { createStreamMiddleware, createEngineStream } from '.';
+import { createStreamMiddleware, createEngineStream } from './index.js';
 
 const artificialDelay = async (time = 0): Promise<unknown> =>
   new Promise((resolve) => setTimeout(resolve, time));
@@ -181,7 +181,7 @@ describe('retry logic in middleware connected to a port', () => {
     // Initially sent once
     const responsePromise1 = engineA?.handle(req1);
     // intentionally not awaited
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
     engineA?.handle(req2);
     await artificialDelay();
 
@@ -217,7 +217,7 @@ describe('retry logic in middleware connected to a port', () => {
 
     // Initially sent once, message count at 1
     // intentionally not awaited
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
     engineA?.handle(req);
     await artificialDelay();
     expect(messages).toHaveLength(1);
@@ -268,7 +268,7 @@ describe('retry logic in middleware connected to a port', () => {
 
     // Initially sent once, message count at 1
     // intentionally not awaited
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
     engineA?.handle(req);
     await artificialDelay();
     expect(messages).toHaveLength(1);

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { AddressBookControllerState } from '@metamask/address-book-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -9,7 +10,7 @@ import type {
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 import { strict as assert } from 'assert';
-import nock, { cleanAll, isDone, pendingMocks } from 'nock';
+import nock from 'nock';
 
 import {
   ListNames,
@@ -25,27 +26,30 @@ import {
   SECURITY_ALERTS_BASE_URL,
   ADDRESS_SCAN_ENDPOINT,
   APPROVALS_ENDPOINT,
-} from './PhishingController';
+} from './PhishingController.js';
 import type {
   PhishingControllerOptions,
   BulkPhishingDetectionScanResponse,
   PhishingControllerMessenger,
-} from './PhishingController';
+} from './PhishingController.js';
 import {
   createMockStateChangePayload,
   createMockTransaction,
   formatHostnameToUrl,
   TEST_ADDRESSES,
-} from './tests/utils';
-import type { PhishingDetectionScanResult, AddressScanResult } from './types';
+} from './tests/utils.js';
+import type {
+  PhishingDetectionScanResult,
+  AddressScanResult,
+} from './types.js';
 import {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
   ApprovalResultType,
   ApprovalFeatureType,
-} from './types';
-import { getHostnameFromUrl } from './utils';
+} from './types.js';
+import { getHostnameFromUrl } from './utils.js';
 
 const controllerName = 'PhishingController';
 
@@ -187,7 +191,7 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>): {
 describe('PhishingController', () => {
   afterEach(() => {
     jest.useRealTimers();
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('should have no default phishing lists', () => {
@@ -579,7 +583,7 @@ describe('PhishingController', () => {
         },
       });
 
-      cleanAll();
+      nock.cleanAll();
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
@@ -2478,7 +2482,7 @@ describe('PhishingController', () => {
 
   describe('PhishingController - isBlockedRequest', () => {
     afterEach(() => {
-      cleanAll();
+      nock.cleanAll();
     });
 
     it('should return false if c2DomainBlocklist is not defined or empty', async () => {
@@ -3672,7 +3676,7 @@ describe('PhishingController', () => {
         label: '',
       });
       expect(scope.isDone()).toBe(false);
-      cleanAll();
+      nock.cleanAll();
     });
 
     it('will normalize address to lowercase', async () => {
@@ -3979,7 +3983,7 @@ describe('URL Scan Cache', () => {
   });
   afterEach(() => {
     jest.useRealTimers();
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('should cache scan results and return them on subsequent calls', async () => {

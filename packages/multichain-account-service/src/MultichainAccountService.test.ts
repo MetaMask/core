@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Bip44Account, isBip44Account } from '@metamask/account-api';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type {
@@ -15,33 +16,33 @@ import type { Keyring } from '@metamask/keyring-api/v2';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
 
-import { traceFallback } from './analytics';
-import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
+import { traceFallback } from './analytics/index.js';
+import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf.js';
 import type {
   MultichainAccountServiceOptions,
   RemoveMultichainAccountWalletFailureContext,
-} from './MultichainAccountService';
-import { MultichainAccountService } from './MultichainAccountService';
-import type { Bip44AccountProvider } from './providers';
-import { TimeoutError } from './providers';
-import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
+} from './MultichainAccountService.js';
+import { MultichainAccountService } from './MultichainAccountService.js';
+import { AccountProviderWrapper } from './providers/AccountProviderWrapper.js';
 import {
   BTC_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
-} from './providers/BtcAccountProvider';
+} from './providers/BtcAccountProvider.js';
 import {
   EVM_ACCOUNT_PROVIDER_NAME,
   EvmAccountProvider,
-} from './providers/EvmAccountProvider';
+} from './providers/EvmAccountProvider.js';
+import type { Bip44AccountProvider } from './providers/index.js';
+import { TimeoutError } from './providers/index.js';
 import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
-} from './providers/SolAccountProvider';
+} from './providers/SolAccountProvider.js';
 import {
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
-} from './providers/TrxAccountProvider';
-import type { RootMessenger, MockAccountProvider } from './tests';
+} from './providers/TrxAccountProvider.js';
+import type { RootMessenger, MockAccountProvider } from './tests/index.js';
 import {
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
@@ -51,7 +52,7 @@ import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_SOL_ACCOUNT_1,
   MockAccountBuilder,
-} from './tests';
+} from './tests/index.js';
 import {
   MOCK_HD_KEYRING_1,
   MOCK_HD_KEYRING_2,
@@ -59,9 +60,9 @@ import {
   getRootMessenger,
   makeMockAccountProvider,
   setupBip44AccountProvider,
-} from './tests';
-import type { MultichainAccountServiceMessenger } from './types';
-import type { SentryError } from './utils';
+} from './tests/index.js';
+import type { MultichainAccountServiceMessenger } from './types.js';
+import type { SentryError } from './utils.js';
 
 // Mock perf helpers so tests can control isPerfEnabled() without setting DEBUG env var.
 jest.mock('./analytics/perf', () => ({

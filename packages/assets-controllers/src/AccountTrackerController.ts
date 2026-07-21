@@ -42,22 +42,22 @@ import type {
 import { assert, KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import { cloneDeep, isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash-es';
 
-import type { AccountTrackerControllerMethodActions } from './AccountTrackerController-method-action-types';
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import type { AccountTrackerControllerMethodActions } from './AccountTrackerController-method-action-types.js';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController.js';
 import type {
   AssetsContractController,
   StakedBalance,
-} from './AssetsContractController';
-import { shouldIncludeNativeToken } from './constants';
-import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+} from './AssetsContractController.js';
+import { shouldIncludeNativeToken } from './constants.js';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher.js';
 import type {
   BalanceFetcher,
   BalanceFetchResult,
   ProcessedBalance,
-} from './multi-chain-accounts-service/api-balance-fetcher';
-import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
+} from './multi-chain-accounts-service/api-balance-fetcher.js';
+import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher.js';
 
 /**
  * The name of the {@link AccountTrackerController}.
@@ -506,11 +506,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
     Object.keys(accountsByChainId).forEach((chainId) => {
       newAddresses.forEach((address) => {
-        if (!accountsByChainId[chainId][address]) {
-          accountsByChainId[chainId][address] = {
-            balance: '0x0',
-          };
-        }
+        accountsByChainId[chainId][address] ??= {
+          balance: '0x0',
+        };
       });
     });
 

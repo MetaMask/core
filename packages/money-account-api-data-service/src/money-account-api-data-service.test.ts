@@ -5,15 +5,15 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll as nockCleanAll } from 'nock';
+import nock from 'nock';
 
-import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants';
-import { MoneyAccountApiResponseValidationError } from './errors';
-import type { MoneyAccountApiDataServiceMessenger } from './money-account-api-data-service';
+import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants.js';
+import { MoneyAccountApiResponseValidationError } from './errors.js';
+import type { MoneyAccountApiDataServiceMessenger } from './money-account-api-data-service.js';
 import {
   MoneyAccountApiDataService,
   serviceName,
-} from './money-account-api-data-service';
+} from './money-account-api-data-service.js';
 
 // ============================================================
 // Fixtures
@@ -159,7 +159,7 @@ function createService(env: Env = Env.DEV): {
 
 describe('MoneyAccountApiDataService', () => {
   afterEach(() => {
-    nockCleanAll();
+    nock.cleanAll();
   });
 
   describe('constructor', () => {

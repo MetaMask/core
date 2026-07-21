@@ -1,5 +1,5 @@
-import cli from './cli';
-import { commands } from './commands';
+import cli from './cli.js';
+import { commands } from './commands.js';
 
 jest.mock('./cli');
 

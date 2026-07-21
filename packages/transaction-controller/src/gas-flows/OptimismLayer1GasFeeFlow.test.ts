@@ -1,12 +1,13 @@
+import { jest } from '@jest/globals';
 import * as ControllerUtils from '@metamask/controller-utils';
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { CHAIN_IDS } from '../constants';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta } from '../types';
-import { TransactionStatus } from '../types';
-import { OptimismLayer1GasFeeFlow } from './OptimismLayer1GasFeeFlow';
+import { CHAIN_IDS } from '../constants.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { TransactionStatus } from '../types.js';
+import { OptimismLayer1GasFeeFlow } from './OptimismLayer1GasFeeFlow.js';
 
 jest.mock('@metamask/controller-utils', () => {
   const actual = jest.requireActual('@metamask/controller-utils');

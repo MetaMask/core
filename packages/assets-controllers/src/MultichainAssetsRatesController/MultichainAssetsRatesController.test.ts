@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { CaipAssetType } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
@@ -15,9 +16,9 @@ import type {
 import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
 import { v4 as uuidv4 } from 'uuid';
 
-import { MultichainAssetsRatesController } from '.';
-import { jestAdvanceTime } from '../../../../tests/helpers';
-import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
+import { jestAdvanceTime } from '../../../../tests/helpers.js';
+import { MultichainAssetsRatesController } from './index.js';
+import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController.js';
 
 type AllMultichainAssetsRateControllerActions =
   MessengerActions<MultichainAssetsRatesControllerMessenger>;

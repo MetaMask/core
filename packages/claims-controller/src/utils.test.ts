@@ -1,4 +1,6 @@
-import { getErrorFromResponse, createSentryError } from './utils';
+import { jest } from '@jest/globals';
+
+import { getErrorFromResponse, createSentryError } from './utils.js';
 
 describe('getErrorFromResponse', () => {
   it('returns error with message from JSON response', async () => {

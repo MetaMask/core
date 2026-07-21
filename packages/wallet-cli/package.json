@@ -22,6 +22,7 @@
     "bin/",
     "dist/"
   ],
+  "type": "module",
   "sideEffects": false,
   "exports": {
     "./package.json": "./package.json"
@@ -31,8 +32,8 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet-cli",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/wallet-cli",
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
@@ -62,7 +63,6 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",

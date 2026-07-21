@@ -1,16 +1,16 @@
 import type { AddressBookEntry } from '@metamask/address-book-controller';
 
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
-import { TraceName } from '../constants';
-import { canPerformContactSyncing } from './sync-utils';
-import type { ContactSyncingOptions } from './types';
-import type { UserStorageContactEntry } from './types';
-import type { SyncAddressBookEntry } from './utils';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema.js';
+import { TraceName } from '../constants.js';
+import { canPerformContactSyncing } from './sync-utils.js';
+import type { ContactSyncingOptions } from './types.js';
+import type { UserStorageContactEntry } from './types.js';
+import type { SyncAddressBookEntry } from './utils.js';
 import {
   mapAddressBookEntryToUserStorageEntry,
   mapUserStorageEntryToAddressBookEntry,
-} from './utils';
-import { isContactBridgedFromAccounts } from './utils';
+} from './utils.js';
+import { isContactBridgedFromAccounts } from './utils.js';
 
 export type SyncContactsWithUserStorageConfig = {
   onContactSyncErroneousSituation?: (
@@ -81,7 +81,7 @@ export async function syncContactsWithUserStorage(
       .filter((contact) => !isContactBridgedFromAccounts(contact))
       .filter(
         (contact) => contact.address && contact.chainId && contact.name?.trim(),
-      ) || [];
+      ) ?? [];
 
   // Get remote contacts from user storage API
   const remoteContacts = await getRemoteContacts(options);
@@ -90,7 +90,7 @@ export async function syncContactsWithUserStorage(
   const validRemoteContacts =
     remoteContacts?.filter(
       (contact) => contact.address && contact.chainId && contact.name?.trim(),
-    ) || [];
+    ) ?? [];
 
   const performSync = async () => {
     try {
@@ -140,8 +140,8 @@ export async function syncContactsWithUserStorage(
 
           if (hasContentDifference) {
             // Check timestamps to determine which version to keep
-            const localTimestamp = localContact.lastUpdatedAt || 0;
-            const remoteTimestamp = remoteContact.lastUpdatedAt || 0;
+            const localTimestamp = localContact.lastUpdatedAt ?? 0;
+            const remoteTimestamp = remoteContact.lastUpdatedAt ?? 0;
 
             if (localTimestamp >= remoteTimestamp) {
               // Local is newer (or same age) - use local version
@@ -192,9 +192,9 @@ export async function syncContactsWithUserStorage(
           getMessenger().call(
             'AddressBookController:set',
             contact.address,
-            contact.name || '',
+            contact.name ?? '',
             contact.chainId,
-            contact.memo || '',
+            contact.memo ?? '',
             contact.addressType,
           );
 
@@ -383,8 +383,8 @@ export async function updateContactInRemoteStorage(
     // Create an updated entry with timestamp
     const updatedEntry = {
       ...contact,
-      lastUpdatedAt: contact.lastUpdatedAt || Date.now(),
-    } as SyncAddressBookEntry;
+      lastUpdatedAt: contact.lastUpdatedAt ?? Date.now(),
+    };
 
     const key = createContactKey(contact);
     const storageEntry = mapAddressBookEntryToUserStorageEntry(updatedEntry);
@@ -461,7 +461,7 @@ export async function deleteContactInRemoteStorage(
           ...existingContact,
           deletedAt: now,
           lastUpdatedAt: now,
-        } as SyncAddressBookEntry;
+        };
 
         const deletedStorageEntry =
           mapAddressBookEntryToUserStorageEntry(deletedContact);

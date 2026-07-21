@@ -1,6 +1,6 @@
-import cli from './cli';
-import { commands, commandMap } from './commands';
-import * as utils from './utils';
+import cli from './cli.js';
+import { commands, commandMap } from './commands.js';
+import * as utils from './utils.js';
 
 jest.mock('./utils');
 

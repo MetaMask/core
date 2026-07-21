@@ -1,10 +1,11 @@
+import { jest } from '@jest/globals';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import type { NetworkClient } from '@metamask/network-controller';
 import EventEmitter from 'events';
 
-import type { BlockTrackerPollingInput } from './BlockTrackerPollingController';
-import { BlockTrackerPollingController } from './BlockTrackerPollingController';
+import type { BlockTrackerPollingInput } from './BlockTrackerPollingController.js';
+import { BlockTrackerPollingController } from './BlockTrackerPollingController.js';
 
 const createExecutePollMock = () => {
   const executePollMock = jest.fn().mockImplementation(async () => {

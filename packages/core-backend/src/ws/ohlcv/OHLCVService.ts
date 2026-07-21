@@ -15,16 +15,16 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import { Mutex } from 'async-mutex';
 
-import { projectLogger, createModuleLogger } from '../../logger';
+import { projectLogger, createModuleLogger } from '../../logger.js';
+import type { BackendWebSocketServiceMethodActions } from '../BackendWebSocketService-method-action-types.js';
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
   ServerNotificationMessage,
-} from '../BackendWebSocketService';
-import { WebSocketState } from '../BackendWebSocketService';
-import type { BackendWebSocketServiceMethodActions } from '../BackendWebSocketService-method-action-types';
-import type { OHLCVServiceMethodActions } from './OHLCVService-method-action-types';
-import type { OHLCVBar, OHLCVSubscriptionOptions } from './types';
+} from '../BackendWebSocketService.js';
+import { WebSocketState } from '../BackendWebSocketService.js';
+import type { OHLCVServiceMethodActions } from './OHLCVService-method-action-types.js';
+import type { OHLCVBar, OHLCVSubscriptionOptions } from './types.js';
 
 // =============================================================================
 // Constants
@@ -184,7 +184,7 @@ export class OHLCVService {
 
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       (connectionInfo: WebSocketConnectionInfo) =>
         this.#handleWebSocketStateChange(connectionInfo),
     );
@@ -442,7 +442,6 @@ export class OHLCVService {
   ): void {
     const bar = notification.data as OHLCVBar;
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#trace(
       {
         name: `${SERVICE_NAME} Bar Update`,

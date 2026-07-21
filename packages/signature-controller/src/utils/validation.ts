@@ -15,8 +15,8 @@ import type {
   MessageParamsTyped,
   MessageParamsTypedData,
   OriginalRequest,
-} from '../types';
-import { isDelegationRequest } from './delegations';
+} from '../types.js';
+import { isDelegationRequest } from './delegations.js';
 
 export const PRIMARY_TYPE_DELEGATION = 'Delegation';
 export const DELEGATOR_FIELD = 'delegator';
@@ -87,9 +87,7 @@ export function validateTypedSignatureRequest({
 function validateTypedSignatureRequestV1(messageData: MessageParamsTyped) {
   if (!messageData.data || !Array.isArray(messageData.data)) {
     throw new Error(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `Invalid message "data": ${messageData.data} must be a valid array.`,
+      `Invalid message "data": ${JSON.stringify(messageData.data)} must be a valid array.`,
     );
   }
 

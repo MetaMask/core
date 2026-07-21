@@ -1,4 +1,5 @@
 import type { Network } from '@ethersproject/providers';
+import { jest } from '@jest/globals';
 import type {
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
@@ -40,31 +41,31 @@ import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import { v4 } from 'uuid';
 
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
+} from '../../network-controller/tests/helpers.js';
 import type {
   AssetsContractControllerGetERC1155TokenURIAction,
   AssetsContractControllerGetERC721AssetNameAction,
   AssetsContractControllerGetERC721AssetSymbolAction,
   AssetsContractControllerGetERC721TokenURIAction,
-} from './AssetsContractController';
-import { getFormattedIpfsUrl } from './assetsUtil';
-import { Source } from './constants';
-import type { NftOwnershipResult } from './multicall';
-import { getNftOwnershipForMultipleNfts } from './multicall';
+} from './AssetsContractController.js';
+import { getFormattedIpfsUrl } from './assetsUtil.js';
+import { Source } from './constants.js';
+import type { NftOwnershipResult } from './multicall.js';
+import { getNftOwnershipForMultipleNfts } from './multicall.js';
 import type {
   Nft,
   NftControllerState,
   NftControllerMessenger,
   NFTStandardType,
   NftMetadata,
-} from './NftController';
-import { NftController } from './NftController';
-import type { Collection } from './NftDetectionController';
+} from './NftController.js';
+import { NftController } from './NftController.js';
+import type { Collection } from './NftDetectionController.js';
 
 type AllActions =
   | MessengerActions<NftControllerMessenger>
@@ -1183,8 +1184,8 @@ describe('NftController', () => {
       });
 
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      nftController.watchNft(
+
+      void nftController.watchNft(
         ERC721_NFT,
         ERC721,
         'https://etherscan.io',
@@ -1198,7 +1199,7 @@ describe('NftController', () => {
 
       // now accept the request
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
       approvalController.acceptRequest(requestId);
       await acceptedRequest;
 
@@ -1289,8 +1290,8 @@ describe('NftController', () => {
       });
 
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      nftController.watchNft(
+
+      void nftController.watchNft(
         ERC721_NFT,
         ERC721,
         'https://etherscan.io',
@@ -1310,7 +1311,7 @@ describe('NftController', () => {
       });
       // now accept the request
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
       approvalController.acceptRequest(requestId);
       await acceptedRequest;
 

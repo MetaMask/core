@@ -1,8 +1,8 @@
 import { Interface } from '@ethersproject/abi';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
-import { formatAddressToAssetId } from '../src/mappers/helpers/caip';
-import type { KnownTokenMetadata } from '../src/mappers/helpers/token-metadata';
+import { formatAddressToAssetId } from '../src/mappers/helpers/caip.js';
+import type { KnownTokenMetadata } from '../src/mappers/helpers/token-metadata.js';
 
 const knownTokens: Record<
   string,

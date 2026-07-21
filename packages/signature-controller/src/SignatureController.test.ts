@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { SIWEMessage } from '@metamask/controller-utils';
 import { detectSIWE, ORIGIN_METAMASK } from '@metamask/controller-utils';
@@ -5,26 +6,26 @@ import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { LogType, SigningStage } from '@metamask/logging-controller';
 import { v1 } from 'uuid';
 
-import { flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers.js';
 import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
   SignatureControllerState,
-} from './SignatureController';
-import { SignatureController } from './SignatureController';
+} from './SignatureController.js';
+import { SignatureController } from './SignatureController.js';
 import type {
   MessageParamsPersonal,
   MessageParamsTyped,
   OriginalRequest,
   SignatureRequest,
-} from './types';
-import { SignatureRequestStatus, SignatureRequestType } from './types';
-import * as DecodingDataUtils from './utils/decoding-api';
+} from './types.js';
+import { SignatureRequestStatus, SignatureRequestType } from './types.js';
+import * as DecodingDataUtils from './utils/decoding-api.js';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
-} from './utils/normalize';
-import { validateTypedSignatureRequest } from './utils/validation';
+} from './utils/normalize.js';
+import { validateTypedSignatureRequest } from './utils/validation.js';
 
 jest.mock('uuid');
 jest.mock('./utils/validation');

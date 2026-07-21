@@ -7,18 +7,18 @@ import type {
 } from '@metamask/gas-fee-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types.js';
 import type {
   FeeMarketGasFeeEstimates,
   GasPriceGasFeeEstimates,
   LegacyGasFeeEstimates,
-} from '../types';
+} from '../types.js';
 import type {
   GasFeeFlow,
   TransactionMeta,
   FeeMarketGasFeeEstimateForLevel,
-} from '../types';
+} from '../types.js';
 
 type MergeGasFeeEstimatesRequest = {
   gasFeeControllerEstimates:
@@ -64,7 +64,7 @@ export function mergeGasFeeEstimates({
   const transactionEstimateType = transactionGasFeeEstimates.type;
 
   if (transactionEstimateType === GasFeeEstimateType.FeeMarket) {
-    return Object.values(GasFeeEstimateLevel).reduce(
+    return Object.values(GasFeeEstimateLevel).reduce<GasFeeEstimates>(
       (result, level) => ({
         ...result,
         [level]: mergeFeeMarketEstimate(
@@ -77,7 +77,7 @@ export function mergeGasFeeEstimates({
   }
 
   if (transactionEstimateType === GasFeeEstimateType.Legacy) {
-    return Object.values(GasFeeEstimateLevel).reduce(
+    return Object.values(GasFeeEstimateLevel).reduce<LegacyGasPriceEstimate>(
       (result, level) => ({
         ...result,
         [level]: getLegacyEstimate(transactionGasFeeEstimates, level),

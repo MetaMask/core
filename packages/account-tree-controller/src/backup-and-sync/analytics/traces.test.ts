@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import type { TraceRequest } from '@metamask/controller-utils';
 
-import { TraceName, traceFallback } from './traces';
+import { TraceName, traceFallback } from './traces.js';
 
 describe('BackupAndSyncAnalytics - Traces', () => {
   describe('TraceName', () => {

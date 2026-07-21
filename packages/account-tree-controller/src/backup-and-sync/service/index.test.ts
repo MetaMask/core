@@ -1,22 +1,74 @@
+import { jest } from '@jest/globals';
 import { AccountWalletType } from '@metamask/account-api';
 
-import { BackupAndSyncService } from '.';
-import type { AccountGroupObject } from '../../group';
-import type { AccountTreeControllerState } from '../../types';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { TraceName } from '../analytics';
-import { getProfileId } from '../authentication';
-import { performLegacyAccountSyncing, syncWalletMetadata } from '../syncing';
-import type { BackupAndSyncContext } from '../types';
-import { getAllGroupsFromUserStorage } from '../user-storage';
-// We only need to import the functions we actually spy on
-import { createStateSnapshot, getLocalEntropyWallets } from '../utils';
+import type { AccountGroupObject } from '../../group.js';
+import type { AccountTreeControllerState } from '../../types.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { TraceName } from '../analytics/index.js';
+import type { BackupAndSyncContext } from '../types.js';
 
-// Mock the sync functions and all external dependencies
-jest.mock('../syncing');
-jest.mock('../authentication');
-jest.mock('../utils');
-jest.mock('../user-storage');
+jest.unstable_mockModule('../syncing', () => ({
+  syncWalletMetadata: jest.fn(),
+  performLegacyAccountSyncing: jest.fn(),
+  syncGroupMetadata: jest.fn(),
+  syncGroupsMetadata: jest.fn(),
+  createMultichainAccountGroupsBatch: jest.fn(),
+  createLocalGroupsFromUserStorage: jest.fn(),
+  compareAndSyncMetadata: jest.fn(),
+}));
+
+jest.unstable_mockModule('../authentication', () => ({
+  getProfileId: jest.fn(),
+}));
+
+// Import the real createSyncMutationTracker directly from its implementation
+// module (not via the mocked '../utils' barrel) so the mock factory below can
+// use it without triggering a circular import.
+const { createSyncMutationTracker: realCreateSyncMutationTracker } =
+  await import('../utils/mutation-tracker.js');
+
+jest.unstable_mockModule('../utils', () => ({
+  getLocalEntropyWallets: jest.fn(),
+  getLocalGroupForEntropyWallet: jest.fn(),
+  getLocalGroupsForEntropyWallet: jest.fn(),
+  createStateSnapshot: jest.fn(),
+  restoreStateFromSnapshot: jest.fn(),
+  toErrorMessage: jest.fn(),
+  // Use the real tracker so tests observe actual tracker behaviour.
+  createSyncMutationTracker: realCreateSyncMutationTracker,
+}));
+
+jest.unstable_mockModule('../user-storage', () => ({
+  getAllGroupsFromUserStorage: jest.fn(),
+  getWalletFromUserStorage: jest.fn(),
+  pushWalletToUserStorage: jest.fn(),
+  getGroupFromUserStorage: jest.fn(),
+  pushGroupToUserStorage: jest.fn(),
+  pushGroupToUserStorageBatch: jest.fn(),
+  getAllLegacyUserStorageAccounts: jest.fn(),
+  formatWalletForUserStorageUsage: jest.fn(),
+  formatGroupForUserStorageUsage: jest.fn(),
+  parseWalletFromUserStorageResponse: jest.fn(),
+  parseGroupFromUserStorageResponse: jest.fn(),
+  parseLegacyAccountFromUserStorageResponse: jest.fn(),
+  executeWithRetry: jest.fn(),
+  assertValidUserStorageWallet: jest.fn(),
+  assertValidUserStorageGroup: jest.fn(),
+  assertValidLegacyUserStorageAccount: jest.fn(),
+}));
+
+const { getProfileId } = await import('../authentication/index.js');
+const {
+  performLegacyAccountSyncing,
+  syncWalletMetadata,
+} = await import('../syncing/index.js');
+const { getAllGroupsFromUserStorage } = await import('../user-storage/index.js');
+const {
+  createStateSnapshot,
+  getLocalEntropyWallets,
+  createSyncMutationTracker,
+} = await import('../utils/index.js');
+const { BackupAndSyncService } = await import('./index.js');
 
 // Get typed mocks for the functions we want to spy on
 const mockGetProfileId = getProfileId as jest.MockedFunction<
@@ -38,12 +90,6 @@ const mockGetAllGroupsFromUserStorage =
 const mockCreateStateSnapshot = createStateSnapshot as jest.MockedFunction<
   typeof createStateSnapshot
 >;
-
-// `jest.mock('../utils')` auto-mocks every export, including the tracker
-// factory. Grab the real one so tests use the actual tracker behaviour rather
-// than a hand-rolled duplicate.
-const { createSyncMutationTracker } =
-  jest.requireActual<typeof import('../utils')>('../utils');
 
 describe('BackupAndSync - Service - BackupAndSyncService', () => {
   let mockContext: BackupAndSyncContext;

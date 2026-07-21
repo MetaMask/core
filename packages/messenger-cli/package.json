@@ -21,14 +21,15 @@
   "files": [
     "dist/"
   ],
+  "type": "module",
   "sideEffects": false,
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/messenger-cli",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/messenger-cli",
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
@@ -45,7 +46,6 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/yargs": "^17.0.32",
     "deepmerge": "^4.2.2",

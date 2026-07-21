@@ -8,8 +8,8 @@ import type { Json } from '@metamask/utils';
 import {
   AbstractPollingControllerBaseMixin,
   getKey,
-} from './AbstractPollingController';
-import type { Constructor, PollingTokenSetId } from './types';
+} from './AbstractPollingController.js';
+import type { Constructor, PollingTokenSetId } from './types.js';
 
 /**
  * The minimum input required to start polling for a {@link BlockTrackerPollingController}.
@@ -54,7 +54,7 @@ function BlockTrackerPollingControllerMixin<
       if (networkClient) {
         const updateOnNewBlock = this._executePoll.bind(this, input);
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         networkClient.blockTracker.addListener('latest', updateOnNewBlock);
         this.#activeListeners[key] = updateOnNewBlock;
       } else {
@@ -74,7 +74,7 @@ function BlockTrackerPollingControllerMixin<
         const listener = this.#activeListeners[key];
         if (listener) {
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
           networkClient.blockTracker.removeListener('latest', listener);
           delete this.#activeListeners[key];
         }

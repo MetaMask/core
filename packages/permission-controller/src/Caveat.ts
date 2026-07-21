@@ -4,16 +4,16 @@ import { hasProperty } from '@metamask/utils';
 import {
   CaveatSpecificationMismatchError,
   UnrecognizedCaveatTypeError,
-} from './errors';
+} from './errors.js';
 import type {
   AsyncRestrictedMethod,
   RestrictedMethod,
   PermissionConstraint,
   RestrictedMethodParameters,
-} from './Permission';
-import { PermissionType } from './Permission';
+} from './Permission.js';
+import { PermissionType } from './Permission.js';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { PermissionController } from './PermissionController';
+import type { PermissionController } from './PermissionController.js';
 
 export type CaveatConstraint = {
   /**

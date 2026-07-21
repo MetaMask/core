@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import {
   createNativeTokenStreamingTerms,
   createTimestampTerms,
@@ -12,7 +13,7 @@ import {
 import { hexToBigInt, numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { DELEGATION_FRAMEWORK_VERSION } from './constants';
+import { DELEGATION_FRAMEWORK_VERSION } from './constants.js';
 import {
   encodeDisabledDelegationsCalldata,
   getExpiryFromDelegation,
@@ -20,8 +21,8 @@ import {
   readLatestBlockTimestampSeconds,
   resolveGrantedPermissionOnChainStatus,
   updateGrantedPermissionsStatus,
-} from './permissionOnChainStatus';
-import type { PermissionInfoWithMetadata } from './types';
+} from './permissionOnChainStatus.js';
+import type { PermissionInfoWithMetadata } from './types.js';
 
 const contracts =
   DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][CHAIN_ID.sepolia];

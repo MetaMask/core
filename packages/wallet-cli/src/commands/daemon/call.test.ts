@@ -1,6 +1,8 @@
-import { sendCommand } from '../../daemon/daemon-client';
-import { runCommand } from '../../test/run-command';
-import DaemonCall from './call';
+import { jest } from '@jest/globals';
+
+import { sendCommand } from '../../daemon/daemon-client.js';
+import { runCommand } from '../../test/run-command.js';
+import DaemonCall from './call.js';
 
 jest.mock('../../daemon/daemon-client');
 

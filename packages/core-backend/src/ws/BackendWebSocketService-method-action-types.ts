@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { BackendWebSocketService } from './BackendWebSocketService';
+import type { BackendWebSocketService } from './BackendWebSocketService.js';
 
 /**
  * Establishes WebSocket connection with smart reconnection behavior

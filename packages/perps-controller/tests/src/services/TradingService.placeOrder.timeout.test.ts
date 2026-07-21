@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+
 /* eslint-disable */
 import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig';
 import { TradingService } from '../../../src/services/TradingService';

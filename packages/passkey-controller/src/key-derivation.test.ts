@@ -1,9 +1,9 @@
-import { PasskeyControllerErrorMessage } from './constants';
-import { deriveKeyFromAuthenticationResponse } from './key-derivation';
-import { PasskeyRecord } from './types';
-import { deriveEncryptionKey } from './utils/crypto';
-import { base64URLToBytes } from './utils/encoding';
-import type { PasskeyAuthenticationResponse } from './webauthn/types';
+import { PasskeyControllerErrorMessage } from './constants.js';
+import { deriveKeyFromAuthenticationResponse } from './key-derivation.js';
+import { PasskeyRecord } from './types.js';
+import { deriveEncryptionKey } from './utils/crypto.js';
+import { base64URLToBytes } from './utils/encoding.js';
+import type { PasskeyAuthenticationResponse } from './webauthn/types.js';
 
 function b64url(str: string): string {
   return btoa(str)

@@ -18,27 +18,31 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import { toProviderDataTraces, traceFallback, TraceName } from './analytics';
-import { reportError } from './errors';
-import type { Logger } from './logger';
+import {
+  toProviderDataTraces,
+  traceFallback,
+  TraceName,
+} from './analytics/index.js';
+import { reportError } from './errors.js';
+import type { Logger } from './logger.js';
 import {
   createModuleLogger,
   ERROR_PREFIX,
   projectLogger as log,
   WARNING_PREFIX,
-} from './logger';
-import type { GroupState } from './MultichainAccountGroup';
-import { MultichainAccountGroup } from './MultichainAccountGroup';
-import type { ServiceState, StateKeys } from './MultichainAccountService';
-import type { Bip44AccountProvider } from './providers';
-import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import type { MultichainAccountServiceMessenger } from './types';
+} from './logger.js';
+import type { GroupState } from './MultichainAccountGroup.js';
+import { MultichainAccountGroup } from './MultichainAccountGroup.js';
+import type { ServiceState, StateKeys } from './MultichainAccountService.js';
+import { EvmAccountProvider } from './providers/EvmAccountProvider.js';
+import type { Bip44AccountProvider } from './providers/index.js';
+import type { MultichainAccountServiceMessenger } from './types.js';
 import {
   assertGroupIndexIsValid,
   assertGroupIndexRangeIsValid,
   GroupIndexRange,
   toErrorMessage,
-} from './utils';
+} from './utils.js';
 
 /**
  * The context for a provider discovery.
@@ -758,7 +762,6 @@ export class MultichainAccountWallet<
         this.#log('Aligned accounts! (post)');
       };
 
-      // eslint-disable-next-line no-void
       void alignOtherAccounts().catch((error) => {
         const errorMessage = `Unable to align non-EVM accounts from group index ${from} to ${to}`;
         this.#log(

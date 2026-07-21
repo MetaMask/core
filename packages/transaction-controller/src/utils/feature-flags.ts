@@ -1,10 +1,10 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { isValidSignature } from './signature';
-import { padHexToEvenLength } from './utils';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { isValidSignature } from './signature.js';
+import { padHexToEvenLength } from './utils.js';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;

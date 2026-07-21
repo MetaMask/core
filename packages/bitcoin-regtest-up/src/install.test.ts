@@ -23,8 +23,8 @@ import {
   installBitcoinRegtest,
   parseBitcoinRegtestInstallCliOptions,
   readBitcoinRegtestInstallOptionsFromPackageJson,
-} from './install';
-import type { BitcoinRegtestInstallDependencies } from './install';
+} from './install.js';
+import type { BitcoinRegtestInstallDependencies } from './install.js';
 
 describe('bitcoin-regtest-up installer', () => {
   let tempDirs: string[] = [];

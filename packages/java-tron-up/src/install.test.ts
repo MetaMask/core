@@ -23,8 +23,8 @@ import {
   installJavaTron,
   parseJavaTronInstallCliOptions,
   readJavaTronInstallOptionsFromPackageJson,
-} from './install';
-import type { JavaTronInstallDependencies } from './install';
+} from './install.js';
+import type { JavaTronInstallDependencies } from './install.js';
 
 describe('java-tron-up installer', () => {
   let tempDirs: string[] = [];

@@ -1,10 +1,12 @@
-/* eslint-disable no-void */
-import { backupAndSyncLogger } from '../../logger';
-import { AtomicSyncQueue } from './atomic-sync-queue';
+import { jest } from '@jest/globals';
 
-jest.mock('../../logger', () => ({
+jest.unstable_mockModule('../../logger', () => ({
+  projectLogger: jest.fn(),
   backupAndSyncLogger: jest.fn(),
 }));
+
+const { backupAndSyncLogger } = await import('../../logger.js');
+const { AtomicSyncQueue } = await import('./atomic-sync-queue.js');
 
 const mockBackupAndSyncLogger = backupAndSyncLogger as jest.MockedFunction<
   typeof backupAndSyncLogger

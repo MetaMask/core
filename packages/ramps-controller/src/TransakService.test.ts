@@ -1,22 +1,23 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll, isDone } from 'nock';
+import nock from 'nock';
 
-import { flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers.js';
 import type {
   TransakServiceMessenger,
   TransakAccessToken,
-} from './TransakService';
+} from './TransakService.js';
 import {
   TransakService,
   TransakEnvironment,
   TransakOrderIdTransformer,
   TransakApiError,
-} from './TransakService';
+} from './TransakService.js';
 
 // === Test Constants ===
 
@@ -287,7 +288,7 @@ describe('TransakService', () => {
 
   afterEach(() => {
     jest.useRealTimers();
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe('constructor', () => {
@@ -318,7 +319,7 @@ describe('TransakService', () => {
       await jest.runAllTimersAsync();
       await flushPromises();
       await promise;
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('uses production URLs when environment is Production', async () => {
@@ -336,7 +337,7 @@ describe('TransakService', () => {
       await jest.runAllTimersAsync();
       await flushPromises();
       await promise;
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('stores the initial API key when provided', () => {
@@ -2157,7 +2158,7 @@ describe('TransakService', () => {
       await flushPromises();
 
       expect(await promise).toStrictEqual([]);
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('collects individual cancel errors instead of throwing', async () => {

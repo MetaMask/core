@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import {
   DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
@@ -6,11 +7,11 @@ import {
 import { errorCodes } from '@metamask/rpc-errors';
 import nock from 'nock';
 
+import { RpcServiceChain } from './rpc-service-chain.js';
 import {
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
-} from './rpc-service';
-import { RpcServiceChain } from './rpc-service-chain';
+} from './rpc-service.js';
 
 /**
  * The number of fetch requests made for a single request to an RPC service, using default max

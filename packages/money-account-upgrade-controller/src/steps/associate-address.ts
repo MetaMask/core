@@ -1,8 +1,8 @@
 import type { Hex } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 
-import { equalsIgnoreCase } from './delegation-matchers';
-import type { Step } from './step';
+import { equalsIgnoreCase } from './delegation-matchers.js';
+import type { Step } from './step.js';
 
 /**
  * Determines whether an error is a CHOMP conflict (HTTP 409) response.

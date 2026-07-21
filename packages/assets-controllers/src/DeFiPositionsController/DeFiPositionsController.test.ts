@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { BtcAccountType, EthAccountType } from '@metamask/keyring-api';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
@@ -7,20 +8,20 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import { flushPromises } from '../../../../tests/helpers';
-import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
+import { flushPromises } from '../../../../tests/helpers.js';
+import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks.js';
 import type {
   InternalAccount,
   TransactionMeta,
-} from '../../../transaction-controller/src/types';
-import * as calculateDefiMetrics from './calculate-defi-metrics';
-import type { DeFiPositionsControllerMessenger } from './DeFiPositionsController';
+} from '../../../transaction-controller/src/types.js';
+import * as calculateDefiMetrics from './calculate-defi-metrics.js';
+import type { DeFiPositionsControllerMessenger } from './DeFiPositionsController.js';
 import {
   DeFiPositionsController,
   getDefaultDefiPositionsControllerState,
-} from './DeFiPositionsController';
-import * as fetchPositions from './fetch-positions';
-import * as groupDeFiPositions from './group-defi-positions';
+} from './DeFiPositionsController.js';
+import * as fetchPositions from './fetch-positions.js';
+import * as groupDeFiPositions from './group-defi-positions.js';
 
 const GROUP_ACCOUNTS = [
   createMockInternalAccount({

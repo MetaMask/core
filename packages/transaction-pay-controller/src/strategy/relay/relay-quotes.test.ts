@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { toHex } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type {
@@ -5,9 +6,9 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -16,12 +17,12 @@ import {
   NATIVE_TOKEN_ADDRESS,
   PaymentOverride,
   POLYGON_USDCE_ADDRESS,
-} from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
+} from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
-} from '../../types';
+} from '../../types.js';
 import {
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
@@ -30,15 +31,15 @@ import {
   isRelayExecuteEnabled,
   getGasBuffer,
   getSlippage,
-} from '../../utils/feature-flags';
-import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+} from '../../utils/feature-flags.js';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas.js';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
-} from '../../utils/token';
-import { getRelayQuotes } from './relay-quotes';
-import type { RelayQuote, RelayTransactionStep } from './types';
+} from '../../utils/token.js';
+import { getRelayQuotes } from './relay-quotes.js';
+import type { RelayQuote, RelayTransactionStep } from './types.js';
 
 jest.mock('../../utils/token', () => ({
   ...jest.createMockFromModule<typeof import('../../utils/token')>(

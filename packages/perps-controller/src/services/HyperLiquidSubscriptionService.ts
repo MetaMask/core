@@ -16,13 +16,19 @@ import type {
   SpotStateWsEvent,
 } from '@nktkas/hyperliquid';
 
-import { HYPERLIQUID_CONFIG } from '../constants/hyperLiquidConfig';
+import { HYPERLIQUID_CONFIG } from '../constants/hyperLiquidConfig.js';
 import {
   TP_SL_CONFIG,
   PERPS_CONSTANTS,
   ABSTRACTION_MODE_REFRESH_THROTTLE_MS,
-} from '../constants/perpsConfig';
-import { WebSocketConnectionState } from '../types';
+} from '../constants/perpsConfig.js';
+import type {
+  SpotClearinghouseStateResponse,
+  HyperLiquidAbstractionMode,
+  UserAbstractionResponse,
+} from '../types/hyperliquid-types.js';
+import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   PriceUpdate,
   Position,
@@ -40,32 +46,26 @@ import type {
   OrderBookLevel,
   PerpsPlatformDependencies,
   PerpsLogger,
-} from '../types';
-import type {
-  SpotClearinghouseStateResponse,
-  HyperLiquidAbstractionMode,
-  UserAbstractionResponse,
-} from '../types/hyperliquid-types';
-import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types';
+} from '../types/index.js';
 import {
   addSpotBalanceToAccountState,
   calculateWeightedReturnOnEquity,
-} from '../utils/accountUtils';
-import type { AddSpotBalanceOptions } from '../utils/accountUtils';
-import { ensureError } from '../utils/errorUtils';
+} from '../utils/accountUtils.js';
+import type { AddSpotBalanceOptions } from '../utils/accountUtils.js';
+import { ensureError } from '../utils/errorUtils.js';
 import {
   adaptPositionFromSDK,
   adaptOrderFromSDK,
   adaptAccountStateFromSDK,
   parseAssetName,
-} from '../utils/hyperLiquidAdapter';
-import { processBboData } from '../utils/hyperLiquidOrderBookProcessor';
+} from '../utils/hyperLiquidAdapter.js';
+import { processBboData } from '../utils/hyperLiquidOrderBookProcessor.js';
 import {
   calculateOpenInterestUSD,
   isMarketTradable,
-} from '../utils/marketDataTransform';
-import type { HyperLiquidClientService } from './HyperLiquidClientService';
-import type { HyperLiquidWalletService } from './HyperLiquidWalletService';
+} from '../utils/marketDataTransform.js';
+import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
+import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
 
 /**
  * Service for managing HyperLiquid WebSocket subscriptions
@@ -781,7 +781,7 @@ export class HyperLiquidSubscriptionService {
             pos.takeProfitPrice ?? ''
           }:${pos.stopLossPrice ?? ''}:${pos.takeProfitCount}:${pos.stopLossCount}:${
             pos.unrealizedPnl
-          }:${pos.returnOnEquity}:${pos.liquidationPrice ?? ''}:${pos.marginUsed || ''}`,
+          }:${pos.returnOnEquity}:${pos.liquidationPrice ?? ''}:${pos.marginUsed ?? ''}`,
       )
       .join('|');
   }
@@ -872,7 +872,7 @@ export class HyperLiquidSubscriptionService {
             // Fallback: determine based on trigger price vs entry price
             // This handles orders with ambiguous type 'Trigger'
             const triggerPrice = parseFloat(tpslPrice);
-            const entryPrice = parseFloat(matchingPosition.entryPrice || '0');
+            const entryPrice = parseFloat(matchingPosition.entryPrice ?? '0');
             const isLong = parseFloat(matchingPosition.size) > 0;
 
             if (isLong) {
@@ -961,7 +961,7 @@ export class HyperLiquidSubscriptionService {
           // Fallback: determine based on trigger price vs entry price
           // This handles orders with ambiguous type 'Trigger'
           const triggerPrice = parseFloat(order.triggerPx);
-          const entryPrice = parseFloat(position.entryPrice || '0');
+          const entryPrice = parseFloat(position.entryPrice ?? '0');
           const isLong = parseFloat(position.size) > 0;
 
           if (isLong) {

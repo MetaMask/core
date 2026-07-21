@@ -1,7 +1,7 @@
 export {
   SeedlessOnboardingController,
   getInitialSeedlessOnboardingControllerStateWithDefaults as getDefaultSeedlessOnboardingControllerState,
-} from './SeedlessOnboardingController';
+} from './SeedlessOnboardingController.js';
 export type {
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerMessenger,
@@ -9,7 +9,7 @@ export type {
   SeedlessOnboardingControllerStateChangeEvent,
   SeedlessOnboardingControllerActions,
   SeedlessOnboardingControllerEvents,
-} from './SeedlessOnboardingController';
+} from './SeedlessOnboardingController.js';
 export type {
   SeedlessOnboardingControllerFetchMetadataAccessCredsAction,
   SeedlessOnboardingControllerPreloadToprfNodeDetailsAction,
@@ -38,22 +38,22 @@ export type {
   SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction,
   SeedlessOnboardingControllerCheckAccessTokenExpiredAction,
   SeedlessOnboardingControllerRunMigrationsAction,
-} from './SeedlessOnboardingController-method-action-types';
+} from './SeedlessOnboardingController-method-action-types.js';
 export type {
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
   SeedlessOnboardingControllerState,
   ToprfKeyDeriver,
   RecoveryErrorData,
-} from './types';
+} from './types.js';
 export {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
-} from './constants';
-export { SecretMetadata } from './SecretMetadata';
-export { RecoveryError, SeedlessOnboardingError } from './errors';
+} from './constants.js';
+export { SecretMetadata } from './SecretMetadata.js';
+export { RecoveryError, SeedlessOnboardingError } from './errors.js';
 
 export { EncAccountDataType } from '@metamask/toprf-secure-backup';

@@ -279,6 +279,7 @@ const config: KnipConfig = {
     // follow-up.
     '@metamask/providers',
     'webextension-polyfill',
+    '@jest/globals',
   ],
 };
 

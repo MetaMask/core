@@ -12,14 +12,14 @@ import {
 import type { Messaging, MessagePayload } from 'firebase/messaging/sw';
 import log from 'loglevel';
 
-import type { Types } from '../../NotificationServicesController';
+import type { Types } from '../../NotificationServicesController/index.js';
 import {
   isOnChainRawNotification,
   safeProcessNotification,
-} from '../../NotificationServicesController';
-import { toRawAPINotification } from '../../shared/to-raw-notification';
-import type { NotificationServicesPushControllerMessenger } from '../NotificationServicesPushController';
-import type { PushNotificationEnv } from '../types/firebase';
+} from '../../NotificationServicesController/index.js';
+import { toRawAPINotification } from '../../shared/to-raw-notification.js';
+import type { NotificationServicesPushControllerMessenger } from '../NotificationServicesPushController.js';
+import type { PushNotificationEnv } from '../types/firebase.js';
 
 declare const self: ServiceWorkerGlobalScope;
 

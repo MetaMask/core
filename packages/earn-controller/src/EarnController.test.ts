@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -20,19 +21,19 @@ import type {
   LendingMarket,
 } from '@metamask/stake-sdk';
 
-import type { TransactionMeta } from '../../transaction-controller/src';
+import type { TransactionMeta } from '../../transaction-controller/src/index.js';
 import {
   TransactionStatus,
   TransactionType,
-} from '../../transaction-controller/src';
+} from '../../transaction-controller/src/index.js';
 import {
   EarnController,
   DEFAULT_POOLED_STAKING_CHAIN_STATE,
-} from './EarnController';
+} from './EarnController.js';
 import type {
   EarnControllerState,
   EarnControllerMessenger,
-} from './EarnController';
+} from './EarnController.js';
 
 type AllEarnControllerActions = MessengerActions<EarnControllerMessenger>;
 

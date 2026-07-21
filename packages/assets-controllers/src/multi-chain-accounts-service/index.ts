@@ -1,9 +1,9 @@
 export type {
   GetBalancesResponse,
   GetSupportedNetworksResponse,
-} from './types';
+} from './types.js';
 
 export {
   fetchMultiChainBalances,
   fetchSupportedNetworks,
-} from './multi-chain-accounts';
+} from './multi-chain-accounts.js';

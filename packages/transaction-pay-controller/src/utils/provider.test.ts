@@ -1,11 +1,12 @@
+import { jest } from '@jest/globals';
 import type { NetworkClient, Provider } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getMessengerMock } from '../tests/messenger-mock';
-import { getNetworkClientId, rpcRequest } from './provider';
+import { getMessengerMock } from '../tests/messenger-mock.js';
+import { getNetworkClientId, rpcRequest } from './provider.js';
 
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const DEFAULT_NETWORK_CLIENT_ID_MOCK = 'default-client-id';

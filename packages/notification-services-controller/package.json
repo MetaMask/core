@@ -20,69 +20,32 @@
     "notification-services/",
     "push-services/"
   ],
+  "type": "module",
   "sideEffects": false,
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./notification-services": {
-      "import": {
-        "types": "./dist/NotificationServicesController/index.d.mts",
-        "default": "./dist/NotificationServicesController/index.mjs"
-      },
-      "require": {
-        "types": "./dist/NotificationServicesController/index.d.cts",
-        "default": "./dist/NotificationServicesController/index.cjs"
-      }
+      "types": "./dist/NotificationServicesController/index.d.ts",
+      "default": "./dist/NotificationServicesController/index.js"
     },
     "./notification-services/mocks": {
-      "import": {
-        "types": "./dist/NotificationServicesController/mocks/index.d.mts",
-        "default": "./dist/NotificationServicesController/mocks/index.mjs"
-      },
-      "require": {
-        "types": "./dist/NotificationServicesController/mocks/index.d.cts",
-        "default": "./dist/NotificationServicesController/mocks/index.cjs"
-      }
+      "types": "./dist/NotificationServicesController/mocks/index.d.ts",
+      "default": "./dist/NotificationServicesController/mocks/index.js"
     },
     "./push-services": {
-      "import": {
-        "types": "./dist/NotificationServicesPushController/index.d.mts",
-        "default": "./dist/NotificationServicesPushController/index.mjs"
-      },
-      "require": {
-        "types": "./dist/NotificationServicesPushController/index.d.cts",
-        "default": "./dist/NotificationServicesPushController/index.cjs"
-      }
+      "types": "./dist/NotificationServicesPushController/index.d.ts",
+      "default": "./dist/NotificationServicesPushController/index.js"
     },
     "./push-services/web": {
-      "import": {
-        "types": "./dist/NotificationServicesPushController/web/index.d.mts",
-        "default": "./dist/NotificationServicesPushController/web/index.mjs"
-      },
-      "require": {
-        "types": "./dist/NotificationServicesPushController/web/index.d.cts",
-        "default": "./dist/NotificationServicesPushController/web/index.cjs"
-      }
+      "types": "./dist/NotificationServicesPushController/web/index.d.ts",
+      "default": "./dist/NotificationServicesPushController/web/index.js"
     },
     "./push-services/mocks": {
-      "import": {
-        "types": "./dist/NotificationServicesPushController/mocks/index.d.mts",
-        "default": "./dist/NotificationServicesPushController/mocks/index.mjs"
-      },
-      "require": {
-        "types": "./dist/NotificationServicesPushController/mocks/index.d.cts",
-        "default": "./dist/NotificationServicesPushController/mocks/index.cjs"
-      }
+      "types": "./dist/NotificationServicesPushController/mocks/index.d.ts",
+      "default": "./dist/NotificationServicesPushController/mocks/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -91,8 +54,8 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/notification-services-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-services-controller",
@@ -117,7 +80,7 @@
     "@metamask/utils": "^11.11.0",
     "bignumber.js": "^9.1.2",
     "firebase": "^11.2.0",
-    "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "loglevel": "^1.8.1",
     "semver": "^7.6.3",
     "uuid": "^8.3.2"
@@ -126,7 +89,6 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/lodash": "^4.14.191",
     "@types/readable-stream": "^2.3.0",

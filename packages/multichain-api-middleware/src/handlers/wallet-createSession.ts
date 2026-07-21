@@ -50,7 +50,7 @@ import type {
   GetCapabilitiesHook,
   GetNonEvmSupportedMethodsHook,
   SortAccountIdsByLastSelectedHook,
-} from './types';
+} from './types.js';
 
 const SOLANA_CAIP_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 
@@ -128,7 +128,7 @@ async function handleWalletCreateSession(
 
   try {
     const { normalizedRequiredScopes, normalizedOptionalScopes } =
-      validateAndNormalizeScopes(requiredScopes || {}, optionalScopes || {});
+      validateAndNormalizeScopes(requiredScopes ?? {}, optionalScopes ?? {});
 
     const requiredScopesWithSupportedMethodsAndNotifications =
       getSupportedScopeObjects(normalizedRequiredScopes, {
@@ -153,7 +153,7 @@ async function handleWalletCreateSession(
       isNamespaceInScopesObject(
         requiredScopesWithSupportedMethodsAndNotifications,
         KnownCaipNamespace.Solana,
-      ) ||
+      ) ??
       isNamespaceInScopesObject(
         optionalScopesWithSupportedMethodsAndNotifications,
         KnownCaipNamespace.Solana,

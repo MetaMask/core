@@ -125,7 +125,7 @@ export default function createStreamMiddleware(options: Options = {}): {
     Object.assign(context.res, res);
     // run callback on empty stack,
     // prevent internal stream-handler from catching errors
-    setTimeout(context.end);
+    setTimeout(() => context.end());
   }
 
   /**

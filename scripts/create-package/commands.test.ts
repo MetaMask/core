@@ -1,8 +1,8 @@
 import type { Arguments } from 'yargs';
 
-import type { CreatePackageOptions } from './commands';
-import { createPackageHandler } from './commands';
-import * as utils from './utils';
+import type { CreatePackageOptions } from './commands.js';
+import { createPackageHandler } from './commands.js';
+import * as utils from './utils.js';
 
 jest.mock('./utils', () => ({
   finalizeAndWriteData: jest.fn(),

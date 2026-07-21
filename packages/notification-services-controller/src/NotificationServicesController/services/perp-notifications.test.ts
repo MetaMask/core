@@ -1,6 +1,8 @@
-import { mockCreatePerpNotification } from '../__fixtures__/mockServices';
-import type { OrderInput } from '../types/perps';
-import { createPerpOrderNotification } from './perp-notifications';
+import { jest } from '@jest/globals';
+
+import { mockCreatePerpNotification } from '../__fixtures__/mockServices.js';
+import type { OrderInput } from '../types/perps/index.js';
+import { createPerpOrderNotification } from './perp-notifications.js';
 
 const mockOrderInput = (): OrderInput => ({
   user_id: '0x111', // User Address

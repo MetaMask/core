@@ -1,19 +1,20 @@
+import { jest } from '@jest/globals';
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { MulticallClient } from '../clients';
+import type { MulticallClient } from '../clients/index.js';
 import type {
   Address,
   AssetFetchEntry,
   AssetsBalanceState,
   BalanceOfResponse,
   ChainId,
-} from '../types';
-import { BalanceFetcher } from './BalanceFetcher';
+} from '../types/index.js';
+import { BalanceFetcher } from './BalanceFetcher.js';
 import type {
   BalanceFetcherConfig,
   BalanceFetcherMessenger,
   BalancePollingInput,
-} from './BalanceFetcher';
+} from './BalanceFetcher.js';
 
 // =============================================================================
 // CONSTANTS

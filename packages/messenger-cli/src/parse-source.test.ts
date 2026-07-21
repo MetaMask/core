@@ -1,8 +1,12 @@
+import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { findSourcesWithExposedMethods, parseSourceFile } from './parse-source';
+import {
+  findSourcesWithExposedMethods,
+  parseSourceFile,
+} from './parse-source.js';
 
 const { withinSandbox: withinParseSourceSandbox } = createSandbox(
   'messenger/parse-source',

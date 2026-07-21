@@ -1,4 +1,6 @@
-import { timeout } from './timeout';
+import { jest } from '@jest/globals';
+
+import { timeout } from './timeout.js';
 
 describe('timeout', () => {
   describe('with real timers', () => {

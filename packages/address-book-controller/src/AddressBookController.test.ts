@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -11,12 +12,12 @@ import type { Hex } from '@metamask/utils';
 import type {
   AddressBookControllerContactDeletedEvent,
   AddressBookControllerMessenger,
-} from './AddressBookController';
+} from './AddressBookController.js';
 import {
   AddressBookController,
   AddressType,
   controllerName,
-} from './AddressBookController';
+} from './AddressBookController.js';
 
 type AllActions = MessengerActions<AddressBookControllerMessenger>;
 

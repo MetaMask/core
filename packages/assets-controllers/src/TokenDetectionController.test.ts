@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import {
   ChainId,
   NetworkType,
@@ -31,33 +32,33 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildCustomRpcEndpoint,
   buildInfuraNetworkConfiguration,
-} from '../../network-controller/tests/helpers';
-import { formatAggregatorNames } from './assetsUtil';
-import { MUSD_ERC20_ADDRESS_LOWER } from './constants';
-import { TOKEN_END_POINT_API } from './token-service';
-import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
+} from '../../network-controller/tests/helpers.js';
+import { formatAggregatorNames } from './assetsUtil.js';
+import { MUSD_ERC20_ADDRESS_LOWER } from './constants.js';
+import { TOKEN_END_POINT_API } from './token-service.js';
+import type { TokenDetectionControllerMessenger } from './TokenDetectionController.js';
 import {
   TokenDetectionController,
   controllerName,
-} from './TokenDetectionController';
-import { getDefaultTokenListState } from './TokenListController';
+} from './TokenDetectionController.js';
+import { getDefaultTokenListState } from './TokenListController.js';
 import type {
   TokenListMap,
   TokenListState,
   TokenListToken,
-} from './TokenListController';
-import type { TokenListService } from './TokenListService';
-import type { Token } from './TokenRatesController';
+} from './TokenListController.js';
+import type { TokenListService } from './TokenListService.js';
+import type { Token } from './TokenRatesController.js';
 import type {
   TokensController,
   TokensControllerState,
-} from './TokensController';
-import { getDefaultTokensState } from './TokensController';
+} from './TokensController.js';
+import { getDefaultTokensState } from './TokensController.js';
 
 const DEFAULT_INTERVAL = 180000;
 

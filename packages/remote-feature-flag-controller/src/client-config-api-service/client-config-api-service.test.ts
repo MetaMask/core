@@ -1,14 +1,16 @@
-import { BASE_URL } from '../constants';
+import { jest } from '@jest/globals';
+
+import { BASE_URL } from '../constants.js';
 import type {
   ApiDataResponse,
   FeatureFlags,
-} from '../remote-feature-flag-controller-types';
+} from '../remote-feature-flag-controller-types.js';
 import {
   ClientType,
   DistributionType,
   EnvironmentType,
-} from '../remote-feature-flag-controller-types';
-import { ClientConfigApiService } from './client-config-api-service';
+} from '../remote-feature-flag-controller-types.js';
+import { ClientConfigApiService } from './client-config-api-service.js';
 
 import Mock = jest.Mock;
 

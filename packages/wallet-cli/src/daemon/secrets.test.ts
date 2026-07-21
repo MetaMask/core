@@ -1,6 +1,6 @@
 import { inspect } from 'node:util';
 
-import { Password, Srp } from './secrets';
+import { Password, Srp } from './secrets.js';
 
 const VALID_SRP_12 =
   'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -67,8 +67,7 @@ describe('Password', () => {
     });
 
     it('redacts under template-literal interpolation', () => {
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions -- We are intentionally exercising the redacting toString().
-      const message = `password is ${password}`;
+      const message = `password is ${String(password)}`;
       expect(message).toBe('password is [redacted]');
       expect(message).not.toContain(SECRET);
     });
@@ -162,8 +161,7 @@ describe('Srp', () => {
     });
 
     it('redacts under template-literal interpolation', () => {
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions -- We are intentionally exercising the redacting toString().
-      const message = `srp is ${srp}`;
+      const message = `srp is ${String(srp)}`;
       expect(message).toBe('srp is [redacted]');
       expect(message).not.toContain('ball');
     });

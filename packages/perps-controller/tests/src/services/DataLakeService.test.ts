@@ -1,6 +1,8 @@
-import { DataLakeService } from '../../../src/services/DataLakeService';
-import type { ServiceContext } from '../../../src/services/ServiceContext';
-import type { PerpsPlatformDependencies } from '../../../src/types';
+import { jest } from '@jest/globals';
+
+import { DataLakeService } from '../../../src/services/DataLakeService.js';
+import type { ServiceContext } from '../../../src/services/ServiceContext.js';
+import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
 /* eslint-disable */
 import {
   createMockServiceContext,

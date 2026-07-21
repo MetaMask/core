@@ -1,18 +1,19 @@
+import { jest } from '@jest/globals';
 import { toHex } from '@metamask/controller-utils';
 
-import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
-import type { WithControllerArgs } from '../tests/types';
+import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger.js';
+import type { WithControllerArgs } from '../tests/types.js';
 import {
   ClaimsController,
   getDefaultClaimsControllerState,
-} from './ClaimsController';
-import { ClaimsControllerErrorMessages, ClaimStatusEnum } from './constants';
+} from './ClaimsController.js';
+import { ClaimsControllerErrorMessages, ClaimStatusEnum } from './constants.js';
 import type {
   Claim,
   ClaimDraft,
   ClaimsConfigurationsResponse,
   CreateClaimRequest,
-} from './types';
+} from './types.js';
 
 const mockClaimServiceRequestHeaders = jest.fn();
 const mockClaimServiceGetClaimsApiUrl = jest.fn();

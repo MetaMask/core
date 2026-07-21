@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { ClientConfigApiService } from '@metamask/remote-feature-flag-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import {
@@ -10,10 +11,10 @@ import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { KeyValueStore } from '../persistence/KeyValueStore';
-import * as persistenceModule from '../persistence/persistence';
-import { Password, Srp } from './secrets';
-import { createWallet } from './wallet-factory';
+import { KeyValueStore } from '../persistence/KeyValueStore.js';
+import * as persistenceModule from '../persistence/persistence.js';
+import { Password, Srp } from './secrets.js';
+import { createWallet } from './wallet-factory.js';
 
 jest.mock('@metamask/wallet');
 jest.mock('@metamask/remote-feature-flag-controller');

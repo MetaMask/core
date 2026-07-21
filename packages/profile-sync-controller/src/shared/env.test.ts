@@ -1,5 +1,5 @@
-import type { MockVariable } from '../sdk/__fixtures__/test-utils';
-import { getEnvUrls, Env, Platform, getOidcClientId } from './env';
+import type { MockVariable } from '../sdk/__fixtures__/test-utils.js';
+import { getEnvUrls, Env, Platform, getOidcClientId } from './env.js';
 
 describe('getEnvUrls', () => {
   it('should return URLs if given a valid environment', () => {

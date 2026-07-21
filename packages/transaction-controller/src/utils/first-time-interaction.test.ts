@@ -1,11 +1,12 @@
+import { jest } from '@jest/globals';
 import type { TraceContext } from '@metamask/controller-utils';
 
-import { getAccountAddressRelationship } from '../api/accounts-api';
-import type { TransactionMeta } from '../types';
-import { TransactionStatus, TransactionType } from '../types';
-import { updateFirstTimeInteraction } from './first-time-interaction';
-import { decodeTransactionData } from './transaction-type';
-import { validateParamTo } from './validation';
+import { getAccountAddressRelationship } from '../api/accounts-api.js';
+import type { TransactionMeta } from '../types.js';
+import { TransactionStatus, TransactionType } from '../types.js';
+import { updateFirstTimeInteraction } from './first-time-interaction.js';
+import { decodeTransactionData } from './transaction-type.js';
+import { validateParamTo } from './validation.js';
 
 jest.mock('./transaction-type');
 jest.mock('./validation');

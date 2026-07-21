@@ -1,15 +1,16 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
-import { buildPushPlatformNotificationsControllerMessenger } from './__fixtures__/mockMessenger';
-import { NotificationServicesPushController } from './NotificationServicesPushController';
+import { buildPushPlatformNotificationsControllerMessenger } from './__fixtures__/mockMessenger.js';
+import { NotificationServicesPushController } from './NotificationServicesPushController.js';
 import type {
   ControllerConfig,
   NotificationServicesPushControllerMessenger,
-} from './NotificationServicesPushController';
-import * as services from './services/services';
-import type { PushNotificationEnv } from './types';
+} from './NotificationServicesPushController.js';
+import * as services from './services/services.js';
+import type { PushNotificationEnv } from './types/index.js';
 
 const MOCK_JWT = 'mockJwt';
 const MOCK_FCM_TOKEN = 'mockFcmToken';

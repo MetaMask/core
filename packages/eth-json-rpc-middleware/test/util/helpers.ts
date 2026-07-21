@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
@@ -10,7 +11,7 @@ import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
 
-import type { WalletMiddlewareKeyValues } from '../../src/wallet';
+import type { WalletMiddlewareKeyValues } from '../../src/wallet.js';
 
 export const createRequest = <
   Input extends Partial<JsonRpcRequest<Json[]>>,

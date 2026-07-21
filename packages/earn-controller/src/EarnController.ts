@@ -47,14 +47,14 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
-import type { EarnControllerMethodActions } from './EarnController-method-action-types';
+import type { EarnControllerMethodActions } from './EarnController-method-action-types.js';
 import type {
   RefreshEarnEligibilityOptions,
   RefreshLendingPositionsOptions,
   RefreshPooledStakesOptions,
   RefreshPooledStakingDataOptions,
   RefreshPooledStakingVaultDailyApysOptions,
-} from './types';
+} from './types.js';
 
 export const controllerName = 'EarnController';
 

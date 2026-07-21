@@ -1,9 +1,11 @@
-import type { ChainId } from '../types';
-import { TokensApiClient } from './TokensApiClient';
+import { jest } from '@jest/globals';
+
+import type { ChainId } from '../types/index.js';
+import { TokensApiClient } from './TokensApiClient.js';
 import type {
   TokensApiClientConfig,
   TokenListQueryClient,
-} from './TokensApiClient';
+} from './TokensApiClient.js';
 
 // =============================================================================
 // CONSTANTS

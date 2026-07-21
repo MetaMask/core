@@ -1,17 +1,18 @@
+import { jest } from '@jest/globals';
 import type { KeyringController } from '@metamask/keyring-controller';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from '../constants';
+import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from '../constants.js';
 import type {
   PrepareUserOperationResponse,
   SignUserOperationRequest,
   SignUserOperationResponse,
   UpdateUserOperationRequest,
   UpdateUserOperationResponse,
-} from '../types';
-import type { PrepareUserOperationRequest } from '../types';
-import type { UserOperationControllerMessenger } from '../UserOperationController';
-import { toEip155ChainId } from '../utils/chain-id';
-import { SnapSmartContractAccount } from './SnapSmartContractAccount';
+} from '../types.js';
+import type { PrepareUserOperationRequest } from '../types.js';
+import type { UserOperationControllerMessenger } from '../UserOperationController.js';
+import { toEip155ChainId } from '../utils/chain-id.js';
+import { SnapSmartContractAccount } from './SnapSmartContractAccount.js';
 
 const PREPARE_USER_OPERATION_REQUEST_MOCK: PrepareUserOperationRequest = {
   chainId: '0x1',

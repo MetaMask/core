@@ -14,9 +14,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 7
     },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
     "no-negated-condition": {
       "count": 3
     },
@@ -251,9 +248,6 @@
   "packages/assets-controllers/src/DeFiPositionsController/DeFiPositionsController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 2
     }
   },
   "packages/assets-controllers/src/DeFiPositionsController/group-defi-positions.ts": {
@@ -289,9 +283,6 @@
     }
   },
   "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.ts": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    },
     "no-restricted-syntax": {
       "count": 2
     }
@@ -310,12 +301,6 @@
   "packages/assets-controllers/src/NftController.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 5
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 2
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 6
     },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 1
@@ -475,9 +460,6 @@
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
-    "@typescript-eslint/prefer-optional-chain": {
-      "count": 3
-    },
     "id-length": {
       "count": 1
     },
@@ -600,9 +582,6 @@
   "packages/assets-controllers/src/selectors/token-selectors.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 25
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
     },
     "no-negated-condition": {
       "count": 1
@@ -1288,9 +1267,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
     "id-denylist": {
       "count": 1
     }
@@ -1376,9 +1352,6 @@
   "packages/multichain-transactions-controller/src/MultichainTransactionsController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 2
     },
     "no-restricted-syntax": {
       "count": 1
@@ -1737,9 +1710,6 @@
   },
   "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/controller-integration.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 4
     },
     "id-length": {
@@ -2105,9 +2075,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 7
     },
-    "@typescript-eslint/no-base-to-string": {
-      "count": 1
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -2131,7 +2098,7 @@
       "count": 10
     },
     "@typescript-eslint/no-floating-promises": {
-      "count": 4
+      "count": 3
     },
     "no-restricted-syntax": {
       "count": 4
@@ -2238,11 +2205,6 @@
   "packages/transaction-pay-controller/src/strategy/across/across-actions.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/bridge/bridge-submit.ts": {
-    "no-restricted-syntax": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {

@@ -1,15 +1,16 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 
-import { flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers.js';
 import packageJson from '../package.json';
-import type { RampsServiceMessenger } from './RampsService';
-import { RampsService, RampsEnvironment } from './RampsService';
+import type { RampsServiceMessenger } from './RampsService.js';
+import { RampsService, RampsEnvironment } from './RampsService.js';
 
 const CONTROLLER_VERSION = packageJson.version;
 
@@ -2597,7 +2598,7 @@ describe('RampsService', () => {
         }),
       ).rejects.toThrow('Wallet is locked');
       expect(interceptor.isDone()).toBe(false);
-      cleanAll();
+      nock.cleanAll();
     });
   });
 
@@ -2746,7 +2747,7 @@ describe('RampsService', () => {
         ),
       ).rejects.toThrow('Wallet is locked');
       expect(interceptor.isDone()).toBe(false);
-      cleanAll();
+      nock.cleanAll();
     });
   });
 

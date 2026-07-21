@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 

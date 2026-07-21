@@ -3,7 +3,7 @@ import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { EXECUTION_PERMISSION_EXPIRY_RULE_TYPE } from '../../constants';
+import { EXECUTION_PERMISSION_EXPIRY_RULE_TYPE } from '../../constants.js';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -12,8 +12,8 @@ import type {
   PermissionType,
   RuleDecoder,
   ValidateAndDecodeResult,
-} from '../types';
-import { buildEnforcerCountsAndSet, enforcersMatchRule } from '../utils';
+} from '../types.js';
+import { buildEnforcerCountsAndSet, enforcersMatchRule } from '../utils.js';
 
 /**
  * Configuration object describing how to decode a single permission type.

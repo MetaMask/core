@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   ChainId,
@@ -18,13 +19,13 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { APPROVAL_DELAY_MS } from '../constants';
+import { APPROVAL_DELAY_MS } from '../constants.js';
 import type {
   BridgeStatusControllerMessenger,
   QuoteAndTxMetadata,
-} from '../types';
-import { getStatusRequestParams } from './bridge-status';
-import * as snaps from './snaps';
+} from '../types.js';
+import { getStatusRequestParams } from './bridge-status.js';
+import * as snaps from './snaps.js';
 import {
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
@@ -35,7 +36,7 @@ import {
   findAllTransactionsInBatch,
   isApprovalTx,
   updateTransactionsInBatch,
-} from './transaction';
+} from './transaction.js';
 
 describe('Bridge Status Controller Transaction Utils', () => {
   describe('waitForTxConfirmation', () => {

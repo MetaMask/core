@@ -1,8 +1,8 @@
+import { jest } from '@jest/globals';
 /* eslint-disable */
 /**
  * Unit tests for HyperLiquid Order Book Processor
  */
-
 import type { BboWsEvent, L2BookResponse } from '@nktkas/hyperliquid';
 
 import type { PriceUpdate } from '../../../src/types';

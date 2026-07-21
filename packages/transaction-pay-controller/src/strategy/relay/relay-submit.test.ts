@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type {
@@ -5,32 +6,35 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
-import { PaymentOverride } from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
+import { PaymentOverride } from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import type { FeatureFlags } from '../../utils/feature-flags';
+} from '../../types.js';
+import type { FeatureFlags } from '../../utils/feature-flags.js';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-} from '../../utils/feature-flags';
-import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
+} from '../../utils/feature-flags.js';
+import {
+  getLiveTokenBalance,
+  normalizeTokenAddress,
+} from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
-import { RELAY_STATUS_URL } from './constants';
-import { submitRelayQuotes } from './relay-submit';
-import { submitViaRelayExecute } from './relay-submit-execute';
-import type { RelayQuote } from './types';
+} from '../../utils/transaction.js';
+import { RELAY_STATUS_URL } from './constants.js';
+import { submitViaRelayExecute } from './relay-submit-execute.js';
+import { submitRelayQuotes } from './relay-submit.js';
+import type { RelayQuote } from './types.js';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');

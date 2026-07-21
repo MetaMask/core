@@ -1,8 +1,8 @@
 import { assertExhaustive, getErrorMessage } from '@metamask/utils';
 import * as path from 'node:path';
 
-import type { SourceInfo } from './parse-source';
-import { Formatter } from './types';
+import type { SourceInfo } from './parse-source.js';
+import { Formatter } from './types.js';
 
 /**
  * The default options used by Oxfmt and Prettier when formatting the generated
@@ -104,7 +104,7 @@ export async function generateActionTypesContent(
   formatter: Formatter,
 ): Promise<string> {
   const baseFileName = path.basename(source.filePath, '.ts');
-  const sourceImportPath = `./${baseFileName}`;
+  const sourceImportPath = `./${baseFileName}.js`;
 
   let content = `/**
  * This file is auto generated.

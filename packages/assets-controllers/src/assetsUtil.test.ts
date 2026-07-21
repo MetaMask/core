@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import {
   GANACHE_CHAIN_ID,
   ChainId,
@@ -8,12 +9,12 @@ import {
 import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import * as assetsUtil from './assetsUtil';
-import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
-import type { Nft, NftMetadata } from './NftController';
-import { getNativeTokenAddress } from './token-prices-service';
-import type { AbstractTokenPricesService } from './token-prices-service';
-import { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
+import * as assetsUtil from './assetsUtil.js';
+import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil.js';
+import type { Nft, NftMetadata } from './NftController.js';
+import { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service.js';
+import { getNativeTokenAddress } from './token-prices-service/index.js';
+import type { AbstractTokenPricesService } from './token-prices-service/index.js';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';

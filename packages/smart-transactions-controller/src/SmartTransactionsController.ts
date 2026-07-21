@@ -34,7 +34,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import cloneDeep from 'lodash/cloneDeep';
+import { cloneDeep } from 'lodash-es';
 
 import {
   API_BASE_URL,
@@ -43,13 +43,13 @@ import {
   MetaMetricsEventName,
   SENTINEL_API_BASE_URL_MAP,
   SmartTransactionsTraceName,
-} from './constants';
+} from './constants.js';
 import {
   getSmartTransactionsFeatureFlags,
   getSmartTransactionsFeatureFlagsForChain,
-} from './featureFlags/feature-flags';
-import { validateSmartTransactionsFeatureFlags } from './featureFlags/validators';
-import type { SmartTransactionsControllerMethodActions } from './SmartTransactionsController-method-action-types';
+} from './featureFlags/feature-flags.js';
+import { validateSmartTransactionsFeatureFlags } from './featureFlags/validators.js';
+import type { SmartTransactionsControllerMethodActions } from './SmartTransactionsController-method-action-types.js';
 import type {
   Fees,
   IndividualTxFees,
@@ -62,8 +62,8 @@ import type {
   MetaMetricsProps,
   FeatureFlags,
   ClientId,
-} from './types';
-import { APIType, SmartTransactionStatuses } from './types';
+} from './types.js';
+import { APIType, SmartTransactionStatuses } from './types.js';
 import {
   calculateStatus,
   getAPIRequestURL,
@@ -76,7 +76,7 @@ import {
   getSmartTransactionMetricsSensitiveProperties,
   shouldMarkRegularTransactionsAsFailed,
   markRegularTransactionsAsFailed,
-} from './utils';
+} from './utils.js';
 
 const SECOND = 1000;
 export const DEFAULT_INTERVAL = SECOND * 5;

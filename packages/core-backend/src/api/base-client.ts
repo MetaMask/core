@@ -12,8 +12,8 @@ import {
   calculateRetryDelay,
   shouldRetry,
   HttpError,
-} from './shared-types';
-import type { ApiPlatformClientOptions } from './shared-types';
+} from './shared-types.js';
+import type { ApiPlatformClientOptions } from './shared-types.js';
 
 // Auth query keys - shared for token management across clients
 export const authQueryKeys = {

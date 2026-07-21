@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   InfuraNetworkType,
@@ -40,16 +41,16 @@ import {
   createMockInternalAccount,
   createMockInternalAccountOptions,
   ETH_EOA_METHODS,
-} from '../tests/mocks';
+} from '../tests/mocks.js';
 import type {
   AccountsControllerMessenger,
   AccountsControllerState,
-} from './AccountsController';
-import { AccountsController, EMPTY_ACCOUNT } from './AccountsController';
+} from './AccountsController.js';
+import { AccountsController, EMPTY_ACCOUNT } from './AccountsController.js';
 import {
   getUUIDOptionsFromAddressOfNormalAccount,
   keyringTypeToName,
-} from './utils';
+} from './utils.js';
 
 type AllAccountsControllerActions =
   MessengerActions<AccountsControllerMessenger>;

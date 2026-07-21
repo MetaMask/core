@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -6,8 +7,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { RateLimitMessenger } from './RateLimitController';
-import { RateLimitController } from './RateLimitController';
+import type { RateLimitMessenger } from './RateLimitController.js';
+import { RateLimitController } from './RateLimitController.js';
 
 const controllerName = 'RateLimitController';
 

@@ -2,13 +2,13 @@ import { encodeCBOR } from '@levischuck/tiny-cbor';
 import { p256 } from '@noble/curves/p256';
 import { sha256 } from '@noble/hashes/sha2';
 
-import { base64URLToBytes } from '../utils/encoding';
-import { bytesToBase64URL } from '../utils/encoding';
-import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
-import { decodeClientDataJSON } from './decode-client-data-json';
-import * as parseAuthenticatorDataModule from './parse-authenticator-data';
-import type { PasskeyRegistrationResponse } from './types';
-import { verifyRegistrationResponse } from './verify-registration-response';
+import { base64URLToBytes } from '../utils/encoding.js';
+import { bytesToBase64URL } from '../utils/encoding.js';
+import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants.js';
+import { decodeClientDataJSON } from './decode-client-data-json.js';
+import * as parseAuthenticatorDataModule from './parse-authenticator-data.js';
+import type { PasskeyRegistrationResponse } from './types.js';
+import { verifyRegistrationResponse } from './verify-registration-response.js';
 
 const EXPECTED_ORIGIN = 'https://dev.dontneeda.pw';
 const EXPECTED_RP_ID = 'dev.dontneeda.pw';

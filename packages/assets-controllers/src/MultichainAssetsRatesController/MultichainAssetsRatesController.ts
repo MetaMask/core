@@ -38,13 +38,13 @@ import type {
   CurrencyRateState,
   CurrencyRateStateChange,
   CurrencyRateControllerGetStateAction,
-} from '../CurrencyRateController';
+} from '../CurrencyRateController.js';
 import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
-} from '../MultichainAssetsController';
-import { MAP_CAIP_CURRENCIES } from './constant';
-import type { MultichainAssetsRatesControllerMethodActions } from './MultichainAssetsRatesController-method-action-types';
+} from '../MultichainAssetsController/index.js';
+import { MAP_CAIP_CURRENCIES } from './constant.js';
+import type { MultichainAssetsRatesControllerMethodActions } from './MultichainAssetsRatesController-method-action-types.js';
 
 /**
  * The name of the MultichainAssetsRatesController.
@@ -263,7 +263,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messenger.subscribe(
       'CurrencyRateController:stateChange',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async (currentCurrency: string) => {
         if (this.#isDeprecated()) {
           this.#enforceDisabledState();
@@ -278,7 +278,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messenger.subscribe(
       'MultichainAssetsController:accountAssetListUpdated',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async ({ assets }) => {
         if (this.#isDeprecated()) {
           this.#enforceDisabledState();

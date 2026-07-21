@@ -1,7 +1,8 @@
+import { jest } from '@jest/globals';
 import { SolScope } from '@metamask/keyring-api';
 
-import { createSnapKeyringClient } from './SnapKeyringClient';
-import type { Sender } from './SnapKeyringClient';
+import { createSnapKeyringClient } from './SnapKeyringClient.js';
+import type { Sender } from './SnapKeyringClient.js';
 
 /**
  * Builds a mock {@link Sender} whose `send` resolves to the given response.

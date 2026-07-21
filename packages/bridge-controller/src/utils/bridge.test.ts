@@ -1,13 +1,14 @@
+import { jest } from '@jest/globals';
 import { BtcScope, SolScope, XlmScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
 import {
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
-} from '../constants/bridge';
-import { CHAIN_IDS } from '../constants/chains';
-import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
-import { ChainId } from '../types';
+} from '../constants/bridge.js';
+import { CHAIN_IDS } from '../constants/chains.js';
+import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens.js';
+import { ChainId } from '../types.js';
 import {
   getNativeAssetForChainId,
   isBitcoinChainId,
@@ -19,7 +20,7 @@ import {
   isSwapsDefaultTokenAddress,
   isSwapsDefaultTokenSymbol,
   sumHexes,
-} from './bridge';
+} from './bridge.js';
 
 describe('Bridge utils', () => {
   beforeEach(() => {

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   AccountAssetListUpdatedEventPayload,
@@ -25,16 +26,16 @@ import { TokenScanResultType } from '@metamask/phishing-controller';
 import type { Snap } from '@metamask/snaps-utils';
 import { v4 as uuidv4 } from 'uuid';
 
+import { jestAdvanceTime } from '../../../../tests/helpers.js';
 import {
   getDefaultMultichainAssetsControllerState,
   MultichainAssetsController,
-} from '.';
-import { jestAdvanceTime } from '../../../../tests/helpers';
+} from './index.js';
 import type {
   AssetMetadataResponse,
   MultichainAssetsControllerMessenger,
   MultichainAssetsControllerState,
-} from './MultichainAssetsController';
+} from './MultichainAssetsController.js';
 
 const mockSolanaAccount: InternalAccount = {
   type: 'solana:data-account',

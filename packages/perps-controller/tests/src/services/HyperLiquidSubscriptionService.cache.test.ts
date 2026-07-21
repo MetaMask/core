@@ -1,10 +1,9 @@
+import { jest } from '@jest/globals';
 /* eslint-disable */
 /**
  * Unit tests for HyperLiquidSubscriptionService
  */
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
 import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig';

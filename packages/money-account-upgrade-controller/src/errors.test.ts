@@ -1,7 +1,7 @@
 import {
   MoneyAccountUpgradeStepError,
   isMoneyAccountUpgradeStepError,
-} from './errors';
+} from './errors.js';
 
 describe('MoneyAccountUpgradeStepError', () => {
   it('records the step name and preserves an Error cause', () => {

@@ -19,20 +19,20 @@ import type {
 } from '@metamask/remote-feature-flag-controller';
 import { isObject } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from '../logger';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   Transaction,
   AccountActivityMessage,
   BalanceUpdate,
-} from '../types';
-import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
+} from '../types.js';
+import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types.js';
+import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types.js';
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
   ServerNotificationMessage,
-} from './BackendWebSocketService';
-import { WebSocketState } from './BackendWebSocketService';
-import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
+} from './BackendWebSocketService.js';
+import { WebSocketState } from './BackendWebSocketService.js';
 
 // =============================================================================
 // Types and Constants
@@ -254,13 +254,13 @@ export class AccountActivityService {
     this.#messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
       // Promise result intentionally not awaited
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async () => await this.#handleSelectedAccountChange(),
     );
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
       // Promise result intentionally not awaited
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       (connectionInfo: WebSocketConnectionInfo) =>
         this.#handleWebSocketStateChange(connectionInfo),
     );
@@ -268,7 +268,7 @@ export class AccountActivityService {
       // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       // Promise result intentionally not awaited
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async () => await this.#handleFeatureFlagsStateChange(),
       // Only react to changes in the set of enabled chain prefixes. The
       // messenger compares selector results with strict equality, so the
@@ -393,7 +393,7 @@ export class AccountActivityService {
 
     // Trace message receipt with latency from transaction time to now
     // Promise result intentionally not awaited
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
     this.#trace(
       {
         name: `${SERVICE_NAME} Transaction Message`,

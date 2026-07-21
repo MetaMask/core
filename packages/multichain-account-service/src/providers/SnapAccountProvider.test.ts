@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { isBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
@@ -21,8 +22,8 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import deepmerge from 'deepmerge';
 
-import { traceFallback } from '../analytics';
-import type { DeepPartial, RootMessenger } from '../tests';
+import { traceFallback } from '../analytics/index.js';
+import type { DeepPartial, RootMessenger } from '../tests/index.js';
 import {
   asKeyringAccount,
   getMultichainAccountServiceMessenger,
@@ -30,17 +31,17 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
   MockAccountBuilder,
-} from '../tests';
-import type { MultichainAccountServiceMessenger } from '../types';
-import { BtcAccountProvider } from './BtcAccountProvider';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+} from '../tests/index.js';
+import type { MultichainAccountServiceMessenger } from '../types.js';
+import { BtcAccountProvider } from './BtcAccountProvider.js';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 import {
   isSnapAccountProvider,
   SnapAccountProvider,
-} from './SnapAccountProvider';
-import { SolAccountProvider } from './SolAccountProvider';
-import { TrxAccountProvider } from './TrxAccountProvider';
-import { TimeoutError } from './utils';
+} from './SnapAccountProvider.js';
+import { SolAccountProvider } from './SolAccountProvider.js';
+import { TrxAccountProvider } from './TrxAccountProvider.js';
+import { TimeoutError } from './utils.js';
 
 jest.mock('../analytics', () => {
   const actual = jest.requireActual('../analytics');

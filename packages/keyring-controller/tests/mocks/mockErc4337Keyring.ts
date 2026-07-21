@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Hex, Json } from '@metamask/utils';
 

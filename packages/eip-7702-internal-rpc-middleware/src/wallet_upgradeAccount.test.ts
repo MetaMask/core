@@ -1,8 +1,9 @@
+import { jest } from '@jest/globals';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
-import type { UpgradeAccountParams } from './types';
-import { walletUpgradeAccount } from './wallet_upgradeAccount';
+import type { UpgradeAccountParams } from './types.js';
+import { walletUpgradeAccount } from './wallet_upgradeAccount.js';
 
 const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890';
 const UPGRADE_CONTRACT = '0x0000000000000000000000000000000000000000';

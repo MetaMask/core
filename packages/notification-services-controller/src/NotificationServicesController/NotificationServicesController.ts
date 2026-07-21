@@ -31,34 +31,34 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { Hex } from '@metamask/utils';
 import { assert } from '@metamask/utils';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import log from 'loglevel';
 
-import type { NormalisedAPINotification } from '.';
 import type {
   NotificationServicesPushControllerStateChangeEvent,
   NotificationServicesPushControllerOnNewNotificationEvent,
-} from '../NotificationServicesPushController';
-import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types';
-import { TRIGGER_TYPES } from './constants/notification-schema';
-import type { NotificationServicesControllerMethodActions } from './NotificationServicesController-method-action-types';
+} from '../NotificationServicesPushController/index.js';
+import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types.js';
+import { TRIGGER_TYPES } from './constants/notification-schema.js';
+import type { NotificationServicesControllerMethodActions } from './NotificationServicesController-method-action-types.js';
 import {
   processAndFilterNotifications,
   safeProcessNotification,
-} from './processors/process-notifications';
-import type { ENV } from './services/api-notifications';
+} from './processors/process-notifications.js';
+import type { ENV } from './services/api-notifications.js';
 import {
   getAPINotifications,
   getNotificationsApiConfigCached,
   markNotificationsAsRead,
-} from './services/api-notifications';
-import { getFeatureAnnouncementNotifications } from './services/feature-announcements';
-import { createPerpOrderNotification } from './services/perp-notifications';
+} from './services/api-notifications.js';
+import { getFeatureAnnouncementNotifications } from './services/feature-announcements.js';
+import { createPerpOrderNotification } from './services/perp-notifications.js';
+import type { NormalisedAPINotification } from './types/notification-api/index.js';
 import type {
   INotification,
   MarkAsReadNotificationsParam,
-} from './types/notification/notification';
-import type { OrderInput } from './types/perps';
+} from './types/notification/notification.js';
+import type { OrderInput } from './types/perps/index.js';
 
 // Unique name for the controller
 const controllerName = 'NotificationServicesController';
@@ -692,7 +692,7 @@ export class NotificationServicesController extends BaseController<
       this.messenger.subscribe(
         'KeyringController:stateChange',
         // Using void return for async callback - result is intentionally ignored
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         debouncedUpdateAccountNotifications,
         (state: KeyringControllerState): number => {
           return (

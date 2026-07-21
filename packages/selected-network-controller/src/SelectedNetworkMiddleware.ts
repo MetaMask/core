@@ -2,8 +2,8 @@ import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import type { SelectedNetworkControllerMessenger } from './SelectedNetworkController';
-import { SelectedNetworkControllerActionTypes } from './SelectedNetworkController';
+import type { SelectedNetworkControllerMessenger } from './SelectedNetworkController.js';
+import { SelectedNetworkControllerActionTypes } from './SelectedNetworkController.js';
 
 export type SelectedNetworkMiddlewareJsonRpcRequest = JsonRpcRequest & {
   networkClientId?: NetworkClientId;

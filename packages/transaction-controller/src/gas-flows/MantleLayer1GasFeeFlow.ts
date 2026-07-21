@@ -4,11 +4,11 @@ import type { ExternalProvider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 
-import { CHAIN_IDS } from '../constants';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types';
-import { toBN } from '../utils/utils';
-import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
+import { CHAIN_IDS } from '../constants.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types.js';
+import { toBN } from '../utils/utils.js';
+import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow.js';
 
 const MANTLE_CHAIN_IDS: Hex[] = [CHAIN_IDS.MANTLE, CHAIN_IDS.MANTLE_SEPOLIA];
 

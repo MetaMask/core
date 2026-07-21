@@ -23,14 +23,14 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { v1 as random } from 'uuid';
 
-import determineGasFeeCalculations from './determineGasFeeCalculations';
+import determineGasFeeCalculations from './determineGasFeeCalculations.js';
 import {
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
-} from './gas-util';
-import type { GasFeeControllerMethodActions } from './GasFeeController-method-action-types';
+} from './gas-util.js';
+import type { GasFeeControllerMethodActions } from './GasFeeController-method-action-types.js';
 
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
@@ -426,7 +426,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
       this.messenger.subscribe(
         'NetworkController:networkDidChange',
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         async (networkControllerState) => {
           await this.#onNetworkControllerDidChange(networkControllerState);
         },

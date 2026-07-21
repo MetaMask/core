@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type {
   BridgeControllerMessenger,
   TxData,
@@ -25,16 +26,16 @@ import {
   getTxMetasForBatch,
   mockBatchSellErc20Erc20,
   mockBatchSellTradesErc20Erc20,
-} from '../test/mock-batch-sell-erc20-erc20';
-import { BridgeStatusController } from './bridge-status-controller';
-import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import { BridgeClientId } from './types';
+} from '../test/mock-batch-sell-erc20-erc20.js';
+import { BridgeStatusController } from './bridge-status-controller.js';
+import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants.js';
+import { BridgeClientId } from './types.js';
 import type {
   BridgeHistoryItem,
   BridgeStatusControllerMessenger,
-} from './types';
-import { getBatchSellHistoryItemsForTxHash } from './utils/history';
-import { shouldDisable7702 } from './utils/transaction';
+} from './types.js';
+import { getBatchSellHistoryItemsForTxHash } from './utils/history.js';
+import { shouldDisable7702 } from './utils/transaction.js';
 
 const mockGenerateBatchId = jest.fn();
 jest.mock('@metamask/transaction-controller', () => ({

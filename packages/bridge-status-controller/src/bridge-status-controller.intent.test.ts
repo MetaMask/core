@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable jest/no-restricted-matchers */
@@ -15,13 +16,13 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
-import { BridgeStatusController } from './bridge-status-controller';
-import { MAX_ATTEMPTS } from './constants';
-import type { BridgeStatusControllerState } from './types';
-import * as bridgeStatusUtils from './utils/bridge-status';
-import * as historyUtils from './utils/history';
-import * as intentApi from './utils/intent-api';
-import { IntentOrderStatus } from './utils/validators';
+import { BridgeStatusController } from './bridge-status-controller.js';
+import { MAX_ATTEMPTS } from './constants.js';
+import type { BridgeStatusControllerState } from './types.js';
+import * as bridgeStatusUtils from './utils/bridge-status.js';
+import * as historyUtils from './utils/history.js';
+import * as intentApi from './utils/intent-api.js';
+import { IntentOrderStatus } from './utils/validators.js';
 
 jest.spyOn(intentApi, 'postSubmitOrder').mockImplementation(jest.fn());
 jest

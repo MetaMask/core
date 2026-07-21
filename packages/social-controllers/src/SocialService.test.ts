@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -5,9 +6,9 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { SocialServiceErrorMessage, serviceName } from './social-constants';
-import type { SocialServiceMessenger } from './SocialService';
-import { SocialService } from './SocialService';
+import { SocialServiceErrorMessage, serviceName } from './social-constants.js';
+import type { SocialServiceMessenger } from './SocialService.js';
+import { SocialService } from './SocialService.js';
 
 const BASE_URL = 'http://test.com';
 const V1_URL = `${BASE_URL}/api/v1`;

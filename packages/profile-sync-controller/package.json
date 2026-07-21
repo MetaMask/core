@@ -21,69 +21,32 @@
     "user-storage/",
     "sdk/"
   ],
+  "type": "module",
   "sideEffects": false,
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./sdk": {
-      "import": {
-        "types": "./dist/sdk/index.d.mts",
-        "default": "./dist/sdk/index.mjs"
-      },
-      "require": {
-        "types": "./dist/sdk/index.d.cts",
-        "default": "./dist/sdk/index.cjs"
-      }
+      "types": "./dist/sdk/index.d.ts",
+      "default": "./dist/sdk/index.js"
     },
     "./auth": {
-      "import": {
-        "types": "./dist/controllers/authentication/index.d.mts",
-        "default": "./dist/controllers/authentication/index.mjs"
-      },
-      "require": {
-        "types": "./dist/controllers/authentication/index.d.cts",
-        "default": "./dist/controllers/authentication/index.cjs"
-      }
+      "types": "./dist/controllers/authentication/index.d.ts",
+      "default": "./dist/controllers/authentication/index.js"
     },
     "./auth/mocks": {
-      "import": {
-        "types": "./dist/controllers/authentication/mocks/index.d.mts",
-        "default": "./dist/controllers/authentication/mocks/index.mjs"
-      },
-      "require": {
-        "types": "./dist/controllers/authentication/mocks/index.d.cts",
-        "default": "./dist/controllers/authentication/mocks/index.cjs"
-      }
+      "types": "./dist/controllers/authentication/mocks/index.d.ts",
+      "default": "./dist/controllers/authentication/mocks/index.js"
     },
     "./user-storage": {
-      "import": {
-        "types": "./dist/controllers/user-storage/index.d.mts",
-        "default": "./dist/controllers/user-storage/index.mjs"
-      },
-      "require": {
-        "types": "./dist/controllers/user-storage/index.d.cts",
-        "default": "./dist/controllers/user-storage/index.cjs"
-      }
+      "types": "./dist/controllers/user-storage/index.d.ts",
+      "default": "./dist/controllers/user-storage/index.js"
     },
     "./user-storage/mocks": {
-      "import": {
-        "types": "./dist/controllers/user-storage/mocks/index.d.mts",
-        "default": "./dist/controllers/user-storage/mocks/index.mjs"
-      },
-      "require": {
-        "types": "./dist/controllers/user-storage/mocks/index.d.cts",
-        "default": "./dist/controllers/user-storage/mocks/index.cjs"
-      }
+      "types": "./dist/controllers/user-storage/mocks/index.d.ts",
+      "default": "./dist/controllers/user-storage/mocks/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -92,8 +55,8 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/profile-sync-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/profile-sync-controller",
@@ -129,7 +92,6 @@
     "@metamask/keyring-api": "^23.5.0",
     "@metamask/keyring-internal-api": "^11.0.1",
     "@metamask/providers": "^22.1.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
     "ethers": "^6.12.0",

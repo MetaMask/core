@@ -6,7 +6,6 @@
   "compilerOptions": {
     "declaration": true,
     "declarationMap": true,
-    "emitDeclarationOnly": true,
     "inlineSources": true,
     "sourceMap": true,
     "skipLibCheck": true

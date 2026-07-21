@@ -1,12 +1,13 @@
+import { jest } from '@jest/globals';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import type { TransactionPayControllerMessenger } from '../..';
-import type { TransactionPayQuote } from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getServerQuotes } from './server-quotes';
-import { submitServerQuotes } from './server-submit';
-import { ServerStrategy } from './ServerStrategy';
-import type { ServerQuote } from './types';
+import type { TransactionPayControllerMessenger } from '../../index.js';
+import type { TransactionPayQuote } from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getServerQuotes } from './server-quotes.js';
+import { submitServerQuotes } from './server-submit.js';
+import { ServerStrategy } from './ServerStrategy.js';
+import type { ServerQuote } from './types.js';
 
 jest.mock('./server-quotes');
 jest.mock('./server-submit');

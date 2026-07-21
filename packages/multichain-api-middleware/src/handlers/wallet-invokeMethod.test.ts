@@ -1,8 +1,9 @@
+import { jest } from '@jest/globals';
 import * as chainAgnosticPermissionModule from '@metamask/chain-agnostic-permission';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 
-import type { WalletInvokeMethodRequest } from './wallet-invokeMethod';
-import { walletInvokeMethodHandler } from './wallet-invokeMethod';
+import type { WalletInvokeMethodRequest } from './wallet-invokeMethod.js';
+import { walletInvokeMethodHandler } from './wallet-invokeMethod.js';
 
 // Allow individual modules to be mocked
 jest.mock('@metamask/chain-agnostic-permission', () => ({

@@ -1,17 +1,19 @@
-import { BRIDGE_PROD_API_BASE_URL, REFRESH_INTERVAL_MS } from '../constants';
-import { QuoteStatusFetchWithRetryOutcomeType } from '../quote-status-manager/constants';
-import { QuoteStatusGetError } from '../quote-status-manager/errors';
-import { QuoteStatusGetWithRetryOutcome } from '../quote-status-manager/quote-status-get-with-retry-outcome';
-import type { QuoteStatusManager } from '../quote-status-manager/quotes-status-manager';
-import { BridgeClientId } from '../types';
-import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
+import { jest } from '@jest/globals';
+
+import { BRIDGE_PROD_API_BASE_URL, REFRESH_INTERVAL_MS } from '../constants.js';
+import { QuoteStatusFetchWithRetryOutcomeType } from '../quote-status-manager/constants.js';
+import { QuoteStatusGetError } from '../quote-status-manager/errors.js';
+import { QuoteStatusGetWithRetryOutcome } from '../quote-status-manager/quote-status-get-with-retry-outcome.js';
+import type { QuoteStatusManager } from '../quote-status-manager/quotes-status-manager.js';
+import { BridgeClientId } from '../types.js';
+import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types.js';
 import {
   fetchBridgeQuoteStatus,
   fetchBridgeTxStatus,
   getBridgeStatusUrl,
   getStatusRequestDto,
   shouldSkipFetchDueToFetchFailures,
-} from './bridge-status';
+} from './bridge-status.js';
 
 describe('utils', () => {
   const mockStatusRequest: StatusRequestWithSrcTxHash = {

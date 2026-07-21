@@ -1,5 +1,5 @@
-import type { Env } from './constants';
-import { getEnvUrls, controllerName } from './constants';
+import type { Env } from './constants.js';
+import { getEnvUrls, controllerName } from './constants.js';
 
 describe('constants', () => {
   describe('getEnvUrls', () => {

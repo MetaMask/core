@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { readFile } from 'node:fs/promises';
 
 import {
@@ -10,7 +11,7 @@ import {
   readPidFile,
   sendSignal,
   waitFor,
-} from './utils';
+} from './utils.js';
 
 jest.mock('node:fs/promises');
 

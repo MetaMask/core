@@ -1,4 +1,6 @@
-import type { PerpsLogger } from '../../../src/types';
+import { jest } from '@jest/globals';
+
+import type { PerpsLogger } from '../../../src/types/index.js';
 /* eslint-disable */
 import {
   formatAccountToCaipAccountId,

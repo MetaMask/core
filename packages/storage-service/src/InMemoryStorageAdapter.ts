@@ -4,8 +4,8 @@ import type {
   InitialStorageData,
   StorageAdapter,
   StorageGetResult,
-} from './types';
-import { STORAGE_KEY_PREFIX } from './types';
+} from './types.js';
+import { STORAGE_KEY_PREFIX } from './types.js';
 
 /**
  * In-memory storage adapter (default fallback).

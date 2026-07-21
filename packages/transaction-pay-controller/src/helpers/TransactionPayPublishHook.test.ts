@@ -1,16 +1,17 @@
+import { jest } from '@jest/globals';
 import type {
   PublishHookResult,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
-import { TransactionPayStrategy } from '..';
-import { getMessengerMock } from '../tests/messenger-mock';
+import { TransactionPayStrategy } from '../index.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
   TransactionPayControllerState,
   TransactionPayQuote,
-} from '../types';
-import { getStrategyByName } from '../utils/strategy';
-import { TransactionPayPublishHook } from './TransactionPayPublishHook';
+} from '../types.js';
+import { getStrategyByName } from '../utils/strategy.js';
+import { TransactionPayPublishHook } from './TransactionPayPublishHook.js';
 
 jest.mock('../utils/strategy');
 

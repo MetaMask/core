@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -10,11 +11,11 @@ import type { Json } from '@metamask/utils';
 import type {
   SubjectMetadata,
   SubjectMetadataControllerMessenger,
-} from './SubjectMetadataController';
+} from './SubjectMetadataController.js';
 import {
   SubjectMetadataController,
   SubjectType,
-} from './SubjectMetadataController';
+} from './SubjectMetadataController.js';
 
 const controllerName = 'SubjectMetadataController';
 

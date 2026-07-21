@@ -1,7 +1,4 @@
-import type {
-  Caveat,
-  PermissionConstraint,
-} from '@metamask/permission-controller';
+import type { PermissionConstraint } from '@metamask/permission-controller';
 import { SnapCaveatType } from '@metamask/snaps-utils';
 
 // TODO: this is a duplicate of https://github.com/MetaMask/snaps/blob/362208e725db18baed550ade99087d44e7b537ed/packages/snaps-rpc-methods/src/endowments/name-lookup.ts#L151
@@ -26,7 +23,7 @@ export function getChainIdsCaveat(
 
   const caveat = permission.caveats.find(
     (permCaveat) => permCaveat.type === SnapCaveatType.ChainIds,
-  ) as Caveat<string, string[]> | undefined;
+  );
 
-  return caveat ? caveat.value : null;
+  return caveat ? (caveat.value as string[]) : null;
 }

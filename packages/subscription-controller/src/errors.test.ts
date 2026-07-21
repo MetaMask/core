@@ -1,9 +1,11 @@
+import { jest } from '@jest/globals';
+
 import {
   composeSubscriptionApiErrorMessage,
   createSentryError,
   getSubscriptionErrorFromResponse,
   SubscriptionServiceError,
-} from './errors';
+} from './errors.js';
 
 type MockResponseOptions = {
   status?: number;

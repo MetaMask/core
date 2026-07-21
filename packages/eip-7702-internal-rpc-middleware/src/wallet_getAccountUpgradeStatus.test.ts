@@ -1,8 +1,9 @@
+import { jest } from '@jest/globals';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
-import type { GetAccountUpgradeStatusParams } from './types';
-import { walletGetAccountUpgradeStatus } from './wallet_getAccountUpgradeStatus';
+import type { GetAccountUpgradeStatusParams } from './types.js';
+import { walletGetAccountUpgradeStatus } from './wallet_getAccountUpgradeStatus.js';
 
 const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890';
 const NETWORK_CLIENT_ID = 'mainnet';

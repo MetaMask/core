@@ -4,11 +4,11 @@ import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
 
-import { projectLogger, createModuleLogger } from './logging-utils';
-import type { Block } from './types';
-import { blockTagParamIndex } from './utils/cache';
-import { isExecutionRevertedError } from './utils/error';
-import { timeout } from './utils/timeout';
+import { projectLogger, createModuleLogger } from './logging-utils.js';
+import type { Block } from './types.js';
+import { blockTagParamIndex } from './utils/cache.js';
+import { isExecutionRevertedError } from './utils/error.js';
+import { timeout } from './utils/timeout.js';
 
 //
 // RetryOnEmptyMiddleware will retry any request with an empty response that has
@@ -137,7 +137,7 @@ async function retry<Result>(
       return await asyncFn();
     } catch (error: unknown) {
       if (isExecutionRevertedError(error)) {
-        throw error as unknown;
+        throw error;
       }
       log('(call %i) Request failed, waiting 1s to retry again...', index + 1);
       await timeout(1000);

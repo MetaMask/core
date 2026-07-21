@@ -8,11 +8,11 @@ import type { NetworkClient } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController';
-import { shouldIncludeNativeToken } from '../constants';
-import type { UnprocessedTokens } from '../multi-chain-accounts-service/api-balance-fetcher';
-import { getTokenBalancesForMultipleAddresses } from '../multicall';
-import type { TokensControllerState } from '../TokensController';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController.js';
+import { shouldIncludeNativeToken } from '../constants.js';
+import type { UnprocessedTokens } from '../multi-chain-accounts-service/api-balance-fetcher.js';
+import { getTokenBalancesForMultipleAddresses } from '../multicall.js';
+import type { TokensControllerState } from '../TokensController.js';
 
 const RPC_TIMEOUT_MS = 30000;
 
@@ -162,10 +162,10 @@ export class RpcBalanceFetcher implements BalanceFetcher {
 
         // Ensure native token entries exist for all addresses
         allAddressesForNative.forEach((address) => {
-          const nativeBalance = tokenBalances[ZERO_ADDRESS]?.[address] || null;
+          const nativeBalance = tokenBalances[ZERO_ADDRESS]?.[address] ?? null;
           chainResults.push({
             success: true,
-            value: nativeBalance || new BN('0'),
+            value: nativeBalance ?? new BN('0'),
             account: address as ChecksumAddress,
             token: ZERO_ADDRESS,
             chainId,

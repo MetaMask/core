@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -11,11 +12,11 @@ import type { Hex } from '@metamask/utils';
 import type {
   MoneyAccountUpgradeControllerMessenger,
   MoneyAccountUpgradeStepError,
-} from '.';
+} from './index.js';
 import {
   MoneyAccountUpgradeController,
   isMoneyAccountUpgradeStepError,
-} from '.';
+} from './index.js';
 
 const MOCK_CHAIN_ID = '0x1' as Hex; // mainnet, supported in delegation-deployments@1.3.0
 const UNSUPPORTED_CHAIN_ID = '0x539' as Hex; // 1337 — local dev, not in registry

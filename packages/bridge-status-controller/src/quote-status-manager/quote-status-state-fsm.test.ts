@@ -1,5 +1,7 @@
-import { QuoteStatusState } from './constants';
-import { QuoteStatusStateFsm } from './quote-status-state-fsm';
+import { jest } from '@jest/globals';
+
+import { QuoteStatusState } from './constants.js';
+import { QuoteStatusStateFsm } from './quote-status-state-fsm.js';
 
 describe('QuoteStatusStateFsm', () => {
   describe('constructor', () => {

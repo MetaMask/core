@@ -1,16 +1,17 @@
+import { jest } from '@jest/globals';
 import * as FirebaseAppModule from 'firebase/app';
 import * as FirebaseMessagingModule from 'firebase/messaging';
 import * as FirebaseMessagingSWModule from 'firebase/messaging/sw';
 
-import { processNotification } from '../../NotificationServicesController';
-import { createMockNotificationEthSent } from '../../NotificationServicesController/mocks/mock-raw-notifications';
-import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger';
+import { processNotification } from '../../NotificationServicesController/index.js';
+import { createMockNotificationEthSent } from '../../NotificationServicesController/mocks/mock-raw-notifications.js';
+import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger.js';
 import {
   createRegToken,
   deleteRegToken,
   createSubscribeToPushNotifications,
-} from './push-utils';
-import * as PushWebModule from './push-utils';
+} from './push-utils.js';
+import * as PushWebModule from './push-utils.js';
 
 jest.mock('firebase/app');
 jest.mock('firebase/messaging');

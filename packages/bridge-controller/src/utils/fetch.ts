@@ -11,23 +11,23 @@ import type {
   QuoteStreamCompleteData,
   BatchSellTradesRequest,
   BatchSellTradesResponse,
-} from '../types';
-import { validateBatchSellTradesResponse } from '../validators/batch-sell';
-import { validateBridgeAsset } from '../validators/bridge-asset';
-import type { FeatureId } from '../validators/feature-flags';
-import type { QuoteResponseV1 } from '../validators/quote-response-v1';
-import { validateQuoteResponseV1 } from '../validators/quote-response-v1';
-import { validateQuoteStreamComplete } from '../validators/quote-stream-complete';
-import { validateTokenFeature } from '../validators/token-feature';
-import { isEvmTxData } from '../validators/trade';
-import { getEthUsdtResetData } from './bridge';
+} from '../types.js';
+import { validateBatchSellTradesResponse } from '../validators/batch-sell.js';
+import { validateBridgeAsset } from '../validators/bridge-asset.js';
+import type { FeatureId } from '../validators/feature-flags.js';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
+import { validateQuoteResponseV1 } from '../validators/quote-response-v1.js';
+import { validateQuoteStreamComplete } from '../validators/quote-stream-complete.js';
+import { validateTokenFeature } from '../validators/token-feature.js';
+import { isEvmTxData } from '../validators/trade.js';
+import { getEthUsdtResetData } from './bridge.js';
 import {
   formatAddressToAssetId,
   formatAddressToCaipReference,
   formatChainIdToDec,
-} from './caip-formatters';
-import { fetchServerEvents } from './fetch-server-events';
-import { formatStructErrors } from './struct-error';
+} from './caip-formatters.js';
+import { fetchServerEvents } from './fetch-server-events.js';
+import { formatStructErrors } from './struct-error.js';
 
 export const getClientHeaders = ({
   clientId,

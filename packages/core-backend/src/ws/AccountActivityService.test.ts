@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -7,16 +8,16 @@ import type {
 } from '@metamask/messenger';
 import type { Hex, Json } from '@metamask/utils';
 
-import { flushPromises } from '../../../../tests/helpers';
-import type { Transaction, BalanceUpdate } from '../types';
-import type { AccountActivityMessage } from '../types';
-import { AccountActivityService } from './AccountActivityService';
+import { flushPromises } from '../../../../tests/helpers.js';
+import type { Transaction, BalanceUpdate } from '../types.js';
+import type { AccountActivityMessage } from '../types.js';
+import { AccountActivityService } from './AccountActivityService.js';
 import type {
   AccountActivityServiceMessenger,
   SubscriptionOptions,
-} from './AccountActivityService';
-import type { ServerNotificationMessage } from './BackendWebSocketService';
-import { WebSocketState } from './BackendWebSocketService';
+} from './AccountActivityService.js';
+import type { ServerNotificationMessage } from './BackendWebSocketService.js';
+import { WebSocketState } from './BackendWebSocketService.js';
 
 type AllAccountActivityServiceActions =
   MessengerActions<AccountActivityServiceMessenger>;

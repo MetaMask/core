@@ -5,33 +5,33 @@ export type {
   ProfileMetricsControllerMessenger,
   ProfileMetricsControllerState,
   ProfileMetricsControllerStateChangeEvent,
-} from './ProfileMetricsController';
+} from './ProfileMetricsController.js';
 export {
   ProfileMetricsController,
   getDefaultProfileMetricsControllerState,
-} from './ProfileMetricsController';
+} from './ProfileMetricsController.js';
 export type {
   ProfileMetricsServiceActions,
   ProfileMetricsServiceEvents,
   ProfileMetricsServiceMessenger,
   ProfileMetricsSubmitMetricsRequest,
-} from './ProfileMetricsService';
+} from './ProfileMetricsService.js';
 export {
   ProfileMetricsService,
   serviceName,
   serviceName as profileMetricsServiceName,
-} from './ProfileMetricsService';
-export type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types';
+} from './ProfileMetricsService.js';
+export type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types.js';
 export type {
   ProofOfOwnershipServiceActions,
   ProofOfOwnershipServiceEvents,
   ProofOfOwnershipServiceMessenger,
-} from './ProofOfOwnershipService';
+} from './ProofOfOwnershipService.js';
 export {
   ProofOfOwnershipService,
   serviceName as proofOfOwnershipServiceName,
-} from './ProofOfOwnershipService';
+} from './ProofOfOwnershipService.js';
 export type {
   ProfileMetricsControllerMethodActions,
   ProfileMetricsControllerSkipInitialDelayAction,
-} from './ProfileMetricsController-method-action-types';
+} from './ProfileMetricsController-method-action-types.js';

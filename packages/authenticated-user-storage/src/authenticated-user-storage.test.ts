@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -14,7 +15,7 @@ import {
   handleMockPutNotificationPreferences,
   handleMockGetAssetsWatchlist,
   handleMockSetAssetsWatchlist,
-} from '../tests/fixtures/authenticated-userstorage';
+} from '../tests/fixtures/authenticated-userstorage.js';
 import {
   MOCK_DELEGATION_RESPONSE,
   MOCK_DELEGATION_SUBMISSION,
@@ -22,15 +23,15 @@ import {
   MOCK_NOTIFICATION_PREFERENCES,
   MOCK_ASSETS_WATCHLIST_BLOB,
   MOCK_ASSETS_WATCHLIST_URL,
-} from '../tests/mocks/authenticated-userstorage';
-import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage';
+} from '../tests/mocks/authenticated-userstorage.js';
+import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage.js';
 import {
   getAuthenticatedStorageUrl,
   AuthenticatedUserStorageService,
-} from './authenticated-user-storage';
-import type { Environment } from './env';
-import { getUserStorageApiUrl } from './env';
-import { ASSETS_WATCHLIST_MAX_ASSETS } from './validators';
+} from './authenticated-user-storage.js';
+import type { Environment } from './env.js';
+import { getUserStorageApiUrl } from './env.js';
+import { ASSETS_WATCHLIST_MAX_ASSETS } from './validators.js';
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
 

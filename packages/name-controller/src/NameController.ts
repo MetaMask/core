@@ -6,14 +6,14 @@ import { BaseController } from '@metamask/base-controller';
 import { isSafeDynamicKey } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
-import type { NameControllerMethodActions } from './NameController-method-action-types';
+import type { NameControllerMethodActions } from './NameController-method-action-types.js';
 import type {
   NameProvider,
   NameProviderRequest,
   NameProviderResult,
   NameProviderSourceResult,
-} from './types';
-import { NameType } from './types';
+} from './types.js';
+import { NameType } from './types.js';
 
 export const FALLBACK_VARIATION = '*';
 export const PROPOSED_NAME_EXPIRE_DURATION = 60 * 60 * 24; // 24 hours
@@ -469,10 +469,10 @@ export class NameController extends BaseController<
     }
 
     this.update((state) => {
-      const typeEntries = state.names[type] || {};
+      const typeEntries = state.names[type] ?? {};
       state.names[type] = typeEntries;
 
-      const variationEntries = typeEntries[normalizedValue] || {};
+      const variationEntries = typeEntries[normalizedValue] ?? {};
       typeEntries[normalizedValue] = variationEntries;
 
       const entry = variationEntries[normalizedVariation] ?? {

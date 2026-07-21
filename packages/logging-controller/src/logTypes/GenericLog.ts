@@ -1,4 +1,4 @@
-import type { LogType } from './LogType';
+import type { LogType } from './LogType.js';
 
 /*
  * The logging controller can handle any kind of log statement that may benefit

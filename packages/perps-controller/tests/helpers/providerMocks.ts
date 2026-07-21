@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable */
 /**
  * Shared provider mocks for Perps tests

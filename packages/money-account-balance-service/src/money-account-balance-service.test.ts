@@ -1,5 +1,6 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import { jest } from '@jest/globals';
 import { DEFAULT_MAX_RETRIES, HttpError } from '@metamask/controller-utils';
 import type {
   TraceCallback,
@@ -14,24 +15,24 @@ import type {
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Json } from '@metamask/utils';
-import nock, { cleanAll as nockCleanAll } from 'nock';
+import nock from 'nock';
 
 import {
   LENS_ABI,
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   MULTICALL3_ADDRESS_BY_CHAIN_ID,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
-} from './constants';
+} from './constants.js';
 import {
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
   VedaResponseValidationError,
-} from './errors';
-import type { MoneyAccountBalanceServiceMessenger } from './money-account-balance-service';
+} from './errors.js';
+import type { MoneyAccountBalanceServiceMessenger } from './money-account-balance-service.js';
 import {
   MoneyAccountBalanceService,
   serviceName,
-} from './money-account-balance-service';
+} from './money-account-balance-service.js';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('@ethersproject/providers');
@@ -456,7 +457,7 @@ describe('MoneyAccountBalanceService', () => {
   beforeEach(() => {
     MockContract.mockReset();
     MockWeb3Provider.mockImplementation(() => ({}) as unknown as Web3Provider);
-    nockCleanAll();
+    nock.cleanAll();
   });
 
   afterEach(() => {

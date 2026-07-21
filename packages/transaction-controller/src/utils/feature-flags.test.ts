@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -7,8 +8,8 @@ import type {
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { TransactionControllerMessenger } from '..';
-import type { TransactionControllerFeatureFlags } from './feature-flags';
+import type { TransactionControllerMessenger } from '../index.js';
+import type { TransactionControllerFeatureFlags } from './feature-flags.js';
 import {
   getAcceleratedPollingParams,
   getBatchSizeLimit,
@@ -22,8 +23,8 @@ import {
   getTransactionHistoryLimit,
   FeatureFlag,
   getTimeoutAttempts,
-} from './feature-flags';
-import { isValidSignature } from './signature';
+} from './feature-flags.js';
+import { isValidSignature } from './signature.js';
 
 jest.mock('./signature');
 

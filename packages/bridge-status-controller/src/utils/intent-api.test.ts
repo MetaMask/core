@@ -1,17 +1,18 @@
+import { jest } from '@jest/globals';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
-import type { FetchFunction } from '../types';
+import type { FetchFunction } from '../types.js';
 import {
   getIntentFromQuote,
   IntentApiImpl,
   mapIntentOrderStatusToTransactionStatus,
   postSubmitOrder,
   translateIntentOrderToBridgeStatus,
-} from './intent-api';
-import type { IntentSubmissionParams } from './intent-api';
-import { IntentOrderStatus } from './validators';
+} from './intent-api.js';
+import type { IntentSubmissionParams } from './intent-api.js';
+import { IntentOrderStatus } from './validators.js';
 
 describe('IntentApiImpl', () => {
   const baseUrl = 'https://example.com/api';

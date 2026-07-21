@@ -1,26 +1,30 @@
+import { jest } from '@jest/globals';
 import { Messenger } from '@metamask/messenger';
 
-import { CEREMONY_MAX_AGE_MS, WEBAUTHN_TIMEOUT_MS } from './ceremony-manager';
+import {
+  CEREMONY_MAX_AGE_MS,
+  WEBAUTHN_TIMEOUT_MS,
+} from './ceremony-manager.js';
 import {
   PasskeyControllerErrorCode,
   PasskeyControllerErrorMessage,
-} from './constants';
-import { PasskeyControllerError } from './errors';
+} from './constants.js';
+import { PasskeyControllerError } from './errors.js';
 import {
   getDefaultPasskeyControllerState,
   passkeyControllerSelectors,
   PasskeyController,
-} from './PasskeyController';
+} from './PasskeyController.js';
 import type {
   PasskeyControllerMessenger,
   PasskeyControllerState,
-} from './PasskeyController';
-import type { PasskeyRecord, PrfClientExtensionResults } from './types';
-import * as passkeyCrypto from './utils/crypto';
+} from './PasskeyController.js';
+import type { PasskeyRecord, PrfClientExtensionResults } from './types.js';
+import * as passkeyCrypto from './utils/crypto.js';
 import type {
   PasskeyRegistrationResponse,
   PasskeyAuthenticationResponse,
-} from './webauthn/types';
+} from './webauthn/types.js';
 
 type ExtOutputsWithPrf = Record<string, unknown> & PrfClientExtensionResults;
 

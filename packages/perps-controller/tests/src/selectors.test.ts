@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+
 /* eslint-disable */
 import { MARKET_SORTING_CONFIG } from '../../src/constants/perpsConfig';
 import type { PerpsControllerState } from '../../src/PerpsController';

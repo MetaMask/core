@@ -2,12 +2,13 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import { jest } from '@jest/globals';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Provider } from '@metamask/network-controller';
 
-import { FakeProvider } from '../../../../tests/fake-provider';
-import * as balanceUtils from './balance';
-import { fetchTokenBalance } from './balance';
+import { FakeProvider } from '../../../../tests/fake-provider.js';
+import * as balanceUtils from './balance.js';
+import { fetchTokenBalance } from './balance.js';
 
 declare global {
   var ethereumProvider: Provider;

@@ -1,9 +1,13 @@
+import { jest } from '@jest/globals';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import { hashQueryKey } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
-import { cleanAll } from 'nock';
+import nock from 'nock';
 
-import { ExampleDataService, serviceName } from '../tests/ExampleDataService';
+import {
+  ExampleDataService,
+  serviceName,
+} from '../tests/ExampleDataService.js';
 import {
   mockAssets,
   mockTransactionsPage1,
@@ -11,8 +15,8 @@ import {
   mockTransactionsPage3,
   TRANSACTIONS_PAGE_2_CURSOR,
   TRANSACTIONS_PAGE_3_CURSOR,
-} from '../tests/mocks';
-import { STORAGE_SERVICE_KEY } from './BaseDataService';
+} from '../tests/mocks.js';
+import { STORAGE_SERVICE_KEY } from './BaseDataService.js';
 
 const TEST_ADDRESS = '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520';
 
@@ -232,7 +236,8 @@ describe('BaseDataService', () => {
     });
 
     beforeEach(() => {
-      cleanAll();
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      nock.cleanAll();
     });
 
     it('retries failed queries using the service policy', async () => {

@@ -4,12 +4,12 @@ import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import { merge } from 'lodash';
+import { merge } from 'lodash-es';
 
-import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
-import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge';
-import type { BridgeAppState } from './selectors';
+import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
+import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge.js';
+import type { BridgeAppState } from './selectors.js';
 import {
   selectExchangeRateByAssetId,
   selectIsAssetExchangeRateInState,
@@ -21,25 +21,25 @@ import {
   selectTokenWarnings,
   selectBatchSellQuotes,
   selectBatchSellTrades,
-} from './selectors';
+} from './selectors.js';
 import {
   SortOrder,
   RequestStatus,
   ChainId,
   BridgeAsset,
   NonEvmFees,
-} from './types';
-import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge';
+} from './types.js';
+import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge.js';
 import {
   formatAddressToAssetId,
   formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToDec,
   formatChainIdToHex,
-} from './utils/caip-formatters';
-import { BatchSellTransactionType } from './validators/batch-sell';
-import type { QuoteResponseV1 } from './validators/quote-response-v1';
-import { validateQuoteResponseV1 } from './validators/quote-response-v1';
+} from './utils/caip-formatters.js';
+import { BatchSellTransactionType } from './validators/batch-sell.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
@@ -347,8 +347,7 @@ describe('Bridge Selectors', () => {
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
         remoteFeatureFlags: {
           bridgeConfig: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ...(mockState.remoteFeatureFlags.bridgeConfig as any),
+            ...mockState.remoteFeatureFlags.bridgeConfig,
             chainRanking: [],
             chains: {
               '1': {
@@ -382,8 +381,7 @@ describe('Bridge Selectors', () => {
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
         remoteFeatureFlags: {
           bridgeConfig: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ...(mockState.remoteFeatureFlags.bridgeConfig as any),
+            ...mockState.remoteFeatureFlags.bridgeConfig,
             chainRanking: [],
             chains: {
               '1': {

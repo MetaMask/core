@@ -1,32 +1,52 @@
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
+import { jest } from '@jest/globals';
+
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
 import type {
   BackupAndSyncContext,
   UserStorageSyncedWalletGroup,
-} from '../types';
-import {
-  pushGroupToUserStorage,
-  pushGroupToUserStorageBatch,
-} from '../user-storage/network-operations';
-import { getLocalGroupsForEntropyWallet } from '../utils';
-import {
+} from '../types.js';
+
+jest.unstable_mockModule('./metadata', () => ({
+  compareAndSyncMetadata: jest.fn(),
+}));
+
+jest.unstable_mockModule('../user-storage/network-operations', () => ({
+  getWalletFromUserStorage: jest.fn(),
+  pushWalletToUserStorage: jest.fn(),
+  getAllGroupsFromUserStorage: jest.fn(),
+  getGroupFromUserStorage: jest.fn(),
+  pushGroupToUserStorage: jest.fn(),
+  pushGroupToUserStorageBatch: jest.fn(),
+  getAllLegacyUserStorageAccounts: jest.fn(),
+}));
+
+jest.unstable_mockModule('../utils', () => ({
+  getLocalEntropyWallets: jest.fn(),
+  getLocalGroupForEntropyWallet: jest.fn(),
+  getLocalGroupsForEntropyWallet: jest.fn(),
+  createStateSnapshot: jest.fn(),
+  restoreStateFromSnapshot: jest.fn(),
+  createSyncMutationTracker: jest.fn(),
+  toErrorMessage: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../logger', () => ({
+  projectLogger: jest.fn(),
+  backupAndSyncLogger: jest.fn(),
+}));
+
+const { pushGroupToUserStorage, pushGroupToUserStorageBatch } = await import(
+  '../user-storage/network-operations.js'
+);
+const { getLocalGroupsForEntropyWallet } = await import('../utils/index.js');
+const metadataExports = await import('./metadata.js');
+const {
   createLocalGroupsFromUserStorage,
   syncGroupMetadata,
   syncGroupsMetadata,
-} from './group';
-import * as metadataExports from './metadata';
-
-jest.mock('./metadata');
-jest.mock('../user-storage/network-operations');
-jest.mock('../utils', () => ({
-  ...jest.requireActual('../utils'),
-  getLocalGroupsForEntropyWallet: jest.fn(),
-}));
-
-jest.mock('../../logger', () => ({
-  backupAndSyncLogger: jest.fn(),
-}));
+} = await import('./group.js');
 
 const mockCompareAndSyncMetadata =
   metadataExports.compareAndSyncMetadata as jest.MockedFunction<

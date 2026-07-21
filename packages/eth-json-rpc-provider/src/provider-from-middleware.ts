@@ -8,7 +8,7 @@ import type {
 } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import { InternalProvider } from './internal-provider';
+import { InternalProvider } from './internal-provider.js';
 
 /**
  * Construct an Ethereum provider from the given middleware.

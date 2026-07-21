@@ -1,14 +1,18 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
+import nock from 'nock';
 
-import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService';
-import { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService';
-import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
+import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService.js';
+import { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService.js';
+import {
+  DATA_DELETE_RESPONSE_STATUSES,
+  DATA_DELETE_STATUSES,
+} from './types.js';
 
 describe('AnalyticsDataRegulationService', () => {
   const segmentSourceId = 'test-source-id';
@@ -16,14 +20,14 @@ describe('AnalyticsDataRegulationService', () => {
 
   beforeEach(() => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
-    cleanAll();
-    disableNetConnect();
+    nock.cleanAll();
+    nock.disableNetConnect();
   });
 
   afterEach(() => {
     jest.useRealTimers();
-    cleanAll();
-    enableNetConnect();
+    nock.cleanAll();
+    nock.enableNetConnect();
   });
 
   describe('AnalyticsDataRegulationService:createDataDeletionTask', () => {

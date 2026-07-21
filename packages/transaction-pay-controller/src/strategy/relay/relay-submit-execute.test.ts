@@ -1,18 +1,19 @@
+import { jest } from '@jest/globals';
 import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
-import { getMessengerMock } from '../../tests/messenger-mock';
-import type { TransactionPayQuote } from '../../types';
-import type { FeatureFlags } from '../../utils/feature-flags';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { TransactionPayQuote } from '../../types.js';
+import type { FeatureFlags } from '../../utils/feature-flags.js';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-} from '../../utils/feature-flags';
-import { submitViaRelayExecute } from './relay-submit-execute';
-import type { RelayQuote } from './types';
+} from '../../utils/feature-flags.js';
+import { submitViaRelayExecute } from './relay-submit-execute.js';
+import type { RelayQuote } from './types.js';
 
 jest.mock('../../utils/feature-flags');
 

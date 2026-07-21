@@ -1,23 +1,22 @@
-import type { Env, Platform } from '../../shared/env';
-import { getEnvUrls, getOidcClientId } from '../../shared/env';
-import type { MetaMetricsAuth } from '../../shared/types/services';
-import { HTTP_STATUS_CODES } from '../constants';
+import type { Env, Platform } from '../../shared/env.js';
+import { getEnvUrls, getOidcClientId } from '../../shared/env.js';
+import type { MetaMetricsAuth } from '../../shared/types/services.js';
+import { HTTP_STATUS_CODES } from '../constants.js';
 import {
   NonceRetrievalError,
   PairError,
   SignInError,
   ValidationError,
   RateLimitedError,
-} from '../errors';
-import { validatePairResponse } from '../utils/validate-pair-response';
+} from '../errors.js';
+import { validatePairResponse } from '../utils/validate-pair-response.js';
 import type {
   AccessToken,
-  ErrorMessage,
   ProfileAlias,
   UserProfile,
   UserProfileLineage,
-} from './types';
-import { AuthType } from './types';
+} from './types.js';
+import { AuthType } from './types.js';
 
 /**
  * Parse Retry-After header into milliseconds if possible.
@@ -56,10 +55,7 @@ async function getResponseErrorMessage(response: Response): Promise<string> {
   let error = 'unknown';
 
   try {
-    const responseBody = (await response.json()) as
-      | ErrorMessage
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      | { error_description: string; error: string };
+    const responseBody = await response.json();
 
     message =
       'message' in responseBody

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /**
  * ApiPlatformClient Tests - Core client functionality.
  *
@@ -11,7 +12,6 @@
  * - api/token-client.test.ts
  * - api/tokens-client.test.ts
  */
-
 import { QueryClient } from '@tanstack/query-core';
 
 import {
@@ -24,12 +24,12 @@ import {
   HttpError,
   shouldRetry,
   calculateRetryDelay,
-} from '.';
+} from './index.js';
 import {
   mockFetch,
   createMockResponse,
   setupTestEnvironment,
-} from './test-utils';
+} from './test-utils.js';
 
 describe('ApiPlatformClient', () => {
   let client: ApiPlatformClient;

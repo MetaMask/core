@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcParams, Json } from '@metamask/utils';
 import {
@@ -7,8 +8,8 @@ import {
   isJsonRpcSuccess,
 } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from '.';
-import { JsonRpcEngine } from '.';
+import type { JsonRpcMiddleware } from './index.js';
+import { JsonRpcEngine } from './index.js';
 
 const jsonrpc = '2.0' as const;
 

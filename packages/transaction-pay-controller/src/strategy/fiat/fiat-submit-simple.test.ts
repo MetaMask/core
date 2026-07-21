@@ -1,19 +1,20 @@
+import { jest } from '@jest/globals';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../../constants';
+import { TransactionPayStrategy } from '../../constants.js';
 import type {
   PayStrategyExecuteRequest,
   QuoteRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getFiatMaxRateDriftPercent } from '../../utils/feature-flags';
-import { getRelayQuotes } from '../relay/relay-quotes';
-import { submitRelayQuotes } from '../relay/relay-submit';
-import type { RelayQuote } from '../relay/types';
-import { submitSimpleRelay } from './fiat-submit-simple';
-import type { FiatQuote } from './types';
+} from '../../types.js';
+import { getFiatMaxRateDriftPercent } from '../../utils/feature-flags.js';
+import { getRelayQuotes } from '../relay/relay-quotes.js';
+import { submitRelayQuotes } from '../relay/relay-submit.js';
+import type { RelayQuote } from '../relay/types.js';
+import { submitSimpleRelay } from './fiat-submit-simple.js';
+import type { FiatQuote } from './types.js';
 
 jest.mock('../../utils/feature-flags');
 jest.mock('../relay/relay-quotes');

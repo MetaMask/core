@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { SignatureRequestStatus } from '@metamask/signature-controller';
 import type { SignatureRequest } from '@metamask/signature-controller';
@@ -6,21 +7,24 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 
-import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data';
-import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend';
-import { createMockMessenger, RootMessenger } from '../tests/mocks/messenger';
+import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data.js';
+import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend.js';
+import {
+  createMockMessenger,
+  RootMessenger,
+} from '../tests/mocks/messenger.js';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
   setupCoverageResultReceived,
-} from '../tests/utils';
+} from '../tests/utils.js';
 import {
   getDefaultShieldControllerState,
   ShieldController,
   ShieldControllerMessenger,
-} from './ShieldController';
-import type { ShieldControllerState } from './ShieldController';
-import type { NormalizeSignatureRequestFn, ShieldBackend } from './types';
+} from './ShieldController.js';
+import type { ShieldControllerState } from './ShieldController.js';
+import type { NormalizeSignatureRequestFn, ShieldBackend } from './types.js';
 
 /**
  * Sets up a ShieldController for testing.

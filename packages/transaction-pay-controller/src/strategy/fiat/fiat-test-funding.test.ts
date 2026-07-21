@@ -1,21 +1,25 @@
 import { Interface } from '@ethersproject/abi';
+import { jest } from '@jest/globals';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { NATIVE_TOKEN_ADDRESS, TransactionPayStrategy } from '../../constants';
-import type { TransactionPayQuote } from '../../types';
-import { getNetworkClientId } from '../../utils/provider';
+import {
+  NATIVE_TOKEN_ADDRESS,
+  TransactionPayStrategy,
+} from '../../constants.js';
+import type { TransactionPayQuote } from '../../types.js';
+import { getNetworkClientId } from '../../utils/provider.js';
 import {
   buildCaipAssetType,
   getLiveTokenBalance,
   getNativeToken,
   getTokenInfo,
-} from '../../utils/token';
-import { waitForTransactionConfirmed } from '../../utils/transaction';
-import { fundFiatOrderFromTestSource } from './fiat-test-funding';
-import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment } from './utils';
+} from '../../utils/token.js';
+import { waitForTransactionConfirmed } from '../../utils/transaction.js';
+import { fundFiatOrderFromTestSource } from './fiat-test-funding.js';
+import type { FiatQuote } from './types.js';
+import { deriveFiatAssetForFiatPayment } from './utils.js';
 
 jest.mock('../../utils/provider');
 jest.mock('../../utils/token');

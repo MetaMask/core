@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable jest/unbound-method */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
@@ -8,24 +9,24 @@ import {
   createMockAssetControllerMessenger,
   MockRootMessenger,
   registerRpcDataSourceActions,
-} from '../__fixtures__/MockAssetControllerMessenger';
-import { getDefaultAssetsControllerState } from '../AssetsController';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type { Caip19AssetId, ChainId, DataRequest, Context } from '../types';
-import { normalizeAssetId } from '../utils';
-import { BalanceFetcher, TokenDetector } from './evm-rpc-services';
+} from '../__fixtures__/MockAssetControllerMessenger.js';
+import { getDefaultAssetsControllerState } from '../AssetsController.js';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import type { Caip19AssetId, ChainId, DataRequest, Context } from '../types.js';
+import { normalizeAssetId } from '../utils/index.js';
+import { BalanceFetcher, TokenDetector } from './evm-rpc-services/index.js';
 import type {
   Address,
   BalanceFetchResult,
   TokenDetectionResult,
-} from './evm-rpc-services';
-import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets';
-import type { RpcDataSourceOptions } from './RpcDataSource';
+} from './evm-rpc-services/index.js';
+import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets.js';
+import type { RpcDataSourceOptions } from './RpcDataSource.js';
 import {
   RpcDataSource,
   caipChainIdToHex,
   createRpcDataSource,
-} from './RpcDataSource';
+} from './RpcDataSource.js';
 
 const MOCK_CHAIN_ID_HEX = '0x1';
 const MOCK_CHAIN_ID_CAIP = 'eip155:1' as ChainId;

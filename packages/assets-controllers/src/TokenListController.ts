@@ -22,8 +22,8 @@ import {
   isTokenListSupportedForNetwork,
   formatAggregatorNames,
   formatIconUrlWithProxy,
-} from './assetsUtil';
-import { TokenRwaData, fetchTokenListByChainId } from './token-service';
+} from './assetsUtil.js';
+import { TokenRwaData, fetchTokenListByChainId } from './token-service.js';
 
 // 4 Hour Interval Cache Refresh Threshold
 const DEFAULT_INTERVAL = 4 * 60 * 60 * 1000;
@@ -234,7 +234,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.messenger.subscribe(
         'NetworkController:stateChange',
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         async (networkControllerState) => {
           await this.#onNetworkControllerStateChange(networkControllerState);
         },

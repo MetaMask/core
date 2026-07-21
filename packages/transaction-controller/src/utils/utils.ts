@@ -16,8 +16,8 @@ import type {
   TransactionError,
   TransactionMeta,
   TransactionParams,
-} from '../types';
-import { TransactionEnvelopeType, TransactionStatus } from '../types';
+} from '../types.js';
+import { TransactionEnvelopeType, TransactionStatus } from '../types.js';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -89,9 +89,7 @@ export const validateGasValues = (
   gasValues: GasPriceValue | FeeMarketEIP1559Values,
 ): void => {
   Object.keys(gasValues).forEach((key) => {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const value = (gasValues as any)[key];
+    const value = gasValues[key as keyof typeof gasValues];
     if (typeof value !== 'string' || !isStrictHexString(value)) {
       throw new TypeError(
         `expected hex string for ${key} but received: ${value}`,

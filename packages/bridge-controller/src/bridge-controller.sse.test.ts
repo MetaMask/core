@@ -1,5 +1,6 @@
 import { BigNumber } from '@ethersproject/bignumber';
 import * as ethersContractUtils from '@ethersproject/contracts';
+import { jest } from '@jest/globals';
 import { SolScope } from '@metamask/keyring-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -9,10 +10,10 @@ import type {
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 
-import { flushPromises } from '../../../tests/helpers';
-import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
-import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth';
+import { flushPromises } from '../../../tests/helpers.js';
+import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
+import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
 import {
   advanceToNthTimer,
   advanceToNthTimerThenFlush,
@@ -21,24 +22,24 @@ import {
   mockSseEventSourceWithMultipleDelays,
   mockSseEventSourceWithWarnings,
   mockSseServerError,
-} from '../tests/mock-sse';
-import { BridgeController } from './bridge-controller';
+} from '../tests/mock-sse.js';
+import { BridgeController } from './bridge-controller.js';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
-} from './constants/bridge';
-import { ChainId, RequestStatus } from './types';
-import type { BridgeControllerMessenger } from './types';
-import * as balanceUtils from './utils/balance';
-import { formatChainIdToDec } from './utils/caip-formatters';
-import * as featureFlagUtils from './utils/feature-flags';
-import * as fetchUtils from './utils/fetch';
-import { FeatureId } from './validators/feature-flags';
-import { QuoteStreamCompleteReason } from './validators/quote-stream-complete';
-import { TokenFeatureType } from './validators/token-feature';
-import type { TxData } from './validators/trade';
+} from './constants/bridge.js';
+import { ChainId, RequestStatus } from './types.js';
+import type { BridgeControllerMessenger } from './types.js';
+import * as balanceUtils from './utils/balance.js';
+import { formatChainIdToDec } from './utils/caip-formatters.js';
+import * as featureFlagUtils from './utils/feature-flags.js';
+import * as fetchUtils from './utils/fetch.js';
+import { FeatureId } from './validators/feature-flags.js';
+import { QuoteStreamCompleteReason } from './validators/quote-stream-complete.js';
+import { TokenFeatureType } from './validators/token-feature.js';
+import type { TxData } from './validators/trade.js';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -747,8 +748,8 @@ describe('BridgeController SSE', function () {
           quotesLastFetched: expect.any(Number),
         });
         const t2 = bridgeController.state.quotesLastFetched;
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(t2).toBeGreaterThan(t1!);
+
+        expect(t2).toBeGreaterThan(t1);
 
         // After 2nd server event
         await advanceToNthTimerThenFlush();
@@ -852,10 +853,7 @@ describe('BridgeController SSE', function () {
           quotesLastFetched: Date.now(),
           assetExchangeRates,
         });
-        expect(
-          bridgeController.state.quotesLastFetched,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        ).toBeGreaterThan(t2!);
+        expect(bridgeController.state.quotesLastFetched).toBeGreaterThan(t2);
         expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`
                   [
                     [
@@ -942,8 +940,8 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state.quotesRefreshCount).toBe(3);
         expect(bridgeController.state.quotes).toStrictEqual([]);
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(t5).toBeGreaterThan(t2!);
+
+        expect(t5).toBeGreaterThan(t2);
         const expectedState = {
           ...DEFAULT_BRIDGE_CONTROLLER_STATE,
           quotesLoadingStatus: RequestStatus.LOADING,
@@ -1020,10 +1018,7 @@ describe('BridgeController SSE', function () {
           ...expectedStateAfterFirstQuote,
         });
         const t4 = bridgeController.state.quotesLastFetched;
-        expect(t4).toBe(
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          t5!,
-        );
+        expect(t4).toBe(t5);
         // All other quotes are received
         await advanceToNthTimerThenFlush(3);
         expect(bridgeController.state).toStrictEqual({
@@ -1041,10 +1036,7 @@ describe('BridgeController SSE', function () {
           })),
           assetExchangeRates,
         });
-        expect(
-          bridgeController.state.quotesLastFetched,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        ).toBe(t4!);
+        expect(bridgeController.state.quotesLastFetched).toBe(t4);
 
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
@@ -1166,10 +1158,7 @@ describe('BridgeController SSE', function () {
         await flushPromises();
 
         const t4 = bridgeController.state.quotesLastFetched;
-        expect(t4).toBe(
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          t5!,
-        );
+        expect(t4).toBe(t5);
         expect(bridgeController.state.quotesRefreshCount).toBe(0);
         expect(bridgeController.state.quotesLoadingStatus).toBe(
           RequestStatus.LOADING,
@@ -1231,10 +1220,7 @@ describe('BridgeController SSE', function () {
         await advanceToNthTimerThenFlush();
         expect(bridgeController.state).toStrictEqual(expectedState);
         const t7 = bridgeController.state.quotesLastFetched;
-        expect(t7).toBe(
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          t6!,
-        );
+        expect(t7).toBe(t6);
         expect(consoleWarnSpy.mock.calls[0]).toMatchInlineSnapshot(`
           [
             "Quote validation failed",
@@ -1264,10 +1250,7 @@ describe('BridgeController SSE', function () {
           quotesRefreshCount: 2,
           quotesLoadingStatus: RequestStatus.FETCHED,
         });
-        expect(bridgeController.state.quotesLastFetched).toBe(
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          t7!,
-        );
+        expect(bridgeController.state.quotesLastFetched).toBe(t7);
         expect(consoleWarnSpy.mock.calls).toHaveLength(3);
         expect(consoleWarnSpy.mock.calls[1]).toMatchInlineSnapshot(`
           [

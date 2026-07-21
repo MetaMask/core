@@ -1,11 +1,12 @@
+import { jest } from '@jest/globals';
 import type {
   JsonRpcError,
   JsonRpcRequest,
   JsonRpcResponse,
 } from '@metamask/utils';
 
-import { MultichainApiNotifications } from '../handlers/types';
-import { multichainMethodCallValidatorMiddleware } from './multichainMethodCallValidatorMiddleware';
+import { MultichainApiNotifications } from '../handlers/types.js';
+import { multichainMethodCallValidatorMiddleware } from './multichainMethodCallValidatorMiddleware.js';
 
 describe('multichainMethodCallValidatorMiddleware', () => {
   const mockNext = jest.fn();
@@ -34,7 +35,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           response,
           mockNext,
           (error) => {
-            reject(error);
+            reject(error instanceof Error ? error : new Error(String(error)));
           },
         );
 
@@ -246,7 +247,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           response,
           mockNext,
           (error) => {
-            reject(error);
+            reject(error instanceof Error ? error : new Error(String(error)));
           },
         );
 
@@ -336,7 +337,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           response,
           mockNext,
           (error) => {
-            reject(error);
+            reject(error instanceof Error ? error : new Error(String(error)));
           },
         );
 
@@ -368,7 +369,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           response,
           mockNext,
           (error) => {
-            reject(error);
+            reject(error instanceof Error ? error : new Error(String(error)));
           },
         );
 

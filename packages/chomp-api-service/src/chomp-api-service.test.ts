@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { DEFAULT_MAX_RETRIES, handleAll } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -7,8 +8,8 @@ import type {
 } from '@metamask/messenger';
 import nock from 'nock';
 
-import type { ChompApiServiceMessenger } from './chomp-api-service';
-import { ChompApiService } from './chomp-api-service';
+import type { ChompApiServiceMessenger } from './chomp-api-service.js';
+import { ChompApiService } from './chomp-api-service.js';
 
 const BASE_URL = 'https://api.chomp.example.com';
 const MOCK_TOKEN = 'mock-jwt-token';

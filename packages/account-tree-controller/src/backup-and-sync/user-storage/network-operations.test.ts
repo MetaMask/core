@@ -1,25 +1,42 @@
+import { jest } from '@jest/globals';
 import { SDK } from '@metamask/profile-sync-controller';
 
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import type { AccountWalletEntropyObject } from '../../wallet';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
 import type {
   BackupAndSyncContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-} from '../types';
+} from '../types.js';
 import {
   USER_STORAGE_WALLETS_FEATURE_KEY,
   USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
   USER_STORAGE_GROUPS_FEATURE_KEY,
-} from './constants';
-import {
+} from './constants.js';
+
+jest.unstable_mockModule('./format-utils', () => ({
+  formatWalletForUserStorageUsage: jest.fn(),
+  formatGroupForUserStorageUsage: jest.fn(),
+  parseWalletFromUserStorageResponse: jest.fn(),
+  parseGroupFromUserStorageResponse: jest.fn(),
+  parseLegacyAccountFromUserStorageResponse: jest.fn(),
+}));
+
+jest.unstable_mockModule('./network-utils', () => ({
+  executeWithRetry: jest.fn(),
+}));
+
+const {
   formatWalletForUserStorageUsage,
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
   parseLegacyAccountFromUserStorageResponse,
-} from './format-utils';
-import {
+} = await import('./format-utils.js');
+
+const { executeWithRetry } = await import('./network-utils.js');
+
+const {
   getWalletFromUserStorage,
   pushWalletToUserStorage,
   getAllGroupsFromUserStorage,
@@ -27,11 +44,7 @@ import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
   getAllLegacyUserStorageAccounts,
-} from './network-operations';
-import { executeWithRetry } from './network-utils';
-
-jest.mock('./format-utils');
-jest.mock('./network-utils');
+} = await import('./network-operations.js');
 
 const mockFormatWalletForUserStorageUsage =
   formatWalletForUserStorageUsage as jest.MockedFunction<

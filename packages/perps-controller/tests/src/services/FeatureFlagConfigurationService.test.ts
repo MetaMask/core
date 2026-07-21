@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable */
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 

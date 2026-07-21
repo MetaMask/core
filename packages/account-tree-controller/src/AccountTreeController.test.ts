@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type {
   AccountGroupId,
   AccountWalletId,
@@ -34,16 +35,16 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
-} from '../tests/mockMessenger';
+} from '../tests/mockMessenger.js';
 import {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
-} from './AccountTreeController';
-import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
-import { BackupAndSyncService } from './backup-and-sync/service';
-import { isAccountGroupNameUnique } from './group';
-import { getAccountWalletNameFromKeyringType } from './rules/keyring';
-import type { AccountTreeControllerState } from './types';
+} from './AccountTreeController.js';
+import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics/index.js';
+import { BackupAndSyncService } from './backup-and-sync/service/index.js';
+import { isAccountGroupNameUnique } from './group.js';
+import { getAccountWalletNameFromKeyringType } from './rules/keyring.js';
+import type { AccountTreeControllerState } from './types.js';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
 const EMPTY_ACCOUNT_MOCK: InternalAccount = {

@@ -1,7 +1,9 @@
-import { CHAIN_IDS } from '../constants';
-import { NameType } from '../types';
-import { handleFetch } from '../util';
-import { EtherscanNameProvider } from './etherscan';
+import { jest } from '@jest/globals';
+
+import { CHAIN_IDS } from '../constants.js';
+import { NameType } from '../types.js';
+import { handleFetch } from '../util.js';
+import { EtherscanNameProvider } from './etherscan.js';
 
 jest.mock('../util');
 

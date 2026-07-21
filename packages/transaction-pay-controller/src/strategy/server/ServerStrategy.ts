@@ -3,11 +3,11 @@ import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getServerQuotes } from './server-quotes';
-import { submitServerQuotes } from './server-submit';
-import type { ServerQuote } from './types';
+} from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getServerQuotes } from './server-quotes.js';
+import { submitServerQuotes } from './server-submit.js';
+import type { ServerQuote } from './types.js';
 
 /**
  * Pay strategy that routes quote, submit, and status requests through the

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ComplianceService } from './ComplianceService';
+import type { ComplianceService } from './ComplianceService.js';
 
 /**
  * Checks compliance status for a single wallet address.

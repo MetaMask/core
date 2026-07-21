@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import {
   DEFAULT_DEGRADED_THRESHOLD,
   InfuraNetworkType,
@@ -5,14 +6,14 @@ import {
 import { Duration, inMilliseconds } from '@metamask/utils';
 import nock from 'nock';
 
-import { NetworkStatus } from '../src/constants';
+import { NetworkStatus } from '../src/constants.js';
 import {
   buildCustomNetworkConfiguration,
   buildCustomRpcEndpoint,
   buildInfuraNetworkConfiguration,
   buildInfuraRpcEndpoint,
   withController,
-} from './helpers';
+} from './helpers.js';
 
 describe('NetworkController provider tests', () => {
   beforeEach(() => {

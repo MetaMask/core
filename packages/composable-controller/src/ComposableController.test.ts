@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import {
   BaseController,
   deriveStateFromMetadata,
@@ -20,11 +21,11 @@ import type {
   ChildControllerStateChangeEvents,
   ComposableControllerActions,
   ComposableControllerEvents,
-} from './ComposableController';
+} from './ComposableController.js';
 import {
   ComposableController,
   INVALID_CONTROLLER_ERROR,
-} from './ComposableController';
+} from './ComposableController.js';
 
 // Mock BaseController classes
 

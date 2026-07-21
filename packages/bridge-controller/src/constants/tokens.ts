@@ -1,7 +1,7 @@
 import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 
-import type { AllowedBridgeChainIds } from './bridge';
-import { CHAIN_IDS } from './chains';
+import type { AllowedBridgeChainIds } from './bridge.js';
+import { CHAIN_IDS } from './chains.js';
 
 export type SwapsTokenObject = {
   /**

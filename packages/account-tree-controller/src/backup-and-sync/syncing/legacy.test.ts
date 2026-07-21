@@ -1,20 +1,57 @@
+import { jest } from '@jest/globals';
 import { AccountGroupType } from '@metamask/account-api';
-import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
-import type { BackupAndSyncContext } from '../types';
-import { getAllLegacyUserStorageAccounts } from '../user-storage';
-import { getLocalGroupsForEntropyWallet } from '../utils';
-import { createMultichainAccountGroupsBatch } from './group';
-import { performLegacyAccountSyncing } from './legacy';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
+import type { BackupAndSyncContext } from '../types.js';
 
-jest.mock('@metamask/accounts-controller');
-jest.mock('../user-storage');
-jest.mock('../utils', () => ({
-  getLocalGroupsForEntropyWallet: jest.fn(),
+jest.unstable_mockModule('@metamask/accounts-controller', () => ({
+  getUUIDFromAddressOfNormalAccount: jest.fn(),
 }));
-jest.mock('./group');
+
+jest.unstable_mockModule('../user-storage', () => ({
+  getAllLegacyUserStorageAccounts: jest.fn(),
+  getWalletFromUserStorage: jest.fn(),
+  pushWalletToUserStorage: jest.fn(),
+  getAllGroupsFromUserStorage: jest.fn(),
+  getGroupFromUserStorage: jest.fn(),
+  pushGroupToUserStorage: jest.fn(),
+  pushGroupToUserStorageBatch: jest.fn(),
+  formatWalletForUserStorageUsage: jest.fn(),
+  formatGroupForUserStorageUsage: jest.fn(),
+  parseWalletFromUserStorageResponse: jest.fn(),
+  parseGroupFromUserStorageResponse: jest.fn(),
+  parseLegacyAccountFromUserStorageResponse: jest.fn(),
+  executeWithRetry: jest.fn(),
+  assertValidUserStorageWallet: jest.fn(),
+  assertValidUserStorageGroup: jest.fn(),
+  assertValidLegacyUserStorageAccount: jest.fn(),
+}));
+
+jest.unstable_mockModule('../utils', () => ({
+  getLocalGroupsForEntropyWallet: jest.fn(),
+  getLocalEntropyWallets: jest.fn(),
+  getLocalGroupForEntropyWallet: jest.fn(),
+  createStateSnapshot: jest.fn(),
+  restoreStateFromSnapshot: jest.fn(),
+  createSyncMutationTracker: jest.fn(),
+  toErrorMessage: jest.fn(),
+}));
+
+jest.unstable_mockModule('./group', () => ({
+  createMultichainAccountGroupsBatch: jest.fn(),
+  createLocalGroupsFromUserStorage: jest.fn(),
+  syncGroupMetadata: jest.fn(),
+  syncGroupsMetadata: jest.fn(),
+}));
+
+const { getUUIDFromAddressOfNormalAccount } = await import(
+  '@metamask/accounts-controller'
+);
+const { getAllLegacyUserStorageAccounts } = await import('../user-storage/index.js');
+const { getLocalGroupsForEntropyWallet } = await import('../utils/index.js');
+const { createMultichainAccountGroupsBatch } = await import('./group.js');
+const { performLegacyAccountSyncing } = await import('./legacy.js');
 
 const mockGetUUIDFromAddressOfNormalAccount =
   getUUIDFromAddressOfNormalAccount as jest.MockedFunction<

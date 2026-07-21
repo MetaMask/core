@@ -6,13 +6,13 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { ComplianceControllerMethodActions } from './ComplianceController-method-action-types';
+import type { ComplianceControllerMethodActions } from './ComplianceController-method-action-types.js';
 import type {
   ComplianceServiceCheckWalletComplianceAction,
   ComplianceServiceCheckWalletsComplianceAction,
-} from './ComplianceService-method-action-types';
-import type { WalletComplianceStatus } from './types';
-import { getWalletComplianceStatus } from './utils';
+} from './ComplianceService-method-action-types.js';
+import type { WalletComplianceStatus } from './types.js';
+import { getWalletComplianceStatus } from './utils.js';
 
 // === GENERAL ===
 

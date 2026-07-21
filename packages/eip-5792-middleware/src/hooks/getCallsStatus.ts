@@ -1,14 +1,10 @@
 import { JsonRpcError } from '@metamask/rpc-errors';
-import type {
-  Log,
-  TransactionMeta,
-  TransactionReceipt,
-} from '@metamask/transaction-controller';
+import type { Log, TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { EIP5792ErrorCode, GetCallsStatusCode, VERSION } from '../constants';
-import type { EIP5792Messenger, GetCallsStatusResult } from '../types';
+import { EIP5792ErrorCode, GetCallsStatusCode, VERSION } from '../constants.js';
+import type { EIP5792Messenger, GetCallsStatusResult } from '../types.js';
 
 /**
  * Retrieves the status of a transaction batch by its ID.
@@ -36,7 +32,7 @@ export function getCallsStatus(
   const transaction = transactions[0];
   const { chainId, txReceipt: rawTxReceipt } = transaction;
   const status = getStatusCode(transaction);
-  const txReceipt = rawTxReceipt as Required<TransactionReceipt> | undefined;
+  const txReceipt = rawTxReceipt;
   const logs = (txReceipt?.logs ?? []) as Required<Log>[];
 
   const receipts: GetCallsStatusResult['receipts'] = txReceipt && [
@@ -50,7 +46,7 @@ export function getCallsStatus(
         topics: log.topics as unknown as Hex[],
       })),
       status: txReceipt.status as '0x0' | '0x1',
-      transactionHash: txReceipt.transactionHash,
+      transactionHash: txReceipt.transactionHash as Hex,
     },
   ];
 

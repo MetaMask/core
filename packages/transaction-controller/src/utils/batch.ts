@@ -18,23 +18,13 @@ import { bytesToHex, createModuleLogger } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 import { parse, v4 } from 'uuid';
 
-import { GasFeeEstimateLevel, TransactionStatus } from '..';
-import type {
-  BatchTransactionParams,
-  GetSimulationConfig,
-  PublishBatchHookRequest,
-  TransactionController,
-  TransactionControllerMessenger,
-  TransactionControllerState,
-  TransactionMeta,
-} from '..';
-import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
-import { updateTransactionGasEstimates } from '../helpers/GasFeePoller';
-import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
-import { CollectPublishHook } from '../hooks/CollectPublishHook';
-import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
-import { projectLogger } from '../logger';
-import { TransactionEnvelopeType, TransactionType } from '../types';
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow.js';
+import { updateTransactionGasEstimates } from '../helpers/GasFeePoller.js';
+import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker.js';
+import { CollectPublishHook } from '../hooks/CollectPublishHook.js';
+import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook.js';
+import { projectLogger } from '../logger.js';
+import { TransactionEnvelopeType, TransactionType } from '../types.js';
 import type {
   NestedTransactionMetadata,
   SecurityAlertResponse,
@@ -47,24 +37,34 @@ import type {
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedResultEntry,
   TransactionBatchMeta,
-} from '../types';
-import type { TransactionBatchResult, TransactionParams } from '../types';
+} from '../types.js';
+import type { TransactionBatchResult, TransactionParams } from '../types.js';
+import { GasFeeEstimateLevel, TransactionStatus } from './../index.js';
+import type {
+  BatchTransactionParams,
+  GetSimulationConfig,
+  PublishBatchHookRequest,
+  TransactionController,
+  TransactionControllerMessenger,
+  TransactionControllerState,
+  TransactionMeta,
+} from './../index.js';
 import {
   ERROR_MESSGE_PUBLIC_KEY,
   doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
-} from './eip7702';
+} from './eip7702.js';
 import {
   getBatchSizeLimit,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
-} from './feature-flags';
-import { simulateGasBatch } from './gas';
-import { getChainId } from './provider';
-import { determineTransactionType } from './transaction-type';
-import { validateBatchRequest } from './validation';
+} from './feature-flags.js';
+import { simulateGasBatch } from './gas.js';
+import { getChainId } from './provider.js';
+import { determineTransactionType } from './transaction-type.js';
+import { validateBatchRequest } from './validation.js';
 
 type UpdateStateCallback = (
   callback: (

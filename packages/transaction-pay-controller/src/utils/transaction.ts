@@ -9,17 +9,17 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import type { Patch } from 'immer';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
-import { projectLogger } from '../logger';
+import { projectLogger } from '../logger.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerState,
   UpdateTransactionDataCallback,
-} from '../types';
-import { rpcRequest } from './provider';
-import { parseRequiredTokens } from './required-tokens';
-import { getNativeToken } from './token';
+} from '../types.js';
+import { rpcRequest } from './provider.js';
+import { parseRequiredTokens } from './required-tokens.js';
+import { getNativeToken } from './token.js';
 
 const log = createModuleLogger(projectLogger, 'transaction');
 

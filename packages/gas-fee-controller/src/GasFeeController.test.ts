@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
@@ -22,22 +23,22 @@ import nock from 'nock';
 import {
   buildCustomNetworkConfiguration,
   buildCustomRpcEndpoint,
-} from '../../network-controller/tests/helpers';
-import determineGasFeeCalculations from './determineGasFeeCalculations';
+} from '../../network-controller/tests/helpers.js';
+import determineGasFeeCalculations from './determineGasFeeCalculations.js';
 import {
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
-} from './gas-util';
-import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController';
+} from './gas-util.js';
+import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController.js';
 import type {
   GasFeeMessenger,
   GasFeeState,
   GasFeeStateEthGasPrice,
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
-} from './GasFeeController';
+} from './GasFeeController.js';
 
 jest.mock('./determineGasFeeCalculations');
 
@@ -353,7 +354,7 @@ describe('GasFeeController', () => {
     gasFeeController.destroy();
     const { blockTracker } = networkController.getProviderAndBlockTracker();
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
     blockTracker?.destroy();
     jest.useRealTimers();
   });
@@ -612,9 +613,7 @@ describe('GasFeeController', () => {
         },
       });
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await gasFeeController.enableNonRPCGasFeeApis();
+      gasFeeController.enableNonRPCGasFeeApis();
 
       expect(gasFeeController.state.nonRPCGasFeeApisDisabled).toBe(false);
     });
@@ -629,9 +628,7 @@ describe('GasFeeController', () => {
         },
       });
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await gasFeeController.disableNonRPCGasFeeApis();
+      gasFeeController.disableNonRPCGasFeeApis();
 
       expect(gasFeeController.state.nonRPCGasFeeApisDisabled).toBe(true);
     });

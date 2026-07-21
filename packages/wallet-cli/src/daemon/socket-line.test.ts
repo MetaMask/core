@@ -1,7 +1,8 @@
+import { jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
 import type { Socket } from 'node:net';
 
-import { readLine, writeLine } from './socket-line';
+import { readLine, writeLine } from './socket-line.js';
 
 /**
  * Create a mock Socket backed by EventEmitter.

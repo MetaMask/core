@@ -1,12 +1,13 @@
+import { jest } from '@jest/globals';
 import { successfulFetch } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getMessengerMock } from '../../tests/messenger-mock';
-import type { TransactionPayQuote } from '../../types';
-import { RELAY_AUTHORIZE_URL, HYPERLIQUID_EXCHANGE_URL } from './constants';
-import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
-import type { RelayQuote, RelaySignatureStep } from './types';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { TransactionPayQuote } from '../../types.js';
+import { RELAY_AUTHORIZE_URL, HYPERLIQUID_EXCHANGE_URL } from './constants.js';
+import { submitHyperliquidWithdraw } from './hyperliquid-withdraw.js';
+import type { RelayQuote, RelaySignatureStep } from './types.js';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

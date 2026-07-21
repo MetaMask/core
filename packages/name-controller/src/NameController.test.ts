@@ -1,18 +1,19 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 
 import type {
   SetNameRequest,
   UpdateProposedNamesRequest,
   NameControllerState,
-} from './NameController';
+} from './NameController.js';
 import {
   FALLBACK_VARIATION,
   NameController,
   NameOrigin,
   PROPOSED_NAME_EXPIRE_DURATION,
-} from './NameController';
-import type { NameProvider } from './types';
-import { NameType } from './types';
+} from './NameController.js';
+import type { NameProvider } from './types.js';
+import { NameType } from './types.js';
 
 const NAME_MOCK = 'TestName';
 const PROPOSED_NAME_MOCK = 'TestProposedName';

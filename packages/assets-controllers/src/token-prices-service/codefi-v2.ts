@@ -15,7 +15,7 @@ import {
   toCaipChainId,
 } from '@metamask/utils';
 
-import type { MarketDataDetails } from '../TokenRatesController';
+import type { MarketDataDetails } from '../TokenRatesController.js';
 import type {
   AbstractTokenPricesService,
   EvmAssetAddressWithChain,
@@ -23,7 +23,7 @@ import type {
   EvmAssetWithMarketData,
   ExchangeRatesByCurrency,
   NativeAssetIdentifiersMap,
-} from './abstract-token-prices-service';
+} from './abstract-token-prices-service.js';
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -913,7 +913,9 @@ export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
       throw new Error('Failed to fetch');
     }
 
-    const filteredExchangeRates = cryptocurrencies.reduce((acc, key) => {
+    const filteredExchangeRates = cryptocurrencies.reduce<
+      ExchangeRatesByCurrency<SupportedCurrency>
+    >((acc, key) => {
       if (exchangeRates[key.toLowerCase() as SupportedCurrency]) {
         acc[key.toLowerCase() as SupportedCurrency] =
           exchangeRates[key.toLowerCase() as SupportedCurrency];
@@ -927,7 +929,9 @@ export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
       );
     }
 
-    const filteredUsdExchangeRates = cryptocurrencies.reduce((acc, key) => {
+    const filteredUsdExchangeRates = cryptocurrencies.reduce<
+      ExchangeRatesByCurrency<SupportedCurrency>
+    >((acc, key) => {
       if (exchangeRatesUsd[key.toLowerCase() as SupportedCurrency]) {
         acc[key.toLowerCase() as SupportedCurrency] =
           exchangeRatesUsd[key.toLowerCase() as SupportedCurrency];
@@ -948,7 +952,9 @@ export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
       return filteredExchangeRates;
     }
 
-    const merged = Object.keys(filteredExchangeRates).reduce((acc, key) => {
+    const merged = Object.keys(filteredExchangeRates).reduce<
+      ExchangeRatesByCurrency<SupportedCurrency>
+    >((acc, key) => {
       acc[key as SupportedCurrency] = {
         ...filteredExchangeRates[key as SupportedCurrency],
         ...(filteredUsdExchangeRates[key as SupportedCurrency]?.value

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import {
   DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
@@ -13,7 +14,7 @@ import {
   CUSTOM_RPC_ERRORS,
   DEFAULT_MAX_RETRIES,
   RpcService,
-} from './rpc-service';
+} from './rpc-service.js';
 
 describe('RpcService', () => {
   beforeEach(() => {

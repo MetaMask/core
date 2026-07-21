@@ -7,39 +7,39 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { areUint8ArraysEqual, stringToBytes } from '@metamask/utils';
 
-import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager';
+import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager.js';
 import {
   controllerName,
   PasskeyControllerErrorCode,
   PasskeyControllerErrorMessage,
-} from './constants';
-import { PasskeyControllerError } from './errors';
-import { deriveKeyFromAuthenticationResponse } from './key-derivation';
-import { createModuleLogger, projectLogger } from './logger';
-import { PasskeyControllerMethodActions } from './PasskeyController-method-action-types';
+} from './constants.js';
+import { PasskeyControllerError } from './errors.js';
+import { deriveKeyFromAuthenticationResponse } from './key-derivation.js';
+import { createModuleLogger, projectLogger } from './logger.js';
+import { PasskeyControllerMethodActions } from './PasskeyController-method-action-types.js';
 import type {
   AuthenticatorTransportFuture,
   PasskeyCredentialInfo,
   PasskeyKeyDerivation,
   PasskeyRecord,
   PrfClientExtensionResults,
-} from './types';
+} from './types.js';
 import {
   decryptWithKey,
   encryptWithKey,
   randomBytesToBase64URL,
-} from './utils/crypto';
-import { base64URLToBytes, bytesToBase64URL } from './utils/encoding';
-import { COSEALG } from './webauthn/constants';
-import { decodeClientDataJSON } from './webauthn/decode-client-data-json';
+} from './utils/crypto.js';
+import { base64URLToBytes, bytesToBase64URL } from './utils/encoding.js';
+import { COSEALG } from './webauthn/constants.js';
+import { decodeClientDataJSON } from './webauthn/decode-client-data-json.js';
 import type {
   PasskeyAuthenticationOptions,
   PasskeyAuthenticationResponse,
   PasskeyRegistrationOptions,
   PasskeyRegistrationResponse,
-} from './webauthn/types';
-import { verifyAuthenticationResponse } from './webauthn/verify-authentication-response';
-import { verifyRegistrationResponse } from './webauthn/verify-registration-response';
+} from './webauthn/types.js';
+import { verifyAuthenticationResponse } from './webauthn/verify-authentication-response.js';
+import { verifyRegistrationResponse } from './webauthn/verify-registration-response.js';
 
 export type PasskeyControllerState = {
   passkeyRecord: PasskeyRecord | null;

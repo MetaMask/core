@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -7,9 +8,12 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { ComplianceController } from './ComplianceController';
-import type { ComplianceControllerMessenger } from './ComplianceController';
-import { selectAreAnyWalletsBlocked, selectIsWalletBlocked } from './selectors';
+import { ComplianceController } from './ComplianceController.js';
+import type { ComplianceControllerMessenger } from './ComplianceController.js';
+import {
+  selectAreAnyWalletsBlocked,
+  selectIsWalletBlocked,
+} from './selectors.js';
 
 const LOWERCASE_EVM_ADDRESS = '0x4e1ff7229bddaf0a73df183a88d9c3a04cc975e0';
 const CHECKSUM_EVM_ADDRESS = toChecksumHexAddress(LOWERCASE_EVM_ADDRESS);

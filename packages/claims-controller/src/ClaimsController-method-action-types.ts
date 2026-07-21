@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ClaimsController } from './ClaimsController';
+import type { ClaimsController } from './ClaimsController.js';
 
 /**
  * Fetch the required configurations for the claims service.

@@ -1,4 +1,4 @@
-import { encryptorFactory } from './encryptor';
+import { encryptorFactory } from './encryptor.js';
 
 describe('encryptorFactory', () => {
   const encryptor = encryptorFactory(600_000);

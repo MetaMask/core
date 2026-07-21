@@ -2,9 +2,9 @@ import type {
   GetMarketDataWithPricesParams,
   MarketTypeFilter,
   PerpsMarketData,
-} from '../types';
-import type { CandleData, CandleStick } from '../types/perps-types';
-import { sortMarkets } from './sortMarkets';
+} from '../types/index.js';
+import type { CandleData, CandleStick } from '../types/perps-types.js';
+import { sortMarkets } from './sortMarkets.js';
 
 // ============================================================================
 // Market category classification (pure functions)
@@ -350,6 +350,7 @@ export const filterMarketsByQuery = (
 
   return markets.filter(
     (market) =>
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       market.symbol?.toLowerCase().includes(lowerQuery) ||
       market.name?.toLowerCase().includes(lowerQuery),
   );

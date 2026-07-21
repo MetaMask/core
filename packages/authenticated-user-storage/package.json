@@ -18,19 +18,12 @@
   "files": [
     "dist/"
   ],
+  "type": "module",
   "sideEffects": false,
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -39,15 +32,15 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/authenticated-user-storage",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/authenticated-user-storage",
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
     "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
-    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
-    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -63,7 +56,6 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",

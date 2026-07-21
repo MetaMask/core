@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ProfileMetricsController } from './ProfileMetricsController';
+import type { ProfileMetricsController } from './ProfileMetricsController.js';
 
 /**
  * Skip the initial delay period by setting the end timestamp to the current time.

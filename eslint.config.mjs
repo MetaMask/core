@@ -2,6 +2,7 @@ import base, { createConfig } from '@metamask/eslint-config';
 import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
+import node from 'eslint-plugin-n';
 
 const NODE_LTS_VERSION = 22;
 
@@ -94,6 +95,9 @@ const config = createConfig([
       // Handled by Oxfmt.
       'prettier/prettier': 'off',
       'import-x/order': 'off',
+      // Allow `void somePromise()` to explicitly mark ignored promises
+      // (required by `no-floating-promises`).
+      'no-void': ['error', { allowAsStatement: true }],
     },
   },
   {
@@ -125,7 +129,7 @@ const config = createConfig([
   {
     files: ['**/*.{js,cjs}'],
     languageOptions: {
-      sourceType: 'script',
+      sourceType: 'module',
       ecmaVersion: 2020,
     },
   },
@@ -179,6 +183,13 @@ const config = createConfig([
       'jest/no-alias-methods': 'error',
       'jest/no-commented-out-tests': 'error',
       'jest/no-disabled-tests': 'error',
+
+      // Some package types are wrong (e.g., nock).
+      'import-x/no-named-as-default-member': 'off',
+
+      // `import { jest } from '@jest/globals'` is required in ESM test files
+      // and intentionally shadows the Jest-injected global.
+      '@typescript-eslint/no-shadow': ['error', { allow: ['jest'] }],
     },
     settings: {
       node: {
@@ -216,6 +227,19 @@ const config = createConfig([
     rules: {
       // Scripts may be self-executable and thus have hashbangs.
       'n/hashbang': 'off',
+    },
+  },
+  {
+    files: [
+      '**/*.cjs',
+      '**/.prettierrc.js',
+      '**/.eslintrc.js',
+      '**/jest.config*.js',
+      '**/jest.environment.js',
+    ],
+    rules: {
+      // CJS config files have no import/export statements.
+      'import-x/unambiguous': 'off',
     },
   },
   {
@@ -371,6 +395,33 @@ const config = createConfig([
     files: ['packages/wallet-framework-docs/site/docusaurus.config.ts'],
     rules: {
       'n/no-process-env': 'off',
+    },
+  },
+
+  // ESM-specific configuration. We should port this to
+  // `@metamask/eslint-config` at some point.
+  {
+    plugins: { n: node },
+    rules: {
+      // `import-x/extensions` doesn't support using ".js" for TypeScript
+      // files(?), so we load the `n` plugin and use
+      // `n/file-extension-in-import` instead.
+      'n/file-extension-in-import': ['error', 'always'],
+      'import-x/extensions': [
+        'error',
+        {
+          js: 'ignorePackages',
+          ts: 'never',
+          tsx: 'never',
+          json: 'always',
+        },
+      ],
+      'import-x/no-useless-path-segments': [
+        'error',
+        {
+          noUselessIndex: false,
+        },
+      ],
     },
   },
 ]);

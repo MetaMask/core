@@ -21,8 +21,8 @@ export type {
   DataServiceGranularCacheUpdatedEvent,
   QueryKey,
   PersistenceConfiguration,
-} from './BaseDataService';
-export { BaseDataService } from './BaseDataService';
+} from './BaseDataService.js';
+export { BaseDataService } from './BaseDataService.js';
 
 export {
   DEFAULT_CIRCUIT_BREAK_DURATION,
@@ -30,8 +30,8 @@ export {
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
   createServicePolicy,
-} from './createServicePolicy';
+} from './createServicePolicy.js';
 export type {
   CreateServicePolicyOptions,
   ServicePolicy,
-} from './createServicePolicy';
+} from './createServicePolicy.js';

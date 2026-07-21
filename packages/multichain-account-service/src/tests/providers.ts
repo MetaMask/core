@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { Bip44Account } from '@metamask/account-api';
 import {
   BtcScope,
@@ -9,8 +10,11 @@ import {
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 
-import { AccountProviderWrapper, EvmAccountProvider } from '../providers';
-import { GroupIndexRange } from '../utils';
+import {
+  AccountProviderWrapper,
+  EvmAccountProvider,
+} from '../providers/index.js';
+import { GroupIndexRange } from '../utils.js';
 
 export type MockAccountProvider = {
   mockAccounts: KeyringAccount[];

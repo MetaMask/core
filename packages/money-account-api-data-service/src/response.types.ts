@@ -5,7 +5,7 @@ import type {
   InterestResponseStruct,
   PositionResponseStruct,
   RateHistoryResponseStruct,
-} from './structs';
+} from './structs.js';
 
 // All types in this file mirror the external Money Account API's snake_case
 // JSON contract verbatim to maintain 1:1 parity with API responses.

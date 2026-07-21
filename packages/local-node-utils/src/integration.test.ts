@@ -1,4 +1,5 @@
-import nock, { cleanAll } from 'nock';
+import { jest } from '@jest/globals';
+import nock from 'nock';
 /* eslint-disable jest/expect-expect, n/no-sync */
 import assert from 'node:assert/strict';
 import {
@@ -12,16 +13,16 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { extractTarBz2Archive, extractTarGzArchive } from './archive';
-import { cleanInstallerCache } from './cache';
-import { getMetamaskCacheDirectory } from './cache-directory';
-import { verifyFileChecksum } from './checksum';
-import { runCommand } from './command';
-import { downloadFileFromUrl, openDownloadStream } from './download';
-import { isFileMissingError } from './errors';
-import { installExecutableWrapper } from './executable-wrapper';
-import { findExecutable, isDirectory, isFile } from './filesystem';
-import { getPlatformKey, normalizeSystemArchitecture } from './platform';
+import { extractTarBz2Archive, extractTarGzArchive } from './archive.js';
+import { getMetamaskCacheDirectory } from './cache-directory.js';
+import { cleanInstallerCache } from './cache.js';
+import { verifyFileChecksum } from './checksum.js';
+import { runCommand } from './command.js';
+import { downloadFileFromUrl, openDownloadStream } from './download.js';
+import { isFileMissingError } from './errors.js';
+import { installExecutableWrapper } from './executable-wrapper.js';
+import { findExecutable, isDirectory, isFile } from './filesystem.js';
+import { getPlatformKey, normalizeSystemArchitecture } from './platform.js';
 
 jest.mock('./command', () => ({
   runCommand: jest.fn(),
@@ -76,7 +77,7 @@ describe('cache', () => {
 
 describe('download', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('downloads a file from a URL', async () => {

@@ -1,5 +1,7 @@
-import { AiDigestService } from '.';
-import { AiDigestControllerErrorMessage } from './ai-digest-constants';
+import { jest } from '@jest/globals';
+
+import { AiDigestControllerErrorMessage } from './ai-digest-constants.js';
+import { AiDigestService } from './index.js';
 
 describe('AiDigestService', () => {
   const mockFetch = jest.fn();

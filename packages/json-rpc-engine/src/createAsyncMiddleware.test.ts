@@ -1,6 +1,6 @@
 import { assertIsJsonRpcSuccess } from '@metamask/utils';
 
-import { JsonRpcEngine, createAsyncMiddleware } from '.';
+import { JsonRpcEngine, createAsyncMiddleware } from './index.js';
 
 const jsonrpc = '2.0' as const;
 
@@ -115,7 +115,6 @@ describe('createAsyncMiddleware', () => {
 
     engine.push(
       createAsyncMiddleware(async (_request, _response, next) => {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         next();
       }),
     );

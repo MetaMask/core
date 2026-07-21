@@ -1,22 +1,37 @@
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
-import {
+import { jest } from '@jest/globals';
+
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+} from '../types.js';
+
+jest.unstable_mockModule('./validation', () => ({
+  assertValidUserStorageWallet: jest.fn(),
+  assertValidUserStorageGroup: jest.fn(),
+  assertValidLegacyUserStorageAccount: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../logger', () => ({
+  projectLogger: jest.fn(),
+  backupAndSyncLogger: jest.fn(),
+}));
+
+const {
   formatWalletForUserStorageUsage,
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
   parseLegacyAccountFromUserStorageResponse,
-} from './format-utils';
-import {
+} = await import('./format-utils.js');
+
+const { backupAndSyncLogger } = await import('../../logger.js');
+const {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
   assertValidLegacyUserStorageAccount,
-} from './validation';
-
-jest.mock('./validation');
-jest.mock('../../logger');
+} = await import('./validation.js');
 
 const mockBackupAndSyncLogger = backupAndSyncLogger as jest.MockedFunction<
   typeof backupAndSyncLogger

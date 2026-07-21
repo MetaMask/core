@@ -6,12 +6,12 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
+import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants.js';
 import type {
   EtherscanSupportedHexChainId,
   PreferencesControllerMessenger,
-} from './PreferencesController';
-import { PreferencesController } from './PreferencesController';
+} from './PreferencesController.js';
+import { PreferencesController } from './PreferencesController.js';
 
 describe('PreferencesController', () => {
   it('should set default state', () => {
@@ -31,12 +31,12 @@ describe('PreferencesController', () => {
       showMultiRpcModal: false,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
-      ).reduce(
+      ).reduce<{ [chainId in EtherscanSupportedHexChainId]: boolean }>(
         (acc, curr) => {
           acc[curr] = true;
           return acc;
         },
-        {} as { [chainId in EtherscanSupportedHexChainId]: boolean },
+        {},
       ),
       smartTransactionsOptInStatus: true,
       useSafeChainsListValidation: true,

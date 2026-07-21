@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { BrokenCircuitError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -10,19 +11,28 @@ import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags';
+import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
   RampsControllerMessenger,
   RampsControllerState,
   ResourceState,
   UserRegion,
-} from './RampsController';
+} from './RampsController.js';
 import {
   RampsController,
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
-} from './RampsController';
-import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
+} from './RampsController.js';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
+import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetTokensAction,
+  RampsServiceGetProvidersAction,
+  RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
+} from './RampsService-method-action-types.js';
 import type {
   Country,
   TokensResponse,
@@ -34,18 +44,9 @@ import type {
   Quote,
   RampsToken,
   RampsOrder,
-} from './RampsService';
-import { RampsOrderStatus } from './RampsService';
-import type {
-  RampsServiceGetGeolocationAction,
-  RampsServiceGetCountriesAction,
-  RampsServiceGetTokensAction,
-  RampsServiceGetProvidersAction,
-  RampsServiceGetPaymentMethodsAction,
-  RampsServiceGetQuotesAction,
-  RampsServiceGetBuyWidgetUrlAction,
-} from './RampsService-method-action-types';
-import { RequestStatus } from './RequestCache';
+} from './RampsService.js';
+import { RampsOrderStatus } from './RampsService.js';
+import { RequestStatus } from './RequestCache.js';
 import type {
   TransakAccessToken,
   TransakUserDetails,
@@ -61,7 +62,7 @@ import type {
   TransakOrder,
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
-} from './TransakService';
+} from './TransakService.js';
 
 describe('RampsController', () => {
   const circuitBreakerOpenErrorMessage =
@@ -70,7 +71,10 @@ describe('RampsController', () => {
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
     it('includes every RampsService action that RampsController calls', async () => {
       expect.hasAssertions();
-      const controllerPath = path.join(__dirname, 'RampsController.ts');
+      const controllerPath = path.join(
+        import.meta.dirname,
+        'RampsController.ts',
+      );
       const source = await fs.promises.readFile(controllerPath, 'utf-8');
       const callPattern =
         /messenger\.call\s*\(\s*['"]((RampsService|TransakService):[^'"]+)['"]/gu;
@@ -4630,8 +4634,7 @@ describe('RampsController', () => {
 
     it('does not fetch getPaymentMethods on provider selection (React Query owns fetching)', async () => {
       const providerWithoutField: Provider = { ...mockProvider };
-      delete (providerWithoutField as Partial<Provider>)
-        .supportedCryptoCurrencies;
+      delete providerWithoutField.supportedCryptoCurrencies;
 
       const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
 

@@ -1,6 +1,7 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import { jest } from '@jest/globals';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
@@ -11,8 +12,8 @@ import {
   getTokenBalancesForMultipleAddresses,
   getStakedBalancesForAddresses,
   getNftOwnershipForMultipleNfts,
-} from './multicall';
-import type { Aggregate3Call, NftOwnershipQuery } from './multicall';
+} from './multicall.js';
+import type { Aggregate3Call, NftOwnershipQuery } from './multicall.js';
 
 const provider = new Web3Provider(jest.fn());
 

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { isBip44Account } from '@metamask/account-api';
 import { AccountCreationType, BtcScope } from '@metamask/keyring-api';
 import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
@@ -6,7 +7,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import deepmerge from 'deepmerge';
 
-import { TraceName } from '../analytics/traces';
+import { TraceName } from '../analytics/traces.js';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -17,23 +18,20 @@ import {
   MOCK_HD_KEYRING_1,
   MockAccountBuilder,
   toGroupIndexRangeArray,
-} from '../tests';
-import type { RootMessenger, DeepPartial } from '../tests';
-import { AccountProviderWrapper } from './AccountProviderWrapper';
+} from '../tests/index.js';
+import type { RootMessenger, DeepPartial } from '../tests/index.js';
+import { AccountProviderWrapper } from './AccountProviderWrapper.js';
 import {
   BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   BTC_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
-} from './BtcAccountProvider';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+} from './BtcAccountProvider.js';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 
 function asConfig(
   partial: DeepPartial<SnapAccountProviderConfig>,
 ): SnapAccountProviderConfig {
-  return deepmerge(
-    BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
-    partial,
-  ) as SnapAccountProviderConfig;
+  return deepmerge(BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG, partial);
 }
 
 /**

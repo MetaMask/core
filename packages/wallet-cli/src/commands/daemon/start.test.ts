@@ -1,6 +1,8 @@
-import { ensureDaemon } from '../../daemon/daemon-spawn';
-import { runCommand } from '../../test/run-command';
-import DaemonStart from './start';
+import { jest } from '@jest/globals';
+
+import { ensureDaemon } from '../../daemon/daemon-spawn.js';
+import { runCommand } from '../../test/run-command.js';
+import DaemonStart from './start.js';
 
 jest.mock('../../daemon/daemon-spawn');
 

@@ -1,5 +1,4 @@
 import { toHex } from '@metamask/controller-utils';
-import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
 import type {
   GasFeeToken,
   TransactionMeta,
@@ -7,12 +6,12 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { TransactionPayControllerMessenger } from '..';
-import { createModuleLogger, projectLogger } from '../logger';
-import type { Amount } from '../types';
-import { getFallbackGas, getGasBuffer } from './feature-flags';
-import { getNetworkClientId } from './provider';
-import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { Amount } from '../types.js';
+import type { TransactionPayControllerMessenger } from './../index.js';
+import { getFallbackGas, getGasBuffer } from './feature-flags.js';
+import { getNetworkClientId } from './provider.js';
+import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token.js';
 
 const log = createModuleLogger(projectLogger, 'gas');
 
@@ -290,7 +289,13 @@ export function getGasFee(
   const chainState = gasFeeControllerState?.gasFeeEstimatesByChainId?.[chainId];
 
   const { estimatedBaseFee: estimatedBaseFeeGwei, medium } =
-    (chainState?.gasFeeEstimates as GasFeeEstimates | undefined) ?? {};
+    (chainState?.gasFeeEstimates ?? {}) as {
+      estimatedBaseFee?: string;
+      medium?: {
+        suggestedMaxFeePerGas?: string;
+        suggestedMaxPriorityFeePerGas?: string;
+      };
+    };
 
   const maxFeePerGasGwei = medium?.suggestedMaxFeePerGas;
   const maxPriorityFeePerGasGwei = medium?.suggestedMaxPriorityFeePerGas;

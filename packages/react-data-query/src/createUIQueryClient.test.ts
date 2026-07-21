@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Messenger } from '@metamask/messenger';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import {
@@ -14,13 +15,13 @@ import {
   ExampleDataServiceEvents,
   GetActivityResponse,
   PageParam,
-} from '../../base-data-service/tests/ExampleDataService';
+} from '../../base-data-service/tests/ExampleDataService.js';
 import {
   mockAssets,
   mockTransactionsPage1,
   mockTransactionsPage2,
-} from '../../base-data-service/tests/mocks';
-import { createUIQueryClient } from './createUIQueryClient';
+} from '../../base-data-service/tests/mocks.js';
+import { createUIQueryClient } from './createUIQueryClient.js';
 
 const DATA_SERVICES = ['ExampleDataService'];
 

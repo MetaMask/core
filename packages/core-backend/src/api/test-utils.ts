@@ -1,10 +1,10 @@
+import { jest } from '@jest/globals';
 /**
  * Shared test utilities for API client tests.
  */
-
 import { QueryClient } from '@tanstack/query-core';
 
-import { ApiPlatformClient } from './ApiPlatformClient';
+import { ApiPlatformClient } from './ApiPlatformClient.js';
 
 // Mock fetch globally
 export const mockFetch = jest.fn();

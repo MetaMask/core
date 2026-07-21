@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import nock, { isDone } from 'nock';
+import nock from 'nock';
 
 import {
   CodefiTokenPricesServiceV2,
@@ -16,7 +17,7 @@ import {
   getSupportedNetworks,
   resetSupportedNetworksCache,
   getAssetId,
-} from './codefi-v2';
+} from './codefi-v2.js';
 
 // We're not customizing the default max delay
 // The default can be found here: https://github.com/connor4312/cockatiel?tab=readme-ov-file#exponentialbackoff

@@ -1,13 +1,14 @@
+import { jest } from '@jest/globals';
 import type { Hex } from '@metamask/utils';
 
 import type {
   BatchTransactionParams,
   TransactionController,
   TransactionMeta,
-} from '..';
-import type { BatchTransaction } from '../types';
-import { TransactionType } from '../types';
-import { ExtraTransactionsPublishHook } from './ExtraTransactionsPublishHook';
+} from '../index.js';
+import type { BatchTransaction } from '../types.js';
+import { TransactionType } from '../types.js';
+import { ExtraTransactionsPublishHook } from './ExtraTransactionsPublishHook.js';
 
 const SIGNED_TRANSACTION_MOCK = '0xffe';
 const SIGNED_TRANSACTION_2_MOCK = '0xfff' as Hex;

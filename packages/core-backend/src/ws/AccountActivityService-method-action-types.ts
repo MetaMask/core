@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AccountActivityService } from './AccountActivityService';
+import type { AccountActivityService } from './AccountActivityService.js';
 
 /**
  * Subscribe to account activity (transactions and balance updates)

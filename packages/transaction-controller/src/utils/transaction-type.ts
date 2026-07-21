@@ -8,11 +8,14 @@ import {
 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { InferTransactionTypeResult, TransactionParams } from '../types';
-import { TransactionType } from '../types';
-import { DELEGATION_PREFIX } from './eip7702';
-import { rpcRequest } from './provider';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type {
+  InferTransactionTypeResult,
+  TransactionParams,
+} from '../types.js';
+import { TransactionType } from '../types.js';
+import { DELEGATION_PREFIX } from './eip7702.js';
+import { rpcRequest } from './provider.js';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 

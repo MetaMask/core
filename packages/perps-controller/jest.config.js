@@ -3,12 +3,12 @@
  * https://jestjs.io/docs/configuration
  */
 
-const merge = require('deepmerge');
-const path = require('path');
+import merge from 'deepmerge';
+import path from 'path';
 
-const baseConfig = require('../../jest.config.packages');
+import baseConfig from '../../jest.config.packages.js';
 
-const displayName = path.basename(__dirname);
+const displayName = path.basename(import.meta.dirname);
 
 module.exports = {
   ...merge(baseConfig, {

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -6,18 +7,18 @@ import type {
 } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 
-import { flushPromises } from '../../../../tests/helpers';
-import { CHAIN_IDS } from '../constants';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta } from '../types';
-import { TransactionType, TransactionStatus } from '../types';
-import { rpcRequest } from './provider';
+import { flushPromises } from '../../../../tests/helpers.js';
+import { CHAIN_IDS } from '../constants.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { TransactionType, TransactionStatus } from '../types.js';
+import { rpcRequest } from './provider.js';
 import {
   updateSwapsTransaction,
   updatePostTransactionBalance,
   UPDATE_POST_TX_BALANCE_ATTEMPTS,
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
-} from './swaps';
+} from './swaps.js';
 
 jest.mock('./provider', () => ({
   rpcRequest: jest.fn(),

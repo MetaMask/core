@@ -1,6 +1,8 @@
-import * as Assert from './assert';
-import { bucketScopesBySupport, getSupportedScopeObjects } from './filter';
-import * as Supported from './supported';
+import { jest } from '@jest/globals';
+
+import * as Assert from './assert.js';
+import { bucketScopesBySupport, getSupportedScopeObjects } from './filter.js';
+import * as Supported from './supported.js';
 
 jest.mock('./assert', () => ({
   ...jest.requireActual('./assert'),

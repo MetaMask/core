@@ -25,7 +25,7 @@ import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
 import { toASCII } from 'punycode/punycode.js';
 
-import type { EnsControllerMethodActions } from './EnsController-method-action-types';
+import type { EnsControllerMethodActions } from './EnsController-method-action-types.js';
 
 const log = createProjectLogger('ens-controller');
 
@@ -262,7 +262,7 @@ export class EnsController extends BaseController<
     // TODO Explicitly handle the case where `normalizedEnsName` is `null`
     // eslint-disable-next-line no-implicit-coercion
     return !!normalizedEnsName && this.state.ensEntries[chainId]
-      ? this.state.ensEntries[chainId][normalizedEnsName] || null
+      ? (this.state.ensEntries[chainId][normalizedEnsName] ?? null)
       : null;
   }
 

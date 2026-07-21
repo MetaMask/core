@@ -4,7 +4,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
-import { isFileMissingError } from './errors';
+import { isFileMissingError } from './errors.js';
 
 export function getMetamaskCacheDirectory({
   cwd = process.cwd(),

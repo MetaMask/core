@@ -22,9 +22,9 @@ import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import { pick } from 'lodash';
+import { pick } from 'lodash-es';
 
-import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
+import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types.js';
 
 export type RequestPermissionsHooks = {
   getAccounts: () => string[];
@@ -128,7 +128,7 @@ async function requestPermissionsImplementation(
 
     const caip25CaveatValue = caip25Endowment.caveats?.find(
       ({ type }) => type === Caip25CaveatType,
-    )?.value as Caip25CaveatValue | undefined;
+    )?.value;
     if (!caip25CaveatValue) {
       throw new Error(
         `could not find ${Caip25CaveatType} in granted ${Caip25EndowmentPermissionName} permission.`,
@@ -151,7 +151,9 @@ async function requestPermissionsImplementation(
       ],
     };
 
-    const ethChainIds = getPermittedEthChainIds(caip25CaveatValue);
+    const ethChainIds = getPermittedEthChainIds(
+      caip25CaveatValue as Caip25CaveatValue,
+    );
 
     if (ethChainIds.length > 0) {
       grantedPermissions[EndowmentTypes.PermittedChains] = {

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -6,23 +7,23 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { LoginResponse } from '../../sdk';
-import { Platform } from '../../sdk';
-import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
+import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth.js';
+import type { LoginResponse } from '../../sdk/index.js';
+import { Platform } from '../../sdk/index.js';
 import {
   MOCK_ACCESS_JWT,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
-} from '../../sdk/mocks/auth';
-import { AuthenticationController } from './AuthenticationController';
+} from '../../sdk/mocks/auth.js';
+import { AuthenticationController } from './AuthenticationController.js';
 import type {
   AuthenticationControllerMessenger,
   AuthenticationControllerState,
   ProfileSignInInfo,
-} from './AuthenticationController';
+} from './AuthenticationController.js';
 import {
   MOCK_LOGIN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
-} from './mocks/mockResponses';
+} from './mocks/mockResponses.js';
 
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',

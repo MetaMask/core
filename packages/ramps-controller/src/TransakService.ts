@@ -5,8 +5,8 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
-import { TRANSAK_ERROR_CODES } from './transakErrorCodes';
-import type { TransakServiceMethodActions } from './TransakService-method-action-types';
+import { TRANSAK_ERROR_CODES } from './transakErrorCodes.js';
+import type { TransakServiceMethodActions } from './TransakService-method-action-types.js';
 
 // === TYPES ===
 
@@ -592,6 +592,7 @@ export class TransakService {
     } catch {
       // ignore body read/parse failures
     }
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
     throw new TransakApiError(
       fetchResponse.status,
       `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'${errorBody ? `: ${errorBody}` : ''}`,

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { ShieldBackend } from 'src/types';
 
 export const MOCK_COVERAGE_ID = '1';

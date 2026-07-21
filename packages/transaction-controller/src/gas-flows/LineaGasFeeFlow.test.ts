@@ -1,22 +1,23 @@
+import { jest } from '@jest/globals';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
-import { CHAIN_IDS } from '../constants';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { CHAIN_IDS } from '../constants.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   FeeMarketGasFeeEstimates,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
   TransactionMeta,
-} from '../types';
+} from '../types.js';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionStatus,
-} from '../types';
-import { rpcRequest } from '../utils/provider';
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
-import { LineaGasFeeFlow } from './LineaGasFeeFlow';
+} from '../types.js';
+import { rpcRequest } from '../utils/provider.js';
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow.js';
+import { LineaGasFeeFlow } from './LineaGasFeeFlow.js';
 
 jest.mock('../utils/provider', () => ({
   rpcRequest: jest.fn(),

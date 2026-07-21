@@ -1,8 +1,8 @@
 import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 import type { RateLimitErrorData } from '@metamask/toprf-secure-backup';
 
-import { SeedlessOnboardingControllerErrorMessage } from './constants';
-import type { RecoveryErrorData } from './types';
+import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
+import type { RecoveryErrorData } from './types.js';
 
 /**
  * Get the error message from the TOPRF error code.

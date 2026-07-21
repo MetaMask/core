@@ -1,11 +1,12 @@
+import { jest } from '@jest/globals';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
-import { TransactionPayStrategy } from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
+import { TransactionPayStrategy } from '../constants.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
   TransactionPaySourceAmount,
   TransactionData,
@@ -13,18 +14,18 @@ import type {
   TransactionPayTotals,
   TransactionPaymentToken,
   TransactionPayRequiredToken,
-} from '../types';
-import type { UpdateQuotesRequest } from './quotes';
-import { refreshQuotes, updateQuotes } from './quotes';
+} from '../types.js';
+import type { UpdateQuotesRequest } from './quotes.js';
+import { refreshQuotes, updateQuotes } from './quotes.js';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
   getStrategiesByName,
   getStrategyByName,
-} from './strategy';
-import { getLiveTokenBalance, getTokenFiatRate } from './token';
-import { calculateTotals } from './totals';
-import { getTransaction, updateTransaction } from './transaction';
+} from './strategy.js';
+import { getLiveTokenBalance, getTokenFiatRate } from './token.js';
+import { calculateTotals } from './totals.js';
+import { getTransaction, updateTransaction } from './transaction.js';
 
 jest.mock('./strategy');
 jest.mock('./transaction');

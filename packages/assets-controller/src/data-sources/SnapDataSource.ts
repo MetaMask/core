@@ -1,7 +1,6 @@
 import type { Balance, CaipAssetType } from '@metamask/keyring-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type {
-  Caveat,
   GetPermissions,
   PermissionConstraint,
   PermissionControllerStateChange,
@@ -17,8 +16,8 @@ import { HandlerType, SnapCaveatType } from '@metamask/snaps-utils';
 import { parseCaipAssetType } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   AssetBalance,
   ChainId,
@@ -26,12 +25,12 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
-} from '../types';
-import { AbstractDataSource } from './AbstractDataSource';
+} from '../types.js';
+import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,
   SubscriptionRequest,
-} from './AbstractDataSource';
+} from './AbstractDataSource.js';
 
 // ============================================================================
 // SNAP KEYRING EVENT TYPES
@@ -97,7 +96,7 @@ export function getChainIdsCaveat(
 
   const caveat = permission.caveats.find(
     (permCaveat) => permCaveat.type === SnapCaveatType.ChainIds,
-  ) as Caveat<string, string[]> | undefined;
+  );
 
   return caveat ? (caveat.value as ChainId[]) : null;
 }

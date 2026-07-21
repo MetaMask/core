@@ -1,11 +1,12 @@
+import { jest } from '@jest/globals';
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 
-import type { QuoteMetadata } from '../../types';
-import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
-import { getNativeAssetForChainId } from '../bridge';
-import { formatChainIdToCaip } from '../caip-formatters';
-import { MetricsSwapType } from './constants';
+import type { QuoteMetadata } from '../../types.js';
+import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import { getNativeAssetForChainId } from '../bridge.js';
+import { formatChainIdToCaip } from '../caip-formatters.js';
+import { MetricsSwapType } from './constants.js';
 import {
   getAccountHardwareType,
   isHardwareWallet,
@@ -15,7 +16,7 @@ import {
   formatProviderLabel,
   getRequestParams,
   getQuotesReceivedProperties,
-} from './properties';
+} from './properties.js';
 
 describe('properties', () => {
   beforeEach(() => {
