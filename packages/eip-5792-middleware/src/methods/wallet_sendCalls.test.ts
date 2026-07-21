@@ -5,8 +5,8 @@ import type {
   ProcessSendCallsHook,
   SendCallsPayload,
   SendCallsParams,
-} from '../types';
-import { walletSendCalls } from './wallet_sendCalls';
+} from '../types.js';
+import { walletSendCalls } from './wallet_sendCalls.js';
 
 type GetPermittedAccountsForOrigin = () => Promise<string[]>;
 

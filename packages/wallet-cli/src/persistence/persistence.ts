@@ -8,7 +8,7 @@ import type {
 } from '@metamask/wallet';
 import type { Patch } from 'immer';
 
-import type { KeyValueStore } from './KeyValueStore';
+import type { KeyValueStore } from './KeyValueStore.js';
 
 /**
  * Handler for a controller's `stateChanged` event: the new controller state and

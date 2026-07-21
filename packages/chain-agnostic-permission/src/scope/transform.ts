@@ -7,8 +7,8 @@ import type {
   InternalScopesObject,
   NormalizedScopeObject,
   NormalizedScopesObject,
-} from './types';
-import { parseScopeString } from './types';
+} from './types.js';
+import { parseScopeString } from './types.js';
 
 /**
  * Returns a list of unique items

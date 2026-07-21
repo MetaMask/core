@@ -1,4 +1,4 @@
-import { lintTransformedFile } from '..';
+import { lintTransformedFile } from '../index.js';
 
 describe('transform utils', () => {
   describe('lintTransformedFile', () => {

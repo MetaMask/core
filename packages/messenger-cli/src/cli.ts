@@ -2,10 +2,10 @@
 
 import yargs from 'yargs';
 
-import { checkActionTypesFiles } from './check';
-import { generateAllActionTypesFiles } from './fix';
-import { findSourcesWithExposedMethods } from './parse-source';
-import { Formatter } from './types';
+import { checkActionTypesFiles } from './check.js';
+import { generateAllActionTypesFiles } from './fix.js';
+import { findSourcesWithExposedMethods } from './parse-source.js';
+import { Formatter } from './types.js';
 
 type CommandLineArguments = {
   check: boolean;

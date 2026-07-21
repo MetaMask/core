@@ -5,9 +5,9 @@ import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
-import { AlwaysOnlineAdapter } from './always-online-adapter';
-import { connectivityController } from './connectivity-controller';
+} from '../../defaults.js';
+import { AlwaysOnlineAdapter } from './always-online-adapter.js';
+import { connectivityController } from './connectivity-controller.js';
 
 describe('connectivityController', () => {
   it('reports online status after initialization', () => {

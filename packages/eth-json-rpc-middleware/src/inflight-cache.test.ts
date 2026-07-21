@@ -1,7 +1,7 @@
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 
-import { createInflightCacheMiddleware } from '.';
-import { createRequest } from '../test/util/helpers';
+import { createRequest } from '../test/util/helpers.js';
+import { createInflightCacheMiddleware } from './index.js';
 
 describe('inflight cache', () => {
   it('should cache an inflight request and only hit provider once', async () => {

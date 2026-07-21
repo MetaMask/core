@@ -1,6 +1,6 @@
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 
-import { Wallet } from './Wallet';
+import { Wallet } from './Wallet.js';
 
 /**
  * Import a secret recovery phrase using the wallet object.
