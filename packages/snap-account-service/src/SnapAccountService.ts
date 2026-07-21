@@ -65,7 +65,7 @@ import { SnapId } from '@metamask/snaps-sdk';
 import type { Json } from '@metamask/utils';
 import { assertStruct } from '@metamask/utils';
 
-import { projectLogger as log } from './logger';
+import { projectLogger as log } from './logger.js';
 import type {
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceEnsureMigratedAction,
@@ -77,10 +77,10 @@ import type {
   SnapAccountServiceHandleKeyringSnapMessageAction,
   SnapAccountServiceResolveAccountAddressAction,
   SnapAccountServiceSetSelectedAccountsAction,
-} from './SnapAccountService-method-action-types';
-import { SnapPlatformWatcher } from './SnapPlatformWatcher';
-import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
-import { SnapTracker } from './SnapTracker';
+} from './SnapAccountService-method-action-types.js';
+import { SnapPlatformWatcher } from './SnapPlatformWatcher.js';
+import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher.js';
+import { SnapTracker } from './SnapTracker.js';
 import type {
   AccountTreeControllerGetAccountGroupObjectAction,
   AccountTreeControllerGetSelectedAccountGroupAction,
@@ -89,7 +89,7 @@ import type {
   AccountTreeControllerAccountGroupUpdatedEvent,
   AccountTreeControllerAccountGroupRemovedEvent,
   AccountGroupObject,
-} from './types';
+} from './types.js';
 
 /**
  * The name of the {@link SnapAccountService}, used to namespace the service's

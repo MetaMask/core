@@ -379,6 +379,8 @@ const config = createConfig([
     // For now, we specify an array of packages here. Once all packages are
     // updated, we can remove this.
     files: [
+      'packages/account-tree-controller/**',
+      'packages/accounts-controller/**',
       'packages/base-controller/**',
       'packages/base-data-service/**',
       'packages/build-utils/**',
@@ -396,7 +398,10 @@ const config = createConfig([
       'packages/json-rpc-middleware-stream/**',
       'packages/messenger/**',
       'packages/messenger-cli/**',
+      'packages/money-account-controller/**',
+      'packages/multichain-account-service/**',
       'packages/multichain-api-middleware/**',
+      'packages/multichain-transactions-controller/**',
       'packages/network-connection-banner-controller/**',
       'packages/permission-controller/**',
       'packages/permission-log-controller/**',
@@ -404,11 +409,13 @@ const config = createConfig([
       'packages/polling-controller/**',
       'packages/preferences-controller/**',
       'packages/rate-limit-controller/**',
+      'packages/profile-sync-controller/**',
       'packages/ramps-controller/**',
       'packages/react-data-query/**',
       'packages/sample-controllers/**',
       'packages/selected-network-controller/**',
       'packages/smart-transactions-controller/**',
+      'packages/snap-account-service/**',
       'packages/wallet/**',
       'packages/wallet-cli/**',
       'packages/wallet-framework-docs/**',

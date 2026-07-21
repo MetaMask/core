@@ -1,8 +1,8 @@
 import type {
   UserStorageGenericPathWithFeatureAndKey,
   UserStorageGenericPathWithFeatureOnly,
-} from '../../shared/storage-schema';
-import type { NativeScrypt } from '../../shared/types/encryption';
+} from '../../shared/storage-schema.js';
+import type { NativeScrypt } from '../../shared/types/encryption.js';
 
 export type UserStorageBaseOptions = {
   bearerToken: string;

@@ -15,7 +15,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountServiceMessenger } from '../types';
+import type { MultichainAccountServiceMessenger } from '../types.js';
 
 /**
  * Asserts a keyring account is BIP-44 compatible.

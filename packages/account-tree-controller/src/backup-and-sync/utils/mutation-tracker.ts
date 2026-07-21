@@ -1,4 +1,4 @@
-import type { SyncMutationTracker } from '../types';
+import type { SyncMutationTracker } from '../types.js';
 
 /**
  * Creates a tracker that records whether the current full sync run performed a
