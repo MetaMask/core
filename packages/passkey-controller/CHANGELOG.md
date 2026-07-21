@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+
 ### Added
 
 - Orchestrated passkey product flows on `PasskeyController` and their messenger actions. ([#9548](https://github.com/MetaMask/core/pull/9548))
