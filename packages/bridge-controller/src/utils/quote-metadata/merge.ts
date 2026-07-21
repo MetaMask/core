@@ -14,5 +14,8 @@ export function mergeQuoteMetadata(
   quoteResponse: QuoteResponseV1,
   quoteMetadata: QuoteMetadata,
 ): QuoteResponseV1 & QuoteMetadata {
-  return merge({}, quoteResponse, quoteMetadata);
+  return {
+    ...quoteResponse,
+    ...quoteMetadata,
+  };
 }

@@ -8,6 +8,7 @@ import {
   BatchSellTradesResponse,
   InputPrimaryDenomination,
 } from '@metamask/bridge-controller';
+import type { DeepPartial } from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
   StatusTypes,
@@ -1341,8 +1342,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   submitTx = async (
     accountAddress: string,
     maybeQuoteResponses:
-      | (QuoteResponse<Trade, Trade> & QuoteMetadata)
-      | (QuoteResponse<Trade, Trade> & QuoteMetadata)[],
+      | (QuoteResponse<Trade, Trade> & DeepPartial<QuoteMetadata>)
+      | (QuoteResponse<Trade, Trade> & DeepPartial<QuoteMetadata>)[],
     isStxEnabled: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
     location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.Unknown,
