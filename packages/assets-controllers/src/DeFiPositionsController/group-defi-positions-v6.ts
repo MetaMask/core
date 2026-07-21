@@ -5,7 +5,11 @@ import type {
   V6BalancesResponse,
   V6DeFiPositionType,
 } from '@metamask/core-backend';
-import type { CaipAccountId, CaipAssetType, CaipChainId } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+} from '@metamask/utils';
 import {
   KnownCaipNamespace,
   parseCaipAccountId,

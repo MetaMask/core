@@ -50,11 +50,7 @@ export type DeFiBalancesQuery = {
  * @returns The CAIP-10 account ID for the address.
  */
 function toEvmCaipAccountId(address: string): CaipAccountId {
-  return toCaipAccountId(
-    KnownCaipNamespace.Eip155,
-    '0',
-    address.toLowerCase(),
-  );
+  return toCaipAccountId(KnownCaipNamespace.Eip155, '0', address.toLowerCase());
 }
 
 /**

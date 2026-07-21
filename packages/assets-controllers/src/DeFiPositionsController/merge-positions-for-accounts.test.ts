@@ -182,7 +182,9 @@ describe('mergePositionsForAccounts', () => {
       sections: [
         {
           productName: 'Pendle',
-          positions: [buildPosition({ symbol: 'USDC', assetId: USDC_ASSET_ID })],
+          positions: [
+            buildPosition({ symbol: 'USDC', assetId: USDC_ASSET_ID }),
+          ],
         },
       ],
     });
@@ -193,8 +195,8 @@ describe('mergePositionsForAccounts', () => {
     );
 
     expect(result).toHaveLength(1);
-    expect(result[0].sections.map((section) => section.productName)).toStrictEqual(
-      ['Aave V3', 'Pendle'],
-    );
+    expect(
+      result[0].sections.map((section) => section.productName),
+    ).toStrictEqual(['Aave V3', 'Pendle']);
   });
 });
