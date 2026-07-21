@@ -384,6 +384,7 @@ const config = createConfig([
       'packages/build-utils/**',
       'packages/chain-agnostic-permission/**',
       'packages/composable-controller/**',
+      'packages/config-registry-controller/**',
       'packages/connectivity-controller/**',
       'packages/controller-utils/**',
       'packages/eip-5792-middleware/**',
