@@ -241,7 +241,16 @@ export class AggregatedOrderBookConnection {
     // affordance.
     let terminated = false;
     const reportStatus = (status: OrderBookConnectionStatus): void => {
-      if (cancelled || (terminated && status !== 'error')) {
+      // Suppress reports from a subscription that no longer drives the UI: it
+      // was unsubscribed (`cancelled`), its transport was replaced by a network
+      // flip or recreate (`transport !== this.#transport`, so its socket is
+      // dead), or its socket permanently terminated and `error` is now sticky
+      // until teardown (`terminated`).
+      if (
+        cancelled ||
+        transport !== this.#transport ||
+        (terminated && status !== 'error')
+      ) {
         return;
       }
       params.onStatusChange?.(status);
@@ -345,11 +354,15 @@ export class AggregatedOrderBookConnection {
         { onError: handleSubscriptionError },
       )
       .then(async (sub) => {
-        if (cancelled) {
+        // Stale if this subscription was unsubscribed (`cancelled`) or its
+        // transport was replaced (network flip / recreate) before the subscribe
+        // settled — either way the captured socket is dead, so clean up the SDK
+        // subscription instead of storing it or announcing `connected`.
+        if (cancelled || transport !== this.#transport) {
           try {
             await sub.unsubscribe();
           } catch {
-            // Ignore cleanup errors on an already-cancelled subscription.
+            // Ignore cleanup errors on an already-cancelled/stale subscription.
           }
           return undefined;
         }

@@ -625,6 +625,41 @@ describe('AggregatedOrderBookConnection', () => {
       expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);
     });
 
+    it('does not report connected when the transport is replaced before an in-flight subscribe resolves', async () => {
+      let testnet = false;
+      const connection = new AggregatedOrderBookConnection({
+        isTestnet: (): boolean => testnet,
+      });
+      const onStatusChangeOld = jest.fn();
+      connection.subscribe({
+        symbol: 'BTC',
+        nSigFigs: 2,
+        callback: jest.fn(),
+        onStatusChange: onStatusChangeOld,
+      });
+
+      // Flip the network before the first subscribe settles: this recreates the
+      // transport, so the first (still-pending) subscription is now stale.
+      testnet = true;
+      const onStatusChangeNew = jest.fn();
+      connection.subscribe({
+        symbol: 'BTC',
+        nSigFigs: 2,
+        callback: jest.fn(),
+        onStatusChange: onStatusChangeNew,
+      });
+      expect(mockState.transports).toHaveLength(2);
+
+      await flush();
+
+      // The stale subscription must not announce `connected` on the dead socket,
+      // and its SDK subscription is cleaned up rather than stored.
+      expect(onStatusChangeOld).not.toHaveBeenCalledWith('connected');
+      expect(mockState.unsubscribe).toHaveBeenCalled();
+      // The live subscription on the new transport still reports connected.
+      expect(onStatusChangeNew).toHaveBeenLastCalledWith('connected');
+    });
+
     it('reports error when the subscription request rejects', async () => {
       mockState.rejectSubscribe = true;
       const connection = new AggregatedOrderBookConnection({
