@@ -171,6 +171,14 @@ export class AggregatedOrderBookConnection {
   // sharing a payload so the entry is dropped once the last one unsubscribes.
   readonly #payloads = new Map<string, { signature: string; count: number }>();
 
+  // Force-terminate callback for every currently-active subscription. When a
+  // transport rebuild (`#closeTransport`) shuts the socket down out from under
+  // live subscriptions, these tear each one down — notifying the caller and
+  // releasing its SDK subscription / socket listeners — instead of orphaning
+  // them (stale handle, no more updates, and no further status because
+  // reporting is suppressed once `transport !== this.#transport`).
+  readonly #activeSubscriptions = new Set<() => void>();
+
   // Set when the socket's auto-reconnection is exhausted (its
   // `terminationSignal` aborts). A terminated socket cannot recover, so the next
   // subscribe must build a fresh transport instead of reusing the dead one.
@@ -285,6 +293,33 @@ export class AggregatedOrderBookConnection {
       socket.removeEventListener('close', handleClose);
     };
 
+    // Ends this subscription when its transport is torn down beneath it (network
+    // flip, post-termination resubscribe, or `close()`). Unlike `teardown` it
+    // leaves the shared refcount/payload state alone — `#closeTransport` clears
+    // those wholesale — but still notifies the caller and releases this
+    // subscription's resources so nothing leaks on the dead socket. Runs while
+    // `#transport` still points at the old transport, so the `error` report is
+    // not suppressed by the stale-transport guard.
+    const forceTerminate = (): void => {
+      if (cancelled) {
+        return;
+      }
+      // A subscription whose socket already terminated has reported `error`;
+      // a still-live one (e.g. abandoned by a network flip) needs the terminal
+      // signal so the caller stops trusting a now-dead book.
+      if (!terminated) {
+        reportStatus('error');
+      }
+      cancelled = true;
+      removeSocketListeners();
+      this.#activeSubscriptions.delete(forceTerminate);
+      if (subscription) {
+        subscription.unsubscribe().catch(() => undefined);
+        subscription = null;
+      }
+    };
+    this.#activeSubscriptions.add(forceTerminate);
+
     // Releases this subscription's refcount and tears down the socket once no
     // subscriptions remain. Idempotent via `cancelled`, so it's safe whether it
     // runs from the returned unsubscribe or from a failed subscribe.
@@ -294,6 +329,7 @@ export class AggregatedOrderBookConnection {
       }
       cancelled = true;
       removeSocketListeners();
+      this.#activeSubscriptions.delete(forceTerminate);
       if (subscription) {
         subscription.unsubscribe().catch(() => undefined);
         subscription = null;
@@ -406,6 +442,15 @@ export class AggregatedOrderBookConnection {
 
   #closeTransport(): void {
     const transport = this.#transport;
+    // Tear down any subscriptions still live on this transport *before*
+    // detaching it, so orphaned callers are notified (`error`) and their SDK
+    // subscriptions / socket listeners are released instead of leaking on a
+    // dead socket. Snapshot the set since each callback mutates it. Subscriptions
+    // torn down normally have already removed themselves, so this is a no-op for
+    // them.
+    for (const forceTerminate of [...this.#activeSubscriptions]) {
+      forceTerminate();
+    }
     this.#transport = null;
     this.#activeCount = 0;
     this.#payloads.clear();

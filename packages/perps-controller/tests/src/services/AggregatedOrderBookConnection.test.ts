@@ -660,6 +660,42 @@ describe('AggregatedOrderBookConnection', () => {
       expect(onStatusChangeNew).toHaveBeenLastCalledWith('connected');
     });
 
+    it('terminates orphaned subscriptions when the transport is rebuilt on a network flip', async () => {
+      let testnet = false;
+      const connection = new AggregatedOrderBookConnection({
+        isTestnet: (): boolean => testnet,
+      });
+      const onStatusChangeOld = jest.fn();
+      const callbackOld = jest.fn();
+      connection.subscribe({
+        symbol: 'BTC',
+        nSigFigs: 2,
+        callback: callbackOld,
+        onStatusChange: onStatusChangeOld,
+      });
+      await flush();
+      expect(onStatusChangeOld).toHaveBeenLastCalledWith('connected');
+
+      // Flip the network and subscribe again: this rebuilds the transport,
+      // orphaning the first subscription that was live on the old socket.
+      testnet = true;
+      connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: jest.fn() });
+
+      // The orphaned subscription is notified with `error` and its SDK
+      // subscription is cleaned up rather than left dangling on the dead socket.
+      expect(onStatusChangeOld).toHaveBeenLastCalledWith('error');
+      expect(mockState.unsubscribe).toHaveBeenCalled();
+      expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);
+
+      // A late snapshot on the orphaned listener must be ignored.
+      mockState.listeners[0].listener({
+        coin: 'BTC',
+        time: 1,
+        levels: [[l2Level('1', '1')], [l2Level('2', '1')]],
+      });
+      expect(callbackOld).not.toHaveBeenCalled();
+    });
+
     it('reports error when the subscription request rejects', async () => {
       mockState.rejectSubscribe = true;
       const connection = new AggregatedOrderBookConnection({
