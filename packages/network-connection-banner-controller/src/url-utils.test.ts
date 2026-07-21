@@ -1,4 +1,4 @@
-import { getIsInfuraEndpoint } from './url-utils';
+import { getIsInfuraEndpoint } from './url-utils.js';
 
 const INFURA_PROJECT_ID = 'abc123def456';
 
