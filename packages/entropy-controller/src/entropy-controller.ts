@@ -9,7 +9,6 @@ import type { SimpleKeyring } from '@metamask/eth-simple-keyring/v2';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
-  KeyringControllerUnlockEvent,
   KeyringControllerWithKeyringV2UnsafeAction,
 } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -113,9 +112,7 @@ export type EntropyControllerEvents = EntropyControllerStateChangeEvent;
  * Events from other messengers that {@link EntropyControllerMessenger}
  * subscribes to.
  */
-type AllowedEvents =
-  | KeyringControllerUnlockEvent
-  | KeyringControllerStateChangeEvent;
+type AllowedEvents = KeyringControllerStateChangeEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -167,10 +164,9 @@ export class EntropyController extends BaseController<
       },
     });
 
-    this.messenger.subscribe('KeyringController:unlock', () => {
-      this.#syncEntropies().catch(console.error);
-    });
-
+    // Syncing on `keyrings` state changes covers all cases, including vault
+    // unlock: unlocking populates `state.keyrings`, which triggers this
+    // selector and kicks off a sync automatically.
     this.messenger.subscribe(
       'KeyringController:stateChange',
       () => {
