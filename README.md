@@ -499,6 +499,7 @@ linkStyle default opacity:0.5
   notification_services_controller --> messenger;
   notification_services_controller --> profile_sync_controller;
   passkey_controller --> base_controller;
+  passkey_controller --> keyring_controller;
   passkey_controller --> messenger;
   permission_controller --> approval_controller;
   permission_controller --> base_controller;
