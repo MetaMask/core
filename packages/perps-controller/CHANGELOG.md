@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AggregatedOrderBookConnection` service (with the `processAggregatedOrderBook` helper and the `OrderBookConnectionStatus`, `SubscribeAggregatedOrderBookParams`, and `AggregatedOrderBookConnectionOptions` types) for managing a dedicated, reference-counted aggregated order book subscription ([#9549](https://github.com/MetaMask/core/pull/9549))
+
 ## [9.3.0]
 
 ### Added
 
-- Add `AggregatedOrderBookConnection` service (with the `processAggregatedOrderBook` helper and the `OrderBookConnectionStatus`, `SubscribeAggregatedOrderBookParams`, and `AggregatedOrderBookConnectionOptions` types) for managing a dedicated, reference-counted aggregated order book subscription ([#9549](https://github.com/MetaMask/core/pull/9549))
 - Add `proLayoutPreferences` state field (`orderBookExpanded`, `chartExpanded`, `orderBookPosition`, `orderFormPosition`) to `PerpsControllerState` for persisting Pro-mode layout across markets, along with the exported `ProLayoutPreferences` type and `DEFAULT_PRO_LAYOUT_PREFERENCES` constant, `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` controller methods (exposed as messenger actions with exported `PerpsControllerGetProLayoutPreferencesAction` / `PerpsControllerSetProLayoutPreferencesAction` types), and a `selectProLayoutPreferences` selector; the getter and selector merge over defaults so callers always receive a fully-populated object ([#9550](https://github.com/MetaMask/core/pull/9550))
 - Add a `PerpsMode` enum (`Lite`/`Pro`) and a persisted `mode` state field (defaulting to `PerpsMode.Lite`) to `PerpsControllerState`, along with an exported `DEFAULT_PERPS_MODE` constant, a `setPerpsMode(mode)` controller method (exposed as a messenger action with an exported `PerpsControllerSetPerpsModeAction` type), and a `selectPerpsMode` selector that falls back to the default mode ([#9550](https://github.com/MetaMask/core/pull/9550))
 
