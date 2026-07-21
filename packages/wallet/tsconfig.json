@@ -32,7 +32,13 @@
       "path": "../network-controller"
     },
     {
+      "path": "../passkey-controller"
+    },
+    {
       "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../seedless-onboarding-controller"
     },
     {
       "path": "../storage-service"
