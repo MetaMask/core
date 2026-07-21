@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `--esm` flag for ESM-compatible import extensions ([#9572](https://github.com/MetaMask/core/pull/9572))
+  - When `--esm` is set, the generated files will have `.js` import extensions.
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))

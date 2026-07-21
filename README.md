@@ -430,6 +430,7 @@ linkStyle default opacity:0.5
   money_account_balance_service --> base_data_service;
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;
+  money_account_balance_service --> money_account_api_data_service;
   money_account_balance_service --> network_controller;
   money_account_balance_service --> remote_feature_flag_controller;
   money_account_controller --> accounts_controller;
