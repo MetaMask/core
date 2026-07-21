@@ -401,6 +401,7 @@ const config = createConfig([
       'packages/money-account-controller/**',
       'packages/multichain-account-service/**',
       'packages/multichain-api-middleware/**',
+      'packages/multichain-transactions-controller/**',
       'packages/network-connection-banner-controller/**',
       'packages/permission-controller/**',
       'packages/permission-log-controller/**',
