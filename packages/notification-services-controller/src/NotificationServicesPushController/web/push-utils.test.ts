@@ -50,8 +50,8 @@ const firebaseApp: FirebaseAppModule.FirebaseApp = {
 };
 
 function arrangeFirebaseAppMocks(): {
-  mockGetApp: jest.SpiedFunction;
-  mockInitializeApp: jest.SpiedFunction;
+  mockGetApp: jest.SpyInstance;
+  mockInitializeApp: jest.SpyInstance;
 } {
   const mockGetApp = jest
     .spyOn(FirebaseAppModule, 'getApp')
@@ -65,9 +65,9 @@ function arrangeFirebaseAppMocks(): {
 }
 
 function arrangeFirebaseMessagingSWMocks(): {
-  mockIsSupported: jest.SpiedFunction;
-  mockGetMessaging: jest.SpiedFunction;
-  mockOnBackgroundMessage: jest.SpiedFunction;
+  mockIsSupported: jest.SpyInstance;
+  mockGetMessaging: jest.SpyInstance;
+  mockOnBackgroundMessage: jest.SpyInstance;
   mockOnBackgroundMessageUnsub: jest.Mock;
 } {
   const mockIsSupported = jest
@@ -92,8 +92,8 @@ function arrangeFirebaseMessagingSWMocks(): {
 }
 
 function arrangeFirebaseMessagingMocks(): {
-  mockGetToken: jest.SpiedFunction;
-  mockDeleteToken: jest.SpiedFunction;
+  mockGetToken: jest.SpyInstance;
+  mockDeleteToken: jest.SpyInstance;
 } {
   const mockGetToken = jest
     .spyOn(FirebaseMessagingModule, 'getToken')
@@ -253,8 +253,8 @@ describe('createSubscribeToPushNotifications() tests', () => {
   }
 
   function arrangeClickListenerMocks(): {
-    mockAddEventListener: jest.SpiedFunction;
-    mockRemoveEventListener: jest.SpiedFunction;
+    mockAddEventListener: jest.SpyInstance;
+    mockRemoveEventListener: jest.SpyInstance;
   } {
     // Testing service worker functionality requires using the 'self' global
     // eslint-disable-next-line no-restricted-globals

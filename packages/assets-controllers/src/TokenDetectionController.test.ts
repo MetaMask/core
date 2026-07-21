@@ -4391,7 +4391,7 @@ type WithControllerCallback<ReturnValue> = ({
   mockFindNetworkClientIdByChainId: (
     handler: (chainId: Hex) => NetworkClientId,
   ) => void;
-  callActionSpy: jest.SpiedFunction;
+  callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
   triggerPreferencesStateChange: (state: PreferencesState) => void;

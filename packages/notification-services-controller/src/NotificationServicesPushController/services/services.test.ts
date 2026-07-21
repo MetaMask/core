@@ -14,7 +14,7 @@ import {
 import type { RegToken } from './services';
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = (): jest.SpiedFunction =>
+const mockErrorLog = (): jest.SpyInstance =>
   jest.spyOn(log, 'error').mockImplementation(jest.fn());
 
 const MOCK_REG_TOKEN = 'REG_TOKEN';

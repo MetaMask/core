@@ -98,8 +98,8 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>) {
 
 describe('PhishingController - Bulk Token Scanning', () => {
   let controller: PhishingController;
-  let consoleErrorSpy: jest.SpiedFunction;
-  let consoleWarnSpy: jest.SpiedFunction;
+  let consoleErrorSpy: jest.SpyInstance;
+  let consoleWarnSpy: jest.SpyInstance;
 
   beforeEach(() => {
     controller = getPhishingController();

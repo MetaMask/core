@@ -79,7 +79,7 @@ const setupController = ({
   listAccounts?: InternalAccount[];
 } = {}): {
   controller: TokenBalancesController;
-  updateSpy: jest.SpiedFunction;
+  updateSpy: jest.SpyInstance;
   messenger: RootMessenger;
   tokenBalancesControllerMessenger: TokenBalancesControllerMessenger;
 } => {

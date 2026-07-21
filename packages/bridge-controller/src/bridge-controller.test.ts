@@ -70,7 +70,7 @@ jest.mock('@ethersproject/contracts', () => {
 const getLayer1GasFeeMock = jest.fn();
 const mockFetchFn = handleFetch;
 const trackMetaMetricsFn = jest.fn();
-let fetchAssetPricesSpy: jest.SpiedFunction;
+let fetchAssetPricesSpy: jest.SpyInstance;
 
 const bridgeConfig = {
   minimumVersion: '0.0.0',

@@ -563,7 +563,7 @@ describe('domainToParts', () => {
 });
 
 describe('processConfigs', () => {
-  let consoleErrorMock: jest.SpiedFunction;
+  let consoleErrorMock: jest.SpyInstance;
 
   beforeEach(() => {
     consoleErrorMock = jest.spyOn(console, 'error');
@@ -725,7 +725,7 @@ describe('processConfigs', () => {
 });
 
 describe('processDomainList', () => {
-  let consoleWarnMock: jest.SpiedFunction;
+  let consoleWarnMock: jest.SpyInstance;
 
   beforeEach(() => {
     consoleWarnMock = jest.spyOn(console, 'warn').mockImplementation();

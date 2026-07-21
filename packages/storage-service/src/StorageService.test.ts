@@ -9,7 +9,7 @@ import { StorageService } from './StorageService';
 import type { StorageServiceMessenger, StorageAdapter } from './types';
 
 describe('StorageService', () => {
-  let consoleWarnSpy: jest.SpiedFunction;
+  let consoleWarnSpy: jest.SpyInstance;
 
   beforeEach(() => {
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();

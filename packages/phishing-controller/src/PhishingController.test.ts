@@ -4311,7 +4311,7 @@ describe('URL Scan Cache', () => {
 describe('Transaction Controller State Change Integration', () => {
   let controller: PhishingController;
   let globalMessenger: RootMessenger;
-  let bulkScanTokensSpy: jest.SpiedFunction;
+  let bulkScanTokensSpy: jest.SpyInstance;
 
   beforeEach(() => {
     const { messenger, rootMessenger } = setupMessenger();

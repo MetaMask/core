@@ -320,7 +320,7 @@ function mockcreateLocalKey(
   authKeyPair: KeyPair;
   oprfKey: bigint;
   seed: Uint8Array;
-  createLocalKeySpy: jest.SpiedFunction;
+  createLocalKeySpy: jest.SpyInstance;
 } {
   const mockToprfEncryptor = createMockToprfEncryptor();
 
@@ -391,7 +391,7 @@ function mockRecoverEncKey(
   options?: {
     mockRejectOnceWithTokenError?: unknown;
   },
-): RecoverEncryptionKeyResult & { recoverEncKeySpy: jest.SpiedFunction } {
+): RecoverEncryptionKeyResult & { recoverEncKeySpy: jest.SpyInstance } {
   const mockToprfEncryptor = createMockToprfEncryptor();
 
   const encKey = mockToprfEncryptor.deriveEncKey(password);
@@ -399,7 +399,7 @@ function mockRecoverEncKey(
   const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(password);
   const rateLimitResetResult = Promise.resolve();
 
-  let recoverEncKeySpy: jest.SpiedFunction;
+  let recoverEncKeySpy: jest.SpyInstance;
 
   if (options?.mockRejectOnceWithTokenError) {
     recoverEncKeySpy = jest

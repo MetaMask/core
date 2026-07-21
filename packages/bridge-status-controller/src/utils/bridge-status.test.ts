@@ -373,7 +373,7 @@ describe('utils', () => {
 
   describe('shouldSkipFetchDueToFetchFailures', () => {
     const mockCurrentTime = 1_000_000; // Fixed timestamp for testing
-    let dateNowSpy: jest.SpiedFunction;
+    let dateNowSpy: jest.SpyInstance;
 
     beforeEach(() => {
       dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(mockCurrentTime);
