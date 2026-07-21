@@ -57,7 +57,9 @@ function buildGroup(
     protocolIconUrl: 'https://example.com/aave.png',
     chainId: ETH_MAINNET,
     marketValue: 2000,
-    iconGroup: [{ symbol: 'WETH', avatarValue: 'https://example.com/weth.png' }],
+    iconGroup: [
+      { symbol: 'WETH', avatarValue: 'https://example.com/weth.png' },
+    ],
     sections: [{ productName: 'Aave V3', positions: [buildPosition()] }],
     ...overrides,
   };
@@ -111,7 +113,10 @@ describe('mergePositionsForAccounts', () => {
       marketValue: 2000,
       iconGroup: [{ symbol: 'WETH' }],
       sections: [
-        { productName: 'Aave V3', positions: [buildPosition({ symbol: 'WETH' })] },
+        {
+          productName: 'Aave V3',
+          positions: [buildPosition({ symbol: 'WETH' })],
+        },
       ],
     });
     const groupB = buildGroup({
@@ -120,7 +125,9 @@ describe('mergePositionsForAccounts', () => {
       sections: [
         {
           productName: 'Aave V3',
-          positions: [buildPosition({ symbol: 'USDC', assetId: USDC_ASSET_ID })],
+          positions: [
+            buildPosition({ symbol: 'USDC', assetId: USDC_ASSET_ID }),
+          ],
         },
       ],
     });
@@ -165,10 +172,16 @@ describe('mergePositionsForAccounts', () => {
 describe('mergeSections', () => {
   it('appends positions to the section that shares a productName', () => {
     const existing = [
-      { productName: 'Aave V3', positions: [buildPosition({ symbol: 'WETH' })] },
+      {
+        productName: 'Aave V3',
+        positions: [buildPosition({ symbol: 'WETH' })],
+      },
     ];
     const incoming = [
-      { productName: 'Aave V3', positions: [buildPosition({ symbol: 'USDC' })] },
+      {
+        productName: 'Aave V3',
+        positions: [buildPosition({ symbol: 'USDC' })],
+      },
     ];
 
     const result = mergeSections(existing, incoming);
@@ -178,12 +191,8 @@ describe('mergeSections', () => {
   });
 
   it('keeps sections with distinct productNames separate', () => {
-    const existing = [
-      { productName: 'Aave V3', positions: [buildPosition()] },
-    ];
-    const incoming = [
-      { productName: 'Pendle', positions: [buildPosition()] },
-    ];
+    const existing = [{ productName: 'Aave V3', positions: [buildPosition()] }];
+    const incoming = [{ productName: 'Pendle', positions: [buildPosition()] }];
 
     const result = mergeSections(existing, incoming);
 
@@ -194,12 +203,8 @@ describe('mergeSections', () => {
   });
 
   it('does not mutate the input sections', () => {
-    const existing = [
-      { productName: 'Aave V3', positions: [buildPosition()] },
-    ];
-    const incoming = [
-      { productName: 'Aave V3', positions: [buildPosition()] },
-    ];
+    const existing = [{ productName: 'Aave V3', positions: [buildPosition()] }];
+    const incoming = [{ productName: 'Aave V3', positions: [buildPosition()] }];
 
     mergeSections(existing, incoming);
 
