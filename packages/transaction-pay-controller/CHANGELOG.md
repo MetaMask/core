@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove `disableUpgrade` from the Money Account vault deposit batch so that freshly-funded fiat accounts that haven't yet been upgraded to EIP-7702 are auto-upgraded instead of failing ([#9567](https://github.com/MetaMask/core/pull/9567))
+
 ## [25.0.0]
 
 ### Added
