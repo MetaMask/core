@@ -3,6 +3,9 @@ export type {
   MoneyAccountApiDataServiceActions,
   MoneyAccountApiDataServiceEvents,
   MoneyAccountApiDataServiceMessenger,
+  MoneyAccountApiDataServiceOptions,
+  MoneyAccountApiDataServiceTraceCallback,
+  MoneyAccountApiDataServiceTraceRequest,
 } from './money-account-api-data-service';
 export type {
   MoneyAccountApiDataServiceFetchPositionsAction,
