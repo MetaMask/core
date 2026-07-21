@@ -1,4 +1,4 @@
-import type { Quote } from './RampsService';
+import type { Quote } from './RampsService.js';
 
 /**
  * Whether a quote's checkout runs in an external / system browser rather than

@@ -2,6 +2,7 @@ import { toChecksumAddress } from '@ethereumjs/util';
 import { getNativeTokenAddress } from '@metamask/assets-controllers';
 import { numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
+import { isEqual } from 'lodash';
 
 import type {
   AssetBalance,
@@ -49,9 +50,49 @@ export type TransactionPayLegacyFormat = {
   currentCurrency: string;
 };
 
+/** Parameters accepted by {@link formatStateForTransactionPay}. */
+export type FormatStateForTransactionPayParams = {
+  assetsBalance: Record<string, Record<string, AssetBalance>>;
+  assetsInfo: Record<string, AssetMetadata>;
+  assetsPrice: Record<string, AssetPrice>;
+  selectedCurrency: string;
+  accounts: AccountForLegacyFormat[];
+  nativeAssetIdentifiers: Record<string, string>;
+  networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
+};
+
 function amountToHex(amount: string): `0x${string}` {
   const hexString = BigInt(amount).toString(16);
   return `0x${hexString}`;
+}
+
+/**
+ * Determines whether two sets of {@link formatStateForTransactionPay}
+ * parameters are identical for memoization purposes.
+ *
+ * State slices (`assetsBalance`, `assetsInfo`, `assetsPrice`,
+ * `networkConfigurationsByChainId`) are compared by reference since
+ * BaseController state updates are immutable. The `accounts` and
+ * `nativeAssetIdentifiers` inputs are rebuilt on every call, so they are
+ * compared by value instead.
+ *
+ * @param a - Previous parameters.
+ * @param b - Next parameters.
+ * @returns True if the parameters are identical.
+ */
+function isTransactionPayParamsIdentical(
+  a: FormatStateForTransactionPayParams,
+  b: FormatStateForTransactionPayParams,
+): boolean {
+  return (
+    a.assetsBalance === b.assetsBalance &&
+    a.assetsInfo === b.assetsInfo &&
+    a.assetsPrice === b.assetsPrice &&
+    a.selectedCurrency === b.selectedCurrency &&
+    a.networkConfigurationsByChainId === b.networkConfigurationsByChainId &&
+    isEqual(a.accounts, b.accounts) &&
+    isEqual(a.nativeAssetIdentifiers, b.nativeAssetIdentifiers)
+  );
 }
 
 function getAmountFromBalance(balance: AssetBalance): string {
@@ -60,30 +101,55 @@ function getAmountFromBalance(balance: AssetBalance): string {
     : '0';
 }
 
+let lastCall: {
+  params: FormatStateForTransactionPayParams;
+  result: TransactionPayLegacyFormat;
+} | null = null;
+
 /**
  * Converts AssetsController state into the legacy format consumed by
  * transaction-pay-controller (TokenBalancesController, AccountTrackerController,
  * TokensController, TokenRatesController, CurrencyRateController shapes).
  *
+ * The last result is memoized on input identity: this function is invoked (via
+ * `AssetsController:getStateForTransactionPay`) on every
+ * `TransactionController:stateChange`, but its inputs only change when the
+ * assets pipeline updates. Recomputing runs keccak256 (`toChecksumAddress`)
+ * per asset per call, which dominates CPU profiles during transaction
+ * approval.
+ *
  * @param params - Conversion parameters.
- * @param params.assetsBalance - Per-account balances by asset ID.
- * @param params.assetsInfo - Metadata by asset ID.
- * @param params.assetsPrice - Prices by asset ID.
- * @param params.selectedCurrency - Current currency code.
- * @param params.accounts - List of accounts (id + address) to map state for.
- * @param params.nativeAssetIdentifiers - Map of CAIP-2 chain ID to native asset ID. Used for EVM native lookups.
- * @param params.networkConfigurationsByChainId - Optional chain ID to network config (for native symbol).
  * @returns Legacy-compatible state for transaction-pay-controller.
  */
-export function formatStateForTransactionPay(params: {
-  assetsBalance: Record<string, Record<string, AssetBalance>>;
-  assetsInfo: Record<string, AssetMetadata>;
-  assetsPrice: Record<string, AssetPrice>;
-  selectedCurrency: string;
-  accounts: AccountForLegacyFormat[];
-  nativeAssetIdentifiers: Record<string, string>;
-  networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
-}): TransactionPayLegacyFormat {
+export function formatStateForTransactionPay(
+  params: FormatStateForTransactionPayParams,
+): TransactionPayLegacyFormat {
+  if (lastCall && isTransactionPayParamsIdentical(lastCall.params, params)) {
+    return lastCall.result;
+  }
+
+  const result = computeStateForTransactionPay(params);
+  lastCall = { params, result: Object.freeze(result) };
+  return result;
+}
+
+/**
+ * Clears the {@link formatStateForTransactionPay} memoize cache. Exported for tests.
+ */
+export function clearFormatStateForTransactionPayCacheForTesting(): void {
+  lastCall = null;
+}
+
+/**
+ * Performs the actual state conversion for
+ * {@link formatStateForTransactionPay}.
+ *
+ * @param params - Conversion parameters.
+ * @returns Legacy-compatible state for transaction-pay-controller.
+ */
+function computeStateForTransactionPay(
+  params: FormatStateForTransactionPayParams,
+): TransactionPayLegacyFormat {
   const {
     assetsBalance,
     assetsInfo,

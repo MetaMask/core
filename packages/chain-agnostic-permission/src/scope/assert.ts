@@ -8,12 +8,12 @@ import {
 } from '@metamask/utils';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
-import { Caip25Errors } from './errors';
+import { Caip25Errors } from './errors.js';
 import {
   isSupportedMethod,
   isSupportedNotification,
   isSupportedScopeString,
-} from './supported';
+} from './supported.js';
 import type {
   ExternalScopeObject,
   ExternalScopesObject,
@@ -23,7 +23,7 @@ import type {
   InternalScopeString,
   NormalizedScopeObject,
   NormalizedScopesObject,
-} from './types';
+} from './types.js';
 
 /**
  * Asserts that a scope string and its associated scope object are supported.

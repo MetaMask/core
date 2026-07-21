@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BottomNavBar` value to `MetaMetricsSwapsEventSource` for attributing swap and bridge flows to the bottom navigation bar entry point ([#9551](https://github.com/MetaMask/core/pull/9551))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))
+- Bump `@metamask/assets-controller` from `^11.0.0` to `^11.1.0` ([#9579](https://github.com/MetaMask/core/pull/9579))
+
+### Fixed
+
+- Fix `selectExchangeRateByAssetId` returning a `"0"` exchange rate for EVM tokens whose market data entry has a missing or zero price. It now returns `{}` in that case, so `selectIsAssetExchangeRateInState` no longer treats such tokens as already priced (a non-empty `"0"` string is truthy) and the controller fetches the token's real rate. This fixes quotes into these tokens (e.g. mUSD) displaying a `$0.00` fiat value. ([#9556](https://github.com/MetaMask/core/pull/9556))
+
+## [77.6.0]
+
+### Added
+
+- Added `FollowTradingTokenScreen` and `FollowTradingFeedScreen` values to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to follow trading entry points ([#9553](https://github.com/MetaMask/core/pull/9553))
+- Added `FollowTrader` value to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to the follow trader entry point ([#9552](https://github.com/MetaMask/core/pull/9552))
+
 ## [77.5.0]
 
 ### Added
@@ -1760,7 +1780,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.6.0...HEAD
+[77.6.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.5.0...@metamask/bridge-controller@77.6.0
 [77.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.4.1...@metamask/bridge-controller@77.5.0
 [77.4.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.4.0...@metamask/bridge-controller@77.4.1
 [77.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.3.2...@metamask/bridge-controller@77.4.0

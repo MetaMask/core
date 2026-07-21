@@ -1,19 +1,22 @@
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+} from '../types.js';
 import {
   formatWalletForUserStorageUsage,
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
   parseLegacyAccountFromUserStorageResponse,
-} from './format-utils';
+} from './format-utils.js';
 import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
   assertValidLegacyUserStorageAccount,
-} from './validation';
+} from './validation.js';
 
 jest.mock('./validation');
 jest.mock('../../logger');

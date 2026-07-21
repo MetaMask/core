@@ -2,10 +2,11 @@ import {
   array,
   boolean,
   enums,
+  nullable,
   number,
   object,
+  optional,
   string,
-  nullable,
 } from '@metamask/superstruct';
 
 const DataFreshnessStruct = enums(['live', 'degraded']);
@@ -25,12 +26,25 @@ const VaultPositionStruct = object({
   effective_apy: string(),
 });
 
+/**
+ * Wallet + vault balance summary on the positions response.
+ * `null` when the API's wallet-balance path is disabled or unavailable.
+ */
+const PositionBalanceStruct = object({
+  musd_balance: string(),
+  vmusd_value_in_musd: string(),
+  total_balance: string(),
+});
+
 export const PositionResponseStruct = object({
   address: string(),
   as_of_block: number(),
   as_of_timestamp: string(),
   data_freshness: DataFreshnessStruct,
   indexer_lag_seconds: number(),
+  // Optional for backwards compatibility with responses that omit the field;
+  // when present, may be `null` if the API balance flag is off.
+  balance: optional(nullable(PositionBalanceStruct)),
   positions: array(VaultPositionStruct),
 });
 

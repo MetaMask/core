@@ -1,7 +1,7 @@
 import { remove0x } from '@metamask/utils';
 import { ParsedMessage } from '@spruceid/siwe-parser';
 
-import { projectLogger, createModuleLogger } from './logger';
+import { projectLogger, createModuleLogger } from './logger.js';
 
 const log = createModuleLogger(projectLogger, 'detect-siwe');
 

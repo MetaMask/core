@@ -1,9 +1,9 @@
-import { logErrorAs } from './logger';
+import { logErrorAs } from './logger.js';
 import {
   isKeyringControllerLockedError,
   isTimeoutError,
-} from './providers/utils';
-import { createSentryError } from './utils';
+} from './providers/utils.js';
+import { createSentryError } from './utils.js';
 
 /**
  * Reports an error by logging it and optionally capturing it in Sentry.

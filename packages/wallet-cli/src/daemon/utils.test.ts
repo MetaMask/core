@@ -10,7 +10,7 @@ import {
   readPidFile,
   sendSignal,
   waitFor,
-} from './utils';
+} from './utils.js';
 
 jest.mock('node:fs/promises');
 

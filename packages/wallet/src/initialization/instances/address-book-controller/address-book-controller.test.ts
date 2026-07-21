@@ -4,13 +4,13 @@ import {
 } from '@metamask/address-book-controller';
 import { Messenger } from '@metamask/messenger';
 
-import { defaultConfigurations } from '../../defaults';
+import { defaultConfigurations } from '../../defaults.js';
 import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
-import { addressBookController } from './address-book-controller';
+} from '../../defaults.js';
+import { addressBookController } from './address-book-controller.js';
 
 const ADDRESS = '0x1234567890123456789012345678901234567890';
 

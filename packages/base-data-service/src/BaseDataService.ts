@@ -32,7 +32,7 @@ import {
   createServicePolicy,
   CreateServicePolicyOptions,
   ServicePolicy,
-} from './createServicePolicy';
+} from './createServicePolicy.js';
 
 // Data service queries use the following format: ['ServiceActionName', ...params]
 export type QueryKey = [string, ...Json[]];

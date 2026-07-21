@@ -1,7 +1,7 @@
 import {
   MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
   isHeadlessAllProvidersEnabled,
-} from './featureFlags';
+} from './featureFlags.js';
 
 describe('MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY', () => {
   it('matches the LaunchDarkly flag key', () => {

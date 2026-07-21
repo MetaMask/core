@@ -27,10 +27,10 @@ import { EthKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import { Mutex } from 'async-mutex';
 
-import { projectLogger as log } from './logger';
-import type { MoneyAccountControllerMethodActions } from './MoneyAccountController-method-action-types';
-import type { MoneyAccount } from './types';
-import { isMoneyKeyring } from './utils';
+import { projectLogger as log } from './logger.js';
+import type { MoneyAccountControllerMethodActions } from './MoneyAccountController-method-action-types.js';
+import type { MoneyAccount } from './types.js';
+import { isMoneyKeyring } from './utils.js';
 
 export const controllerName = 'MoneyAccountController';
 

@@ -430,6 +430,7 @@ linkStyle default opacity:0.5
   money_account_balance_service --> base_data_service;
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;
+  money_account_balance_service --> money_account_api_data_service;
   money_account_balance_service --> network_controller;
   money_account_balance_service --> remote_feature_flag_controller;
   money_account_controller --> accounts_controller;
@@ -499,6 +500,7 @@ linkStyle default opacity:0.5
   notification_services_controller --> messenger;
   notification_services_controller --> profile_sync_controller;
   passkey_controller --> base_controller;
+  passkey_controller --> keyring_controller;
   passkey_controller --> messenger;
   permission_controller --> approval_controller;
   permission_controller --> base_controller;
@@ -650,7 +652,9 @@ linkStyle default opacity:0.5
   wallet --> keyring_controller;
   wallet --> messenger;
   wallet --> network_controller;
+  wallet --> passkey_controller;
   wallet --> remote_feature_flag_controller;
+  wallet --> seedless_onboarding_controller;
   wallet --> storage_service;
   wallet --> transaction_controller;
   wallet_cli --> base_controller;

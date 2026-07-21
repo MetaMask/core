@@ -11,6 +11,8 @@ import {
   selectMarketFilterPreferences,
   selectOrderBookGrouping,
   selectRecentlyViewedMarkets,
+  selectProLayoutPreferences,
+  selectPerpsMode,
 } from '../../src/selectors';
 
 describe('PerpsController selectors', () => {
@@ -625,6 +627,76 @@ describe('PerpsController selectors', () => {
 
       const result = selectRecentlyViewedMarkets(state);
       expect(result).toHaveLength(10);
+    });
+  });
+
+  describe('selectProLayoutPreferences', () => {
+    const defaults = {
+      orderBookExpanded: false,
+      chartExpanded: false,
+      orderBookPosition: 'left',
+      orderFormPosition: 'right',
+    };
+
+    it('returns the pro-mode layout preferences', () => {
+      const proLayoutPreferences = {
+        orderBookExpanded: true,
+        chartExpanded: true,
+        orderBookPosition: 'right' as const,
+        orderFormPosition: 'left' as const,
+      };
+      const state = {
+        proLayoutPreferences,
+      } as unknown as PerpsControllerState;
+
+      expect(selectProLayoutPreferences(state)).toStrictEqual(
+        proLayoutPreferences,
+      );
+    });
+
+    it('merges persisted fields over defaults so missing fields fall back', () => {
+      const state = {
+        proLayoutPreferences: { orderBookExpanded: true },
+      } as unknown as PerpsControllerState;
+
+      expect(selectProLayoutPreferences(state)).toStrictEqual({
+        ...defaults,
+        orderBookExpanded: true,
+      });
+    });
+
+    it('returns defaults when the state slice is missing', () => {
+      const state = {} as unknown as PerpsControllerState;
+
+      expect(selectProLayoutPreferences(state)).toStrictEqual(defaults);
+    });
+
+    it('returns defaults when state is undefined', () => {
+      expect(
+        selectProLayoutPreferences(
+          undefined as unknown as PerpsControllerState,
+        ),
+      ).toStrictEqual(defaults);
+    });
+  });
+
+  describe('selectPerpsMode', () => {
+    it('returns the current mode', () => {
+      const state = { mode: 'pro' } as unknown as PerpsControllerState;
+
+      expect(selectPerpsMode(state)).toBe('pro');
+    });
+
+    it('returns the default mode when the state slice is missing', () => {
+      const state = {} as unknown as PerpsControllerState;
+
+      expect(selectPerpsMode(state)).toBe('lite');
+    });
+
+    it('returns the default mode when state is undefined', () => {
+      expect(
+        selectPerpsMode(undefined as unknown as PerpsControllerState),
+      ).toBe('lite');
     });
   });
 });

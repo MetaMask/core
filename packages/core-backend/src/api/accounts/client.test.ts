@@ -292,7 +292,8 @@ describe('AccountsApiClient', () => {
                 balance: '1.0',
                 metadata: {
                   protocolId: 'metamask',
-                  protocolName: 'MetaMask Swaps',
+                  productName: 'MetaMask Swaps',
+                  groupId: 'group-1',
                   description: 'MetaMask Swaps on ethereum',
                   protocolUrl: 'https://metamask.io/',
                   protocolIconUrl: 'https://example.com/icon.jpg',

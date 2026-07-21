@@ -4,8 +4,8 @@ import { chmod, unlink } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Server, Socket } from 'node:net';
 
-import { startRpcSocketServer } from './rpc-socket-server';
-import type { RpcHandlerDefinition, RpcHandlerMap } from './types';
+import { startRpcSocketServer } from './rpc-socket-server.js';
+import type { RpcHandlerDefinition, RpcHandlerMap } from './types.js';
 
 // any() paramsStruct so the struct guard never rejects test inputs.
 function asHandler(run: jest.Mock): RpcHandlerDefinition<unknown, never> {

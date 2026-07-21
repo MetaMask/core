@@ -1,4 +1,4 @@
-import type { MessengerCapabilityPacket, NamespaceGroup } from './types';
+import type { MessengerCapabilityPacket, NamespaceGroup } from './types.js';
 
 /**
  * Convert backtick-quoted action/event names in text into links when they

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ExampleDataService } from './ExampleDataService';
+import type { ExampleDataService } from './ExampleDataService.js';
 
 export type ExampleDataServiceGetAssetsAction = {
   type: `ExampleDataService:getAssets`;
