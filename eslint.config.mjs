@@ -399,6 +399,7 @@ const config = createConfig([
       'packages/messenger/**',
       'packages/messenger-cli/**',
       'packages/money-account-controller/**',
+      'packages/multichain-account-service/**',
       'packages/multichain-api-middleware/**',
       'packages/network-connection-banner-controller/**',
       'packages/permission-controller/**',
