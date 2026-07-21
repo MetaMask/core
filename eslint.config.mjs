@@ -384,6 +384,7 @@ const config = createConfig([
       'packages/address-book-controller/**',
       'packages/approval-controller/**',
       'packages/assets-controller/**',
+      'packages/assets-controllers/**',
       'packages/authenticated-user-storage/**',
       'packages/base-controller/**',
       'packages/base-data-service/**',
