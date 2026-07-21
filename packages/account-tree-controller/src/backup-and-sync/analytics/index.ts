@@ -1,2 +1,2 @@
-export * from './segment';
-export * from './traces';
+export * from './segment.js';
+export * from './traces.js';

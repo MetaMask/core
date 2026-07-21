@@ -379,6 +379,7 @@ const config = createConfig([
     // For now, we specify an array of packages here. Once all packages are
     // updated, we can remove this.
     files: [
+      'packages/account-tree-controller/**',
       'packages/base-controller/**',
       'packages/base-data-service/**',
       'packages/build-utils/**',

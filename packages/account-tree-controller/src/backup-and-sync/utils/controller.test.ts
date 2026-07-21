@@ -1,19 +1,19 @@
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
 
-import type { AccountTreeController } from '../../AccountTreeController';
+import type { AccountTreeController } from '../../AccountTreeController.js';
 import type {
   AccountWalletEntropyObject,
   AccountWalletKeyringObject,
-} from '../../wallet';
-import type { BackupAndSyncContext } from '../types';
+} from '../../wallet.js';
+import type { BackupAndSyncContext } from '../types.js';
 import {
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
   createStateSnapshot,
   restoreStateFromSnapshot,
   getLocalGroupForEntropyWallet,
-} from './controller';
-import type { StateSnapshot } from './controller';
+} from './controller.js';
+import type { StateSnapshot } from './controller.js';
 
 describe('BackupAndSyncUtils - Controller', () => {
   let mockContext: BackupAndSyncContext;
