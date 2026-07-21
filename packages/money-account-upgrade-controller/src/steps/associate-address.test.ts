@@ -244,26 +244,33 @@ describe('associateAddressStep', () => {
     expect(result).toBe('already-done');
   });
 
-  it('rethrows a conflict when the address belongs to another profile', async () => {
+  it('throws a terminal error when the address belongs to another profile', async () => {
     const { messenger, mocks } = setup();
     mocks.associateAddress.mockRejectedValue(conflictError());
     mocks.getAssociatedAddresses.mockResolvedValue([]);
 
-    await expect(run(messenger)).rejects.toThrow(
-      "POST /v1/auth/address failed with status '409'",
+    const error = await run(messenger).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe(
+      `Address ${MOCK_ADDRESS} is associated with a different CHOMP profile.`,
     );
+    expect(error).toMatchObject({ terminal: true });
   });
 
-  it('rethrows a conflict when the disambiguating lookup also fails', async () => {
+  it('rethrows the original, non-terminal conflict when the disambiguating lookup also fails', async () => {
     const { messenger, mocks } = setup();
     mocks.associateAddress.mockRejectedValue(conflictError());
     mocks.getAssociatedAddresses
       .mockResolvedValueOnce([])
       .mockRejectedValueOnce(new Error('lookup failed'));
 
-    await expect(run(messenger)).rejects.toThrow(
+    const error = await run(messenger).catch((thrown: unknown) => thrown);
+
+    expect((error as Error).message).toBe(
       "POST /v1/auth/address failed with status '409'",
     );
+    expect(error).not.toMatchObject({ terminal: true });
   });
 
   it('propagates errors from signing and does not submit to the API', async () => {

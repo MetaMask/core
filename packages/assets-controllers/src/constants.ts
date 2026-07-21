@@ -21,6 +21,7 @@ export const SUPPORTED_NETWORKS_ACCOUNTS_API_V4 = [
   '0x8f', // 143
   '0x3e7', // 999 HyperEVM
   '0x13b2', // 5042 Arc
+  '0x1237', // 4663 Robinhood
 ];
 
 /** Lowercase ERC-20 address for MetaMask USD (mUSD), same contract on listed chains. */
