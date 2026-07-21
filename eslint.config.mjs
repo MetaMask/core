@@ -398,6 +398,7 @@ const config = createConfig([
       'packages/eth-block-tracker/**',
       'packages/eth-json-rpc-middleware/**',
       'packages/eth-json-rpc-provider/**',
+      'packages/gas-fee-controller/**',
       'packages/json-rpc-engine/**',
       'packages/json-rpc-middleware-stream/**',
       'packages/messenger/**',
