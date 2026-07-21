@@ -2,7 +2,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { TransactionType } from '@metamask/transaction-controller';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
-import type { SmartTransactionsNetworkConfig } from './featureFlags';
+import type { SmartTransactionsNetworkConfig } from './featureFlags/index.js';
 
 export type SentinelMeta = {
   txType?: TransactionType;

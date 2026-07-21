@@ -1,16 +1,19 @@
 import { AccountWalletType } from '@metamask/account-api';
 
-import { BackupAndSyncService } from '.';
-import type { AccountGroupObject } from '../../group';
-import type { AccountTreeControllerState } from '../../types';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { TraceName } from '../analytics';
-import { getProfileId } from '../authentication';
-import { performLegacyAccountSyncing, syncWalletMetadata } from '../syncing';
-import type { BackupAndSyncContext } from '../types';
-import { getAllGroupsFromUserStorage } from '../user-storage';
+import type { AccountGroupObject } from '../../group.js';
+import type { AccountTreeControllerState } from '../../types.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { TraceName } from '../analytics/index.js';
+import { getProfileId } from '../authentication/index.js';
+import {
+  performLegacyAccountSyncing,
+  syncWalletMetadata,
+} from '../syncing/index.js';
+import type { BackupAndSyncContext } from '../types.js';
+import { getAllGroupsFromUserStorage } from '../user-storage/index.js';
 // We only need to import the functions we actually spy on
-import { createStateSnapshot, getLocalEntropyWallets } from '../utils';
+import { createStateSnapshot, getLocalEntropyWallets } from '../utils/index.js';
+import { BackupAndSyncService } from './index.js';
 
 // Mock the sync functions and all external dependencies
 jest.mock('../syncing');
@@ -43,7 +46,7 @@ const mockCreateStateSnapshot = createStateSnapshot as jest.MockedFunction<
 // factory. Grab the real one so tests use the actual tracker behaviour rather
 // than a hand-rolled duplicate.
 const { createSyncMutationTracker } =
-  jest.requireActual<typeof import('../utils')>('../utils');
+  jest.requireActual<typeof import('../utils/index.js')>('../utils');
 
 describe('BackupAndSync - Service - BackupAndSyncService', () => {
   let mockContext: BackupAndSyncContext;

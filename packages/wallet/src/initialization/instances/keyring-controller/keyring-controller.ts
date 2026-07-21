@@ -6,8 +6,8 @@ import {
 } from '@metamask/keyring-controller';
 import { Messenger } from '@metamask/messenger';
 
-import { InitializationConfiguration } from '../../types';
-import { encryptorFactory } from './encryptor';
+import { InitializationConfiguration } from '../../types.js';
+import { encryptorFactory } from './encryptor.js';
 
 export const keyringController: InitializationConfiguration<
   KeyringController,

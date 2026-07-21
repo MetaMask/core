@@ -1,9 +1,9 @@
-import { Env, Platform } from '../../shared/env';
-import { RateLimitedError } from '../errors';
-import { PAIR_DEDUPE_TTL_MS, SRPJwtBearerAuth } from './flow-srp';
-import { AuthType } from './types';
-import type { AuthConfig, LoginResponse, UserProfile } from './types';
-import * as timeUtils from './utils/time';
+import { Env, Platform } from '../../shared/env.js';
+import { RateLimitedError } from '../errors.js';
+import { PAIR_DEDUPE_TTL_MS, SRPJwtBearerAuth } from './flow-srp.js';
+import { AuthType } from './types.js';
+import type { AuthConfig, LoginResponse, UserProfile } from './types.js';
+import * as timeUtils from './utils/time.js';
 
 jest.setTimeout(15000);
 

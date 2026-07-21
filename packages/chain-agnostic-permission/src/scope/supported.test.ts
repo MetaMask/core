@@ -4,14 +4,14 @@ import {
   KnownSessionProperties,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-} from './constants';
+} from './constants.js';
 import {
   isSupportedAccount,
   isSupportedMethod,
   isSupportedNotification,
   isSupportedScopeString,
   isSupportedSessionProperty,
-} from './supported';
+} from './supported.js';
 
 describe('Scope Support', () => {
   describe('isSupportedNotification', () => {

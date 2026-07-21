@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { PreferencesController } from './PreferencesController';
+import type { PreferencesController } from './PreferencesController.js';
 
 /**
  * Enable or disable a specific feature flag.

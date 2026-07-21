@@ -4,9 +4,9 @@ import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
 
-import { projectLogger, createModuleLogger } from './logging-utils';
-import type { Block } from './types';
-import { blockTagParamIndex } from './utils/cache';
+import { projectLogger, createModuleLogger } from './logging-utils.js';
+import type { Block } from './types.js';
+import { blockTagParamIndex } from './utils/cache.js';
 
 type BlockRefMiddlewareOptions = {
   blockTracker?: PollingBlockTracker;

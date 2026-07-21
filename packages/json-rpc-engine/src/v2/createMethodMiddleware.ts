@@ -1,7 +1,7 @@
 import { ActionConstraint, Messenger } from '@metamask/messenger';
 
-import { JsonRpcMiddleware, Next } from './JsonRpcEngineV2';
-import { ContextConstraint } from './MiddlewareContext';
+import { JsonRpcMiddleware, Next } from './JsonRpcEngineV2.js';
+import { ContextConstraint } from './MiddlewareContext.js';
 import {
   assertExpectedHooks,
   createHandlerMessenger,
@@ -10,7 +10,7 @@ import {
   JsonRpcParams,
   JsonRpcRequest,
   UnionToIntersection,
-} from './utils';
+} from './utils.js';
 
 type HandlerActions<Handler> = Handler extends {
   implementation: (options: infer Options) => unknown;

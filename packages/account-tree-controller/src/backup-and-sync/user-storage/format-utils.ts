@@ -1,21 +1,21 @@
 import { mask } from '@metamask/superstruct';
 
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountWalletEntropyObject } from '../../wallet';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
 import type {
   BackupAndSyncContext,
   LegacyUserStorageSyncedAccount,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-} from '../types';
-import { UserStorageSyncedWalletGroupSchema } from '../types';
-import { toErrorMessage } from '../utils/errors';
+} from '../types.js';
+import { UserStorageSyncedWalletGroupSchema } from '../types.js';
+import { toErrorMessage } from '../utils/errors.js';
 import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
   assertValidLegacyUserStorageAccount,
-} from './validation';
+} from './validation.js';
 
 /**
  * Formats the wallet for user storage usage.

@@ -1,20 +1,20 @@
 import { isCaipChainId, KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAccountId, CaipChainId, Hex, Json } from '@metamask/utils';
 
-import type { Caip25CaveatValue } from '../caip25Permission';
+import type { Caip25CaveatValue } from '../caip25Permission.js';
 import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-} from '../scope/constants';
-import { mergeNormalizedScopes } from '../scope/transform';
+} from '../scope/constants.js';
+import { mergeNormalizedScopes } from '../scope/transform.js';
 import type {
   InternalScopesObject,
   NormalizedScopesObject,
-} from '../scope/types';
-import { parseScopeString } from '../scope/types';
-import { getEthAccounts } from './caip-permission-operator-accounts';
+} from '../scope/types.js';
+import { parseScopeString } from '../scope/types.js';
+import { getEthAccounts } from './caip-permission-operator-accounts.js';
 
 /**
  * Converts an NormalizedScopesObject to a InternalScopesObject.

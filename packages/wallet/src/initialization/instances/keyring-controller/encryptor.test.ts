@@ -1,6 +1,6 @@
 import { webcrypto } from 'crypto';
 
-import { encryptorFactory } from './encryptor';
+import { encryptorFactory } from './encryptor.js';
 
 describe('encryptorFactory', () => {
   beforeAll(() => {
