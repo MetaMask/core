@@ -427,6 +427,7 @@ const config = createConfig([
       'packages/snap-account-service/**',
       'packages/transaction-controller/**',
       'packages/transaction-pay-controller/**',
+      'packages/user-operation-controller/**',
       'packages/wallet/**',
       'packages/wallet-cli/**',
       'packages/wallet-framework-docs/**',
