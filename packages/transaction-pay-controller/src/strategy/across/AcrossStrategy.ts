@@ -67,7 +67,9 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
 
     return actionableRequests.every((singleRequest) => {
       if (singleRequest.isPostQuote) {
-        return hasTransactionType(request.transaction, [TransactionType.predictWithdraw]);
+        return hasTransactionType(request.transaction, [
+          TransactionType.predictWithdraw,
+        ]);
       }
 
       try {
@@ -93,7 +95,11 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return true;
     }
 
-    if (!hasTransactionType(request.transaction, [TransactionType.predictWithdraw])) {
+    if (
+      !hasTransactionType(request.transaction, [
+        TransactionType.predictWithdraw,
+      ])
+    ) {
       return false;
     }
 
