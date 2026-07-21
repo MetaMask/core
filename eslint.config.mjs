@@ -403,6 +403,7 @@ const config = createConfig([
       'packages/polling-controller/**',
       'packages/preferences-controller/**',
       'packages/rate-limit-controller/**',
+      'packages/ramps-controller/**',
       'packages/react-data-query/**',
       'packages/sample-controllers/**',
       'packages/selected-network-controller/**',

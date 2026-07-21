@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { RampsController } from './RampsController';
+import type { RampsController } from './RampsController.js';
 
 /**
  * Executes a request with caching, deduplication, and at most one in-flight

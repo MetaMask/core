@@ -10,11 +10,11 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { isHeadlessAllProvidersEnabled } from './featureFlags';
-import { getProvidersServingAsset } from './providerAvailability';
-import type { RampsControllerMethodActions } from './RampsController-method-action-types';
-import type { RampsErrorCode } from './rampsErrorCodes';
-import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
+import { isHeadlessAllProvidersEnabled } from './featureFlags.js';
+import { getProvidersServingAsset } from './providerAvailability.js';
+import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
+import type { RampsErrorCode } from './rampsErrorCodes.js';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
 import type {
   BuyWidget,
   Country,
@@ -30,8 +30,8 @@ import type {
   RampsToken,
   RampsServiceActions,
   RampsOrder,
-} from './RampsService';
-import { RampsOrderStatus } from './RampsService';
+} from './RampsService.js';
+import { RampsOrderStatus } from './RampsService.js';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -42,14 +42,14 @@ import type {
   RampsServiceGetBuyWidgetUrlAction,
   RampsServiceGetOrderAction,
   RampsServiceGetOrderFromCallbackAction,
-} from './RampsService-method-action-types';
+} from './RampsService-method-action-types.js';
 import type {
   RequestCache as RequestCacheType,
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
   ResourceType,
-} from './RequestCache';
+} from './RequestCache.js';
 import {
   DEFAULT_REQUEST_CACHE_TTL,
   DEFAULT_REQUEST_CACHE_MAX_SIZE,
@@ -59,7 +59,7 @@ import {
   createSuccessState,
   createErrorState,
   RequestStatus,
-} from './RequestCache';
+} from './RequestCache.js';
 import type {
   TransakAccessToken,
   TransakUserDetails,
@@ -75,8 +75,8 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
   TransakOrder,
-} from './TransakService';
-import type { TransakServiceActions } from './TransakService';
+} from './TransakService.js';
+import type { TransakServiceActions } from './TransakService.js';
 import type {
   TransakServiceSetApiKeyAction,
   TransakServiceSetAccessTokenAction,
@@ -102,7 +102,7 @@ import type {
   TransakServiceCancelOrderAction,
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
-} from './TransakService-method-action-types';
+} from './TransakService-method-action-types.js';
 
 // === GENERAL ===
 
