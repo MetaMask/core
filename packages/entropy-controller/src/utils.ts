@@ -29,18 +29,18 @@ export function isKeyringOwningEntropy(keyring: KeyringObject): boolean {
  * Using the secret as the HMAC key and the `EntropyType` as the domain
  * separator ensures non-reversibility and type-scoping.
  *
- * Synchronous because `@noble/hashes` exposes a synchronous HMAC API, which
- * guarantees that entropy sources are derived in the same tick as the keyring
- * state change that triggers a sync — no async boundary between the two.
+ * `@noble/hashes` is synchronous today, but the async signature is kept as a
+ * forward-compatible seam: a future migration to the Web Crypto API (or any
+ * other async primitive) won't require changes at every call site.
  *
  * @param secret - The raw entropy bytes.
  * @param entropyType - The type of entropy source.
  * @returns The 32-byte HMAC-SHA256 digest.
  */
-function toEntropyFingerprintBytes(
+async function toEntropyFingerprintBytes(
   secret: Uint8Array,
   entropyType: EntropyType,
-): Uint8Array {
+): Promise<Uint8Array> {
   const message = new TextEncoder().encode(
     `metamask:${entropyType}:fingerprint`,
   );
@@ -61,11 +61,11 @@ function toEntropyFingerprintBytes(
  * `category:implementation` (e.g. `'bip44:srp'`, `'raw:private-key'`).
  * @returns The lowercase hex-encoded 32-byte HMAC-SHA256 digest.
  */
-export function toEntropyFingerprint(
+export async function toEntropyFingerprint(
   secret: Uint8Array,
   entropyType: EntropyType,
-): string {
-  return bytesToHex(toEntropyFingerprintBytes(secret, entropyType));
+): Promise<string> {
+  return bytesToHex(await toEntropyFingerprintBytes(secret, entropyType));
 }
 
 /**
@@ -83,10 +83,10 @@ export function toEntropyFingerprint(
  * @returns A deterministic UUID v4 string suitable for use as an
  * {@link EntropyId}.
  */
-export function toEntropyId(
+export async function toEntropyId(
   secret: Uint8Array,
   entropyType: EntropyType,
-): EntropyId {
-  const bytes = toEntropyFingerprintBytes(secret, entropyType);
+): Promise<EntropyId> {
+  const bytes = await toEntropyFingerprintBytes(secret, entropyType);
   return uuid({ random: bytes.slice(0, 16) });
 }

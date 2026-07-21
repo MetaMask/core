@@ -193,7 +193,7 @@ describe('EntropyController', () => {
   describe('entropy sync', () => {
     it('populates entropySources from an HD keyring', async () => {
       const keyringId = 'hd-keyring-id';
-      const expectedId = toEntropyId(HD_MNEMONIC, 'bip44:srp');
+      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
       const keyringStubs = [
         {
           type: 'HD Key Tree',
@@ -228,7 +228,7 @@ describe('EntropyController', () => {
     it('populates entropySources from a Simple keyring', async () => {
       const keyringId = 'simple-keyring-id';
       const accountId = 'account-uuid-1';
-      const expectedId = toEntropyId(PRIVATE_KEY_BYTES, 'raw:private-key');
+      const expectedId = await toEntropyId(PRIVATE_KEY_BYTES, 'raw:private-key');
       const keyringStubs = [
         {
           type: 'Simple Key Pair',
@@ -266,8 +266,8 @@ describe('EntropyController', () => {
       const secondKeyBytes = Uint8Array.from(
         secondKeyHex.match(/../gu)!.map((b) => parseInt(b, 16)),
       );
-      const expectedId1 = toEntropyId(PRIVATE_KEY_BYTES, 'raw:private-key');
-      const expectedId2 = toEntropyId(secondKeyBytes, 'raw:private-key');
+      const expectedId1 = await toEntropyId(PRIVATE_KEY_BYTES, 'raw:private-key');
+      const expectedId2 = await toEntropyId(secondKeyBytes, 'raw:private-key');
       const keyringStubs = [
         {
           type: 'Simple Key Pair',
@@ -356,7 +356,7 @@ describe('EntropyController', () => {
 
     it('replaces the entire entropySources map on each sync', async () => {
       const keyringId = 'hd-keyring-id';
-      const expectedId = toEntropyId(HD_MNEMONIC, 'bip44:srp');
+      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
       const keyringStubs = [
         {
           type: 'HD Key Tree',
@@ -432,7 +432,7 @@ describe('EntropyController', () => {
 
     it('synchronizes automatically when keyrings state changes', async () => {
       const keyringId = 'hd-keyring-id';
-      const expectedId = toEntropyId(HD_MNEMONIC, 'bip44:srp');
+      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
 
       const { controller, rootMessenger } = await setup({
         keyrings: [
@@ -466,7 +466,7 @@ describe('EntropyController', () => {
       // Unlocking populates state.keyrings, which triggers the stateChange
       // selector and kicks off a sync — no separate unlock subscription needed.
       const keyringId = 'hd-keyring-id';
-      const expectedId = toEntropyId(HD_MNEMONIC, 'bip44:srp');
+      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
 
       const { controller, rootMessenger } = await setup({
         keyrings: [

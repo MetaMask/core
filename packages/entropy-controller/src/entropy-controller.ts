@@ -218,12 +218,12 @@ export class EntropyController extends BaseController<
     await this.messenger.call(
       'KeyringController:withKeyringV2Unsafe',
       { id },
-      ({ keyring }) => {
+      async ({ keyring }) => {
         const hdKeyring = keyring as HdKeyring;
         if (!hdKeyring.mnemonic) {
           return;
         }
-        const entropyId = toEntropyId(hdKeyring.mnemonic, 'bip44:srp');
+        const entropyId = await toEntropyId(hdKeyring.mnemonic, 'bip44:srp');
         sources[entropyId] = {
           type: 'bip44:srp',
           metadata: { legacyEntropySource: id },
@@ -258,7 +258,7 @@ export class EntropyController extends BaseController<
             type: 'private-key',
             encoding: 'hexadecimal',
           });
-          const entropyId = toEntropyId(
+          const entropyId = await toEntropyId(
             hexToBytes(exported.privateKey),
             'raw:private-key',
           );
