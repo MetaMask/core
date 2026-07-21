@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Add basic data service docs: intro + initial tutorial ([#8961](https://github.com/MetaMask/core/pull/8961))
+
 [Unreleased]: https://github.com/MetaMask/core/

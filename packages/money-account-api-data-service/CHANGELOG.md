@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+
 ### Added
 
 - Add optional nullable `balance` field to the positions response (`musd_balance`, `vmusd_value_in_musd`, `total_balance`), matching the Money Account API contract. Export `PositionBalance` type. ([#9554](https://github.com/MetaMask/core/pull/9554))
