@@ -2,9 +2,9 @@ import { Messenger } from '@metamask/messenger';
 import type { TransactionControllerMessenger } from '@metamask/transaction-controller';
 import { TransactionController } from '@metamask/transaction-controller';
 
-import type { InitializationConfiguration } from '../../types';
+import type { InitializationConfiguration } from '../../types.js';
 
-export type { TransactionControllerInstanceOptions } from './types';
+export type { TransactionControllerInstanceOptions } from './types.js';
 
 export const transactionController: InitializationConfiguration<
   TransactionController,

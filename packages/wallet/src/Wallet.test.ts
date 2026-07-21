@@ -5,11 +5,11 @@ import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
 
-import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
-import * as initializationModule from './initialization/initialization';
-import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter';
-import { importSecretRecoveryPhrase } from './utilities';
-import { Wallet } from './Wallet';
+import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor.js';
+import * as initializationModule from './initialization/initialization.js';
+import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
+import { importSecretRecoveryPhrase } from './utilities.js';
+import { Wallet } from './Wallet.js';
 
 const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
