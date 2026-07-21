@@ -291,10 +291,6 @@ export type {
   DeFiPositionType,
 } from './DeFiPositionsController/group-defi-positions-v6';
 export { mergePositionsForAccounts } from './DeFiPositionsController/merge-positions-for-accounts';
-export {
-  DEFI_SUPPORTED_NETWORKS,
-  buildDeFiBalancesQuery,
-} from './DeFiPositionsController/build-defi-balances-query';
 export type {
   AccountGroupBalance,
   WalletBalance,

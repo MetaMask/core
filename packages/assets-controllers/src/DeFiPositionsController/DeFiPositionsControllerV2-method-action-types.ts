@@ -6,20 +6,13 @@
 import type { DeFiPositionsControllerV2 } from './DeFiPositionsControllerV2';
 
 /**
- * Fetches DeFi positions for the selected account group and stores them,
- * shaped for direct client consumption. Everything happens behind this
- * method: resolving the accounts, calling the Accounts API, transforming the
- * response, and updating state.
- *
- * Throttled per set of accounts + vsCurrency by an in-memory minimum
- * interval, so repeated calls within the window are no-ops (no HTTP, no
- * regroup, no state write). A change in fiat currency bypasses that window
- * so tab-focus refetches pick up new prices without `forceRefresh`. Pass
- * `{ forceRefresh: true }` to bypass the throttle entirely (e.g.
- * pull-to-refresh or after a confirmed transaction). The successful/forced
- * fetch still updates the throttle claim, so subsequent non-forced calls for
- * the same accounts and currency remain gated. Disabled controllers and
- * empty account groups return without fetching.
+ * Fetches DeFi positions for the selected account group and merges them into
+ * `allDeFiPositionsV2` (other accounts' cached entries are kept so group
+ * switches can reuse TTL'd state). No-ops when disabled, when the group has
+ * no supported accounts, or when the same accounts + `vsCurrency` were
+ * fetched within `minimumFetchIntervalMs`. Pass `{ forceRefresh: true }` to
+ * bypass the throttle (e.g. pull-to-refresh). A `vsCurrency` change for the
+ * same accounts also bypasses it.
  *
  * @param options - Optional fetch modifiers.
  * @param options.forceRefresh - When true, bypass the minimum-interval

@@ -13,10 +13,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
-// TODO: The extension prototype derived token icons via
-// `getCaipAssetImageUrl`/`getAssetImageUrl` (shared/lib/asset-utils). Core has
-// no shared equivalent yet, so the minimal builder below is inlined. Replace it
-// with a shared helper if/when one lands in core.
+/** Static.cx host used to build CAIP-19 token icon URLs for DeFi positions. */
 const STATIC_METAMASK_BASE_URL = 'https://static.cx.metamask.io';
 
 /**

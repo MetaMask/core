@@ -429,6 +429,48 @@ describe('DeFiPositionsControllerV2', () => {
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
   });
 
+  it('merges fetched accounts into state without clearing other accounts', async () => {
+    const otherEvmAddress = '0x0000000000000000000000000000000000000002';
+    const otherEvmAccount = createMockInternalAccount({
+      id: 'evm-account-id-2',
+      address: otherEvmAddress,
+      type: EthAccountType.Eoa,
+    });
+    let groupAccounts: InternalAccount[] = GROUP_ACCOUNTS;
+    const { controller } = setupController({
+      getGroupAccounts: () => groupAccounts,
+      mockFetchV6MultiAccountBalances: jest
+        .fn()
+        .mockResolvedValueOnce(buildMockBalancesResponse())
+        .mockResolvedValueOnce(
+          buildMockBalancesResponse({
+            accounts: [
+              {
+                accountId: `eip155:0:${otherEvmAddress}`,
+                balances: [],
+              },
+            ],
+          }),
+        ),
+    });
+
+    await controller.fetchDeFiPositions();
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
+      1,
+    );
+
+    groupAccounts = [otherEvmAccount];
+    await controller.fetchDeFiPositions();
+
+    expect(controller.state.allDeFiPositionsV2).toStrictEqual({
+      'evm-account-id': expect.any(Array),
+      'evm-account-id-2': [],
+    });
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
+      1,
+    );
+  });
+
   it('bypasses the throttle when forceRefresh is true', async () => {
     const { controller, mockFetchV6MultiAccountBalances } = setupController({
       minimumFetchIntervalMs: 60_000,
