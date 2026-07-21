@@ -8,29 +8,32 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../../constants';
+import { TransactionPayStrategy } from '../../constants.js';
 import type {
   PayStrategyExecuteRequest,
   QuoteRequest,
   TransactionPayFiatOptions,
   TransactionPayQuote,
-} from '../../types';
-import { buildCaipAssetType } from '../../utils/token';
+} from '../../types.js';
+import { buildCaipAssetType } from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
-import { getRelayQuotes } from '../relay/relay-quotes';
-import { submitRelayQuotes } from '../relay/relay-submit';
-import type { RelayQuote } from '../relay/types';
-import type { TransactionPayFiatAsset } from './constants';
-import { MUSD_MONAD_FIAT_ASSET } from './constants';
-import { submitFiatQuotes } from './fiat-submit';
-import { fundFiatOrderFromTestSource } from './fiat-test-funding';
-import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
+} from '../../utils/transaction.js';
+import { getRelayQuotes } from '../relay/relay-quotes.js';
+import { submitRelayQuotes } from '../relay/relay-submit.js';
+import type { RelayQuote } from '../relay/types.js';
+import type { TransactionPayFiatAsset } from './constants.js';
+import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
+import { submitFiatQuotes } from './fiat-submit.js';
+import { fundFiatOrderFromTestSource } from './fiat-test-funding.js';
+import type { FiatQuote } from './types.js';
+import {
+  deriveFiatAssetForFiatPayment,
+  resolveSourceAmountRaw,
+} from './utils.js';
 
 jest.mock('./utils', () => ({
   ...jest.requireActual('./utils'),

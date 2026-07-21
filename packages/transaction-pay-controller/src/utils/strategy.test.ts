@@ -1,15 +1,15 @@
-import { TransactionPayStrategy } from '../constants';
-import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
-import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
-import { RelayStrategy } from '../strategy/relay/RelayStrategy';
-import { ServerStrategy } from '../strategy/server/ServerStrategy';
-import type { PayStrategyGetQuotesRequest } from '../types';
+import { TransactionPayStrategy } from '../constants.js';
+import { AcrossStrategy } from '../strategy/across/AcrossStrategy.js';
+import { FiatStrategy } from '../strategy/fiat/FiatStrategy.js';
+import { RelayStrategy } from '../strategy/relay/RelayStrategy.js';
+import { ServerStrategy } from '../strategy/server/ServerStrategy.js';
+import type { PayStrategyGetQuotesRequest } from '../types.js';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
   getStrategiesByName,
   getStrategyByName,
-} from './strategy';
+} from './strategy.js';
 
 describe('Strategy Utils', () => {
   describe('getStrategyByName', () => {

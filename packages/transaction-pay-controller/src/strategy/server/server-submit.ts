@@ -13,38 +13,38 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
+} from '../../types.js';
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
-} from '../../utils/feature-flags';
-import { getNetworkClientId } from '../../utils/provider';
+} from '../../utils/feature-flags.js';
+import { getNetworkClientId } from '../../utils/provider.js';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
   TokenAddressTarget,
-} from '../../utils/token';
+} from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
-import { RELAY_DEPOSIT_TYPES } from '../relay/constants';
-import { getServerStatus, submitServerIntent } from './server-api';
+} from '../../utils/transaction.js';
+import { RELAY_DEPOSIT_TYPES } from '../relay/constants.js';
+import { getServerStatus, submitServerIntent } from './server-api.js';
 import type {
   ServerQuote,
   ServerSignatureStep,
   ServerTransactionStep,
   ServerStatusResponse,
   ServerSubmitRequest,
-} from './types';
-import { ServerStatus } from './types';
+} from './types.js';
+import { ServerStatus } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-strategy');
 

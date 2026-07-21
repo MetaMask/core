@@ -9,13 +9,13 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { TransactionPayStrategy } from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
-import type { TransactionPayQuote } from '../../types';
-import { submitAcrossQuotes } from './across-submit';
-import * as acrossTransactions from './transactions';
-import type { AcrossQuote } from './types';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { TransactionPayStrategy } from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { TransactionPayQuote } from '../../types.js';
+import { submitAcrossQuotes } from './across-submit.js';
+import * as acrossTransactions from './transactions.js';
+import type { AcrossQuote } from './types.js';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

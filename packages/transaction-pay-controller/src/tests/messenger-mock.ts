@@ -23,7 +23,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
 
-import type { TransactionPayControllerMessenger } from '..';
+import type { TransactionPayControllerMessenger } from '../index.js';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetFiatOptionsAction,
@@ -31,8 +31,8 @@ import type {
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
-} from '../TransactionPayController-method-action-types';
-import type { TransactionPayControllerGetStateAction } from '../types';
+} from '../TransactionPayController-method-action-types.js';
+import type { TransactionPayControllerGetStateAction } from '../types.js';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
 type AllEvents = MessengerEvents<TransactionPayControllerMessenger>;

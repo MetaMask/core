@@ -8,16 +8,16 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../../logger.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { prefixError } from '../../utils/error-prefix';
-import { getNetworkClientId } from '../../utils/provider';
-import { FALLBACK_HASH } from './constants';
-import { submitRelayExecute } from './relay-api';
-import type { RelayExecuteRequest, RelayQuote } from './types';
+} from '../../types.js';
+import { prefixError } from '../../utils/error-prefix.js';
+import { getNetworkClientId } from '../../utils/provider.js';
+import { FALLBACK_HASH } from './constants.js';
+import { submitRelayExecute } from './relay-api.js';
+import type { RelayExecuteRequest, RelayQuote } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 const RELAY_EXECUTE_ERROR_PREFIX = 'Execute: ';
