@@ -5,6 +5,7 @@ import {
 } from '@metamask/seedless-onboarding-controller';
 
 import { InitializationConfiguration } from '../../types.js';
+import { encryptorFactory } from '../keyring-controller/encryptor.js';
 
 export const seedlessOnboardingController: InitializationConfiguration<
   SeedlessOnboardingController,
@@ -14,6 +15,7 @@ export const seedlessOnboardingController: InitializationConfiguration<
   init: ({ state, messenger, options }) =>
     new SeedlessOnboardingController({
       ...options,
+      encryptor: options?.encryptor ?? encryptorFactory(600_000),
       state,
       messenger,
     }),
