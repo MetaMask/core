@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Persist `assetsPrice` in `AssetsController` state so last-known prices survive app restart / state rehydration (refreshed on the next price fetch via existing `PriceDataSource` TTL)
 - Memoize hot-path asset ID / legacy-format conversions to cut repeated keccak256 (`toChecksumAddress`) and CAIP parsing ([#9555](https://github.com/MetaMask/core/pull/9555))
   - `normalizeAssetId` uses lodash `memoize` so already-normalized IDs skip re-checksumming across the pipeline
   - `formatExchangeRatesForBridge` caches the last result on input identity (`===` for BaseController slices, lodash `isEqual` for rebuilt native maps); exports `FormatExchangeRatesForBridgeParams`
