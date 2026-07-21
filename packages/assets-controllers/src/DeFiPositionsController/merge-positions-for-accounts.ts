@@ -70,7 +70,7 @@ export function mergePositionsForAccounts(
         byKey.set(key, {
           ...group,
           iconGroup: [...group.iconGroup],
-          sections: [...group.sections],
+          sections: mergeSections([], group.sections),
         });
         continue;
       }

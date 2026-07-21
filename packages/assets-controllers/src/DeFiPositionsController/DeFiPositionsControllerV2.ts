@@ -11,7 +11,6 @@ import type { Messenger } from '@metamask/messenger';
 import {
   buildDeFiBalancesQuery,
   DEFI_BALANCES_V6_REQUEST_OPTIONS,
-  normalizeCaipAccountId,
   toAccountMatchKey,
 } from './build-defi-balances-query';
 import type { DeFiPositionsControllerV2MethodActions } from './DeFiPositionsControllerV2-method-action-types';
@@ -222,17 +221,6 @@ export class DeFiPositionsControllerV2 extends BaseController<
     if (internalAccountIdByCaip.size === 0 || networks.length === 0) {
       return;
     }
-
-    // TEMPORARY: always fetch this account for testing, regardless of selection.
-    // Positions are still stored under the selected account's internal ID.
-    const TEST_CAIP_ACCOUNT_ID =
-      'eip155:0:0x3e8734ec146c981e3ed1f6b582d447dde701d90c';
-    const selectedInternalAccountId = [...internalAccountIdByCaip.values()][0];
-    internalAccountIdByCaip.clear();
-    internalAccountIdByCaip.set(
-      normalizeCaipAccountId(TEST_CAIP_ACCOUNT_ID),
-      selectedInternalAccountId,
-    );
 
     const accountIds = [...internalAccountIdByCaip.keys()];
     // Stable key so the same account set throttles together regardless of map

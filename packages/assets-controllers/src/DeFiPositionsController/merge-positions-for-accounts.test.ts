@@ -87,9 +87,13 @@ describe('mergePositionsForAccounts', () => {
     const result = mergePositionsForAccounts(positionsByAccount, ['account-1']);
     result[0].marketValue = 999;
     result[0].iconGroup.push({ symbol: 'HACK' });
+    result[0].sections.push({ productName: 'HACK', positions: [] });
+    result[0].sections[0].positions.push(buildPosition({ symbol: 'HACK' }));
 
     expect(group.marketValue).toBe(2000);
     expect(group.iconGroup).toHaveLength(1);
+    expect(group.sections).toHaveLength(1);
+    expect(group.sections[0].positions).toHaveLength(1);
   });
 
   it('keeps groups on the same protocol but different chains separate', () => {
