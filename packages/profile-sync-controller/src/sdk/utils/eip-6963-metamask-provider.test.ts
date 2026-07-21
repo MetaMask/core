@@ -1,11 +1,11 @@
 import type { Eip1193Provider } from 'ethers';
 
-import type { MockVariable } from '../__fixtures__/test-utils';
-import type { AnnounceProviderEvent } from './eip-6963-metamask-provider';
+import type { MockVariable } from '../__fixtures__/test-utils.js';
+import type { AnnounceProviderEvent } from './eip-6963-metamask-provider.js';
 import {
   getMetaMaskProviderEIP6963,
   metamaskClientsRdns,
-} from './eip-6963-metamask-provider';
+} from './eip-6963-metamask-provider.js';
 
 describe('getMetaMaskProviderEIP6963() tests', () => {
   let unsubscribe: undefined | (() => void);

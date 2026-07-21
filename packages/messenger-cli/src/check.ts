@@ -1,20 +1,23 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { generateActionTypesContent } from './generate-content';
-import type { SourceInfo } from './parse-source';
-import { Formatter } from './types';
+import { generateActionTypesContent } from './generate-content.js';
+import type { SourceInfo } from './parse-source.js';
+import { Formatter } from './types.js';
 
 /**
  * Checks if generated action types files are up to date.
  *
  * @param sources - Array of source information objects.
  * @param formatter - The formatter to use for formatting the generated content.
+ * @param esm - Whether to add `.js` extensions to import paths for ESM
+ * compatibility.
  * @returns Whether all files are up to date.
  */
 export async function checkActionTypesFiles(
   sources: SourceInfo[],
   formatter: Formatter,
+  esm = false,
 ): Promise<boolean> {
   let hasErrors = false;
 
@@ -33,7 +36,11 @@ export async function checkActionTypesFiles(
       `${baseFileName}-method-action-types.ts`,
     );
 
-    const expectedContent = await generateActionTypesContent(source, formatter);
+    const expectedContent = await generateActionTypesContent(
+      source,
+      formatter,
+      esm,
+    );
 
     try {
       await fs.promises.access(actualFile);

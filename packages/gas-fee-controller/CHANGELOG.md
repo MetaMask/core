@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Defer the `GasFeeController` constructor's `NetworkController` and provider reads to the first gas fee fetch, making the controller initialization-order-agnostic; the constructor signature and fetching behavior are unchanged ([#9569](https://github.com/MetaMask/core/pull/9569))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [26.2.4]

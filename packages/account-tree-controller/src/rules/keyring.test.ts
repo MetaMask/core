@@ -12,13 +12,13 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
-} from '../../tests/mockMessenger';
-import type { AccountGroupObjectOf } from '../group';
+} from '../../tests/mockMessenger.js';
+import type { AccountGroupObjectOf } from '../group.js';
 import type {
   AccountWalletKeyringObject,
   AccountWalletObjectOf,
-} from '../wallet';
-import { KeyringRule, getAccountWalletNameFromKeyringType } from './keyring';
+} from '../wallet.js';
+import { KeyringRule, getAccountWalletNameFromKeyringType } from './keyring.js';
 
 describe('keyring', () => {
   describe('getAccountWalletNameFromKeyringType', () => {

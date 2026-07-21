@@ -11,10 +11,7 @@ import { flushPromises } from '../../../../tests/helpers';
 import type { Transaction, BalanceUpdate } from '../types';
 import type { AccountActivityMessage } from '../types';
 import { AccountActivityService } from './AccountActivityService';
-import type {
-  AccountActivityServiceMessenger,
-  SubscriptionOptions,
-} from './AccountActivityService';
+import type { AccountActivityServiceMessenger } from './AccountActivityService';
 import type { ServerNotificationMessage } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
 
@@ -461,195 +458,6 @@ describe('AccountActivityService', () => {
   });
 
   // =============================================================================
-  // SUBSCRIBE ACCOUNTS TESTS
-  // =============================================================================
-  describe('subscribe', () => {
-    const mockSubscription: SubscriptionOptions = {
-      address: 'eip155:1:0x1234567890123456789012345678901234567890',
-    };
-
-    it('should handle account activity messages by processing transactions and balance updates and publishing events', async () => {
-      await withService(
-        { accountAddress: '0x1234567890123456789012345678901234567890' },
-        async ({ service, mocks, messenger, mockSelectedAccounts }) => {
-          let capturedCallback: (
-            notification: ServerNotificationMessage,
-          ) => void = jest.fn();
-
-          // Mock the subscribe call to capture the callback
-          mocks.subscribe.mockImplementation((options) => {
-            // Capture the callback from the subscription options
-            capturedCallback = options.callback;
-            return Promise.resolve({
-              subscriptionId: 'sub-123',
-              unsubscribe: () => Promise.resolve(),
-            });
-          });
-          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue(
-            mockSelectedAccounts,
-          );
-
-          await service.subscribe(mockSubscription);
-
-          // Simulate receiving account activity message
-          const activityMessage: AccountActivityMessage = {
-            address: '0x1234567890123456789012345678901234567890',
-            tx: {
-              id: '0xabc123',
-              chain: 'eip155:1',
-              status: 'confirmed',
-              timestamp: Date.now(),
-              from: '0x1234567890123456789012345678901234567890',
-              to: '0x9876543210987654321098765432109876543210',
-            },
-            updates: [
-              {
-                asset: {
-                  fungible: true,
-                  type: 'eip155:1/slip44:60',
-                  unit: 'ETH',
-                  decimals: 18,
-                },
-                postBalance: {
-                  amount: '1000000000000000000', // 1 ETH
-                },
-                transfers: [
-                  {
-                    from: '0x1234567890123456789012345678901234567890',
-                    to: '0x9876543210987654321098765432109876543210',
-                    amount: '500000000000000000', // 0.5 ETH
-                  },
-                ],
-              },
-            ],
-          };
-
-          const notificationMessage = {
-            event: 'notification',
-            subscriptionId: 'sub-123',
-            channel:
-              'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
-            data: activityMessage,
-            timestamp: 1760344704595,
-          };
-
-          // Subscribe to events to verify they are published
-          const receivedTransactionEvents: Transaction[] = [];
-          const receivedBalanceEvents: {
-            address: string;
-            chain: string;
-            updates: BalanceUpdate[];
-          }[] = [];
-
-          messenger.subscribe(
-            'AccountActivityService:transactionUpdated',
-            (data) => {
-              receivedTransactionEvents.push(data);
-            },
-          );
-
-          messenger.subscribe(
-            'AccountActivityService:balanceUpdated',
-            (data) => {
-              receivedBalanceEvents.push(data);
-            },
-          );
-
-          // Call the captured callback
-          capturedCallback(notificationMessage);
-
-          // Should receive transaction and balance events
-          expect(receivedTransactionEvents).toHaveLength(1);
-          expect(receivedTransactionEvents[0]).toStrictEqual(
-            activityMessage.tx,
-          );
-
-          expect(receivedBalanceEvents).toHaveLength(1);
-          expect(receivedBalanceEvents[0]).toStrictEqual({
-            address: '0x1234567890123456789012345678901234567890',
-            chain: 'eip155:1',
-            updates: activityMessage.updates,
-          });
-        },
-      );
-    });
-
-    it('should handle subscription failure by calling forceReconnection', async () => {
-      await withService(async ({ service, mocks }) => {
-        // Mock subscribe to fail
-        mocks.subscribe.mockRejectedValue(new Error('Subscription failed'));
-
-        // Should handle subscription failure gracefully - should not throw
-        const result = await service.subscribe({ address: '0x123abc' });
-        expect(result).toBeUndefined();
-
-        // Verify the subscription was attempted
-        expect(mocks.subscribe).toHaveBeenCalledTimes(1);
-
-        // Verify forceReconnection was called (lines 289-290)
-        expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
-
-        // Connect is only called once at the start
-        expect(mocks.connect).toHaveBeenCalledTimes(1);
-      });
-    });
-  });
-
-  // =============================================================================
-  // UNSUBSCRIBE ACCOUNTS TESTS
-  // =============================================================================
-  describe('unsubscribe', () => {
-    const mockSubscription: SubscriptionOptions = {
-      address: 'eip155:1:0x1234567890123456789012345678901234567890',
-    };
-
-    it('should handle unsubscribe when not subscribed by returning early without errors', async () => {
-      await withService(async ({ service, mocks }) => {
-        // Mock the messenger call to return empty array (no active subscription)
-        mocks.getSubscriptionsByChannel.mockReturnValue([]);
-
-        // This should trigger the early return on line 302
-        await service.unsubscribe(mockSubscription);
-
-        // Verify the messenger call was made but early return happened
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
-          expect.any(String),
-        );
-      });
-    });
-
-    it('should handle unsubscribe errors by forcing WebSocket reconnection instead of throwing', async () => {
-      await withService(
-        { accountAddress: '0x1234567890123456789012345678901234567890' },
-        async ({ service, mocks, mockSelectedAccounts }) => {
-          const error = new Error('Unsubscribe failed');
-          const mockUnsubscribeError = jest.fn().mockRejectedValue(error);
-
-          // Mock getSubscriptionsByChannel to return subscription with failing unsubscribe function
-          mocks.getSubscriptionsByChannel.mockReturnValue([
-            {
-              subscriptionId: 'sub-123',
-              channels: [
-                'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
-              ],
-              unsubscribe: mockUnsubscribeError,
-            },
-          ]);
-          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue(
-            mockSelectedAccounts,
-          );
-
-          // unsubscribe catches errors and forces reconnection instead of throwing
-          await service.unsubscribe(mockSubscription);
-
-          // Should have attempted to force reconnection
-          expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-  });
-
-  // =============================================================================
   // EVENT HANDLERS TESTS
   // =============================================================================
   describe('event handlers', () => {
@@ -885,9 +693,32 @@ describe('AccountActivityService', () => {
 
           expect(mocks.subscribe).toHaveBeenCalledWith(
             expect.objectContaining({
-              channels: ['account-activity.v1.tron:0:tronaddress123abc'],
+              channels: [
+                'account-activity.v1.eip155:0:0xevmaddress123abc',
+                'account-activity.v1.tron:0:tronaddress123abc',
+              ],
             }),
           );
+        });
+      });
+
+      it('forces reconnection when an error is thrown during subscription', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          mocks.subscribe.mockRejectedValue(new Error('Subscription failed'));
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+            createMockInternalAccount({
+              address: '0xEvmAddress123abc',
+            }),
+          ]);
+
+          rootMessenger.publish(
+            'AccountTreeController:selectedAccountGroupChange',
+            '',
+            '',
+          );
+          await completeAsyncOperations();
+
+          expect(mocks.forceReconnection).toHaveBeenCalled();
         });
       });
 
@@ -935,18 +766,127 @@ describe('AccountActivityService', () => {
           await completeAsyncOperations();
 
           // Verify that subscribe was called for both accounts with the same entropy and group index
-          expect(mocks.subscribe).toHaveBeenCalledTimes(2);
+          expect(mocks.subscribe).toHaveBeenCalledTimes(1);
           expect(mocks.subscribe).toHaveBeenCalledWith(
             expect.objectContaining({
-              channels: ['account-activity.v1.eip155:0:0xaccount1'],
-            }),
-          );
-          expect(mocks.subscribe).toHaveBeenCalledWith(
-            expect.objectContaining({
-              channels: ['account-activity.v1.eip155:0:0xaccount2'],
+              channels: [
+                'account-activity.v1.eip155:0:0xaccount1',
+                'account-activity.v1.eip155:0:0xaccount2',
+              ],
             }),
           );
         });
+      });
+
+      it('handles the selected account activity messages by processing transactions and balance updates and publishing events', async () => {
+        await withService(
+          { accountAddress: '0x1234567890123456789012345678901234567890' },
+          async ({ rootMessenger, mocks, messenger, mockSelectedAccounts }) => {
+            let capturedCallback: (
+              notification: ServerNotificationMessage,
+            ) => void = jest.fn();
+            // Mock the subscribe call to capture the callback
+            mocks.subscribe.mockImplementation((options) => {
+              // Capture the callback from the subscription options
+              capturedCallback = options.callback;
+              return Promise.resolve({
+                subscriptionId: 'sub-123',
+                unsubscribe: () => Promise.resolve(),
+              });
+            });
+            mocks.getAccountsFromSelectedAccountGroup.mockReturnValue(
+              mockSelectedAccounts,
+            );
+
+            rootMessenger.publish(
+              'AccountTreeController:selectedAccountGroupChange',
+              '',
+              '',
+            );
+            // Wait for async handler to complete
+            await completeAsyncOperations();
+
+            // Simulate receiving account activity message
+            const activityMessage: AccountActivityMessage = {
+              address: '0x1234567890123456789012345678901234567890',
+              tx: {
+                id: '0xabc123',
+                chain: 'eip155:1',
+                status: 'confirmed',
+                timestamp: Date.now(),
+                from: '0x1234567890123456789012345678901234567890',
+                to: '0x9876543210987654321098765432109876543210',
+              },
+              updates: [
+                {
+                  asset: {
+                    fungible: true,
+                    type: 'eip155:1/slip44:60',
+                    unit: 'ETH',
+                    decimals: 18,
+                  },
+                  postBalance: {
+                    amount: '1000000000000000000', // 1 ETH
+                  },
+                  transfers: [
+                    {
+                      from: '0x1234567890123456789012345678901234567890',
+                      to: '0x9876543210987654321098765432109876543210',
+                      amount: '500000000000000000', // 0.5 ETH
+                    },
+                  ],
+                },
+              ],
+            };
+
+            const notificationMessage = {
+              event: 'notification',
+              subscriptionId: 'sub-123',
+              channel:
+                'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+              data: activityMessage,
+              timestamp: 1760344704595,
+            };
+
+            // Subscribe to events to verify they are published
+            const receivedTransactionEvents: Transaction[] = [];
+            const receivedBalanceEvents: {
+              address: string;
+              chain: string;
+              updates: BalanceUpdate[];
+            }[] = [];
+
+            messenger.subscribe(
+              'AccountActivityService:transactionUpdated',
+              (data) => {
+                receivedTransactionEvents.push(data);
+              },
+            );
+
+            messenger.subscribe(
+              'AccountActivityService:balanceUpdated',
+              (data) => {
+                receivedBalanceEvents.push(data);
+              },
+            );
+
+            // Call the captured callback
+            capturedCallback(notificationMessage);
+
+            // Should receive transaction and balance events
+            expect(receivedTransactionEvents).toHaveLength(1);
+            expect(receivedTransactionEvents[0]).toStrictEqual(
+              activityMessage.tx,
+            );
+
+            expect(receivedBalanceEvents).toHaveLength(1);
+            expect(receivedBalanceEvents[0]).toStrictEqual({
+              address: '0x1234567890123456789012345678901234567890',
+              chain: 'eip155:1',
+              updates: activityMessage.updates,
+            });
+          },
+        );
       });
 
       it('does not subscribe to Solana channels when the Solana migration flag is not set', async () => {

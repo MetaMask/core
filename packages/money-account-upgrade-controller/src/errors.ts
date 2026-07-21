@@ -14,6 +14,13 @@ export class MoneyAccountUpgradeStepError extends Error {
   /** The underlying error thrown by the step. */
   readonly cause: unknown;
 
+  /**
+   * Whether the failure is terminal — the condition will not resolve on its
+   * own, so retrying the upgrade sequence cannot succeed. Derived from the
+   * cause (see {@link TerminalUpgradeError}).
+   */
+  readonly terminal: boolean;
+
   constructor(step: string, cause: unknown) {
     const causeMessage = cause instanceof Error ? cause.message : String(cause);
     super(`Money Account upgrade failed at step "${step}": ${causeMessage}`);
@@ -21,6 +28,27 @@ export class MoneyAccountUpgradeStepError extends Error {
     this.name = 'MoneyAccountUpgradeStepError';
     this.step = step;
     this.cause = cause;
+    this.terminal =
+      cause instanceof Error &&
+      (cause as { terminal?: unknown }).terminal === true;
+  }
+}
+
+/**
+ * Error a step throws to mark a failure as terminal: the condition will not
+ * resolve on its own, so retrying the upgrade sequence is pointless — e.g.
+ * the account is already delegated to a third-party implementation.
+ *
+ * Detected structurally via the `terminal` property (rather than
+ * `instanceof`) so the marking survives module-realm duplication.
+ */
+export class TerminalUpgradeError extends Error {
+  /** Marks the failure as not retryable. */
+  readonly terminal = true;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'TerminalUpgradeError';
   }
 }
 
@@ -41,5 +69,25 @@ export function isMoneyAccountUpgradeStepError(
     error instanceof Error &&
     error.name === 'MoneyAccountUpgradeStepError' &&
     typeof (error as { step?: unknown }).step === 'string'
+  );
+}
+
+/**
+ * Whether `error` is a {@link MoneyAccountUpgradeStepError} marked as
+ * terminal — a failure that will not resolve on its own, so retrying the
+ * upgrade sequence cannot succeed.
+ *
+ * Uses the same structural checks as {@link isMoneyAccountUpgradeStepError}
+ * so it holds across module realm boundaries.
+ *
+ * @param error - The value to test.
+ * @returns Whether `error` is a terminal `MoneyAccountUpgradeStepError`.
+ */
+export function isTerminalMoneyAccountUpgradeError(
+  error: unknown,
+): error is MoneyAccountUpgradeStepError {
+  return (
+    isMoneyAccountUpgradeStepError(error) &&
+    (error as { terminal?: unknown }).terminal === true
   );
 }

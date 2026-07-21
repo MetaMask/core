@@ -15,6 +15,10 @@ import { handleWhen, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type {
+  MoneyAccountApiDataServiceFetchPositionsAction,
+  PositionResponse,
+} from '@metamask/money-account-api-data-service';
+import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetNetworkConfigurationByChainIdAction,
 } from '@metamask/network-controller';
@@ -28,8 +32,11 @@ import { Duration, inMilliseconds } from '@metamask/utils';
 
 import {
   ACCOUNTANT_ABI,
+  BALANCE_SOURCE_POLICIES,
+  DEFAULT_BALANCE_SOURCE_POLICY,
   DEFAULT_BALANCE_STALE_TIME,
   LENS_ABI,
+  MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY,
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   MULTICALL3_ABI,
   MULTICALL3_ADDRESS_BY_CHAIN_ID,
@@ -37,7 +44,11 @@ import {
   VEDA_API_NETWORK_NAMES,
   VEDA_PERFORMANCE_API_BASE_URL,
 } from './constants';
+import type { BalanceSource, BalanceSourcePolicy } from './constants';
 import {
+  MoneyAccountBalanceFetchError,
+  MoneyAccountBalanceUnavailableError,
+  MoneyAccountBalanceValidationError,
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
   VedaResponseValidationError,
@@ -46,6 +57,7 @@ import { projectLogger, createModuleLogger } from './logger';
 import type { MoneyAccountBalanceServiceMethodActions } from './money-account-balance-service-method-action-types';
 import { normalizeVaultApyResponse } from './requestNormalization';
 import type {
+  CanonicalMoneyAccountBalanceResponse,
   ExchangeRateResponse,
   MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
@@ -105,10 +117,72 @@ export type MoneyAccountBalanceServiceTraceCallback = <ReturnType>(
 
 const configLogger = createModuleLogger(projectLogger, 'config');
 const traceLogger = createModuleLogger(projectLogger, 'trace');
+const balanceLogger = createModuleLogger(projectLogger, 'balance');
+
+const NON_NEGATIVE_INTEGER_STRING_PATTERN = /^\d+$/u;
+
+/**
+ * Validates that balance amounts are non-negative integer strings and that
+ * `totalBalance === musdBalance + vmusdValueInMusd`.
+ *
+ * @param balance - Balance amounts to validate.
+ * @throws {@link MoneyAccountBalanceValidationError} when validation fails.
+ */
+function assertValidBalanceAmounts(balance: MoneyAccountBalanceResponse): void {
+  const entries: [keyof MoneyAccountBalanceResponse, string][] = [
+    ['musdBalance', balance.musdBalance],
+    ['vmusdValueInMusd', balance.vmusdValueInMusd],
+    ['totalBalance', balance.totalBalance],
+  ];
+
+  for (const [field, value] of entries) {
+    if (!NON_NEGATIVE_INTEGER_STRING_PATTERN.test(value)) {
+      throw new MoneyAccountBalanceValidationError(
+        `Invalid ${field}: expected a non-negative integer string, got '${value}'`,
+      );
+    }
+  }
+
+  if (
+    BigInt(balance.musdBalance) + BigInt(balance.vmusdValueInMusd) !==
+    BigInt(balance.totalBalance)
+  ) {
+    throw new MoneyAccountBalanceValidationError(
+      `Invalid balance invariant: totalBalance (${balance.totalBalance}) must equal musdBalance (${balance.musdBalance}) + vmusdValueInMusd (${balance.vmusdValueInMusd})`,
+    );
+  }
+}
+
+/**
+ * Routing table from policy to primary/fallback sources.
+ */
+const BALANCE_ROUTING_BY_POLICY: Record<
+  BalanceSourcePolicy,
+  { primary: BalanceSource; fallback: BalanceSource | null }
+> = {
+  api: { primary: 'api', fallback: 'rpc' },
+  rpc: { primary: 'rpc', fallback: 'api' },
+  'api-only': { primary: 'api', fallback: null },
+  'rpc-only': { primary: 'rpc', fallback: null },
+};
+
+/**
+ * Resolves primary and optional fallback sources from a routing policy.
+ *
+ * @param policy - The active balance source policy.
+ * @returns Primary source and optional fallback.
+ */
+function resolveBalanceRouting(policy: BalanceSourcePolicy): {
+  primary: BalanceSource;
+  fallback: BalanceSource | null;
+} {
+  return BALANCE_ROUTING_BY_POLICY[policy];
+}
 
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
+  'fetchBalanceWithFallback',
   'getMoneyAccountBalance',
   'getMusdBalance',
   'getVmusdBalance',
@@ -136,7 +210,8 @@ export type MoneyAccountBalanceServiceActions =
 type AllowedActions =
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | MoneyAccountApiDataServiceFetchPositionsAction;
 
 /**
  * Published when {@link MoneyAccountBalanceService}'s cache is updated.
@@ -178,12 +253,25 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
 
 /**
  * Data service responsible for fetching Money account balances (mUSD and
- * vmUSD) via on-chain RPC reads, the Veda Accountant exchange rate, and
- * the Veda vault APY from the Seven Seas REST API.
+ * vmUSD). Prefer {@link MoneyAccountBalanceService.fetchBalanceWithFallback}
+ * for presentation — it selects between the Money API and Multicall3 RPC
+ * sources via the `moneyAccountBalanceSource` remote feature flag (default:
+ * RPC primary with Money API fallback).
+ *
+ * Lower-level methods remain available for diagnostics and source-specific
+ * use cases: on-chain RPC reads (`getMoneyAccountBalance`, etc.), the Veda
+ * Accountant exchange rate, and the Veda vault APY from the Seven Seas REST
+ * API.
  *
  * All queries are cached via TanStack Query (inherited from
  * {@link BaseDataService}) and protected by a service policy that provides
  * automatic retries and circuit-breaking.
+ *
+ * **POC resilience note:** balance RPC and third-party vault APY currently
+ * share the same `BaseDataService` retry / circuit-breaker policy. A Veda APY
+ * outage can therefore affect RPC balance availability (including facade
+ * fallback). Splitting those failure domains is planned follow-up work before
+ * production reliance on the facade.
  *
  * Vault configuration (addresses, chain ID, decimals) is read from the
  * remote feature flag via {@link RemoteFeatureFlagControllerGetStateAction}.
@@ -197,7 +285,12 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
  *   messenger: moneyAccountBalanceServiceMessenger,
  * });
  *
- * const { balance } = await service.getMusdBalance('0xYourMoneyAccount...');
+ * const result = await service.fetchBalanceWithFallback('0xYourMoneyAccount...');
+ * // {
+ * //   musdBalance, vmusdValueInMusd, totalBalance,
+ * //   source: 'api' | 'rpc',
+ * //   usedFallback: boolean,
+ * // }
  * ```
  */
 
@@ -215,6 +308,12 @@ export class MoneyAccountBalanceService extends BaseDataService<
 
   /** Cache stale time (ms) for on-chain balance reads. Overridable via remote feature flag. */
   #balanceStaleTime: number = DEFAULT_BALANCE_STALE_TIME;
+
+  /**
+   * Preferred balance source routing policy. Overridable via remote feature
+   * flag; defaults to RPC primary with Money API fallback.
+   */
+  #balanceSourcePolicy: BalanceSourcePolicy = DEFAULT_BALANCE_SOURCE_POLICY;
 
   readonly #trace: MoneyAccountBalanceServiceTraceCallback;
 
@@ -400,7 +499,45 @@ export class MoneyAccountBalanceService extends BaseDataService<
     this.#applyBalanceStaleTimeFlag(
       remoteFeatureFlags[MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY],
     );
+    this.#applyBalanceSourcePolicyFlag(
+      remoteFeatureFlags[MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY],
+    );
     this.#applyVaultConfig(remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY]);
+  }
+
+  /**
+   * Applies the balance source routing feature flag, falling back to
+   * {@link DEFAULT_BALANCE_SOURCE_POLICY} when the flag is absent or malformed.
+   *
+   * @param flagValue - Raw flag value from `remoteFeatureFlags`.
+   */
+  #applyBalanceSourcePolicyFlag(flagValue: Json | undefined): void {
+    let nextPolicy = DEFAULT_BALANCE_SOURCE_POLICY;
+
+    if (flagValue !== undefined) {
+      if (
+        typeof flagValue === 'string' &&
+        (BALANCE_SOURCE_POLICIES as readonly string[]).includes(flagValue)
+      ) {
+        nextPolicy = flagValue as BalanceSourcePolicy;
+      } else {
+        configLogger(
+          'Invalid balance source policy flag value; using default',
+          {
+            flagValue,
+            default: DEFAULT_BALANCE_SOURCE_POLICY,
+          },
+        );
+      }
+    }
+
+    if (nextPolicy !== this.#balanceSourcePolicy) {
+      configLogger('Balance source policy updated', {
+        previous: this.#balanceSourcePolicy,
+        next: nextPolicy,
+      });
+      this.#balanceSourcePolicy = nextPolicy;
+    }
   }
 
   /**
@@ -607,6 +744,154 @@ export class MoneyAccountBalanceService extends BaseDataService<
       throw new Error(`No Multicall3 address configured for chain ${chainId}`);
     }
     return multicall3Address;
+  }
+
+  /**
+   * Fetches the canonical Money account balance, selecting the Money API or
+   * RPC source according to the `moneyAccountBalanceSource` remote feature
+   * flag (default: RPC primary with Money API fallback).
+   *
+   * Callers must not select a source. Provenance is returned on the result so
+   * fallback is never silent. Malformed or unavailable source balances are
+   * reported via the messenger's `captureException` before fallback.
+   *
+   * @param accountAddress - The Money account's Ethereum address.
+   * @returns Canonical balance amounts with source provenance.
+   * @throws {@link MoneyAccountBalanceFetchError} when every eligible source
+   * fails. Never returns a synthetic zero balance.
+   */
+  async fetchBalanceWithFallback(
+    accountAddress: Hex,
+  ): Promise<CanonicalMoneyAccountBalanceResponse> {
+    const { primary, fallback } = resolveBalanceRouting(
+      this.#balanceSourcePolicy,
+    );
+    const errors: unknown[] = [];
+
+    try {
+      return await this.#fetchBalanceFromSource(accountAddress, primary, false);
+    } catch (primaryError) {
+      errors.push(primaryError);
+      this.#reportBalanceSourceDefect(primaryError);
+      balanceLogger('Primary balance source failed', {
+        primary,
+        fallback,
+        primaryError,
+      });
+      if (fallback === null) {
+        throw new MoneyAccountBalanceFetchError(errors);
+      }
+    }
+
+    try {
+      return await this.#fetchBalanceFromSource(accountAddress, fallback, true);
+    } catch (fallbackError) {
+      errors.push(fallbackError);
+      this.#reportBalanceSourceDefect(fallbackError);
+      balanceLogger('Fallback balance source failed', {
+        primary,
+        fallback,
+        fallbackError,
+      });
+      throw new MoneyAccountBalanceFetchError(errors);
+    }
+  }
+
+  /**
+   * Reports high-severity balance source defects (malformed or unavailable
+   * balances) to error monitoring without interrupting fallback.
+   *
+   * @param error - Error thrown by a balance source attempt.
+   */
+  #reportBalanceSourceDefect(error: unknown): void {
+    if (
+      error instanceof MoneyAccountBalanceValidationError ||
+      error instanceof MoneyAccountBalanceUnavailableError
+    ) {
+      this.messenger.captureException?.(error);
+    }
+  }
+
+  /**
+   * Fetches and validates balance from a single source.
+   *
+   * @param accountAddress - The Money account's Ethereum address.
+   * @param source - Balance source to query.
+   * @param usedFallback - Whether this attempt is a fallback after primary failure.
+   * @returns Canonical balance result for the source.
+   */
+  async #fetchBalanceFromSource(
+    accountAddress: Hex,
+    source: BalanceSource,
+    usedFallback: boolean,
+  ): Promise<CanonicalMoneyAccountBalanceResponse> {
+    if (source === 'api') {
+      return await this.#fetchBalanceFromApi(accountAddress, usedFallback);
+    }
+    return await this.#fetchBalanceFromRpc(accountAddress, usedFallback);
+  }
+
+  /**
+   * Reads balance from MoneyAccountApiDataService positions and maps it to
+   * the canonical result.
+   *
+   * @param accountAddress - The Money account's Ethereum address.
+   * @param usedFallback - Whether this attempt is a fallback.
+   * @returns Canonical balance from the Money API.
+   * @throws {@link MoneyAccountBalanceUnavailableError} when `balance` is null
+   * or absent.
+   * @throws {@link MoneyAccountBalanceValidationError} when amounts fail
+   * semantic validation.
+   */
+  async #fetchBalanceFromApi(
+    accountAddress: Hex,
+    usedFallback: boolean,
+  ): Promise<CanonicalMoneyAccountBalanceResponse> {
+    const positions: PositionResponse = await this.messenger.call(
+      'MoneyAccountApiDataService:fetchPositions',
+      accountAddress,
+    );
+
+    if (positions.balance === undefined || positions.balance === null) {
+      throw new MoneyAccountBalanceUnavailableError(
+        'Money API returned a null or missing balance',
+      );
+    }
+
+    const amounts: MoneyAccountBalanceResponse = {
+      musdBalance: positions.balance.musd_balance,
+      vmusdValueInMusd: positions.balance.vmusd_value_in_musd,
+      totalBalance: positions.balance.total_balance,
+    };
+    assertValidBalanceAmounts(amounts);
+
+    return {
+      ...amounts,
+      source: 'api',
+      usedFallback,
+    };
+  }
+
+  /**
+   * Reads balance via the existing Multicall3 RPC path and maps it to the
+   * canonical result.
+   *
+   * @param accountAddress - The Money account's Ethereum address.
+   * @param usedFallback - Whether this attempt is a fallback.
+   * @returns Canonical balance from RPC.
+   */
+  async #fetchBalanceFromRpc(
+    accountAddress: Hex,
+    usedFallback: boolean,
+  ): Promise<CanonicalMoneyAccountBalanceResponse> {
+    const amounts = await this.getMoneyAccountBalance(accountAddress);
+    assertValidBalanceAmounts(amounts);
+
+    return {
+      ...amounts,
+      source: 'rpc',
+      usedFallback,
+    };
   }
 
   /**

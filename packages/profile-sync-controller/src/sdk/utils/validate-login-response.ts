@@ -1,4 +1,4 @@
-import type { LoginResponse } from '../authentication';
+import type { LoginResponse } from '../authentication.js';
 
 /**
  * Validates that the input is a well-formed, non-expired LoginResponse.

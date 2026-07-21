@@ -48,10 +48,51 @@ const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
 export const controllerName = 'MoneyAccountUpgradeController';
 
-export type MoneyAccountUpgradeControllerState = Record<string, never>;
+/**
+ * Record of a Money Account upgrade sequence that ran to completion.
+ */
+export type MoneyAccountUpgradeStatus = {
+  /**
+   * Fingerprint of the upgrade config the sequence completed under. The
+   * record is only trusted while the active config produces the same
+   * fingerprint — if the chain, CHOMP contracts, or Delegation Framework
+   * version change, the sequence re-runs.
+   */
+  configFingerprint: string;
+  /** Unix timestamp (in milliseconds) when the sequence completed. */
+  completedAt: number;
+};
 
-const moneyAccountUpgradeControllerMetadata =
-  {} satisfies StateMetadata<MoneyAccountUpgradeControllerState>;
+export type MoneyAccountUpgradeControllerState = {
+  /**
+   * Accounts whose upgrade sequence has fully completed, keyed by lowercased
+   * account address.
+   */
+  upgradedAccounts: { [address: Hex]: MoneyAccountUpgradeStatus };
+};
+
+const moneyAccountUpgradeControllerMetadata = {
+  upgradedAccounts: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: true,
+    usedInUi: false,
+  },
+} satisfies StateMetadata<MoneyAccountUpgradeControllerState>;
+
+/**
+ * Constructs the default {@link MoneyAccountUpgradeController} state. This
+ * allows consumers to provide a partial state object when initializing the
+ * controller and also helps in constructing complete state objects for this
+ * controller in tests.
+ *
+ * @returns The default {@link MoneyAccountUpgradeController} state.
+ */
+export function getDefaultMoneyAccountUpgradeControllerState(): MoneyAccountUpgradeControllerState {
+  return {
+    upgradedAccounts: {},
+  };
+}
 
 const MESSENGER_EXPOSED_METHODS = ['upgradeAccount'] as const;
 
@@ -120,17 +161,23 @@ export class MoneyAccountUpgradeController extends BaseController<
    *
    * @param options - The options for constructing the controller.
    * @param options.messenger - The messenger to use for inter-controller communication.
+   * @param options.state - The initial state, merged with the defaults.
    */
   constructor({
     messenger,
+    state,
   }: {
     messenger: MoneyAccountUpgradeControllerMessenger;
+    state?: Partial<MoneyAccountUpgradeControllerState>;
   }) {
     super({
       messenger,
       metadata: moneyAccountUpgradeControllerMetadata,
       name: controllerName,
-      state: {},
+      state: {
+        ...getDefaultMoneyAccountUpgradeControllerState(),
+        ...state,
+      },
     });
 
     this.messenger.registerMethodActionHandlers(
@@ -210,6 +257,12 @@ export class MoneyAccountUpgradeController extends BaseController<
    * {@link MoneyAccountUpgradeStepError} that records which step failed (the
    * original error is preserved as `cause`).
    *
+   * A run that completes is recorded in state (keyed by lowercased address,
+   * fingerprinted against the active config); subsequent calls for a
+   * recorded account return immediately without running any steps. If the
+   * active config no longer matches the recorded fingerprint, the sequence
+   * re-runs.
+   *
    * @param address - The Money Account address to upgrade.
    */
   async upgradeAccount(address: Hex): Promise<void> {
@@ -218,17 +271,61 @@ export class MoneyAccountUpgradeController extends BaseController<
         'MoneyAccountUpgradeController must be initialized via init() before upgradeAccount() can be called',
       );
     }
+    const config = this.#config;
+
+    const accountKey = address.toLowerCase() as Hex;
+    const configFingerprint = computeConfigFingerprint(config);
+    if (
+      this.state.upgradedAccounts[accountKey]?.configFingerprint ===
+      configFingerprint
+    ) {
+      return;
+    }
 
     for (const step of this.#steps) {
       try {
         await step.run({
           messenger: this.messenger,
           address,
-          ...this.#config,
+          ...config,
         });
       } catch (error) {
         throw new MoneyAccountUpgradeStepError(step.name, error);
       }
     }
+
+    this.update((state) => {
+      state.upgradedAccounts[accountKey] = {
+        configFingerprint,
+        completedAt: Date.now(),
+      };
+    });
   }
+}
+
+/**
+ * Derives a stable fingerprint of the config fields that define what
+ * "upgraded" means for an account. A recorded upgrade is only trusted while
+ * the active config produces the same fingerprint.
+ *
+ * @param config - The active upgrade config.
+ * @returns A canonical string over the config's identifying fields.
+ */
+function computeConfigFingerprint(
+  config: UpgradeConfig & { chainId: Hex },
+): string {
+  return [
+    DELEGATION_FRAMEWORK_VERSION,
+    config.chainId,
+    config.delegateAddress,
+    config.musdTokenAddress,
+    config.boringVaultAddress,
+    config.vedaVaultAdapterAddress,
+    config.delegatorImplAddress,
+    config.erc20TransferAmountEnforcer,
+    config.redeemerEnforcer,
+    config.valueLteEnforcer,
+  ]
+    .map((value) => value.toLowerCase())
+    .join('|');
 }

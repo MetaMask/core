@@ -4,7 +4,7 @@ import {
   stringify,
   JsonRpcEngineError,
   isInstance,
-} from './utils';
+} from './utils.js';
 
 const jsonrpc = '2.0' as const;
 

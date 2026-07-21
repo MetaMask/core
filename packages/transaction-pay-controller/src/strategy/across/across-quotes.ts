@@ -1,4 +1,8 @@
 import { successfulFetch, toHex } from '@metamask/controller-utils';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -28,7 +32,6 @@ import {
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token';
-import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import type { AcrossDestination } from './across-actions';
 import { getAcrossDestination } from './across-actions';
 import { hasUnsupportedTransactionAuthorizationList } from './authorization-list';
@@ -190,7 +193,9 @@ async function getQuoteWithGasStationHandling(
 
   const requiresSourceGasReservation =
     request.isPostQuote === true &&
-    isPredictWithdrawTransaction(fullRequest.transaction);
+    hasTransactionType(fullRequest.transaction, [
+      TransactionType.predictWithdraw,
+    ]);
 
   const adjustedSourceAmount = new BigNumber(request.sourceTokenAmount)
     .minus(phase1Quote.fees.sourceNetwork.max.raw)
@@ -567,7 +572,8 @@ async function calculateSourceNetworkCost(
   const { swapTx } = quote;
   const swapChainId = toHex(swapTx.chainId);
   const isPredictWithdraw =
-    request.isPostQuote === true && isPredictWithdrawTransaction(transaction);
+    request.isPostQuote === true &&
+    hasTransactionType(transaction, [TransactionType.predictWithdraw]);
   const relaxPrefundedSourceEstimate =
     isPredictWithdraw &&
     new BigNumber(request.sourceTokenAmount).gt(request.sourceBalanceRaw);

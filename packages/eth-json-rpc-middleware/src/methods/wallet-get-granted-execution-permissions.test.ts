@@ -1,11 +1,11 @@
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 
-import type { WalletMiddlewareParams } from '../wallet';
+import type { WalletMiddlewareParams } from '../wallet.js';
 import type {
   GetGrantedExecutionPermissionsResult,
   ProcessGetGrantedExecutionPermissionsHook,
-} from './wallet-get-granted-execution-permissions';
-import { createWalletGetGrantedExecutionPermissionsHandler } from './wallet-get-granted-execution-permissions';
+} from './wallet-get-granted-execution-permissions.js';
+import { createWalletGetGrantedExecutionPermissionsHandler } from './wallet-get-granted-execution-permissions.js';
 
 const RESULT_MOCK: GetGrantedExecutionPermissionsResult = [
   {
