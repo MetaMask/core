@@ -526,11 +526,34 @@ export class NotificationServicesController extends BaseController<
       }
     },
     subscribe: (): void => {
+      // Coalesce pushes: at most one fetch in-flight, one queued.
+      // Re-fetch after completion because the new row may not be visible yet when the push arrives.
+      let pushFetchInFlight = false;
+      let pendingPushRefetch = false;
+
+      const fetchOnPush = async (): Promise<void> => {
+        pushFetchInFlight = true;
+        try {
+          await this.fetchAndUpdateMetamaskNotifications();
+        } finally {
+          pushFetchInFlight = false;
+          if (pendingPushRefetch) {
+            pendingPushRefetch = false;
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            fetchOnPush();
+          }
+        }
+      };
+
       this.messenger.subscribe(
         'NotificationServicesPushController:onNewNotifications',
-        (notification): void => {
+        (): void => {
+          if (pushFetchInFlight) {
+            pendingPushRefetch = true;
+            return;
+          }
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.updateMetamaskNotificationsList(notification);
+          fetchOnPush();
         },
       );
     },
