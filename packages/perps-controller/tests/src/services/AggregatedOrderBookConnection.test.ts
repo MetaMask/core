@@ -105,7 +105,41 @@ jest.mock('@nktkas/hyperliquid', () => {
     }
   }
 
-  return { WebSocketTransport, mockState: state };
+  type SubscribingTransport = {
+    subscribe: (
+      channel: string,
+      params: unknown,
+      listener: (event: { detail: unknown }) => void,
+      options?: { onError?: (error: Error) => void },
+    ) => Promise<unknown>;
+  };
+
+  // Mirrors the typed subscription client: `l2Book` validates/normalizes the
+  // params, prepends `type: 'l2Book'`, and delegates to `transport.subscribe`,
+  // unwrapping the CustomEvent so the caller's listener receives the snapshot
+  // directly. Forwards `options` (`onError`) unchanged.
+  class SubscriptionClient {
+    readonly #transport: SubscribingTransport;
+
+    constructor({ transport }: { transport: SubscribingTransport }) {
+      this.#transport = transport;
+    }
+
+    async l2Book(
+      params: Record<string, unknown>,
+      listener: (data: unknown) => void,
+      options?: { onError?: (error: Error) => void },
+    ): Promise<unknown> {
+      return this.#transport.subscribe(
+        'l2Book',
+        { type: 'l2Book', ...params },
+        (event) => listener(event.detail),
+        options,
+      );
+    }
+  }
+
+  return { WebSocketTransport, SubscriptionClient, mockState: state };
 });
 
 const { mockState } = hl as unknown as { mockState: MockState };

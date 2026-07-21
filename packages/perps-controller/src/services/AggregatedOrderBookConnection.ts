@@ -1,4 +1,4 @@
-import { WebSocketTransport } from '@nktkas/hyperliquid';
+import { SubscriptionClient, WebSocketTransport } from '@nktkas/hyperliquid';
 import type { ISubscription } from '@nktkas/hyperliquid';
 
 import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig';
@@ -198,17 +198,16 @@ export class AggregatedOrderBookConnection {
    */
   subscribe(params: SubscribeAggregatedOrderBookParams): () => void {
     const levels = params.levels ?? DEFAULT_LEVELS;
-    // The `l2Book` payload the transport carries. `levels` is client-side only
-    // (it slices each snapshot), so it is deliberately excluded from the payload
-    // and its signature.
-    const payload = {
-      type: 'l2Book' as const,
+    // The `l2Book` subscription params the socket carries. `levels` is
+    // client-side only (it slices each snapshot), so it is deliberately excluded
+    // from the params and their signature.
+    const l2BookParams = {
       coin: params.symbol,
       nSigFigs: params.nSigFigs,
       mantissa: params.mantissa ?? null,
-      fast: true,
+      fast: true as const,
     };
-    const signature = JSON.stringify(payload);
+    const signature = JSON.stringify(l2BookParams);
 
     const transport = this.#ensureTransport(this.#isTestnet());
 
@@ -326,17 +325,13 @@ export class AggregatedOrderBookConnection {
 
     reportStatus('connecting');
 
-    // The SDK's typed `l2Book` subscription drops unknown fields, so it can't
-    // request `fast` mode. Send the raw subscription payload through the
-    // transport directly (this is exactly what the typed method does, minus the
-    // validation) so `fast: true` reaches the server. The listener receives the
-    // SDK's `CustomEvent`, whose `detail` is the `l2Book` snapshot.
-    transport
-      .subscribe<HyperliquidL2BookEvent>(
-        'l2Book',
-        payload,
-        (event: CustomEvent<HyperliquidL2BookEvent>) => {
-          const data = event.detail;
+    // Subscribe through the typed `l2Book` client so the params are validated
+    // before they reach the wire (`fast: true` requests fast mode — 5 levels at
+    // ~0.5s). The listener receives the decoded snapshot directly.
+    new SubscriptionClient({ transport })
+      .l2Book(
+        l2BookParams,
+        (data: HyperliquidL2BookEvent) => {
           if (cancelled || data?.coin !== params.symbol || !data?.levels) {
             return;
           }
