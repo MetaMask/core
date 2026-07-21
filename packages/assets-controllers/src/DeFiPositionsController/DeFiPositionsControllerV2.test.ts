@@ -396,6 +396,22 @@ describe('DeFiPositionsControllerV2', () => {
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
   });
 
+  it('bypasses the throttle when forceRefresh is true', async () => {
+    const { controller, mockFetchV6MultiAccountBalances } = setupController({
+      minimumFetchIntervalMs: 60_000,
+    });
+
+    await controller.fetchDeFiPositions();
+    await controller.fetchDeFiPositions({ forceRefresh: true });
+
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+
+    // A subsequent non-forced call within the interval is still throttled,
+    // keyed from the forceRefresh fetch timestamp.
+    await controller.fetchDeFiPositions();
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+  });
+
   it('clears the throttle claim when a fetch fails so retries are allowed', async () => {
     const consoleErrorSpy = jest
       .spyOn(console, 'error')

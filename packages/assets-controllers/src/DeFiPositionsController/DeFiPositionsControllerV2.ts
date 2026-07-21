@@ -195,9 +195,19 @@ export class DeFiPositionsControllerV2 extends BaseController<
    *
    * Throttled per set of accounts by an in-memory minimum interval, so repeated
    * calls within the window are no-ops (no HTTP, no regroup, no state write).
-   * Disabled controllers and empty account groups return without fetching.
+   * Pass `{ forceRefresh: true }` to bypass that throttle (e.g. pull-to-refresh
+   * or after a confirmed transaction). The successful/forced fetch still
+   * updates the throttle timestamp, so subsequent non-forced calls remain
+   * gated. Disabled controllers and empty account groups return without
+   * fetching.
+   *
+   * @param options - Optional fetch modifiers.
+   * @param options.forceRefresh - When true, bypass the minimum-interval
+   * throttle and fetch immediately.
    */
-  async fetchDeFiPositions(): Promise<void> {
+  async fetchDeFiPositions(options?: {
+    forceRefresh?: boolean;
+  }): Promise<void> {
     if (!this.#isEnabled()) {
       return;
     }
@@ -231,6 +241,7 @@ export class DeFiPositionsControllerV2 extends BaseController<
     const now = Date.now();
     const lastFetchedAt = this.#lastFetchByKey.get(throttleKey);
     if (
+      !options?.forceRefresh &&
       lastFetchedAt !== undefined &&
       now - lastFetchedAt < this.#minimumFetchIntervalMs
     ) {
@@ -238,7 +249,8 @@ export class DeFiPositionsControllerV2 extends BaseController<
     }
     // Claim the slot before awaiting so a second call that arrives while the
     // first is in flight is also dropped (TanStack would share that promise;
-    // we intentionally skip instead).
+    // we intentionally skip instead). forceRefresh also claims the slot so
+    // follow-up non-forced calls within the interval stay throttled.
     this.#lastFetchByKey.set(throttleKey, now);
 
     try {
