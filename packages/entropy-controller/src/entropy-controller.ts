@@ -8,8 +8,7 @@ import type { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import type { SimpleKeyring } from '@metamask/eth-simple-keyring/v2';
 import type {
   KeyringControllerGetStateAction,
-  KeyringControllerKeyringAddedEvent,
-  KeyringControllerKeyringRemovedEvent,
+  KeyringControllerStateChangeEvent,
   KeyringControllerUnlockEvent,
   KeyringControllerWithKeyringV2UnsafeAction,
 } from '@metamask/keyring-controller';
@@ -116,8 +115,7 @@ export type EntropyControllerEvents = EntropyControllerStateChangeEvent;
  */
 type AllowedEvents =
   | KeyringControllerUnlockEvent
-  | KeyringControllerKeyringAddedEvent
-  | KeyringControllerKeyringRemovedEvent;
+  | KeyringControllerStateChangeEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -170,43 +168,19 @@ export class EntropyController extends BaseController<
     });
 
     this.messenger.subscribe('KeyringController:unlock', () => {
-      this.syncEntropies().catch(console.error);
+      this.#syncEntropies().catch(console.error);
     });
 
-    this.messenger.subscribe('KeyringController:keyringAdded', (keyringObject) => {
-      if (!isKeyringOwningEntropy(keyringObject)) {
-        return;
-      }
-      const { isUnlocked } = this.messenger.call('KeyringController:getState');
-      if (!isUnlocked) {
-        return;
-      }
-      this.#syncSingleKeyring(keyringObject.metadata.id, keyringObject.type).catch(
-        console.error,
-      );
-    });
-
-    this.messenger.subscribe('KeyringController:keyringRemoved', ({ id }) => {
-      this.update((state) => {
-        for (const [entropyId, entry] of Object.entries(state.entropySources)) {
-          if (entry.metadata.legacyEntropySource === id) {
-            delete state.entropySources[entropyId];
-          }
-        }
-      });
-    });
+    this.messenger.subscribe(
+      'KeyringController:stateChange',
+      () => {
+        this.#syncEntropies().catch(console.error);
+      },
+      (state) => state.keyrings,
+    );
   }
 
-  /**
-   * Scans the keyrings managed by `KeyringController` and rebuilds the
-   * `entropySources` registry from scratch.
-   *
-   * Only keyrings that own entropy are considered (see
-   * {@link isKeyringOwningEntropy}). This method replaces the entire
-   * `entropySources` map in a single state update — stale entries are
-   * automatically removed.
-   */
-  async syncEntropies(): Promise<void> {
+  async #syncEntropies(): Promise<void> {
     const { isUnlocked, keyrings } = this.messenger.call(
       'KeyringController:getState',
     );
@@ -230,30 +204,6 @@ export class EntropyController extends BaseController<
 
     this.update((state) => {
       state.entropySources = newSources;
-    });
-  }
-
-  /**
-   * Derives entropy source entries for a single keyring and merges them into
-   * `state.entropySources`.
-   *
-   * Used by the `keyringAdded` event handler to incrementally update state
-   * without rescanning every keyring.
-   *
-   * @param id - The keyring metadata ID.
-   * @param type - The keyring type string.
-   */
-  async #syncSingleKeyring(id: string, type: string): Promise<void> {
-    const newEntries: EntropyControllerState['entropySources'] = {};
-
-    if (type === KeyringTypes.hd) {
-      await this.#syncHdKeyring(id, newEntries);
-    } else if (type === KeyringTypes.simple) {
-      await this.#syncSimpleKeyring(id, newEntries);
-    }
-
-    this.update((state) => {
-      Object.assign(state.entropySources, newEntries);
     });
   }
 

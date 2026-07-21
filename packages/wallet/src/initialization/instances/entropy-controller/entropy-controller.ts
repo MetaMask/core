@@ -35,11 +35,7 @@ export const entropyController: InitializationConfiguration<
         'KeyringController:getState',
         'KeyringController:withKeyringV2Unsafe',
       ],
-      events: [
-        'KeyringController:unlock',
-        'KeyringController:keyringAdded',
-        'KeyringController:keyringRemoved',
-      ],
+      events: ['KeyringController:unlock', 'KeyringController:stateChange'],
     });
 
     return entropyControllerMessenger;

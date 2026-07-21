@@ -186,16 +186,6 @@ export type KeyringControllerUnlockEvent = {
   payload: [];
 };
 
-export type KeyringControllerKeyringAddedEvent = {
-  type: `${typeof name}:keyringAdded`;
-  payload: [KeyringObject];
-};
-
-export type KeyringControllerKeyringRemovedEvent = {
-  type: `${typeof name}:keyringRemoved`;
-  payload: [KeyringMetadata];
-};
-
 export type KeyringControllerActions =
   | KeyringControllerGetStateAction
   | KeyringControllerMethodActions;
@@ -204,9 +194,7 @@ export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  | KeyringControllerAccountRemovedEvent
-  | KeyringControllerKeyringAddedEvent
-  | KeyringControllerKeyringRemovedEvent;
+  | KeyringControllerAccountRemovedEvent;
 
 export type KeyringControllerMessenger = Messenger<
   typeof name,
@@ -1041,14 +1029,7 @@ export class KeyringController<
     const keyring = await this.#persistOrRollback(async () =>
       this.#newKeyring(type, opts),
     );
-    const metadata = this.#getKeyringMetadata(keyring);
-    const accounts = (await keyring.getAccounts()).map(normalize) as string[];
-    this.messenger.publish(`${name}:keyringAdded`, {
-      type: keyring.type,
-      accounts,
-      metadata,
-    });
-    return metadata;
+    return this.#getKeyringMetadata(keyring);
   }
 
   /**
@@ -1359,9 +1340,7 @@ export class KeyringController<
   ): Promise<string> {
     this.#assertIsUnlocked();
 
-    let addedKeyringObject: KeyringObject | undefined;
-
-    const result = await this.#persistOrRollback(async () => {
+    return this.#persistOrRollback(async () => {
       let privateKey;
       switch (strategy) {
         case AccountImportStrategy.privateKey: {
@@ -1413,19 +1392,8 @@ export class KeyringController<
         privateKey,
       ]);
       const accounts = await newKeyring.getAccounts();
-      addedKeyringObject = {
-        type: newKeyring.type,
-        accounts: accounts.map(normalize) as string[],
-        metadata: this.#getKeyringMetadata(newKeyring),
-      };
       return accounts[0];
     });
-
-    if (addedKeyringObject) {
-      this.messenger.publish(`${name}:keyringAdded`, addedKeyringObject);
-    }
-
-    return result;
   }
 
   /**
@@ -1437,8 +1405,6 @@ export class KeyringController<
    */
   async removeAccount(address: string): Promise<void> {
     this.#assertIsUnlocked();
-
-    let removedKeyringMetadata: KeyringMetadata | undefined;
 
     await this.#persistOrRollback(async () => {
       const keyringIndex = await this.#findKeyringIndexForAccount(address);
@@ -1478,16 +1444,12 @@ export class KeyringController<
       await keyring.removeAccount(address as Hex);
 
       if (shouldRemoveKeyring) {
-        removedKeyringMetadata = this.#getKeyringMetadata(keyring);
         this.#keyrings.splice(keyringIndex, 1);
         await this.#destroyKeyring(keyring, keyringV2);
       }
     });
 
     this.messenger.publish(`${name}:accountRemoved`, address);
-    if (removedKeyringMetadata) {
-      this.messenger.publish(`${name}:keyringRemoved`, removedKeyringMetadata);
-    }
   }
 
   /**
@@ -2246,10 +2208,7 @@ export class KeyringController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    const addedKeyringObjects: KeyringObject[] = [];
-    const removedKeyringMetadatas: KeyringMetadata[] = [];
-
-    const result = await this.#persistOrRollback(async () => {
+    return this.#persistOrRollback(async () => {
       // Track created and removed keyrings during the operation execution.
       const createdEntries = new Set<KeyringEntry>();
       const removedEntries = new Set<KeyringEntry>();
@@ -2327,14 +2286,6 @@ export class KeyringController<
       // they will be persisted in the vault.
       this.#keyrings = restrictedEntries;
 
-      // Collect entries to publish events for after persist succeeds.
-      for (const entry of createdEntries) {
-        addedKeyringObjects.push(await displayForKeyring(entry));
-      }
-      for (const { metadata } of removedEntries) {
-        removedKeyringMetadatas.push(metadata);
-      }
-
       // As usual, we want to prevent returning direct references to keyring instances, so we check
       // the result for any unsafe direct access before returning.
       for (const { keyring, keyringV2 } of [
@@ -2351,15 +2302,6 @@ export class KeyringController<
 
       return result;
     });
-
-    for (const keyringObject of addedKeyringObjects) {
-      this.messenger.publish(`${name}:keyringAdded`, keyringObject);
-    }
-    for (const metadata of removedKeyringMetadatas) {
-      this.messenger.publish(`${name}:keyringRemoved`, metadata);
-    }
-
-    return result;
   }
 
   /**
