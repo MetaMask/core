@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `PushAnalyticsPayload` type carrying the first-class push notification fields (`notification_id`, `notification_type`, `notification_subtype`, `profile_id`, `chain_id`, `deeplink`). ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Add `PushAnalyticsPayload` type carrying the first-class push notification fields (`notification_id`, `notification_type`, `notification_subtype`, `chain_id`, `deeplink`). ([#8944](https://github.com/MetaMask/core/pull/8944))
 - Add `getNotificationSubtype` helper that derives a normalised `notification_subtype` from an `INotification`, so both clients pull the subtype from one place. ([#8944](https://github.com/MetaMask/core/pull/8944))
 - Add a `notification_subtype` field to the generated platform notification schema (`PlatformNotification`), surfaced via `getNotificationSubtype` so platform notifications report their server-set subtype (e.g. `position_liquidated`) instead of the generic `platform` label. ([#8944](https://github.com/MetaMask/core/pull/8944))
 - Export `toPushAnalyticsPayload` from `@metamask/notification-services-controller/push-services` so web and mobile clients can parse FCM analytics fields from a shared helper. ([#8944](https://github.com/MetaMask/core/pull/8944))
