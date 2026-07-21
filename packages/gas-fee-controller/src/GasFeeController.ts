@@ -323,13 +323,15 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
 
   private readonly getCurrentAccountEIP1559Compatibility;
 
-  private currentChainId;
+  private currentChainId?: Hex;
 
   private ethQuery?: EthQuery;
 
   private readonly clientId?: string;
 
   readonly #getProvider: () => ProviderProxy;
+
+  readonly #getChainId?: () => Hex;
 
   /**
    * Creates a GasFeeController instance.
@@ -401,28 +403,19 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
 
-    this.ethQuery = new EthQuery(this.#getProvider());
-
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
 
     if (onNetworkDidChange && getChainId) {
-      this.currentChainId = getChainId();
+      this.#getChainId = getChainId;
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onNetworkDidChange(async (networkControllerState) => {
         await this.#onNetworkControllerDidChange(networkControllerState);
       });
     } else {
-      const { selectedNetworkClientId } = this.messenger.call(
-        'NetworkController:getState',
-      );
-      this.currentChainId = this.messenger.call(
-        'NetworkController:getNetworkClientById',
-        selectedNetworkClientId,
-      ).configuration.chainId;
       this.messenger.subscribe(
         'NetworkController:networkDidChange',
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -520,12 +513,12 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
       ethQuery = new EthQuery(networkClient.provider);
     }
 
-    ethQuery ??= this.ethQuery;
+    ethQuery ??= this.#getEthQuery();
 
     isLegacyGasAPICompatible ??=
       this.getCurrentNetworkLegacyGasAPICompatibility();
 
-    decimalChainId ??= convertHexToDecimal(this.currentChainId);
+    decimalChainId ??= convertHexToDecimal(this.#getCurrentChainId());
 
     try {
       isEIP1559Compatible ??= await this.getEIP1559Compatibility();
@@ -557,7 +550,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
     if (shouldUpdateState) {
       const chainId = toHex(decimalChainId);
       this.update((state) => {
-        if (this.currentChainId === chainId) {
+        if (this.#getCurrentChainId() === chainId) {
           state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
           state.estimatedGasFeeTimeBounds =
             gasFeeCalculations.estimatedGasFeeTimeBounds;
@@ -683,11 +676,33 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
     ).configuration.chainId;
 
     if (newChainId !== this.currentChainId) {
-      this.ethQuery = new EthQuery(this.#getProvider());
+      // Reset so the next fetch rebuilds it from the new network's provider.
+      this.ethQuery = undefined;
       await this.resetPolling();
 
       this.currentChainId = newChainId;
     }
+  }
+
+  #getEthQuery(): EthQuery {
+    this.ethQuery ??= new EthQuery(this.#getProvider());
+    return this.ethQuery;
+  }
+
+  #getCurrentChainId(): Hex {
+    this.currentChainId ??=
+      this.#getChainId?.() ?? this.#getChainIdFromNetworkController();
+    return this.currentChainId;
+  }
+
+  #getChainIdFromNetworkController(): Hex {
+    const { selectedNetworkClientId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    ).configuration.chainId;
   }
 
   enableNonRPCGasFeeApis() {

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Defer the `GasFeeController` constructor's `NetworkController` and provider reads until the first gas fee fetch ([#9563](https://github.com/MetaMask/core/pull/9563))
+  - The constructor no longer eagerly calls `NetworkController:getState`, `NetworkController:getNetworkClientById`, the `getChainId` option, or the `getProvider` option; the provider (`EthQuery`) and the current chain ID are now resolved lazily on first use. This makes the controller initialization-order-agnostic, so it can be constructed before `NetworkController` is ready. The constructor signature and gas fee fetching behavior are unchanged.
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [26.2.4]
