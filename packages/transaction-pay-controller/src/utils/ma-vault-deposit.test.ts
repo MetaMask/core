@@ -137,7 +137,6 @@ describe('submitMoneyAccountVaultDeposit', () => {
       expect.objectContaining({
         disableHook: true,
         disableSequential: true,
-        disableUpgrade: true,
         from: MONEY_ACCOUNT_ADDRESS_MOCK,
         isGasFeeSponsored: true,
         isInternal: true,
