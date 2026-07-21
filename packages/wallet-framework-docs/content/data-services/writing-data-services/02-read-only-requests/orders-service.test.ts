@@ -11,8 +11,8 @@ import type {
   FetchOrderResponse,
   FetchOrdersResponse,
   OrdersServiceMessenger,
-} from './orders-service';
-import { OrdersService } from './orders-service';
+} from './orders-service.js';
+import { OrdersService } from './orders-service.js';
 
 const MOCK_VALID_ORDERS_RESPONSE_DATA = {
   orders: [

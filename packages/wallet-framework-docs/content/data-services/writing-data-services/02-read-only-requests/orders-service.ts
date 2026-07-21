@@ -28,7 +28,7 @@ import {
 } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
-import type { OrdersServiceMethodActions } from './orders-service-method-action-types';
+import type { OrdersServiceMethodActions } from './orders-service-method-action-types.js';
 
 /**
  * The name of the {@link OrdersService}, used to namespace the service's

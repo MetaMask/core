@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { OrdersService } from './orders-service';
+import type { OrdersService } from './orders-service.js';
 
 /**
  * Retrieves orders.
