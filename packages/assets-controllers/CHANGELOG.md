@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `isDeprecated` option to `TokenDetectionController` constructor ([#9362](https://github.com/MetaMask/core/pull/9362))
+  - When `isDeprecated()` returns `true`, no network requests are sent and entry points bail early at `start`, `detectTokens`, `_executePoll`, `addDetectedTokensViaWs`, and `addDetectedTokensViaPolling`, so no token detection work runs while the controller is disabled.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
 - Add `isDeprecated` option to `MultichainAssetsController` constructor ([#9310](https://github.com/MetaMask/core/pull/9310))
   - When `isDeprecated()` returns `true`, no Snap requests are issued and `accountsAssets`, `assetsMetadata`, and `allIgnoredAssets` are reset to `{}` at construction and at every entry point (`addAssets`, `ignoreAssets`, `_executePoll`, `AccountsController:accountAdded`, `AccountsController:accountRemoved`, and `AccountsController:accountAssetListUpdated`), so no stale asset data remains in state.
   - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
