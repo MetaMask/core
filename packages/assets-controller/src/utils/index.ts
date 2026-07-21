@@ -1,9 +1,21 @@
 export { fetchWithTimeout } from './fetchWithTimeout';
 export { normalizeAmountString } from './normalizeAmountString';
-export { normalizeAssetId } from './normalizeAssetId';
-export { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
-export { formatStateForTransactionPay } from './formatStateForTransactionPay';
-export type { BridgeExchangeRatesFormat } from './formatExchangeRatesForBridge';
+export {
+  normalizeAssetId,
+  clearNormalizeAssetIdCacheForTesting,
+} from './normalizeAssetId';
+export {
+  formatExchangeRatesForBridge,
+  clearFormatExchangeRatesForBridgeCacheForTesting,
+} from './formatExchangeRatesForBridge';
+export {
+  formatStateForTransactionPay,
+  clearFormatStateForTransactionPayCacheForTesting,
+} from './formatStateForTransactionPay';
+export type {
+  BridgeExchangeRatesFormat,
+  FormatExchangeRatesForBridgeParams,
+} from './formatExchangeRatesForBridge';
 export type {
   AccountForLegacyFormat,
   FormatStateForTransactionPayParams,

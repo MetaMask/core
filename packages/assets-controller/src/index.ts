@@ -178,6 +178,7 @@ export {
 export type {
   AccountForLegacyFormat,
   BridgeExchangeRatesFormat,
+  FormatExchangeRatesForBridgeParams,
   FormatStateForTransactionPayParams,
   LegacyToken,
   TransactionPayLegacyFormat,

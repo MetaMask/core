@@ -1,5 +1,6 @@
 import type { AssetBalance, AssetMetadata, FungibleAssetPrice } from '../types';
 import {
+  clearFormatStateForTransactionPayCacheForTesting,
   formatStateForTransactionPay,
   AccountForLegacyFormat,
   FormatStateForTransactionPayParams,
@@ -385,6 +386,10 @@ describe('formatStateForTransactionPay', () => {
   });
 
   describe('memoization', () => {
+    afterEach(() => {
+      clearFormatStateForTransactionPayCacheForTesting();
+    });
+
     const makeParams = (): FormatStateForTransactionPayParams => ({
       accounts: [{ ...ACCOUNT_1 }],
       assetsBalance: {
@@ -395,7 +400,7 @@ describe('formatStateForTransactionPay', () => {
       assetsInfo: {},
       assetsPrice: {},
       selectedCurrency: 'usd',
-      nativeAssetIdentifiers: {},
+      nativeAssetIdentifiers: { ...EVM_NATIVE_IDS },
     });
 
     it('returns the cached result when called again with identical inputs', () => {
@@ -405,7 +410,7 @@ describe('formatStateForTransactionPay', () => {
       const second = formatStateForTransactionPay({
         ...params,
         accounts: [{ ...ACCOUNT_1 }],
-        nativeAssetIdentifiers: {},
+        nativeAssetIdentifiers: { ...EVM_NATIVE_IDS },
       });
 
       expect(second).toBe(first);

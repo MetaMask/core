@@ -119,13 +119,6 @@ let lastCall: {
  * approval.
  *
  * @param params - Conversion parameters.
- * @param params.assetsBalance - Per-account balances by asset ID.
- * @param params.assetsInfo - Metadata by asset ID.
- * @param params.assetsPrice - Prices by asset ID.
- * @param params.selectedCurrency - Current currency code.
- * @param params.accounts - List of accounts (id + address) to map state for.
- * @param params.nativeAssetIdentifiers - Map of CAIP-2 chain ID to native asset ID. Used for EVM native lookups.
- * @param params.networkConfigurationsByChainId - Optional chain ID to network config (for native symbol).
  * @returns Legacy-compatible state for transaction-pay-controller.
  */
 export function formatStateForTransactionPay(
@@ -138,6 +131,13 @@ export function formatStateForTransactionPay(
   const result = computeStateForTransactionPay(params);
   lastCall = { params, result: Object.freeze(result) };
   return result;
+}
+
+/**
+ * Clears the {@link formatStateForTransactionPay} memoize cache. Exported for tests.
+ */
+export function clearFormatStateForTransactionPayCacheForTesting(): void {
+  lastCall = null;
 }
 
 /**
