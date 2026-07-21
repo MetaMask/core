@@ -22,11 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Widen the `TradeAction` type to include `flip_long_to_short` and `flip_short_to_long` (already forwarded verbatim at runtime), so clients no longer need casts when deriving flip actions ([#9471](https://github.com/MetaMask/core/pull/9471))
 - Add `number_positions_closed` (the successful-close count) to the batch `PERPS_POSITION_CLOSE_TRANSACTION` summary event emitted by `closePositions`, which previously carried only status/completion_duration/bulk_action_id ([#9471](https://github.com/MetaMask/core/pull/9471))
 - Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-- Release/1115.0.0 ([#9470](https://github.com/MetaMask/core/pull/9470))
-- Release 1114.0.0 ([#9463](https://github.com/MetaMask/core/pull/9463))
-- Release/1112.0.0 ([#9458](https://github.com/MetaMask/core/pull/9458))
-- Release/1111.0.0 ([#9456](https://github.com/MetaMask/core/pull/9456))
-- Release 1102.0.0 ([#9421](https://github.com/MetaMask/core/pull/9421))
 
 ### Fixed
 
