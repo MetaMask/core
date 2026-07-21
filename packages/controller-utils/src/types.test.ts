@@ -1,4 +1,4 @@
-import { isNetworkType, NetworkType } from './types';
+import { isNetworkType, NetworkType } from './types.js';
 
 describe('types', () => {
   it('isNetworkType', () => {

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import type { DaemonPaths } from './types';
+import type { DaemonPaths } from './types.js';
 
 /**
  * Resolve paths for daemon state files within the given data directory.

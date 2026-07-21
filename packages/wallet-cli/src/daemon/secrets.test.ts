@@ -1,6 +1,6 @@
 import { inspect } from 'node:util';
 
-import { Password, Srp } from './secrets';
+import { Password, Srp } from './secrets.js';
 
 const VALID_SRP_12 =
   'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';

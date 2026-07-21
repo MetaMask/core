@@ -31,7 +31,7 @@ import type {
   GetCaveatForOriginHook,
   GetNonEvmSupportedMethodsHook,
   SortAccountIdsByLastSelectedHook,
-} from './types';
+} from './types.js';
 
 export type WalletInvokeMethodParams = {
   scope: ExternalScopeString;

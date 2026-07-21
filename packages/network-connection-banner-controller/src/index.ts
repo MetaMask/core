@@ -8,15 +8,15 @@ export type {
   NetworkConnectionBannerControllerOptions,
   FailedNetwork,
   NetworkConnectionBannerStatus,
-} from './NetworkConnectionBannerController';
+} from './NetworkConnectionBannerController.js';
 export type {
   NetworkConnectionBannerControllerDismissBannerAction,
   NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcEndpointAction,
-} from './NetworkConnectionBannerController-method-action-types';
+} from './NetworkConnectionBannerController-method-action-types.js';
 export {
   NetworkConnectionBannerController,
   getDefaultNetworkConnectionBannerControllerState,
   DEFAULT_DEGRADED_BANNER_TIMEOUT,
   DEFAULT_UNAVAILABLE_BANNER_TIMEOUT,
-} from './NetworkConnectionBannerController';
-export { networkConnectionBannerControllerSelectors } from './selectors';
+} from './NetworkConnectionBannerController.js';
+export { networkConnectionBannerControllerSelectors } from './selectors.js';
