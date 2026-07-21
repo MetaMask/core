@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `selectExchangeRateByAssetId` returning a `"0"` exchange rate for EVM tokens whose market data entry has a missing or zero price. It now returns `{}` in that case, so `selectIsAssetExchangeRateInState` no longer treats such tokens as already priced (a non-empty `"0"` string is truthy) and the controller fetches the token's real rate. This fixes quotes into these tokens (e.g. mUSD) displaying a `$0.00` fiat value. ([#9556](https://github.com/MetaMask/core/pull/9556))
+
 ## [77.6.0]
 
 ### Uncategorized
