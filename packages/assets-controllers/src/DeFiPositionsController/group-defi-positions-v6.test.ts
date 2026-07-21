@@ -502,7 +502,9 @@ describe('groupDeFiPositionsV6', () => {
 
     expect(group.sections).toHaveLength(1);
     expect(group.sections[0].productName).toBe('Pendle YT');
-    expect(group.sections[0].positions.map((p) => p.groupId)).toStrictEqual([
+    expect(
+      group.sections[0].positions.map((position) => position.groupId),
+    ).toStrictEqual([
       'group-yt-1',
       'group-yt-2',
     ]);
