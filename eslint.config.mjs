@@ -380,6 +380,7 @@ const config = createConfig([
     // updated, we can remove this.
     files: [
       'packages/account-tree-controller/**',
+      'packages/accounts-controller/**',
       'packages/base-controller/**',
       'packages/base-data-service/**',
       'packages/build-utils/**',
