@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BottomNavBar` value to `MetaMetricsSwapsEventSource` for attributing swap and bridge flows to the bottom navigation bar entry point ([#9551](https://github.com/MetaMask/core/pull/9551))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))
@@ -24,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `BottomNavBar` value to `MetaMetricsSwapsEventSource` for attributing swap and bridge flows to the bottom navigation bar entry point ([#9551](https://github.com/MetaMask/core/pull/9551))
 - Added `FollowTradingTokenScreen` and `FollowTradingFeedScreen` values to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to follow trading entry points ([#9553](https://github.com/MetaMask/core/pull/9553))
 - Added `FollowTrader` value to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to the follow trader entry point ([#9552](https://github.com/MetaMask/core/pull/9552))
 
