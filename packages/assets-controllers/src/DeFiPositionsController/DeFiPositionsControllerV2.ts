@@ -165,10 +165,11 @@ export class DeFiPositionsControllerV2 extends BaseController<
   }
 
   /**
-   * Fetches DeFi positions for the selected account group and merges them into
-   * `allDeFiPositionsV2` (other accounts' cached entries are kept so group
-   * switches can reuse TTL'd state). No-ops when disabled, when the group has
-   * no supported accounts, or when the same accounts + `vsCurrency` were
+   * Fetches DeFi positions for the selected account group. Each account key in
+   * a valid response replaces that account's state (other accounts stay). If
+   * any account is still indexing (`processingDefiPositions`), the response is
+   * discarded and prior state is kept. No-ops when disabled, when the group
+   * has no supported accounts, or when the same accounts + `vsCurrency` were
    * fetched within `minimumFetchIntervalMs`. Pass `{ forceRefresh: true }` to
    * bypass the throttle (e.g. pull-to-refresh). A `vsCurrency` change for the
    * same accounts also bypasses it.
@@ -237,13 +238,21 @@ export class DeFiPositionsControllerV2 extends BaseController<
         return;
       }
 
+      // Incomplete indexing is not a valid snapshot — keep prior state and
+      // drop the throttle claim so the next call can retry.
+      if (
+        response.accounts.some((account) => account.processingDefiPositions)
+      ) {
+        this.#lastFetchByKey.delete(accountsKey);
+        return;
+      }
+
       const positionsByAccount = groupDeFiPositionsV6(
         response,
         internalAccountIdByCaip,
       );
 
-      // Merge by account: replace keys present in this response (including
-      // empty lists that clear stale positions) but leave other accounts alone.
+      // Last valid response wins per account; other accounts stay untouched.
       this.update((state) => {
         for (const [accountId, positions] of Object.entries(
           positionsByAccount,

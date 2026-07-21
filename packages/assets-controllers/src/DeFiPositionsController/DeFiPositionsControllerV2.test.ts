@@ -429,6 +429,41 @@ describe('DeFiPositionsControllerV2', () => {
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps the last valid response when DeFi indexing is still processing', async () => {
+    const { controller, mockFetchV6MultiAccountBalances } = setupController({
+      minimumFetchIntervalMs: 60_000,
+      mockFetchV6MultiAccountBalances: jest
+        .fn()
+        .mockResolvedValueOnce(buildMockBalancesResponse())
+        .mockResolvedValueOnce(
+          buildMockBalancesResponse({
+            accounts: [
+              {
+                accountId: `eip155:0:${EVM_ADDRESS}`,
+                processingDefiPositions: true,
+                balances: [],
+              },
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(buildMockBalancesResponse()),
+    });
+
+    await controller.fetchDeFiPositions();
+    const cached = controller.state.allDeFiPositionsV2['evm-account-id'];
+    expect(cached).toHaveLength(1);
+
+    await controller.fetchDeFiPositions({ forceRefresh: true });
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).toBe(cached);
+
+    // Invalid response drops the throttle claim so a retry can land.
+    await controller.fetchDeFiPositions();
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(3);
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
+      1,
+    );
+  });
+
   it('merges fetched accounts into state without clearing other accounts', async () => {
     const otherEvmAddress = '0x0000000000000000000000000000000000000002';
     const otherEvmAccount = createMockInternalAccount({
