@@ -234,10 +234,18 @@ export class AggregatedOrderBookConnection {
       this.#payloads.set(params.symbol, { signature, count: 1 });
     }
 
+    // Set once this subscription's socket terminates (reconnection exhausted).
+    // The `error` state is terminal until teardown/resubscribe, so once set we
+    // suppress any late `connected`/`connecting` — e.g. from a subscribe promise
+    // that resolves *after* the socket died — which would otherwise flip the UI
+    // back to a healthy state on a dead socket and hide the manual-reconnect
+    // affordance.
+    let terminated = false;
     const reportStatus = (status: OrderBookConnectionStatus): void => {
-      if (!cancelled) {
-        params.onStatusChange?.(status);
+      if (cancelled || (terminated && status !== 'error')) {
+        return;
       }
+      params.onStatusChange?.(status);
     };
 
     // Reflect the socket's live health. Every drop dispatches a `close` event;
@@ -255,6 +263,7 @@ export class AggregatedOrderBookConnection {
         'TERMINATED_BY_USER';
       if (terminationSignal.aborted && !terminatedByUser) {
         this.#terminated = true;
+        terminated = true;
         reportStatus('error');
         return;
       }

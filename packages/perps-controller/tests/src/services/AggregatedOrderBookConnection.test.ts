@@ -532,6 +532,29 @@ describe('AggregatedOrderBookConnection', () => {
       expect(onStatusChange).not.toHaveBeenCalledWith('error');
     });
 
+    it('stays in error (not connected) when the subscribe promise resolves after the socket terminates', async () => {
+      const connection = new AggregatedOrderBookConnection({
+        isTestnet: (): boolean => false,
+      });
+      const onStatusChange = jest.fn();
+      connection.subscribe({
+        symbol: 'BTC',
+        nSigFigs: 2,
+        callback: jest.fn(),
+        onStatusChange,
+      });
+
+      // Reconnection is exhausted before the pending subscribe promise settles.
+      mockState.transports[0].socket.terminate();
+      expect(onStatusChange).toHaveBeenLastCalledWith('error');
+
+      // The pending subscribe promise now resolves; it must not flip the UI back
+      // to `connected` on the dead socket.
+      await flush();
+      expect(onStatusChange).toHaveBeenLastCalledWith('error');
+      expect(onStatusChange).not.toHaveBeenCalledWith('connected');
+    });
+
     it('reports error when the subscription request rejects', async () => {
       mockState.rejectSubscribe = true;
       const connection = new AggregatedOrderBookConnection({
