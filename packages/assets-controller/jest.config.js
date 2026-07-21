@@ -18,10 +18,10 @@ module.exports = merge(baseConfig, {
   // TODO: Increase thresholds as more tests are added
   coverageThreshold: {
     global: {
-      branches: 80.13,
+      branches: 80.2,
       functions: 88.9,
-      lines: 89.56,
-      statements: 89.46,
+      lines: 89.57,
+      statements: 89.47,
     },
   },
 });
