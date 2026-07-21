@@ -13,7 +13,7 @@ import type {
  * protocol, to be merged in.
  * @returns The merged sections, one per distinct `productName`.
  */
-export function mergeSections(
+function mergeSections(
   existingSections: DeFiPositionDetailsSection[],
   incomingSections: DeFiPositionDetailsSection[],
 ): DeFiPositionDetailsSection[] {

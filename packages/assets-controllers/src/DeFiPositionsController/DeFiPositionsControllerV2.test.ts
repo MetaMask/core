@@ -133,6 +133,8 @@ function buildMockBalancesResponse(
  * @param config.getVsCurrency - Fiat currency getter.
  * @param config.minimumFetchIntervalMs - Minimum fetch interval.
  * @param config.mockGroupAccounts - Accounts returned for the selected group.
+ * @param config.getGroupAccounts - Getter for the selected group accounts
+ * (preferred when the selection changes between fetches).
  * @param config.mockFetchV6MultiAccountBalances - Mock API fetch function.
  * @param config.state - Initial controller state.
  * @returns The controller instance and mocks.
@@ -142,6 +144,7 @@ function setupController({
   getVsCurrency = (): string => 'USD',
   minimumFetchIntervalMs,
   mockGroupAccounts = GROUP_ACCOUNTS,
+  getGroupAccounts,
   mockFetchV6MultiAccountBalances = jest
     .fn()
     .mockResolvedValue(buildMockBalancesResponse()),
@@ -151,6 +154,7 @@ function setupController({
   getVsCurrency?: () => string;
   minimumFetchIntervalMs?: number;
   mockGroupAccounts?: InternalAccount[];
+  getGroupAccounts?: () => InternalAccount[];
   mockFetchV6MultiAccountBalances?: jest.Mock;
   state?: Partial<ReturnType<typeof getDefaultDeFiPositionsControllerV2State>>;
 } = {}): {
@@ -169,7 +173,7 @@ function setupController({
 
   messenger.registerActionHandler(
     'AccountTreeController:getAccountsFromSelectedAccountGroup',
-    () => mockGroupAccounts,
+    () => getGroupAccounts?.() ?? mockGroupAccounts,
   );
 
   const controllerMessenger = new Messenger<
@@ -394,6 +398,34 @@ describe('DeFiPositionsControllerV2', () => {
     jest.advanceTimersByTime(60_000);
     await controller.fetchDeFiPositions();
 
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps an independent throttle TTL per account set', async () => {
+    const otherEvmAccount = createMockInternalAccount({
+      id: 'evm-account-id-2',
+      address: '0x0000000000000000000000000000000000000002',
+      type: EthAccountType.Eoa,
+    });
+    let groupAccounts: InternalAccount[] = GROUP_ACCOUNTS;
+    const { controller, mockFetchV6MultiAccountBalances } = setupController({
+      minimumFetchIntervalMs: 60_000,
+      getGroupAccounts: () => groupAccounts,
+      mockFetchV6MultiAccountBalances: jest
+        .fn()
+        .mockResolvedValue(buildMockBalancesResponse()),
+    });
+
+    await controller.fetchDeFiPositions();
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(1);
+
+    groupAccounts = [otherEvmAccount];
+    await controller.fetchDeFiPositions();
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+
+    // Returning to the first group within the window reuses its TTL.
+    groupAccounts = GROUP_ACCOUNTS;
+    await controller.fetchDeFiPositions();
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
   });
 

@@ -4,10 +4,7 @@ import type {
   DeFiProtocolPositionGroup,
   DeFiUnderlyingPosition,
 } from './group-defi-positions-v6';
-import {
-  mergePositionsForAccounts,
-  mergeSections,
-} from './merge-positions-for-accounts';
+import { mergePositionsForAccounts } from './merge-positions-for-accounts';
 
 const ETH_MAINNET = 'eip155:1' as CaipChainId;
 const BASE = 'eip155:8453' as CaipChainId;
@@ -171,48 +168,33 @@ describe('mergePositionsForAccounts', () => {
 
     expect(result).toHaveLength(1);
   });
-});
 
-describe('mergeSections', () => {
-  it('appends positions to the section that shares a productName', () => {
-    const existing = [
-      {
-        productName: 'Aave V3',
-        positions: [buildPosition({ symbol: 'WETH' })],
-      },
-    ];
-    const incoming = [
-      {
-        productName: 'Aave V3',
-        positions: [buildPosition({ symbol: 'USDC' })],
-      },
-    ];
+  it('keeps sections with distinct productNames separate when merging', () => {
+    const groupA = buildGroup({
+      sections: [
+        {
+          productName: 'Aave V3',
+          positions: [buildPosition({ symbol: 'WETH' })],
+        },
+      ],
+    });
+    const groupB = buildGroup({
+      sections: [
+        {
+          productName: 'Pendle',
+          positions: [buildPosition({ symbol: 'USDC', assetId: USDC_ASSET_ID })],
+        },
+      ],
+    });
 
-    const result = mergeSections(existing, incoming);
+    const result = mergePositionsForAccounts(
+      { 'account-1': [groupA], 'account-2': [groupB] },
+      ['account-1', 'account-2'],
+    );
 
     expect(result).toHaveLength(1);
-    expect(result[0].positions).toHaveLength(2);
-  });
-
-  it('keeps sections with distinct productNames separate', () => {
-    const existing = [{ productName: 'Aave V3', positions: [buildPosition()] }];
-    const incoming = [{ productName: 'Pendle', positions: [buildPosition()] }];
-
-    const result = mergeSections(existing, incoming);
-
-    expect(result.map((section) => section.productName)).toStrictEqual([
-      'Aave V3',
-      'Pendle',
-    ]);
-  });
-
-  it('does not mutate the input sections', () => {
-    const existing = [{ productName: 'Aave V3', positions: [buildPosition()] }];
-    const incoming = [{ productName: 'Aave V3', positions: [buildPosition()] }];
-
-    mergeSections(existing, incoming);
-
-    expect(existing[0].positions).toHaveLength(1);
-    expect(incoming[0].positions).toHaveLength(1);
+    expect(result[0].sections.map((section) => section.productName)).toStrictEqual(
+      ['Aave V3', 'Pendle'],
+    );
   });
 });

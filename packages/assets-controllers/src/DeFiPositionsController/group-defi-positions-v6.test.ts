@@ -169,10 +169,10 @@ describe('groupDeFiPositionsV6', () => {
     });
   });
 
-  it('skips accounts that do not resolve to an internal account ID', () => {
+  it('maps response accounts to internal IDs and skips unmatched ones', () => {
     const response = buildResponse([
       {
-        accountId: 'eip155:0:0xunknown',
+        accountId: 'eip155:1:0xUnknown',
         balances: [
           {
             category: 'defi',
@@ -187,7 +187,9 @@ describe('groupDeFiPositionsV6', () => {
         ],
       },
       {
-        accountId: 'eip155:0:0xknown',
+        // Response uses a per-chain reference + mixed case; request map uses
+        // the all-chains reference (`eip155:0:...`).
+        accountId: 'eip155:1:0xKnown',
         balances: [
           {
             category: 'defi',
@@ -203,8 +205,9 @@ describe('groupDeFiPositionsV6', () => {
       },
     ]);
 
-    const result = groupDeFiPositionsV6(response, (responseAccountId) =>
-      responseAccountId === 'eip155:0:0xknown' ? 'internal-1' : undefined,
+    const result = groupDeFiPositionsV6(
+      response,
+      new Map([['eip155:0:0xknown', 'internal-1']]),
     );
 
     expect(Object.keys(result)).toStrictEqual(['internal-1']);

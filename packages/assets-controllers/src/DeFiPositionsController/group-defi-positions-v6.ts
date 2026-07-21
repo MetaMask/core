@@ -5,9 +5,10 @@ import type {
   V6BalancesResponse,
   V6DeFiPositionType,
 } from '@metamask/core-backend';
-import type { CaipAssetType, CaipChainId } from '@metamask/utils';
+import type { CaipAccountId, CaipAssetType, CaipChainId } from '@metamask/utils';
 import {
   KnownCaipNamespace,
+  parseCaipAccountId,
   parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
@@ -244,6 +245,36 @@ function toUnderlyingPosition(
 }
 
 /**
+ * Builds a chain-reference-agnostic key (`namespace:address`) for matching the
+ * CAIP-10 account IDs we request against the ones the v6 API echoes back.
+ *
+ * We request EVM balances with the all-chains reference (`eip155:0:<address>`),
+ * but the response echoes a separate per-chain ID for every chain
+ * (`eip155:1:<address>`, `eip155:137:<address>`, ...). Matching on the full
+ * CAIP-10 string therefore fails, so we drop the reference and match on
+ * namespace + address instead. EVM addresses are lowercased; other namespaces
+ * keep their case.
+ *
+ * @param caipAccountId - A CAIP-10 account ID.
+ * @returns The match key, or a case-normalized fallback if parsing fails.
+ */
+function toAccountMatchKey(caipAccountId: string): string {
+  try {
+    const {
+      chain: { namespace },
+      address,
+    } = parseCaipAccountId(caipAccountId as CaipAccountId);
+    const normalizedAddress =
+      namespace === KnownCaipNamespace.Eip155 ? address.toLowerCase() : address;
+    return `${namespace}:${normalizedAddress}`;
+  } catch {
+    return caipAccountId.startsWith(`${KnownCaipNamespace.Eip155}:`)
+      ? caipAccountId.toLowerCase()
+      : caipAccountId;
+  }
+}
+
+/**
  * Transforms a v6 multiaccount balances response into the stored DeFi state:
  * positions keyed by internal account ID, each mapping to a flat list of
  * protocol groups. Every group carries its own `chainId` (so the client can
@@ -251,22 +282,29 @@ function toUnderlyingPosition(
  * details-page sections. Accounts present in the response but with no DeFi
  * positions are included with an empty list so stale data is cleared.
  *
- * The v6 response keys accounts by the CAIP-10 ID sent to the API, so
- * `resolveAccountId` maps that back to the internal MetaMask account ID used to
- * key state. Accounts that do not resolve are skipped. It defaults to the
- * identity function (leaving the response ID) for callers that don't need the
- * mapping (e.g. tests).
+ * When `internalAccountIdByCaip` is provided, response account IDs are matched
+ * to internal MetaMask account IDs via namespace + address (ignoring chain
+ * reference and EVM case). Unmatched accounts are skipped. When omitted, the
+ * response account ID is used as-is (handy for unit tests).
  *
  * @param response - The v6 multiaccount balances response.
- * @param resolveAccountId - Maps a response (CAIP-10) account ID to the internal
- * account ID, or `undefined` to skip the account.
- * @returns DeFi positions keyed by internal account ID and chain.
+ * @param internalAccountIdByCaip - Optional map of request CAIP-10 account IDs
+ * to internal MetaMask account IDs.
+ * @returns DeFi positions keyed by internal account ID.
  */
 export function groupDeFiPositionsV6(
   response: V6BalancesResponse,
-  resolveAccountId: (responseAccountId: string) => string | undefined = (id) =>
-    id,
+  internalAccountIdByCaip?: Map<string, string>,
 ): DeFiPositionsByAccount {
+  const internalAccountIdByMatchKey = internalAccountIdByCaip
+    ? new Map(
+        [...internalAccountIdByCaip].map(([caipAccountId, internalId]) => [
+          toAccountMatchKey(caipAccountId),
+          internalId,
+        ]),
+      )
+    : undefined;
+
   // Accumulate groups per resolved internal account ID. The v6 response returns
   // a separate entry per chain (e.g. `eip155:1:<addr>`, `eip155:137:<addr>`),
   // and several of them can resolve to the same internal account ID, so we must
@@ -277,7 +315,9 @@ export function groupDeFiPositionsV6(
   >();
 
   for (const account of response.accounts) {
-    const accountId = resolveAccountId(account.accountId);
+    const accountId = internalAccountIdByMatchKey
+      ? internalAccountIdByMatchKey.get(toAccountMatchKey(account.accountId))
+      : account.accountId;
     if (accountId === undefined) {
       continue;
     }

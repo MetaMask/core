@@ -14,7 +14,6 @@ import { createMockInternalAccount } from '../../../accounts-controller/tests/mo
 import {
   buildDeFiBalancesQuery,
   DEFI_SUPPORTED_NETWORKS,
-  normalizeCaipAccountId,
 } from './build-defi-balances-query';
 
 const EVM_ADDRESS = '0x0000000000000000000000000000000000000001';
@@ -51,25 +50,17 @@ const mockBtcAccount = createMockInternalAccount({
   type: BtcAccountType.P2wpkh,
 });
 
-describe('normalizeCaipAccountId', () => {
-  it('lowercases EVM CAIP account IDs', () => {
-    expect(
-      normalizeCaipAccountId(`eip155:0:${EVM_ADDRESS.toUpperCase()}`),
-    ).toBe(`eip155:0:${EVM_ADDRESS.toLowerCase()}`);
-  });
-
-  it('leaves non-EVM CAIP account IDs unchanged', () => {
-    const solanaCaipAccountId = `solana:${SolScope.Mainnet.split(':')[1]}:${SOLANA_ADDRESS}`;
-
-    expect(normalizeCaipAccountId(solanaCaipAccountId)).toBe(
-      solanaCaipAccountId,
-    );
-  });
-});
-
 describe('buildDeFiBalancesQuery', () => {
   it('builds an EVM CAIP account spanning all supported EVM networks', () => {
-    const result = buildDeFiBalancesQuery([mockEvmAccount, mockBtcAccount]);
+    const mixedCaseEvmAccount = createMockInternalAccount({
+      id: 'evm-account-id',
+      address: EVM_ADDRESS.toUpperCase(),
+      type: EthAccountType.Eoa,
+    });
+    const result = buildDeFiBalancesQuery([
+      mixedCaseEvmAccount,
+      mockBtcAccount,
+    ]);
 
     const expectedEvmNetworks = DEFI_SUPPORTED_NETWORKS.filter((network) =>
       network.startsWith('eip155:'),
