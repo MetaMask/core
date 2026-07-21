@@ -402,6 +402,7 @@ const config = createConfig([
       'packages/json-rpc-engine/**',
       'packages/json-rpc-middleware-stream/**',
       'packages/logging-controller/**',
+      'packages/message-manager/**',
       'packages/messenger/**',
       'packages/messenger-cli/**',
       'packages/money-account-controller/**',

@@ -1,5 +1,5 @@
-import { DecryptMessageManager } from './DecryptMessageManager';
-import type { DecryptMessageManagerMessenger } from './DecryptMessageManager';
+import { DecryptMessageManager } from './DecryptMessageManager.js';
+import type { DecryptMessageManagerMessenger } from './DecryptMessageManager.js';
 
 const mockMessenger = {
   registerActionHandler: jest.fn(),
