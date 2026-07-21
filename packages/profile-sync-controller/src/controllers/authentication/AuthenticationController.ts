@@ -10,16 +10,12 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Json } from '@metamask/utils';
 
-import {
-  createSnapPublicKeyRequest,
-  createSnapAllPublicKeysRequest,
-  createSnapSignMessageRequest,
-} from './auth-snap-requests';
 import type {
   LoginResponse,
+  ProfileAlias,
   SRPInterface,
   UserProfile,
   UserProfileLineage,
@@ -31,6 +27,12 @@ import {
   JwtBearerAuth,
 } from '../../sdk';
 import type { MetaMetricsAuth } from '../../shared/types/services';
+import {
+  createSnapPublicKeyRequest,
+  createSnapAllPublicKeysRequest,
+  createSnapSignMessageRequest,
+} from './auth-snap-requests';
+import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types';
 
 const controllerName = 'AuthenticationController';
 
@@ -38,12 +40,31 @@ const controllerName = 'AuthenticationController';
 export type AuthenticationControllerState = {
   isSignedIn: boolean;
   srpSessionData?: Record<string, LoginResponse>;
+  /**
+   * Client gate for profile pairing. Defaults to `true` (fresh install /
+   * upgrade), set to `false` after a successful `performSignIn` pair, set
+   * back to `true` via `requestProfilePairing()` when the SRP set changes,
+   * and left `true` on pair failure so the next state shift retries.
+   *
+   * Optional in the type so partial-state selectors stay assignable to
+   * `AuthenticationControllerState`. The controller seeds it via
+   * `defaultState` at construction; consumers should read `undefined` as
+   * `true` to mirror that runtime default.
+   */
+  needsProfilePairing?: boolean;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
+  needsProfilePairing: true,
 };
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  needsProfilePairing: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -83,38 +104,26 @@ type ControllerConfig = {
   env: Env;
 };
 
-// Messenger Actions
-type CreateActionsObj<Controller extends keyof AuthenticationController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: AuthenticationController[K];
-  };
-};
-type ActionsObj = CreateActionsObj<
-  | 'performSignIn'
-  | 'performSignOut'
-  | 'getBearerToken'
-  | 'getSessionProfile'
-  | 'getUserProfileLineage'
-  | 'isSignedIn'
->;
+const MESSENGER_EXPOSED_METHODS = [
+  'performSignIn',
+  'performSignOut',
+  'getBearerToken',
+  'getSessionProfile',
+  'refreshCanonicalProfileId',
+  'getUserProfileLineage',
+  'getCustomerServiceToken',
+  'isSignedIn',
+  'requestProfilePairing',
+] as const;
+
 export type Actions =
-  | ActionsObj[keyof ActionsObj]
-  | AuthenticationControllerGetStateAction;
+  | AuthenticationControllerGetStateAction
+  | AuthenticationControllerMethodActions;
+
 export type AuthenticationControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   AuthenticationControllerState
 >;
-export type AuthenticationControllerPerformSignIn = ActionsObj['performSignIn'];
-export type AuthenticationControllerPerformSignOut =
-  ActionsObj['performSignOut'];
-export type AuthenticationControllerGetBearerToken =
-  ActionsObj['getBearerToken'];
-export type AuthenticationControllerGetSessionProfile =
-  ActionsObj['getSessionProfile'];
-export type AuthenticationControllerGetUserProfileLineage =
-  ActionsObj['getUserProfileLineage'];
-export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
 
 export type AuthenticationControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -122,10 +131,25 @@ export type AuthenticationControllerStateChangeEvent =
     AuthenticationControllerState
   >;
 
-export type Events = AuthenticationControllerStateChangeEvent;
+export type ProfileSignInInfo = {
+  profileId: string;
+  profileAliases: ProfileAlias[];
+  profileIdChanged: boolean;
+};
+
+export type AuthenticationControllerProfileSignInEvent = {
+  type: `${typeof controllerName}:profileSignIn`;
+  payload: [ProfileSignInInfo];
+};
+
+export type Events =
+  | AuthenticationControllerStateChangeEvent
+  | AuthenticationControllerProfileSignInEvent;
 
 // Allowed Actions
-type AllowedActions = HandleSnapRequest | KeyringControllerGetStateAction;
+type AllowedActions =
+  | KeyringControllerGetStateAction
+  | SnapControllerHandleRequestAction;
 
 type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
 
@@ -140,7 +164,7 @@ export type AuthenticationControllerMessenger = Messenger<
  * Controller that enables authentication for restricted endpoints.
  * Used for Backup & Sync, Notifications, and other services.
  */
-export default class AuthenticationController extends BaseController<
+export class AuthenticationController extends BaseController<
   typeof controllerName,
   AuthenticationControllerState,
   AuthenticationControllerMessenger
@@ -154,6 +178,13 @@ export default class AuthenticationController extends BaseController<
   };
 
   #isUnlocked = false;
+
+  #cachedPrimaryEntropySourceId?: string;
+
+  // Bumped by `requestProfilePairing`. `performSignIn` snapshots this
+  // before its first await; if it changes mid-flight we must NOT clear
+  // `needsProfilePairing` (the rearm signal wins).
+  #profilePairingRequestEpoch = 0;
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
@@ -223,85 +254,43 @@ export default class AuthenticationController extends BaseController<
     );
 
     this.#keyringController.setupLockedStateSubscriptions();
-    this.#registerMessageHandlers();
-  }
 
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getBearerToken',
-      this.getBearerToken.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getSessionProfile',
-      this.getSessionProfile.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:isSignedIn',
-      this.isSignedIn.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:performSignIn',
-      this.performSignIn.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:performSignOut',
-      this.performSignOut.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getUserProfileLineage',
-      this.getUserProfileLineage.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
   async #getLoginResponseFromState(
     entropySourceId?: string,
   ): Promise<LoginResponse | null> {
-    if (entropySourceId) {
-      if (!this.state.srpSessionData?.[entropySourceId]) {
-        return null;
-      }
-      return this.state.srpSessionData[entropySourceId];
-    }
-
-    const primarySrpLoginResponse = Object.values(
-      this.state.srpSessionData || {},
-    )?.[0];
-
-    if (!primarySrpLoginResponse) {
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    if (!this.state.srpSessionData?.[resolvedId]) {
       return null;
     }
-
-    return primarySrpLoginResponse;
+    return this.state.srpSessionData[resolvedId];
   }
 
   async #setLoginResponseToState(
     loginResponse: LoginResponse,
     entropySourceId?: string,
   ) {
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
     const metaMetricsId = await this.#metametrics.getMetaMetricsId();
     this.update((state) => {
-      if (entropySourceId) {
-        state.isSignedIn = true;
-        if (!state.srpSessionData) {
-          state.srpSessionData = {};
-        }
-        state.srpSessionData[entropySourceId] = {
-          ...loginResponse,
-          profile: {
-            ...loginResponse.profile,
-            metaMetricsId,
-          },
-        };
+      state.isSignedIn = true;
+      if (!state.srpSessionData) {
+        state.srpSessionData = {};
       }
+      state.srpSessionData[resolvedId] = {
+        ...loginResponse,
+        profile: {
+          ...loginResponse.profile,
+          metaMetricsId,
+        },
+      };
     });
   }
 
@@ -311,11 +300,35 @@ export default class AuthenticationController extends BaseController<
     }
   }
 
+  async #getPrimaryEntropySourceId(): Promise<string> {
+    if (this.#cachedPrimaryEntropySourceId) {
+      return this.#cachedPrimaryEntropySourceId;
+    }
+    const allPublicKeys = await this.#snapGetAllPublicKeys();
+
+    if (allPublicKeys.length === 0) {
+      throw new Error(
+        '#getPrimaryEntropySourceId - No entropy sources found from snap',
+      );
+    }
+
+    const primaryId = allPublicKeys[0][0];
+    if (!primaryId) {
+      throw new Error(
+        '#getPrimaryEntropySourceId - Primary entropy source ID is undefined',
+      );
+    }
+
+    this.#cachedPrimaryEntropySourceId = primaryId;
+    return this.#cachedPrimaryEntropySourceId;
+  }
+
   public async performSignIn(): Promise<string[]> {
     this.#assertIsUnlocked('performSignIn');
 
+    const epochAtStart = this.#profilePairingRequestEpoch;
     const allPublicKeys = await this.#snapGetAllPublicKeys();
-    const accessTokens = [];
+    const accessTokens: string[] = [];
 
     // We iterate sequentially in order to be sure that the first entry
     // is the primary SRP LoginResponse.
@@ -324,10 +337,138 @@ export default class AuthenticationController extends BaseController<
       accessTokens.push(accessToken);
     }
 
+    if (allPublicKeys.length < 2) {
+      // Single-SRP wallet: nothing to pair.
+      this.#tryClearNeedsProfilePairing(epochAtStart);
+    } else {
+      // Pair failures must not break sign-in; the gate stays `true` for retry.
+      try {
+        await this.#doPair(accessTokens, epochAtStart);
+      } catch {
+        // noop
+      }
+    }
+
     return accessTokens;
   }
 
+  /**
+   * Marks profile pairing as needed. Clients call this when the SRP set
+   * changes (e.g. a new keyring was added) so the next auto-sign-in cycle
+   * re-runs `performSignIn` and re-pairs.
+   */
+  public requestProfilePairing(): void {
+    this.#profilePairingRequestEpoch += 1;
+    if (!this.state.needsProfilePairing) {
+      this.update((state) => {
+        state.needsProfilePairing = true;
+      });
+    }
+  }
+
+  /**
+   * Clears `needsProfilePairing` only if no `requestProfilePairing` call
+   * landed since `epochAtStart` was captured. Prevents `performSignIn`
+   * from silently overwriting a concurrent rearm.
+   *
+   * @param epochAtStart - Epoch value captured at the start of `performSignIn`.
+   */
+  #tryClearNeedsProfilePairing(epochAtStart: number): void {
+    if (this.#profilePairingRequestEpoch !== epochAtStart) {
+      return;
+    }
+    if (this.state.needsProfilePairing) {
+      this.update((state) => {
+        state.needsProfilePairing = false;
+      });
+    }
+  }
+
+  /**
+   * Pairs all SRPs via `POST /profile/pair`, propagates the canonical
+   * profile ID, clears `needsProfilePairing`, and emits
+   * `AuthenticationController:profileSignIn` when the canonical changes or
+   * new aliases are returned. Throws on failure.
+   *
+   * @param accessTokens - Per-SRP access tokens, primary first.
+   * @param epochAtStart - Pairing-request epoch captured by the caller.
+   * Used to skip the gate clear if `requestProfilePairing` ran while the
+   * pair API call was in-flight.
+   */
+  async #doPair(accessTokens: string[], epochAtStart: number): Promise<void> {
+    const previousCanonical = await this.#getCanonicalProfileId();
+
+    const profileAliases = await this.#pairSrpProfiles(accessTokens);
+    const newCanonical = await this.#getCanonicalProfileId();
+
+    // If somehow we cannot compute the new canonical profile ID after pairing,
+    // we just return now and do not update the `needsProfilePairing` flag.
+    if (!newCanonical) {
+      return;
+    }
+
+    this.#tryClearNeedsProfilePairing(epochAtStart);
+
+    const profileIdChanged = previousCanonical !== newCanonical;
+    const shouldEmitProfileSignInEvent =
+      profileIdChanged || profileAliases.length > 0;
+
+    if (shouldEmitProfileSignInEvent) {
+      this.messenger.publish('AuthenticationController:profileSignIn', {
+        profileId: newCanonical,
+        profileAliases,
+        profileIdChanged,
+      });
+    }
+  }
+
+  async #pairSrpProfiles(accessTokens: string[]): Promise<ProfileAlias[]> {
+    if (accessTokens.length < 2) {
+      return [];
+    }
+    const primaryAccessToken = accessTokens[0]; // Associated with primary SRP.
+    const {
+      profileAliases,
+      profile: { canonicalProfileId },
+    } = await this.#auth.pairSrpProfiles(accessTokens, primaryAccessToken);
+    this.#propagateCanonical(canonicalProfileId);
+    return profileAliases;
+  }
+
+  #propagateCanonical(canonicalProfileId: string): void {
+    const { srpSessionData } = this.state;
+    if (!srpSessionData) {
+      return;
+    }
+
+    this.update((state) => {
+      for (const entry of Object.values(state.srpSessionData ?? {})) {
+        if (entry?.profile) {
+          entry.profile.canonicalProfileId = canonicalProfileId;
+        }
+      }
+    });
+  }
+
+  /**
+   * Returns the canonical profile id from the primary SRP's cached session.
+   * Returns `null` when no session exists yet for the primary SRP.
+   *
+   * Always reads from the primary SRP because the canonical is shared across
+   * all paired SRPs after `#propagateCanonical`.
+   *
+   * @returns The canonical profile id, or `null` if unavailable.
+   */
+  async #getCanonicalProfileId(): Promise<string | null> {
+    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    return (
+      this.state.srpSessionData?.[primaryEntropySourceId]?.profile
+        ?.canonicalProfileId ?? null
+    );
+  }
+
   public performSignOut(): void {
+    this.#cachedPrimaryEntropySourceId = undefined;
     this.update((state) => {
       state.isSignedIn = false;
       state.srpSessionData = undefined;
@@ -335,20 +476,31 @@ export default class AuthenticationController extends BaseController<
   }
 
   /**
-   * Will return a bearer token.
-   * Logs a user in if a user is not logged in.
+   * Returns a bearer token for the specified SRP, logging in if needed.
    *
-   * @returns profile for the session.
+   * When called without `entropySourceId`, returns the primary (first) SRP's
+   * access token, which is effectively the canonical
+   * profile's token that can be used by alias-aware consumers for cross-SRP
+   * operations.
+   *
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The OIDC access token.
    */
-
   public async getBearerToken(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('getBearerToken');
-    return await this.#auth.getAccessToken(entropySourceId);
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getAccessToken(resolvedId);
   }
 
   /**
-   * Will return a session profile.
-   * Logs a user in if a user is not logged in.
+   * Returns the cached session profile, logging in if no session exists.
+   *
+   * The returned `canonicalProfileId` reflects the value from the most recent
+   * login or pairing. In the rare event where a canonical changed because of
+   * a pairing that happened on another device, the cached value may be stale
+   * until the next login. For guaranteed freshness, call
+   * `refreshCanonicalProfileId()` before reading `canonicalProfileId`.
    *
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
@@ -358,12 +510,84 @@ export default class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<UserProfile> {
     this.#assertIsUnlocked('getSessionProfile');
-    return await this.#auth.getUserProfile(entropySourceId);
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getUserProfile(resolvedId);
   }
 
-  public async getUserProfileLineage(): Promise<UserProfileLineage> {
+  /**
+   * Forces a fresh retrieval of the canonical profile ID from the server
+   * and propagates it to all cached SRP sessions.
+   *
+   * This method invalidates the primary SRP's cached session and forces a
+   * re-login. Use it before operations that require a guaranteed-fresh
+   * canonical (e.g. storage key derivation for Accounts ADR 0005). For
+   * best-effort reads, use
+   * `getSessionProfile().canonicalProfileId` instead.
+   *
+   * Only the primary SRP is re-logged-in regardless of how many SRPs exist —
+   * the server returns the current canonical for the entire pairing group
+   * from any single SRP login.
+   *
+   * @returns The refreshed canonical profile ID.
+   */
+  public async refreshCanonicalProfileId(): Promise<string> {
+    this.#assertIsUnlocked('refreshCanonicalProfileId');
+
+    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    this.#invalidateSrpSession(primaryEntropySourceId);
+    await this.#auth.getAccessToken(primaryEntropySourceId);
+
+    const canonical = await this.#getCanonicalProfileId();
+    if (!canonical) {
+      throw new Error(
+        'refreshCanonicalProfileId - Unable to resolve canonical profile ID',
+      );
+    }
+
+    this.#propagateCanonical(canonical);
+    return canonical;
+  }
+
+  #invalidateSrpSession(entropySourceId: string): void {
+    this.update((state) => {
+      const entry = state.srpSessionData?.[entropySourceId];
+      if (entry?.profile) {
+        // Setting canonicalProfileId to '' forces a re-fetch on the next
+        // #getAuthSession call. The falsy check (!auth.profile.canonicalProfileId)
+        // treats '' the same as undefined/null — all signal an invalid session.
+        entry.profile.canonicalProfileId = '';
+      }
+    });
+  }
+
+  public async getUserProfileLineage(
+    entropySourceId?: string,
+  ): Promise<UserProfileLineage> {
     this.#assertIsUnlocked('getUserProfileLineage');
-    return await this.#auth.getUserProfileLineage();
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getUserProfileLineage(resolvedId);
+  }
+
+  /**
+   * Returns a Customer Service specific access token for the specified SRP,
+   * logging in if needed.
+   *
+   * Exchanges the OIDC access token for a short-lived token scoped to the
+   * customer-service audience. Customer Service tooling consumes this token to
+   * identify and authenticate the user.
+   *
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The customer-service access token.
+   */
+  public async getCustomerServiceToken(
+    entropySourceId?: string,
+  ): Promise<string> {
+    this.#assertIsUnlocked('getCustomerServiceToken');
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getCustomerServiceToken(resolvedId);
   }
 
   public isSignedIn(): boolean {

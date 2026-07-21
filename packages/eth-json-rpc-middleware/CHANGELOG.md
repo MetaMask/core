@@ -9,7 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/message-manager` from `^14.1.1` to `^14.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Drop `pify` dependency, which was no longer used in source ([#9064](https://github.com/MetaMask/core/pull/9064))
+
+## [23.1.3]
+
+### Fixed
+
+- Allow Advanced Permissions `metadata` in signTypedData V4 requests ([#8603](https://github.com/MetaMask/core/pull/8603))
+
+## [23.1.2]
+
+### Changed
+
+- Add more strict validation for signTypedData V4 requests ([#8526](https://github.com/MetaMask/core/pull/8526))
+
+## [23.1.1]
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-provider` from `^6.0.0` to `^6.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/message-manager` from `^14.1.0` to `^14.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.4` ([#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
 
 ## [23.1.0]
 
@@ -79,7 +102,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.3...HEAD
+[23.1.3]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.2...@metamask/eth-json-rpc-middleware@23.1.3
+[23.1.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.1...@metamask/eth-json-rpc-middleware@23.1.2
+[23.1.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.0...@metamask/eth-json-rpc-middleware@23.1.1
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.0.0...@metamask/eth-json-rpc-middleware@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.1...@metamask/eth-json-rpc-middleware@23.0.0
 [22.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.0...@metamask/eth-json-rpc-middleware@22.0.1

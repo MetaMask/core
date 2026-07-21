@@ -1,6 +1,8 @@
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
+import { NetworkClientType } from '../../src/types';
 import type { MockRequest, ProviderType } from './helpers';
 import {
   buildMockParams,
@@ -10,8 +12,6 @@ import {
   withNetworkClient,
 } from './helpers';
 import { testsForRpcFailoverBehavior } from './rpc-failover';
-import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
-import { NetworkClientType } from '../../src/types';
 
 type TestsForRpcMethodSupportingBlockParam = {
   providerType: ProviderType;
@@ -552,7 +552,7 @@ export function testsForRpcMethodSupportingBlockParam(
           code: errorCodes.rpc.resourceUnavailable,
         });
 
-        it('retries the request up to 5 times until there is a 200 response', async () => {
+        it('retries the request up to 4 times until there is a 200 response', async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
             const request = {
               method,
@@ -582,7 +582,7 @@ export function testsForRpcMethodSupportingBlockParam(
                 error: 'some error',
                 httpStatus,
               },
-              times: 4,
+              times: 3,
             });
             comms.mockRpcCall({
               request: buildRequestWithReplacedBlockParam(
@@ -685,7 +685,7 @@ export function testsForRpcMethodSupportingBlockParam(
         // still used by Node.
         error.code = errorCode;
 
-        it('retries the request up to 5 times until it is successful', async () => {
+        it('retries the request up to 4 times until it is successful', async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
             const request = {
               method,
@@ -712,7 +712,7 @@ export function testsForRpcMethodSupportingBlockParam(
                 '0x100',
               ),
               error,
-              times: 4,
+              times: 3,
             });
             comms.mockRpcCall({
               request: buildRequestWithReplacedBlockParam(
@@ -807,7 +807,7 @@ export function testsForRpcMethodSupportingBlockParam(
         code: errorCodes.rpc.parse,
       });
 
-      it('retries the request up to 5 times until it responds with valid JSON', async () => {
+      it('retries the request up to 4 times until it responds with valid JSON', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = {
             method,
@@ -836,7 +836,7 @@ export function testsForRpcMethodSupportingBlockParam(
             response: {
               body: 'invalid JSON',
             },
-            times: 4,
+            times: 3,
           });
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
@@ -932,7 +932,7 @@ export function testsForRpcMethodSupportingBlockParam(
     describe('if making the request throws a connection error', () => {
       const error = new TypeError('Failed to fetch');
 
-      it('retries the request up to 5 times until there is no connection error', async () => {
+      it('retries the request up to 4 times until there is no connection error', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = {
             method,
@@ -959,7 +959,7 @@ export function testsForRpcMethodSupportingBlockParam(
               '0x100',
             ),
             error,
-            times: 4,
+            times: 3,
           });
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AddressBookEntry } from '@metamask/address-book-controller';
 
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 import {
   MOCK_LOCAL_CONTACTS,
   MOCK_REMOTE_CONTACTS,
@@ -12,7 +13,6 @@ import {
 import * as ContactSyncingControllerIntegrationModule from './controller-integration';
 import * as ContactSyncingUtils from './sync-utils';
 import type { ContactSyncingOptions } from './types';
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 
 // Mock UserStorageController to avoid json-rpc-engine dependency issues
 class MockUserStorageController {

@@ -12,13 +12,16 @@
   },
   "packages/account-tree-controller/src/AccountTreeController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
+      "count": 7
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
     },
     "no-negated-condition": {
       "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/analytics/segment.ts": {
@@ -34,7 +37,7 @@
       "count": 1
     },
     "n/no-sync": {
-      "count": 22
+      "count": 29
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/service/index.ts": {
@@ -42,17 +45,9 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/src/backup-and-sync/syncing/group.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/account-tree-controller/src/backup-and-sync/syncing/legacy.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
+  "packages/account-tree-controller/src/backup-and-sync/syncing/group.test.ts": {
+    "no-restricted-syntax": {
+      "count": 3
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/syncing/metadata.ts": {
@@ -88,16 +83,6 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/src/rules/keyring.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/account-tree-controller/src/rules/snap.ts": {
-    "@typescript-eslint/prefer-optional-chain": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/type-utils.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 1
@@ -106,6 +91,24 @@
   "packages/account-tree-controller/tests/mockMessenger.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/accounts-controller/src/AccountsController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/accounts-controller/src/AccountsController.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/accounts-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/address-book-controller/src/AddressBookController.test.ts": {
@@ -115,12 +118,27 @@
   },
   "packages/address-book-controller/src/AddressBookController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
+      "count": 3
     },
     "@typescript-eslint/naming-convention": {
       "count": 3
     },
     "no-param-reassign": {
+      "count": 2
+    }
+  },
+  "packages/analytics-controller/src/AnalyticsController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/analytics-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/analytics-data-regulation-controller/src/AnalyticsDataRegulationController.test.ts": {
+    "no-restricted-syntax": {
       "count": 2
     }
   },
@@ -138,7 +156,44 @@
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 6
-    },
+    }
+  },
+  "packages/assets-controller/src/AssetsController.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "packages/assets-controller/src/data-sources/AccountsApiDataSource.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/RpcDataSource.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/data-sources/StakedBalanceDataSource.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/selectors/balance.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/utils/formatStateForTransactionPay.ts": {
     "no-restricted-syntax": {
       "count": 1
     }
@@ -159,25 +214,28 @@
       "count": 3
     }
   },
+  "packages/assets-controllers/src/AccountTrackerController.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
   "packages/assets-controllers/src/AssetsContractController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 5
     },
     "id-length": {
       "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/assets-controllers/src/AssetsContractController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
+      "count": 5
     },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/assets-controllers/src/CurrencyRateController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/assets-controllers/src/CurrencyRateController.ts": {
@@ -206,16 +264,8 @@
       "count": 2
     }
   },
-  "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    },
-    "@typescript-eslint/no-misused-promises": {
+  "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.test.ts": {
+    "no-restricted-syntax": {
       "count": 3
     }
   },
@@ -225,6 +275,9 @@
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.test.ts": {
@@ -237,10 +290,10 @@
   },
   "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.ts": {
     "@typescript-eslint/no-misused-promises": {
-      "count": 2
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/assets-controllers/src/NftController.test.ts": {
@@ -249,6 +302,9 @@
     },
     "id-denylist": {
       "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 5
     }
   },
   "packages/assets-controllers/src/NftController.ts": {
@@ -274,6 +330,19 @@
       "count": 1
     },
     "no-param-reassign": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 7
+    }
+  },
+  "packages/assets-controllers/src/NftDetectionController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/NftDetectionController.ts": {
+    "no-restricted-syntax": {
       "count": 2
     }
   },
@@ -332,22 +401,50 @@
       "count": 2
     }
   },
-  "packages/assets-controllers/src/TokenListController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
+  "packages/assets-controllers/src/TokenBalancesController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/TokenBalancesController.ts": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/assets-controllers/src/TokenDetectionController.test.ts": {
+    "no-restricted-syntax": {
       "count": 1
-    },
-    "id-denylist": {
+    }
+  },
+  "packages/assets-controllers/src/TokenDetectionController.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/TokenListController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/TokenListController.ts": {
+    "no-restricted-syntax": {
       "count": 2
     }
   },
   "packages/assets-controllers/src/TokenRatesController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/assets-controllers/src/TokenRatesController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 7
+    },
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/assets-controllers/src/TokenSearchDiscoveryDataController/TokenSearchDiscoveryDataController.test.ts": {
@@ -366,17 +463,20 @@
   "packages/assets-controllers/src/TokensController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
+    },
+    "no-restricted-syntax": {
+      "count": 3
     }
   },
   "packages/assets-controllers/src/TokensController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 14
+      "count": 13
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
     "@typescript-eslint/prefer-optional-chain": {
-      "count": 4
+      "count": 3
     },
     "id-length": {
       "count": 1
@@ -385,6 +485,9 @@
       "count": 3
     },
     "no-param-reassign": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
       "count": 1
     },
     "require-atomic-updates": {
@@ -449,10 +552,7 @@
     }
   },
   "packages/assets-controllers/src/multi-chain-accounts-service/api-balance-fetcher.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "id-length": {
+    "no-restricted-syntax": {
       "count": 1
     }
   },
@@ -477,22 +577,14 @@
   "packages/assets-controllers/src/multicall.ts": {
     "id-length": {
       "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.test.ts": {
     "id-length": {
       "count": 17
-    }
-  },
-  "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 1
     }
   },
   "packages/assets-controllers/src/selectors/stringify-balance.ts": {
@@ -516,6 +608,11 @@
       "count": 1
     }
   },
+  "packages/assets-controllers/src/token-prices-service/codefi-v2.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "packages/assets-controllers/src/utils/formatters.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 9
@@ -534,12 +631,9 @@
       "count": 3
     }
   },
-  "packages/bridge-controller/src/types.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 12
-    },
-    "@typescript-eslint/prefer-enum-initializers": {
-      "count": 3
+  "packages/base-data-service/src/createServicePolicy.ts": {
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/bridge-controller/src/utils/assets.ts": {
@@ -553,9 +647,6 @@
     }
   },
   "packages/bridge-controller/src/utils/bridge.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 9
-    },
     "id-denylist": {
       "count": 1
     }
@@ -582,11 +673,6 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/src/utils/metrics/properties.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
-    }
-  },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
@@ -595,6 +681,11 @@
       "count": 2
     },
     "id-length": {
+      "count": 2
+    }
+  },
+  "packages/bridge-controller/src/utils/quote.ts": {
+    "no-restricted-syntax": {
       "count": 2
     }
   },
@@ -618,56 +709,14 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/src/utils/validators.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 4
-    }
-  },
-  "packages/bridge-controller/tests/mock-sse.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
-    },
-    "id-length": {
-      "count": 2
-    }
-  },
-  "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
-    "no-new": {
-      "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/utils/gas.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    }
-  },
   "packages/bridge-status-controller/src/utils/snaps.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
+    "no-restricted-syntax": {
+      "count": 3
     }
   },
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
-    }
-  },
-  "packages/bridge-status-controller/src/utils/transaction.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
-  "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
     }
   },
   "packages/chain-agnostic-permission/src/caip25Permission.ts": {
@@ -734,6 +783,82 @@
       "count": 2
     }
   },
+  "packages/claims-controller/src/utils.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/composable-controller/src/ComposableController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 14
+    }
+  },
+  "packages/composable-controller/src/ComposableController.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/config-registry-controller/src/ConfigRegistryController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/config-registry-controller/src/ConfigRegistryController.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/config-registry-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/controller-utils/src/create-service-policy.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/controller-utils/src/util.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/api/shared-types.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/core-backend/src/ws/AccountActivityService.test.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/core-backend/src/ws/AccountActivityService.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/ws/BackendWebSocketService.ts": {
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "packages/core-backend/src/ws/ohlcv/OHLCVService.test.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 2
+    },
+    "id-length": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/delegation-controller/src/DelegationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
@@ -741,10 +866,7 @@
   },
   "packages/delegation-controller/src/DelegationController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
-    },
-    "id-length": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/delegation-controller/src/types.ts": {
@@ -752,28 +874,20 @@
       "count": 3
     }
   },
-  "packages/delegation-controller/src/utils.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/earn-controller/src/EarnController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
+    "no-restricted-syntax": {
       "count": 1
-    },
-    "jest/unbound-method": {
-      "count": 36
     }
   },
   "packages/earn-controller/src/EarnController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 9
-    },
-    "id-length": {
-      "count": 2
+      "count": 4
     },
     "no-negated-condition": {
       "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/earn-controller/src/selectors.ts": {
@@ -873,6 +987,31 @@
       "count": 6
     }
   },
+  "packages/eth-block-tracker/tests/withBlockTracker.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/fetch.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/inflight-cache.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-provider/src/internal-provider.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-provider/src/internal-provider.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/foundryup/src/cli.ts": {
     "no-restricted-globals": {
       "count": 1
@@ -929,6 +1068,9 @@
     },
     "id-denylist": {
       "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/foundryup/types/unzipper.d.ts": {
@@ -958,7 +1100,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 14
+      "count": 16
     }
   },
   "packages/gas-fee-controller/src/gas-util.ts": {
@@ -967,6 +1109,46 @@
     },
     "id-length": {
       "count": 1
+    }
+  },
+  "packages/geolocation-controller/src/GeolocationController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/JsonRpcEngine.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/JsonRpcEngineV2.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/MiddlewareContext.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/compatibility-utils.test.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/json-rpc-engine/src/v2/utils.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/keyring-controller/src/KeyringController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "packages/keyring-controller/src/KeyringController.ts": {
+    "no-restricted-syntax": {
+      "count": 6
     }
   },
   "packages/logging-controller/src/LoggingController.test.ts": {
@@ -980,6 +1162,9 @@
   "packages/logging-controller/src/LoggingController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/message-manager/src/AbstractMessageManager.test.ts": {
@@ -1028,6 +1213,9 @@
   "packages/multichain-account-service/src/MultichainAccountWallet.test.ts": {
     "id-length": {
       "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/MultichainAccountWallet.ts": {
@@ -1041,11 +1229,6 @@
   "packages/multichain-account-service/src/providers/AccountProviderWrapper.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/multichain-account-service/src/providers/BtcAccountProvider.test.ts": {
-    "no-negated-condition": {
-      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/BtcAccountProvider.ts": {
@@ -1066,12 +1249,14 @@
   "packages/multichain-account-service/src/providers/SolAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
-    },
-    "id-length": {
-      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/TrxAccountProvider.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 2
+    }
+  },
+  "packages/multichain-account-service/src/providers/XlmAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
     }
@@ -1084,14 +1269,6 @@
   "packages/multichain-account-service/src/tests/accounts.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 7
-    }
-  },
-  "packages/multichain-account-service/src/utils.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "id-denylist": {
-      "count": 1
     }
   },
   "packages/multichain-api-middleware/src/handlers/types.ts": {
@@ -1109,7 +1286,7 @@
   },
   "packages/multichain-api-middleware/src/handlers/wallet-createSession.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
+      "count": 1
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 2
@@ -1155,6 +1332,9 @@
     },
     "no-negated-condition": {
       "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/multichain-api-middleware/src/middlewares/MultichainMiddlewareManager.ts": {
@@ -1183,6 +1363,9 @@
     },
     "id-length": {
       "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/multichain-transactions-controller/src/MultichainTransactionsController.test.ts": {
@@ -1196,6 +1379,9 @@
     },
     "@typescript-eslint/no-misused-promises": {
       "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/name-controller/src/NameController.ts": {
@@ -1277,9 +1463,102 @@
       "count": 1
     }
   },
+  "packages/network-controller/src/NetworkController.ts": {
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "packages/network-controller/src/create-auto-managed-network-client.test.ts": {
+    "no-restricted-syntax": {
+      "count": 23
+    }
+  },
+  "packages/network-controller/src/create-auto-managed-network-client.ts": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/network-controller/src/create-network-client.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/network-controller/src/rpc-service/rpc-service.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/network-controller/tests/NetworkController.provider.test.ts": {
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "packages/network-controller/tests/NetworkController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/network-controller/tests/network-client/helpers.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/network-enablement-controller/src/NetworkEnablementController.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/network-enablement-controller/src/selectors.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/permission-controller/src/SubjectMetadataController.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/PerpsController.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/utils/myxAdapter.ts": {
+    "@typescript-eslint/no-base-to-string": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/utils/perpsConnectionAttemptContext.ts": {
+    "require-atomic-updates": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/defer-eligibility.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/phishing-controller/src/BulkTokenScan.test.ts": {
@@ -1287,6 +1566,9 @@
       "count": 2
     },
     "@typescript-eslint/naming-convention": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
       "count": 1
     }
   },
@@ -1305,17 +1587,9 @@
       "count": 2
     }
   },
-  "packages/phishing-controller/src/PhishingController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "jest/unbound-method": {
-      "count": 7
-    }
-  },
   "packages/phishing-controller/src/PhishingController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 25
+      "count": 14
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
@@ -1342,11 +1616,6 @@
       "count": 2
     }
   },
-  "packages/phishing-controller/src/types.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    }
-  },
   "packages/phishing-controller/src/utils.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -1358,6 +1627,9 @@
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 4
     }
   },
   "packages/polling-controller/src/AbstractPollingController.ts": {
@@ -1376,6 +1648,11 @@
       "count": 1
     }
   },
+  "packages/profile-metrics-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 5
@@ -1392,7 +1669,7 @@
       "count": 2
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/profile-sync-controller/src/controllers/authentication/__fixtures__/mockServices.ts": {
@@ -1401,9 +1678,6 @@
     }
   },
   "packages/profile-sync-controller/src/controllers/authentication/mocks/mockResponses.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    },
     "@typescript-eslint/naming-convention": {
       "count": 1
     }
@@ -1415,10 +1689,13 @@
   },
   "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 13
+      "count": 12
     },
     "id-length": {
       "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
@@ -1510,11 +1787,6 @@
       "count": 2
     }
   },
-  "packages/profile-sync-controller/src/sdk/__fixtures__/auth.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    }
-  },
   "packages/profile-sync-controller/src/sdk/__fixtures__/test-utils.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
@@ -1536,11 +1808,6 @@
       "count": 2
     }
   },
-  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/flow-srp.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 9
-    }
-  },
   "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/flow-srp.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -1550,6 +1817,11 @@
     },
     "id-length": {
       "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/services.ts": {
+    "no-restricted-syntax": {
+      "count": 3
     }
   },
   "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/types.ts": {
@@ -1581,6 +1853,9 @@
   },
   "packages/profile-sync-controller/src/sdk/errors.ts": {
     "id-length": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
       "count": 1
     }
   },
@@ -1632,11 +1907,6 @@
       "count": 1
     }
   },
-  "packages/profile-sync-controller/src/sdk/utils/validate-login-response.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/profile-sync-controller/src/shared/encryption/cache.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
@@ -1685,9 +1955,72 @@
       "count": 1
     }
   },
+  "packages/ramps-controller/src/RampsController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/TransakService.test.ts": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/ramps-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/remote-feature-flag-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/remote-feature-flag-controller/src/utils/version.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/sample-controllers/src/sample-gas-prices-controller.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/sample-controllers/src/sample-gas-prices-controller.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/seedless-onboarding-controller/src/SecretMetadata.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/seedless-onboarding-controller/src/assertions.ts": {
+    "no-restricted-syntax": {
+      "count": 10
+    }
+  },
+  "packages/seedless-onboarding-controller/src/errors.ts": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/seedless-onboarding-controller/tests/mocks/vaultEncryptor.ts": {
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
   "packages/selected-network-controller/src/SelectedNetworkController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 5
     }
   },
   "packages/selected-network-controller/src/SelectedNetworkMiddleware.ts": {
@@ -1698,6 +2031,24 @@
   "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/shield-controller/src/ShieldController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/shield-controller/src/ShieldController.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/shield-controller/tests/mocks/messenger.ts": {
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/signature-controller/src/SignatureController.test.ts": {
@@ -1723,6 +2074,11 @@
   },
   "packages/signature-controller/src/utils/decoding-api.ts": {
     "@typescript-eslint/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/signature-controller/src/utils/delegations.ts": {
+    "no-restricted-syntax": {
       "count": 1
     }
   },
@@ -1757,6 +2113,141 @@
     },
     "id-length": {
       "count": 2
+    }
+  },
+  "packages/smart-transactions-controller/src/SmartTransactionsController.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 12
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 12
+    }
+  },
+  "packages/smart-transactions-controller/src/SmartTransactionsController.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 10
+    },
+    "@typescript-eslint/no-floating-promises": {
+      "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/smart-transactions-controller/src/featureFlags/feature-flags.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 1
+    }
+  },
+  "packages/smart-transactions-controller/src/selectors.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/smart-transactions-controller/src/types.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 25
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
+    "@typescript-eslint/prefer-enum-initializers": {
+      "count": 6
+    }
+  },
+  "packages/smart-transactions-controller/src/utils.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 7
+    }
+  },
+  "packages/smart-transactions-controller/src/utils.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 10
+    },
+    "@typescript-eslint/naming-convention": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "jsdoc/require-param-description": {
+      "count": 1
+    }
+  },
+  "packages/smart-transactions-controller/tests/helpers.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/snap-account-service/src/SnapAccountService.test.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/snap-account-service/src/SnapPlatformWatcher.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/snap-account-service/src/SnapPlatformWatcher.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/subscription-controller/src/SubscriptionController.test.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/subscription-controller/src/errors.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/subscription-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/utils/retry.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/transaction-controller/src/utils/utils.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/helpers/QuoteRefresher.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/across-actions.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/transaction.ts": {
+    "no-restricted-syntax": {
+      "count": 6
     }
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {
@@ -1861,6 +2352,21 @@
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
+    }
+  },
+  "tests/fake-provider.ts": {
+    "no-restricted-syntax": {
+      "count": 7
+    }
+  },
+  "tests/helpers.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "tests/mock-network.ts": {
+    "no-restricted-syntax": {
+      "count": 10
     }
   }
 }

@@ -1,0 +1,80 @@
+{
+  "name": "@metamask/social-controllers",
+  "version": "2.5.0",
+  "description": "A collection of social related controllers",
+  "keywords": [
+    "Ethereum",
+    "MetaMask"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/social-controllers#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "files": [
+    "dist/"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/social-controllers",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/social-controllers",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/base-data-service": "^0.1.3",
+    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/messenger": "^2.0.0",
+    "@metamask/profile-sync-controller": "^28.3.0",
+    "@metamask/superstruct": "^3.1.0"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^6.1.0",
+    "@ts-bridge/cli": "^0.6.4",
+    "@types/jest": "^30.0.0",
+    "deepmerge": "^4.2.2",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "tsx": "^4.20.5",
+    "typedoc": "^0.25.13",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~5.3.3"
+  },
+  "engines": {
+    "node": "^18.18 || >=20"
+  }
+}

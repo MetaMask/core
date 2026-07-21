@@ -125,8 +125,8 @@ export async function finalizeAndWriteData(
   await execa('yarn', ['install'], { cwd: REPO_ROOT });
 
   // Add the new package to the root readme content
-  console.log('Running "yarn update-readme-content"...');
-  await execa('yarn', ['update-readme-content'], { cwd: REPO_ROOT });
+  console.log('Running "yarn readme-content:update"...');
+  await execa('yarn', ['readme-content:update'], { cwd: REPO_ROOT });
 }
 
 /**

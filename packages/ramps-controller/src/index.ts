@@ -5,15 +5,66 @@ export type {
   RampsControllerMessenger,
   RampsControllerState,
   RampsControllerStateChangeEvent,
+  RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
   UserRegion,
   ResourceState,
   TransakState,
   NativeProvidersState,
 } from './RampsController';
+export type {
+  RampsControllerExecuteRequestAction,
+  RampsControllerAbortRequestAction,
+  RampsControllerGetRequestStateAction,
+  RampsControllerSetUserRegionAction,
+  RampsControllerSetSelectedProviderAction,
+  RampsControllerInitAction,
+  RampsControllerGetCountriesAction,
+  RampsControllerGetTokensAction,
+  RampsControllerSetSelectedTokenAction,
+  RampsControllerGetProvidersAction,
+  RampsControllerGetPaymentMethodsAction,
+  RampsControllerSetSelectedPaymentMethodAction,
+  RampsControllerGetQuotesAction,
+  RampsControllerAddOrderAction,
+  RampsControllerRemoveOrderAction,
+  RampsControllerStartOrderPollingAction,
+  RampsControllerStopOrderPollingAction,
+  RampsControllerGetBuyWidgetDataAction,
+  RampsControllerAddPrecreatedOrderAction,
+  RampsControllerGetOrderAction,
+  RampsControllerGetOrderFromCallbackAction,
+  RampsControllerTransakSetApiKeyAction,
+  RampsControllerTransakSetAccessTokenAction,
+  RampsControllerTransakClearAccessTokenAction,
+  RampsControllerTransakSetAuthenticatedAction,
+  RampsControllerTransakResetStateAction,
+  RampsControllerTransakSendUserOtpAction,
+  RampsControllerTransakVerifyUserOtpAction,
+  RampsControllerTransakLogoutAction,
+  RampsControllerTransakGetUserDetailsAction,
+  RampsControllerTransakGetBuyQuoteAction,
+  RampsControllerTransakGetKycRequirementAction,
+  RampsControllerTransakGetAdditionalRequirementsAction,
+  RampsControllerTransakCreateOrderAction,
+  RampsControllerTransakGetOrderAction,
+  RampsControllerTransakGetUserLimitsAction,
+  RampsControllerTransakRequestOttAction,
+  RampsControllerTransakGeneratePaymentWidgetUrlAction,
+  RampsControllerTransakSubmitPurposeOfUsageFormAction,
+  RampsControllerTransakPatchUserAction,
+  RampsControllerTransakSubmitSsnDetailsAction,
+  RampsControllerTransakConfirmPaymentAction,
+  RampsControllerTransakGetTranslationAction,
+  RampsControllerTransakGetIdProofStatusAction,
+  RampsControllerTransakCancelOrderAction,
+  RampsControllerTransakCancelAllActiveOrdersAction,
+  RampsControllerTransakGetActiveOrdersAction,
+} from './RampsController-method-action-types';
 export {
   RampsController,
   getDefaultRampsControllerState,
+  getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 export type {
@@ -28,6 +79,9 @@ export type {
   ProviderLink,
   ProviderLogos,
   ProviderBrowserType,
+  ProviderLimit,
+  ProviderFiatLimits,
+  ProviderLimits,
   RampAction,
   PaymentMethod,
   PaymentMethodsResponse,
@@ -47,6 +101,7 @@ export type {
   RampsOrderCryptoCurrency,
   RampsOrderFiatCurrency,
   RampsOrderPaymentMethod,
+  OrderPaymentDetail,
 } from './RampsService';
 export {
   RampsService,
@@ -71,6 +126,7 @@ export type {
   PendingRequest,
   ResourceType,
 } from './RequestCache';
+export type { RampsErrorCode } from './rampsErrorCodes';
 export {
   RequestStatus,
   DEFAULT_REQUEST_CACHE_TTL,
@@ -81,8 +137,31 @@ export {
   createSuccessState,
   createErrorState,
 } from './RequestCache';
+export { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 export type { RequestSelectorResult } from './selectors';
 export { createRequestSelector } from './selectors';
+export type { HeadlessFeatureFlagsLookup } from './featureFlags';
+export {
+  MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
+  isHeadlessAllProvidersEnabled,
+} from './featureFlags';
+export {
+  providerServesAsset,
+  getProvidersServingAsset,
+  regionHasProviderForAsset,
+  isFiatDepositAvailable,
+} from './providerAvailability';
+export {
+  isExternalBrowserQuote,
+  isCustomActionQuote,
+  isInAppOnlyQuote,
+} from './quoteClassification';
+export type { TypedError } from './errorNormalization';
+export {
+  getErrorMessage,
+  extractExplicitTypedError,
+  normalizeToTypedError,
+} from './errorNormalization';
 export type {
   TransakServiceActions,
   TransakServiceEvents,
@@ -115,6 +194,10 @@ export {
   TransakEnvironment,
   TransakOrderIdTransformer,
 } from './TransakService';
+export {
+  getTransakApiMessage,
+  isTransakPhoneRegisteredError,
+} from './transakApiErrorUtils';
 export type {
   TransakServiceMethodActions,
   TransakServiceSendUserOtpAction,

@@ -5,10 +5,10 @@ import {
   AccountWalletType,
 } from '@metamask/account-api';
 import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { KeyringRule, getAccountWalletNameFromKeyringType } from './keyring';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
@@ -18,13 +18,16 @@ import type {
   AccountWalletKeyringObject,
   AccountWalletObjectOf,
 } from '../wallet';
+import { KeyringRule, getAccountWalletNameFromKeyringType } from './keyring';
 
 describe('keyring', () => {
   describe('getAccountWalletNameFromKeyringType', () => {
-    it.each(Object.values(KeyringTypes))(
+    it.each([...Object.values(KeyringTypes), ...Object.values(KeyringType)])(
       'computes wallet name from: %s',
       (type) => {
-        const name = getAccountWalletNameFromKeyringType(type as KeyringTypes);
+        const name = getAccountWalletNameFromKeyringType(
+          type as KeyringTypes | KeyringType,
+        );
 
         expect(name).toBeDefined();
         expect(name.length).toBeGreaterThan(0);
@@ -134,6 +137,14 @@ describe('keyring', () => {
         [KeyringTypes.qr, 'QR Account'],
         [KeyringTypes.trezor, 'Trezor Account'],
         [KeyringTypes.simple, 'Imported Account'],
+        [KeyringType.Lattice, 'Lattice Account'],
+        [KeyringType.Ledger, 'Ledger Account'],
+        [KeyringType.OneKey, 'OneKey Account'],
+        [KeyringType.Qr, 'QR Account'],
+        [KeyringType.Trezor, 'Trezor Account'],
+        [KeyringType.PrivateKey, 'Imported Account'],
+        [KeyringType.Hd, 'Account'],
+        [KeyringType.Snap, 'Snap Account'],
         ['unknown', 'Unknown Account'],
       ])(
         'returns default name prefix for "$0" to be "$1"',

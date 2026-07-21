@@ -1,8 +1,8 @@
+import { TRIGGER_TYPES } from '../../constants/notification-schema';
+import type { Compute } from '../type-utils';
 // Types derived from external Notification API schema - naming follows API conventions
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { components } from './schema';
-import type { TRIGGER_TYPES } from '../../constants/notification-schema';
-import type { Compute } from '../type-utils';
 
 export type Data_MetamaskSwapCompleted =
   components['schemas']['Data_MetamaskSwapCompleted'];
@@ -27,15 +27,12 @@ export type Data_ERC721Received = components['schemas']['Data_ERC721Received'];
 export type NetworkMetadata = components['schemas']['NetworkMetadata'];
 export type BlockExplorer = components['schemas']['BlockExplorer'];
 
-type Notification = components['schemas']['NotificationOutputV3'][number];
-type PlatformNotification = Extract<
-  Notification,
-  { notification_type: 'platform' }
->;
-type OnChainNotification = Extract<
-  Notification,
-  { notification_type: 'on-chain' }
->;
+export type UnprocessedRawNotification =
+  components['schemas']['NotificationOutputV4'][number];
+export type PlatformNotification =
+  components['schemas']['PlatformNotificationV4'];
+export type OnChainNotification =
+  components['schemas']['OnChainNotificationV4'];
 
 type ConvertToEnum<Kind> = {
   [K in TRIGGER_TYPES]: Kind extends `${K}` ? K : never;
@@ -71,14 +68,11 @@ type NormalizeOnChainNotification<
  */
 type NormalizePlatformNotification<
   N extends PlatformNotification = PlatformNotification,
-  NotificationKind extends string = N['notification_type'],
-> = {
-  [K in NotificationKind]: Compute<
-    N & {
-      type: ConvertToEnum<K>;
-    }
-  >;
-}[NotificationKind];
+> = Compute<
+  N & {
+    type: TRIGGER_TYPES.PLATFORM;
+  }
+>;
 
 export type OnChainRawNotification = Compute<
   NormalizeOnChainNotification<OnChainNotification>
@@ -87,8 +81,6 @@ export type OnChainRawNotification = Compute<
 export type PlatformRawNotification = Compute<
   NormalizePlatformNotification<PlatformNotification>
 >;
-
-export type UnprocessedRawNotification = Notification;
 
 export type NormalisedAPINotification =
   | OnChainRawNotification

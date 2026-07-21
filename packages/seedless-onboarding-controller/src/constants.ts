@@ -20,12 +20,13 @@ export enum SecretType {
   PrivateKey = 'privateKey',
 }
 
-export enum SecretMetadataVersion {
-  V1 = 'v1',
+export enum SeedlessOnboardingMigrationVersion {
+  V1 = 1,
 }
 
 export enum SeedlessOnboardingControllerErrorMessage {
   ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
+  VaultLocked = `${controllerName} - The operation cannot be completed while the vault is locked.`,
   AuthenticationError = `${controllerName} - Authentication error`,
   MissingAuthUserInfo = `${controllerName} - Missing authenticated user information`,
   FailedToPersistOprfKey = `${controllerName} - Failed to persist OPRF key`,
@@ -60,4 +61,5 @@ export enum SeedlessOnboardingControllerErrorMessage {
   FailedToFetchAuthPubKey = `${controllerName} - Failed to fetch latest auth pub key`,
   InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
   FailedToRefreshJWTTokens = `${controllerName} - Failed to refresh JWT tokens`,
+  PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
 }

@@ -1,7 +1,12 @@
 export {
-  identifyPermissionByEnforcers,
-  getPermissionDataAndExpiry,
+  findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
+  selectUniqueDecoderAndDecodedPermission,
 } from './decodePermission';
+export { createPermissionDecodersForContracts } from './decoders';
 
-export type { DecodedPermission } from './types';
+export type {
+  DecodedPermission,
+  PermissionDecoder,
+  ValidateAndDecodeResult,
+} from './types';

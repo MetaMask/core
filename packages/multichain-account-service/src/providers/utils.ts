@@ -1,9 +1,37 @@
+import {
+  KeyringControllerError,
+  KeyringControllerErrorMessage,
+} from '@metamask/keyring-controller';
+
 /** Timeout error. */
 export class TimeoutError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'TimeoutError';
   }
+}
+
+/**
+ * Check if an error is a `TimeoutError`.
+ *
+ * @param error - The error to check.
+ * @returns `true` if the error is a `TimeoutError`, otherwise `false`.
+ */
+export function isTimeoutError(error: unknown): error is TimeoutError {
+  return error instanceof TimeoutError;
+}
+
+/**
+ * Check if an error is a `KeyringControllerLockedError`.
+ *
+ * @param error - The error to check.
+ * @returns `true` if the error is a `KeyringControllerLockedError`, otherwise `false`.
+ */
+export function isKeyringControllerLockedError(error: unknown): boolean {
+  return (
+    error instanceof KeyringControllerError &&
+    error.message === KeyringControllerErrorMessage.ControllerLocked
+  );
 }
 
 /**
@@ -44,21 +72,21 @@ export async function withRetry<T>(
 /**
  * Execute a promise with a timeout.
  *
- * @param promise - The promise to execute.
+ * @param fn - A callback that returns the promise to execute.
  * @param timeoutMs - The timeout in milliseconds.
  * @returns The result of the promise.
  */
 export async function withTimeout<T>(
-  promise: Promise<T>,
+  fn: () => Promise<T>,
   timeoutMs: number = 500,
 ): Promise<T> {
   let timer;
   try {
     return await Promise.race<T>([
-      promise,
+      fn(),
       new Promise<T>((_resolve, reject) => {
         timer = setTimeout(
-          () => reject(new TimeoutError('Timed out')),
+          () => reject(new TimeoutError(`Timed out after: ${timeoutMs}ms`)),
           timeoutMs,
         );
       }),

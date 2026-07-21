@@ -12,3 +12,8 @@ export type {
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerEvents,
 } from './MultichainAssetsController';
+export type {
+  MultichainAssetsControllerGetAssetMetadataAction,
+  MultichainAssetsControllerIgnoreAssetsAction,
+  MultichainAssetsControllerAddAssetsAction,
+} from './MultichainAssetsController-method-action-types';

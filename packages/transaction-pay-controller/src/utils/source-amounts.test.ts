@@ -1,11 +1,13 @@
-import { updateSourceAmounts } from './source-amounts';
-import { getTokenFiatRate } from './token';
-import { getTransaction } from './transaction';
+import { TransactionType } from '@metamask/transaction-controller';
+
 import { TransactionPayStrategy } from '..';
 import type { TransactionPaymentToken } from '..';
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type { TransactionData, TransactionPayRequiredToken } from '../types';
+import { updateSourceAmounts } from './source-amounts';
+import { getTokenFiatRate } from './token';
+import { getTransaction } from './transaction';
 
 jest.mock('./token', () => ({
   ...jest.requireActual('./token'),
@@ -52,8 +54,10 @@ describe('Source Amounts Utils', () => {
     jest.resetAllMocks();
 
     getTokenFiatRateMock.mockReturnValue({ fiatRate: '2.0', usdRate: '3.0' });
-    getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
-    getTransactionMock.mockReturnValue({ id: TRANSACTION_ID_MOCK } as never);
+    getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
+    getTransactionMock.mockReturnValue({
+      id: TRANSACTION_ID_MOCK,
+    } as never);
   });
 
   describe('updateSourceAmounts', () => {
@@ -108,6 +112,81 @@ describe('Source Amounts Utils', () => {
             ...TRANSACTION_TOKEN_MOCK,
             address: ARBITRUM_USDC_ADDRESS,
             chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
+    it('does not return empty array if payment token matches but supported perps deposit and across strategy', () => {
+      getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
+      getTransactionMock.mockReturnValue({
+        id: TRANSACTION_ID_MOCK,
+        type: TransactionType.perpsDeposit,
+      } as never);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          address: ARBITRUM_USDC_ADDRESS,
+          chainId: CHAIN_ID_ARBITRUM,
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
+    it('does not return empty array if payment token matches but perps deposit and order and across strategy', () => {
+      getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
+      getTransactionMock.mockReturnValue({
+        id: TRANSACTION_ID_MOCK,
+        type: TransactionType.perpsDepositAndOrder,
+      } as never);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          address: ARBITRUM_USDC_ADDRESS,
+          chainId: CHAIN_ID_ARBITRUM,
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
+    it('does not return empty array if payment token matches but isQuoteRequired is true', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isQuoteRequired: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: PAYMENT_TOKEN_MOCK.address,
+            chainId: PAYMENT_TOKEN_MOCK.chainId,
           },
         ],
       };
@@ -305,6 +384,63 @@ describe('Source Amounts Utils', () => {
         const transactionData: TransactionData = {
           isLoading: false,
           isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: DESTINATION_TOKEN_MOCK.address,
+              chainId: DESTINATION_TOKEN_MOCK.chainId,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
+      it('does not filter out same token when isHyperliquidSource is true in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isHyperliquidSource: true,
+          paymentToken: {
+            ...DESTINATION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+            decimals: 6,
+            symbol: 'USDC',
+          },
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: ARBITRUM_USDC_ADDRESS,
+              chainId: CHAIN_ID_ARBITRUM,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.amountHuman,
+            sourceAmountRaw: TRANSACTION_TOKEN_MOCK.amountRaw,
+            sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ]);
+      });
+
+      it('still filters out same token when isHyperliquidSource is false in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isHyperliquidSource: false,
           paymentToken: DESTINATION_TOKEN_MOCK,
           tokens: [
             {

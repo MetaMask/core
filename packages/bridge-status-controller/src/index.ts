@@ -1,3 +1,10 @@
+// Export custom error classes
+export {
+  QuoteStatusUpdateError,
+  QuoteStatusGetError,
+} from './quote-status-manager/errors';
+export { BaseQuoteStatusUpdateErrorTypes } from './quote-status-manager/constants';
+
 // Export constants
 export {
   REFRESH_INTERVAL_MS,
@@ -15,13 +22,10 @@ export type {
   RefuelStatusResponse,
   BridgeHistoryItem,
   BridgeStatusControllerState,
+  QuoteStatusPersistEntry,
   BridgeStatusControllerMessenger,
   BridgeStatusControllerActions,
   BridgeStatusControllerGetStateAction,
-  BridgeStatusControllerStartPollingForBridgeTxStatusAction,
-  BridgeStatusControllerWipeBridgeStatusAction,
-  BridgeStatusControllerResetStateAction,
-  BridgeStatusControllerRestartPollingForFailedAttemptsAction,
   BridgeStatusControllerEvents,
   BridgeStatusControllerStateChangeEvent,
   StartPollingForBridgeTxStatusArgs,
@@ -30,8 +34,21 @@ export type {
   QuoteMetadataSerialized,
 } from './types';
 
+export type {
+  BridgeStatusControllerStartPollingForBridgeTxStatusAction,
+  BridgeStatusControllerWipeBridgeStatusAction,
+  BridgeStatusControllerResetStateAction,
+  BridgeStatusControllerSubmitTxAction,
+  BridgeStatusControllerSubmitIntentAction,
+  BridgeStatusControllerRestartPollingForFailedAttemptsAction,
+  BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction,
+} from './bridge-status-controller-method-action-types';
+
 export { BridgeId, BridgeStatusAction } from './types';
 
 export { BridgeStatusController } from './bridge-status-controller';
 
-export { getTxMetaFields } from './utils/transaction';
+export {
+  getBatchSellHistoryItemsForTxHash,
+  isBatchSellHistoryItem,
+} from './utils/history';

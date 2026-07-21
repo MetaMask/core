@@ -1,16 +1,16 @@
-import type { V5BalanceItem } from '@metamask/core-backend';
+import type {
+  V5BalanceItem,
+  V6AccountBalancesEntry,
+} from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import {
   isCaipChainId,
   KnownCaipNamespace,
   toCaipChainId,
 } from '@metamask/utils';
 
-import type {
-  DataSourceState,
-  SubscriptionRequest,
-} from './AbstractDataSource';
-import { AbstractDataSource } from './AbstractDataSource';
+import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   ChainId,
@@ -21,7 +21,12 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types';
-import { normalizeAssetId } from '../utils';
+import { fetchWithTimeout, normalizeAssetId } from '../utils';
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource';
+import { AbstractDataSource } from './AbstractDataSource';
 
 // ============================================================================
 // CONSTANTS
@@ -29,6 +34,7 @@ import { normalizeAssetId } from '../utils';
 
 const CONTROLLER_NAME = 'AccountsApiDataSource';
 const DEFAULT_POLL_INTERVAL = 30_000;
+const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -36,9 +42,11 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // MESSENGER TYPES
 // ============================================================================
 
-// Allowed actions that AccountsApiDataSource can call (none - uses callbacks).
-// Note: Uses ApiPlatformClient directly, so no BackendApiClient actions needed
-export type AccountsApiDataSourceAllowedActions = never;
+// Allowed actions that AccountsApiDataSource can call. Balances are fetched via
+// ApiPlatformClient directly (no BackendApiClient actions needed); the messenger
+// is only used to read the Accounts API v6 balances feature flag.
+export type AccountsApiDataSourceAllowedActions =
+  RemoteFeatureFlagControllerGetStateAction;
 
 // ============================================================================
 // STATE
@@ -64,9 +72,20 @@ export type AccountsApiDataSourceConfig = {
    * Using a getter avoids stale values when the user toggles the preference at runtime.
    */
   tokenDetectionEnabled?: () => boolean;
+  /**
+   * Timeout in ms for a single balances fetch call (default: 15000).
+   * When it fires, every requested chain is marked as errored so the
+   * middleware hands them off to the next data source (e.g. RPC fallback).
+   */
+  fetchTimeoutMs?: number;
 };
 
 export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
+  /**
+   * The AssetsController messenger (shared by all data sources). Used to read
+   * the `assetsAccountsApiV6` remote feature flag.
+   */
+  messenger: AssetsControllerMessenger;
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
   /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
@@ -180,8 +199,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   readonly #pollInterval: number;
 
+  readonly #fetchTimeoutMs: number;
+
   /** Getter avoids stale value when user toggles token detection at runtime. */
   readonly #tokenDetectionEnabled: () => boolean;
+
+  /** Shared AssetsController messenger, used to read remote feature flags. */
+  readonly #messenger: AssetsControllerMessenger;
 
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
@@ -200,11 +224,42 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
+    this.#messenger = options.messenger;
     this.#apiClient = options.queryApiClient;
 
     this.#initializeActiveChains().catch(console.error);
+  }
+
+  /**
+   * Whether the Accounts API v6 balances endpoint is enabled, read from the
+   * RemoteFeatureFlagController (`assetsAccountsApiV6`). Read on demand (per
+   * fetch) rather than cached so the value can be toggled at runtime, and behaves
+   * the same across clients (extension, mobile). Defaults to `false` when the
+   * flag is unset or the controller is unavailable.
+   *
+   * The flag is a LaunchDarkly JSON variation shaped `{ value: boolean }` (same
+   * shape as `backendWebSocketConnection`), so the nested `value` is read rather
+   * than treating the flag as a plain boolean.
+   *
+   * @returns `true` when the v6 balances endpoint should be used.
+   */
+  #isBalanceV6Enabled(): boolean {
+    try {
+      const { remoteFeatureFlags } = this.#messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      const flag = remoteFeatureFlags?.assetsAccountsApiV6;
+      return (
+        typeof flag === 'object' &&
+        flag !== null &&
+        Boolean((flag as { value?: unknown }).value)
+      );
+    } catch {
+      return false;
+    }
   }
 
   // ============================================================================
@@ -254,11 +309,27 @@ export class AccountsApiDataSource extends AbstractDataSource<
     }
   }
 
+  /**
+   * Re-fetch supported networks from the Accounts API and update `activeChains`
+   * when the list changed. Used when the selected EVM network switches so
+   * chain claiming is not stuck on an empty init-time list.
+   *
+   * @returns Resolves when supported networks have been re-fetched.
+   */
+  refreshActiveChains(): Promise<void> {
+    return this.#refreshActiveChains();
+  }
+
   async #fetchActiveChains(): Promise<ChainId[]> {
     const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
 
     // Use fullSupport networks as active chains
-    return response.fullSupport.map(decimalToChainId);
+    return (
+      response.fullSupport
+        .map(decimalToChainId)
+        // TODO Restore solana when there is a fix for how we handle non-evm chains here
+        .filter((chainId) => chainId.startsWith('eip155:'))
+    );
   }
 
   // ============================================================================
@@ -304,13 +375,20 @@ export class AccountsApiDataSource extends AbstractDataSource<
         return response;
       }
 
-      const apiResponse =
-        await this.#apiClient.accounts.fetchV5MultiAccountBalances(accountIds);
+      const fetchOptions = request.forceUpdate
+        ? { staleTime: 0, gcTime: 0 }
+        : undefined;
+
+      // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
+      // read here (not cached) so a runtime toggle can revert v6 -> v5.
+      const { unprocessedNetworks, assetsBalance } = this.#isBalanceV6Enabled()
+        ? await this.#fetchV6Balances(accountIds, fetchOptions, request)
+        : await this.#fetchV5Balances(accountIds, fetchOptions, request);
 
       // Handle unprocessed networks - these will be passed to next middleware
-      if (apiResponse.unprocessedNetworks.length > 0) {
+      if (unprocessedNetworks.length > 0) {
         const unprocessedChainIds =
-          apiResponse.unprocessedNetworks.map(caipChainIdToChainId);
+          unprocessedNetworks.map(caipChainIdToChainId);
 
         // Add unprocessed chains to errors so middleware passes them to next data source
         response.errors = response.errors ?? {};
@@ -319,12 +397,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
         }
       }
 
-      const { assetsBalance } = this.#processV5Balances(
-        apiResponse.balances,
-        request,
-      );
-
       response.assetsBalance = assetsBalance;
+      response.updateMode = 'merge';
     } catch (error) {
       log('Fetch FAILED', { error, chains: chainsToFetch });
 
@@ -353,6 +427,96 @@ export class AccountsApiDataSource extends AbstractDataSource<
   }
 
   /**
+   * Fetch balances from the legacy v5 endpoint and process them.
+   *
+   * @param accountIds - CAIP-10 account IDs to fetch balances for.
+   * @param fetchOptions - Cache/fetch options (e.g. force update settings).
+   * @param request - The original data request containing accounts to map.
+   * @returns Unprocessed networks and processed asset balances by account.
+   */
+  async #fetchV5Balances(
+    accountIds: string[],
+    fetchOptions: { staleTime: number; gcTime: number } | undefined,
+    request: DataRequest,
+  ): Promise<{
+    unprocessedNetworks: string[];
+    assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
+  }> {
+    const apiResponse = await fetchWithTimeout(
+      () =>
+        this.#apiClient.accounts.fetchV5MultiAccountBalances(
+          accountIds,
+          undefined,
+          fetchOptions,
+        ),
+      this.#fetchTimeoutMs,
+    );
+
+    const { assetsBalance } = this.#processV5Balances(
+      apiResponse.balances,
+      request,
+    );
+
+    return {
+      unprocessedNetworks: apiResponse.unprocessedNetworks,
+      assetsBalance,
+    };
+  }
+
+  /**
+   * Fetch balances from the v6 endpoint and process them.
+   *
+   * @param accountIds - CAIP-10 account IDs to fetch balances for.
+   * @param fetchOptions - Cache/fetch options (e.g. force update settings).
+   * @param request - The original data request containing accounts to map.
+   * @returns Unprocessed networks and processed asset balances by account.
+   */
+  async #fetchV6Balances(
+    accountIds: string[],
+    fetchOptions: { staleTime: number; gcTime: number } | undefined,
+    request: DataRequest,
+  ): Promise<{
+    unprocessedNetworks: string[];
+    assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
+  }> {
+    const apiResponse = await fetchWithTimeout(
+      () =>
+        this.#apiClient.accounts.fetchV6MultiAccountBalances(
+          accountIds,
+          undefined,
+          fetchOptions,
+        ),
+      this.#fetchTimeoutMs,
+    );
+
+    const { assetsBalance } = this.#processV6Balances(
+      apiResponse.accounts,
+      request,
+    );
+
+    return {
+      unprocessedNetworks: apiResponse.unprocessedNetworks,
+      assetsBalance,
+    };
+  }
+
+  /**
+   * Build a lookup of lowercased account address to the request's account ID.
+   *
+   * @param request - The original data request containing accounts to map.
+   * @returns Map of lowercase address to account ID.
+   */
+  #buildAddressToAccountIdMap(request: DataRequest): Map<string, string> {
+    const addressToAccountId = new Map<string, string>();
+    for (const { account } of request.accountsWithSupportedChains) {
+      if (account.address) {
+        addressToAccountId.set(account.address.toLowerCase(), account.id);
+      }
+    }
+    return addressToAccountId;
+  }
+
+  /**
    * Process V5 API balances response.
    * V5 returns a flat array of balance items, each with accountId and assetId.
    *
@@ -372,12 +536,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
     > = {};
 
     // Build a map of lowercase addresses to account IDs for efficient lookup
-    const addressToAccountId = new Map<string, string>();
-    for (const { account } of request.accountsWithSupportedChains) {
-      if (account.address) {
-        addressToAccountId.set(account.address.toLowerCase(), account.id);
-      }
-    }
+    const addressToAccountId = this.#buildAddressToAccountIdMap(request);
 
     // V5 response: array of { accountId, assetId, balance, ... }
     for (const item of balances) {
@@ -406,6 +565,73 @@ export class AccountsApiDataSource extends AbstractDataSource<
       assetsBalance[accountId][normalizedAssetId] = {
         amount: item.balance,
       };
+    }
+
+    return { assetsBalance };
+  }
+
+  /**
+   * Process V6 API balances response.
+   * V6 groups balances per account (`accounts: [{ accountId, balances }]`).
+   * Only `category: 'token'` rows are consumed here to preserve parity with
+   * the v5 token-balance behavior; DeFi positions are ignored.
+   *
+   * @param accounts - Per-account balance entries from the V6 API response.
+   * @param request - The original data request containing accounts to map.
+   * @returns Object containing processed asset balances by account.
+   */
+  #processV6Balances(
+    accounts: V6AccountBalancesEntry[],
+    request: DataRequest,
+  ): {
+    assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
+  } {
+    const assetsBalance = Object.create(null) as Record<
+      string,
+      Record<Caip19AssetId, AssetBalance>
+    >;
+
+    // Build a map of lowercase addresses to account IDs for efficient lookup
+    const addressToAccountId = this.#buildAddressToAccountIdMap(request);
+
+    for (const entry of accounts) {
+      // Extract address from CAIP-10 account ID (e.g., "eip155:1:0x1234..." -> "0x1234...")
+      const addressParts = entry.accountId.split(':');
+      if (addressParts.length < 3) {
+        continue;
+      }
+      const address = addressParts[2].toLowerCase();
+
+      // Find the matching account ID from request
+      const accountId = addressToAccountId.get(address);
+      if (!accountId) {
+        // This is normal - API returns balances for all chains, but request may only have one account
+        continue;
+      }
+
+      for (const item of entry.balances) {
+        // Only consume token balances; DeFi positions are handled elsewhere.
+        if (item.category !== 'token') {
+          continue;
+        }
+
+        if (!assetsBalance[accountId]) {
+          assetsBalance[accountId] = Object.create(null) as Record<
+            Caip19AssetId,
+            AssetBalance
+          >;
+        }
+
+        // Normalize asset ID (checksum EVM addresses for ERC20 tokens)
+        const normalizedAssetId = normalizeAssetId(
+          item.assetId as Caip19AssetId,
+        );
+
+        // Store balance as returned by API
+        assetsBalance[accountId][normalizedAssetId] = {
+          amount: item.balance,
+        };
+      }
     }
 
     return { assetsBalance };

@@ -15,7 +15,6 @@ export function buildEthGasPriceRequestMock(
   return {
     request: {
       method: 'eth_gasPrice',
-      params: [],
     },
     response: {
       result,

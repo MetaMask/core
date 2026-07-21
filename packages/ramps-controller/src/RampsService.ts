@@ -4,9 +4,10 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
-import type { RampsServiceMethodActions } from './RampsService-method-action-types';
 import packageJson from '../package.json';
+import type { RampsServiceMethodActions } from './RampsService-method-action-types';
 
 /**
  * Represents phone number information for a country.
@@ -81,11 +82,39 @@ export type ProviderLogos = {
 export type ProviderBrowserType = 'APP_BROWSER' | 'IN_APP_OS_BROWSER' | null;
 
 /**
+ * Fiat amount limits for a provider and payment method.
+ */
+export type ProviderLimit = {
+  minAmount: number;
+  maxAmount: number;
+  feeFixedRate: number;
+  feeDynamicRate: number;
+};
+
+/**
+ * Fiat buy limits keyed by lowercased fiat short code, then payment method id.
+ */
+export type ProviderFiatLimits = Record<string, Record<string, ProviderLimit>>;
+
+/**
+ * Provider limits exposed by the regions providers endpoint.
+ */
+export type ProviderLimits = {
+  fiat?: ProviderFiatLimits;
+};
+
+/**
  * Represents a ramp provider.
  */
 export type Provider = {
   id: string;
   name: string;
+  /**
+   * Provider classification from the v2 API: 'native' (first-party
+   * integration, e.g. Transak Native) or 'aggregator' (third-party redirect).
+   * May be absent on responses that predate the v2 type field.
+   */
+  type?: 'aggregator' | 'native';
   environmentType: string;
   description: string;
   hqAddress: string;
@@ -94,6 +123,7 @@ export type Provider = {
   supportedCryptoCurrencies?: Record<string, boolean>;
   supportedFiatCurrencies?: Record<string, boolean>;
   supportedPaymentMethods?: Record<string, boolean>;
+  limits?: ProviderLimits;
 };
 
 /**
@@ -543,6 +573,16 @@ export type RampsOrderPaymentMethod = {
 };
 
 /**
+ * Bank transfer instruction fields attached to an order by providers
+ * that require manual payment (e.g. SEPA, wire transfer).
+ */
+export type OrderPaymentDetail = {
+  fiatCurrency: string;
+  paymentMethod: string;
+  fields: { name: string; id: string; value: string }[];
+};
+
+/**
  * Fiat currency information associated with an order.
  */
 export type RampsOrderFiatCurrency = {
@@ -560,21 +600,21 @@ export type RampsOrderFiatCurrency = {
 export type RampsOrder = {
   id?: string;
   isOnlyLink: boolean;
-  provider?: string | Provider;
+  provider?: Provider;
   success: boolean;
   cryptoAmount: string | number;
   fiatAmount: number;
-  cryptoCurrency?: string | RampsOrderCryptoCurrency;
-  fiatCurrency?: string | RampsOrderFiatCurrency;
+  cryptoCurrency?: RampsOrderCryptoCurrency;
+  fiatCurrency?: RampsOrderFiatCurrency;
   providerOrderId: string;
   providerOrderLink: string;
   createdAt: number;
-  paymentMethod?: string | RampsOrderPaymentMethod;
+  paymentMethod?: RampsOrderPaymentMethod;
   totalFeesFiat: number;
   txHash: string;
   walletAddress: string;
   status: RampsOrderStatus;
-  network: string | RampsOrderNetwork;
+  network: RampsOrderNetwork;
   canBeUpdated: boolean;
   idHasExpired: boolean;
   idExpirationDate?: number;
@@ -589,6 +629,7 @@ export type RampsOrder = {
   statusDescription?: string;
   partnerFees?: number;
   networkFees?: number;
+  paymentDetails?: OrderPaymentDetail[];
 };
 
 /**
@@ -650,7 +691,8 @@ export type RampsServiceActions = RampsServiceMethodActions;
 /**
  * Actions from other messengers that {@link RampsService} calls.
  */
-type AllowedActions = never;
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Events that {@link RampsService} exposes to other consumers.
@@ -676,7 +718,8 @@ export type RampsServiceMessenger = Messenger<
 
 /**
  * Gets the base URL for API requests based on the environment and service type.
- * The Regions service uses a cache URL, while other services use the standard URL.
+ * The Regions service uses a cache hostname in production and staging only;
+ * development serves regions from the same `on-ramp.dev-api` host (no `-cache`).
  *
  * @param environment - The environment to use.
  * @param service - The API service type (determines if cache URL is used).
@@ -686,14 +729,19 @@ function getBaseUrl(
   environment: RampsEnvironment,
   service: RampsApiService,
 ): string {
-  const cache = service === RampsApiService.Regions ? '-cache' : '';
+  const cache =
+    service === RampsApiService.Regions &&
+    environment !== RampsEnvironment.Development
+      ? '-cache'
+      : '';
 
   switch (environment) {
     case RampsEnvironment.Production:
       return `https://on-ramp${cache}.api.cx.metamask.io`;
     case RampsEnvironment.Staging:
-    case RampsEnvironment.Development:
       return `https://on-ramp${cache}.uat-api.cx.metamask.io`;
+    case RampsEnvironment.Development:
+      return `https://on-ramp${cache}.dev-api.cx.metamask.io`;
     case RampsEnvironment.Local:
       return 'http://localhost:3000';
     default:
@@ -849,6 +897,24 @@ export class RampsService {
       return this.#baseUrlOverride;
     }
     return getBaseUrl(this.#environment, service);
+  }
+
+  /**
+   * Builds the request headers for authenticated ramps API calls.
+   *
+   * Fetches a bearer token from `AuthenticationController` and returns it as
+   * an `Authorization` header. Throws if the token is unavailable (e.g. the
+   * wallet is locked or the user is signed out).
+   *
+   * @returns Headers containing the `Authorization: Bearer <token>` entry.
+   */
+  async #getRequestHeaders(): Promise<Record<string, string>> {
+    const bearerToken = await this.#messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    return {
+      Authorization: `Bearer ${bearerToken}`,
+    };
   }
 
   /**
@@ -1070,13 +1136,13 @@ export class RampsService {
 
   /**
    * Fetches the list of providers for a given region.
-   * Supports optional query filters: provider, crypto, fiat, payments.
+   * Supports optional query filters: provider, crypto, payments.
+   * Region local fiat filtering is applied server-side when `fiat` is omitted.
    *
    * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
    * @param options - Optional query parameters for filtering providers.
    * @param options.provider - Provider ID(s) to filter by.
    * @param options.crypto - Crypto currency ID(s) to filter by.
-   * @param options.fiat - Fiat currency ID(s) to filter by.
    * @param options.payments - Payment method ID(s) to filter by.
    * @returns The providers response containing providers array.
    */
@@ -1085,7 +1151,6 @@ export class RampsService {
     options?: {
       provider?: string | string[];
       crypto?: string | string[];
-      fiat?: string | string[];
       payments?: string | string[];
     },
   ): Promise<{ providers: Provider[] }> {
@@ -1108,13 +1173,6 @@ export class RampsService {
         ? options.crypto
         : [options.crypto];
       cryptoIds.forEach((id) => url.searchParams.append('crypto', id));
-    }
-
-    if (options?.fiat) {
-      const fiatIds = Array.isArray(options.fiat)
-        ? options.fiat
-        : [options.fiat];
-      fiatIds.forEach((id) => url.searchParams.append('fiat', id));
     }
 
     if (options?.payments) {
@@ -1149,16 +1207,16 @@ export class RampsService {
   /**
    * Fetches the list of payment methods for a given region, asset, and provider.
    *
+   * Region local fiat filtering is applied server-side when `fiat` is omitted.
+   *
    * @param options - Query parameters for filtering payment methods.
    * @param options.region - User's region code (e.g., "us-al").
-   * @param options.fiat - Fiat currency code (e.g., "usd").
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
    * @returns The payment methods response containing payments array.
    */
   async getPaymentMethods(options: {
     region: string;
-    fiat: string;
     assetId: string;
     provider: string;
   }): Promise<PaymentMethodsResponse> {
@@ -1170,7 +1228,6 @@ export class RampsService {
     this.#addCommonParams(url);
 
     url.searchParams.set('region', options.region.toLowerCase().trim());
-    url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
     url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
@@ -1230,6 +1287,8 @@ export class RampsService {
     url.searchParams.set('amount', String(params.amount));
     url.searchParams.set('walletAddress', params.walletAddress);
 
+    const headers = await this.#getRequestHeaders();
+
     // Add payment methods as array parameters
     params.paymentMethods.forEach((paymentMethod) => {
       url.searchParams.append('payments', paymentMethod);
@@ -1246,7 +1305,7 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1284,8 +1343,10 @@ export class RampsService {
     const url = new URL(buyUrl);
     this.#addCommonParams(url);
 
+    const headers = await this.#getRequestHeaders();
+
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1303,11 +1364,23 @@ export class RampsService {
   }
 
   /**
+   * Strips the `/providers/` prefix so the URL path uses the short form.
+   * Accepts both `/providers/transak` and `transak`.
+   *
+   * @param providerId - Provider ID in either path or short format.
+   * @returns The short provider code.
+   */
+  #toProviderSegment(providerId: string): string {
+    return providerId.replace(/^\/providers\//u, '');
+  }
+
+  /**
    * Fetches an order from the unified V2 API endpoint.
    * This endpoint returns a normalized `RampsOrder` (DepositOrder shape)
    * for all provider types, including both aggregator and native providers.
    *
-   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay"),
+   *   with or without the `/providers/` prefix.
    * @param orderCode - The order identifier.
    * @param wallet - The wallet address associated with the order.
    * @returns The unified order data.
@@ -1317,12 +1390,15 @@ export class RampsService {
     orderCode: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    const segment = this.#toProviderSegment(providerCode);
     const url = new URL(
-      getApiPath(`providers/${providerCode}/orders/${orderCode}`),
+      getApiPath(`providers/${segment}/orders/${orderCode}`),
       this.#getBaseUrl(RampsApiService.Orders),
     );
     this.#addCommonParams(url);
-    url.searchParams.set('wallet', wallet);
+    if (wallet) {
+      url.searchParams.set('wallet', wallet);
+    }
 
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url);
@@ -1350,7 +1426,8 @@ export class RampsService {
    *
    * This is the V2 equivalent of the aggregator SDK's `getOrderFromCallback`.
    *
-   * @param providerCode - The provider code (e.g., "transak", "moonpay").
+   * @param providerCode - The provider code (e.g., "transak", "moonpay"),
+   *   with or without the `/providers/` prefix.
    * @param callbackUrl - The full callback URL the provider redirected to.
    * @param wallet - The wallet address associated with the order.
    * @returns The unified order data.
@@ -1360,10 +1437,11 @@ export class RampsService {
     callbackUrl: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    const segment = this.#toProviderSegment(providerCode);
     // Step 1: Send the callback URL to the backend to extract the order ID.
     // The backend parses it using provider-specific logic.
     const callbackApiUrl = new URL(
-      getApiPath(`providers/${providerCode}/callback`),
+      getApiPath(`providers/${segment}/callback`),
       this.#getBaseUrl(RampsApiService.Orders),
     );
     this.#addCommonParams(callbackApiUrl);

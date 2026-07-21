@@ -9,7 +9,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [3.0.2]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/keyring-controller` from `^25.2.0` to `^26.0.0` ([#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722), [#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [3.0.0]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+### Removed
+
+- **BREAKING:** Remove persisted `delegations` state ([#8330](https://github.com/MetaMask/core/pull/8330))
+  - `store`, `list`, `retrieve`, `chain`, and `delete` methods (and related messenger action types)
+  - `DelegationEntry` type export
+  - Remove dependency on `@metamask/accounts-controller` - callers no longer need to delegate the `AccountsController:getSelectedAccount` action to the `DelegationController` messenger
+
+## [2.1.0]
+
+### Added
+
+- Export `DelegationControllerGetStateAction` type ([#8205](https://github.com/MetaMask/core/pull/8205))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^37.0.0` to `^37.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [2.0.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
 
 ## [2.0.1]
 
@@ -106,7 +155,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5592](https://github.com/MetaMask/core/pull/5592))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.2...HEAD
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.1...@metamask/delegation-controller@3.0.2
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.0...@metamask/delegation-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.1.0...@metamask/delegation-controller@3.0.0
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.0.2...@metamask/delegation-controller@2.1.0
+[2.0.2]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.0.1...@metamask/delegation-controller@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.0.0...@metamask/delegation-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@1.0.0...@metamask/delegation-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@0.8.1...@metamask/delegation-controller@1.0.0

@@ -3,9 +3,6 @@ export type {
   AddressBookEntry,
   AddressBookControllerState,
   AddressBookControllerGetStateAction,
-  AddressBookControllerListAction,
-  AddressBookControllerSetAction,
-  AddressBookControllerDeleteAction,
   AddressBookControllerActions,
   AddressBookControllerStateChangeEvent,
   AddressBookControllerContactUpdatedEvent,
@@ -18,3 +15,10 @@ export {
   getDefaultAddressBookControllerState,
   AddressBookController,
 } from './AddressBookController';
+
+export type {
+  AddressBookControllerListAction,
+  AddressBookControllerSetAction,
+  AddressBookControllerDeleteAction,
+  AddressBookControllerClearAction,
+} from './AddressBookController-method-action-types';

@@ -541,8 +541,7 @@ export function normalizeEnsName(ensName: string): string | null {
     try {
       const normalized = ensNamehash.normalize(ensName.trim());
       // this regex is only sufficient with the above call to ensNamehash.normalize
-      // TODO: change 7 in regex to 3 when shorter ENS domains are live
-      if (normalized.match(/^(([\w\d-]+)\.)*[\w\d-]{7,}\.(eth|test)$/u)) {
+      if (normalized.match(/^(([\w\d-]+)\.)*[\w\d-]{3,}\.(eth|test)$/u)) {
         return normalized;
       }
     } catch {

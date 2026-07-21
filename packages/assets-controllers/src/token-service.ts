@@ -13,17 +13,110 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
 
 /**
+ * Per-chain suggested occurrence floors endpoint. Used as the `occurrenceFloor`
+ * query param when fetching token lists (aligned with assets-controller
+ * TokenDataSource / TokensApiClient).
+ */
+const SUGGESTED_OCCURRENCE_FLOORS_URL = `${TOKEN_END_POINT_API}/v1/suggestedOccurrenceFloors`;
+
+/**
+ * Fallback `occurrenceFloor` when `/v1/suggestedOccurrenceFloors` has no entry
+ * for the chain, or the floors request fails.
+ */
+const DEFAULT_OCCURRENCE_FLOOR = 3;
+
+/** How long to keep suggested occurrence floors cached (1 hour). */
+const SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS = 60 * 60_000;
+
+/** Decimal chain ID → suggested occurrence floor. */
+let suggestedOccurrenceFloorsCache: Record<string, number> | undefined;
+
+/** Timestamp of the last successful (or failed-open) floors fetch. */
+let suggestedOccurrenceFloorsCachedAt = 0;
+
+/** In-flight floors request shared across concurrent callers. */
+let suggestedOccurrenceFloorsRefreshPromise:
+  | Promise<Record<string, number>>
+  | undefined;
+
+/**
+ * Clears the suggested occurrence floors cache. Exported for unit tests only.
+ */
+export function resetSuggestedOccurrenceFloorsCacheForTesting(): void {
+  suggestedOccurrenceFloorsCache = undefined;
+  suggestedOccurrenceFloorsCachedAt = 0;
+  suggestedOccurrenceFloorsRefreshPromise = undefined;
+}
+
+/**
+ * Fetch `/v1/suggestedOccurrenceFloors` with a 1h in-memory cache. Failures
+ * return an empty map so callers fall back to {@link DEFAULT_OCCURRENCE_FLOOR}.
+ *
+ * @returns Map of decimal chain ID → suggested occurrence floor.
+ */
+async function getSuggestedOccurrenceFloors(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (
+    suggestedOccurrenceFloorsCache !== undefined &&
+    now - suggestedOccurrenceFloorsCachedAt <
+      SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS
+  ) {
+    return suggestedOccurrenceFloorsCache;
+  }
+
+  if (suggestedOccurrenceFloorsRefreshPromise !== undefined) {
+    return suggestedOccurrenceFloorsRefreshPromise;
+  }
+
+  suggestedOccurrenceFloorsRefreshPromise = (async (): Promise<
+    Record<string, number>
+  > => {
+    try {
+      const response = await fetch(SUGGESTED_OCCURRENCE_FLOORS_URL);
+      if (response.ok) {
+        const data = (await response.json()) as unknown;
+        suggestedOccurrenceFloorsCache =
+          data && typeof data === 'object' && !Array.isArray(data)
+            ? (data as Record<string, number>)
+            : {};
+      } else {
+        suggestedOccurrenceFloorsCache = {};
+      }
+    } catch {
+      suggestedOccurrenceFloorsCache = {};
+    } finally {
+      suggestedOccurrenceFloorsCachedAt = Date.now();
+      suggestedOccurrenceFloorsRefreshPromise = undefined;
+    }
+    return suggestedOccurrenceFloorsCache ?? {};
+  })();
+
+  return suggestedOccurrenceFloorsRefreshPromise;
+}
+
+/**
+ * Resolve the `occurrenceFloor` query param for a chain from Token API
+ * `/v1/suggestedOccurrenceFloors`. Falls back to
+ * {@link DEFAULT_OCCURRENCE_FLOOR} when the chain is missing or the request
+ * fails.
+ *
+ * @param chainId - Hex chain ID.
+ * @returns Occurrence floor to send to `/tokens/{chainId}`.
+ */
+async function getOccurrenceFloor(chainId: Hex): Promise<number> {
+  const floors = await getSuggestedOccurrenceFloors();
+  const decimalChainId = String(convertHexToDecimal(chainId));
+  return floors[decimalChainId] ?? DEFAULT_OCCURRENCE_FLOOR;
+}
+
+/**
  * Get the tokens URL for a specific network.
  *
  * @param chainId - The chain ID of the network the tokens requested are on.
  * @returns The tokens URL.
  */
-function getTokensURL(chainId: Hex): string {
-  const occurrenceFloor =
-    chainId === ChainId['linea-mainnet'] ||
-    chainId === ChainId['megaeth-mainnet']
-      ? 1
-      : 3;
+async function getTokensURL(chainId: Hex): Promise<string> {
+  const occurrenceFloor = await getOccurrenceFloor(chainId);
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
@@ -59,18 +152,22 @@ export type SortTrendingBy =
  * @param options.chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
  * @param options.query - The search query (token name, symbol, or address).
  * @param options.limit - Optional limit for the number of results (defaults to 10).
+ * @param options.after - Optional cursor for fetching the next page of results.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
  * @returns The token search URL.
  */
 function getTokenSearchURL(options: {
   chainIds: CaipChainId[];
   query: string;
   limit?: number;
+  after?: string;
   includeMarketData?: boolean;
   includeRwaData?: boolean;
+  includeTokenSecurityData?: boolean;
 }): string {
-  const { chainIds, query, ...optionalParams } = options;
+  const { chainIds, query, limit, after, ...optionalParams } = options;
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
@@ -81,27 +178,119 @@ function getTokenSearchURL(options: {
       queryParams.append(key, String(value));
     }
   });
-  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&${queryParams.toString()}`;
+
+  let numberOfItems;
+  if (limit) {
+    if (limit <= 50) {
+      numberOfItems = limit;
+    } else if (query.includes('Ondo') && limit <= 500) {
+      // There is an exception on the API side https://github.com/consensys-vertical-apps/va-mmcx-token-api/pull/287
+      numberOfItems = limit;
+    } else {
+      numberOfItems = 50;
+    }
+  }
+
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}${numberOfItems ? `&first=${numberOfItems}` : ''}${after ? `&after=${encodeURIComponent(after)}` : ''}&${queryParams.toString()}`;
 }
 
 /**
- * Get the trending tokens URL for the given networks and search query.
+ * Get the token assets URL for the given asset IDs.
  *
- * @param options - Options for getting trending tokens.
- * @param options.chainIds - Array of CAIP format chain IDs (e.g., ['eip155:1', 'eip155:137', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp']).
- * @param options.sort - The sort field.
- * @param options.minLiquidity - The minimum liquidity.
- * @param options.minVolume24hUsd - The minimum volume 24h in USD.
- * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
- * @param options.minMarketCap - The minimum market cap.
- * @param options.maxMarketCap - The maximum market cap.
- * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
+ * @param options - Options for getting token assets.
+ * @param options.assetIds - Array of CAIP-19 asset IDs (e.g., ['eip155:1/erc20:0x...', 'solana:5eykt.../slip44:501']).
+ * @param options.includeAggregators - Optional flag to include aggregator list in the results (defaults to false).
+ * @param options.includeCoingeckoId - Optional flag to include CoinGecko ID in the results (defaults to false).
+ * @param options.includeLabels - Optional flag to include labels in the results (defaults to false).
+ * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
+ * @param options.includeOccurrences - Optional flag to include occurrence count in the results (defaults to false).
+ * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
- * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to false).
- * @returns The trending tokens URL.
+ * @returns The token assets URL.
  */
-function getTrendingTokensURL(options: {
-  chainIds: CaipChainId[];
+function getTokenAssetsURL(options: {
+  assetIds: CaipAssetType[];
+  includeAggregators?: boolean;
+  includeCoingeckoId?: boolean;
+  includeLabels?: boolean;
+  includeMarketData?: boolean;
+  includeOccurrences?: boolean;
+  includeTokenSecurityData?: boolean;
+  includeRwaData?: boolean;
+}): string {
+  const { assetIds, ...queryOptions } = options;
+  const encodedAssetIds = assetIds
+    .map((id) => encodeURIComponent(id))
+    .join(',');
+  const queryParams = new URLSearchParams();
+  Object.entries(queryOptions).forEach(([key, value]) => {
+    if (value !== undefined) {
+      queryParams.append(key, String(value));
+    }
+  });
+  return `${TOKEN_END_POINT_API}/assets?assetIds=${encodedAssetIds}${queryParams.toString() ? `&${queryParams.toString()}` : ''}`;
+}
+
+/**
+ * Get the RWAs URL for the given query params.
+ *
+ * @param options - Options for getting RWAs.
+ * @returns The RWAs URL.
+ */
+function getRwasURL(options: FetchRwasParams): string {
+  const {
+    chainIds,
+    query: searchQuery,
+    active,
+    custodian,
+    type,
+    industry,
+    sortBy,
+    limit = 100,
+    after,
+    ...additionalParams
+  } = options;
+  const trimmedSearchQuery = searchQuery?.trim();
+  const queryParams = new URLSearchParams();
+
+  Object.entries({
+    ...(chainIds?.length ? { chainIds } : {}),
+    ...(trimmedSearchQuery && { query: trimmedSearchQuery }),
+    ...(active === undefined ? {} : { active }),
+    ...(custodian && { custodian }),
+    ...(type && { type }),
+    ...(industry && { industry }),
+    ...(sortBy && { sortBy }),
+    limit,
+    ...(after && { after }),
+    ...additionalParams,
+  }).forEach(([key, value]) => {
+    if (value === undefined || value === '') {
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        queryParams.append(key, value.join(','));
+      }
+      return;
+    }
+
+    queryParams.append(key, String(value));
+  });
+
+  return `${TOKEN_END_POINT_API}/v1/rwas?${queryParams.toString()}`;
+}
+
+/**
+ * Shared query-parameter type for the v3 trending tokens endpoint.
+ *
+ * Known parameters are explicitly typed for autocomplete and documentation.
+ * The index signature allows new API parameters to pass through without
+ * requiring a core release — callers can add any additional key/value and
+ * it will be forwarded as a query parameter.
+ */
+export type TrendingTokensQueryParams = {
   sort?: SortTrendingBy;
   minLiquidity?: number;
   minVolume24hUsd?: number;
@@ -111,11 +300,22 @@ function getTrendingTokensURL(options: {
   excludeLabels?: string[];
   includeRwaData?: boolean;
   usePriceApiData?: boolean;
-}): string {
+  includeTokenSecurityData?: boolean;
+  [key: string]: string | number | boolean | string[] | undefined;
+};
+
+/**
+ * Get the trending tokens URL for the given networks and search query.
+ *
+ * @param options - Options bag: `chainIds` (required) plus any query params.
+ * @returns The trending tokens URL.
+ */
+function getTrendingTokensURL(
+  options: { chainIds: CaipChainId[] } & TrendingTokensQueryParams,
+): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  // Add the rest of query params if they are defined
   const queryParams = new URLSearchParams();
   const { chainIds, excludeLabels, ...rest } = options;
   Object.entries(rest).forEach(([key, value]) => {
@@ -155,7 +355,7 @@ export async function fetchTokenListByChainId(
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
 ): Promise<unknown> {
-  const tokenURL = getTokensURL(chainId);
+  const tokenURL = await getTokensURL(chainId);
   const response = await queryApi(tokenURL, abortSignal, timeout);
   if (response) {
     const result = await parseJsonResponse(response);
@@ -184,6 +384,132 @@ export type TokenRwaData = {
   instrumentType?: string;
 };
 
+export type RwaMarket = {
+  nextOpen?: string;
+  nextClose?: string;
+};
+
+export type RwaTokenData = {
+  price: string;
+  priceChange: string;
+  marketCap: number;
+  aggregatedUsdVolume: number;
+  active: boolean;
+  ticker: string;
+  instrumentType: string;
+  custodians: string[];
+  industry: string[];
+  market?: RwaMarket;
+  nextPause?: Record<string, unknown>;
+  sharesOutstanding?: number;
+  restrictedCountries?: string[];
+  updatedAt?: string;
+  addressType?: string;
+};
+
+export type RwaToken = {
+  id: string;
+  assetId: CaipAssetType;
+  symbol: string;
+  decimals: number;
+  name: string;
+  rwaData: RwaTokenData;
+};
+
+export type RwasResponse = {
+  data: RwaToken[];
+  count: number;
+  totalCount: number;
+  pageInfo: {
+    nextCursor: string | null;
+    hasNextPage: boolean;
+  };
+};
+
+export type RwaSortBy =
+  | 'price_change_asc'
+  | 'price_change_desc'
+  | 'volume_asc'
+  | 'volume_desc'
+  | 'market_cap_asc'
+  | 'market_cap_desc';
+
+export type FetchRwasParams = {
+  chainIds?: CaipChainId[];
+  query?: string;
+  sortBy?: RwaSortBy;
+  limit?: number;
+  after?: string;
+  active?: boolean;
+  custodian?: 'ondo';
+  type?: 'stock' | 'etf';
+  industry?:
+    | 'industrials'
+    | 'technology'
+    | 'healthcare'
+    | 'consumer discretionary'
+    | 'financials'
+    | 'materials'
+    | 'utilities'
+    | 'energy'
+    | 'real estate';
+  [key: string]: string | number | boolean | string[] | undefined;
+};
+
+export type TokenSecurityFeature = {
+  featureId: string;
+  type: string;
+  description: string;
+};
+
+export type TokenSecurityHolder = {
+  label: string;
+  name: string | null;
+  address: string;
+  holdingPercentage: number;
+};
+
+export type TokenSecurityMarket = {
+  marketType: string;
+  marketName: string;
+  pairName: string;
+  reserveUSD: number;
+};
+
+export type TokenSecurityFees = {
+  transfer: number;
+  transferFeeMaxAmount: number | null;
+  buy: number;
+  sell: number | null;
+};
+
+export type TokenSecurityFinancialStats = {
+  supply: number;
+  topHolders: TokenSecurityHolder[];
+  holdersCount: number;
+  tradeVolume24h: number | null;
+  lockedLiquidityPct: number | null;
+  markets: TokenSecurityMarket[];
+};
+
+export type TokenSecurityMetadata = {
+  externalLinks: {
+    homepage: string | null;
+    twitterPage: string | null;
+    telegramChannelId: string | null;
+  };
+};
+
+export type TokenSecurityData = {
+  resultType: string;
+  maliciousScore: string;
+  fees: TokenSecurityFees;
+  features: TokenSecurityFeature[];
+  financialStats: TokenSecurityFinancialStats;
+  metadata: TokenSecurityMetadata;
+  created: string;
+};
+
 export type TokenSearchItem = {
   assetId: CaipAssetType;
   name: string;
@@ -191,12 +517,22 @@ export type TokenSearchItem = {
   decimals: number;
   /** Optional RWA data for tokens when includeRwaData is true */
   rwaData?: TokenRwaData;
+  /** Optional security data for tokens when includeTokenSecurityData is true */
+  securityData?: TokenSecurityData;
+};
+
+export type PageInfo = {
+  hasNextPage: boolean;
+  endCursor: string | null;
 };
 
 type SearchTokenOptions = {
   limit?: number;
+  /** Cursor returned by a previous response's `pageInfo.endCursor` to fetch the next page. */
+  after?: string;
   includeMarketData?: boolean;
   includeRwaData?: boolean;
+  includeTokenSecurityData?: boolean;
 };
 
 /**
@@ -206,36 +542,55 @@ type SearchTokenOptions = {
  * @param query - The search query (token name, symbol, or address).
  * @param options - Additional fetch options.
  * @param options.limit - The maximum number of results to return.
+ * @param options.after - Cursor from a previous response's `pageInfo.endCursor` to fetch the next page.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
- * @returns Object containing count, data array, and an optional error message if the request failed.
+ * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
+ * @returns Object containing count, totalCount, data array, optional pageInfo for pagination, and an optional error message if the request failed.
  */
 export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
   {
     limit = 10,
+    after,
     includeMarketData = false,
     includeRwaData = true,
+    includeTokenSecurityData,
   }: SearchTokenOptions = {},
-): Promise<{ count: number; data: TokenSearchItem[]; error?: string }> {
+): Promise<{
+  count: number;
+  totalCount?: number;
+  data: TokenSearchItem[];
+  pageInfo?: PageInfo;
+  error?: string;
+}> {
   const tokenSearchURL = getTokenSearchURL({
     chainIds,
     query,
     limit,
+    after,
     includeMarketData,
     includeRwaData,
+    includeTokenSecurityData,
   });
 
   try {
-    const result: { count: number; data: TokenSearchItem[] } =
-      await handleFetch(tokenSearchURL);
+    const result: {
+      count: number;
+      totalCount?: number;
+      data: TokenSearchItem[];
+      pageInfo?: PageInfo;
+    } = await handleFetch(tokenSearchURL);
 
-    // The API returns an object with structure: { count: number, data: array, pageInfo: object }
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
       return {
         count: result.count ?? result.data.length,
+        ...(result.totalCount !== undefined && {
+          totalCount: result.totalCount,
+        }),
         data: result.data,
+        ...(result.pageInfo !== undefined && { pageInfo: result.pageInfo }),
       };
     }
 
@@ -269,48 +624,27 @@ export type TrendingAsset = {
   labels?: string[];
   /** Optional RWA data for tokens when includeRwaData is true */
   rwaData?: TokenRwaData;
+  /** Optional security data for tokens when includeTokenSecurityData is true */
+  securityData?: TokenSecurityData;
 };
 
 /**
  * Get the trending tokens for the given chains.
  *
- * @param options - Options for getting trending tokens.
- * @param options.chainIds - The chains to get the trending tokens for.
- * @param options.sortBy - The sort by field.
- * @param options.minLiquidity - The minimum liquidity.
- * @param options.minVolume24hUsd - The minimum volume 24h in USD.
- * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
- * @param options.minMarketCap - The minimum market cap.
- * @param options.maxMarketCap - The maximum market cap.
- * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to true).
- * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to true).
+ * Accepts all known query parameters plus any additional ones via the
+ * index signature on {@link TrendingTokensQueryParams}. New API parameters
+ * can be passed without updating this function.
+ *
+ * @param options - Options bag: `chainIds` (required) plus any query params
+ *   supported by the v3 trending endpoint.
  * @returns The trending tokens.
  * @throws Will throw if the request fails.
  */
-export async function getTrendingTokens({
-  chainIds,
-  sortBy,
-  minLiquidity,
-  minVolume24hUsd,
-  maxVolume24hUsd,
-  minMarketCap,
-  maxMarketCap,
-  excludeLabels,
-  includeRwaData = true,
-  usePriceApiData = true,
-}: {
-  chainIds: CaipChainId[];
-  sortBy?: SortTrendingBy;
-  minLiquidity?: number;
-  minVolume24hUsd?: number;
-  maxVolume24hUsd?: number;
-  minMarketCap?: number;
-  maxMarketCap?: number;
-  excludeLabels?: string[];
-  includeRwaData?: boolean;
-  usePriceApiData?: boolean;
-}): Promise<TrendingAsset[]> {
+export async function getTrendingTokens(
+  options: { chainIds: CaipChainId[] } & TrendingTokensQueryParams,
+): Promise<TrendingAsset[]> {
+  const { chainIds, ...rest } = options;
+
   if (chainIds.length === 0) {
     console.error('No chains provided');
     return [];
@@ -318,15 +652,9 @@ export async function getTrendingTokens({
 
   const trendingTokensURL = getTrendingTokensURL({
     chainIds,
-    sort: sortBy,
-    minLiquidity,
-    minVolume24hUsd,
-    maxVolume24hUsd,
-    minMarketCap,
-    maxMarketCap,
-    excludeLabels,
-    includeRwaData,
-    usePriceApiData,
+    ...rest,
+    includeRwaData: rest.includeRwaData ?? true,
+    usePriceApiData: rest.usePriceApiData ?? true,
   });
 
   try {
@@ -344,6 +672,104 @@ export async function getTrendingTokens({
     console.error('Trending tokens request failed:', error);
     return [];
   }
+}
+
+/**
+ * The token asset type returned by the /assets endpoint.
+ */
+export type TokenAsset = {
+  assetId: CaipAssetType;
+  name: string;
+  symbol: string;
+  decimals: number;
+  /** Aggregator list when includeAggregators is true */
+  aggregators?: string[];
+  /** CoinGecko ID when includeCoingeckoId is true */
+  coingeckoId?: string;
+  /** Labels when includeLabels is true */
+  labels?: string[];
+  /** Occurrence count when includeOccurrences is true */
+  occurrences?: number;
+  /** RWA data when includeRwaData is true */
+  rwaData?: TokenRwaData;
+  /** Security data when includeTokenSecurityData is true */
+  securityData?: TokenSecurityData;
+};
+
+type FetchTokenAssetsOptions = {
+  includeAggregators?: boolean;
+  includeCoingeckoId?: boolean;
+  includeLabels?: boolean;
+  includeMarketData?: boolean;
+  includeOccurrences?: boolean;
+  includeTokenSecurityData?: boolean;
+  includeRwaData?: boolean;
+};
+
+/**
+ * Fetch asset metadata for the given CAIP-19 asset IDs.
+ *
+ * @param assetIds - Array of CAIP-19 asset IDs (e.g., ['eip155:1/erc20:0x...', 'solana:5eykt.../slip44:501']).
+ * @param options - Additional fetch options.
+ * @param options.includeAggregators - Optional flag to include aggregator list in the results (defaults to false).
+ * @param options.includeCoingeckoId - Optional flag to include CoinGecko ID in the results (defaults to false).
+ * @param options.includeLabels - Optional flag to include labels in the results (defaults to false).
+ * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
+ * @param options.includeOccurrences - Optional flag to include occurrence count in the results (defaults to false).
+ * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @returns Array of token assets, or empty array if the request failed or no IDs were provided.
+ */
+export async function fetchTokenAssets(
+  assetIds: CaipAssetType[],
+  {
+    includeAggregators,
+    includeCoingeckoId,
+    includeLabels,
+    includeMarketData,
+    includeOccurrences,
+    includeTokenSecurityData,
+    includeRwaData,
+  }: FetchTokenAssetsOptions = {},
+): Promise<TokenAsset[]> {
+  if (assetIds.length === 0) {
+    return [];
+  }
+
+  const tokenAssetsURL = getTokenAssetsURL({
+    assetIds,
+    includeAggregators,
+    includeCoingeckoId,
+    includeLabels,
+    includeMarketData,
+    includeOccurrences,
+    includeTokenSecurityData,
+    includeRwaData,
+  });
+
+  try {
+    const result = await handleFetch(tokenAssetsURL);
+
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch real-world asset tokens.
+ *
+ * @param params - Query params used to filter, sort, and paginate RWAs.
+ * @returns The paginated RWA response.
+ */
+export async function fetchRwas(
+  params: FetchRwasParams = {},
+): Promise<RwasResponse> {
+  return handleFetch(getRwasURL(params), { headers: { accept: '*/*' } });
 }
 
 /**

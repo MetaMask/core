@@ -17,6 +17,9 @@ import type {
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
+import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
+import { getQueryOptionsOverrides } from '../shared-types';
+import type { FetchOptions } from '../shared-types';
 import type {
   TokenMetadata,
   V1TokenDescriptionResponse,
@@ -27,9 +30,6 @@ import type {
   TopGainersSortOption,
   V1SuggestedOccurrenceFloorsResponse,
 } from './types';
-import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
-import { getQueryOptionsOverrides } from '../shared-types';
-import type { FetchOptions } from '../shared-types';
 
 /**
  * Token API Client.
@@ -405,6 +405,7 @@ export class TokenApiClient extends BaseApiClient {
    * @param queryOptions.maxVolume24hUsd - Maximum 24h volume filter.
    * @param queryOptions.minMarketCap - Minimum market cap filter.
    * @param queryOptions.maxMarketCap - Maximum market cap filter.
+   * @param queryOptions.includeTokenSecurityData - Whether to include token security data.
    * @param options - Fetch options including cache settings.
    * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
    */
@@ -417,6 +418,7 @@ export class TokenApiClient extends BaseApiClient {
       maxVolume24hUsd?: number;
       minMarketCap?: number;
       maxMarketCap?: number;
+      includeTokenSecurityData?: boolean;
     },
     options?: FetchOptions,
   ): FetchQueryOptions<TrendingToken[]> {
@@ -437,6 +439,7 @@ export class TokenApiClient extends BaseApiClient {
             maxVolume24hUsd: queryOptions?.maxVolume24hUsd,
             minMarketCap: queryOptions?.minMarketCap,
             maxMarketCap: queryOptions?.maxMarketCap,
+            includeTokenSecurityData: queryOptions?.includeTokenSecurityData,
           },
         }),
       ...getQueryOptionsOverrides(options),
@@ -456,6 +459,7 @@ export class TokenApiClient extends BaseApiClient {
    * @param queryOptions.maxVolume24hUsd - Maximum 24h volume filter.
    * @param queryOptions.minMarketCap - Minimum market cap filter.
    * @param queryOptions.maxMarketCap - Maximum market cap filter.
+   * @param queryOptions.includeTokenSecurityData - Whether to include token security data.
    * @param options - Fetch options including cache settings.
    * @returns Array of trending tokens.
    */
@@ -468,6 +472,7 @@ export class TokenApiClient extends BaseApiClient {
       maxVolume24hUsd?: number;
       minMarketCap?: number;
       maxMarketCap?: number;
+      includeTokenSecurityData?: boolean;
     },
     options?: FetchOptions,
   ): Promise<TrendingToken[]> {

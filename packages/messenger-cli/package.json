@@ -1,0 +1,76 @@
+{
+  "name": "@metamask/messenger-cli",
+  "version": "0.2.0",
+  "description": "CLI tools for the MetaMask messenger system",
+  "keywords": [
+    "Ethereum",
+    "MetaMask"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/messenger-cli#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "bin": {
+    "messenger-action-types": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist/"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/messenger-cli",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/messenger-cli",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/utils": "^11.11.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^6.1.0",
+    "@ts-bridge/cli": "^0.6.4",
+    "@types/jest": "^30.0.0",
+    "@types/yargs": "^17.0.32",
+    "deepmerge": "^4.2.2",
+    "execa": "^5.0.0",
+    "jest": "^30.2.0",
+    "oxfmt": "^0.44.0",
+    "prettier": "^3.3.3",
+    "ts-jest": "^29.4.6",
+    "tsx": "^4.20.5",
+    "typescript": "~5.3.3"
+  },
+  "peerDependencies": {
+    "oxfmt": "^0.44.0",
+    "prettier": "^3.0.0",
+    "typescript": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "oxfmt": {
+      "optional": true
+    },
+    "prettier": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": "^18.18 || >=20"
+  }
+}

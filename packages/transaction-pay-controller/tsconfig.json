@@ -5,16 +5,13 @@
   },
   "references": [
     {
+      "path": "../assets-controller"
+    },
+    {
       "path": "../assets-controllers"
     },
     {
       "path": "../base-controller"
-    },
-    {
-      "path": "../bridge-controller"
-    },
-    {
-      "path": "../bridge-status-controller"
     },
     {
       "path": "../controller-utils"
@@ -26,10 +23,19 @@
       "path": "../network-controller"
     },
     {
+      "path": "../ramps-controller"
+    },
+    {
       "path": "../remote-feature-flag-controller"
     },
     {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
     }
   ],
   "include": ["../../types", "./src"]

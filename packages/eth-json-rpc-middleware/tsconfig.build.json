@@ -7,9 +7,6 @@
   },
   "references": [
     {
-      "path": "../error-reporting-service/tsconfig.build.json"
-    },
-    {
       "path": "../eth-block-tracker/tsconfig.build.json"
     },
     {

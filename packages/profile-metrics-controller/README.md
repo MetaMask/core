@@ -1,5 +1,7 @@
 # `@metamask/profile-metrics-controller`
 
+Manages user profile metrics. For users who opt-in to metrics, this controller and service will ensure we have metrics about their user profile (metrics ID and accounts).
+
 ## Installation
 
 `yarn add @metamask/profile-metrics-controller`

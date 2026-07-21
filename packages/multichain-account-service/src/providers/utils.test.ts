@@ -1,4 +1,15 @@
-import { TimeoutError, withRetry, withTimeout } from './utils';
+import {
+  KeyringControllerError,
+  KeyringControllerErrorMessage,
+} from '@metamask/keyring-controller';
+
+import {
+  TimeoutError,
+  isKeyringControllerLockedError,
+  isTimeoutError,
+  withRetry,
+  withTimeout,
+} from './utils';
 
 describe('utils', () => {
   it('retries RPC request up to 3 times if it fails and throws the last error', async () => {
@@ -25,12 +36,56 @@ describe('utils', () => {
   it('throws if the RPC request times out', async () => {
     await expect(
       withTimeout(
-        new Promise((resolve) => {
-          setTimeout(() => {
-            resolve(null);
-          }, 600);
-        }),
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve(null);
+            }, 600);
+          }),
       ),
     ).rejects.toThrow(TimeoutError);
   });
+
+  it('includes the timeout duration in the error message', async () => {
+    await expect(
+      withTimeout(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve(null);
+            }, 600);
+          }),
+        500,
+      ),
+    ).rejects.toThrow('Timed out after: 500ms');
+  });
+
+  it('isTimeoutError returns true for TimeoutError instances', () => {
+    expect(isTimeoutError(new TimeoutError('Timed out after: 500ms'))).toBe(
+      true,
+    );
+  });
+
+  it('isTimeoutError returns false for non-TimeoutError instances', () => {
+    expect(isTimeoutError(new Error('some error'))).toBe(false);
+    expect(isTimeoutError('string')).toBe(false);
+    expect(isTimeoutError(null)).toBe(false);
+  });
+
+  it('isKeyringControllerLockedError returns true for KeyringControllerLockedError instances', () => {
+    expect(
+      isKeyringControllerLockedError(
+        new KeyringControllerError(
+          KeyringControllerErrorMessage.ControllerLocked,
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it.each([new Error('some error'), 'string', null])(
+    'isKeyringControllerLockedError returns false for %p',
+    (error) => {
+      expect(isKeyringControllerLockedError(error)).toBe(false);
+    },
+  );
 });

@@ -6,6 +6,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
+import { flushPromises } from '../../../tests/helpers';
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
   RemoteFeatureFlagController,
@@ -17,8 +18,8 @@ import type {
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
+import { ThresholdVersion } from './remote-feature-flag-controller-types';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
-import { flushPromises } from '../../../tests/helpers';
 
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,
@@ -52,15 +53,16 @@ const MOCK_BASE_VERSION = '13.10.0';
  * Creates a controller instance with default parameters for testing
  *
  * @param options - The controller configuration options
- * @param options.messenger - The messenger instance
  * @param options.state - The initial controller state
  * @param options.clientConfigApiService - The client config API service instance
  * @param options.disabled - Whether the controller should start disabled
- * @returns A configured RemoteFeatureFlagController instance
+ * @param options.getMetaMetricsId - Returns metaMetricsId
+ * @param options.clientVersion - The client version string
+ * @param options.prevClientVersion - The previous client version string
+ * @returns The controller and the root messenger
  */
 function createController(
   options: Partial<{
-    messenger: RemoteFeatureFlagControllerMessenger;
     state: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
@@ -68,9 +70,10 @@ function createController(
     clientVersion: string;
     prevClientVersion: string;
   }> = {},
-): RemoteFeatureFlagController {
-  return new RemoteFeatureFlagController({
-    messenger: getMessenger(),
+): { controller: RemoteFeatureFlagController; messenger: RootMessenger } {
+  const { rootMessenger, controllerMessenger } = buildMessenger();
+  const controller = new RemoteFeatureFlagController({
+    messenger: controllerMessenger,
     state: options.state,
     clientConfigApiService:
       options.clientConfigApiService ?? buildClientConfigApiService(),
@@ -81,12 +84,13 @@ function createController(
     clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
     prevClientVersion: options.prevClientVersion,
   });
+  return { controller, messenger: rootMessenger };
 }
 
 describe('RemoteFeatureFlagController', () => {
   describe('constructor', () => {
     it('initializes with default state', () => {
-      const controller = createController();
+      const { controller } = createController();
 
       expect(controller.state).toStrictEqual({
         remoteFeatureFlags: {},
@@ -97,7 +101,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('initializes with default state if the disabled parameter is provided', () => {
-      const controller = createController({ disabled: true });
+      const { controller } = createController({ disabled: true });
 
       expect(controller.state).toStrictEqual({
         remoteFeatureFlags: {},
@@ -115,9 +119,21 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
       };
 
-      const controller = createController({ state: customState });
+      const { controller } = createController({ state: customState });
 
       expect(controller.state).toStrictEqual(customState);
+    });
+
+    it('merges undefined localOverrides into remoteFeatureFlags on init', () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: { flag: true },
+          localOverrides: undefined,
+        },
+      });
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({ flag: true });
+      expect(controller.state.localOverrides).toBeUndefined();
     });
 
     it('accepts valid 3-part SemVer clientVersion', () => {
@@ -156,7 +172,7 @@ describe('RemoteFeatureFlagController', () => {
   describe('updateRemoteFeatureFlags', () => {
     it('does not make a network request and does not modify state if disabled is true', async () => {
       const clientConfigApiService = buildClientConfigApiService();
-      const controller = createController({
+      const { controller, messenger } = createController({
         state: {
           remoteFeatureFlags: MOCK_FLAGS,
         },
@@ -164,7 +180,9 @@ describe('RemoteFeatureFlagController', () => {
         disabled: true,
       });
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
       expect(
@@ -174,14 +192,16 @@ describe('RemoteFeatureFlagController', () => {
 
     it('does not make a network request and does not modify state when cache is not expired', async () => {
       const clientConfigApiService = buildClientConfigApiService();
-      const controller = createController({
+      const { controller, messenger } = createController({
         state: {
           remoteFeatureFlags: MOCK_FLAGS,
           cacheTimestamp: Date.now() - 10,
         },
         clientConfigApiService,
       });
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       expect(
         clientConfigApiService.fetchRemoteFeatureFlags,
@@ -227,7 +247,7 @@ describe('RemoteFeatureFlagController', () => {
 
         // Arrange - setup controller
         jest.clearAllMocks();
-        const controller = createController({
+        const { controller, messenger } = createController({
           clientConfigApiService,
           clientVersion,
           prevClientVersion,
@@ -238,13 +258,17 @@ describe('RemoteFeatureFlagController', () => {
         expect(controller.state.cacheTimestamp).toBe(0);
 
         // Act / Assert - We should make a network request and update the cache (cache is reset to 0)
-        await controller.updateRemoteFeatureFlags();
+        await messenger.call(
+          'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        );
         expect(
           clientConfigApiService.fetchRemoteFeatureFlags,
         ).toHaveBeenCalledTimes(1);
 
         // Act / Assert - subsequent fetches should not call network again (cache is populated)
-        await controller.updateRemoteFeatureFlags();
+        await messenger.call(
+          'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        );
         expect(
           clientConfigApiService.fetchRemoteFeatureFlags,
         ).toHaveBeenCalledTimes(1);
@@ -281,7 +305,7 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         cacheTimestamp: Date.now() - 10000,
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         disabled: false,
       });
@@ -294,7 +318,9 @@ describe('RemoteFeatureFlagController', () => {
           cacheTimestamp: Date.now(),
         }));
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       expect(
         clientConfigApiService.fetchRemoteFeatureFlags,
       ).toHaveBeenCalledTimes(1);
@@ -303,7 +329,7 @@ describe('RemoteFeatureFlagController', () => {
 
     it('uses previously cached flags when cache is valid', async () => {
       const clientConfigApiService = buildClientConfigApiService();
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         state: {
           remoteFeatureFlags: MOCK_FLAGS,
@@ -320,18 +346,22 @@ describe('RemoteFeatureFlagController', () => {
           }).fetchRemoteFeatureFlags(),
         );
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
     });
 
     it('makes one network request, and only one state update, when there are concurrent calls', async () => {
       const clientConfigApiService = buildClientConfigApiService();
-      const controller = createController({ clientConfigApiService });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+      });
 
       await Promise.all([
-        controller.updateRemoteFeatureFlags(),
-        controller.updateRemoteFeatureFlags(),
+        messenger.call('RemoteFeatureFlagController:updateRemoteFeatureFlags'),
+        messenger.call('RemoteFeatureFlagController:updateRemoteFeatureFlags'),
       ]);
 
       expect(
@@ -359,7 +389,7 @@ describe('RemoteFeatureFlagController', () => {
         fetchRemoteFeatureFlags: fetchSpy,
       } as AbstractClientConfigApiService;
 
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         state: { remoteFeatureFlags: {}, cacheTimestamp: 0 },
       });
@@ -367,7 +397,9 @@ describe('RemoteFeatureFlagController', () => {
       let currentState;
 
       // First call - should fetch new data
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       currentState = controller.state;
       expect(currentState.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -376,7 +408,9 @@ describe('RemoteFeatureFlagController', () => {
       jest.setSystemTime(initialTime + 2 * DEFAULT_CACHE_DURATION);
 
       // Second call - should fetch new data again
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       currentState = controller.state;
       expect(currentState.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS_TWO);
       expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -387,7 +421,7 @@ describe('RemoteFeatureFlagController', () => {
         error: new Error('API Error'),
       });
 
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         state: {
           remoteFeatureFlags: MOCK_FLAGS,
@@ -395,9 +429,37 @@ describe('RemoteFeatureFlagController', () => {
       });
 
       await expect(
-        async () => await controller.updateRemoteFeatureFlags(),
+        async () =>
+          await messenger.call(
+            'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+          ),
       ).rejects.toThrow('API Error');
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
+    });
+  });
+
+  describe('feature flag value normalization', () => {
+    it('preserves direct feature flag config objects without value metadata', async () => {
+      const directConfig = {
+        enabled: true,
+        minimumVersion: '13.10.0',
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          directConfig,
+        },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.directConfig).toStrictEqual(
+        directConfig,
+      );
     });
   });
 
@@ -406,19 +468,55 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // With MOCK_METRICS_ID + 'testFlagForThreshold' hashed:
       // Threshold = 0.380673, which falls in groupB range (0.3 < t <= 0.5)
+      expect(controller.state.remoteFeatureFlags.testFlagForThreshold).toBe(
+        'valueB',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlagForThreshold: 'groupB',
+      });
+    });
+
+    it('ignores threshold version field, processing threshold values normally', async () => {
+      const thresholdFlagValue = {
+        enabled: true,
+      };
+      const mockFlags = {
+        thresholdObjectFlag: [
+          {
+            name: 'enabled',
+            thresholdVersion: 3,
+            scope: { type: 'threshold', value: 1.0 },
+            value: thresholdFlagValue,
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
       expect(
-        controller.state.remoteFeatureFlags.testFlagForThreshold,
-      ).toStrictEqual({
-        name: 'groupB',
-        value: 'valueB',
+        controller.state.remoteFeatureFlags.thresholdObjectFlag,
+      ).toStrictEqual(thresholdFlagValue);
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        thresholdObjectFlag: 'enabled',
       });
     });
 
@@ -426,11 +524,13 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       const { testFlagForThreshold, ...nonThresholdFlags } =
         controller.state.remoteFeatureFlags;
@@ -468,20 +568,26 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: mockFlags,
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
 
       // Act
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // Assert - User gets different groups because each flag uses unique seed
       const { featureA, featureB } = controller.state.remoteFeatureFlags;
       // featureA: hash(MOCK_METRICS_ID + 'featureA') → threshold 0.966682 → groupA2
-      expect(featureA).toStrictEqual({ name: 'groupA2', value: 'A2' });
+      expect(featureA).toBe('A2');
       // featureB: hash(MOCK_METRICS_ID + 'featureB') → threshold 0.398654 → groupB1
-      expect(featureB).toStrictEqual({ name: 'groupB1', value: 'B1' });
+      expect(featureB).toBe('B1');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        featureA: 'groupA2',
+        featureB: 'groupB1',
+      });
       // Different groups proves independence!
     });
 
@@ -494,13 +600,15 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: mockFlags,
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
 
       // Act
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // Assert - Arrays preserved as-is, not processed for thresholds
       expect(
@@ -528,18 +636,22 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: mockFlags,
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
 
       // Act
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // Assert - Invalid item skipped, valid item selected
-      expect(controller.state.remoteFeatureFlags.mixedArray).toStrictEqual({
-        name: 'validGroup',
-        value: 'selectedValue',
+      expect(controller.state.remoteFeatureFlags.mixedArray).toBe(
+        'selectedValue',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        mixedArray: 'validGroup',
       });
     });
 
@@ -564,43 +676,434 @@ describe('RemoteFeatureFlagController', () => {
       });
 
       // Act - Create two separate controllers with same metaMetricsId
-      const controller1 = createController({
-        clientConfigApiService,
-        getMetaMetricsId: () => MOCK_METRICS_ID,
-      });
-      await controller1.updateRemoteFeatureFlags();
+      const { controller: controller1, messenger: messenger1 } =
+        createController({
+          clientConfigApiService,
+          getMetaMetricsId: () => MOCK_METRICS_ID,
+        });
+      await messenger1.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       const firstResult = controller1.state.remoteFeatureFlags.testFlag;
 
-      const controller2 = createController({
-        clientConfigApiService,
-        getMetaMetricsId: () => MOCK_METRICS_ID,
-      });
-      await controller2.updateRemoteFeatureFlags();
+      const { controller: controller2, messenger: messenger2 } =
+        createController({
+          clientConfigApiService,
+          getMetaMetricsId: () => MOCK_METRICS_ID,
+        });
+      await messenger2.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       const secondResult = controller2.state.remoteFeatureFlags.testFlag;
 
       // Assert - Same user always gets same group (deterministic)
       // testFlag: hash(MOCK_METRICS_ID + 'testFlag') → threshold 0.496587 → control
       expect(firstResult).toStrictEqual(secondResult);
-      expect(firstResult).toStrictEqual({ name: 'control', value: false });
+      expect(firstResult).toBe(false);
+      expect(controller1.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'control',
+      });
+    });
+  });
+
+  describe('metaMetricsIds explicit targeting', () => {
+    const MOCK_FLAGS_WITH_EXPLICIT_IDS = {
+      testFlag: [
+        {
+          name: 'qaGroup',
+          scope: { type: 'threshold', value: 0.0 }, // would never match via hash
+          value: 'qa-value',
+          metaMetricsIds: [MOCK_METRICS_ID, 'other-id'],
+        },
+        {
+          name: 'groupA',
+          scope: { type: 'threshold', value: 0.5 },
+          value: 'valueA',
+        },
+        {
+          name: 'groupB',
+          scope: { type: 'threshold', value: 1.0 },
+          value: 'valueB',
+        },
+      ],
+    };
+
+    it('selects the entry whose metaMetricsIds matches the current user', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('qa-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'qaGroup',
+      });
+    });
+
+    it('first entry with a matching metaMetricsId wins when multiple entries match', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'first',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'first-value',
+            metaMetricsIds: [MOCK_METRICS_ID],
+          },
+          {
+            name: 'second',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'second-value',
+            metaMetricsIds: [MOCK_METRICS_ID],
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('first-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'first',
+      });
+    });
+
+    it('falls back to hash-based threshold when no entry matches the metaMetricsId', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'qaGroup',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'qa-value',
+            metaMetricsIds: ['some-other-id'],
+          },
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'valueA',
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'valueB',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // With MOCK_METRICS_ID + 'testFlag' hashed: threshold 0.496587 → groupA (≤ 0.5)
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('valueA');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'groupA',
+      });
+    });
+
+    it('ignores entries with a malformed metaMetricsIds (non-array) and falls back to hash-based threshold', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'badGroup',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'bad-value',
+            metaMetricsIds: MOCK_METRICS_ID, // malformed: string instead of array
+          },
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'valueA',
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'valueB',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // Malformed entry ignored; hash-based selects groupA
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('valueA');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'groupA',
+      });
+    });
+
+    it('ignores non-string items within metaMetricsIds when matching', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'badGroup',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'bad-value',
+            metaMetricsIds: [42, null, MOCK_METRICS_ID], // non-string items mixed in
+          },
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'valueA',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // String MOCK_METRICS_ID in the array still matches
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('bad-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'badGroup',
+      });
+    });
+
+    it('normalizes metaMetricsId with trim and toLowerCase before matching', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'qaGroup',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'qa-value',
+            metaMetricsIds: [MOCK_METRICS_ID.toUpperCase()],
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'valueB',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        // Provide the ID with surrounding whitespace and different case
+        getMetaMetricsId: () => `  ${MOCK_METRICS_ID.toLowerCase()}  `,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('qa-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'qaGroup',
+      });
+    });
+
+    it('does not update the threshold cache when an explicit-ID match is found', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // Cache should be empty because the match was explicit, not hash-based
+      expect(
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:testFlag`],
+      ).toBeUndefined();
+    });
+
+    it('still populates the threshold cache for hash-based fallback when no explicit ID matches', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'qaGroup',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'qa-value',
+            metaMetricsIds: ['different-id'],
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'valueB',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:testFlag`],
+      ).toBeDefined();
+    });
+
+    it('does not include metaMetricsIds values in rawRemoteFeatureFlags state', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      const rawEntries = controller.state.rawRemoteFeatureFlags
+        .testFlag as Record<string, unknown>[];
+      expect(
+        rawEntries.every((entry) => entry.metaMetricsIds === undefined),
+      ).toBe(true);
+    });
+
+    it('does not include metaMetricsIds values in remoteFeatureFlags state when metaMetricsId is unavailable', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      // No metaMetricsId → threshold arrays are preserved as-is, but
+      // metaMetricsIds must still be stripped from the processed output.
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => '',
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      const processedEntries = controller.state.remoteFeatureFlags
+        .testFlag as Record<string, unknown>[];
+      expect(
+        processedEntries.every((entry) => entry.metaMetricsIds === undefined),
+      ).toBe(true);
+    });
+
+    it('does not include metaMetricsIds values in remoteFeatureFlags state when explicit match is found', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // When an explicit match is found, the flag is resolved to a single
+      // value (not an array), so metaMetricsIds is naturally absent.
+      const processed = controller.state.remoteFeatureFlags.testFlag as Record<
+        string,
+        unknown
+      >;
+      expect(processed.metaMetricsIds).toBeUndefined();
+    });
+
+    it('supports ThresholdVersion.DirectValue entries with explicit-ID matching', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            thresholdName: 'qaGroup',
+            thresholdVersion: ThresholdVersion.DirectValue,
+            scope: { type: 'threshold', value: 0.0 },
+            value: { enabled: true, qa: true },
+            metaMetricsIds: [MOCK_METRICS_ID],
+          },
+          {
+            thresholdName: 'control',
+            thresholdVersion: ThresholdVersion.DirectValue,
+            scope: { type: 'threshold', value: 1.0 },
+            value: { enabled: false },
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // v2 direct-value: value is returned as-is, no wrapper
+      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
+        enabled: true,
+        qa: true,
+      });
     });
   });
 
   describe('enable and disable', () => {
     it('enables the controller and makes a network request to fetch', async () => {
       const clientConfigApiService = buildClientConfigApiService();
-      const controller = createController({
+      const { messenger } = createController({
         clientConfigApiService,
         disabled: true,
       });
 
-      controller.enable();
-      await controller.updateRemoteFeatureFlags();
+      messenger.call('RemoteFeatureFlagController:enable');
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       expect(clientConfigApiService.fetchRemoteFeatureFlags).toHaveBeenCalled();
     });
 
     it('preserves cached flags and returns cached data when disabled', async () => {
       const clientConfigApiService = buildClientConfigApiService();
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         disabled: false,
         state: { remoteFeatureFlags: MOCK_FLAGS, cacheTimestamp: 0 },
@@ -610,11 +1113,13 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
 
       // Disable the controller
-      controller.disable();
+      messenger.call('RemoteFeatureFlagController:disable');
 
       // Verify disabled behavior,
       // cache should be preserved, but updateRemoteFeatureFlags should return empty array
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
     });
@@ -634,12 +1139,14 @@ describe('RemoteFeatureFlagController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService: mockApiService,
         clientVersion: '13.2.0',
       });
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       const { singleVersionInArray } = controller.state.remoteFeatureFlags;
       expect(singleVersionInArray).toStrictEqual({ x: '12' });
@@ -662,12 +1169,14 @@ describe('RemoteFeatureFlagController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService: mockApiService,
         clientVersion: '13.2.5',
       });
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       const { multiVersionFeature } = controller.state.remoteFeatureFlags;
       // Should get version 13.2.0 (highest version that 13.2.5 qualifies for)
@@ -692,12 +1201,14 @@ describe('RemoteFeatureFlagController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService: mockApiService,
         clientVersion: '13.1.5',
       });
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       const { multiVersionFeature, regularFeature } =
         controller.state.remoteFeatureFlags;
@@ -723,12 +1234,14 @@ describe('RemoteFeatureFlagController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService: mockApiService,
         clientVersion: '13.0.0',
       });
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       const { multiVersionFeature, regularFeature } =
         controller.state.remoteFeatureFlags;
@@ -756,12 +1269,14 @@ describe('RemoteFeatureFlagController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService: mockApiService,
         clientVersion: '13.1.5',
       });
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       const { multiVersionFeature, regularFeature, simpleFeature } =
         controller.state.remoteFeatureFlags;
@@ -793,12 +1308,14 @@ describe('RemoteFeatureFlagController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService: mockApiService,
         clientVersion: '13.2.0',
       });
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       const {
         invalidVersionFlag,
@@ -861,13 +1378,15 @@ describe('RemoteFeatureFlagController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService: mockApiService,
         clientVersion: '13.1.5', // Qualifies for 13.1.0 version but not 13.2.0
         getMetaMetricsId: () => MOCK_METRICS_ID, // This generates threshold > 0.7
       });
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       const { multiVersionABFlag, regularFlag } =
         controller.state.remoteFeatureFlags;
@@ -875,8 +1394,11 @@ describe('RemoteFeatureFlagController', () => {
       // With MOCK_METRICS_ID + 'multiVersionABFlag' hashed:
       // Threshold = 0.094878, which falls in groupA range (t <= 0.3)
       expect(multiVersionABFlag).toStrictEqual({
-        name: 'groupA',
-        value: { feature: 'A', enabled: true },
+        feature: 'A',
+        enabled: true,
+      });
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        multiVersionABFlag: 'groupA',
       });
       expect(regularFlag).toBe(true);
     });
@@ -896,17 +1418,24 @@ describe('RemoteFeatureFlagController', () => {
   describe('override functionality', () => {
     describe('setFlagOverride', () => {
       it('sets a local override for a feature flag', () => {
-        const controller = createController();
+        const { controller, messenger } = createController();
 
-        controller.setFlagOverride('testFlag', true);
+        messenger.call(
+          'RemoteFeatureFlagController:setFlagOverride',
+          'testFlag',
+          true,
+        );
 
         expect(controller.state.localOverrides).toStrictEqual({
+          testFlag: true,
+        });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
           testFlag: true,
         });
       });
 
       it('overwrites existing override for the same flag', () => {
-        const controller = createController({
+        const { controller, messenger } = createController({
           state: {
             localOverrides: {
               testFlag: true,
@@ -914,25 +1443,43 @@ describe('RemoteFeatureFlagController', () => {
           },
         });
 
-        controller.setFlagOverride('testFlag', false);
+        messenger.call(
+          'RemoteFeatureFlagController:setFlagOverride',
+          'testFlag',
+          false,
+        );
 
         expect(controller.state.localOverrides).toStrictEqual({
+          testFlag: false,
+        });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
           testFlag: false,
         });
       });
 
       it('preserves other overrides when setting a new one', () => {
-        const controller = createController({
+        const { controller, messenger } = createController({
           state: {
+            remoteFeatureFlags: {
+              flag1: 'value1',
+            },
             localOverrides: {
               flag1: 'value1',
             },
           },
         });
 
-        controller.setFlagOverride('flag2', 'value2');
+        messenger.call(
+          'RemoteFeatureFlagController:setFlagOverride',
+          'flag2',
+          'value2',
+        );
 
         expect(controller.state.localOverrides).toStrictEqual({
+          flag1: 'value1',
+          flag2: 'value2',
+        });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
           flag1: 'value1',
           flag2: 'value2',
         });
@@ -941,8 +1488,13 @@ describe('RemoteFeatureFlagController', () => {
 
     describe('removeFlagOverride', () => {
       it('removes a specific override', () => {
-        const controller = createController({
+        const { controller, messenger } = createController({
           state: {
+            remoteFeatureFlags: {
+              remoteFlag: 'remoteValue',
+              flag1: 'value1',
+              flag2: 'value2',
+            },
             localOverrides: {
               flag1: 'value1',
               flag2: 'value2',
@@ -950,25 +1502,41 @@ describe('RemoteFeatureFlagController', () => {
           },
         });
 
-        controller.removeFlagOverride('flag1');
+        messenger.call(
+          'RemoteFeatureFlagController:removeFlagOverride',
+          'flag1',
+        );
 
         expect(controller.state.localOverrides).toStrictEqual({
+          flag2: 'value2',
+        });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
           flag2: 'value2',
         });
       });
 
       it('does not affect state when clearing non-existent override', () => {
-        const controller = createController({
+        const { controller, messenger } = createController({
           state: {
+            remoteFeatureFlags: {
+              flag1: 'value1',
+            },
             localOverrides: {
               flag1: 'value1',
             },
           },
         });
 
-        controller.removeFlagOverride('nonExistentFlag');
+        messenger.call(
+          'RemoteFeatureFlagController:removeFlagOverride',
+          'nonExistentFlag',
+        );
 
         expect(controller.state.localOverrides).toStrictEqual({
+          flag1: 'value1',
+        });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
           flag1: 'value1',
         });
       });
@@ -976,8 +1544,13 @@ describe('RemoteFeatureFlagController', () => {
 
     describe('clearAllFlagOverrides', () => {
       it('removes all overrides', () => {
-        const controller = createController({
+        const { controller, messenger } = createController({
           state: {
+            remoteFeatureFlags: {
+              remoteFlag: 'remoteValue',
+              flag1: 'value1',
+              flag2: 'value2',
+            },
             localOverrides: {
               flag1: 'value1',
               flag2: 'value2',
@@ -985,15 +1558,18 @@ describe('RemoteFeatureFlagController', () => {
           },
         });
 
-        controller.clearAllFlagOverrides();
+        messenger.call('RemoteFeatureFlagController:clearAllFlagOverrides');
 
         expect(controller.state.localOverrides).toStrictEqual({});
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+        });
       });
 
       it('does not affect state when no overrides exist', () => {
-        const controller = createController();
+        const { controller, messenger } = createController();
 
-        controller.clearAllFlagOverrides();
+        messenger.call('RemoteFeatureFlagController:clearAllFlagOverrides');
 
         expect(controller.state.localOverrides).toStrictEqual({});
       });
@@ -1004,18 +1580,82 @@ describe('RemoteFeatureFlagController', () => {
         const clientConfigApiService = buildClientConfigApiService({
           remoteFeatureFlags: { remoteFlag: 'initialRemoteValue' },
         });
-        const controller = createController({ clientConfigApiService });
+        const { controller, messenger } = createController({
+          clientConfigApiService,
+        });
 
         // Set overrides before fetching remote flags
-        controller.setFlagOverride('overrideFlag', 'overrideValue');
-        controller.setFlagOverride('remoteFlag', 'updatedRemoteValue');
+        messenger.call(
+          'RemoteFeatureFlagController:setFlagOverride',
+          'overrideFlag',
+          'overrideValue',
+        );
+        messenger.call(
+          'RemoteFeatureFlagController:setFlagOverride',
+          'remoteFlag',
+          'updatedRemoteValue',
+        );
 
-        await controller.updateRemoteFeatureFlags();
+        await messenger.call(
+          'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        );
 
         // Overrides should be preserved when remote flags are updated.
         expect(controller.state.localOverrides).toStrictEqual({
           overrideFlag: 'overrideValue',
           remoteFlag: 'updatedRemoteValue',
+        });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'updatedRemoteValue',
+          overrideFlag: 'overrideValue',
+        });
+      });
+
+      it('uses persisted remoteFeatureFlags with overrides on init', () => {
+        const { controller } = createController({
+          state: {
+            remoteFeatureFlags: {
+              remoteFlag: 'remoteValue',
+              overrideFlag: 'overrideValue',
+            },
+            localOverrides: {
+              overrideFlag: 'overrideValue',
+            },
+          },
+        });
+
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+          overrideFlag: 'overrideValue',
+        });
+      });
+
+      it('merges legacy persisted localOverrides into remoteFeatureFlags on init', () => {
+        const { controller, messenger } = createController({
+          state: {
+            remoteFeatureFlags: {
+              remoteFlag: 'remoteValue',
+              overrideFlag: 'remoteOnlyValue',
+            },
+            localOverrides: {
+              overrideFlag: 'overrideValue',
+            },
+          },
+        });
+
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+          overrideFlag: 'overrideValue',
+        });
+
+        messenger.call(
+          'RemoteFeatureFlagController:removeFlagOverride',
+          'overrideFlag',
+        );
+
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+          overrideFlag: 'remoteOnlyValue',
         });
       });
     });
@@ -1043,13 +1683,15 @@ describe('RemoteFeatureFlagController', () => {
           ],
         },
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
 
       // Act - First update: both flags processed
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       const cacheAfterFirst = controller.state.thresholdCache;
       expect(Object.keys(cacheAfterFirst ?? {})).toHaveLength(2);
 
@@ -1074,7 +1716,9 @@ describe('RemoteFeatureFlagController', () => {
       jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
 
       // Second update: flagA removed from server
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       await flushPromises();
 
       // Assert - flagA cache entry removed
@@ -1084,6 +1728,75 @@ describe('RemoteFeatureFlagController', () => {
       expect(cacheAfterSecond[`${MOCK_METRICS_ID}:flagA`]).toBeUndefined();
 
       jest.useRealTimers();
+    });
+
+    it('removes stale featureFlagThresholdGroups entries when flags are removed from server', async () => {
+      jest.useRealTimers();
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          flagA: [
+            {
+              name: 'groupA',
+              thresholdVersion: ThresholdVersion.DirectValue,
+              scope: { type: 'threshold', value: 1.0 },
+              value: true,
+            },
+          ],
+          flagB: [
+            {
+              name: 'groupB',
+              thresholdVersion: ThresholdVersion.DirectValue,
+              scope: { type: 'threshold', value: 1.0 },
+              value: false,
+            },
+          ],
+        },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        flagA: 'groupA',
+        flagB: 'groupB',
+      });
+
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+        .mockResolvedValue({
+          remoteFeatureFlags: {
+            flagB: [
+              {
+                name: 'groupB',
+                thresholdVersion: ThresholdVersion.DirectValue,
+                scope: { type: 'threshold', value: 1.0 },
+                value: false,
+              },
+            ],
+          },
+          cacheTimestamp: Date.now(),
+        });
+
+      jest.useFakeTimers();
+
+      try {
+        jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+
+        await messenger.call(
+          'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        );
+        await flushPromises();
+
+        expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+          flagB: 'groupB',
+        });
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('preserves threshold cache entries for flags still in server response', async () => {
@@ -1100,19 +1813,23 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: mockFlags,
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
 
       // Act - Multiple updates with same flag
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       const initialThreshold =
         controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:persistentFlag`];
 
       jest.useFakeTimers();
       jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // Assert - Cache entry preserved and unchanged
       const finalThreshold =
@@ -1142,7 +1859,7 @@ describe('RemoteFeatureFlagController', () => {
 
       // Create controller with initial state containing cache for different user
       const differentUserId = 'different-user-id';
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
         state: {
@@ -1153,7 +1870,9 @@ describe('RemoteFeatureFlagController', () => {
       });
 
       // Act - Process flags for MOCK_METRICS_ID
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // Assert - Different user's cache entry preserved
       const cache = controller.state.thresholdCache ?? {};
@@ -1176,13 +1895,15 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: mockFlags,
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
 
       // Act - Process with empty cache
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // Assert - Cache populated, no errors
       expect(
@@ -1203,12 +1924,14 @@ describe('RemoteFeatureFlagController', () => {
           ],
         },
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
 
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
         1,
       );
@@ -1231,7 +1954,9 @@ describe('RemoteFeatureFlagController', () => {
 
       jest.useFakeTimers();
       jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // Assert - Old removed, new added in single update
       const cache = controller.state.thresholdCache ?? {};
@@ -1261,13 +1986,15 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: mockFlags,
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => '', // Empty metaMetricsId
       });
 
       // Act
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // Assert - Array preserved as-is without processing
       expect(controller.state.remoteFeatureFlags.thresholdFlag).toStrictEqual(
@@ -1289,13 +2016,15 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: mockFlags,
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
 
       // Act
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // Assert - Cache key correctly handles colon in flag name
       const cache = controller.state.thresholdCache ?? {};
@@ -1305,7 +2034,9 @@ describe('RemoteFeatureFlagController', () => {
       // Update with flag still present - should not be cleaned up
       jest.useFakeTimers();
       jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       const cacheAfterUpdate = controller.state.thresholdCache ?? {};
       expect(cacheAfterUpdate[`${MOCK_METRICS_ID}:feature:v2`]).toBeDefined();
@@ -1333,13 +2064,15 @@ describe('RemoteFeatureFlagController', () => {
           ],
         },
       });
-      const controller = createController({
+      const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
       });
 
       // Act - First update populates cache
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
       expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
         2,
       );
@@ -1354,7 +2087,9 @@ describe('RemoteFeatureFlagController', () => {
 
       jest.useFakeTimers();
       jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
-      await controller.updateRemoteFeatureFlags();
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
 
       // Assert - All entries removed
       expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
@@ -1367,7 +2102,7 @@ describe('RemoteFeatureFlagController', () => {
 
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
-      const controller = createController();
+      const { controller } = createController();
 
       expect(
         deriveStateFromMetadata(
@@ -1386,7 +2121,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('includes expected state in state logs', () => {
-      const controller = createController();
+      const { controller } = createController();
 
       expect(
         deriveStateFromMetadata(
@@ -1405,7 +2140,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('persists expected state', () => {
-      const controller = createController();
+      const { controller } = createController();
 
       expect(
         deriveStateFromMetadata(
@@ -1424,7 +2159,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('exposes expected state to UI', () => {
-      const controller = createController();
+      const { controller } = createController();
 
       expect(
         deriveStateFromMetadata(
@@ -1457,7 +2192,7 @@ type RootMessenger = Messenger<
 /**
  * Creates and returns a root messenger for testing
  *
- * @returns A messenger instance
+ * @returns A root messenger instance
  */
 function getRootMessenger(): RootMessenger {
   return new Messenger({
@@ -1466,13 +2201,16 @@ function getRootMessenger(): RootMessenger {
 }
 
 /**
- * Creates a messenger for the RemoteFeatureFlagController
+ * Builds a root messenger and a scoped controller messenger for testing
  *
- * @returns A messenger instance
+ * @returns The root messenger and the scoped controller messenger
  */
-function getMessenger(): RemoteFeatureFlagControllerMessenger {
+function buildMessenger(): {
+  rootMessenger: RootMessenger;
+  controllerMessenger: RemoteFeatureFlagControllerMessenger;
+} {
   const rootMessenger = getRootMessenger();
-  return new Messenger<
+  const controllerMessenger = new Messenger<
     typeof controllerName,
     AllRemoteFeatureFlagControllerActions,
     AllRemoteFeatureFlagControllerEvents,
@@ -1481,6 +2219,7 @@ function getMessenger(): RemoteFeatureFlagControllerMessenger {
     namespace: controllerName,
     parent: rootMessenger,
   });
+  return { rootMessenger, controllerMessenger };
 }
 
 /**

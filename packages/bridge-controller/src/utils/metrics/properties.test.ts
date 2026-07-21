@@ -1,8 +1,14 @@
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 
+import type { QuoteMetadata } from '../../types';
+import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
+import { getNativeAssetForChainId } from '../bridge';
+import { formatChainIdToCaip } from '../caip-formatters';
 import { MetricsSwapType } from './constants';
 import {
+  getAccountHardwareType,
+  isHardwareWallet,
   toInputChangedPropertyKey,
   toInputChangedPropertyValue,
   getSwapTypeFromQuote,
@@ -10,9 +16,6 @@ import {
   getRequestParams,
   getQuotesReceivedProperties,
 } from './properties';
-import type { QuoteResponse } from '../../types';
-import { getNativeAssetForChainId } from '../bridge';
-import { formatChainIdToCaip } from '../caip-formatters';
 
 describe('properties', () => {
   beforeEach(() => {
@@ -167,7 +170,7 @@ describe('properties', () => {
 
   describe('formatProviderLabel', () => {
     it('should format provider label correctly', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 = {
         quote: {
           requestId: 'request1',
           srcChainId: 1,
@@ -212,7 +215,7 @@ describe('properties', () => {
           chainId: 1,
           to: '0x789',
           from: '0xabc',
-          value: '0',
+          value: '0x0',
           data: '0x',
           gasLimit: 100000,
         },
@@ -225,18 +228,54 @@ describe('properties', () => {
     });
   });
 
+  describe('getAccountHardwareType', () => {
+    it('returns null for non-hardware accounts', () => {
+      expect(
+        getAccountHardwareType({
+          metadata: {
+            keyring: {
+              type: 'HD Key Tree',
+            },
+          },
+        } as never),
+      ).toBeNull();
+      expect(isHardwareWallet(undefined)).toBe(false);
+    });
+
+    it.each([
+      ['Ledger Hardware', 'Ledger'],
+      ['Trezor Hardware', 'Trezor'],
+      ['QR Hardware Wallet Device', 'QR Hardware'],
+      ['Lattice Hardware', 'Lattice'],
+    ] as const)('maps %s to %s', (keyringType, expected) => {
+      const account = {
+        metadata: {
+          keyring: {
+            type: keyringType,
+          },
+        },
+      } as never;
+
+      expect(getAccountHardwareType(account)).toBe(expected);
+      expect(isHardwareWallet(account)).toBe(true);
+    });
+  });
+
   describe('getRequestParams', () => {
     beforeEach(() => {
       jest.clearAllMocks();
     });
 
     it('should format request params correctly with all values provided', () => {
-      const result = getRequestParams({
-        srcChainId: 1,
-        destChainId: SolScope.Mainnet,
-        srcTokenAddress: '0x123',
-        destTokenAddress: 'ABD456',
-      });
+      const result = getRequestParams(
+        {
+          srcChainId: 1,
+          destChainId: SolScope.Mainnet,
+          srcTokenAddress: '0x123',
+          destTokenAddress: 'ABD456',
+        },
+        'Malicious',
+      );
 
       expect(result).toStrictEqual({
         chain_id_destination: SolScope.Mainnet,
@@ -244,60 +283,105 @@ describe('properties', () => {
         token_address_destination:
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:ABD456',
         token_address_source: 'eip155:1/erc20:0x123',
+        token_security_type_destination: 'Malicious',
       });
     });
 
     it('should fallback to src chainId when destChainId is undefined', () => {
-      const result = getRequestParams({
-        srcChainId: formatChainIdToCaip(1),
-        srcTokenAddress: getNativeAssetForChainId('0x1')?.address,
-        destTokenAddress: getNativeAssetForChainId('0xa')?.address,
-      });
+      const result = getRequestParams(
+        {
+          srcChainId: formatChainIdToCaip(1),
+          srcTokenAddress: getNativeAssetForChainId('0x1')?.address,
+          destTokenAddress: getNativeAssetForChainId('0xa')?.address,
+        },
+        null,
+      );
 
       expect(result).toStrictEqual({
         chain_id_source: 'eip155:1',
         chain_id_destination: null,
         token_address_source: 'eip155:1/slip44:60',
         token_address_destination: 'eip155:1/slip44:60',
+        token_security_type_destination: null,
       });
     });
 
     it('should use native asset when srcTokenAddress is not provided', () => {
-      const result = getRequestParams({
-        srcChainId: 'eip155:1' as CaipChainId,
-        destChainId: '2',
-        srcTokenAddress: undefined,
-        destTokenAddress: '0x456',
-      });
+      const result = getRequestParams(
+        {
+          srcChainId: 'eip155:1' as CaipChainId,
+          destChainId: '2',
+          srcTokenAddress: undefined,
+          destTokenAddress: '0x456',
+        },
+        null,
+      );
 
       expect(result).toStrictEqual({
         chain_id_destination: 'eip155:2',
         chain_id_source: 'eip155:1',
         token_address_destination: 'eip155:2/erc20:0x456',
         token_address_source: 'eip155:1/slip44:60',
+        token_security_type_destination: null,
       });
     });
 
     it('should use native asset when formatAddressToAssetId returns null', () => {
-      const result = getRequestParams({
-        srcChainId: 'eip155:1' as CaipChainId,
-        destChainId: '2',
-        srcTokenAddress: '123',
-        destTokenAddress: '456',
-      });
+      const result = getRequestParams(
+        {
+          srcChainId: 'eip155:1' as CaipChainId,
+          destChainId: '2',
+          srcTokenAddress: '123',
+          destTokenAddress: '456',
+        },
+        null,
+      );
 
       expect(result).toStrictEqual({
         chain_id_source: 'eip155:1',
         chain_id_destination: 'eip155:2',
         token_address_destination: null,
         token_address_source: 'eip155:1/slip44:60',
+        token_security_type_destination: null,
       });
+    });
+
+    it('passes through the supplied tokenSecurityTypeDestination value', () => {
+      const result = getRequestParams(
+        {
+          srcChainId: 1,
+          destChainId: 1,
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+        },
+        'Warning',
+      );
+
+      expect(result.token_security_type_destination).toBe('Warning');
     });
   });
 
   describe('getQuotesReceivedProperties', () => {
+    const mockTokenAmount = { amount: '0', valueInCurrency: '0', usd: '0' };
+    const mockQuoteMetadata: QuoteMetadata = {
+      gasFee: {
+        effective: mockTokenAmount,
+        total: mockTokenAmount,
+        max: mockTokenAmount,
+      },
+      totalNetworkFee: mockTokenAmount,
+      totalMaxNetworkFee: mockTokenAmount,
+      toTokenAmount: mockTokenAmount,
+      minToTokenAmount: mockTokenAmount,
+      adjustedReturn: { valueInCurrency: '0', usd: '0' },
+      sentAmount: mockTokenAmount,
+      swapRate: '0',
+      cost: { valueInCurrency: '0', usd: '0' },
+    };
+
     it('should return quotes received properties correctly', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
+        ...mockQuoteMetadata,
         quote: {
           requestId: 'request1',
           srcChainId: 1,
@@ -342,7 +426,7 @@ describe('properties', () => {
           chainId: 1,
           to: '0x789',
           from: '0xabc',
-          value: '0',
+          value: '0x0',
           data: '0x',
           gasLimit: 100000,
         },
@@ -362,17 +446,87 @@ describe('properties', () => {
         {
           "best_quote_provider": "bridge2_bridge2",
           "can_submit": false,
+          "feature_id": "unified_swap_bridge",
           "gas_included": false,
           "gas_included_7702": false,
           "price_impact": 0,
           "provider": "bridge1_bridge1",
           "quoted_time_minutes": 1,
+          "token_symbol_destination": "USDC",
+          "token_symbol_source": "ETH",
           "usd_balance_source": 0,
           "usd_quoted_gas": 0,
           "usd_quoted_return": 0,
           "warnings": [],
         }
       `);
+    });
+
+    it('should return empty source and null destination token symbols when activeQuote is null', () => {
+      const result = getQuotesReceivedProperties(null);
+
+      expect(result.token_symbol_source).toBe('');
+      expect(result.token_symbol_destination).toBeNull();
+    });
+
+    it('should derive token symbols from the active quote asset metadata', () => {
+      const mockQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
+        ...mockQuoteMetadata,
+        quote: {
+          requestId: 'request1',
+          srcChainId: 1,
+          srcAsset: {
+            chainId: 1,
+            address: '0x123',
+            symbol: 'WETH',
+            name: 'Wrapped Ether',
+            decimals: 18,
+            assetId: 'eip155:1/erc20:0x123',
+          },
+          srcTokenAmount: '1000000000000000000',
+          destChainId: 1,
+          destAsset: {
+            chainId: 1,
+            address: '0x456',
+            symbol: 'DAI',
+            name: 'Dai Stablecoin',
+            decimals: 18,
+            assetId: 'eip155:1/erc20:0x456',
+          },
+          destTokenAmount: '1000000',
+          minDestTokenAmount: '950000',
+          feeData: {
+            metabridge: {
+              amount: '10000000000000000',
+              asset: {
+                chainId: 1,
+                address: '0x123',
+                symbol: 'WETH',
+                name: 'Wrapped Ether',
+                decimals: 18,
+                assetId: 'eip155:1/erc20:0x123',
+              },
+            },
+          },
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          steps: [],
+        },
+        trade: {
+          chainId: 1,
+          to: '0x789',
+          from: '0xabc',
+          value: '0x0',
+          data: '0x',
+          gasLimit: 100000,
+        },
+        estimatedProcessingTimeInSeconds: 60,
+      };
+
+      const result = getQuotesReceivedProperties(mockQuoteResponse);
+
+      expect(result.token_symbol_source).toBe('WETH');
+      expect(result.token_symbol_destination).toBe('DAI');
     });
   });
 });

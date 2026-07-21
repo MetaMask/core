@@ -13,7 +13,6 @@ If you are unable to use [preview builds](./preview-builds.md) for testing, you 
    ```
 
    where:
-
    - `PACKAGE_NAME` is the name of your package
    - `VERSION_RANGE` is the version range of your package being used in production, usually starting with `^`
    - `PATH_TO_MONOREPO` is the local path to the clone of this monorepo

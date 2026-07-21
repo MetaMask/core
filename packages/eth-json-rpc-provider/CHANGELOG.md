@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.2` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+
+## [6.0.1]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.4` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 
 ## [6.0.0]
@@ -240,7 +247,8 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 - Initial release, including `providerFromEngine` and `providerFromMiddleware`.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.1...HEAD
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.0...@metamask/eth-json-rpc-provider@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@5.0.1...@metamask/eth-json-rpc-provider@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@5.0.0...@metamask/eth-json-rpc-provider@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.8...@metamask/eth-json-rpc-provider@5.0.0

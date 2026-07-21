@@ -18,7 +18,7 @@ import type {
   JsonRpcSuccess,
 } from '@metamask/utils';
 
-import { walletCreateSession } from './wallet-createSession';
+import { walletCreateSessionHandler } from './wallet-createSession';
 
 jest.mock('@metamask/rpc-errors', () => ({
   ...jest.requireActual('@metamask/rpc-errors'),
@@ -33,6 +33,7 @@ jest.mock('@metamask/chain-agnostic-permission', () => ({
   validateAndNormalizeScopes: jest.fn(),
   bucketScopes: jest.fn(),
   getSessionScopes: jest.fn(),
+  getSessionProperties: jest.fn(),
   getSupportedScopeObjects: jest.fn(),
 }));
 const MockChainAgnosticPermission = jest.mocked(ChainAgnosticPermission);
@@ -63,7 +64,7 @@ const baseRequest = {
   },
 };
 
-const createMockedHandler = () => {
+const createMockedHandler = (trackSessionEvents: boolean = true) => {
   const next = jest.fn();
   const end = jest.fn();
   const requestPermissionsForOrigin = jest.fn().mockResolvedValue([
@@ -92,7 +93,9 @@ const createMockedHandler = () => {
     },
   ]);
   const findNetworkClientIdByChainId = jest.fn().mockReturnValue('mainnet');
-  const trackSessionCreatedEvent = jest.fn().mockImplementation(undefined);
+  const trackSessionCreatedEvent = trackSessionEvents
+    ? jest.fn().mockImplementation(undefined)
+    : null;
   const listAccounts = jest.fn().mockReturnValue([]);
   const getNonEvmSupportedMethods = jest.fn().mockReturnValue([]);
   const isNonEvmScopeSupported = jest.fn().mockReturnValue(false);
@@ -104,16 +107,20 @@ const createMockedHandler = () => {
     sessionProperties?: Record<string, Json>;
   }>;
   const getNonEvmAccountAddresses = jest.fn().mockReturnValue([]);
+  const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
+  const getCapabilities = jest.fn().mockResolvedValue({});
   const handler = (
     request: JsonRpcRequest<Caip25Authorization> & { origin: string },
   ) =>
-    walletCreateSession.implementation(request, response, next, end, {
+    walletCreateSessionHandler.implementation(request, response, next, end, {
       findNetworkClientIdByChainId,
       requestPermissionsForOrigin,
       listAccounts,
       getNonEvmSupportedMethods,
       isNonEvmScopeSupported,
       getNonEvmAccountAddresses,
+      sortAccountIdsByLastSelected,
+      getCapabilities,
       trackSessionCreatedEvent,
     });
 
@@ -128,6 +135,8 @@ const createMockedHandler = () => {
     getNonEvmSupportedMethods,
     isNonEvmScopeSupported,
     getNonEvmAccountAddresses,
+    sortAccountIdsByLastSelected,
+    getCapabilities,
     handler,
   };
 };
@@ -150,6 +159,7 @@ describe('wallet_createSession', () => {
       unsupportableScopes: {},
     });
     MockChainAgnosticPermission.getSessionScopes.mockReturnValue({});
+    MockChainAgnosticPermission.getSessionProperties.mockResolvedValue({});
     MockChainAgnosticPermission.getSupportedScopeObjects.mockImplementation(
       (scopesObject) => scopesObject,
     );
@@ -719,9 +729,17 @@ describe('wallet_createSession', () => {
     );
   });
 
-  it('calls trackSessionCreatedEvent hook if defined', async () => {
+  it('ignores trackSessionCreatedEvent hook if it is null', async () => {
+    const { handler, trackSessionCreatedEvent } = createMockedHandler(false);
+    await handler(baseRequest);
+
+    expect(trackSessionCreatedEvent).toBeNull();
+  });
+  it('calls trackSessionCreatedEvent hook if not null', async () => {
     const { handler, trackSessionCreatedEvent } = createMockedHandler();
-    trackSessionCreatedEvent.mockImplementation(() => {
+    expect(trackSessionCreatedEvent).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    trackSessionCreatedEvent!.mockImplementation(() => {
       // mock implementation
     });
     await handler(baseRequest);
@@ -850,8 +868,7 @@ describe('wallet_createSession', () => {
                   },
                 },
                 sessionProperties: {
-                  [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                    true,
+                  [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                 },
               },
             },
@@ -865,6 +882,9 @@ describe('wallet_createSession', () => {
         notifications: ['accountsChanged', 'chainChanged'],
         accounts: ['eip155:5:0x1', 'eip155:5:0x2'],
       },
+    });
+    MockChainAgnosticPermission.getSessionProperties.mockResolvedValue({
+      [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
     });
     await handler({
       ...baseRequest,
@@ -1106,8 +1126,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },
@@ -1174,8 +1193,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },
@@ -1235,8 +1253,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },

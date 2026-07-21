@@ -41,7 +41,16 @@
       "path": "./packages/assets-controllers/tsconfig.build.json"
     },
     {
+      "path": "./packages/authenticated-user-storage/tsconfig.build.json"
+    },
+    {
       "path": "./packages/base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/base-data-service/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/bitcoin-regtest-up/tsconfig.build.json"
     },
     {
       "path": "./packages/bridge-controller/tsconfig.build.json"
@@ -56,13 +65,25 @@
       "path": "./packages/chain-agnostic-permission/tsconfig.build.json"
     },
     {
+      "path": "./packages/chomp-api-service/tsconfig.build.json"
+    },
+    {
       "path": "./packages/claims-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/client-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/client-utils/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/compliance-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/composable-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/config-registry-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/connectivity-controller/tsconfig.build.json"
@@ -92,9 +113,6 @@
       "path": "./packages/ens-controller/tsconfig.build.json"
     },
     {
-      "path": "./packages/error-reporting-service/tsconfig.build.json"
-    },
-    {
       "path": "./packages/eth-block-tracker/tsconfig.build.json"
     },
     {
@@ -113,6 +131,12 @@
       "path": "./packages/gator-permissions-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/geolocation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/java-tron-up/tsconfig.build.json"
+    },
+    {
       "path": "./packages/json-rpc-engine/tsconfig.build.json"
     },
     {
@@ -122,13 +146,34 @@
       "path": "./packages/keyring-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/local-node-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/logging-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/message-manager/tsconfig.build.json"
     },
     {
+      "path": "./packages/messenger-cli/tsconfig.build.json"
+    },
+    {
       "path": "./packages/messenger/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-balance-service/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-upgrade-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/multichain-account-service/tsconfig.build.json"
@@ -146,6 +191,9 @@
       "path": "./packages/name-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/network-connection-banner-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/network-controller/tsconfig.build.json"
     },
     {
@@ -153,6 +201,9 @@
     },
     {
       "path": "./packages/notification-services-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/passkey-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/permission-controller/tsconfig.build.json"
@@ -165,6 +216,9 @@
     },
     {
       "path": "./packages/phishing-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/platform-api-docs/tsconfig.build.json"
     },
     {
       "path": "./packages/polling-controller/tsconfig.build.json"
@@ -185,6 +239,9 @@
       "path": "./packages/rate-limit-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/react-data-query/tsconfig.build.json"
+    },
+    {
       "path": "./packages/remote-feature-flag-controller/tsconfig.build.json"
     },
     {
@@ -197,10 +254,28 @@
       "path": "./packages/selected-network-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/sentinel-api-service/tsconfig.build.json"
+    },
+    {
       "path": "./packages/shield-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/signature-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/smart-transactions-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/snap-account-service/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/social-controllers/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/solana-test-validator-up/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/stellar-quickstart-up/tsconfig.build.json"
     },
     {
       "path": "./packages/storage-service/tsconfig.build.json"
@@ -216,6 +291,15 @@
     },
     {
       "path": "./packages/user-operation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/wallet-cli/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/wallet-framework-docs/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/wallet/tsconfig.build.json"
     }
   ],
   "files": [],

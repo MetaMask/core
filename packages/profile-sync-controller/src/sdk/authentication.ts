@@ -1,11 +1,13 @@
 import type { Eip1193Provider } from 'ethers';
 
+import type { Env } from '../shared/env';
 import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
 import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
 import {
   getNonce,
   pairIdentifiers,
 } from './authentication-jwt-bearer/services';
+import type { PairProfilesResponse } from './authentication-jwt-bearer/services';
 import type {
   UserProfile,
   Pair,
@@ -13,7 +15,6 @@ import type {
 } from './authentication-jwt-bearer/types';
 import { AuthType } from './authentication-jwt-bearer/types';
 import { PairError, UnsupportedAuthTypeError } from './errors';
-import type { Env } from '../shared/env';
 
 // Computing the Classes, so we only get back the public methods for the interface.
 
@@ -76,8 +77,22 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     return await this.#sdk.getIdentifier(entropySourceId);
   }
 
-  async getUserProfileLineage(): Promise<UserProfileLineage> {
-    return await this.#sdk.getUserProfileLineage();
+  async getUserProfileLineage(
+    entropySourceId?: string,
+  ): Promise<UserProfileLineage> {
+    return await this.#sdk.getUserProfileLineage(entropySourceId);
+  }
+
+  async getCustomerServiceToken(entropySourceId?: string): Promise<string> {
+    return await this.#sdk.getCustomerServiceToken(entropySourceId);
+  }
+
+  async pairSrpProfiles(
+    accessTokens: string[],
+    authAccessToken: string,
+  ): Promise<PairProfilesResponse> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.pairSrpProfiles(accessTokens, authAccessToken);
   }
 
   async signMessage(

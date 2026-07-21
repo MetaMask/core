@@ -1,21 +1,29 @@
 export { default as GatorPermissionsController } from './GatorPermissionsController';
+export {
+  DELEGATION_FRAMEWORK_VERSION,
+  EXECUTION_PERMISSION_EXPIRY_RULE_TYPE,
+  EXECUTION_PERMISSION_PAYEE_RULE_TYPE,
+  EXECUTION_PERMISSION_REDEEMER_RULE_TYPE,
+} from './constants';
+export type {
+  GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
+  GatorPermissionsControllerAddPendingRevocationAction,
+  GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
+  GatorPermissionsControllerInitializeAction,
+  GatorPermissionsControllerIsPendingRevocationAction,
+  GatorPermissionsControllerSubmitDirectRevocationAction,
+  GatorPermissionsControllerSubmitRevocationAction,
+} from './GatorPermissionsController-method-action-types';
 export type {
   GatorPermissionsControllerState,
   GatorPermissionsControllerConfig,
   GatorPermissionsControllerMessenger,
   GatorPermissionsControllerGetStateAction,
-  GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
-  GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
-  GatorPermissionsControllerSubmitRevocationAction,
-  GatorPermissionsControllerAddPendingRevocationAction,
-  GatorPermissionsControllerSubmitDirectRevocationAction,
-  GatorPermissionsControllerIsPendingRevocationAction,
   GatorPermissionsControllerActions,
   GatorPermissionsControllerEvents,
   GatorPermissionsControllerStateChangeEvent,
 } from './GatorPermissionsController';
 export type { DecodedPermission } from './decodePermission';
-export { DELEGATION_FRAMEWORK_VERSION } from './constants';
 export type {
   GatorPermissionsControllerErrorCode,
   GatorPermissionsSnapRpcMethod,
@@ -24,12 +32,15 @@ export type {
   PermissionInfo,
   StoredGatorPermission,
   PermissionInfoWithMetadata,
+  GatorPermissionStatus,
   DelegationDetails,
   RevocationParams,
   RevocationMetadata,
   SupportedPermissionType,
 } from './types';
 
+export type { PayeeRule } from './payeeRule';
+export type { RedeemerRule } from './redeemerRule';
 export type {
   NativeTokenStreamPermission,
   NativeTokenPeriodicPermission,

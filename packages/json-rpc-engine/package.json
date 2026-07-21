@@ -1,21 +1,30 @@
 {
   "name": "@metamask/json-rpc-engine",
-  "version": "10.2.2",
+  "version": "10.5.0",
   "description": "A tool for processing JSON-RPC messages",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/json-rpc-engine#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "ISC",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "ISC",
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "dist/",
+    "v2.js"
+  ],
   "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -39,28 +48,18 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
-  "directories": {
-    "test": "test"
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
-  "files": [
-    "dist/",
-    "v2.js"
-  ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
-    "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies && yarn lint:changelog",
-    "lint:changelog": "auto-changelog validate",
-    "lint:dependencies": "depcheck",
-    "lint:eslint": "eslint .  --ext js,ts",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies && yarn lint:changelog",
-    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
-    "publish:preview": "yarn npm publish --tag preview",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -68,9 +67,10 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
+    "@metamask/messenger": "^2.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "^11.11.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
     "klona": "^2.0.6"
@@ -78,22 +78,18 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "deepmerge": "^4.2.2",
     "jest": "^30.2.0",
-    "jest-it-up": "^4.0.1",
     "ts-jest": "^29.4.6",
+    "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   },
   "lavamoat": {
     "allowScripts": {

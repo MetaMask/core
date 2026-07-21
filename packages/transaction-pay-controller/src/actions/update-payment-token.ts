@@ -1,6 +1,5 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
 import type { TransactionPayControllerMessenger } from '..';
 import { projectLogger } from '../logger';
@@ -10,6 +9,7 @@ import type {
   UpdateTransactionDataCallback,
 } from '../types';
 import {
+  computeTokenAmounts,
   getTokenBalance,
   getTokenFiatRate,
   getTokenInfo,
@@ -42,11 +42,21 @@ export function updatePaymentToken(
     throw new Error('Transaction not found');
   }
 
+  const state = messenger.call('TransactionPayController:getState');
+  const transactionPayData = state.transactionData[transactionId];
+  const accountOverride = transactionPayData?.accountOverride;
+
   const paymentToken = getPaymentToken({
     chainId,
-    from: transaction?.txParams.from as Hex,
+    from: accountOverride ?? (transaction.txParams.from as Hex),
     messenger,
     tokenAddress,
+    // For post-quote (withdraw) flows the selected token is the receive
+    // destination, which may live on a chain the wallet does not actively
+    // track, so no local market price or native-currency rate exists.
+    // Allow resolution without a fiat rate so selection is not blocked; the
+    // received amount is determined by the quote, not local rates.
+    allowMissingFiatRate: Boolean(transactionPayData?.isPostQuote),
   });
 
   if (!paymentToken) {
@@ -57,6 +67,7 @@ export function updatePaymentToken(
 
   updateTransactionData(transactionId, (data) => {
     data.paymentToken = paymentToken;
+    data.fiatPayment = {};
   });
 }
 
@@ -68,6 +79,8 @@ export function updatePaymentToken(
  * @param request.from - The address to get the token balance for.
  * @param request.messenger - The transaction pay controller messenger.
  * @param request.tokenAddress - The token address.
+ * @param request.allowMissingFiatRate - Whether to resolve the token with
+ * zeroed fiat rates when no local rate is available.
  * @returns The payment token or undefined if the token data could not be retrieved.
  */
 function getPaymentToken({
@@ -75,11 +88,13 @@ function getPaymentToken({
   from,
   messenger,
   tokenAddress,
+  allowMissingFiatRate,
 }: {
   chainId: Hex;
   from: Hex;
   messenger: TransactionPayControllerMessenger;
   tokenAddress: Hex;
+  allowMissingFiatRate?: boolean;
 }): TransactionPaymentToken | undefined {
   const { decimals, symbol } =
     getTokenInfo(messenger, tokenAddress, chainId) ?? {};
@@ -88,25 +103,27 @@ function getPaymentToken({
     return undefined;
   }
 
-  const tokenFiatRate = getTokenFiatRate(messenger, tokenAddress, chainId);
+  let tokenFiatRate = getTokenFiatRate(messenger, tokenAddress, chainId);
 
   if (tokenFiatRate === undefined) {
-    return undefined;
+    if (!allowMissingFiatRate) {
+      return undefined;
+    }
+
+    // No local fiat rate for this chain and token, such as a withdraw
+    // destination on a chain the wallet does not track. Resolve with zeroed
+    // fiat rates so the token can be selected; fiat display is best-effort.
+    tokenFiatRate = { usdRate: '0', fiatRate: '0' };
   }
 
   const balance = getTokenBalance(messenger, from, chainId, tokenAddress);
-  const balanceRawValue = new BigNumber(balance);
-  const balanceHumanValue = new BigNumber(balance).shiftedBy(-decimals);
-  const balanceRaw = balanceRawValue.toFixed(0);
-  const balanceHuman = balanceHumanValue.toString(10);
 
-  const balanceFiat = balanceHumanValue
-    .multipliedBy(tokenFiatRate.fiatRate)
-    .toString(10);
-
-  const balanceUsd = balanceHumanValue
-    .multipliedBy(tokenFiatRate.usdRate)
-    .toString(10);
+  const {
+    raw: balanceRaw,
+    human: balanceHuman,
+    usd: balanceUsd,
+    fiat: balanceFiat,
+  } = computeTokenAmounts(balance, decimals, tokenFiatRate);
 
   return {
     address: tokenAddress,

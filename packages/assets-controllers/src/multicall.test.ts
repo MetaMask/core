@@ -10,8 +10,9 @@ import {
   aggregate3,
   getTokenBalancesForMultipleAddresses,
   getStakedBalancesForAddresses,
+  getNftOwnershipForMultipleNfts,
 } from './multicall';
-import type { Aggregate3Call } from './multicall';
+import type { Aggregate3Call, NftOwnershipQuery } from './multicall';
 
 const provider = new Web3Provider(jest.fn());
 
@@ -1553,6 +1554,404 @@ describe('multicall', () => {
         [manyAddresses[0]]: new BN('2000000000000000000'), // 2 ETH
         [manyAddresses[2]]: new BN('1000000000000000000'), // 1 ETH
         // Addresses 1 and 3 not included (zero shares)
+      });
+    });
+  });
+
+  describe('getNftOwnershipForMultipleNfts', () => {
+    const ownerAddress = '0x0000000000000000000000000000000000000001';
+    const otherAddress = '0x0000000000000000000000000000000000000099';
+    const nftAddress = '0x0000000000000000000000000000000000000ABC';
+    const supportedChainId: Hex = '0x1';
+    const unsupportedChainId: Hex = '0x999999';
+
+    const makeQuery = (
+      overrides: Partial<NftOwnershipQuery> = {},
+    ): NftOwnershipQuery => ({
+      nftAddress,
+      tokenId: '1',
+      userAddress: ownerAddress,
+      standard: null,
+      ...overrides,
+    });
+
+    const encodeAggregate3Response = (
+      results: { success: boolean; data: string }[],
+    ): string =>
+      defaultAbiCoder.encode(
+        ['tuple(bool,bytes)[]'],
+        [results.map(({ success, data }) => [success, data])],
+      );
+
+    const encodeOwnerOfResult = (owner: string): string =>
+      defaultAbiCoder.encode(['address'], [owner]);
+
+    const encodeBalanceOfResult = (balance: number): string =>
+      defaultAbiCoder.encode(['uint256'], [balance]);
+
+    it('should return empty array for empty input', async () => {
+      const results = await getNftOwnershipForMultipleNfts(
+        [],
+        supportedChainId,
+        provider,
+      );
+      expect(results).toStrictEqual([]);
+    });
+
+    describe('via multicall (supported chain)', () => {
+      it('should detect ERC-721 ownership when ownerOf matches', async () => {
+        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: true, data: encodeOwnerOfResult(ownerAddress) },
+            { success: false, data: '0x' },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery()],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+      });
+
+      it('should detect ERC-721 non-ownership when ownerOf returns a different address', async () => {
+        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: true, data: encodeOwnerOfResult(otherAddress) },
+            { success: false, data: '0x' },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery()],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: false },
+        ]);
+      });
+
+      it('should fall back to ERC-1155 balanceOf when ownerOf fails', async () => {
+        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: false, data: '0x' },
+            { success: true, data: encodeBalanceOfResult(3) },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery()],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+      });
+
+      it('should return isOwned=false when ERC-1155 balance is zero', async () => {
+        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: false, data: '0x' },
+            { success: true, data: encodeBalanceOfResult(0) },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery()],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: false },
+        ]);
+      });
+
+      it('should return isOwned=undefined when both calls fail', async () => {
+        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: false, data: '0x' },
+            { success: false, data: '0x' },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery()],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: undefined },
+        ]);
+      });
+
+      it('should skip ERC-1155 call when standard is ERC721', async () => {
+        jest
+          .spyOn(provider, 'call')
+          .mockResolvedValueOnce(
+            encodeAggregate3Response([
+              { success: true, data: encodeOwnerOfResult(ownerAddress) },
+            ]),
+          );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery({ standard: 'ERC721' })],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+        // Only 1 subcall should have been sent (ownerOf), not 2
+        expect(provider.call).toHaveBeenCalledTimes(1);
+      });
+
+      it('should skip ERC-721 call when standard is ERC1155', async () => {
+        jest
+          .spyOn(provider, 'call')
+          .mockResolvedValueOnce(
+            encodeAggregate3Response([
+              { success: true, data: encodeBalanceOfResult(1) },
+            ]),
+          );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery({ standard: 'ERC1155' })],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+        expect(provider.call).toHaveBeenCalledTimes(1);
+      });
+
+      it('should not let ERC-1155 result override a definitive ERC-721 result', async () => {
+        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: true, data: encodeOwnerOfResult(ownerAddress) },
+            { success: true, data: encodeBalanceOfResult(0) },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery()],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+      });
+
+      it('should handle multiple NFTs in a single batch', async () => {
+        const nftAddress2 = '0x0000000000000000000000000000000000000DEF';
+        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: true, data: encodeOwnerOfResult(ownerAddress) },
+            { success: false, data: '0x' },
+            { success: false, data: '0x' },
+            { success: true, data: encodeBalanceOfResult(5) },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery(), makeQuery({ nftAddress: nftAddress2, tokenId: '42' })],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+          { nftAddress: nftAddress2, tokenId: '42', isOwned: true },
+        ]);
+      });
+    });
+
+    describe('via individual calls (unsupported chain)', () => {
+      it('should detect ERC-721 ownership via individual ownerOf call', async () => {
+        jest
+          .spyOn(provider, 'call')
+          .mockResolvedValueOnce(encodeOwnerOfResult(ownerAddress));
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery()],
+          unsupportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+      });
+
+      it('should fall back to ERC-1155 when ERC-721 call reverts', async () => {
+        jest
+          .spyOn(provider, 'call')
+          .mockRejectedValueOnce(new Error('not ERC721'))
+          .mockResolvedValueOnce(encodeBalanceOfResult(2));
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery()],
+          unsupportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+      });
+
+      it('should return isOwned=undefined when both individual calls fail', async () => {
+        jest
+          .spyOn(provider, 'call')
+          .mockRejectedValueOnce(new Error('not ERC721'))
+          .mockRejectedValueOnce(new Error('not ERC1155'));
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery()],
+          unsupportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: undefined },
+        ]);
+      });
+
+      it('should skip ERC-1155 when standard is ERC721', async () => {
+        jest
+          .spyOn(provider, 'call')
+          .mockResolvedValueOnce(encodeOwnerOfResult(ownerAddress));
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery({ standard: 'ERC721' })],
+          unsupportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+        expect(provider.call).toHaveBeenCalledTimes(1);
+      });
+
+      it('should skip ERC-721 when standard is ERC1155', async () => {
+        jest
+          .spyOn(provider, 'call')
+          .mockResolvedValueOnce(encodeBalanceOfResult(1));
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery({ standard: 'ERC1155' })],
+          unsupportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+        expect(provider.call).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('multicall fallback', () => {
+      it('should fall back to individual calls when multicall3 throws', async () => {
+        const callSpy = jest.spyOn(provider, 'call');
+        // First call: multicall3 aggregate3 fails
+        callSpy.mockRejectedValueOnce(new Error('multicall3 reverted'));
+        // Subsequent calls: individual ownerOf succeeds
+        callSpy.mockResolvedValueOnce(encodeOwnerOfResult(ownerAddress));
+
+        const consoleSpy = jest
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery()],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Multicall3 NFT ownership check failed, falling back to individual calls',
+          expect.any(Error),
+        );
+
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('unknown-standard NFT exclusion', () => {
+      it('should skip NFTs with explicitly unrecognized standard entirely', async () => {
+        const cryptoPunksAddress = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
+        const callSpy = jest.spyOn(provider, 'call');
+
+        // Only call: multicall aggregate3 for the known-standard NFT
+        callSpy.mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: true, data: encodeOwnerOfResult(ownerAddress) },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [
+            makeQuery({ standard: 'ERC721' }),
+            makeQuery({
+              nftAddress: cryptoPunksAddress,
+              tokenId: '1434',
+              standard: 'UNKNOWN',
+            }),
+          ],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+          {
+            nftAddress: cryptoPunksAddress,
+            tokenId: '1434',
+            isOwned: undefined,
+          },
+        ]);
+        // Only 1 multicall call — no individual calls for the UNKNOWN NFT
+        expect(callSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('should still include standard=null NFTs in multicall batch', async () => {
+        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: true, data: encodeOwnerOfResult(ownerAddress) },
+            { success: false, data: '0x' },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery({ standard: null })],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+        // Single multicall call (no individual calls)
+        expect(provider.call).toHaveBeenCalledTimes(1);
       });
     });
   });

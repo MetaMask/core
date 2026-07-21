@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.3.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [8.0.2]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^12.0.0` ([#8344](https://github.com/MetaMask/core/pull/8344), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [8.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [8.0.0]
+
+### Added
+
+- Expose missing public `LoggingController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following action is now available:
+    - `LoggingController:clear`
+  - Corresponding action type (`LoggingControllerClearAction`) is available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `LoggingController` messenger action types ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - All existing types for messenger actions have been renamed so they end in `Action` and include the controller name (e.g. `AddLog` -> `LoggingControllerAddAction`). You will need to update imports appropriately.
+  - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `LoggingController` messengers.
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.19.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995))
 
 ## [7.0.1]
@@ -194,7 +226,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Release
   - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@8.0.2...HEAD
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@8.0.1...@metamask/logging-controller@8.0.2
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@8.0.0...@metamask/logging-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@7.0.1...@metamask/logging-controller@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@7.0.0...@metamask/logging-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.1.1...@metamask/logging-controller@7.0.0
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.1.0...@metamask/logging-controller@6.1.1

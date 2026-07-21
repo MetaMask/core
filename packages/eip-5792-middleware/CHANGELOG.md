@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.5]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/transaction-controller` from `^65.4.0` to `^69.0.0` ([#8848](https://github.com/MetaMask/core/pull/8848), [#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218), [#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349), [#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Add missing dependency `@metamask/preferences-controller` (`^23.1.0`) ([#8384](https://github.com/MetaMask/core/pull/8384))
+  - This is technically not needed, but it is still referenced in the `EIP5792Messenger` messenger type
+
+## [3.0.4]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^65.4.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613), [#8691](https://github.com/MetaMask/core/pull/8691), [#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755), [#8796](https://github.com/MetaMask/core/pull/8796))
+
+## [3.0.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+
+## [3.0.2]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.1` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.19.0` to `^63.0.0` ([#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140), [#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [3.0.0]
+
 ### Added
 
 - Pass `requiredAssets` from `wallet_sendCalls` to `addTransaction` and `addTransactionBatch` ([#7819](https://github.com/MetaMask/core/pull/7819))
@@ -14,9 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.17.1` ([#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.19.0` ([#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7996](https://github.com/MetaMask/core/pull/7996), [#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031))
 - Bump `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Make `wallet_sendCalls` more reliable ([#7816](https://github.com/MetaMask/core/pull/7816))
+- **BREAKING:** Replace `getAccounts` hook with `getPermittedAccountsForOrigin` in `walletSendCalls`, `walletGetCapabilities`, and `ProcessSendCallsHooks` ([#7816](https://github.com/MetaMask/core/pull/7816))
+  - Consumers must rename the `getAccounts` hook to `getPermittedAccountsForOrigin` and update its signature from `(req: JsonRpcRequest) => Promise<string[]>` to `() => Promise<string[]>`. The `req` parameter passed to `walletSendCalls` and `walletGetCapabilities` must now include an `origin` property.
 
 ## [2.1.0]
 
@@ -83,7 +123,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6458](https://github.com/MetaMask/core/pull/6458))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.5...HEAD
+[3.0.5]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.4...@metamask/eip-5792-middleware@3.0.5
+[3.0.4]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.3...@metamask/eip-5792-middleware@3.0.4
+[3.0.3]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.2...@metamask/eip-5792-middleware@3.0.3
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.1...@metamask/eip-5792-middleware@3.0.2
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.0...@metamask/eip-5792-middleware@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@2.1.0...@metamask/eip-5792-middleware@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@2.0.0...@metamask/eip-5792-middleware@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.4...@metamask/eip-5792-middleware@2.0.0
 [1.2.4]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.3...@metamask/eip-5792-middleware@1.2.4

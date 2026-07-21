@@ -1,12 +1,8 @@
-import type EthQuery from '@metamask/eth-query';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { isNativeBalanceSufficientForGas } from './balance';
-import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
-import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
-import { getEIP7702UpgradeContractAddress } from './feature-flags';
 import type {
   GasFeeToken,
   TransactionControllerMessenger,
@@ -20,6 +16,10 @@ import type {
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { GetSimulationConfig } from '../types';
+import { isNativeBalanceSufficientForGas } from './balance';
+import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
+import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
+import { getEIP7702UpgradeContractAddress } from './feature-flags';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-tokens');
 
@@ -124,18 +124,21 @@ export async function getGasFeeTokens({
  * Check and update gas fee token selection before publishing a transaction.
  *
  * @param request - Request object.
- * @param request.ethQuery - EthQuery instance.
+ * @param request.messenger - The transaction controller messenger.
+ * @param request.networkClientId - The network client ID.
  * @param request.fetchGasFeeTokens - Function to fetch gas fee tokens.
  * @param request.transaction - Transaction metadata.
  * @param request.updateTransaction - Function to update the transaction.
  */
 export async function checkGasFeeTokenBeforePublish({
-  ethQuery,
+  messenger,
+  networkClientId,
   fetchGasFeeTokens,
   transaction,
   updateTransaction,
 }: {
-  ethQuery: EthQuery;
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
   fetchGasFeeTokens: (transaction: TransactionMeta) => Promise<GasFeeToken[]>;
   transaction: TransactionMeta;
   updateTransaction: (
@@ -143,30 +146,40 @@ export async function checkGasFeeTokenBeforePublish({
     fn: (tx: TransactionMeta) => void,
   ) => void;
 }): Promise<void> {
-  const { isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } = transaction;
+  const {
+    excludeNativeTokenForFee,
+    isGasFeeTokenIgnoredIfBalance,
+    selectedGasFeeToken,
+  } = transaction;
 
-  if (!selectedGasFeeToken || !isGasFeeTokenIgnoredIfBalance) {
+  if (
+    !selectedGasFeeToken ||
+    (!isGasFeeTokenIgnoredIfBalance && !excludeNativeTokenForFee)
+  ) {
     return;
   }
 
   log('Checking gas fee token before publish', { selectedGasFeeToken });
 
-  const hasNativeBalance = await isNativeBalanceSufficientForGas(
-    transaction,
-    ethQuery,
-  );
-
-  if (hasNativeBalance) {
-    log(
-      'Ignoring gas fee token before publish due to sufficient native balance',
+  if (!excludeNativeTokenForFee) {
+    const hasNativeBalance = await isNativeBalanceSufficientForGas(
+      transaction,
+      messenger,
+      networkClientId,
     );
 
-    updateTransaction(transaction.id, (tx) => {
-      tx.isExternalSign = false;
-      tx.selectedGasFeeToken = undefined;
-    });
+    if (hasNativeBalance) {
+      log(
+        'Ignoring gas fee token before publish due to sufficient native balance',
+      );
 
-    return;
+      updateTransaction(transaction.id, (tx) => {
+        tx.isExternalSign = false;
+        tx.selectedGasFeeToken = undefined;
+      });
+
+      return;
+    }
   }
 
   const gasFeeTokens = await fetchGasFeeTokens({

@@ -2,11 +2,11 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
 import { NetworkClientType } from '@metamask/network-controller';
 
+import { SECONDS } from '../../../tests/constants';
 import {
   setupAssetContractControllers,
   mockNetworkWithDefaultChainId,
 } from './AssetsContractController.test';
-import { SECONDS } from '../../../tests/constants';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
@@ -31,7 +31,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           'invalidNetworkClientId',
         ),
     ).rejects.toThrow(
-      `No custom network client was found with the ID "invalidNetworkClientId".`,
+      `No network client was found with ID "invalidNetworkClientId".`,
     );
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
@@ -46,7 +46,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           'invalidNetworkClientId',
         ),
     ).rejects.toThrow(
-      `No custom network client was found with the ID "invalidNetworkClientId".`,
+      `No network client was found with ID "invalidNetworkClientId".`,
     );
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
@@ -154,7 +154,9 @@ describe('AssetsContractController with NetworkClientId', () => {
           undefined,
           'invalidNetworkClientId',
         ),
-    ).rejects.toThrow('No custom network client was found');
+    ).rejects.toThrow(
+      'No network client was found with ID "invalidNetworkClientId".',
+    );
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
@@ -582,7 +584,9 @@ describe('AssetsContractController with NetworkClientId', () => {
           ERC721_GODS_ADDRESS,
           'invalidNetworkClientId',
         ),
-    ).rejects.toThrow('No custom network client was found');
+    ).rejects.toThrow(
+      'No network client was found with ID "invalidNetworkClientId".',
+    );
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
@@ -698,7 +702,9 @@ describe('AssetsContractController with NetworkClientId', () => {
           '148332',
           'invalidNetworkClientId',
         ),
-    ).rejects.toThrow('No custom network client was found');
+    ).rejects.toThrow(
+      'No network client was found with ID "invalidNetworkClientId".',
+    );
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
@@ -823,7 +829,9 @@ describe('AssetsContractController with NetworkClientId', () => {
           '1',
           'invalidNetworkClientId',
         ),
-    ).rejects.toThrow('No custom network client was found');
+    ).rejects.toThrow(
+      'No network client was found with ID "invalidNetworkClientId".',
+    );
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
@@ -873,7 +881,9 @@ describe('AssetsContractController with NetworkClientId', () => {
           ERC1155_ID,
           'invalidNetworkClientId',
         ),
-    ).rejects.toThrow('No custom network client was found');
+    ).rejects.toThrow(
+      'No network client was found with ID "invalidNetworkClientId".',
+    );
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 

@@ -4,10 +4,21 @@
     "baseUrl": "./"
   },
   "references": [
-    { "path": "../../packages/base-controller" },
-    { "path": "../../packages/controller-utils" },
-    { "path": "../../packages/messenger" },
-    { "path": "../../packages/network-controller" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../base-data-service"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    }
   ],
   "include": ["../../types", "./src"],
   /**

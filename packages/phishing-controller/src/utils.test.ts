@@ -10,6 +10,10 @@ import {
   getHostnameAndPathComponents,
   getHostnameFromUrl,
   getHostnameFromWebUrl,
+  getPhishingDetectionScanUrlParam,
+  isAddressScanSupportedChain,
+  isPhishingDetectionPathBasedHostname,
+  isTokenScanSupportedChain,
   matchPartsAgainstList,
   processConfigs,
   processDomainList,
@@ -981,6 +985,54 @@ describe('getHostnameFromWebUrl', () => {
   );
 });
 
+describe('isPhishingDetectionPathBasedHostname', () => {
+  it('returns true for registered roots and subdomains', () => {
+    expect(isPhishingDetectionPathBasedHostname('ipfs.io')).toBe(true);
+    expect(isPhishingDetectionPathBasedHostname('gateway.ipfs.io')).toBe(true);
+    expect(isPhishingDetectionPathBasedHostname('dweb.link')).toBe(true);
+    expect(isPhishingDetectionPathBasedHostname('sites.google.com')).toBe(true);
+  });
+
+  it('is case-insensitive', () => {
+    expect(isPhishingDetectionPathBasedHostname('IPFS.IO')).toBe(true);
+    expect(isPhishingDetectionPathBasedHostname('Gateway.IPFS.IO')).toBe(true);
+  });
+
+  it('returns false for unrelated hosts', () => {
+    expect(isPhishingDetectionPathBasedHostname('example.com')).toBe(false);
+    expect(isPhishingDetectionPathBasedHostname('evil-ipfs.io')).toBe(false);
+  });
+});
+
+describe('getPhishingDetectionScanUrlParam', () => {
+  it('returns hostname only for non-gateway hosts', () => {
+    expect(
+      getPhishingDetectionScanUrlParam('https://example.com/path?q=1#h'),
+    ).toStrictEqual(['example.com', true]);
+  });
+
+  it('returns hostname plus path for path-based gateway hosts', () => {
+    expect(
+      getPhishingDetectionScanUrlParam(
+        'https://ipfs.io/ipfs/QmAAA/foo?x=1#frag',
+      ),
+    ).toStrictEqual(['ipfs.io/ipfs/QmAAA/foo', true]);
+  });
+
+  it('does not append path when pathname is /', () => {
+    expect(
+      getPhishingDetectionScanUrlParam('https://dweb.link/'),
+    ).toStrictEqual(['dweb.link', true]);
+  });
+
+  it('returns ok false for invalid web URLs', () => {
+    expect(getPhishingDetectionScanUrlParam('not-a-url')).toStrictEqual([
+      '',
+      false,
+    ]);
+  });
+});
+
 /**
  * Extracts the domain name (e.g., example.com) from a given hostname.
  *
@@ -1189,6 +1241,49 @@ describe('resolveChainName', () => {
     expect(resolveChainName('0x999')).toBeNull();
     expect(resolveChainName('unknown')).toBeNull();
     expect(resolveChainName('')).toBeNull();
+  });
+});
+
+describe('isTokenScanSupportedChain', () => {
+  it('returns true for chains supported by token scanning', () => {
+    expect(isTokenScanSupportedChain('ethereum')).toBe(true);
+    expect(isTokenScanSupportedChain('polygon')).toBe(true);
+    expect(isTokenScanSupportedChain('solana')).toBe(true);
+    expect(isTokenScanSupportedChain('bitcoin')).toBe(true);
+    expect(isTokenScanSupportedChain('kaia')).toBe(true);
+  });
+
+  it('returns false for chains not supported by token scanning', () => {
+    expect(isTokenScanSupportedChain('gnosis')).toBe(false);
+    expect(isTokenScanSupportedChain('worldchain')).toBe(false);
+    expect(isTokenScanSupportedChain('flow-evm')).toBe(false);
+  });
+
+  it('returns false for unknown chains', () => {
+    expect(isTokenScanSupportedChain('unknown-chain')).toBe(false);
+    expect(isTokenScanSupportedChain('')).toBe(false);
+  });
+});
+
+describe('isAddressScanSupportedChain', () => {
+  it('returns true for chains supported by address scanning', () => {
+    expect(isAddressScanSupportedChain('ethereum')).toBe(true);
+    expect(isAddressScanSupportedChain('polygon')).toBe(true);
+    expect(isAddressScanSupportedChain('gnosis')).toBe(true);
+    expect(isAddressScanSupportedChain('flow-evm')).toBe(true);
+    expect(isAddressScanSupportedChain('mantle')).toBe(true);
+  });
+
+  it('returns false for chains not supported by address scanning', () => {
+    expect(isAddressScanSupportedChain('solana')).toBe(false);
+    expect(isAddressScanSupportedChain('bitcoin')).toBe(false);
+    expect(isAddressScanSupportedChain('hedera')).toBe(false);
+    expect(isAddressScanSupportedChain('stellar')).toBe(false);
+  });
+
+  it('returns false for unknown chains', () => {
+    expect(isAddressScanSupportedChain('unknown-chain')).toBe(false);
+    expect(isAddressScanSupportedChain('')).toBe(false);
   });
 });
 

@@ -3,19 +3,26 @@
   "version": "15.0.1",
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/eth-block-tracker#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "files": [
+    "dist",
+    "dist/"
+  ],
   "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -29,25 +36,18 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.cts",
-  "files": [
-    "dist",
-    "dist/"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/eth-block-tracker",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-block-tracker",
-    "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies",
-    "lint:dependencies": "depcheck",
-    "lint:eslint": "eslint .  --ext js,ts",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies",
-    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
-    "publish:preview": "yarn npm publish --tag preview",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -55,29 +55,26 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/eth-json-rpc-provider": "^6.0.0",
+    "@metamask/eth-json-rpc-provider": "^6.0.1",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "^11.11.0",
     "json-rpc-random-id": "^1.0.1"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/json-rpc-engine": "^10.2.2",
+    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/json-rpc-engine": "^10.5.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "@types/json-rpc-random-id": "^1.0.1",
     "deepmerge": "^4.2.2",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
+    "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }

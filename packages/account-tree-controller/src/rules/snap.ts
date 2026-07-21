@@ -1,14 +1,15 @@
 import { AccountGroupType, AccountWalletType } from '@metamask/account-api';
 import { toAccountWalletId, toAccountGroupId } from '@metamask/account-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
-import { getAccountGroupPrefixFromKeyringType } from './keyring';
 import { BaseRule } from '../rule';
 import type { Rule, RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
+import { getAccountGroupPrefixFromKeyringType } from './keyring';
 
 /**
  * Snap account type.
@@ -20,22 +21,6 @@ type SnapAccount<Account extends InternalAccount> = Account & {
     };
   };
 };
-
-/**
- * Check if an account is a Snap account.
- *
- * @param account - The account to check.
- * @returns True if the account is a Snap account, false otherwise.
- */
-function isSnapAccount(
-  account: InternalAccount,
-): account is SnapAccount<InternalAccount> {
-  return (
-    account.metadata.keyring.type === (KeyringTypes.snap as string) &&
-    account.metadata.snap !== undefined &&
-    account.metadata.snap.enabled
-  );
-}
 
 export class SnapRule
   extends BaseRule
@@ -50,7 +35,7 @@ export class SnapRule
   ):
     | RuleResult<AccountWalletType.Snap, AccountGroupType.SingleAccount>
     | undefined {
-    if (!isSnapAccount(account)) {
+    if (!this.#isSnapAccount(account)) {
       return undefined;
     }
 
@@ -76,6 +61,7 @@ export class SnapRule
         metadata: {
           pinned: false,
           hidden: false,
+          lastSelected: 0,
         },
       },
     };
@@ -85,7 +71,7 @@ export class SnapRule
     wallet: AccountWalletObjectOf<AccountWalletType.Snap>,
   ): string {
     const snapId = wallet.metadata.snap.id;
-    const snap = this.messenger.call('SnapController:get', snapId);
+    const snap = this.messenger.call('SnapController:getSnap', snapId);
     const snapName = snap
       ? // TODO: Handle localization here, but that's a "client thing", so we don't have a `core` controller
         // to refer to.
@@ -99,5 +85,31 @@ export class SnapRule
     _wallet: AccountWalletObjectOf<AccountWalletType.Snap>,
   ): string {
     return getAccountGroupPrefixFromKeyringType(KeyringTypes.snap);
+  }
+
+  /**
+   * Check if an account is a Snap account.
+   *
+   * @param account - The account to check.
+   * @returns True if the account is a Snap account, false otherwise.
+   */
+  #isSnapAccount(
+    account: InternalAccount,
+  ): account is SnapAccount<InternalAccount> {
+    const snapId = account.metadata.snap?.id;
+    if (snapId === undefined) {
+      return false;
+    }
+
+    const snap = this.messenger.call('SnapController:getSnap', snapId);
+    if (snap === null) {
+      return false;
+    }
+
+    const keyringType = account.metadata.keyring.type;
+    const hasSnapKeyringType =
+      keyringType === KeyringTypes.snap || keyringType === KeyringType.Snap;
+
+    return hasSnapKeyringType && snap.enabled && !snap.blocked;
   }
 }

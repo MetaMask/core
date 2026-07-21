@@ -1,6 +1,6 @@
-import { createPerpOrderNotification } from './perp-notifications';
 import { mockCreatePerpNotification } from '../__fixtures__/mockServices';
 import type { OrderInput } from '../types/perps';
+import { createPerpOrderNotification } from './perp-notifications';
 
 const mockOrderInput = (): OrderInput => ({
   user_id: '0x111', // User Address

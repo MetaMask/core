@@ -1,5 +1,12 @@
 import { SDK } from '@metamask/profile-sync-controller';
 
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import type { AccountWalletEntropyObject } from '../../wallet';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+  UserStorageSyncedWalletGroup,
+} from '../types';
 import {
   USER_STORAGE_WALLETS_FEATURE_KEY,
   USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
@@ -22,13 +29,6 @@ import {
   getAllLegacyUserStorageAccounts,
 } from './network-operations';
 import { executeWithRetry } from './network-utils';
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type {
-  BackupAndSyncContext,
-  UserStorageSyncedWallet,
-  UserStorageSyncedWalletGroup,
-} from '../types';
 
 jest.mock('./format-utils');
 jest.mock('./network-utils');
@@ -61,11 +61,17 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   let mockContext: BackupAndSyncContext;
   let mockWallet: AccountWalletEntropyObject;
   let mockGroup: AccountGroupMultichainAccountObject;
+  let mockSetRemoteWrite: jest.Mock;
 
   beforeEach(() => {
+    mockSetRemoteWrite = jest.fn();
+
     mockContext = {
       messenger: {
         call: jest.fn(),
+      },
+      mutationTracker: {
+        setRemoteWrite: mockSetRemoteWrite,
       },
     } as unknown as BackupAndSyncContext;
 
@@ -204,6 +210,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         JSON.stringify(formattedWallet),
         'test-entropy-id',
       );
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -436,6 +443,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         JSON.stringify(formattedGroup),
         'test-entropy-id',
       );
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -466,6 +474,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         ],
         'test-entropy-id',
       );
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 

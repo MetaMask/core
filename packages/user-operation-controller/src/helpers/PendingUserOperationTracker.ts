@@ -12,11 +12,11 @@ import type { Hex } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
-import { Bundler } from './Bundler';
 import { projectLogger } from '../logger';
 import type { UserOperationMetadata, UserOperationReceipt } from '../types';
 import { UserOperationStatus } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
+import { Bundler } from './Bundler';
 
 const log = createModuleLogger(projectLogger, 'pending-user-operations');
 

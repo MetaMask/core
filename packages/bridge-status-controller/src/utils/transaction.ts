@@ -1,173 +1,217 @@
-import type { AccountsControllerState } from '@metamask/accounts-controller';
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   ChainId,
-  extractTradeData,
-  isTronTrade,
-  formatChainIdToCaip,
   formatChainIdToHex,
-  isCrossChain,
+  BRIDGE_PREFERRED_GAS_ESTIMATE,
+  isEvmTxData,
+  FeeType,
+  BatchSellTransactionType,
 } from '@metamask/bridge-controller';
 import type {
-  Intent,
+  BatchSellTradesResponse,
   QuoteMetadata,
   QuoteResponse,
+  SimulatedGasFeeLimits,
   Trade,
   TxData,
+  TxFeeGasLimits,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import {
+  GasFeeEstimateType,
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
 import type {
-  BatchTransactionParams,
+  IsAtomicBatchSupportedResultEntry,
   TransactionController,
   TransactionMeta,
+  TransactionBatchSingleRequest,
+  BatchTransactionParams,
 } from '@metamask/transaction-controller';
-import { createProjectLogger } from '@metamask/utils';
-import { v4 as uuid } from 'uuid';
+import { createProjectLogger, isStrictHexString } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
-import { calculateGasFees } from './gas';
-import { createClientTransactionRequest } from './snaps';
-import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { APPROVAL_DELAY_MS } from '../constants';
-import type {
-  BridgeStatusControllerMessenger,
-  SolanaTransactionMeta,
-} from '../types';
-import type { BridgeStatusControllerState } from '../types';
+import type { BridgeStatusControllerMessenger } from '../types';
+import type { QuoteAndTxMetadata } from '../types';
+import { getAccountByAddress } from './accounts';
+import { getNetworkClientIdByChainId } from './network';
+
+export const isApprovalTx = (type: TransactionType) =>
+  type === TransactionType.bridgeApproval ||
+  type === TransactionType.swapApproval;
+export const isTradeTx = (type: TransactionType) =>
+  type === TransactionType.bridge || type === TransactionType.swap;
+export const isCrossChainTx = (type: TransactionType) =>
+  isTradeTx(type) || isApprovalTx(type);
+
+/**
+ * For 7702 delegated transactions, check for delegation-specific fields
+ * These transactions might have authorizationList or delegationAddress
+ *
+ * @param tx - The transaction meta
+ * @returns Whether the transaction is a 7702 transaction
+ */
+export const is7702Tx = (tx: TransactionMeta) => {
+  return (
+    (Array.isArray(tx.txParams.authorizationList) &&
+      tx.txParams.authorizationList.length > 0) ||
+    Boolean(tx.delegationAddress)
+  );
+};
+
+export const shouldDisable7702 = (
+  gasIncluded7702: boolean = false,
+  gasIncluded: boolean = false,
+  isDelegatedAccount: boolean = false,
+): boolean => {
+  // Enable 7702 batching when the quote includes gasless 7702 support
+  if (gasIncluded7702) {
+    return false;
+  }
+  // Enable batching when the account is already delegated (to avoid the in-flight transaction limit for delegated accounts)
+  // For gasless transactions with STX/sendBundle we keep disabling 7702
+  if (isDelegatedAccount && !gasIncluded) {
+    return false;
+  }
+  /**
+   * Explicitly return default instead of falsy value (see TransactionBatchRequest.disable7702)
+   */
+  return true;
+};
+
+export const hasNestedSwapTransactions = (txMeta: TransactionMeta) => {
+  return Boolean(
+    txMeta?.nestedTransactions?.some((tx) => tx.type === TransactionType.swap),
+  );
+};
+
+export const getGasFeeEstimates = async (
+  messenger: BridgeStatusControllerMessenger,
+  args: Parameters<TransactionController['estimateGasFee']>[0],
+) => {
+  const { estimates } = await messenger.call(
+    'TransactionController:estimateGasFee',
+    args,
+  );
+
+  if (estimates?.type === GasFeeEstimateType.FeeMarket) {
+    return estimates[BRIDGE_PREFERRED_GAS_ESTIMATE];
+  }
+
+  return undefined;
+};
+
+export const getTransactions = (messenger: BridgeStatusControllerMessenger) => {
+  return messenger.call('TransactionController:getState').transactions ?? [];
+};
+
+export const getTransactionMetaById = (
+  messenger: BridgeStatusControllerMessenger,
+  txId?: string,
+) => {
+  return getTransactions(messenger).find(
+    (tx: TransactionMeta) => tx.id === txId,
+  );
+};
+
+export const getTransactionMetaByHash = (
+  messenger: BridgeStatusControllerMessenger,
+  txHash?: string,
+) => {
+  return getTransactions(messenger).find(
+    (tx: TransactionMeta) => tx.hash?.toLowerCase() === txHash?.toLowerCase(),
+  );
+};
+
+export const updateTransaction = (
+  messenger: BridgeStatusControllerMessenger,
+  txMeta: TransactionMeta,
+  txMetaUpdates: Partial<TransactionMeta>,
+  note: string,
+) => {
+  return messenger.call(
+    'TransactionController:updateTransaction',
+    { ...txMeta, ...txMetaUpdates },
+    note,
+  );
+};
+
+export const checkIsDelegatedAccount = async (
+  messenger: BridgeStatusControllerMessenger,
+  fromAddress: Hex,
+  chainIds: Hex[],
+): Promise<boolean> => {
+  try {
+    const atomicBatchSupport = await messenger.call(
+      'TransactionController:isAtomicBatchSupported',
+      {
+        address: fromAddress,
+        chainIds,
+      },
+    );
+    return atomicBatchSupport.some(
+      (entry: IsAtomicBatchSupportedResultEntry) =>
+        entry.isSupported && entry.delegationAddress,
+    );
+  } catch {
+    return false;
+  }
+};
+
+const waitForHashAndReturnFinalTxMeta = async (
+  messenger: BridgeStatusControllerMessenger,
+  hashPromise?: Awaited<
+    ReturnType<TransactionController['addTransaction']>
+  >['result'],
+): Promise<TransactionMeta> => {
+  const txHash = await hashPromise;
+  const finalTransactionMeta = getTransactionMetaByHash(messenger, txHash);
+  if (!finalTransactionMeta) {
+    throw new Error(
+      'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
+    );
+  }
+  return finalTransactionMeta;
+};
+
+export const addTransaction = async (
+  messenger: BridgeStatusControllerMessenger,
+  ...args: Parameters<TransactionController['addTransaction']>
+) => {
+  const { result } = await messenger.call(
+    'TransactionController:addTransaction',
+    ...args,
+  );
+  return await waitForHashAndReturnFinalTxMeta(messenger, result);
+};
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
-export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
-  return {
-    bridgeId: quoteResponse.quote.bridgeId,
-    bridge: quoteResponse.quote.bridges[0],
-    srcChainId: quoteResponse.quote.srcChainId,
-    destChainId: quoteResponse.quote.destChainId,
-    quote: quoteResponse.quote,
-    refuel: Boolean(quoteResponse.quote.refuel),
-  };
-};
-
-export const getTxMetaFields = (
-  quoteResponse: Omit<QuoteResponse<Trade, Trade>, 'approval' | 'trade'> &
-    QuoteMetadata,
-  approvalTxId?: string,
-): Omit<
-  TransactionMeta,
-  'networkClientId' | 'status' | 'time' | 'txParams' | 'id' | 'chainId'
-> => {
-  // Handle destination chain ID - should always be convertible for EVM destinations
-  let destinationChainId;
-  try {
-    destinationChainId = formatChainIdToHex(quoteResponse.quote.destChainId);
-  } catch {
-    // Fallback for non-EVM destination (shouldn't happen for BTC->EVM)
-    destinationChainId = '0x1' as `0x${string}`; // Default to mainnet
-  }
-
-  return {
-    destinationChainId,
-    sourceTokenAmount: quoteResponse.quote.srcTokenAmount,
-    sourceTokenSymbol: quoteResponse.quote.srcAsset.symbol,
-    sourceTokenDecimals: quoteResponse.quote.srcAsset.decimals,
-    sourceTokenAddress: quoteResponse.quote.srcAsset.address,
-
-    destinationTokenAmount: quoteResponse.quote.destTokenAmount,
-    destinationTokenSymbol: quoteResponse.quote.destAsset.symbol,
-    destinationTokenDecimals: quoteResponse.quote.destAsset.decimals,
-    destinationTokenAddress: quoteResponse.quote.destAsset.address,
-
-    // chainId is now excluded from this function and handled by the caller
-    approvalTxId,
-    // this is the decimal (non atomic) amount (not USD value) of source token to swap
-    swapTokenValue: quoteResponse.sentAmount.amount,
-  };
-};
-
 /**
- * Handles the response from non-EVM transaction submission
- * Works with the new unified ClientRequest:signAndSendTransaction interface
- * Supports Solana, Bitcoin, and other non-EVM chains
+ * Adds a synthetic transaction to the TransactionController to display pending intent orders in the UI
  *
- * @param snapResponse - The response from the snap after transaction submission
- * @param quoteResponse - The quote response containing trade details and metadata
- * @param selectedAccount - The selected account information
- * @returns The transaction metadata including non-EVM specific fields
+ * @param messenger - The messenger to use for the transaction
+ * @param args - The arguments for the transaction
+ * @returns The transaction meta
  */
-export const handleNonEvmTxResponse = (
-  snapResponse:
-    | string
-    | { transactionId: string } // New unified interface response
-    | { result: Record<string, string> }
-    | { signature: string },
-  quoteResponse: Omit<QuoteResponse<Trade>, 'approval'> & QuoteMetadata,
-  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
-): TransactionMeta & SolanaTransactionMeta => {
-  const selectedAccountAddress = selectedAccount.address;
-  const snapId = selectedAccount.metadata.snap?.id;
-  let hash;
-  // Handle different response formats
-  if (typeof snapResponse === 'string') {
-    hash = snapResponse;
-  } else if (snapResponse && typeof snapResponse === 'object') {
-    // Check for new unified interface response format first
-    if ('transactionId' in snapResponse && snapResponse.transactionId) {
-      hash = snapResponse.transactionId;
-    } else if (
-      'result' in snapResponse &&
-      snapResponse.result &&
-      typeof snapResponse.result === 'object'
-    ) {
-      // Try to extract signature from common locations in response object
-      hash =
-        snapResponse.result.signature ||
-        snapResponse.result.txid ||
-        snapResponse.result.hash ||
-        snapResponse.result.txHash;
-    } else if (
-      'signature' in snapResponse &&
-      snapResponse.signature &&
-      typeof snapResponse.signature === 'string'
-    ) {
-      hash = snapResponse.signature;
-    }
-  }
-
-  const isBridgeTx = isCrossChain(
-    quoteResponse.quote.srcChainId,
-    quoteResponse.quote.destChainId,
+export const addSyntheticTransaction = async (
+  messenger: BridgeStatusControllerMessenger,
+  ...args: Parameters<TransactionController['addTransaction']>
+) => {
+  const { transactionMeta } = await messenger.call(
+    'TransactionController:addTransaction',
+    args[0],
+    {
+      origin: 'metamask',
+      actionId: generateActionId(),
+      isStateOnly: true,
+      isInternal: true,
+      ...args[1],
+    },
   );
-
-  let hexChainId;
-  try {
-    hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
-  } catch {
-    // TODO: Fix chain ID activity list handling for Bitcoin
-    // Fallback to Ethereum mainnet for now
-    hexChainId = '0x1' as `0x${string}`;
-  }
-
-  // Extract the transaction data for storage
-  const tradeData = extractTradeData(quoteResponse.trade);
-
-  // Create a transaction meta object with bridge-specific fields
-  return {
-    ...getTxMetaFields(quoteResponse),
-    time: Date.now(),
-    id: hash ?? uuid(),
-    chainId: hexChainId,
-    networkClientId: snapId ?? hexChainId,
-    txParams: { from: selectedAccountAddress, data: tradeData },
-    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
-    status: TransactionStatus.submitted,
-    hash, // Add the transaction signature as hash
-    origin: snapId,
-    // Add an explicit flag to mark this as a non-EVM transaction
-    isSolana: true, // TODO deprecate this and use chainId to detect non-EVM chains
-    isBridgeTx,
-  };
+  return transactionMeta;
 };
 
 export const handleApprovalDelay = async (
@@ -204,41 +248,16 @@ export const handleMobileHardwareWalletDelay = async (
 };
 
 /**
- * Creates a request to sign and send a transaction for non-EVM chains
- * Uses the new unified ClientRequest:signAndSendTransaction interface
+ * Waits until a given transaction (by id) reaches confirmed/finalized status or fails/times out.
  *
- * @param trade - The trade data
- * @param srcChainId - The source chain ID
- * @param selectedAccount - The selected account information
- * @returns The snap request object for signing and sending transaction
+ * @deprecated use addTransaction util
+ * @param messenger - the BridgeStatusControllerMessenger
+ * @param txId - the transaction ID
+ * @param options - the options for the timeout and poll
+ * @param options.timeoutMs - the timeout in milliseconds
+ * @param options.pollMs - the poll interval in milliseconds
+ * @returns the transaction meta
  */
-export const getClientRequest = (
-  trade: Trade,
-  srcChainId: number,
-  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
-) => {
-  const scope = formatChainIdToCaip(srcChainId);
-
-  const transactionData = extractTradeData(trade);
-
-  // Tron trades need the visible flag and contract type to be included in the request options
-  const options = isTronTrade(trade)
-    ? {
-        visible: trade.visible,
-        type: trade.raw_data?.contract?.[0]?.type,
-      }
-    : undefined;
-
-  // Use the new unified interface
-  return createClientTransactionRequest(
-    selectedAccount.metadata.snap?.id as string,
-    transactionData,
-    scope,
-    selectedAccount.id,
-    options,
-  );
-};
-
 export const waitForTxConfirmation = async (
   messenger: BridgeStatusControllerMessenger,
   txId: string,
@@ -249,8 +268,7 @@ export const waitForTxConfirmation = async (
 ): Promise<TransactionMeta> => {
   const start = Date.now();
   while (true) {
-    const { transactions } = messenger.call('TransactionController:getState');
-    const meta = transactions.find((tx: TransactionMeta) => tx.id === txId);
+    const meta = getTransactionMetaById(messenger, txId);
 
     if (meta) {
       if (meta.status === TransactionStatus.confirmed) {
@@ -273,284 +291,310 @@ export const waitForTxConfirmation = async (
   }
 };
 
-export const rekeyHistoryItemInState = (
-  state: BridgeStatusControllerState,
-  actionId: string,
-  txMeta: { id: string; hash?: string },
-): boolean => {
-  const historyItem = state.txHistory[actionId];
-  if (!historyItem) {
-    return false;
-  }
+export const toQuoteAndTxMetadata = ({
+  quoteResponse,
+  isBridgeTx,
+}: {
+  quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
+  isBridgeTx: boolean;
+}): Omit<QuoteAndTxMetadata, 'txMeta'>[] => {
+  const tradeData: QuoteAndTxMetadata[] = [];
 
-  state.txHistory[txMeta.id] = {
-    ...historyItem,
-    txMetaId: txMeta.id,
-    originalTransactionId: historyItem.originalTransactionId ?? txMeta.id,
-    status: {
-      ...historyItem.status,
-      srcChain: {
-        ...historyItem.status.srcChain,
-        txHash: txMeta.hash ?? historyItem.status.srcChain?.txHash,
-      },
+  const approvalTxType = isBridgeTx
+    ? TransactionType.bridgeApproval
+    : TransactionType.swapApproval;
+
+  if (quoteResponse.resetApproval) {
+    tradeData.push({
+      quoteResponse,
+      tx: quoteResponse.resetApproval,
+      type: approvalTxType,
+      txFee: quoteResponse.quote.feeData[FeeType.TX_FEE],
+    });
+  }
+  if (quoteResponse.approval && isEvmTxData(quoteResponse.approval)) {
+    tradeData.push({
+      quoteResponse,
+      tx: quoteResponse.approval,
+      type: approvalTxType,
+      txFee: quoteResponse.quote.feeData[FeeType.TX_FEE],
+    });
+  }
+  tradeData.push({
+    quoteResponse,
+    tx: quoteResponse.trade as TxData,
+    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
+    assetsFiatValues: {
+      sending: quoteResponse.sentAmount?.valueInCurrency?.toString(),
+      receiving: quoteResponse.toTokenAmount?.valueInCurrency?.toString(),
     },
-  };
-  delete state.txHistory[actionId];
-  return true;
+    txFee: quoteResponse.quote.feeData[FeeType.TX_FEE],
+  });
+
+  return tradeData;
 };
 
-export const toBatchTxParams = (
-  disable7702: boolean,
-  { chainId, gasLimit, ...trade }: TxData,
-  {
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-    gas,
-  }: { maxFeePerGas?: string; maxPriorityFeePerGas?: string; gas?: string },
-): BatchTransactionParams => {
-  const params = {
-    ...trade,
-    data: trade.data as `0x${string}`,
-    to: trade.to as `0x${string}`,
-    value: trade.value as `0x${string}`,
-  };
-  if (!disable7702) {
-    return params;
+/**
+ * Build the trade+quote metadata array for the batch sell transaction
+ * This ties together the quote, the tx params and the txMeta after submission
+ *
+ * @param options - The options for the batch sell transaction
+ * @param options.quoteResponses - The quote responses for the batch sell transaction
+ * @param options.batchSellTrades - The batch sell trades for the batch sell transaction
+ * @returns The trade+quote metadata array for the batch sell transaction
+ */
+export const toQuoteAndTxMetadataBatch = ({
+  quoteResponses,
+  batchSellTrades,
+}: {
+  quoteResponses: (QuoteResponse<TxData, TxData> & QuoteMetadata)[];
+  batchSellTrades: BatchSellTradesResponse;
+}): Omit<QuoteAndTxMetadata, 'txMeta'>[] => {
+  const tradeData: QuoteAndTxMetadata[] = [];
+
+  const {
+    transactions,
+    gasIncluded7702,
+    gasIncluded,
+    gasSponsored = false,
+  } = batchSellTrades;
+
+  for (const transaction of transactions) {
+    const { type, maxFeePerGas, maxPriorityFeePerGas, ...tx } = transaction;
+    // Match the trade or approval tx data with the quote response
+    const matchingQuoteResponse =
+      quoteResponses.find(
+        ({ approval, trade }) =>
+          trade?.data.toLowerCase() === tx.data.toLowerCase() ||
+          approval?.data.toLowerCase() === tx.data.toLowerCase(),
+      ) ?? quoteResponses[0];
+
+    // Include gasIncluded and gasIncluded7702 from the gasless batch
+    const normalizedQuote = {
+      ...matchingQuoteResponse,
+      quote: {
+        ...matchingQuoteResponse.quote,
+        gasIncluded,
+        gasIncluded7702,
+        gasSponsored,
+      },
+    };
+
+    const commonTradeData = {
+      tx,
+      quoteResponse: normalizedQuote,
+      txFee: { maxFeePerGas, maxPriorityFeePerGas },
+    };
+
+    if (type === BatchSellTransactionType.TRADE) {
+      tradeData.push({
+        ...commonTradeData,
+        type: TransactionType.swap,
+        assetsFiatValues: {
+          sending:
+            matchingQuoteResponse.sentAmount?.valueInCurrency?.toString(),
+          receiving:
+            matchingQuoteResponse.toTokenAmount?.valueInCurrency?.toString(),
+        },
+      });
+    } else {
+      tradeData.push({
+        ...commonTradeData,
+        type:
+          type === BatchSellTransactionType.APPROVAL
+            ? TransactionType.swapApproval
+            : TransactionType.tokenMethodTransfer,
+      });
+    }
   }
 
+  return tradeData;
+};
+
+/**
+ * Appends the gas fee estimates for a transaction and normalizes the trade data
+ *
+ * @param messenger - The messenger for the gas fee estimates
+ * @param trade - the trade data to append gas fees to
+ * @param trade.chainId - ignored, use chainId instead
+ * @param trade.gasLimit - the gas limit to use for the gas fee estimates
+ * @param networkClientId - the network client ID to use for the gas fee estimates
+ * @param chainId - the chain ID to use for the gas fee estimates
+ * @param simulatedGasFeeLimits - either the txFee from the quote or the simulated gas fee limits for the batch sell
+ * @returns The gas fee estimates for the transaction
+ */
+export const toTransactionParams = async (
+  messenger: BridgeStatusControllerMessenger,
+  { chainId: tradeChainId, gasLimit, ...trade }: TxData,
+  networkClientId: string,
+  chainId: Hex,
+  simulatedGasFeeLimits?: SimulatedGasFeeLimits | TxFeeGasLimits,
+): Promise<BatchTransactionParams> => {
+  const transactionParams = {
+    data: trade.data,
+    to: trade.to,
+    from: trade.from,
+    value: trade.value,
+    // Only add gas if it's truthy
+    gas: gasLimit ? toHex(gasLimit) : undefined,
+  };
+
+  // Use bridge-api's provided gas fee estimates
+  if (simulatedGasFeeLimits) {
+    return {
+      ...transactionParams,
+      // Sometimes estimates are hex, somethings numeric strings
+      maxFeePerGas: isStrictHexString(simulatedGasFeeLimits.maxFeePerGas)
+        ? simulatedGasFeeLimits.maxFeePerGas
+        : toHex(simulatedGasFeeLimits.maxFeePerGas),
+      maxPriorityFeePerGas: isStrictHexString(
+        simulatedGasFeeLimits.maxPriorityFeePerGas,
+      )
+        ? simulatedGasFeeLimits.maxPriorityFeePerGas
+        : toHex(simulatedGasFeeLimits.maxPriorityFeePerGas),
+    };
+  }
+
+  // Get transaction's 1559 gas fee estimates
+  const gasFeeEstimates = await getGasFeeEstimates(messenger, {
+    transactionParams,
+    networkClientId,
+    chainId,
+  });
+
   return {
-    ...params,
-    gas: toHex(gas ?? 0),
-    maxFeePerGas: toHex(maxFeePerGas ?? 0),
-    maxPriorityFeePerGas: toHex(maxPriorityFeePerGas ?? 0),
+    ...transactionParams,
+    maxFeePerGas: gasFeeEstimates?.maxFeePerGas,
+    maxPriorityFeePerGas: gasFeeEstimates?.maxPriorityFeePerGas,
   };
 };
 
 export const getAddTransactionBatchParams = async ({
   messenger,
-  isBridgeTx,
-  approval,
-  resetApproval,
-  trade,
-  quoteResponse: {
-    quote: {
-      feeData: { txFee },
-      gasIncluded,
-      gasIncluded7702,
-      gasSponsored,
-    },
-    sentAmount,
-    toTokenAmount,
-  },
+  tradeData,
   requireApproval = false,
-  estimateGasFeeFn,
-}: {
+  isDelegatedAccount,
+  ...addTransactionBatchParams
+}: Partial<Parameters<TransactionController['addTransactionBatch']>[0]> & {
   messenger: BridgeStatusControllerMessenger;
-  isBridgeTx: boolean;
-  trade: TxData;
-  quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> &
-    Partial<QuoteMetadata>;
-  estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
-  approval?: TxData;
-  resetApproval?: TxData;
+  tradeData: QuoteAndTxMetadata[];
   requireApproval?: boolean;
-}) => {
-  const isGasless = gasIncluded || gasIncluded7702;
-  const selectedAccount = messenger.call(
-    'AccountsController:getAccountByAddress',
-    trade.from,
-  );
+  isDelegatedAccount?: boolean;
+}): Promise<Parameters<TransactionController['addTransactionBatch']>[0]> => {
+  const trade = tradeData[0].tx;
+  const selectedAccount = getAccountByAddress(messenger, trade.from);
   if (!selectedAccount) {
     throw new Error(
       'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
     );
   }
   const hexChainId = formatChainIdToHex(trade.chainId);
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    hexChainId,
+  const networkClientId = getNetworkClientIdByChainId(messenger, hexChainId);
+
+  const transactions: TransactionBatchSingleRequest[] = await Promise.all(
+    tradeData.map(async ({ tx, txFee, assetsFiatValues, type }) => ({
+      params: await toTransactionParams(
+        messenger,
+        tx,
+        networkClientId,
+        hexChainId,
+        txFee,
+      ),
+      assetsFiatValues,
+      type,
+    })),
   );
 
-  // When an active quote has gasIncluded7702 set to true,
-  // enable 7702 gasless txs for smart accounts
-  const disable7702 = gasIncluded7702 !== true;
-  const transactions: TransactionBatchSingleRequest[] = [];
-  if (resetApproval) {
-    const gasFees = await calculateGasFees(
-      disable7702,
-      messenger,
-      estimateGasFeeFn,
-      resetApproval,
-      networkClientId,
-      hexChainId,
-      isGasless ? txFee : undefined,
-    );
-    transactions.push({
-      type: isBridgeTx
-        ? TransactionType.bridgeApproval
-        : TransactionType.swapApproval,
-      params: toBatchTxParams(disable7702, resetApproval, gasFees),
-    });
-  }
-  if (approval) {
-    const gasFees = await calculateGasFees(
-      disable7702,
-      messenger,
-      estimateGasFeeFn,
-      approval,
-      networkClientId,
-      hexChainId,
-      isGasless ? txFee : undefined,
-    );
-    transactions.push({
-      type: isBridgeTx
-        ? TransactionType.bridgeApproval
-        : TransactionType.swapApproval,
-      params: toBatchTxParams(disable7702, approval, gasFees),
-    });
-  }
-  const gasFees = await calculateGasFees(
-    disable7702,
-    messenger,
-    estimateGasFeeFn,
-    trade,
-    networkClientId,
-    hexChainId,
-    isGasless ? txFee : undefined,
-  );
-  transactions.push({
-    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
-    params: toBatchTxParams(disable7702, trade, gasFees),
-    assetsFiatValues: {
-      sending: sentAmount?.valueInCurrency?.toString(),
-      receiving: toTokenAmount?.valueInCurrency?.toString(),
-    },
-  });
-  const transactionParams: Parameters<
-    TransactionController['addTransactionBatch']
-  >[0] = {
-    disable7702,
-    isGasFeeIncluded: Boolean(gasIncluded7702),
-    isGasFeeSponsored: Boolean(gasSponsored),
+  return {
     networkClientId,
     requireApproval,
     origin: 'metamask',
-    from: trade.from as `0x${string}`,
+    from: selectedAccount.address as Hex,
+    isInternal: true,
     transactions,
+    ...addTransactionBatchParams,
   };
-
-  return transactionParams;
 };
 
-export const findAndUpdateTransactionsInBatch = ({
+export const findAllTransactionsInBatch = ({
   messenger,
-  updateTransactionFn,
   batchId,
-  txDataByType,
+  tradeData,
 }: {
   messenger: BridgeStatusControllerMessenger;
-  updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
   batchId: string;
-  txDataByType: { [key in TransactionType]?: string };
-}) => {
-  const txs = messenger.call('TransactionController:getState').transactions;
-  const txBatch: {
-    approvalMeta?: TransactionMeta;
-    tradeMeta?: TransactionMeta;
-  } = {
-    approvalMeta: undefined,
-    tradeMeta: undefined,
-  };
+  tradeData: QuoteAndTxMetadata[];
+}): QuoteAndTxMetadata[] => {
+  // Filter for transactions with batchId
+  const txs = getTransactions(messenger).filter(
+    (tx: TransactionMeta) => tx.batchId === batchId,
+  );
 
-  // This is a workaround to update the tx type after the tx is signed
-  // TODO: remove this once the tx type for batch txs is preserved in the tx controller
-  Object.entries(txDataByType).forEach(([txType, txData]) => {
-    // Find transaction by batchId and either matching data or delegation characteristics
-    const txMeta = txs.find((tx) => {
-      if (tx.batchId !== batchId) {
+  return tradeData.map((tradeWithMetadata) => {
+    const { tx, type } = tradeWithMetadata;
+    return {
+      ...tradeWithMetadata,
+      txMeta: txs.find((txMeta: TransactionMeta) => {
+        if (is7702Tx(txMeta)) {
+          // For 7702 transactions, we need to match based on transaction type
+          // since the data field might be different (batch execute call)
+          if (isTradeTx(type) && txMeta.type === TransactionType.batch) {
+            return true;
+          }
+          // Also check if it's an approval transaction for 7702
+          if (isApprovalTx(type) && txMeta.txParams.data === tx.data) {
+            return true;
+          }
+        }
+        // Default matching logic for non-7702 transactions
+        if (txMeta.txParams.data === tx.data) {
+          return true;
+        }
         return false;
-      }
-
-      // For 7702 delegated transactions, check for delegation-specific fields
-      // These transactions might have authorizationList or delegationAddress
-      const is7702Transaction =
-        (Array.isArray(tx.txParams.authorizationList) &&
-          tx.txParams.authorizationList.length > 0) ||
-        Boolean(tx.delegationAddress);
-
-      if (is7702Transaction) {
-        // For 7702 transactions, we need to match based on transaction type
-        // since the data field might be different (batch execute call)
-        if (
-          txType === TransactionType.swap &&
-          tx.type === TransactionType.batch
-        ) {
-          return true;
-        }
-        // Also check if it's an approval transaction for 7702
-        if (
-          txType === TransactionType.swapApproval &&
-          tx.txParams.data === txData
-        ) {
-          return true;
-        }
-      }
-
-      // Default matching logic for non-7702 transactions
-      return tx.txParams.data === txData;
-    });
-
-    if (txMeta) {
-      const updatedTx = { ...txMeta, type: txType as TransactionType };
-      updateTransactionFn(updatedTx, `Update tx type to ${txType}`);
-      txBatch[
-        [TransactionType.bridgeApproval, TransactionType.swapApproval].includes(
-          txType as TransactionType,
-        )
-          ? 'approvalMeta'
-          : 'tradeMeta'
-      ] = updatedTx;
-    }
+      }),
+    };
   });
-
-  return txBatch;
 };
 
 /**
- * Determines the key to use for storing a bridge history item.
- * Uses actionId for pre-submission tracking, or bridgeTxMetaId for post-submission.
+ * This is a workaround to update the tx type after submission. Batch txs are submitted with
+ * the "batch" type, but we need to update to swap/bridge for display purposes.
  *
- * @param actionId - The action ID used for pre-submission tracking
- * @param bridgeTxMetaId - The transaction meta ID from bridgeTxMeta
- * @returns The key to use for the history item
- * @throws Error if neither actionId nor bridgeTxMetaId is provided
+ * @param params - The parameters for the transaction search
+ * @param params.messenger - The messenger to use for the transaction
+ * @param params.allTradesWithMetadata - The quote, tx data and type for each transaction in the batch
+ * @returns A list of transaction metas for each trade in the batch]
+ *
+ * @example
+ * [
+ *   {...tradeData[0], tradeMeta: TransactionMeta}
+ *   {...tradeData[1], tradeMeta: TransactionMeta}
+ *   {...tradeData[2], tradeMeta: TransactionMeta}
+ *   {...tradeData[3], tradeMeta: TransactionMeta}
+ * ]
  */
-export function getHistoryKey(
-  actionId: string | undefined,
-  bridgeTxMetaId: string | undefined,
-): string {
-  const historyKey = actionId ?? bridgeTxMetaId;
-  if (!historyKey) {
-    throw new Error(
-      'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
-    );
-  }
-  return historyKey;
-}
+export const updateTransactionsInBatch = ({
+  messenger,
+  allTradesWithMetadata,
+}: {
+  messenger: BridgeStatusControllerMessenger;
+  allTradesWithMetadata: QuoteAndTxMetadata[];
+}) => {
+  return allTradesWithMetadata.map((tradeWithMetadata) => {
+    const { txMeta, type } = tradeWithMetadata;
 
-/**
- * Extracts and validates the intent data from a quote response.
- *
- * @param quoteResponse - The quote response that may contain intent data
- * @returns The intent data from the quote
- * @throws Error if the quote does not contain intent data
- */
-export function getIntentFromQuote(
-  quoteResponse: QuoteResponse & { quote: { intent?: Intent } },
-): Intent {
-  const { intent } = quoteResponse.quote;
-  if (!intent) {
-    throw new Error('submitIntent: missing intent data');
-  }
-  return intent;
-}
+    if (txMeta) {
+      // Update the tx type from batch to swap/bridge
+      updateTransaction(
+        messenger,
+        txMeta,
+        { type },
+        `Update tx type to ${type}`,
+      );
+      const updatedTx = { ...txMeta, type };
+      return { ...tradeWithMetadata, txMeta: updatedTx, type };
+    }
+
+    return tradeWithMetadata;
+  });
+};

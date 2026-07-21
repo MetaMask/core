@@ -1,4 +1,4 @@
-import type { TypedTransaction } from '@ethereumjs/tx';
+import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 import type { AccountsControllerActions } from '@metamask/accounts-controller';
 import type {
   ApprovalControllerActions,
@@ -12,8 +12,9 @@ import {
   BUILT_IN_NETWORKS,
   ChainId,
   InfuraNetworkType,
-  NetworkType,
 } from '@metamask/controller-utils';
+import type { GasFeeControllerFetchGasFeeEstimatesAction } from '@metamask/gas-fee-controller';
+import type { KeyringControllerSignTransactionAction } from '@metamask/keyring-controller';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -28,20 +29,12 @@ import type {
   NetworkClientConfiguration,
   NetworkControllerActions,
   NetworkControllerEvents,
-  NetworkClientId,
   NetworkControllerOptions,
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import assert from 'assert';
 import { v4 as uuidV4 } from 'uuid';
 
-import type {
-  TransactionControllerMessenger,
-  TransactionControllerOptions,
-} from './TransactionController';
-import { TransactionController } from './TransactionController';
-import type { InternalAccount } from './types';
-import { TransactionStatus, TransactionType } from './types';
 import { jestAdvanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import {
@@ -61,6 +54,13 @@ import {
   buildEthSendRawTransactionRequestMock,
   buildEthGetTransactionReceiptRequestMock,
 } from '../tests/JsonRpcRequestMocks';
+import type {
+  TransactionControllerMessenger,
+  TransactionControllerOptions,
+} from './TransactionController';
+import { TransactionController } from './TransactionController';
+import type { InternalAccount } from './types';
+import { TransactionStatus, TransactionType } from './types';
 
 jest.mock('uuid', () => {
   const actual = jest.requireActual('uuid');
@@ -83,7 +83,9 @@ type AllActions =
   | ConnectivityControllerGetStateAction
   | ApprovalControllerActions
   | AccountsControllerActions
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | GasFeeControllerFetchGasFeeEstimatesAction
+  | KeyringControllerSignTransactionAction;
 
 type AllEvents =
   | AllTransactionControllerEvents
@@ -191,9 +193,26 @@ const setupController = async (
     }),
   );
 
+  const remoteFeatureFlagControllerMessenger = new Messenger<
+    'RemoteFeatureFlagController',
+    RemoteFeatureFlagControllerGetStateAction,
+    never,
+    typeof rootMessenger
+  >({
+    namespace: 'RemoteFeatureFlagController',
+    parent: rootMessenger,
+  });
+
+  remoteFeatureFlagControllerMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => getDefaultRemoteFeatureFlagControllerState(),
+  );
+
   const networkControllerMessenger = new Messenger<
     'NetworkController',
-    NetworkControllerActions | ConnectivityControllerGetStateAction,
+    | NetworkControllerActions
+    | ConnectivityControllerGetStateAction
+    | RemoteFeatureFlagControllerGetStateAction,
     NetworkControllerEvents,
     typeof rootMessenger
   >({
@@ -202,7 +221,10 @@ const setupController = async (
   });
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
-    actions: ['ConnectivityController:getState'],
+    actions: [
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+    ],
   });
   const networkController = new NetworkController({
     messenger: networkControllerMessenger,
@@ -215,7 +237,8 @@ const setupController = async (
       isOffline: (): boolean => false,
     }),
   });
-  await networkController.initializeProvider();
+  networkController.init();
+  await networkController.lookupNetwork();
   const { provider, blockTracker } =
     networkController.getProviderAndBlockTracker();
   assert(provider, 'Provider must be available');
@@ -251,8 +274,13 @@ const setupController = async (
       'AccountsController:getSelectedAccount',
       'AccountsController:getState',
       'ApprovalController:addRequest',
-      'NetworkController:getNetworkClientById',
+      'GasFeeController:fetchGasFeeEstimates',
+      'KeyringController:signTransaction',
       'NetworkController:findNetworkClientIdByChainId',
+      'NetworkController:getEIP1559Compatibility',
+      'NetworkController:getNetworkClientById',
+      'NetworkController:getNetworkClientRegistry',
+      'NetworkController:getState',
       'RemoteFeatureFlagController:getState',
     ],
     events: ['NetworkController:stateChange'],
@@ -280,49 +308,29 @@ const setupController = async (
     () => ({}) as never,
   );
 
-  const remoteFeatureFlagControllerMessenger = new Messenger<
-    'RemoteFeatureFlagController',
-    RemoteFeatureFlagControllerGetStateAction,
-    never,
-    typeof rootMessenger
-  >({
-    namespace: 'RemoteFeatureFlagController',
-    parent: rootMessenger,
-  });
+  rootMessenger.registerActionHandler(
+    'GasFeeController:fetchGasFeeEstimates',
+    async () => ({}) as never,
+  );
 
-  remoteFeatureFlagControllerMessenger.registerActionHandler(
-    'RemoteFeatureFlagController:getState',
-    () => getDefaultRemoteFeatureFlagControllerState(),
+  rootMessenger.registerActionHandler(
+    'KeyringController:signTransaction',
+    async (transaction: TypedTransaction) =>
+      transaction.toJSON() as TypedTxData,
   );
 
   const options: TransactionControllerOptions = {
-    disableHistory: false,
-    disableSendFlowHistory: false,
     disableSwaps: false,
     isAutomaticGasFeeUpdateEnabled: () => true,
-    getCurrentNetworkEIP1559Compatibility: async (
-      networkClientId?: NetworkClientId,
-    ) => {
-      return (
-        (await networkController.getEIP1559Compatibility(networkClientId)) ??
-        false
-      );
-    },
-    getNetworkState: () => networkController.state,
-    getNetworkClientRegistry: () =>
-      networkController.getNetworkClientRegistry(),
     getPermittedAccounts: async () => [ACCOUNT_MOCK],
     hooks: {},
     messenger,
-    pendingTransactions: {
-      isResubmitEnabled: () => false,
-    },
-    sign: async (transaction: TypedTransaction) => transaction,
-    transactionHistoryLimit: 40,
     ...givenOptions,
   };
 
   const transactionController = new TransactionController(options);
+
+  await jestAdvanceTime({ duration: 10 });
 
   return {
     transactionController,
@@ -486,6 +494,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
           ],
         });
         const { transactionController } = await setupController();
@@ -516,6 +525,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -535,7 +545,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -559,6 +569,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -580,7 +591,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -608,6 +619,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e482e7050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -628,6 +640,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
@@ -657,8 +670,10 @@ describe('TransactionController Integration', () => {
         );
 
         await Promise.all([
-          approvalController.accept(firstTransaction.transactionMeta.id),
-          approvalController.accept(secondTransaction.transactionMeta.id),
+          approvalController.acceptRequest(firstTransaction.transactionMeta.id),
+          approvalController.acceptRequest(
+            secondTransaction.transactionMeta.id,
+          ),
         ]);
         await jestAdvanceTime({ duration: 1 });
         await jestAdvanceTime({ duration: 1 });
@@ -698,6 +713,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e583aa36a7010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
@@ -725,7 +741,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -750,6 +766,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
@@ -790,7 +807,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -826,6 +843,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
@@ -867,7 +885,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -914,6 +932,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -943,6 +962,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
@@ -1010,8 +1030,8 @@ describe('TransactionController Integration', () => {
         );
 
         await Promise.all([
-          approvalController.accept(addTx1.transactionMeta.id),
-          approvalController.accept(addTx2.transactionMeta.id),
+          approvalController.acceptRequest(addTx1.transactionMeta.id),
+          approvalController.acceptRequest(addTx2.transactionMeta.id),
         ]);
         await jestAdvanceTime({ duration: 1 });
         await jestAdvanceTime({ duration: 1 });
@@ -1039,6 +1059,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
@@ -1087,8 +1108,8 @@ describe('TransactionController Integration', () => {
         await jestAdvanceTime({ duration: 1 });
 
         await Promise.all([
-          approvalController.accept(addTx1.transactionMeta.id),
-          approvalController.accept(addTx2.transactionMeta.id),
+          approvalController.acceptRequest(addTx1.transactionMeta.id),
+          approvalController.acceptRequest(addTx2.transactionMeta.id),
         ]);
 
         await jestAdvanceTime({ duration: 1 });
@@ -1117,6 +1138,7 @@ describe('TransactionController Integration', () => {
         buildEthGetCodeRequestMock(ACCOUNT_MOCK),
         buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
         buildEthGasPriceRequestMock(),
+        buildEthGasPriceRequestMock(),
       ],
     });
     mockNetwork({
@@ -1129,6 +1151,7 @@ describe('TransactionController Integration', () => {
         buildEthGetBlockByNumberRequestMock('0x1'),
         buildEthGetCodeRequestMock(ACCOUNT_MOCK),
         buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+        buildEthGasPriceRequestMock(),
         buildEthGasPriceRequestMock(),
       ],
     });
@@ -1206,40 +1229,6 @@ describe('TransactionController Integration', () => {
 
     expect(transactionController).toBeDefined();
     transactionController.destroy();
-  });
-
-  describe('feature flag', () => {
-    it('should call getNetworkClientRegistry on networkController:stateChange when feature flag is enabled', async () => {
-      uuidV4Mock.mockReturnValue('AAAA-AAAA-AAAA-AAAA');
-
-      const { networkController, transactionController } =
-        await setupController();
-      const getNetworkClientRegistrySpy = jest.spyOn(
-        networkController,
-        'getNetworkClientRegistry',
-      );
-
-      networkController.addNetwork(buildAddNetworkFields());
-
-      expect(getNetworkClientRegistrySpy).toHaveBeenCalled();
-      transactionController.destroy();
-    });
-
-    it('should call getNetworkClientRegistry on construction when feature flag is enabled', async () => {
-      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
-        return {
-          [NetworkType.sepolia]: {
-            configuration: BUILT_IN_NETWORKS[NetworkType.sepolia],
-          },
-        };
-      });
-
-      await setupController({
-        getNetworkClientRegistry: getNetworkClientRegistrySpy,
-      });
-
-      expect(getNetworkClientRegistrySpy).toHaveBeenCalled();
-    });
   });
 
   describe('getNonceLock', () => {

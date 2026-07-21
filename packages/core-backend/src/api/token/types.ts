@@ -69,6 +69,64 @@ export type TrendingSortBy =
   | 'h6_trending'
   | 'h24_trending';
 
+// ============================================================================
+// TOKEN SECURITY TYPES
+// ============================================================================
+
+export type TokenSecurityFeature = {
+  featureId: string;
+  type: string;
+  description: string;
+};
+
+export type TokenSecurityHolder = {
+  label: string;
+  name: string | null;
+  address: string;
+  holdingPercentage: number;
+};
+
+export type TokenSecurityMarket = {
+  marketType: string;
+  marketName: string;
+  pairName: string;
+  reserveUSD: number;
+};
+
+export type TokenSecurityFees = {
+  transfer: number;
+  transferFeeMaxAmount: number | null;
+  buy: number;
+  sell: number | null;
+};
+
+export type TokenSecurityFinancialStats = {
+  supply: number;
+  topHolders: TokenSecurityHolder[];
+  holdersCount: number;
+  tradeVolume24h: number | null;
+  lockedLiquidityPct: number | null;
+  markets: TokenSecurityMarket[];
+};
+
+export type TokenSecurityMetadata = {
+  externalLinks: {
+    homepage: string | null;
+    twitterPage: string | null;
+    telegramChannelId: string | null;
+  };
+};
+
+export type TokenSecurityData = {
+  resultType: string;
+  maliciousScore: string;
+  fees: TokenSecurityFees;
+  features: TokenSecurityFeature[];
+  financialStats: TokenSecurityFinancialStats;
+  metadata: TokenSecurityMetadata;
+  created: string;
+};
+
 /**
  * Trending token data from Token API v3 /tokens/trending endpoint
  */
@@ -89,6 +147,8 @@ export type TrendingToken = {
     h24?: string;
   };
   labels?: string[];
+  /** Optional security data for tokens when includeTokenSecurityData is true */
+  securityData?: TokenSecurityData;
 };
 
 /** Top gainers sort options */

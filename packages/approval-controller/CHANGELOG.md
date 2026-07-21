@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [9.0.2]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [9.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [9.0.0]
+
+### Added
+
+- New `addRequest()` public method ([#8183](https://github.com/MetaMask/core/pull/8183))
+- Expose missing public `ApprovalController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `ApprovalController:add`
+    - `ApprovalController:addAndShowApprovalRequest`
+    - `ApprovalController:get`
+    - `ApprovalController:getApprovalCount`
+    - `ApprovalController:getTotalApprovalCount`
+  - Corresponding action types (e.g. `ApprovalControllerAddAction`) are available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `ApprovalController` methods ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - All existing methods for handling requests have been renamed so they include `Request` (e.g. `clear()` -> `clearRequest()`). You will need to update usage appropriately.
+  - The error handling method `error()` has been renamed to include `show` (`error()` -> `showError()`). You will need to update usage appropriately.
+- **BREAKING:** Rename get-state action type: `GetApprovalsState` → `ApprovalControllerGetStateAction` ([#8183](https://github.com/MetaMask/core/pull/8183))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 
 ## [8.0.0]
@@ -40,7 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
 - Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [7.1.2]
@@ -76,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -291,14 +328,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/approval`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@9.0.2...HEAD
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@9.0.1...@metamask/approval-controller@9.0.2
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@9.0.0...@metamask/approval-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@8.0.0...@metamask/approval-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.2.1...@metamask/approval-controller@8.0.0
 [7.2.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.2.0...@metamask/approval-controller@7.2.1
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.3...@metamask/approval-controller@7.2.0

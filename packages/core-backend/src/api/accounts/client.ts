@@ -12,10 +12,14 @@
  */
 
 import type {
+  FetchInfiniteQueryOptions,
   FetchQueryOptions,
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
+import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
+import { getQueryOptionsOverrides } from '../shared-types';
+import type { FetchOptions } from '../shared-types';
 import type {
   V1SupportedNetworksResponse,
   V2SupportedNetworksResponse,
@@ -23,6 +27,8 @@ import type {
   V2BalancesResponse,
   V4BalancesResponse,
   V5BalancesResponse,
+  V6BalancesResponse,
+  V6VsCurrency,
   V1TransactionByHashResponse,
   V1AccountTransactionsResponse,
   V4MultiAccountTransactionsResponse,
@@ -30,9 +36,6 @@ import type {
   V2NftsResponse,
   V2TokensResponse,
 } from './types';
-import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
-import { getQueryOptionsOverrides } from '../shared-types';
-import type { FetchOptions } from '../shared-types';
 
 /**
  * Accounts API Client.
@@ -488,6 +491,160 @@ export class AccountsApiClient extends BaseApiClient {
     );
   }
 
+  /**
+   * Returns the TanStack Query options object for v6 multi-account balances.
+   * The v6 endpoint returns token balances and, optionally, DeFi positions and
+   * spot prices.
+   *
+   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.networks - Comma-separated CAIP-2 chain IDs to filter by.
+   * @param queryOptions.filterSupportedTokens - Whether to filter the assets to only tokens existing in the Token API.
+   * @param queryOptions.startTimestamp - Start timestamp (epoch) from which to return results.
+   * @param queryOptions.endTimestamp - End timestamp (epoch) for which to return results.
+   * @param queryOptions.includeLabels - Whether to include asset metadata labels in the response.
+   * @param queryOptions.includeCanonicalHead - Whether to include the canonical head asset ID in the response.
+   * @param queryOptions.includeDeFiBalances - Whether to include DeFi positions (token balances are always returned).
+   * @param queryOptions.forceFetchDeFiPositions - Whether to fetch DeFi positions for all accounts, skipping the cached non-DeFi-user check.
+   * @param queryOptions.includePrices - Whether to include spot prices for each token and DeFi position asset.
+   * @param queryOptions.vsCurrency - Quote currency for spot prices when `includePrices` is true (default `usd`).
+   * @param queryOptions.includeAssetIds - ERC-20 CAIP-19 asset IDs to confirm detection for; undetected IDs are returned in `unprocessedIncludeAssetIds`.
+   * @param queryOptions.excludeAssetIds - ERC-20 CAIP-19 asset IDs to exclude from balance results.
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV6MultiAccountBalancesQueryOptions(
+    accountIds: string[],
+    queryOptions?: {
+      networks?: string[];
+      filterSupportedTokens?: boolean;
+      startTimestamp?: number;
+      endTimestamp?: number;
+      includeLabels?: boolean;
+      includeCanonicalHead?: boolean;
+      includeDeFiBalances?: boolean;
+      forceFetchDeFiPositions?: boolean;
+      includePrices?: boolean;
+      vsCurrency?: V6VsCurrency;
+      includeAssetIds?: string[];
+      excludeAssetIds?: string[];
+    },
+    options?: FetchOptions,
+  ): FetchQueryOptions<V6BalancesResponse> {
+    return {
+      queryKey: [
+        'accounts',
+        'balances',
+        'v6',
+        {
+          accountIds: [...accountIds].sort(),
+          options: queryOptions && {
+            ...queryOptions,
+            networks:
+              queryOptions.networks && [...queryOptions.networks].sort(),
+            includeAssetIds:
+              queryOptions.includeAssetIds &&
+              [...queryOptions.includeAssetIds].sort(),
+            excludeAssetIds:
+              queryOptions.excludeAssetIds &&
+              [...queryOptions.excludeAssetIds].sort(),
+          },
+        },
+      ],
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V6BalancesResponse> => {
+        if (accountIds.length === 0) {
+          return {
+            unprocessedNetworks: [],
+            unprocessedIncludeAssetIds: [],
+            accounts: [],
+          };
+        }
+        return this.fetch<V6BalancesResponse>(
+          API_URLS.ACCOUNTS,
+          '/v6/multiaccount/balances',
+          {
+            signal,
+            params: {
+              accountIds,
+              networks: queryOptions?.networks,
+              filterSupportedTokens: queryOptions?.filterSupportedTokens,
+              startTimestamp: queryOptions?.startTimestamp,
+              endTimestamp: queryOptions?.endTimestamp,
+              includeLabels: queryOptions?.includeLabels,
+              includeCanonicalHead: queryOptions?.includeCanonicalHead,
+              includeDeFiBalances: queryOptions?.includeDeFiBalances,
+              forceFetchDeFiPositions: queryOptions?.forceFetchDeFiPositions,
+              includePrices: queryOptions?.includePrices,
+              vsCurrency: queryOptions?.vsCurrency,
+              includeAssetIds: queryOptions?.includeAssetIds,
+              excludeAssetIds: queryOptions?.excludeAssetIds,
+            },
+          },
+        );
+      },
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Get balances and DeFi positions for multiple accounts using CAIP-10 IDs
+   * (v6 endpoint).
+   *
+   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.networks - Comma-separated CAIP-2 chain IDs to filter by.
+   * @param queryOptions.filterSupportedTokens - Whether to filter the assets to only tokens existing in the Token API.
+   * @param queryOptions.startTimestamp - Start timestamp (epoch) from which to return results.
+   * @param queryOptions.endTimestamp - End timestamp (epoch) for which to return results.
+   * @param queryOptions.includeLabels - Whether to include asset metadata labels in the response.
+   * @param queryOptions.includeCanonicalHead - Whether to include the canonical head asset ID in the response.
+   * @param queryOptions.includeDeFiBalances - Whether to include DeFi positions (token balances are always returned).
+   * @param queryOptions.forceFetchDeFiPositions - Whether to fetch DeFi positions for all accounts, skipping the cached non-DeFi-user check.
+   * @param queryOptions.includePrices - Whether to include spot prices for each token and DeFi position asset.
+   * @param queryOptions.vsCurrency - Quote currency for spot prices when `includePrices` is true (default `usd`).
+   * @param queryOptions.includeAssetIds - ERC-20 CAIP-19 asset IDs to confirm detection for; undetected IDs are returned in `unprocessedIncludeAssetIds`.
+   * @param queryOptions.excludeAssetIds - ERC-20 CAIP-19 asset IDs to exclude from balance results.
+   * @param options - Fetch options including cache settings.
+   * @returns The multi-account balances and DeFi positions response.
+   */
+  async fetchV6MultiAccountBalances(
+    accountIds: string[],
+    queryOptions?: {
+      networks?: string[];
+      filterSupportedTokens?: boolean;
+      startTimestamp?: number;
+      endTimestamp?: number;
+      includeLabels?: boolean;
+      includeCanonicalHead?: boolean;
+      includeDeFiBalances?: boolean;
+      forceFetchDeFiPositions?: boolean;
+      includePrices?: boolean;
+      vsCurrency?: V6VsCurrency;
+      includeAssetIds?: string[];
+      excludeAssetIds?: string[];
+    },
+    options?: FetchOptions,
+  ): Promise<V6BalancesResponse> {
+    if (accountIds.length === 0) {
+      return {
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        accounts: [],
+      };
+    }
+    return this.queryClient.fetchQuery(
+      this.getV6MultiAccountBalancesQueryOptions(
+        accountIds,
+        queryOptions,
+        options,
+      ),
+    );
+  }
+
   // ==========================================================================
   // TRANSACTIONS
   // ==========================================================================
@@ -751,6 +908,99 @@ export class AccountsApiClient extends BaseApiClient {
             },
           },
         ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Returns TanStack Query options for v4 multi-account transactions,
+   * designed for use with `useInfiniteQuery`.
+   *
+   * @param params - API endpoint parameters (excluding pagination cursors).
+   * @param params.accountAddresses - Array of CAIP-10 account addresses.
+   * @param params.networks - CAIP-2 network IDs to filter by.
+   * @param params.startTimestamp - Start timestamp (epoch).
+   * @param params.endTimestamp - End timestamp (epoch).
+   * @param params.limit - Max transactions per page (default 50).
+   * @param params.sortDirection - Sort direction (ASC/DESC).
+   * @param params.includeLogs - Whether to include logs.
+   * @param params.includeTxMetadata - Whether to include transaction metadata.
+   * @param params.maxLogsPerTx - Max logs per transaction.
+   * @param params.lang - Language for transaction category (default "en").
+   * @param options - Fetch options including cache settings.
+   * @returns Options object compatible with `useInfiniteQuery`.
+   */
+  getV4MultiAccountTransactionsInfiniteQueryOptions(
+    params: {
+      accountAddresses: string[];
+      networks?: string[];
+      startTimestamp?: number;
+      endTimestamp?: number;
+      limit?: number;
+      sortDirection?: 'ASC' | 'DESC';
+      includeLogs?: boolean;
+      includeTxMetadata?: boolean;
+      maxLogsPerTx?: number;
+      lang?: string;
+    },
+    options?: FetchOptions,
+  ): FetchInfiniteQueryOptions<
+    V4MultiAccountTransactionsResponse,
+    Error,
+    V4MultiAccountTransactionsResponse,
+    readonly unknown[],
+    string | undefined
+  > {
+    return {
+      queryKey: [
+        'accounts',
+        'transactions',
+        'v4MultiAccount',
+        {
+          accountAddresses: [...params.accountAddresses].sort(),
+          networks: params.networks && [...params.networks].sort(),
+          startTimestamp: params.startTimestamp,
+          endTimestamp: params.endTimestamp,
+          limit: params.limit,
+          sortDirection: params.sortDirection,
+          includeLogs: params.includeLogs,
+          includeTxMetadata: params.includeTxMetadata,
+          maxLogsPerTx: params.maxLogsPerTx,
+          lang: params.lang,
+        },
+      ] as const,
+      queryFn: ({
+        pageParam,
+        signal,
+      }: {
+        pageParam?: string;
+        signal?: AbortSignal;
+      }) =>
+        this.fetch<V4MultiAccountTransactionsResponse>(
+          API_URLS.ACCOUNTS,
+          '/v4/multiaccount/transactions',
+          {
+            signal,
+            params: {
+              accountAddresses: params.accountAddresses,
+              networks: params.networks,
+              startTimestamp: params.startTimestamp,
+              endTimestamp: params.endTimestamp,
+              cursor: pageParam,
+              limit: params.limit,
+              sortDirection: params.sortDirection,
+              includeLogs: params.includeLogs,
+              includeTxMetadata: params.includeTxMetadata,
+              maxLogsPerTx: params.maxLogsPerTx,
+              lang: params.lang,
+            },
+          },
+        ),
+      getNextPageParam: ({ pageInfo }: V4MultiAccountTransactionsResponse) =>
+        pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
+      initialPageParam: options?.initialPageParam,
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,

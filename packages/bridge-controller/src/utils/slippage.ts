@@ -1,5 +1,5 @@
-import { isCrossChain, isSolanaChainId } from './bridge';
 import type { GenericQuoteRequest } from '../types';
+import { isCrossChain, isSolanaChainId } from './bridge';
 
 export const BRIDGE_DEFAULT_SLIPPAGE = 0.5;
 const SWAP_SOLANA_SLIPPAGE = undefined;

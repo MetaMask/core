@@ -3,11 +3,11 @@ export type {
   ComplianceServiceEnvironment,
   ComplianceServiceEvents,
   ComplianceServiceMessenger,
+  ComplianceServiceOptions,
 } from './ComplianceService';
 export type {
   ComplianceServiceCheckWalletComplianceAction,
   ComplianceServiceCheckWalletsComplianceAction,
-  ComplianceServiceUpdateBlockedWalletsAction,
 } from './ComplianceService-method-action-types';
 export { ComplianceService } from './ComplianceService';
 export type {
@@ -22,12 +22,10 @@ export type {
   ComplianceControllerCheckWalletComplianceAction,
   ComplianceControllerCheckWalletsComplianceAction,
   ComplianceControllerClearComplianceStateAction,
-  ComplianceControllerUpdateBlockedWalletsAction,
-  ComplianceControllerInitAction,
 } from './ComplianceController-method-action-types';
 export {
   ComplianceController,
   getDefaultComplianceControllerState,
 } from './ComplianceController';
-export { selectIsWalletBlocked } from './selectors';
-export type { WalletComplianceStatus, BlockedWalletsInfo } from './types';
+export { selectAreAnyWalletsBlocked, selectIsWalletBlocked } from './selectors';
+export type { WalletComplianceStatus } from './types';

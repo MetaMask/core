@@ -1,3 +1,4 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { noop } from 'lodash';
 
@@ -5,6 +6,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerState,
 } from '..';
+import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type { UpdateTransactionDataCallback } from '../types';
 import { refreshQuotes } from '../utils/quotes';
@@ -22,15 +24,22 @@ export class QuoteRefresher {
 
   #timeoutId: NodeJS.Timeout | undefined;
 
+  readonly #getStrategies: (
+    transaction: TransactionMeta,
+  ) => TransactionPayStrategy[];
+
   readonly #updateTransactionData: UpdateTransactionDataCallback;
 
   constructor({
+    getStrategies,
     messenger,
     updateTransactionData,
   }: {
+    getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
     messenger: TransactionPayControllerMessenger;
     updateTransactionData: UpdateTransactionDataCallback;
   }) {
+    this.#getStrategies = getStrategies;
     this.#messenger = messenger;
     this.#isRunning = false;
     this.#isUpdating = false;
@@ -68,7 +77,11 @@ export class QuoteRefresher {
     this.#isUpdating = true;
 
     try {
-      await refreshQuotes(this.#messenger, this.#updateTransactionData);
+      await refreshQuotes(
+        this.#messenger,
+        this.#updateTransactionData,
+        this.#getStrategies,
+      );
     } catch (error) {
       log('Error refreshing quotes', error);
     } finally {
@@ -93,8 +106,11 @@ export class QuoteRefresher {
   }
 
   #onStateChange(state: TransactionPayControllerState): void {
+    // No-op quotes never refresh, so they don't need the refresh loop.
     const hasQuotes = Object.values(state.transactionData).some((transaction) =>
-      Boolean(transaction.quotes?.length),
+      transaction.quotes?.some(
+        (quote) => quote.strategy !== TransactionPayStrategy.None,
+      ),
     );
 
     if (hasQuotes && !this.#isRunning) {

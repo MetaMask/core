@@ -1,6 +1,6 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -14,6 +14,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 
+import { jestAdvanceTime } from '../../../tests/helpers';
 import { POPULAR_NETWORKS } from './constants';
 import { NetworkEnablementController } from './NetworkEnablementController';
 import type {
@@ -21,7 +22,6 @@ import type {
   NativeAssetIdentifiersMap,
 } from './NetworkEnablementController';
 import { Slip44Service } from './services';
-import { jestAdvanceTime } from '../../../tests/helpers';
 
 // Known chainId mappings from chainid.network for mocking
 const chainIdToSlip44: Record<number, number> = {
@@ -71,12 +71,33 @@ function getRootMessenger(): RootMessenger {
   });
 }
 
+type MultichainGetStateReturn = {
+  multichainNetworkConfigurationsByChainId: Record<string, unknown>;
+  selectedMultichainNetworkChainId: string;
+  isEvmSelected: boolean;
+  networksWithTransactionActivity: Record<string, unknown>;
+};
+
+const defaultMultichainGetState = (): MultichainGetStateReturn => ({
+  multichainNetworkConfigurationsByChainId: {
+    [BtcScope.Mainnet]: { chainId: BtcScope.Mainnet, name: 'Bitcoin' },
+    [SolScope.Mainnet]: { chainId: SolScope.Mainnet, name: 'Solana' },
+    [TrxScope.Mainnet]: { chainId: TrxScope.Mainnet, name: 'Tron' },
+    [XlmScope.Pubnet]: { chainId: XlmScope.Pubnet, name: 'Stellar' },
+  },
+  selectedMultichainNetworkChainId: 'eip155:1',
+  isEvmSelected: true,
+  networksWithTransactionActivity: {},
+});
+
 const setupController = ({
   config,
+  multichainGetState = defaultMultichainGetState,
 }: {
   config?: Partial<
     ConstructorParameters<typeof NetworkEnablementController>[0]
   >;
+  multichainGetState?: () => MultichainGetStateReturn;
 } = {}): {
   controller: NetworkEnablementController;
   rootMessenger: RootMessenger;
@@ -128,6 +149,11 @@ const setupController = ({
     })),
   );
 
+  rootMessenger.registerActionHandler(
+    'MultichainNetworkController:getState',
+    jest.fn().mockImplementation(multichainGetState),
+  );
+
   const controller = new NetworkEnablementController({
     messenger: networkEnablementControllerMessenger,
     ...config,
@@ -170,6 +196,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
           [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
           [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+          [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -185,6 +212,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Mainnet]: true,
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
+        },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Pubnet]: true,
+          [XlmScope.Testnet]: false,
         },
       },
       nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -225,6 +256,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
           [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
           [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+          [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           '0xa86a': true, // Avalanche network added and enabled (keeps current selection)
         },
         [KnownCaipNamespace.Solana]: {
@@ -241,6 +273,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Mainnet]: true,
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
+        },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Pubnet]: true,
+          [XlmScope.Testnet]: false,
         },
       },
       nativeAssetIdentifiers: {
@@ -289,6 +325,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
           [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
           [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+          [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -304,6 +341,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Mainnet]: true,
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
+        },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Pubnet]: true,
+          [XlmScope.Testnet]: false,
         },
       },
       nativeAssetIdentifiers: expectedNativeAssetIdentifiers,
@@ -393,6 +434,7 @@ describe('NetworkEnablementController', () => {
     controller.disableNetwork('0xa'); // Optimism Mainnet
     controller.disableNetwork('0x89'); // Polygon Mainnet
     controller.disableNetwork('0x531'); // Sei Mainnet
+    controller.disableNetwork('0x8f'); // Monad Mainnet
 
     // Publish an update with linea network removed
     rootMessenger.publish('NetworkController:networkRemoved', {
@@ -430,6 +472,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
           [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
           [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+          [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -445,6 +488,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Mainnet]: true,
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
+        },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Pubnet]: true,
+          [XlmScope.Testnet]: false,
         },
       },
       nativeAssetIdentifiers: expectedNativeAssetIdentifiersForFallback,
@@ -530,6 +577,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana Mainnet (exists in multichain config)
@@ -545,6 +593,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         // init() populates nativeAssetIdentifiers from NetworkController (EVM networks only)
@@ -1147,6 +1199,10 @@ describe('NetworkEnablementController', () => {
                   chainId: TrxScope.Mainnet,
                   name: 'Tron Mainnet',
                 },
+                [XlmScope.Pubnet]: {
+                  chainId: XlmScope.Pubnet,
+                  name: 'Stellar Mainnet',
+                },
               },
               selectedMultichainNetworkChainId:
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
@@ -1172,6 +1228,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -1187,6 +1244,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1206,6 +1267,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false, // Not in mocked config
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false, // Not in mocked config
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false, // Not in mocked config
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false, // Not in mocked config
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana
@@ -1221,6 +1283,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1303,6 +1369,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1469,6 +1539,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -1484,6 +1555,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1503,6 +1578,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
@@ -1518,6 +1594,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1557,6 +1637,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Disabled due to cross-namespace behavior
@@ -1572,6 +1653,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: {
@@ -1595,6 +1680,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
@@ -1610,6 +1696,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: {
@@ -1633,6 +1723,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
@@ -1648,6 +1739,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: {
@@ -1682,6 +1777,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Disabled due to cross-namespace behavior
@@ -1697,6 +1793,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1728,6 +1828,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false,
@@ -1738,6 +1839,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1777,6 +1882,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Disabled due to cross-namespace behavior
@@ -1792,6 +1898,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: {
@@ -1823,6 +1933,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -1838,6 +1949,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1871,6 +1986,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -1886,6 +2002,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1909,6 +2029,82 @@ describe('NetworkEnablementController', () => {
       expect(() => controller.disableNetwork('invalid')).toThrow(
         'Value must be a hexadecimal string.',
       );
+    });
+  });
+
+  describe('restoreEnabledNetworkMap', () => {
+    it('restores the enabled network map to a previously snapshotted state', () => {
+      const { controller } = setupController();
+      const previousEnabledNetworkMap = Object.fromEntries(
+        Object.entries(controller.state.enabledNetworkMap).map(
+          ([namespace, networks]) => [namespace, { ...networks }],
+        ),
+      ) as typeof controller.state.enabledNetworkMap;
+
+      controller.enableNetwork('0xa4b1');
+
+      expect(controller.isNetworkEnabled('0xa4b1')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+
+      controller.restoreEnabledNetworkMap(previousEnabledNetworkMap);
+
+      expect(controller.state.enabledNetworkMap).toStrictEqual(
+        previousEnabledNetworkMap,
+      );
+    });
+
+    it('disables networks missing from the restored snapshot', () => {
+      const { controller } = setupController();
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+
+      controller.restoreEnabledNetworkMap({});
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+    });
+
+    it('undoes the filter switch after networkAdded when adding without setActive', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      controller.disableNetwork('0xe708');
+      controller.disableNetwork('0x2105');
+
+      const snapshot = Object.fromEntries(
+        Object.entries(controller.state.enabledNetworkMap).map(
+          ([namespace, networks]) => [namespace, { ...networks }],
+        ),
+      ) as typeof controller.state.enabledNetworkMap;
+
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0x999',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Custom Network',
+        nativeCurrency: 'CUSTOM',
+        rpcEndpoints: [
+          {
+            url: 'https://custom.network/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(controller.isNetworkEnabled('0x999')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+
+      controller.restoreEnabledNetworkMap(snapshot);
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+      expect(controller.isNetworkEnabled('0x999')).toBe(false);
     });
   });
 
@@ -2115,6 +2311,122 @@ describe('NetworkEnablementController', () => {
       expect(() => controller.isNetworkEnabled(null)).toThrow(
         'Value must be a hexadecimal string.',
       );
+    });
+  });
+
+  describe('listPopularNetworks', () => {
+    it('returns only popular EVM networks that exist in NetworkController and multichain mainnets that exist in MultichainNetworkController', () => {
+      const { controller } = setupController();
+      const result = controller.listPopularNetworks();
+
+      // Default setup: 3 EVM (0x1, 0xe708, 0x2105) + 4 multichain (Btc, Sol, Trx, Stellar)
+      expect(result).toContain('eip155:1');
+      expect(result).toContain('eip155:59144');
+      expect(result).toContain('eip155:8453');
+      expect(result).toContain(BtcScope.Mainnet);
+      expect(result).toContain(SolScope.Mainnet);
+      expect(result).toContain(TrxScope.Mainnet);
+      expect(result).toContain(XlmScope.Pubnet);
+      expect(result).toHaveLength(7);
+    });
+
+    it('excludes multichain mainnets when not in MultichainNetworkController state', () => {
+      const { controller } = setupController({
+        multichainGetState: () => ({
+          multichainNetworkConfigurationsByChainId: {},
+          selectedMultichainNetworkChainId: 'eip155:1',
+          isEvmSelected: true,
+          networksWithTransactionActivity: {},
+        }),
+      });
+      const result = controller.listPopularNetworks();
+
+      expect(result).toContain('eip155:1');
+      expect(result).toContain('eip155:59144');
+      expect(result).toContain('eip155:8453');
+      expect(result).not.toContain(BtcScope.Mainnet);
+      expect(result).not.toContain(SolScope.Mainnet);
+      expect(result).not.toContain(TrxScope.Mainnet);
+      expect(result).not.toContain(XlmScope.Pubnet);
+      expect(result).toHaveLength(3);
+    });
+
+    it('returns same result as calling messenger action when registered', () => {
+      const { controller, rootMessenger } = setupController();
+
+      const viaAction = rootMessenger.call(
+        'NetworkEnablementController:listPopularNetworks',
+      );
+      const viaMethod = controller.listPopularNetworks();
+      expect(viaAction).toStrictEqual(viaMethod);
+    });
+
+    it('listPopularNetworks equals listPopularEvmNetworks (as CAIP-2) + listPopularMultichainNetworks', () => {
+      const { controller } = setupController();
+      const all = controller.listPopularNetworks();
+      const evmHex = controller.listPopularEvmNetworks();
+      const multichain = controller.listPopularMultichainNetworks();
+      const evmCaip = evmHex.map((chainIdHex) => toEvmCaipChainId(chainIdHex));
+      expect(all).toStrictEqual([...evmCaip, ...multichain]);
+    });
+  });
+
+  describe('listPopularEvmNetworks', () => {
+    it('returns only popular EVM chain IDs in hex that exist in NetworkController state', () => {
+      const { controller } = setupController();
+      const result = controller.listPopularEvmNetworks();
+
+      expect(result).toContain('0x1');
+      expect(result).toContain('0xe708');
+      expect(result).toContain('0x2105');
+      expect(result).toHaveLength(3);
+      expect(result.every((id) => id.startsWith('0x'))).toBe(true);
+    });
+
+    it('returns same result as calling messenger action when registered', () => {
+      const { controller, rootMessenger } = setupController();
+
+      const viaAction = rootMessenger.call(
+        'NetworkEnablementController:listPopularEvmNetworks',
+      );
+      const viaMethod = controller.listPopularEvmNetworks();
+      expect(viaAction).toStrictEqual(viaMethod);
+    });
+  });
+
+  describe('listPopularMultichainNetworks', () => {
+    it('returns only Bitcoin, Solana, Tron, Stellar mainnets that exist in MultichainNetworkController state', () => {
+      const { controller } = setupController();
+      const result = controller.listPopularMultichainNetworks();
+
+      expect(result).toContain(BtcScope.Mainnet);
+      expect(result).toContain(SolScope.Mainnet);
+      expect(result).toContain(TrxScope.Mainnet);
+      expect(result).toContain(XlmScope.Pubnet);
+      expect(result).toHaveLength(4);
+    });
+
+    it('returns empty when none of the multichain mainnets are configured', () => {
+      const { controller } = setupController({
+        multichainGetState: () => ({
+          multichainNetworkConfigurationsByChainId: {},
+          selectedMultichainNetworkChainId: 'eip155:1',
+          isEvmSelected: true,
+          networksWithTransactionActivity: {},
+        }),
+      });
+      const result = controller.listPopularMultichainNetworks();
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns same result as calling messenger action when registered', () => {
+      const { controller, rootMessenger } = setupController();
+
+      const viaAction = rootMessenger.call(
+        'NetworkEnablementController:listPopularMultichainNetworks',
+      );
+      const viaMethod = controller.listPopularMultichainNetworks();
+      expect(viaAction).toStrictEqual(viaMethod);
     });
   });
 

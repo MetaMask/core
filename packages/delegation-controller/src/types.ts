@@ -1,4 +1,3 @@
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -6,10 +5,8 @@ import type {
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type {
-  controllerName,
-  DelegationController,
-} from './DelegationController';
+import type { controllerName } from './DelegationController';
+import type { DelegationControllerMethodActions } from './DelegationController-method-action-types';
 
 type Hex = `0x${string}`;
 type Address = `0x${string}`;
@@ -73,68 +70,18 @@ export type DelegationStruct = Omit<Delegation, 'salt'> & {
   salt: bigint;
 };
 
-export type DelegationEntry = {
-  tags: string[];
-  chainId: Hex;
-  delegation: Delegation;
-  meta?: string;
-};
-
-export type DelegationFilter = {
-  chainId?: Hex;
-  tags?: string[];
-  from?: Address;
-};
-
-export type DelegationControllerState = {
-  delegations: {
-    [hash: Hex]: DelegationEntry;
-  };
-};
+// Empty controller state (signing-only; no persisted fields).
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type DelegationControllerState = {};
 
 export type DelegationControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   DelegationControllerState
 >;
 
-export type DelegationControllerSignDelegationAction = {
-  type: `${typeof controllerName}:signDelegation`;
-  handler: DelegationController['signDelegation'];
-};
-
-export type DelegationControllerStoreAction = {
-  type: `${typeof controllerName}:store`;
-  handler: DelegationController['store'];
-};
-
-export type DelegationControllerListAction = {
-  type: `${typeof controllerName}:list`;
-  handler: DelegationController['list'];
-};
-
-export type DelegationControllerRetrieveAction = {
-  type: `${typeof controllerName}:retrieve`;
-  handler: DelegationController['retrieve'];
-};
-
-export type DelegationControllerChainAction = {
-  type: `${typeof controllerName}:chain`;
-  handler: DelegationController['chain'];
-};
-
-export type DelegationControllerDeleteAction = {
-  type: `${typeof controllerName}:delete`;
-  handler: DelegationController['delete'];
-};
-
 export type DelegationControllerActions =
   | DelegationControllerGetStateAction
-  | DelegationControllerSignDelegationAction
-  | DelegationControllerStoreAction
-  | DelegationControllerListAction
-  | DelegationControllerRetrieveAction
-  | DelegationControllerChainAction
-  | DelegationControllerDeleteAction;
+  | DelegationControllerMethodActions;
 
 export type DelegationControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -143,9 +90,7 @@ export type DelegationControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type DelegationControllerEvents = DelegationControllerStateChangeEvent;
 
-type AllowedActions =
-  | KeyringControllerSignTypedMessageAction
-  | AccountsControllerGetSelectedAccountAction;
+type AllowedActions = KeyringControllerSignTypedMessageAction;
 
 type AllowedEvents = never;
 

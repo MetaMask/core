@@ -10,10 +10,7 @@ import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
 import { TokenRwaData } from 'src/token-service';
 
-import {
-  parseBalanceWithDecimals,
-  stringifyBalanceWithDecimals,
-} from './stringify-balance';
+import { shouldIncludeNativeToken } from '../constants';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
@@ -22,6 +19,10 @@ import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
+import {
+  parseBalanceWithDecimals,
+  stringifyBalanceWithDecimals,
+} from './stringify-balance';
 
 // Asset Tron Filters
 export const TRON_RESOURCE = {
@@ -31,6 +32,9 @@ export const TRON_RESOURCE = {
   MAX_BANDWIDTH: 'max-bandwidth',
   STRX_ENERGY: 'strx-energy',
   STRX_BANDWIDTH: 'strx-bandwidth',
+  TRX_READY_FOR_WITHDRAWAL: 'trx-ready-for-withdrawal',
+  TRX_STAKING_REWARDS: 'trx-staking-rewards',
+  TRX_IN_LOCK_PERIOD: 'trx-in-lock-period',
 } as const;
 
 export type TronResourceSymbol =
@@ -90,6 +94,7 @@ export type Asset = (
 
 export type AssetListState = {
   accountTree: AccountTreeControllerState['accountTree'];
+  selectedAccountGroup: AccountTreeControllerState['selectedAccountGroup'];
   internalAccounts: AccountsControllerState['internalAccounts'];
   allTokens: TokensControllerState['allTokens'];
   allIgnoredTokens: TokensControllerState['allIgnoredTokens'];
@@ -135,6 +140,10 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
         for (const accountId of accounts) {
           const internalAccount = internalAccounts.accounts[accountId];
 
+          if (!internalAccount) {
+            continue;
+          }
+
           accountsMap[
             // TODO: We would not need internalAccounts if evmTokens state had the accountId
             internalAccount.type.startsWith('eip155')
@@ -172,6 +181,10 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     for (const [chainId, chainAccounts] of Object.entries(
       accountsByChainId,
     ) as [Hex, Record<Hex, { balance: Hex | null }>][]) {
+      // Skip native tokens on Tempo networks
+      if (!shouldIncludeNativeToken(chainId)) {
+        continue;
+      }
       for (const [accountAddress, accountBalance] of Object.entries(
         chainAccounts,
       )) {
@@ -501,14 +514,13 @@ const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
 export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
   [
     selectAllAssets,
-    (state) => state.accountTree,
+    (state) => state.selectedAccountGroup,
     (
       _state,
       opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
     ) => opts,
   ],
-  (groupAssets, accountTree, opts) => {
-    const { selectedAccountGroup } = accountTree;
+  (groupAssets, selectedAccountGroup, opts) => {
     if (!selectedAccountGroup) {
       return {};
     }

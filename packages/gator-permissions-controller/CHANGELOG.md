@@ -7,9 +7,121 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.3]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.17.0` to `^62.17.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^69.0.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [4.2.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.2` ([#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [4.2.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^68.1.1` ([#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [4.2.0]
+
+### Added
+
+- Add `token-approval-revocation` execution permission type decoding ([#8823](https://github.com/MetaMask/core/pull/8823))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
+
+## [4.1.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [4.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [4.1.0]
+
+### Added
+
+- Add `payee` rule decoding for execution permissions, extracting allowed recipient addresses from `AllowedTargetsEnforcer` (native token) and `AllowedCalldataEnforcer` (ERC-20 token) caveats ([#8668](https://github.com/MetaMask/core/pull/8668))
+- Add `redeemer` rule decoding for execution permissions, extracting addresses from `RedeemerEnforcer` caveats ([#8537](https://github.com/MetaMask/core/pull/8537))
+- Add `native-token-allowance` and `erc20-token-allowance` execution permission type decoding ([#8553](https://github.com/MetaMask/core/pull/8553))
+
+### Changed
+
+- Use `decodeRedeemerTerms` from `@metamask/delegation-core` instead of a local implementation ([#8537](https://github.com/MetaMask/core/pull/8537))
+- Bump `@metamask/delegation-core` from `^0.2.0` to `^1.1.0` ([#8537](https://github.com/MetaMask/core/pull/8537))
+- Bump `@metamask/transaction-controller` from `^64.2.0` to `^65.1.0` ([#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613), [#8691](https://github.com/MetaMask/core/pull/8691))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Add `status` to `PermissionInfoWithMetadata` type, resolved from onchain data ([#8445](https://github.com/MetaMask/core/pull/8445))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.2.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/snaps-controllers` from `^17.2.0` to `^19.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
+  - The controller now requires `SnapController:hasSnap` instead of `SnapController:has`.
+- Bump `@metamask/snaps-sdk` from `^10.3.0` to `^11.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/snaps-utils` from `^11.7.0` to `^12.1.2` ([#8319](https://github.com/MetaMask/core/pull/8319))
+
+## [2.2.0]
+
+### Added
+
+- Expose missing public `GatorPermissionsController` methods through its messenger ([#8205](https://github.com/MetaMask/core/pull/8205))
+  - The following actions are now available:
+    - `GatorPermissionsController:initialize`
+  - Corresponding action types (e.g. `GatorPermissionsControllerInitializeAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.1` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [2.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^63.0.0` ([#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [2.1.0]
+
+### Changed
+
+- Improves permission validation during decoding ([#7844](https://github.com/MetaMask/core/pull/7844), [#8127](https://github.com/MetaMask/core/pull/8127))
+  - Validates `ExactCalldataEnforcer` and `ValueLteEnforcer` caveat terms
+  - Validates that `periodAmount` is positive in `erc20-token-periodic` and `native-token-periodic` permission types
+  - Validates that `tokenAddress` is a valid hex string in `erc20-token-periodic` and `erc20-token-stream` permission types
+- Bump `@metamask/transaction-controller` from `^62.17.0` to `^62.21.0` ([#7996](https://github.com/MetaMask/core/pull/7996), [#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031), [#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140))
 
 ## [2.0.0]
 
@@ -21,7 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaces `gatorPermissionsMapSerialized` with `grantedPermissions` property in internal state, replaces related types, and utility functions
   - `fetchAndUpdateGatorPermissions()` no longer accepts parameters and resolves to `void`
   - `getPendingRevocations` / `pendingRevocations` getter replaced by `isPendingRevocation(permissionContext)`; list on `state.pendingRevocations`
-- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.17.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.17.0`, ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7897](https://github.com/MetaMask/core/pull/7897))
 
 ## [1.1.2]
 
@@ -166,7 +278,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.2.3...HEAD
+[4.2.3]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.2.2...@metamask/gator-permissions-controller@4.2.3
+[4.2.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.2.1...@metamask/gator-permissions-controller@4.2.2
+[4.2.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.2.0...@metamask/gator-permissions-controller@4.2.1
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.1.2...@metamask/gator-permissions-controller@4.2.0
+[4.1.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.1.1...@metamask/gator-permissions-controller@4.1.2
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.1.0...@metamask/gator-permissions-controller@4.1.1
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.0.0...@metamask/gator-permissions-controller@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@3.0.1...@metamask/gator-permissions-controller@4.0.0
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@3.0.0...@metamask/gator-permissions-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.2.0...@metamask/gator-permissions-controller@3.0.0
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.1.1...@metamask/gator-permissions-controller@2.2.0
+[2.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.1.0...@metamask/gator-permissions-controller@2.1.1
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.0.0...@metamask/gator-permissions-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.2...@metamask/gator-permissions-controller@2.0.0
 [1.1.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.1...@metamask/gator-permissions-controller@1.1.2
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.0...@metamask/gator-permissions-controller@1.1.1

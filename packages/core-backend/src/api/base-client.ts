@@ -40,7 +40,7 @@ export type InternalFetchOptions = {
 export class BaseApiClient {
   protected readonly clientProduct: string;
 
-  protected readonly clientVersion: string;
+  protected readonly clientVersion?: string;
 
   protected readonly getBearerToken?: () => Promise<string | undefined>;
 
@@ -71,7 +71,7 @@ export class BaseApiClient {
 
   constructor(options: ApiPlatformClientOptions) {
     this.clientProduct = options.clientProduct;
-    this.clientVersion = options.clientVersion ?? '1.0.0';
+    this.clientVersion = options.clientVersion;
     this.getBearerToken = options.getBearerToken;
 
     this.#queryClientInstance =
@@ -121,9 +121,12 @@ export class BaseApiClient {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-Client-Product': this.clientProduct,
-      'X-Client-Version': this.clientVersion,
+      'x-metamask-clientproduct': this.clientProduct,
     };
+
+    if (this.clientVersion) {
+      headers['x-metamask-clientversion'] = this.clientVersion;
+    }
 
     // Get bearer token using fetchQuery for automatic deduplication
     if (this.getBearerToken) {

@@ -7,6 +7,138 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [10.0.3]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- `SecretMetadata.compare` no longer uses `createdAt` (server-stamped TIMEUUID) for ordering; sort priority is now `PrimarySrp` tag first, then client-side timestamp ([#9247](https://github.com/MetaMask/core/pull/9247))
+- The password change flow passes a `transformDataItems` callback to `changeEncKey` so sorting happens inside the metadata lock, preventing data loss from concurrent writes ([#9247](https://github.com/MetaMask/core/pull/9247))
+
+### Fixed
+
+- Fix `InvalidPrimarySecretDataType` crash caused by `changeEncKey` re-inserting items without sorting, causing the server to stamp `createdAt` in arbitrary order on password change ([#9247](https://github.com/MetaMask/core/pull/9247))
+
+## [10.0.2]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [10.0.1]
+
+### Added
+
+- Expose `runMigrations` as a messenger action (`SeedlessOnboardingController:runMigrations`) ([#9031](https://github.com/MetaMask/core/pull/9031))
+
+## [10.0.0]
+
+### Added
+
+- Add `runMigrations` method to run pending data migrations for legacy secrets ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `setMigrationVersion` method to set migration version directly for new users ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `SeedlessOnboardingMigrationVersion` enum for tracking migration versions ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `migrationVersion` to controller state to track applied migrations ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `itemId`, `dataType`, `createdAt`, and `storageVersion` storage-level properties to `SecretMetadata` ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `SecretMetadata.compare` static method for comparing metadata with PrimarySrp prioritization and TIMEUUID-based sorting ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `SecretMetadata.compareByTimestamp` static method for comparing metadata by timestamp ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `SecretMetadata.matchesType` static method for checking if metadata matches a given type ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Re-export `EncAccountDataType` from `@metamask/toprf-secure-backup` ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add third generic type parameter `EncryptionResult` to `SeedlessOnboardingController` and `SeedlessOnboardingControllerOptions`, constrained by `EncryptionResultConstraint` and defaulting to `DefaultEncryptionResult`, so the vault `encryptor` matches the full `Encryptor` typing from `@metamask/keyring-controller` ([#8411](https://github.com/MetaMask/core/pull/8411))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^26.0.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/toprf-secure-backup` from `^0.11.0` to `^1.0.0` ([#7284](https://github.com/MetaMask/core/pull/7284))
+- **BREAKING:** Change `addNewSecretData` method signature to require `dataType: EncAccountDataType` instead of `type: SecretType` ([#7284](https://github.com/MetaMask/core/pull/7284))
+  - `SecretType` is now derived internally from `EncAccountDataType`
+  - Encrypted payload still includes `type` for backward compatibility with older clients
+- **BREAKING:** Remove `parseSecretsFromMetadataStore`, `fromBatch`, and `sort` methods from `SecretMetadata` ([#7284](https://github.com/MetaMask/core/pull/7284))
+  - Use `SecretMetadata.compare` or `SecretMetadata.compareByTimestamp` for sorting
+  - Use `SecretMetadata.matchesType` for filtering
+- **BREAKING:** Change `SecretMetadata.fromRawMetadata` signature to require `storageMetadata` parameter ([#7284](https://github.com/MetaMask/core/pull/7284))
+- **BREAKING:** Remove `version` getter from `SecretMetadata`; use `storageVersion` instead ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- **BREAKING:** Remove `VaultEncryptor` type alias; use `Encryptor` from `@metamask/keyring-controller` with encryption key, key derivation params, and encryption result types ([#8411](https://github.com/MetaMask/core/pull/8411))
+
+### Fixed
+
+- Fix TIMEUUID sorting by extracting actual timestamps instead of using lexicographic comparison ([#7284](https://github.com/MetaMask/core/pull/7284))
+
+## [9.1.0]
+
+### Added
+
+- Expose all public `SeedlessOnboardingController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
+  - The following actions are now available:
+    - `SeedlessOnboardingController:fetchMetadataAccessCreds`
+    - `SeedlessOnboardingController:preloadToprfNodeDetails`
+    - `SeedlessOnboardingController:authenticate`
+    - `SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase`
+    - `SeedlessOnboardingController:addNewSecretData`
+    - `SeedlessOnboardingController:fetchAllSecretData`
+    - `SeedlessOnboardingController:changePassword`
+    - `SeedlessOnboardingController:updateBackupMetadataState`
+    - `SeedlessOnboardingController:verifyVaultPassword`
+    - `SeedlessOnboardingController:getSecretDataBackupState`
+    - `SeedlessOnboardingController:submitPassword`
+    - `SeedlessOnboardingController:setLocked`
+    - `SeedlessOnboardingController:syncLatestGlobalPassword`
+    - `SeedlessOnboardingController:submitGlobalPassword`
+    - `SeedlessOnboardingController:checkIsPasswordOutdated`
+    - `SeedlessOnboardingController:getIsUserAuthenticated`
+    - `SeedlessOnboardingController:clearState`
+    - `SeedlessOnboardingController:storeKeyringEncryptionKey`
+    - `SeedlessOnboardingController:loadKeyringEncryptionKey`
+    - `SeedlessOnboardingController:refreshAuthTokens`
+    - `SeedlessOnboardingController:revokePendingRefreshTokens`
+    - `SeedlessOnboardingController:rotateRefreshToken`
+    - `SeedlessOnboardingController:checkNodeAuthTokenExpired`
+    - `SeedlessOnboardingController:checkMetadataAccessTokenExpired`
+    - `SeedlessOnboardingController:checkAccessTokenExpired`
+  - Corresponding action types are now exported (e.g. `SeedlessOnboardingControllerGetAccessTokenAction`)
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [9.0.0]
+
+### Changed
+
+- Token refresh now uses a dedicated private `#reAuthenticate` method that only accepts the tokens returned by the JWT-refresh service (`idTokens`, `accessToken`, `metadataAccessToken`), making the re-authentication path stricter than the initial `authenticate` call ([#8148](https://github.com/MetaMask/core/pull/8148))
+- After a successful JWT refresh the controller proactively rotates the refresh/revoke token pair (when the vault is unlocked) via the public `rotateRefreshToken` method ([#8148](https://github.com/MetaMask/core/pull/8148))
+- Token expiry checks now use a 90% lifetime threshold for proactive refresh: access tokens and metadata access tokens are refreshed when less than 10% of their lifetime remains (requires `iat`), while node auth tokens fall back to exact-expiry checking ([#8148](https://github.com/MetaMask/core/pull/8148))
+- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+
+### Removed
+
+- **BREAKING:** Removed public `renewRefreshToken` method — refresh token rotation is now handled by `rotateRefreshToken`, which can also be called directly ([#8148](https://github.com/MetaMask/core/pull/8148))
+
+### Fixed
+
+- Fixed `FailedToFetchAuthPubKey` errors caused by expired tokens in `addNewSecretData` and `changePassword` — `assertPasswordInSync` is now called inside the token-refresh wrapper so expired `nodeAuthTokens` are refreshed before reaching the backend
+
+## [8.1.0]
+
+### Changed
+
+- `refreshAuthTokens` now coalesces concurrent calls — if a refresh is already in-flight, subsequent callers share the same promise rather than issuing duplicate HTTP requests with the same token ([#7989](https://github.com/MetaMask/core/pull/7989))
+- `refreshAuthTokens` now uses the live `state.refreshToken` value when calling `authenticate` after a successful HTTP refresh, preventing a stale-capture bug that could overwrite a concurrently-renewed token with an older one ([#7989](https://github.com/MetaMask/core/pull/7989))
+- `renewRefreshToken` now queues the old token for revocation only after `#createNewVaultWithAuthData` succeeds, ensuring tokens are not queued if vault creation fails ([#7989](https://github.com/MetaMask/core/pull/7989))
+
+### Fixed
+
+- Fixed `refreshAuthTokens` throwing the generic `FailedToRefreshJWTTokens` error for all HTTP failures — a 401 response (permanently revoked token) now throws `InvalidRefreshToken` instead, giving callers a distinct signal to distinguish permanent from transient failures ([#7989](https://github.com/MetaMask/core/pull/7989))
+
 ## [8.0.0]
 
 ### Added
@@ -280,7 +412,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.3...HEAD
+[10.0.3]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.2...@metamask/seedless-onboarding-controller@10.0.3
+[10.0.2]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.1...@metamask/seedless-onboarding-controller@10.0.2
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.0...@metamask/seedless-onboarding-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@9.1.0...@metamask/seedless-onboarding-controller@10.0.0
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@9.0.0...@metamask/seedless-onboarding-controller@9.1.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.1.0...@metamask/seedless-onboarding-controller@9.0.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.0.0...@metamask/seedless-onboarding-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.1.0...@metamask/seedless-onboarding-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.0.0...@metamask/seedless-onboarding-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.1.0...@metamask/seedless-onboarding-controller@7.0.0

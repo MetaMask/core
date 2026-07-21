@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    {
+      "path": "../base-data-service/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

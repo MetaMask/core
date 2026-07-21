@@ -1,5 +1,7 @@
 import type { CaipAccountId } from '@metamask/utils';
 
+import type { Caip25CaveatValue } from '../caip25Permission';
+import type { InternalScopesObject } from '../scope/types';
 import {
   getEthAccounts,
   setEthAccounts,
@@ -9,8 +11,6 @@ import {
   isCaipAccountIdInPermittedAccountIds,
   isInternalAccountInPermittedAccountIds,
 } from './caip-permission-operator-accounts';
-import type { Caip25CaveatValue } from '../caip25Permission';
-import type { InternalScopesObject } from '../scope/types';
 
 describe('CAIP-25 eth_accounts adapters', () => {
   describe('getEthAccounts', () => {

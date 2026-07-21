@@ -1,337 +1,123 @@
 import type { Caveat, Hex } from '@metamask/delegation-core';
 import { ROOT_AUTHORITY } from '@metamask/delegation-core';
-import { getChecksumAddress, hexToNumber, numberToHex } from '@metamask/utils';
+import { numberToHex } from '@metamask/utils';
 
 import type {
   DecodedPermission,
-  DeployedContractsByName,
   PermissionType,
+  PermissionDecoder,
+  ValidateAndDecodeResult,
 } from './types';
-import {
-  createPermissionRulesForChainId,
-  getChecksumEnforcersByChainId,
-  getTermsByEnforcer,
-  splitHex,
-} from './utils';
 
 /**
- * Identifies the unique permission type that matches a given set of enforcer
- * contract addresses for a specific chain.
- *
- * A permission type matches when:
- * - All of its required enforcers are present in the provided list; and
- * - No provided enforcer falls outside the union of the type's required and
- * optional enforcers (currently only `TimestampEnforcer` is allowed extra).
- *
- * If exactly one permission type matches, its identifier is returned.
+ * Returns every permission decoder whose caveat-address pattern matches the
+ * given enforcer list for the chain. Used when more than one permission type
+ * can share the same enforcer set; the caller must disambiguate by validating
+ * caveat terms (see {@link selectUniqueDecoderAndDecodedPermission}).
  *
  * @param args - The arguments to this function.
  * @param args.enforcers - List of enforcer contract addresses (hex strings).
- *
- * @param args.contracts - The deployed contracts for the chain.
- * @returns The identifier of the matching permission type.
- * @throws If no permission type matches, or if more than one permission type matches.
+ * @param args.permissionDecoders - The permission decoders for the chain.
+ * @returns All decoders that match, possibly empty.
  */
-export const identifyPermissionByEnforcers = ({
+export const findDecodersWithMatchingCaveatAddresses = ({
   enforcers,
-  contracts,
+  permissionDecoders,
 }: {
   enforcers: Hex[];
-  contracts: DeployedContractsByName;
-}): PermissionType => {
-  // Build frequency map for enforcers (using checksummed addresses)
-  const counts = new Map<Hex, number>();
-  for (const addr of enforcers.map(getChecksumAddress)) {
-    counts.set(addr, (counts.get(addr) ?? 0) + 1);
-  }
-  const enforcersSet = new Set(counts.keys());
+  permissionDecoders: PermissionDecoder[];
+}): PermissionDecoder[] => {
+  return permissionDecoders.filter((decoder) =>
+    decoder.caveatAddressesMatch(enforcers),
+  );
+};
 
-  const permissionRules = createPermissionRulesForChainId(contracts);
+type SuccessfulValidateAndDecodeResult = Extract<
+  ValidateAndDecodeResult,
+  { isValid: true }
+>;
 
-  let matchingPermissionType: PermissionType | null = null;
+type DecoderAndDecodedPermission = {
+  decoder: PermissionDecoder;
+  rules: SuccessfulValidateAndDecodeResult['rules'];
+  data: SuccessfulValidateAndDecodeResult['data'];
+  expiry: SuccessfulValidateAndDecodeResult['expiry'];
+};
 
-  for (const {
-    optionalEnforcers,
-    requiredEnforcers,
-    permissionType,
-  } of permissionRules) {
-    // union of optional + required enforcers. Any other address is forbidden.
-    const allowedEnforcers = new Set<Hex>([
-      ...optionalEnforcers,
-      ...requiredEnforcers.keys(),
-    ]);
-
-    let hasForbiddenEnforcers = false;
-
-    for (const caveat of enforcersSet) {
-      if (!allowedEnforcers.has(caveat)) {
-        hasForbiddenEnforcers = true;
-        break;
-      }
-    }
-
-    // exact multiplicity match for required enforcers
-    let meetsRequiredCounts = true;
-    for (const [addr, requiredCount] of requiredEnforcers.entries()) {
-      if ((counts.get(addr) ?? 0) !== requiredCount) {
-        meetsRequiredCounts = false;
-        break;
-      }
-    }
-
-    if (meetsRequiredCounts && !hasForbiddenEnforcers) {
-      if (matchingPermissionType) {
-        throw new Error('Multiple permission types match');
-      }
-      matchingPermissionType = permissionType;
-    }
-  }
-
-  if (!matchingPermissionType) {
+/**
+ * Runs {@link PermissionDecoder.validateAndDecodePermission} on each candidate
+ * decoder. Use when several decoders share the same caveat addresses.
+ *
+ * @param args - The arguments to this function.
+ * @param args.candidateDecoders - Decoders whose addresses already match the caveats.
+ * @param args.caveats - Caveats from the delegation.
+ * @returns The unique decoder and decoded expiry/data when exactly one decoder validates.
+ * @throws If `candidateDecoders` is empty, if no decoder validates, or if more than one decoder validates.
+ */
+export const selectUniqueDecoderAndDecodedPermission = ({
+  candidateDecoders,
+  caveats,
+}: {
+  candidateDecoders: PermissionDecoder[];
+  caveats: Caveat<Hex>[];
+}): DecoderAndDecodedPermission => {
+  if (candidateDecoders.length === 0) {
     throw new Error('Unable to identify permission type');
   }
 
-  return matchingPermissionType;
-};
+  const successfulDecodingResult: DecoderAndDecodedPermission[] = [];
 
-/**
- * Extracts the expiry timestamp from TimestampEnforcer caveat terms.
- *
- * Based on the TimestampEnforcer contract encoding:
- * - Terms are 32 bytes total (64 hex characters without '0x')
- * - First 16 bytes (32 hex chars): timestampAfterThreshold (uint128) - must be 0
- * - Last 16 bytes (32 hex chars): timestampBeforeThreshold (uint128) - this is the expiry
- *
- * @param terms - The hex-encoded terms from a TimestampEnforcer caveat
- * @returns The expiry timestamp in seconds
- * @throws If the terms are not exactly 32 bytes, if the timestampAfterThreshold is non-zero,
- * or if the timestampBeforeThreshold is zero
- */
-const extractExpiryFromCaveatTerms = (terms: Hex): number => {
-  // Validate terms length: must be exactly 32 bytes (64 hex chars + '0x' prefix = 66 chars)
-  if (terms.length !== 66) {
+  const failedAttempts: { permissionType: PermissionType; error: Error }[] = [];
+
+  for (const decoder of candidateDecoders) {
+    const decodeResult = decoder.validateAndDecodePermission(caveats);
+    if (decodeResult.isValid) {
+      successfulDecodingResult.push({
+        decoder,
+        rules: decodeResult.rules,
+        data: decodeResult.data,
+        expiry: decodeResult.expiry,
+      });
+    } else {
+      failedAttempts.push({
+        permissionType: decoder.permissionType,
+        error: decodeResult.error,
+      });
+    }
+  }
+
+  if (successfulDecodingResult.length === 1) {
+    return successfulDecodingResult[0];
+  }
+
+  if (successfulDecodingResult.length > 1) {
+    const types = successfulDecodingResult
+      .map((result) => result.decoder.permissionType)
+      .join(', ');
     throw new Error(
-      `Invalid TimestampEnforcer terms length: expected 66 characters (0x + 64 hex), got ${terms.length}`,
+      `Multiple permission types validate the same delegation caveats: ${types}`,
     );
   }
 
-  const [after, before] = splitHex(terms, [16, 16]);
-
-  if (hexToNumber(after) !== 0) {
-    throw new Error('Invalid expiry: timestampAfterThreshold must be 0');
+  if (failedAttempts.length === 1) {
+    throw failedAttempts[0].error;
   }
 
-  const expiry = hexToNumber(before);
+  const details = failedAttempts
+    .map(
+      (attempt) =>
+        `${String(attempt.permissionType)}: ${attempt.error.message}`,
+    )
+    .join('; ');
 
-  if (expiry === 0) {
-    throw new Error(
-      'Invalid expiry: timestampBeforeThreshold must be greater than 0',
-    );
-  }
-
-  return expiry;
-};
-
-/**
- * Extracts the permission-specific data payload and the expiry timestamp from
- * the provided caveats for a given permission type.
- *
- * This function locates the relevant caveat enforcer for the `permissionType`,
- * interprets its `terms` by splitting the hex string into byte-sized segments,
- * and converts each segment into the appropriate numeric or address shape.
- *
- * The expiry timestamp is derived from the `TimestampEnforcer` terms and must
- * have a zero `timestampAfterThreshold` and a positive `timestampBeforeThreshold`.
- *
- * @param args - The arguments to this function.
- * @param args.contracts - The deployed contracts for the chain.
- * @param args.caveats - Caveats decoded from the permission context.
- * @param args.permissionType - The previously identified permission type.
- *
- * @returns An object containing the `expiry` timestamp and the decoded `data` payload.
- * @throws If the caveats are malformed, missing, or the terms fail to decode.
- */
-export const getPermissionDataAndExpiry = ({
-  contracts,
-  caveats,
-  permissionType,
-}: {
-  contracts: DeployedContractsByName;
-  caveats: Caveat<Hex>[];
-  permissionType: PermissionType;
-}): {
-  expiry: number | null;
-  data: DecodedPermission['permission']['data'];
-} => {
-  const checksumCaveats = caveats.map((caveat) => ({
-    ...caveat,
-    enforcer: getChecksumAddress(caveat.enforcer),
-  }));
-
-  const {
-    erc20StreamingEnforcer,
-    erc20PeriodicEnforcer,
-    nativeTokenStreamingEnforcer,
-    nativeTokenPeriodicEnforcer,
-    timestampEnforcer,
-    allowedCalldataEnforcer,
-    valueLteEnforcer,
-  } = getChecksumEnforcersByChainId(contracts);
-
-  const expiryTerms = getTermsByEnforcer({
-    caveats: checksumCaveats,
-    enforcer: timestampEnforcer,
-    throwIfNotFound: false,
-  });
-
-  let expiry: number | null = null;
-  if (expiryTerms) {
-    expiry = extractExpiryFromCaveatTerms(expiryTerms);
-  }
-
-  let data: DecodedPermission['permission']['data'];
-
-  switch (permissionType) {
-    case 'erc20-token-stream': {
-      const erc20StreamingTerms = getTermsByEnforcer({
-        caveats: checksumCaveats,
-        enforcer: erc20StreamingEnforcer,
-      });
-
-      const [
-        tokenAddress,
-        initialAmount,
-        maxAmount,
-        amountPerSecond,
-        startTimeRaw,
-      ] = splitHex(erc20StreamingTerms, [20, 32, 32, 32, 32]);
-
-      data = {
-        tokenAddress,
-        initialAmount,
-        maxAmount,
-        amountPerSecond,
-        startTime: hexToNumber(startTimeRaw),
-      };
-      break;
-    }
-    case 'erc20-token-periodic': {
-      const erc20PeriodicTerms = getTermsByEnforcer({
-        caveats: checksumCaveats,
-        enforcer: erc20PeriodicEnforcer,
-      });
-
-      const [tokenAddress, periodAmount, periodDurationRaw, startTimeRaw] =
-        splitHex(erc20PeriodicTerms, [20, 32, 32, 32]);
-
-      data = {
-        tokenAddress,
-        periodAmount,
-        periodDuration: hexToNumber(periodDurationRaw),
-        startTime: hexToNumber(startTimeRaw),
-      };
-      break;
-    }
-
-    case 'native-token-stream': {
-      const nativeTokenStreamingTerms = getTermsByEnforcer({
-        caveats: checksumCaveats,
-        enforcer: nativeTokenStreamingEnforcer,
-      });
-
-      const [initialAmount, maxAmount, amountPerSecond, startTimeRaw] =
-        splitHex(nativeTokenStreamingTerms, [32, 32, 32, 32]);
-
-      data = {
-        initialAmount,
-        maxAmount,
-        amountPerSecond,
-        startTime: hexToNumber(startTimeRaw),
-      };
-      break;
-    }
-    case 'native-token-periodic': {
-      const nativeTokenPeriodicTerms = getTermsByEnforcer({
-        caveats: checksumCaveats,
-        enforcer: nativeTokenPeriodicEnforcer,
-      });
-
-      const [periodAmount, periodDurationRaw, startTimeRaw] = splitHex(
-        nativeTokenPeriodicTerms,
-        [32, 32, 32],
-      );
-
-      data = {
-        periodAmount,
-        periodDuration: hexToNumber(periodDurationRaw),
-        startTime: hexToNumber(startTimeRaw),
-      };
-      break;
-    }
-    case 'erc20-token-revocation': {
-      // 0 value for ValueLteEnforcer
-      const ZERO_32_BYTES =
-        '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
-
-      // Approve() 4byte selector starting at index 0
-      const ERC20_APPROVE_SELECTOR_TERMS =
-        '0x0000000000000000000000000000000000000000000000000000000000000000095ea7b3' as const;
-
-      // 0 amount starting at index 24
-      const ERC20_APPROVE_ZERO_AMOUNT_TERMS =
-        '0x00000000000000000000000000000000000000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000' as const;
-
-      const allowedCalldataCaveats = checksumCaveats.filter(
-        (caveat) => caveat.enforcer === allowedCalldataEnforcer,
-      );
-
-      const allowedCalldataTerms = allowedCalldataCaveats.map((caveat) =>
-        caveat.terms.toLowerCase(),
-      );
-
-      const hasApproveSelector = allowedCalldataTerms.includes(
-        ERC20_APPROVE_SELECTOR_TERMS,
-      );
-
-      const hasZeroAmount = allowedCalldataTerms.includes(
-        ERC20_APPROVE_ZERO_AMOUNT_TERMS,
-      );
-
-      if (!hasApproveSelector || !hasZeroAmount) {
-        throw new Error(
-          'Invalid erc20-token-revocation terms: expected approve selector and zero amount constraints',
-        );
-      }
-
-      const valueLteTerms = getTermsByEnforcer({
-        caveats: checksumCaveats,
-        enforcer: valueLteEnforcer,
-      });
-
-      if (valueLteTerms !== ZERO_32_BYTES) {
-        throw new Error('Invalid ValueLteEnforcer terms: maxValue must be 0');
-      }
-
-      data = {};
-      break;
-    }
-    default:
-      throw new Error('Invalid permission type');
-  }
-
-  return { expiry, data };
+  throw new Error(
+    `No permission type could validate the delegation caveats. Attempts: ${details}`,
+  );
 };
 
 /**
  * Reconstructs a {@link DecodedPermission} object from primitive values
  * obtained while decoding a permission context.
- *
- * The resulting object contains:
- * - `chainId` encoded as hex (`0x…`)
- * - `address` set to the delegator (user account)
- * - `signer` set to an account signer with the delegate address
- * - `permission` with the identified type and decoded data
- * - `expiry` timestamp (or null)
  *
  * @param args - The arguments to this function.
  * @param args.chainId - Chain ID.
@@ -343,6 +129,7 @@ export const getPermissionDataAndExpiry = ({
  * @param args.data - Permission-specific decoded data payload.
  * @param args.justification - Human-readable justification for the permission.
  * @param args.specifiedOrigin - The origin reported in the request metadata.
+ * @param args.rules - Rules recovered from caveats (e.g. redeemer allowlist).
  *
  * @returns The reconstructed {@link DecodedPermission}.
  */
@@ -356,6 +143,7 @@ export const reconstructDecodedPermission = ({
   data,
   justification,
   specifiedOrigin,
+  rules,
 }: {
   chainId: number;
   permissionType: PermissionType;
@@ -366,6 +154,7 @@ export const reconstructDecodedPermission = ({
   data: DecodedPermission['permission']['data'];
   justification: string;
   specifiedOrigin: string;
+  rules?: DecodedPermission['rules'];
 }): DecodedPermission => {
   if (authority !== ROOT_AUTHORITY) {
     throw new Error('Invalid authority');
@@ -382,6 +171,7 @@ export const reconstructDecodedPermission = ({
     },
     expiry,
     origin: specifiedOrigin,
+    ...(rules === undefined ? {} : { rules }),
   };
 
   return permission;

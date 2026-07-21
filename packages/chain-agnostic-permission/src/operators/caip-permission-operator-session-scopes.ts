@@ -1,5 +1,5 @@
 import { isCaipChainId, KnownCaipNamespace } from '@metamask/utils';
-import type { CaipAccountId, CaipChainId } from '@metamask/utils';
+import type { CaipAccountId, CaipChainId, Hex, Json } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {
@@ -14,6 +14,7 @@ import type {
   NormalizedScopesObject,
 } from '../scope/types';
 import { parseScopeString } from '../scope/types';
+import { getEthAccounts } from './caip-permission-operator-accounts';
 
 /**
  * Converts an NormalizedScopesObject to a InternalScopesObject.
@@ -101,6 +102,7 @@ const getNormalizedScopesObject = (
  * @param caip25CaveatValue - The CAIP-25 CaveatValue to convert.
  * @param hooks - An object containing the following properties:
  * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
+ * @param [hooks.sortAccountIdsByLastSelected] - Optional function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by last selected.
  * @returns A NormalizedScopesObject.
  */
 export const getSessionScopes = (
@@ -110,11 +112,15 @@ export const getSessionScopes = (
   >,
   {
     getNonEvmSupportedMethods,
+    sortAccountIdsByLastSelected,
   }: {
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    sortAccountIdsByLastSelected?: (
+      accounts: CaipAccountId[],
+    ) => CaipAccountId[];
   },
 ) => {
-  return mergeNormalizedScopes(
+  const mergedScopes = mergeNormalizedScopes(
     getNormalizedScopesObject(caip25CaveatValue.requiredScopes, {
       getNonEvmSupportedMethods,
     }),
@@ -122,6 +128,65 @@ export const getSessionScopes = (
       getNonEvmSupportedMethods,
     }),
   );
+
+  if (sortAccountIdsByLastSelected) {
+    Object.keys(mergedScopes).forEach((scopeString) => {
+      const scope = scopeString as keyof typeof mergedScopes;
+      const scopeObject = mergedScopes[scope];
+      if (scopeObject) {
+        scopeObject.accounts = sortAccountIdsByLastSelected(
+          scopeObject.accounts,
+        );
+      }
+    });
+  }
+
+  return mergedScopes;
+};
+
+/**
+ * Builds the session properties for an endowment:caip25 permission caveat value,
+ * hydrating the persisted session properties with an `eip155Capabilities` record
+ * that maps each permitted EVM account address to its per-chain capabilities.
+ *
+ * @param caip25CaveatValue - The CAIP-25 CaveatValue to get the session properties from.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getCapabilities - A function that resolves the per-chain capabilities for a given address.
+ * @returns A promise that resolves to the session properties merged with an `eip155Capabilities` record keyed by account address.
+ */
+export const getSessionProperties = async (
+  caip25CaveatValue: Pick<
+    Caip25CaveatValue,
+    'requiredScopes' | 'optionalScopes' | 'sessionProperties'
+  >,
+  {
+    getCapabilities,
+  }: {
+    getCapabilities: (params: {
+      address: string;
+    }) => Promise<Record<Hex, Record<string, Json>>>;
+  },
+): Promise<Record<string, Json>> => {
+  const addresses = getEthAccounts(caip25CaveatValue);
+
+  const eip155Capabilities: Record<Hex, Record<string, Json>> = {};
+
+  await Promise.all(
+    addresses.map(async (address) => {
+      try {
+        eip155Capabilities[address] = await getCapabilities({ address });
+      } catch (error) {
+        console.error(
+          `Error getting capabilities for address ${address}: ${String(error)}`,
+        );
+      }
+    }),
+  );
+
+  return {
+    ...caip25CaveatValue.sessionProperties,
+    eip155Capabilities,
+  };
 };
 
 /**

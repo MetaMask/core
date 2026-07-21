@@ -1,4 +1,6 @@
-export const POPULAR_NETWORKS = [
+import type { Hex } from '@metamask/utils';
+
+export const POPULAR_NETWORKS: readonly Hex[] = [
   '0x1', // Ethereum Mainnet
   '0xe708', // Linea (59144)
   '0x2105', // Base (8453)
@@ -13,4 +15,6 @@ export const POPULAR_NETWORKS = [
   '0x3e7', // HyperEVM (999)
   '0x8f', // Monad (143)
   '0x10e6', // MegaETH (4326)
+  '0x13b2', // Arc (5042)
+  '0x1237', // Robinhood (4663)
 ];

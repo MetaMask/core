@@ -1,3 +1,5 @@
+import type { Caip25CaveatValue } from '../caip25Permission';
+import { Caip25CaveatType } from '../caip25Permission';
 import {
   addPermittedEthChainId,
   getPermittedEthChainIds,
@@ -9,8 +11,6 @@ import {
   getAllNamespacesFromCaip25CaveatValue,
   getAllScopesFromPermission,
 } from './caip-permission-operator-permittedChains';
-import type { Caip25CaveatValue } from '../caip25Permission';
-import { Caip25CaveatType } from '../caip25Permission';
 
 describe('CAIP-25 permittedChains adapters', () => {
   describe('getPermittedEthChainIds', () => {

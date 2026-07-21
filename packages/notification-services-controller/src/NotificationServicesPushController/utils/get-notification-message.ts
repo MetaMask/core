@@ -1,6 +1,6 @@
-import { getAmount, formatAmount } from './get-notification-data';
 import type { Types } from '../../NotificationServicesController';
 import type { Constants } from '../../NotificationServicesController';
+import { getAmount, formatAmount } from './get-notification-data';
 
 export type TranslationKeys = {
   pushPlatformNotificationsFundsSentTitle: () => string;

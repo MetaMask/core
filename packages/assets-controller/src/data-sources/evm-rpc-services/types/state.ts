@@ -53,4 +53,10 @@ export type AssetBalanceEntry = {
 export type AssetsBalanceState = {
   /** Balance data per account: accountId -> assetId -> balance */
   assetsBalance: Record<string, Record<string, AssetBalanceEntry>>;
+  /**
+   * User-added custom assets per account: accountId -> CAIP-19 asset IDs.
+   * Used to ensure RPC polling refreshes custom assets even when they have
+   * no entry in `assetsBalance` yet (e.g. zero balance, first fetch failed).
+   */
+  customAssets?: Record<string, string[]>;
 };

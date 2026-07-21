@@ -347,8 +347,8 @@ describe('block cache middleware', () => {
           const result2 = await engine.handle(request);
 
           expect(hitCount).toBe(2);
-          expect(result1).toBe(expectedResult);
-          expect(result2).toBe(expectedResult);
+          expect(result1).toStrictEqual(expectedResult);
+          expect(result2).toStrictEqual(expectedResult);
         });
       },
     );

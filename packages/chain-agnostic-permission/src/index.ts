@@ -21,6 +21,7 @@ export {
 export {
   getInternalScopesObject,
   getSessionScopes,
+  getSessionProperties,
   getPermittedAccountsForScopes,
 } from './operators/caip-permission-operator-session-scopes';
 export type { Caip25Authorization } from './scope/authorization';

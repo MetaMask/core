@@ -76,6 +76,28 @@ describe('ProfileMetricsService', () => {
       expect(submitMetricsResponse).toBeUndefined();
     });
 
+    it('sends fetch requests with credentials omitted', async () => {
+      const mockFetch = jest.fn().mockResolvedValue(
+        // eslint-disable-next-line no-restricted-globals
+        new Response(JSON.stringify({ data: { success: true } }), {
+          status: 200,
+        }),
+      );
+      const { rootMessenger } = getService({
+        options: { fetch: mockFetch },
+      });
+
+      await rootMessenger.call(
+        'ProfileMetricsService:submitMetrics',
+        createMockRequest(),
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({ credentials: 'omit' }),
+      );
+    });
+
     it('resolves when there is a successful response from the API and the accounts do not have an entropy source id', async () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
@@ -313,6 +335,481 @@ describe('ProfileMetricsService', () => {
 
       expect(submitMetricsResponse).toBeUndefined();
     });
+
+    it('serializes the optional proof field for each account that has one and omits it for those that do not', async () => {
+      const mockFetch = jest.fn().mockResolvedValue(
+        // eslint-disable-next-line no-restricted-globals
+        new Response(JSON.stringify({ data: { success: true } }), {
+          status: 200,
+        }),
+      );
+      const { rootMessenger } = getService({
+        options: { fetch: mockFetch },
+      });
+      const proof = {
+        nonce: 'mock-nonce',
+        signature: '0xdeadbeef',
+      };
+
+      await rootMessenger.call(
+        'ProfileMetricsService:submitMetrics',
+        createMockRequest({
+          accounts: [
+            { address: '0xAccountWithProof', scopes: ['eip155:1'], proof },
+            { address: '0xAccountWithoutProof', scopes: ['eip155:1'] },
+          ],
+        }),
+      );
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.accounts).toStrictEqual([
+        { address: '0xAccountWithProof', scopes: ['eip155:1'], proof },
+        { address: '0xAccountWithoutProof', scopes: ['eip155:1'] },
+      ]);
+      expect(body.accounts[1]).not.toHaveProperty('proof');
+    });
+  });
+
+  describe('ProfileMetricsService:fetchNonces', () => {
+    it('returns a map keyed by the echoed identifier field of the response', async () => {
+      const identifiers = ['0xAddressOne', '0xAddressTwo'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch', { identifiers })
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one',
+          },
+          {
+            expires_in: 300,
+            identifier: '0xAddressTwo',
+            nonce: 'nonce-for-two',
+          },
+        ]);
+      const { rootMessenger } = getService();
+
+      const nonces = await rootMessenger.call(
+        'ProfileMetricsService:fetchNonces',
+        { identifiers, entropySourceId: 'mock-entropy-source-id' },
+      );
+
+      expect(nonces).toStrictEqual({
+        '0xAddressOne': 'nonce-for-one',
+        '0xAddressTwo': 'nonce-for-two',
+      });
+    });
+
+    it('tolerates unknown additive fields in the response (forward-compatible schema)', async () => {
+      const identifiers = ['0xAddressOne'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch', { identifiers })
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one',
+            created_at: '2026-06-01T00:00:00Z',
+            schema_version: 2,
+          },
+        ]);
+      const { rootMessenger } = getService();
+
+      const nonces = await rootMessenger.call(
+        'ProfileMetricsService:fetchNonces',
+        { identifiers },
+      );
+
+      expect(nonces).toStrictEqual({ '0xAddressOne': 'nonce-for-one' });
+    });
+
+    it('tolerates the response being out of order relative to the request', async () => {
+      const identifiers = ['0xAddressOne', '0xAddressTwo'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch', { identifiers })
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressTwo',
+            nonce: 'nonce-for-two',
+          },
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one',
+          },
+        ]);
+      const { rootMessenger } = getService();
+
+      const nonces = await rootMessenger.call(
+        'ProfileMetricsService:fetchNonces',
+        { identifiers },
+      );
+
+      expect(nonces).toStrictEqual({
+        '0xAddressOne': 'nonce-for-one',
+        '0xAddressTwo': 'nonce-for-two',
+      });
+    });
+
+    it('forwards the entropy source ID to the bearer token resolver and omits credentials', async () => {
+      const mockFetch = jest.fn().mockResolvedValue(
+        // eslint-disable-next-line no-restricted-globals
+        new Response(
+          JSON.stringify([
+            {
+              expires_in: 300,
+              identifier: '0xAddress',
+              nonce: 'nonce-value',
+            },
+          ]),
+          { status: 200 },
+        ),
+      );
+      const bearerTokenHandler = jest
+        .fn<Promise<string>, [string | undefined]>()
+        .mockResolvedValue('mock-bearer-token');
+      const { rootMessenger } = getService({
+        options: { fetch: mockFetch },
+        bearerTokenHandler,
+      });
+
+      await rootMessenger.call('ProfileMetricsService:fetchNonces', {
+        identifiers: ['0xAddress'],
+        entropySourceId: 'mock-entropy-source-id',
+      });
+
+      expect(bearerTokenHandler).toHaveBeenCalledWith('mock-entropy-source-id');
+      const [calledUrl, calledInit] = mockFetch.mock.calls[0];
+      expect(calledUrl.toString()).toBe(`${defaultBaseEndpoint}/nonce/batch`);
+      expect(calledInit).toMatchObject({
+        method: 'POST',
+        credentials: 'omit',
+        headers: {
+          Authorization: 'Bearer mock-bearer-token',
+          'Content-Type': 'application/json',
+        },
+      });
+    });
+
+    it('omits the entropy source ID when none is provided', async () => {
+      const bearerTokenHandler = jest
+        .fn<Promise<string>, [string | undefined]>()
+        .mockResolvedValue('mock-bearer-token');
+      const mockFetch = jest.fn().mockResolvedValue(
+        // eslint-disable-next-line no-restricted-globals
+        new Response(
+          JSON.stringify([
+            {
+              expires_in: 300,
+              identifier: '0xAddress',
+              nonce: 'nonce-value',
+            },
+          ]),
+          { status: 200 },
+        ),
+      );
+      const { rootMessenger } = getService({
+        options: { fetch: mockFetch },
+        bearerTokenHandler,
+      });
+
+      await rootMessenger.call('ProfileMetricsService:fetchNonces', {
+        identifiers: ['0xAddress'],
+      });
+
+      expect(bearerTokenHandler).toHaveBeenCalledWith(undefined);
+    });
+
+    it('throws a RangeError when no identifiers are provided', async () => {
+      const { rootMessenger } = getService();
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers: [],
+        }),
+      ).rejects.toThrow(
+        'ProfileMetricsService.fetchNonces requires at least 1 identifier.',
+      );
+    });
+
+    it('chunks requests larger than MAX_NONCE_BATCH_SIZE into multiple HTTP calls and merges the results', async () => {
+      const identifiers = Array.from(
+        { length: 120 },
+        (_, i) => `0xAddress${i}`,
+      );
+      const scope = nock(defaultBaseEndpoint);
+      // The chunker slices into 50 + 50 + 20. Order of completion across
+      // chunks is not guaranteed (Promise.all), so we match every chunk by
+      // its request body and respond with a one-to-one nonce per identifier.
+      scope
+        .post('/nonce/batch')
+        .times(3)
+        .reply(200, (_uri, requestBody) => {
+          const { identifiers: chunkIdentifiers } = requestBody as {
+            identifiers: string[];
+          };
+          return chunkIdentifiers.map((identifier) => ({
+            expires_in: 300,
+            identifier,
+            nonce: `nonce-for-${identifier}`,
+          }));
+        });
+      const { rootMessenger } = getService();
+
+      const nonces = await rootMessenger.call(
+        'ProfileMetricsService:fetchNonces',
+        { identifiers },
+      );
+
+      expect(Object.keys(nonces)).toHaveLength(120);
+      identifiers.forEach((identifier) => {
+        expect(nonces[identifier]).toBe(`nonce-for-${identifier}`);
+      });
+      expect(scope.pendingMocks()).toHaveLength(0);
+    });
+
+    it('throws after exhausting retries when the response is short of identifiers', async () => {
+      const identifiers = ['0xAddressOne', '0xAddressTwo'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .times(4)
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one',
+          },
+        ]);
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers,
+        }),
+      ).rejects.toThrow(
+        `Fetching '${defaultBaseEndpoint}/nonce/batch' returned a response whose identifier set does not match the request`,
+      );
+    });
+
+    it('throws after exhausting retries when the response returns identifiers we did not request', async () => {
+      const identifiers = ['0xAddressOne', '0xAddressTwo'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .times(4)
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one',
+          },
+          {
+            expires_in: 300,
+            identifier: '0xUnexpectedAddress',
+            nonce: 'nonce-for-impostor',
+          },
+        ]);
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers,
+        }),
+      ).rejects.toThrow(
+        `Fetching '${defaultBaseEndpoint}/nonce/batch' returned a response whose identifier set does not match the request`,
+      );
+    });
+
+    it('throws after exhausting retries when the response duplicates one identifier in place of another', async () => {
+      const identifiers = ['0xAddressOne', '0xAddressTwo'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .times(4)
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one-a',
+          },
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one-b',
+          },
+        ]);
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers,
+        }),
+      ).rejects.toThrow(
+        `Fetching '${defaultBaseEndpoint}/nonce/batch' returned a response whose identifier set does not match the request`,
+      );
+    });
+
+    it('throws after exhausting retries when the response duplicates an identifier alongside a full set (preventing silent overwrite)', async () => {
+      const identifiers = ['0xAddressOne', '0xAddressTwo'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .times(4)
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one-a',
+          },
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one-b',
+          },
+          {
+            expires_in: 300,
+            identifier: '0xAddressTwo',
+            nonce: 'nonce-for-two',
+          },
+        ]);
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers,
+        }),
+      ).rejects.toThrow(
+        `Fetching '${defaultBaseEndpoint}/nonce/batch' returned a response whose identifier set does not match the request`,
+      );
+    });
+
+    it('throws after exhausting retries when the response body is not an array', async () => {
+      const identifiers = ['0xAddressOne'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .times(4)
+        .reply(200, { error: 'oops' });
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers,
+        }),
+      ).rejects.toThrow(
+        `Malformed response received from '${defaultBaseEndpoint}/nonce/batch'`,
+      );
+    });
+
+    it('throws after exhausting retries when a response entry is missing the `nonce` field', async () => {
+      const identifiers = ['0xAddressOne'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .times(4)
+        .reply(200, [{ expires_in: 300, identifier: '0xAddressOne' }]);
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers,
+        }),
+      ).rejects.toThrow(
+        `Malformed response received from '${defaultBaseEndpoint}/nonce/batch'`,
+      );
+    });
+
+    it('throws after exhausting retries when a response entry has a non-string `nonce`', async () => {
+      const identifiers = ['0xAddressOne'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .times(4)
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 12345,
+          },
+        ]);
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers,
+        }),
+      ).rejects.toThrow(
+        `Malformed response received from '${defaultBaseEndpoint}/nonce/batch'`,
+      );
+    });
+
+    it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
+      nock(defaultBaseEndpoint).post('/nonce/batch').times(4).reply(500);
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers: ['0xAddressOne'],
+        }),
+      ).rejects.toThrow(
+        `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '500'`,
+      );
+    });
+
+    it('attempts a request that responds with 4xx up to 4 times, throwing if it never succeeds', async () => {
+      nock(defaultBaseEndpoint).post('/nonce/batch').times(4).reply(400);
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers: ['0xAddressOne'],
+        }),
+      ).rejects.toThrow(
+        `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '400'`,
+      );
+    });
+  });
+
+  describe('fetchNonces', () => {
+    it('does the same thing as the messenger action', async () => {
+      const identifiers = ['0xAddressOne'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch', { identifiers })
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-value',
+          },
+        ]);
+      const { service } = getService();
+
+      const nonces = await service.fetchNonces({ identifiers });
+
+      expect(nonces).toStrictEqual({ '0xAddressOne': 'nonce-value' });
+    });
   });
 });
 
@@ -364,12 +861,17 @@ function getMessenger(
  * @param args.options - The options that the service constructor takes. All are
  * optional and will be filled in with defaults in as needed (including
  * `messenger`).
+ * @param args.bearerTokenHandler - Optional override for the
+ * `AuthenticationController:getBearerToken` handler. Defaults to a stub that
+ * always resolves to `'mock-bearer-token'`.
  * @returns The new service, root messenger, and service messenger.
  */
 function getService({
   options = {},
+  bearerTokenHandler,
 }: {
   options?: Partial<ConstructorParameters<typeof ProfileMetricsService>[0]>;
+  bearerTokenHandler?: (entropySourceId: string | undefined) => Promise<string>;
 } = {}): {
   service: ProfileMetricsService;
   rootMessenger: RootMessenger;
@@ -378,7 +880,7 @@ function getService({
   const rootMessenger = getRootMessenger();
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
-    async () => 'mock-bearer-token',
+    bearerTokenHandler ?? (async (): Promise<string> => 'mock-bearer-token'),
   );
 
   const messenger = getMessenger(rootMessenger);

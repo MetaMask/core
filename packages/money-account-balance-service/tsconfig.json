@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../base-data-service" },
+    { "path": "../controller-utils" },
+    { "path": "../messenger" },
+    { "path": "../network-controller" },
+    { "path": "../remote-feature-flag-controller" }
+  ],
+  "include": ["../../types", "./src"]
+}

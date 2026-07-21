@@ -1,0 +1,84 @@
+/**
+ * This file is auto generated.
+ * Do not edit manually.
+ */
+
+import type { SocialController } from './SocialController';
+
+/**
+ * Fetches the leaderboard and persists the entries to state.
+ *
+ * @param options - Optional leaderboard query parameters.
+ * @returns The leaderboard response from the social-api.
+ */
+export type SocialControllerUpdateLeaderboardAction = {
+  type: `SocialController:updateLeaderboard`;
+  handler: SocialController['updateLeaderboard'];
+};
+
+/**
+ * Follows one or more traders on behalf of the current user and updates
+ * the following list in state. The caller is identified server-side from
+ * the JWT attached by the SocialService.
+ *
+ * @param options - Options bag.
+ * @param options.targets - Addresses or profile IDs to follow.
+ * @returns The follow response with confirmed follows.
+ */
+export type SocialControllerFollowTraderAction = {
+  type: `SocialController:followTrader`;
+  handler: SocialController['followTrader'];
+};
+
+/**
+ * Unfollows one or more traders on behalf of the current user and updates
+ * the following list in state. The caller is identified server-side from
+ * the JWT attached by the SocialService.
+ *
+ * @param options - Options bag.
+ * @param options.targets - Addresses or profile IDs to unfollow.
+ * @returns The unfollow response with confirmed unfollows.
+ */
+export type SocialControllerUnfollowTraderAction = {
+  type: `SocialController:unfollowTrader`;
+  handler: SocialController['unfollowTrader'];
+};
+
+/**
+ * Fetches the list of traders the current user follows and replaces
+ * the following addresses in state. The caller is identified server-side
+ * from the JWT attached by the SocialService.
+ *
+ * @returns The following response.
+ */
+export type SocialControllerUpdateFollowingAction = {
+  type: `SocialController:updateFollowing`;
+  handler: SocialController['updateFollowing'];
+};
+
+/**
+ * Opts the current user out of the PnL leaderboard.
+ */
+export type SocialControllerOptOutOfLeaderboardAction = {
+  type: `SocialController:optOutOfLeaderboard`;
+  handler: SocialController['optOutOfLeaderboard'];
+};
+
+/**
+ * Opts the current user back into the PnL leaderboard.
+ */
+export type SocialControllerOptInToLeaderboardAction = {
+  type: `SocialController:optInToLeaderboard`;
+  handler: SocialController['optInToLeaderboard'];
+};
+
+/**
+ * Union of all SocialController action types.
+ */
+export type SocialControllerMethodActions =
+  | SocialControllerUpdateLeaderboardAction
+  | SocialControllerFollowTraderAction
+  | SocialControllerUnfollowTraderAction
+  | SocialControllerUpdateFollowingAction
+  | SocialControllerOptOutOfLeaderboardAction
+  | SocialControllerOptInToLeaderboardAction;

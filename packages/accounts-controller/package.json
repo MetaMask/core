@@ -1,21 +1,26 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "36.0.1",
+  "version": "39.0.5",
   "description": "Manages internal accounts",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/accounts-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "files": [
+    "dist/"
+  ],
   "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -29,18 +34,20 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
-  "files": [
-    "dist/"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/accounts-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/accounts-controller",
-    "publish:preview": "yarn npm publish --tag preview",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -49,19 +56,17 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask/base-controller": "^9.0.0",
-    "@metamask/eth-snap-keyring": "^19.0.0",
-    "@metamask/keyring-api": "^21.5.0",
-    "@metamask/keyring-controller": "^25.1.0",
-    "@metamask/keyring-internal-api": "^10.0.0",
-    "@metamask/keyring-utils": "^3.1.0",
-    "@metamask/messenger": "^0.3.0",
-    "@metamask/network-controller": "^30.0.0",
-    "@metamask/snaps-controllers": "^17.2.0",
-    "@metamask/snaps-sdk": "^10.3.0",
-    "@metamask/snaps-utils": "^11.7.0",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/eth-snap-keyring": "^23.0.0",
+    "@metamask/keyring-api": "^23.5.0",
+    "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/keyring-internal-api": "^11.0.1",
+    "@metamask/keyring-sdk": "^2.2.0",
+    "@metamask/keyring-utils": "^3.3.1",
+    "@metamask/messenger": "^2.0.0",
+    "@metamask/network-controller": "^34.0.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "^11.11.0",
     "deepmerge": "^4.2.2",
     "ethereum-cryptography": "^2.1.2",
     "immer": "^9.0.6",
@@ -69,14 +74,15 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/controller-utils": "^11.19.0",
+    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/controller-utils": "^12.3.0",
     "@metamask/providers": "^22.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "@types/readable-stream": "^2.3.0",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
+    "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3",
@@ -88,9 +94,5 @@
   },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }

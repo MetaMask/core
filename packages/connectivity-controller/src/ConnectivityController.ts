@@ -54,7 +54,7 @@ export function getDefaultConnectivityControllerState(): ConnectivityControllerS
   };
 }
 
-const MESSENGER_EXPOSED_METHODS = ['setConnectivityStatus'] as const;
+const MESSENGER_EXPOSED_METHODS = ['init', 'setConnectivityStatus'] as const;
 
 /**
  * Retrieves the state of the {@link ConnectivityController}.

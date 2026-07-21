@@ -1,10 +1,10 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { isValidSignature } from './signature';
-import { padHexToEvenLength } from './utils';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { isValidSignature } from './signature';
+import { padHexToEvenLength } from './utils';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
@@ -12,7 +12,6 @@ const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
 const DEFAULT_BLOCK_TIME = 12 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
-const DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS = 1000 * 60 * 4; // 4 Minutes
 const DEFAULT_SUBMIT_HISTORY_LIMIT = 100;
 const DEFAULT_TRANSACTION_HISTORY_LIMIT = 40;
 
@@ -22,7 +21,6 @@ const DEFAULT_TRANSACTION_HISTORY_LIMIT = 40;
 export enum FeatureFlag {
   EIP7702 = 'confirmations_eip_7702',
   GasBuffer = 'confirmations_gas_buffer',
-  IncomingTransactions = 'confirmations_incoming_transactions',
   Transactions = 'confirmations_transactions',
 }
 
@@ -36,6 +34,14 @@ type GasEstimateFallback = {
    * The percentage multiplier gas estimate fallback for a transaction.
    */
   percentage?: number;
+
+  /**
+   * The maximum gas limit the fallback can resolve to, representing the chain's
+   * per-transaction gas cap. Clamps the `fixed` or `percentage`-derived fallback
+   * so it can never exceed the gas limit the RPC will accept (e.g. ~33.5M on
+   * Polygon, whereas 35% of its ~140M block gas limit would otherwise be ~49M).
+   */
+  maxGasLimit?: number;
 };
 
 export type TransactionControllerFeatureFlags = {
@@ -98,15 +104,6 @@ export type TransactionControllerFeatureFlags = {
         eip7702?: number;
       };
     };
-  };
-
-  /** Incoming transaction configuration. */
-  [FeatureFlag.IncomingTransactions]?: {
-    /** Interval between requests to accounts API to retrieve incoming transactions. */
-    pollingIntervalMs?: number;
-
-    /** Whether to use WebSocket for event-driven transaction updates instead of polling. */
-    useWebsockets?: boolean;
   };
 
   /** Miscellaneous feature flags to support the transaction controller. */
@@ -297,10 +294,15 @@ export function getSubmitHistoryLimit(
  */
 export function getTransactionHistoryLimit(
   messenger: TransactionControllerMessenger,
-): number {
+): number | undefined {
   const featureFlags = getFeatureFlags(messenger);
+
+  if (!featureFlags) {
+    return undefined;
+  }
+
   return (
-    featureFlags?.[FeatureFlag.Transactions]?.transactionHistoryLimit ??
+    featureFlags[FeatureFlag.Transactions]?.transactionHistoryLimit ??
     DEFAULT_TRANSACTION_HISTORY_LIMIT
   );
 }
@@ -375,6 +377,7 @@ export function getGasEstimateFallback(
 ): {
   fixed?: number;
   percentage: number;
+  maxGasLimit?: number;
 } {
   const featureFlags = getFeatureFlags(messenger);
 
@@ -390,7 +393,10 @@ export function getGasEstimateFallback(
 
   const fixed = chainFlags?.fixed ?? gasEstimateFallbackFlags?.default?.fixed;
 
-  return { fixed, percentage };
+  const maxGasLimit =
+    chainFlags?.maxGasLimit ?? gasEstimateFallbackFlags?.default?.maxGasLimit;
+
+  return { fixed, percentage, maxGasLimit };
 }
 
 /**
@@ -399,19 +405,19 @@ export function getGasEstimateFallback(
  * @param request - The request object.
  * @param request.chainId - The chain ID.
  * @param request.isCustomRPC - Whether the network RPC is added by the user.
- * @param request.isUpgradeWithDataToSelf - Whether the transaction is an EIP-7702 upgrade with data to self.
+ * @param request.isUpgradeWithData - Whether the transaction is an EIP-7702 upgrade combined with a call.
  * @param request.messenger - The controller messenger instance.
  * @returns The gas buffers.
  */
 export function getGasEstimateBuffer({
   chainId,
   isCustomRPC,
-  isUpgradeWithDataToSelf,
+  isUpgradeWithData,
   messenger,
 }: {
   chainId: Hex;
   isCustomRPC: boolean;
-  isUpgradeWithDataToSelf: boolean;
+  isUpgradeWithData: boolean;
   messenger: TransactionControllerMessenger;
 }): number {
   const featureFlags = getFeatureFlags(messenger);
@@ -423,9 +429,7 @@ export function getGasEstimateBuffer({
     ? undefined
     : gasBufferFlags?.included;
 
-  const upgradeBuffer = isUpgradeWithDataToSelf
-    ? chainFlags?.eip7702
-    : undefined;
+  const upgradeBuffer = isUpgradeWithData ? chainFlags?.eip7702 : undefined;
 
   return (
     upgradeBuffer ??
@@ -439,23 +443,6 @@ export function getGasEstimateBuffer({
 
 /**
  * Retrieves the incoming transactions polling interval.
- * Defaults to 4 minutes if not set.
- *
- * @param messenger - The controller messenger instance.
- * @returns The incoming transactions polling interval in milliseconds.
- */
-export function getIncomingTransactionsPollingInterval(
-  messenger: TransactionControllerMessenger,
-): number {
-  const featureFlags = getFeatureFlags(messenger);
-
-  return (
-    featureFlags?.[FeatureFlag.IncomingTransactions]?.pollingIntervalMs ??
-    DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS
-  );
-}
-
-/**
  * Retrieves the number of attempts to wait before automatically marking a transaction as dropped
  * if it has no receipt status.
  *
@@ -479,23 +466,6 @@ export function getTimeoutAttempts(
 }
 
 /**
- * Checks if WebSocket-based transaction updates are enabled.
- * When enabled, incoming transactions are fetched via event-driven updates
- * instead of polling.
- *
- * @param messenger - The controller messenger instance.
- * @returns True if WebSocket updates are enabled, false otherwise.
- */
-export function isIncomingTransactionsUseWebsocketsEnabled(
-  messenger: TransactionControllerMessenger,
-): boolean {
-  const featureFlags = getFeatureFlags(messenger);
-  return (
-    featureFlags?.[FeatureFlag.IncomingTransactions]?.useWebsockets ?? false
-  );
-}
-
-/**
  * Retrieves the relevant feature flags from the remote feature flag controller.
  *
  * @param messenger - The messenger instance.
@@ -503,12 +473,17 @@ export function isIncomingTransactionsUseWebsocketsEnabled(
  */
 function getFeatureFlags(
   messenger: TransactionControllerMessenger,
-): TransactionControllerFeatureFlags {
-  const featureFlags = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  ).remoteFeatureFlags;
+): TransactionControllerFeatureFlags | undefined {
+  try {
+    const featureFlags = messenger.call(
+      'RemoteFeatureFlagController:getState',
+    ).remoteFeatureFlags;
 
-  log('Retrieved feature flags', featureFlags);
+    log('Retrieved feature flags', featureFlags);
 
-  return featureFlags as TransactionControllerFeatureFlags;
+    return featureFlags as TransactionControllerFeatureFlags;
+  } catch {
+    log('RemoteFeatureFlagController not available');
+    return undefined;
+  }
 }

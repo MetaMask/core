@@ -1,0 +1,35 @@
+/**
+ * This file is auto generated.
+ * Do not edit manually.
+ */
+
+import type { GeolocationController } from './GeolocationController';
+
+/**
+ * Returns the geolocation code. Delegates to the
+ * {@link GeolocationApiService} for network fetching and caching, then
+ * updates controller state with the result.
+ *
+ * @returns The ISO 3166-2 location code string.
+ */
+export type GeolocationControllerGetGeolocationAction = {
+  type: `GeolocationController:getGeolocation`;
+  handler: GeolocationController['getGeolocation'];
+};
+
+/**
+ * Forces a fresh geolocation fetch, bypassing the service's cache.
+ *
+ * @returns The ISO 3166-2 location code string.
+ */
+export type GeolocationControllerRefreshGeolocationAction = {
+  type: `GeolocationController:refreshGeolocation`;
+  handler: GeolocationController['refreshGeolocation'];
+};
+
+/**
+ * Union of all GeolocationController action types.
+ */
+export type GeolocationControllerMethodActions =
+  | GeolocationControllerGetGeolocationAction
+  | GeolocationControllerRefreshGeolocationAction;

@@ -1,21 +1,26 @@
 {
   "name": "@metamask/permission-controller",
-  "version": "12.2.0",
+  "version": "13.1.1",
   "description": "Mediates access to JSON-RPC methods, used to interact with pieces of the MetaMask stack, via middleware for json-rpc-engine",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/permission-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "files": [
+    "dist/"
+  ],
   "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -29,18 +34,20 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
-  "files": [
-    "dist/"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/permission-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/permission-controller",
-    "publish:preview": "yarn npm publish --tag preview",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -48,34 +55,31 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^8.0.0",
-    "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.19.0",
-    "@metamask/json-rpc-engine": "^10.2.2",
-    "@metamask/messenger": "^0.3.0",
+    "@metamask/approval-controller": "^9.0.2",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/json-rpc-engine": "^10.5.0",
+    "@metamask/messenger": "^2.0.0",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "^11.11.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
     "immer": "^9.0.6",
     "nanoid": "^3.3.8"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "deepmerge": "^4.2.2",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
+    "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }

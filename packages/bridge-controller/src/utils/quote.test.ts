@@ -2,6 +2,10 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
+import type { GenericQuoteRequest, NonEvmFees, L1GasFees } from '../types';
+import type { Quote } from '../validators/quote';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1';
+import type { TxData } from '../validators/trade';
 import {
   isValidQuoteRequest,
   getQuoteIdentifier,
@@ -18,14 +22,6 @@ import {
   formatEtaInMinutes,
   calcSlippagePercentage,
 } from './quote';
-import type {
-  GenericQuoteRequest,
-  QuoteResponse,
-  Quote,
-  NonEvmFees,
-  L1GasFees,
-  TxData,
-} from '../types';
 
 describe('Quote Utils', () => {
   describe('isValidQuoteRequest', () => {
@@ -254,14 +250,49 @@ describe('Quote Metadata Utils', () => {
       expect(result.valueInCurrency).toBe('2.2');
       expect(result.usd).toBe('1.65');
     });
+
+    it('should not add feeData fees for intent-based quotes', () => {
+      // For intent-based swaps (e.g. CoW Protocol), srcTokenAmount is already
+      // the total fixed commitment including protocol fees. Adding feeData fees
+      // on top would double-count them.
+      const intentQuote = {
+        srcTokenAmount: '10000000', // 10 USDT (6 decimals), fee already included
+        srcAsset: {
+          decimals: 6,
+          assetId: 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        },
+        feeData: {
+          metabridge: {
+            amount: '500000', // 0.5 USDT protocol fee — already inside srcTokenAmount
+            asset: {
+              assetId:
+                'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              decimals: 6,
+            },
+          },
+        },
+        intent: { protocol: 'cow', order: {} },
+      } as unknown as Quote;
+
+      const result = calcSentAmount(intentQuote, {
+        exchangeRate: '1',
+        usdExchangeRate: '1',
+      });
+
+      // Should be exactly 10 USDT — not 10.5 (which would double-count the fee)
+      expect(result.amount).toBe('10');
+      expect(result.valueInCurrency).toBe('10');
+      expect(result.usd).toBe('10');
+    });
   });
 
   describe('calcNonEvmTotalNetworkFee', () => {
-    const mockBridgeQuote: QuoteResponse & NonEvmFees = {
+    const mockBridgeQuote: QuoteResponseV1 & NonEvmFees = {
       nonEvmFeesInNative: '1',
       quote: {} as Quote,
       trade: {},
-    } as QuoteResponse & NonEvmFees;
+    } as QuoteResponseV1 & NonEvmFees;
 
     it('should calculate Solana fees correctly with exchange rates', () => {
       const result = calcNonEvmTotalNetworkFee(mockBridgeQuote, {
@@ -275,11 +306,11 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should calculate Bitcoin fees correctly with exchange rates', () => {
-      const btcQuote: QuoteResponse & NonEvmFees = {
+      const btcQuote: QuoteResponseV1 & NonEvmFees = {
         nonEvmFeesInNative: '0.00005', // BTC fee in native units
         quote: {} as Quote,
         trade: {},
-      } as QuoteResponse & NonEvmFees;
+      } as QuoteResponseV1 & NonEvmFees;
 
       const result = calcNonEvmTotalNetworkFee(btcQuote, {
         exchangeRate: '60000',
@@ -347,14 +378,14 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcRelayerFee', () => {
-    const mockBridgeQuote: QuoteResponse<TxData, TxData> = {
+    const mockBridgeQuote: QuoteResponseV1<TxData, TxData> = {
       quote: {
         srcAsset: { address: '0x123', decimals: 18 },
         srcTokenAmount: '1000000000000000000',
         feeData: { metabridge: { amount: '100000000000000000' } },
       },
       trade: { value: '0x10A741A462780000' },
-    } as QuoteResponse<TxData, TxData>;
+    } as unknown as QuoteResponseV1<TxData, TxData>;
 
     it('should calculate relayer fee correctly with exchange rates', () => {
       const result = calcRelayerFee(mockBridgeQuote, {
@@ -405,7 +436,7 @@ describe('Quote Metadata Utils', () => {
               'eip155:1/erc20:0x0000000000000000000000000000000000000000',
           },
         },
-      } as unknown as QuoteResponse<TxData, TxData>;
+      } as unknown as QuoteResponseV1<TxData, TxData>;
 
       const result = calcRelayerFee(nativeBridgeQuote, {
         exchangeRate: '2',
@@ -424,12 +455,12 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcEstimatedAndMaxTotalGasFee', () => {
-    const mockBridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees = {
+    const mockBridgeQuote: QuoteResponseV1<TxData, TxData> & L1GasFees = {
       quote: {} as Quote,
       trade: { gasLimit: 21000 },
       approval: { gasLimit: 46000 },
       l1GasFeesInHexWei: '0x5AF3107A4000',
-    } as QuoteResponse<TxData, TxData> & L1GasFees;
+    } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
     it('should calculate estimated and max gas fees correctly', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
@@ -469,7 +500,7 @@ describe('Quote Metadata Utils', () => {
           ...mockBridgeQuote,
           trade: { gasLimit: 21000, effectiveGas: 10000 },
           approval: { gasLimit: 46000, effectiveGas: 20000 },
-        } as QuoteResponse<TxData, TxData> & L1GasFees,
+        } as QuoteResponseV1<TxData, TxData> & L1GasFees,
         feePerGasInDecGwei: '52',
         maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
@@ -553,7 +584,7 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 0 },
         l1GasFeesInHexWei: '0x0',
         estimatedProcessingTimeInSeconds: 60,
-      } as QuoteResponse<TxData, TxData> & L1GasFees;
+      } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: zeroGasQuote,
@@ -572,11 +603,11 @@ describe('Quote Metadata Utils', () => {
     it('should handle missing approval', () => {
       const noApprovalQuote = {
         quote: {} as Quote,
-        trade: { gasLimit: 21000 },
+        trade: { gasLimit: 21000 } as TxData,
         approval: undefined,
         l1GasFeesInHexWei: '0x5AF3107A4000',
         estimatedProcessingTimeInSeconds: 60,
-      } as QuoteResponse<TxData, TxData> & L1GasFees;
+      } as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: noApprovalQuote,
@@ -600,7 +631,7 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 46000 },
         l1GasFeesInHexWei: '0x5AF3107A4000',
         estimatedProcessingTimeInSeconds: 60,
-      } as unknown as QuoteResponse<TxData, TxData> & L1GasFees;
+      } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: noGasLimitQuote,
@@ -617,11 +648,11 @@ describe('Quote Metadata Utils', () => {
     it('should handle large gas limits and fees', () => {
       const largeGasQuote = {
         quote: {} as Quote,
-        trade: { gasLimit: 1000000 },
-        approval: { gasLimit: 500000 },
+        trade: { gasLimit: 1000000 } as TxData,
+        approval: { gasLimit: 500000 } as TxData,
         l1GasFeesInHexWei: '0x1BC16D674EC80000', // 2 ETH in wei
         estimatedProcessingTimeInSeconds: 60,
-      } as QuoteResponse<TxData, TxData> & L1GasFees;
+      } as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: largeGasQuote,

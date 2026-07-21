@@ -1,5 +1,6 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import { toHex } from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import {
@@ -19,6 +20,11 @@ import type {
   Caip19AssetId,
 } from '../types';
 
+// ============================================================================
+// TRACE NAMES — used in Sentry spans (search these strings in Discover)
+// ============================================================================
+const TRACE_AGGREGATED_BALANCE_SELECTOR = 'AggregatedBalanceSelector';
+
 export type EnabledNetworkMap =
   | Record<string, Record<string, boolean>>
   | undefined;
@@ -35,6 +41,7 @@ export type AggregatedBalanceForAccount = {
   entries: AggregatedBalanceEntry[];
   totalBalanceInFiat?: number;
   pricePercentChange1d?: number;
+  previousTotalInFiat?: number;
 };
 
 type AccountLike = { id: AccountId };
@@ -387,14 +394,53 @@ function resolveAccountsToAggregate(args: {
   return [selectedInternalAccount];
 }
 
-export function getAggregatedBalanceForAccount(
+/**
+ * Get account ids that belong to a group, reading directly from the account
+ * tree. Unlike {@link getInternalAccountsForGroup}, this does not require an
+ * `accountsById` lookup map, which makes it convenient for balance aggregation
+ * where only the ids are needed.
+ *
+ * @param accountTreeState - AccountTreeController state.
+ * @param groupId - The account group id to look up.
+ * @returns The list of account ids in the group, or an empty array.
+ */
+export function getAccountIdsForGroup(
+  accountTreeState: AccountTreeControllerState,
+  groupId: string,
+): AccountId[] {
+  const wallets = accountTreeState.accountTree?.wallets ?? {};
+  type GroupWithAccounts = { accounts?: AccountId[] };
+  for (const wallet of Object.values(wallets)) {
+    const groups = (wallet?.groups ?? {}) as Record<string, GroupWithAccounts>;
+    const group = groups[groupId];
+    if (group?.accounts) {
+      return [...group.accounts];
+    }
+  }
+  return [];
+}
+
+/**
+ * Aggregate balances across an explicit list of accounts.
+ *
+ * This is the core aggregation engine shared by the account- and group-level
+ * selectors. It intentionally takes a fully-resolved list of accounts so that
+ * callers control account resolution and no "selected account" placeholder is
+ * required.
+ *
+ * @param state - AssetsController state slice.
+ * @param accounts - Accounts whose balances should be aggregated.
+ * @param enabledNetworkMap - Optional map of enabled networks keyed by namespace.
+ * @param trace - Optional trace callback for telemetry spans.
+ * @returns Aggregated balance entries plus fiat totals when prices are present.
+ */
+function aggregateBalances(
   state: AssetsControllerState,
-  selectedInternalAccount: InternalAccount,
+  accounts: AccountLike[],
   enabledNetworkMap?: EnabledNetworkMap,
-  accountTreeState?: AccountTreeControllerState,
-  internalAccountsOrAccountIds?: InternalAccount[] | AccountId[],
-  accountsById?: AccountsById,
+  trace?: TraceCallback,
 ): AggregatedBalanceForAccount {
+  const startTime = trace ? performance.now() : 0;
   const { assetsBalance, assetsInfo, assetPreferences, assetsPrice } = state;
 
   const metadata = (assetsInfo ?? {}) as Record<Caip19AssetId, AssetMetadata>;
@@ -410,12 +456,7 @@ export function getAggregatedBalanceForAccount(
       return false;
     })();
 
-  const accountsToAggregate = resolveAccountsToAggregate({
-    selectedInternalAccount,
-    accountTreeState,
-    internalAccountsOrAccountIds,
-    accountsById,
-  });
+  const accountsToAggregate = accounts;
 
   const assetInfoCache = makeAssetInfoCache();
   const merged = new Map<Caip19AssetId, AggRow>();
@@ -441,13 +482,14 @@ export function getAggregatedBalanceForAccount(
 
   // If prices exist, compute totals in a single pass over merged.
   let totalBalanceInFiat = 0;
+  let previousTotalInFiat = 0;
   let weightedNumerator = 0;
 
   for (const [assetId, row] of merged.entries()) {
     const { amount } = row;
     const entry: AggregatedBalanceEntry = {
       assetId,
-      amount: amount.toString(),
+      amount: amount.toFixed(),
       ...(row.decimals === undefined ? {} : { decimals: row.decimals }),
       ...(row.symbol === undefined ? {} : { symbol: row.symbol }),
       ...(row.name === undefined ? {} : { name: row.name }),
@@ -464,8 +506,38 @@ export function getAggregatedBalanceForAccount(
       if (contribution > 0) {
         totalBalanceInFiat += contribution;
         weightedNumerator += contribution * pricePercentChange1d;
+
+        // A -100% move makes the denominator zero; treat it as flat so the
+        // previous total never goes to infinity.
+        const denom = Number((1 + pricePercentChange1d / 100).toFixed(8));
+        previousTotalInFiat +=
+          denom === 0 ? contribution : contribution / denom;
       }
     }
+  }
+
+  if (trace) {
+    const durationMs = performance.now() - startTime;
+    const uniqueNetworks = new Set<CaipChainId>();
+    for (const assetId of merged.keys()) {
+      const info = getAssetInfo(assetInfoCache, assetId);
+      uniqueNetworks.add(info.chainId);
+    }
+    trace(
+      {
+        name: TRACE_AGGREGATED_BALANCE_SELECTOR,
+        data: {
+          duration_ms: durationMs,
+          asset_count: merged.size,
+          network_count: uniqueNetworks.size,
+          account_count: accountsToAggregate.length,
+        },
+        tags: { controller: 'AssetsController' },
+      },
+      () => undefined,
+    ).catch(() => {
+      // Telemetry failure must not break.
+    });
   }
 
   if (hasPrices) {
@@ -475,8 +547,255 @@ export function getAggregatedBalanceForAccount(
       entries,
       totalBalanceInFiat,
       pricePercentChange1d,
+      previousTotalInFiat,
     };
   }
 
   return { entries };
+}
+
+/**
+ * Aggregate balances for an explicit list of account ids.
+ *
+ * Prefer this over {@link getAggregatedBalanceForAccount} when the set of
+ * accounts to aggregate is already known (e.g. all accounts in a group), since
+ * it does not require a "selected account" and therefore avoids the brittle
+ * account-resolution heuristics.
+ *
+ * @param state - AssetsController state slice.
+ * @param accountIds - Account ids whose balances should be aggregated.
+ * @param enabledNetworkMap - Optional map of enabled networks keyed by namespace.
+ * @param trace - Optional trace callback for telemetry spans.
+ * @returns Aggregated balance entries plus fiat totals when prices are present.
+ */
+export function getAggregatedBalanceForAccountIds(
+  state: AssetsControllerState,
+  accountIds: AccountId[],
+  enabledNetworkMap?: EnabledNetworkMap,
+  trace?: TraceCallback,
+): AggregatedBalanceForAccount {
+  const accounts: AccountLike[] = accountIds.map((id) => ({ id }));
+  return aggregateBalances(state, accounts, enabledNetworkMap, trace);
+}
+
+export function getAggregatedBalanceForAccount(
+  state: AssetsControllerState,
+  selectedInternalAccount: InternalAccount,
+  enabledNetworkMap?: EnabledNetworkMap,
+  accountTreeState?: AccountTreeControllerState,
+  internalAccountsOrAccountIds?: InternalAccount[] | AccountId[],
+  accountsById?: AccountsById,
+  trace?: TraceCallback,
+): AggregatedBalanceForAccount {
+  const accountsToAggregate = resolveAccountsToAggregate({
+    selectedInternalAccount,
+    accountTreeState,
+    internalAccountsOrAccountIds,
+    accountsById,
+  });
+  return aggregateBalances(
+    state,
+    accountsToAggregate,
+    enabledNetworkMap,
+    trace,
+  );
+}
+
+// ============================================================================
+// WALLET- AND GROUP-LEVEL BALANCE CALCULATIONS
+// ============================================================================
+
+/**
+ * Default user currency used when {@link AssetsControllerState.selectedCurrency}
+ * is not set.
+ */
+const DEFAULT_USER_CURRENCY = 'usd';
+
+export type AccountGroupBalance = {
+  walletId: string;
+  groupId: string;
+  totalBalanceInUserCurrency: number;
+  userCurrency: string;
+};
+
+export type WalletBalance = {
+  walletId: string;
+  groups: Record<string, AccountGroupBalance>;
+  totalBalanceInUserCurrency: number;
+  userCurrency: string;
+};
+
+export type AllWalletsBalance = {
+  wallets: Record<string, WalletBalance>;
+  totalBalanceInUserCurrency: number;
+  userCurrency: string;
+};
+
+export type BalanceChangePeriod = '1d' | '7d' | '30d';
+
+export type BalanceChangeResult = {
+  period: BalanceChangePeriod;
+  currentTotalInUserCurrency: number;
+  previousTotalInUserCurrency: number;
+  amountChangeInUserCurrency: number;
+  percentChange: number;
+  userCurrency: string;
+};
+
+/**
+ * Resolve the user currency for a balance calculation, falling back to a
+ * sensible default when the controller has no selected currency.
+ *
+ * @param assetsControllerState - AssetsController state slice.
+ * @returns The user currency code.
+ */
+function getUserCurrency(assetsControllerState: AssetsControllerState): string {
+  return assetsControllerState.selectedCurrency ?? DEFAULT_USER_CURRENCY;
+}
+
+/**
+ * Resolve the current and previous totals for a change calculation.
+ *
+ * The AssetsController state only exposes a 1d price change, so non-`1d`
+ * periods produce a zeroed change (previous equals current).
+ *
+ * @param totalBalanceInFiat - Aggregated current balance in user currency.
+ * @param previousTotalInFiat - Aggregated prior balance summed per asset.
+ * @param period - Period to compute the change for.
+ * @returns The current and previous totals in user currency.
+ */
+function getCurrentAndPrevious(
+  totalBalanceInFiat: number,
+  previousTotalInFiat: number,
+  period: BalanceChangePeriod,
+): { current: number; previous: number } {
+  const current = totalBalanceInFiat;
+  const previous = period === '1d' ? previousTotalInFiat : current;
+  return { current, previous };
+}
+
+/**
+ * Build a {@link BalanceChangeResult} from current/previous totals.
+ *
+ * @param current - Current total in user currency.
+ * @param previous - Previous total in user currency.
+ * @param period - Period the change was computed for.
+ * @param userCurrency - User currency code.
+ * @returns The change result with delta and percent change.
+ */
+function buildBalanceChangeResult(
+  current: number,
+  previous: number,
+  period: BalanceChangePeriod,
+  userCurrency: string,
+): BalanceChangeResult {
+  const amountChange = current - previous;
+  const percentChange = previous === 0 ? 0 : (amountChange / previous) * 100;
+  return {
+    period,
+    currentTotalInUserCurrency: Number(current.toFixed(8)),
+    previousTotalInUserCurrency: Number(previous.toFixed(8)),
+    amountChangeInUserCurrency: Number(amountChange.toFixed(8)),
+    percentChange: Number(percentChange.toFixed(8)),
+    userCurrency,
+  };
+}
+
+/**
+ * Calculate aggregated balances for all wallets and groups.
+ *
+ * Mirrors the legacy `@metamask/assets-controllers` `calculateBalanceForAllWallets`
+ * output shape, but sources every group total from the unified AssetsController
+ * state via {@link getAggregatedBalanceForAccountIds}. The account tree is walked
+ * to aggregate each group individually.
+ *
+ * @param assetsControllerState - AssetsController state slice.
+ * @param accountTreeState - AccountTreeController state.
+ * @param enabledNetworkMap - Map of enabled networks keyed by namespace.
+ * @param trace - Optional trace callback forwarded to the aggregation selector.
+ * @returns Aggregated balances for all wallets and groups.
+ */
+export function calculateBalanceForAllWallets(
+  assetsControllerState: AssetsControllerState,
+  accountTreeState: AccountTreeControllerState,
+  enabledNetworkMap?: EnabledNetworkMap,
+  trace?: TraceCallback,
+): AllWalletsBalance {
+  const userCurrency = getUserCurrency(assetsControllerState);
+  const wallets: AllWalletsBalance['wallets'] = {};
+  let totalBalanceInUserCurrency = 0;
+
+  type WalletWithGroups = { groups?: Record<string, unknown> };
+  for (const [walletId, wallet] of Object.entries(
+    accountTreeState.accountTree?.wallets ?? {},
+  )) {
+    const walletBalance: WalletBalance = {
+      walletId,
+      groups: {},
+      totalBalanceInUserCurrency: 0,
+      userCurrency,
+    };
+
+    const groups = (wallet as WalletWithGroups)?.groups ?? {};
+    for (const groupId of Object.keys(groups)) {
+      const accountIds = getAccountIdsForGroup(accountTreeState, groupId);
+      const { totalBalanceInFiat = 0 } = getAggregatedBalanceForAccountIds(
+        assetsControllerState,
+        accountIds,
+        enabledNetworkMap,
+        trace,
+      );
+
+      walletBalance.groups[groupId] = {
+        walletId,
+        groupId,
+        totalBalanceInUserCurrency: totalBalanceInFiat,
+        userCurrency,
+      };
+      walletBalance.totalBalanceInUserCurrency += totalBalanceInFiat;
+    }
+
+    wallets[walletId] = walletBalance;
+    totalBalanceInUserCurrency += walletBalance.totalBalanceInUserCurrency;
+  }
+
+  return { wallets, totalBalanceInUserCurrency, userCurrency };
+}
+
+/**
+ * Calculate the portfolio value change for a single account group and period.
+ *
+ * @param assetsControllerState - AssetsController state slice.
+ * @param accountTreeState - AccountTreeController state.
+ * @param groupId - Account group id to compute the change for.
+ * @param period - Change period (`1d` | `7d` | `30d`).
+ * @param enabledNetworkMap - Map of enabled networks keyed by namespace.
+ * @param trace - Optional trace callback forwarded to the aggregation selector.
+ * @returns The change result for the requested period.
+ */
+export function calculateBalanceChangeForAccountGroup(
+  assetsControllerState: AssetsControllerState,
+  accountTreeState: AccountTreeControllerState,
+  groupId: string,
+  period: BalanceChangePeriod,
+  enabledNetworkMap?: EnabledNetworkMap,
+  trace?: TraceCallback,
+): BalanceChangeResult {
+  const userCurrency = getUserCurrency(assetsControllerState);
+  const accountIds = getAccountIdsForGroup(accountTreeState, groupId);
+  const { totalBalanceInFiat = 0, previousTotalInFiat = totalBalanceInFiat } =
+    getAggregatedBalanceForAccountIds(
+      assetsControllerState,
+      accountIds,
+      enabledNetworkMap,
+      trace,
+    );
+
+  const { current, previous } = getCurrentAndPrevious(
+    totalBalanceInFiat,
+    previousTotalInFiat,
+    period,
+  );
+
+  return buildBalanceChangeResult(current, previous, period, userCurrency);
 }

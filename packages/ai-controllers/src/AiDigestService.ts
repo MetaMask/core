@@ -1,42 +1,173 @@
-import type { CaipAssetType } from '@metamask/utils';
+import {
+  array,
+  enums,
+  is,
+  optional,
+  string,
+  type as structType,
+} from '@metamask/superstruct';
 
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
-import type { DigestService, MarketInsightsReport } from './ai-digest-types';
+import type {
+  DigestService,
+  MarketInsightsReport,
+  MarketOverview,
+  MarketOverviewFrontPage,
+  MarketOverviewTrend,
+} from './ai-digest-types';
 
 export type AiDigestServiceConfig = {
   baseUrl: string;
 };
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+// Shared sub-type structs
 
-const isMarketInsightsReport = (
-  value: unknown,
-): value is MarketInsightsReport => {
-  if (!isObject(value)) {
-    return false;
+const ArticleStruct = structType({
+  title: string(),
+  url: string(),
+  source: string(),
+  date: string(),
+});
+
+const TweetStruct = structType({
+  contentSummary: string(),
+  url: string(),
+  author: string(),
+  date: string(),
+});
+
+const SourceStruct = structType({
+  name: string(),
+  url: string(),
+  type: enums(['news', 'data', 'social'] as const),
+});
+
+const AIResponseMetadataStruct = structType({
+  provider: string(),
+});
+
+const trendCategoryValues = [
+  'geopolitical',
+  'macro',
+  'regulatory',
+  'technical',
+  'social',
+  'other',
+] as const;
+
+const trendImpactValues = ['positive', 'negative', 'neutral'] as const;
+
+// Market Insights structs
+
+const MarketInsightsTrendStruct = structType({
+  title: string(),
+  description: string(),
+  category: enums(trendCategoryValues),
+  impact: enums(trendImpactValues),
+  articles: array(ArticleStruct),
+  tweets: array(TweetStruct),
+});
+
+const MarketInsightsReportStruct = structType({
+  version: optional(string()),
+  asset: string(),
+  generatedAt: string(),
+  headline: string(),
+  summary: string(),
+  trends: array(MarketInsightsTrendStruct),
+  social: optional(array(TweetStruct)),
+  sources: array(SourceStruct),
+  metadata: optional(array(AIResponseMetadataStruct)),
+});
+
+const MarketInsightsDigestEnvelopeStruct = structType({
+  id: string(),
+  digest: MarketInsightsReportStruct,
+});
+
+// Market Overview structs
+
+const RelatedAssetStruct = structType({
+  name: optional(string()),
+  symbol: string(),
+  caip19: optional(array(string())),
+  sourceAssetId: optional(string()),
+  hlPerpsMarket: optional(array(string())),
+});
+
+const MarketOverviewTrendStruct = structType({
+  title: string(),
+  description: string(),
+  category: optional(enums(trendCategoryValues)),
+  impact: optional(enums(trendImpactValues)),
+  articles: array(ArticleStruct),
+  relatedAssets: array(RelatedAssetStruct),
+});
+
+const MarketOverviewStruct = structType({
+  version: optional(string()),
+  generatedAt: string(),
+  trends: array(MarketOverviewTrendStruct),
+  metadata: optional(array(AIResponseMetadataStruct)),
+});
+
+const MarketOverviewReportEnvelopeStruct = structType({
+  report: MarketOverviewStruct,
+});
+
+// A single front-page row. `item` shares the exact same schema as an
+// individual market overview trend; `ctaTitle`/`ctaDescription` are the
+// AI-authored call-to-action copy layered on top.
+const MarketOverviewFrontPageStruct = structType({
+  id: string(),
+  item: MarketOverviewTrendStruct,
+  ctaTitle: string(),
+  ctaDescription: string(),
+  createdAt: string(),
+});
+
+const normalizeItemRelatedAssets = (
+  item: MarketOverviewTrend,
+): MarketOverviewTrend => ({
+  ...item,
+  relatedAssets: item.relatedAssets.map((asset) => ({
+    ...asset,
+    caip19: asset.caip19 ?? [],
+  })),
+});
+
+const normalizeRelatedAssets = (raw: MarketOverview): MarketOverview => ({
+  ...raw,
+  trends: raw.trends.map(normalizeItemRelatedAssets),
+});
+
+const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
+  if (is(value, MarketOverviewStruct)) {
+    return normalizeRelatedAssets(value);
   }
 
-  return (
-    (value.version === undefined || typeof value.version === 'string') &&
-    typeof value.asset === 'string' &&
-    typeof value.generatedAt === 'string' &&
-    typeof value.headline === 'string' &&
-    typeof value.summary === 'string' &&
-    Array.isArray(value.trends) &&
-    Array.isArray(value.sources)
-  );
+  if (is(value, MarketOverviewReportEnvelopeStruct)) {
+    return normalizeRelatedAssets(value.report);
+  }
+
+  return null;
+};
+
+const getNormalizedFrontPage = (
+  value: unknown,
+): MarketOverviewFrontPage | null => {
+  if (!is(value, MarketOverviewFrontPageStruct)) {
+    return null;
+  }
+
+  return { ...value, item: normalizeItemRelatedAssets(value.item) };
 };
 
 const getNormalizedMarketInsightsReport = (
   value: unknown,
 ): MarketInsightsReport | null => {
-  if (isMarketInsightsReport(value)) {
-    return value;
-  }
-
-  if (isObject(value) && isMarketInsightsReport(value.digest)) {
-    return value.digest;
+  if (is(value, MarketInsightsDigestEnvelopeStruct)) {
+    return { ...value.digest, digestId: value.id };
   }
 
   return null;
@@ -50,18 +181,86 @@ export class AiDigestService implements DigestService {
   }
 
   /**
-   * Search for market insights by CAIP-19 asset identifier.
+   * Fetch the market overview report.
    *
-   * Calls `GET ${this.#baseUrl}/digests?caipAssetType=${encodeURIComponent(caip19Id)}`.
+   * Calls `GET ${this.#baseUrl}/market-overview`.
    *
-   * @param caip19Id - The CAIP-19 identifier of the asset.
+   * @returns The market overview report, or `null` if none exists (404).
+   */
+  async fetchMarketOverview(): Promise<MarketOverview | null> {
+    const response = await fetch(`${this.#baseUrl}/market-overview`);
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `${AiDigestControllerErrorMessage.API_REQUEST_FAILED}: ${response.status}`,
+      );
+    }
+
+    const overview = getNormalizedMarketOverview(await response.json());
+
+    if (!overview) {
+      throw new Error(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
+    }
+
+    return overview;
+  }
+
+  /**
+   * Fetch a single market overview front page by id.
+   *
+   * Calls `GET ${this.#baseUrl}/market-overview/front-page/:id`.
+   *
+   * @param id - The front-page identifier (UUID).
+   * @returns The market overview front page, or `null` if none exists (404).
+   */
+  async fetchFrontPageItem(
+    id: string,
+  ): Promise<MarketOverviewFrontPage | null> {
+    const response = await fetch(
+      `${this.#baseUrl}/market-overview/front-page/${encodeURIComponent(id)}`,
+    );
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `${AiDigestControllerErrorMessage.API_REQUEST_FAILED}: ${response.status}`,
+      );
+    }
+
+    const frontPage = getNormalizedFrontPage(await response.json());
+
+    if (!frontPage) {
+      throw new Error(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
+    }
+
+    return frontPage;
+  }
+
+  /**
+   * Search for market insights by asset identifier.
+   *
+   * Accepts any identifier the API understands (CAIP-19 asset type, ticker
+   * symbol, asset name, HyperLiquid perps market id, etc.) and forwards it
+   * unchanged via the universal `asset` query parameter.
+   *
+   * Calls `GET ${baseUrl}/asset-summary?asset=<assetIdentifier>`.
+   *
+   * @param assetIdentifier - The asset identifier (e.g. `eip155:1/slip44:60`,
+   *   `ETH`, `Bitcoin`, `xyz:TSLA`).
    * @returns The market insights report, or `null` if none exists (404).
    */
   async searchDigest(
-    caip19Id: CaipAssetType,
+    assetIdentifier: string,
   ): Promise<MarketInsightsReport | null> {
     const response = await fetch(
-      `${this.#baseUrl}/digests?caipAssetType=${encodeURIComponent(caip19Id)}`,
+      `${this.#baseUrl}/asset-summary?asset=${encodeURIComponent(assetIdentifier)}`,
     );
 
     if (response.status === 404) {

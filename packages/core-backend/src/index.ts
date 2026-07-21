@@ -9,7 +9,7 @@ export {
   getCloseReason,
   WebSocketState,
   WebSocketEventType,
-} from './BackendWebSocketService';
+} from './ws/BackendWebSocketService';
 
 export type {
   BackendWebSocketServiceOptions,
@@ -24,7 +24,7 @@ export type {
   BackendWebSocketServiceConnectionStateChangedEvent,
   BackendWebSocketServiceEvents,
   BackendWebSocketServiceMessenger,
-} from './BackendWebSocketService';
+} from './ws/BackendWebSocketService';
 
 // ============================================================================
 // ACCOUNT ACTIVITY SERVICE
@@ -34,7 +34,7 @@ export {
   AccountActivityService,
   ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
   ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
-} from './AccountActivityService';
+} from './ws/AccountActivityService';
 
 export type {
   SystemNotificationData,
@@ -49,7 +49,7 @@ export type {
   AccountActivityServiceEvents,
   AllowedEvents as AccountActivityServiceAllowedEvents,
   AccountActivityServiceMessenger,
-} from './AccountActivityService';
+} from './ws/AccountActivityService';
 
 // ============================================================================
 // SHARED TYPES
@@ -81,6 +81,31 @@ export type {
 } from './ApiPlatformClientService';
 
 // ============================================================================
+// OHLCV SERVICE
+// ============================================================================
+
+export {
+  OHLCVService,
+  OHLCV_SERVICE_ALLOWED_ACTIONS,
+  OHLCV_SERVICE_ALLOWED_EVENTS,
+} from './ws/ohlcv';
+
+export type {
+  OHLCVBar,
+  OHLCVSubscriptionOptions,
+  OHLCVSystemNotificationData,
+  OHLCVServiceOptions,
+  OHLCVServiceActions,
+  OHLCVServiceAllowedActions,
+  OHLCVServiceBarUpdatedEvent,
+  OHLCVServiceChainStatusChangedEvent,
+  OHLCVServiceSubscriptionErrorEvent,
+  OHLCVServiceEvents,
+  OHLCVServiceAllowedEvents,
+  OHLCVServiceMessenger,
+} from './ws/ohlcv';
+
+// ============================================================================
 // API PLATFORM CLIENT
 // ============================================================================
 
@@ -96,6 +121,7 @@ export {
   API_URLS,
   STALE_TIMES,
   GC_TIMES,
+  V6_DEFI_POSITION_TYPES,
   // Helpers
   calculateRetryDelay,
   getQueryOptionsOverrides,
@@ -122,6 +148,13 @@ export type {
   V2BalanceItem,
   V2BalancesResponse,
   V4BalancesResponse,
+  V6VsCurrency,
+  V6DeFiPositionType,
+  V6BalanceMetadata,
+  V6TokenMetadata,
+  V6BalanceItem,
+  V6AccountBalancesEntry,
+  V6BalancesResponse,
   V1SupportedNetworksResponse,
   V2SupportedNetworksResponse,
   V2ActiveNetworksResponse,

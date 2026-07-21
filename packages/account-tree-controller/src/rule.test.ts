@@ -13,13 +13,13 @@ import {
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountGroupObject } from './group';
-import { BaseRule } from './rule';
-import type { AccountWalletObject } from './wallet';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
 } from '../tests/mockMessenger';
+import type { AccountGroupObject } from './group';
+import { BaseRule } from './rule';
+import type { AccountWalletObject } from './wallet';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,

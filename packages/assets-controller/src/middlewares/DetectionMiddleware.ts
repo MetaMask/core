@@ -1,6 +1,7 @@
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type { AccountId, Caip19AssetId, Middleware } from '../types';
+import { normalizeAssetId } from '../utils';
 
 // ============================================================================
 // CONSTANTS
@@ -16,12 +17,17 @@ createModuleLogger(projectLogger, CONTROLLER_NAME);
 // ============================================================================
 
 /**
- * DetectionMiddleware identifies assets that do not have metadata.
+ * DetectionMiddleware builds the set of assets that downstream sources use for
+ * metadata and price fetching.
  *
- * This middleware:
- * - Checks assets in the response for metadata in state (via ctx.getAssetsState)
- * - Assets in response but without metadata are considered "detected"
- * - Fills response.detectedAssets with asset IDs per account that lack metadata
+ * An asset is included in `detectedAssets` only when it is genuinely new:
+ * - Assets from `response.assetsBalance` are included only if they are absent
+ *   from BOTH `state.assetsBalance` (never tracked before) AND `state.assetsInfo`
+ *   (no metadata yet). Assets already present in either collection are considered
+ *   known and are intentionally excluded — PriceDataSource's own subscription
+ *   handles periodic refreshes for those.
+ * - Each account's custom assets from state are always included because they
+ *   may have no balance yet and are explicitly managed by the user.
  *
  * Usage:
  * ```typescript
@@ -37,57 +43,125 @@ export class DetectionMiddleware {
   }
 
   /**
-   * Get the middleware for detecting assets without metadata.
+   * Get the middleware that builds detectedAssets for metadata and price fetching.
    *
    * This middleware:
-   * 1. Extracts the response from context
-   * 2. Detects assets from the response that don't have metadata
-   * 3. Fills response.detectedAssets with detected asset IDs per account
-   * 4. Calls next() to continue the middleware chain
+   * 1. Includes assets from response.assetsBalance that are absent from both
+   *    state.assetsBalance and state.assetsInfo (brand-new assets only)
+   * 2. Always includes each account's custom assets from state
+   * 3. Fills response.detectedAssets with the resulting asset IDs per account
+   * 4. Queues detected assets that lack a price in state on
+   *    request.assetsForPriceUpdate so PriceDataSource fetches them in the same
+   *    pipeline pass (including the background RPC detection path)
    *
    * @returns The middleware function for the assets pipeline.
    */
   get assetsMiddleware(): Middleware {
     return forDataTypes(['balance'], async (ctx, next) => {
-      // Extract response from context
-      const { response } = ctx;
+      const { request, response } = ctx;
 
-      // If no balances in response, nothing to detect - pass through
-      if (!response.assetsBalance) {
-        return next(ctx);
-      }
-
-      // Get metadata from state
-      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
+      // Get state for custom assets, existing balances, and existing metadata
+      const state = ctx.getAssetsState();
+      const {
+        customAssets: stateCustomAssets,
+        assetsBalance: stateAssetsBalance,
+        assetsInfo: stateAssetsInfo,
+        assetsPrice: stateAssetsPrice,
+      } = state;
 
       const detectedAssets: Record<AccountId, Caip19AssetId[]> = {};
 
-      // Detect assets from the response that don't have metadata
-      for (const [accountId, accountBalances] of Object.entries(
-        response.assetsBalance,
-      )) {
-        const detected: Caip19AssetId[] = [];
-
-        for (const assetId of Object.keys(
-          accountBalances as Record<string, unknown>,
+      // 1. From balance response: only include assets that are genuinely new —
+      //    not already present in state.assetsBalance or state.assetsInfo.
+      if (response.assetsBalance) {
+        for (const [accountId, accountBalances] of Object.entries(
+          response.assetsBalance,
         )) {
-          // Asset is detected if it does not have metadata in state
-          if (!stateMetadata[assetId as Caip19AssetId]) {
-            detected.push(assetId as Caip19AssetId);
+          const detected: Caip19AssetId[] = [];
+
+          const stateAccountBalances = stateAssetsBalance[accountId] ?? {};
+
+          for (const assetId of Object.keys(
+            accountBalances as Record<string, unknown>,
+          )) {
+            const caipAssetId = assetId as Caip19AssetId;
+            // Skip if already tracked in state balances or already has metadata
+            if (
+              stateAccountBalances[caipAssetId] !== undefined ||
+              stateAssetsInfo[caipAssetId] !== undefined
+            ) {
+              continue;
+            }
+            detected.push(caipAssetId);
+          }
+
+          // Merge custom assets for this account, applying the same filter:
+          // skip if already in state balance or already has metadata.
+          const customForAccount = stateCustomAssets?.[accountId] ?? [];
+          for (const assetId of customForAccount) {
+            if (detected.includes(assetId)) {
+              continue;
+            }
+            if (
+              stateAccountBalances[assetId] !== undefined ||
+              stateAssetsInfo[assetId] !== undefined
+            ) {
+              continue;
+            }
+            detected.push(assetId);
+          }
+
+          if (detected.length > 0) {
+            detectedAssets[accountId] = detected;
+          }
+        }
+      }
+
+      // 2. Accounts in request that weren't in balance response: include their
+      //    custom assets that are not yet in state.
+      for (const { account } of request.accountsWithSupportedChains) {
+        const accountId = account.id;
+        if (detectedAssets[accountId]) {
+          continue;
+        }
+        const stateAccountBalances = stateAssetsBalance[accountId] ?? {};
+        const customForAccount = stateCustomAssets?.[accountId] ?? [];
+        const newCustomAssets = customForAccount.filter((assetId) => {
+          const inBalance = stateAccountBalances[assetId] !== undefined;
+          const inInfo = stateAssetsInfo[assetId] !== undefined;
+          return !inBalance && !inInfo;
+        });
+        if (newCustomAssets.length > 0) {
+          detectedAssets[accountId] = newCustomAssets;
+        }
+      }
+
+      if (Object.keys(detectedAssets).length > 0) {
+        response.detectedAssets = detectedAssets;
+
+        const prices = stateAssetsPrice as Record<string, unknown>;
+        const missingPriceAssets = new Set<Caip19AssetId>();
+
+        for (const accountAssetIds of Object.values(detectedAssets)) {
+          for (const assetId of accountAssetIds) {
+            const normalizedAssetId = normalizeAssetId(assetId);
+            if (
+              prices[normalizedAssetId] === undefined &&
+              prices[assetId] === undefined
+            ) {
+              missingPriceAssets.add(normalizedAssetId);
+            }
           }
         }
 
-        if (detected.length > 0) {
-          detectedAssets[accountId] = detected;
+        if (missingPriceAssets.size > 0) {
+          request.assetsForPriceUpdate = [
+            ...(request.assetsForPriceUpdate ?? []),
+            ...missingPriceAssets,
+          ];
         }
       }
 
-      // Fill detectedAssets in the response
-      if (Object.keys(detectedAssets).length > 0) {
-        response.detectedAssets = detectedAssets;
-      }
-
-      // Call next() to continue the middleware chain
       return next(ctx);
     });
   }

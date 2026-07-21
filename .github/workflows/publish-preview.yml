@@ -4,55 +4,16 @@ on:
   issue_comment:
     types: created
 
-jobs:
-  is-fork-pull-request:
-    name: Determine whether this issue comment was on a pull request from a fork
-    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot publish-preview') }}
-    runs-on: ubuntu-latest
-    outputs:
-      IS_FORK: ${{ steps.is-fork.outputs.IS_FORK }}
-    steps:
-      - uses: actions/checkout@v5
-      - name: Determine whether this PR is from a fork
-        id: is-fork
-        run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "${PR_NUMBER}" )" >> "$GITHUB_OUTPUT"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
+permissions:
+  contents: read
+  pull-requests: write
 
+jobs:
   publish-preview:
-    name: Publish build preview
-    needs: is-fork-pull-request
-    permissions:
-      pull-requests: write
-    # This ensures we don't publish on forks. We can't trust forks with this token.
-    if: ${{ needs.is-fork-pull-request.outputs.IS_FORK == 'false' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Check out pull request
-        run: gh pr checkout "${PR_NUMBER}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
-      - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
-        with:
-          is-high-risk-environment: true
-      - name: Get commit SHA
-        id: commit-sha
-        run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-      - run: yarn prepare-preview-builds @metamask-previews ${{ steps.commit-sha.outputs.COMMIT_SHA }}
-      - run: yarn build
-      - name: Publish preview build
-        run: yarn publish-previews
-        env:
-          YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
-      - name: Generate preview build message
-        run: yarn tsx scripts/generate-preview-build-message.ts
-      - name: Post build preview in comment
-        run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
-        env:
-          COMMIT_SHA: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
+    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot publish-preview') }}
+    uses: MetaMask/github-tools/.github/workflows/publish-preview.yml@v1
+    with:
+      environment: default-branch
+      docs-url: 'https://github.com/MetaMask/core/blob/main/docs/processes/preview-builds.md'
+    secrets:
+      PUBLISH_PREVIEW_NPM_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}

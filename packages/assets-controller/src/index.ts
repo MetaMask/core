@@ -3,13 +3,22 @@ export {
   AssetsController,
   getDefaultAssetsControllerState,
 } from './AssetsController';
+export { AssetsDataSourceError } from './errors';
+export {
+  DEFAULT_TRACKED_ASSETS_BY_CHAIN,
+  CHAINS_WITH_DEFAULT_TRACKED_ASSETS,
+  DEFAULT_ASSET_METADATA,
+  buildDefaultAssetsInfo,
+  getDefaultTrackedAssetsForChain,
+  getDefaultAssetMetadata,
+} from './defaults';
+export type { PendingTokenMetadata } from './AssetsController';
 
 // State and messenger types
 export type {
   AssetsControllerState,
   AssetsControllerMessenger,
   AssetsControllerOptions,
-  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerGetStateAction,
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
@@ -22,13 +31,16 @@ export type {
   AssetsControllerGetAssetsAction,
   AssetsControllerGetAssetsBalanceAction,
   AssetsControllerGetAssetMetadataAction,
+  AssetsControllerGetAssetAction,
   AssetsControllerGetAssetsPriceAction,
   AssetsControllerAddCustomAssetAction,
   AssetsControllerRemoveCustomAssetAction,
   AssetsControllerGetCustomAssetsAction,
   AssetsControllerHideAssetAction,
   AssetsControllerUnhideAssetAction,
-  AssetsControllerMethodActions,
+  AssetsControllerGetExchangeRatesForBridgeAction,
+  AssetsControllerGetStateForTransactionPayAction,
+  AssetsControllerSetSelectedCurrencyAction,
 } from './AssetsController-method-action-types';
 
 // Core types
@@ -66,10 +78,12 @@ export type {
   DataType,
   DataRequest,
   DataResponse,
+  AssetsUpdateMode,
   // Middleware types
   Context,
   NextFunction,
   Middleware,
+  AssetsDataSource,
   FetchContext,
   FetchNextFunction,
   FetchMiddleware,
@@ -95,7 +109,6 @@ export type {
   AccountsApiDataSourceConfig,
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceState,
-  AccountsApiDataSourceAllowedActions,
 } from './data-sources';
 
 // Data sources - BackendWebsocket
@@ -107,8 +120,6 @@ export {
 export type {
   BackendWebsocketDataSourceOptions,
   BackendWebsocketDataSourceState,
-  BackendWebsocketDataSourceAllowedActions,
-  BackendWebsocketDataSourceAllowedEvents,
 } from './data-sources';
 
 // Data sources - RPC
@@ -118,8 +129,6 @@ export type {
   RpcDataSourceConfig,
   RpcDataSourceOptions,
   RpcDataSourceState,
-  RpcDataSourceAllowedActions,
-  RpcDataSourceAllowedEvents,
   ChainStatus,
 } from './data-sources';
 
@@ -138,8 +147,6 @@ export {
 export type {
   SnapDataSourceState,
   SnapDataSourceOptions,
-  SnapDataSourceAllowedActions,
-  SnapDataSourceAllowedEvents,
 } from './data-sources';
 
 // Enrichment data sources
@@ -147,27 +154,53 @@ export { TokenDataSource, PriceDataSource } from './data-sources';
 
 export type {
   TokenDataSourceOptions,
-  TokenDataSourceAllowedActions,
   PriceDataSourceConfig,
   PriceDataSourceOptions,
 } from './data-sources';
 
 // Middlewares
-export { DetectionMiddleware } from './middlewares';
+export {
+  CustomAssetGraduationMiddleware,
+  DetectionMiddleware,
+  RpcFallbackMiddleware,
+} from './middlewares';
+export type {
+  CustomAssetGraduationMiddlewareOptions,
+  RpcFallbackMiddlewareOptions,
+} from './middlewares';
 
 // Utilities
-export { normalizeAssetId } from './utils';
+export {
+  normalizeAssetId,
+  formatExchangeRatesForBridge,
+  formatStateForTransactionPay,
+} from './utils';
+export type {
+  AccountForLegacyFormat,
+  BridgeExchangeRatesFormat,
+  FormatExchangeRatesForBridgeParams,
+  FormatStateForTransactionPayParams,
+  LegacyToken,
+  TransactionPayLegacyFormat,
+} from './utils';
 
 // Selectors
 export {
+  calculateBalanceForAllWallets,
+  calculateBalanceChangeForAccountGroup,
   getAggregatedBalanceForAccount,
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './selectors/balance';
 
 export type {
+  AccountGroupBalance,
   AccountsById,
   AggregatedBalanceEntry,
   AggregatedBalanceForAccount,
+  AllWalletsBalance,
+  BalanceChangePeriod,
+  BalanceChangeResult,
   EnabledNetworkMap,
+  WalletBalance,
 } from './selectors/balance';

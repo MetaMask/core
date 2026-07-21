@@ -2,17 +2,26 @@ export type {
   MultichainAccountServiceActions,
   MultichainAccountServiceEvents,
   MultichainAccountServiceMessenger,
-  MultichainAccountServiceGetMultichainAccountGroupAction,
-  MultichainAccountServiceGetMultichainAccountWalletAction,
-  MultichainAccountServiceGetMultichainAccountWalletsAction,
-  MultichainAccountServiceGetMultichainAccountGroupsAction,
-  MultichainAccountServiceCreateMultichainAccountGroupAction,
-  MultichainAccountServiceCreateNextMultichainAccountGroupAction,
-  MultichainAccountServiceSetBasicFunctionalityAction,
   MultichainAccountServiceMultichainAccountGroupCreatedEvent,
   MultichainAccountServiceMultichainAccountGroupUpdatedEvent,
   MultichainAccountServiceWalletStatusChangeEvent,
 } from './types';
+export type {
+  MultichainAccountServiceResyncAccountsAction,
+  MultichainAccountServiceGetMultichainAccountWalletAction,
+  MultichainAccountServiceGetMultichainAccountWalletsAction,
+  MultichainAccountServiceCreateMultichainAccountWalletAction,
+  MultichainAccountServiceRemoveMultichainAccountWalletAction,
+  MultichainAccountServiceGetMultichainAccountGroupAction,
+  MultichainAccountServiceGetMultichainAccountGroupsAction,
+  MultichainAccountServiceCreateNextMultichainAccountGroupAction,
+  MultichainAccountServiceCreateMultichainAccountGroupAction,
+  MultichainAccountServiceCreateMultichainAccountGroupsAction,
+  MultichainAccountServiceSetBasicFunctionalityAction,
+  MultichainAccountServiceAlignWalletsAction,
+  MultichainAccountServiceAlignWalletAction,
+  MultichainAccountServiceInitAction,
+} from './MultichainAccountService-method-action-types';
 export {
   AccountProviderWrapper,
   BaseBip44AccountProvider,
@@ -26,6 +35,8 @@ export {
   BtcAccountProvider,
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
+  XLM_ACCOUNT_PROVIDER_NAME,
+  XlmAccountProvider,
 } from './providers';
 export { MultichainAccountWallet } from './MultichainAccountWallet';
 export { MultichainAccountGroup } from './MultichainAccountGroup';

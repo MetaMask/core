@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../keyring-controller" },
+    { "path": "../messenger" }
+  ],
+  "include": ["../../types", "./src"]
+}

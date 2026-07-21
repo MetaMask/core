@@ -8,8 +8,19 @@ import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
-import { DEFAULT_CHAIN_ID_TO_NAME } from './types';
-import type { TokenScanCacheData, TokenScanResult } from './types';
+import {
+  ADDRESS_SCAN_SUPPORTED_CHAINS,
+  APPROVAL_SUPPORTED_CHAINS,
+  DEFAULT_CHAIN_ID_TO_NAME,
+  TOKEN_SCAN_SUPPORTED_CHAINS,
+} from './types';
+import type {
+  AddressScanSupportedChain,
+  ApprovalSupportedChain,
+  TokenScanCacheData,
+  TokenScanResult,
+  TokenScanSupportedChain,
+} from './types';
 
 const DEFAULT_TOLERANCE = 3;
 
@@ -361,6 +372,60 @@ export const getHostnameFromWebUrl = (url: string): [string, boolean] => {
   return [hostname || '', Boolean(hostname)];
 };
 
+/**
+ * Hosts where PDS single-URL scans include the URL path (shared gateways / hosts where many sites
+ * share one origin). For all other hosts, only the hostname is sent.
+ */
+export const PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS = [
+  'ipfs.io',
+  'dweb.link',
+  'cf-ipfs.com',
+  'cloudflare-ipfs.com',
+  'irys.xyz',
+  'sites.google.com',
+] as const;
+
+/**
+ * @param hostname - Lowercase normalization is applied for matching registered roots and subdomains.
+ * @returns Whether {@link getPhishingDetectionScanUrlParam} appends pathname for this hostname.
+ */
+export function isPhishingDetectionPathBasedHostname(
+  hostname: string,
+): boolean {
+  const normalizedHost = hostname.toLowerCase();
+  return PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS.some(
+    (root) => normalizedHost === root || normalizedHost.endsWith(`.${root}`),
+  );
+}
+
+/**
+ * Builds the `url` query parameter for {@link PhishingController.scanUrl}. For hosts in
+ * {@link PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS} (and their subdomains), the value is hostname
+ * plus pathname, without protocol, query, or fragment. For all other hosts, only hostname is used.
+ *
+ * @param url - A web URL string (must use `http:` or `https:` — same rules as {@link getHostnameFromWebUrl}).
+ * @returns A tuple of `[scanUrlParam, ok]` where `ok` is false when the URL is not a valid web URL.
+ */
+export const getPhishingDetectionScanUrlParam = (
+  url: string,
+): [scanUrlParam: string, ok: boolean] => {
+  const [hostname, ok] = getHostnameFromWebUrl(url);
+  if (!ok) {
+    return ['', false];
+  }
+
+  if (!isPhishingDetectionPathBasedHostname(hostname)) {
+    return [hostname, true];
+  }
+
+  // `getHostnameFromWebUrl` already required a successful `new URL(url)` parse.
+  const { pathname } = new URL(url);
+  const pathSuffix = pathname === '/' ? '' : pathname;
+  const scanUrlParam = pathSuffix ? `${hostname}${pathSuffix}` : hostname;
+
+  return [scanUrlParam, true];
+};
+
 export const getPathnameFromUrl = (url: string): string => {
   try {
     const { pathname } = new URL(url);
@@ -436,6 +501,39 @@ export const buildCacheKey = (
   const normalizedAddress = caseSensitive ? address : address.toLowerCase();
   return `${chainId.toLowerCase()}:${normalizedAddress}`;
 };
+
+/**
+ * Determines whether a chain name is supported for token approval scanning.
+ *
+ * @param chain - The chain name to check.
+ * @returns `true` if the chain is supported, `false` otherwise.
+ */
+export const isApprovalSupportedChain = (
+  chain: string,
+): chain is ApprovalSupportedChain =>
+  (APPROVAL_SUPPORTED_CHAINS as readonly string[]).includes(chain);
+
+/**
+ * Determines whether a chain name is supported for bulk token scanning.
+ *
+ * @param chain - The chain name to check.
+ * @returns `true` if the chain is supported, `false` otherwise.
+ */
+export const isTokenScanSupportedChain = (
+  chain: string,
+): chain is TokenScanSupportedChain =>
+  (TOKEN_SCAN_SUPPORTED_CHAINS as readonly string[]).includes(chain);
+
+/**
+ * Determines whether a chain name is supported for address scanning.
+ *
+ * @param chain - The chain name to check.
+ * @returns `true` if the chain is supported, `false` otherwise.
+ */
+export const isAddressScanSupportedChain = (
+  chain: string,
+): chain is AddressScanSupportedChain =>
+  (ADDRESS_SCAN_SUPPORTED_CHAINS as readonly string[]).includes(chain);
 
 /**
  * Resolves the chain name from a chain ID.

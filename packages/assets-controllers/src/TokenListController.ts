@@ -118,6 +118,11 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   #persistDebounceTimer?: ReturnType<typeof setTimeout>;
 
   /**
+   * Promise for the in-flight initialization sequence.
+   */
+  #initializePromise?: Promise<void>;
+
+  /**
    * Promise that resolves when the current persist operation completes.
    * Used to prevent race conditions between persist operations.
    */
@@ -162,6 +167,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   #abortController: AbortController;
 
+  readonly #isDeprecated: () => boolean;
+
   /**
    * Creates a TokenListController instance.
    *
@@ -170,6 +177,10 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
+   * @param options.isDeprecated - Optional function returning whether the controller should be disabled.
+   * When it returns `true`, `tokensChainsCache` is reset to `{}` at construction and at every
+   * polling entry point, no fetches are issued, and persisted storage is cleared on initialize.
+   * The function is evaluated dynamically on each entry point so it can be toggled at runtime.
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    */
@@ -178,6 +189,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
+    isDeprecated = (): boolean => false,
     messenger,
     state,
   }: {
@@ -187,6 +199,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
+    isDeprecated?: () => boolean;
     messenger: TokenListControllerMessenger;
     state?: Partial<TokenListState>;
   }) {
@@ -202,6 +215,14 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     this.#cacheRefreshThreshold = cacheRefreshThreshold;
     this.#chainId = chainId;
     this.#abortController = new AbortController();
+    this.#isDeprecated = isDeprecated;
+
+    if (this.#isDeprecated()) {
+      // Fire-and-forget: storage clearing is async but the constructor is sync.
+      // Errors are caught inside `#enforceDisabledState`.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#enforceDisabledState();
+    }
 
     if (onNetworkStateChange) {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -228,14 +249,48 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @returns A promise that resolves when initialization is complete.
    */
   async initialize(): Promise<void> {
-    await this.#synchronizeCacheWithStorage();
+    if (this.#initializePromise) {
+      await this.#initializePromise;
+      return;
+    }
 
-    // Subscribe to state changes to automatically persist tokensChainsCache
-    this.messenger.subscribe(
-      'TokenListController:stateChange',
-      (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
-      (controllerState) => controllerState.tokensChainsCache,
-    );
+    const executeInit = async (): Promise<void> => {
+      try {
+        if (this.#isDeprecated()) {
+          await this.#enforceDisabledState();
+          return;
+        }
+
+        await this.#synchronizeCacheWithStorage();
+
+        // Subscribe to state changes to automatically persist tokensChainsCache
+        this.messenger.subscribe(
+          'TokenListController:stateChange',
+          (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
+          (controllerState) => controllerState.tokensChainsCache,
+        );
+      } catch {
+        // do nothing
+      } finally {
+        this.#initializePromise = undefined;
+      }
+    };
+
+    this.#initializePromise = executeInit();
+
+    await this.#initializePromise;
+  }
+
+  /**
+   * Waits for any in-flight initialization to complete.
+   * Polling should not run against partially initialized state.
+   */
+  async #waitForInitialization(): Promise<void> {
+    try {
+      await this.#initializePromise;
+    } catch {
+      // do nothing
+    }
   }
 
   /**
@@ -478,6 +533,10 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * Consider using the new polling approach instead
    */
   async start(): Promise<void> {
+    if (this.#isDeprecated()) {
+      await this.#enforceDisabledState();
+      return;
+    }
     if (!isTokenListSupportedForNetwork(this.#chainId)) {
       return;
     }
@@ -492,6 +551,10 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    */
   async restart(): Promise<void> {
     this.#stopPolling();
+    if (this.#isDeprecated()) {
+      await this.#enforceDisabledState();
+      return;
+    }
     await this.#startDeprecatedPolling();
   }
 
@@ -559,7 +622,84 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @returns A promise that resolves when this operation completes.
    */
   async _executePoll({ chainId }: TokenListPollingInput): Promise<void> {
-    return this.fetchTokenList(chainId);
+    if (this.#isDeprecated()) {
+      await this.#enforceDisabledState();
+      return;
+    }
+    await this.#waitForInitialization();
+    await this.fetchTokenList(chainId);
+  }
+
+  /**
+   * Fully enforce the disabled state in a single step:
+   * 1. Drop in-memory `tokensChainsCache` to `{}`.
+   * 2. Cancel any pending debounced persist and clear the changed-chains set so
+   *    a stale entry can't write old data after the in-memory reset.
+   * 3. Overwrite every persisted `tokensChainsCache:*` entry in StorageService
+   *    with `{ data: {}, timestamp: 0 }`.
+   *
+   * Called from every fetching entry point when `isDeprecated()` is true so that
+   * a runtime toggle propagates to both memory and storage immediately, even
+   * if `initialize()` was originally invoked while the controller was enabled.
+   *
+   * @returns A promise that resolves when persisted entries have been cleared.
+   */
+  async #enforceDisabledState(): Promise<void> {
+    this.#resetCacheState();
+    if (this.#persistDebounceTimer) {
+      clearTimeout(this.#persistDebounceTimer);
+      this.#persistDebounceTimer = undefined;
+    }
+    this.#changedChainsToPersist.clear();
+    await this.#clearPersistedCache();
+  }
+
+  /**
+   * Reset in-memory `tokensChainsCache` to an empty object.
+   * Used when the controller is disabled to drop any data already in state.
+   */
+  #resetCacheState(): void {
+    if (Object.keys(this.state.tokensChainsCache).length === 0) {
+      return;
+    }
+    this.update((state) => {
+      state.tokensChainsCache = {};
+    });
+  }
+
+  /**
+   * Overwrite every persisted `tokensChainsCache:*` entry in StorageService
+   * with `{ data: {}, timestamp: 0 }` so the on-disk view reflects the
+   * disabled state.
+   *
+   * @returns A promise that resolves when persisted entries have been cleared.
+   */
+  async #clearPersistedCache(): Promise<void> {
+    try {
+      const allKeys = await this.messenger.call(
+        'StorageService:getAllKeys',
+        name,
+      );
+      const cacheKeys = allKeys.filter((key) =>
+        key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
+      );
+      const emptyDataCache: DataCache = { data: {}, timestamp: 0 };
+      await Promise.all(
+        cacheKeys.map((key) =>
+          this.messenger.call(
+            'StorageService:setItem',
+            name,
+            key,
+            emptyDataCache,
+          ),
+        ),
+      );
+    } catch (error) {
+      console.error(
+        'TokenListController: Failed to clear persisted cache:',
+        error,
+      );
+    }
   }
 
   /**
@@ -569,6 +709,10 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @param chainId - The chainId of the current chain triggering the fetch.
    */
   async fetchTokenList(chainId: Hex): Promise<void> {
+    if (this.#isDeprecated()) {
+      await this.#enforceDisabledState();
+      return;
+    }
     if (this.isCacheValid(chainId)) {
       return;
     }

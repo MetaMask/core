@@ -2,10 +2,10 @@ import { handleFetch } from '@metamask/controller-utils';
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
 import { CHAIN_IDS } from '../constants';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
+import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
 
 const FALLBACK_OPTIMISM_STACK_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.OPTIMISM,

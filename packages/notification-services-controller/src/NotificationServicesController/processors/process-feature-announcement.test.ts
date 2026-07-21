@@ -1,10 +1,10 @@
+import type { INotification } from '..';
+import { TRIGGER_TYPES } from '../constants/notification-schema';
+import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
 import {
   isFeatureAnnouncementRead,
   processFeatureAnnouncement,
 } from './process-feature-announcement';
-import type { INotification } from '..';
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
 
 describe('process-feature-announcement - isFeatureAnnouncementRead()', () => {
   const MOCK_NOTIFICATION_ID = 'MOCK_NOTIFICATION_ID';

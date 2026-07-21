@@ -54,40 +54,50 @@ export class ResimulateHelper {
   }
 
   #onTransactionsUpdate(): void {
-    const unapprovedTransactions = this.#getTransactions().filter(
-      (tx) => tx.status === TransactionStatus.unapproved,
+    const resimulatableTransactionIds = new Set(
+      this.#getResimulatableTransactions().map((tx) => tx.id),
     );
 
-    const unapprovedTransactionIds = new Set(
-      unapprovedTransactions.map((tx) => tx.id),
-    );
-
-    // Combine unapproved transaction IDs and currently active resimulations
+    // Combine resimulatable transaction IDs and currently active resimulations
     const allTransactionIds = new Set([
-      ...unapprovedTransactionIds,
+      ...resimulatableTransactionIds,
       ...this.#timeoutIds.keys(),
     ]);
 
     allTransactionIds.forEach((transactionId) => {
-      const transactionMeta = unapprovedTransactions.find(
-        (tx) => tx.id === transactionId,
-      ) as TransactionMeta;
-
-      if (transactionMeta?.isActive) {
-        this.#start(transactionMeta);
+      if (resimulatableTransactionIds.has(transactionId)) {
+        this.#start(transactionId);
       } else {
         this.#stop(transactionId);
       }
     });
   }
 
-  #start(transactionMeta: TransactionMeta): void {
-    const { id: transactionId } = transactionMeta;
+  #getResimulatableTransactions(): TransactionMeta[] {
+    return this.#getTransactions().filter(
+      (tx) => tx.status === TransactionStatus.unapproved && tx.isActive,
+    );
+  }
+
+  #start(transactionId: string): void {
     if (this.#timeoutIds.has(transactionId)) {
       return;
     }
 
     const listener = (): void => {
+      // Read the latest transaction on each tick rather than capturing it in
+      // the closure. Otherwise an update to the transaction (e.g. editing a
+      // batch approval amount) would keep resimulating the stale data, as
+      // `#start` returns early when a timer already exists for the id.
+      const transactionMeta = this.#getResimulatableTransactions().find(
+        (tx) => tx.id === transactionId,
+      );
+
+      if (!transactionMeta) {
+        this.#stop(transactionId);
+        return;
+      }
+
       this.#simulateTransaction(transactionMeta)
         .catch((error) => {
           /* istanbul ignore next */

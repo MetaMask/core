@@ -24,11 +24,8 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 
-import { BACKUPANDSYNC_FEATURES } from './constants';
-import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
-import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
@@ -39,11 +36,15 @@ import type { NativeScrypt } from '../../shared/types/encryption';
 import { EventQueue } from '../../shared/utils/event-queue';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerGetSessionProfile,
-  AuthenticationControllerIsSignedIn,
-  AuthenticationControllerPerformSignIn,
-} from '../authentication/AuthenticationController';
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerPerformSignInAction,
+} from '../authentication/AuthenticationController-method-action-types';
+import { BACKUPANDSYNC_FEATURES } from './constants';
+import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
+import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
+import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types';
 
 const controllerName = 'UserStorageController';
 
@@ -139,53 +140,39 @@ type ControllerConfig = {
   };
 };
 
-// Messenger Actions
-type CreateActionsObj<Controller extends keyof UserStorageController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: UserStorageController[K];
-  };
-};
-type ActionsObj = CreateActionsObj<
-  | 'performGetStorage'
-  | 'performGetStorageAllFeatureEntries'
-  | 'performSetStorage'
-  | 'performBatchSetStorage'
-  | 'performDeleteStorage'
-  | 'performBatchDeleteStorage'
-  | 'getStorageKey'
->;
+const MESSENGER_EXPOSED_METHODS = [
+  'performGetStorage',
+  'performGetStorageAllFeatureEntries',
+  'performSetStorage',
+  'performBatchSetStorage',
+  'performDeleteStorage',
+  'performBatchDeleteStorage',
+  'getStorageKey',
+  'performDeleteStorageAllFeatureEntries',
+  'listEntropySources',
+  'setIsBackupAndSyncFeatureEnabled',
+  'setIsContactSyncingInProgress',
+  'syncContactsWithUserStorage',
+] as const;
+
 export type UserStorageControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   UserStorageControllerState
 >;
 export type Actions =
-  | ActionsObj[keyof ActionsObj]
-  | UserStorageControllerGetStateAction;
-export type UserStorageControllerPerformGetStorage =
-  ActionsObj['performGetStorage'];
-export type UserStorageControllerPerformGetStorageAllFeatureEntries =
-  ActionsObj['performGetStorageAllFeatureEntries'];
-export type UserStorageControllerPerformSetStorage =
-  ActionsObj['performSetStorage'];
-export type UserStorageControllerPerformBatchSetStorage =
-  ActionsObj['performBatchSetStorage'];
-export type UserStorageControllerPerformDeleteStorage =
-  ActionsObj['performDeleteStorage'];
-export type UserStorageControllerPerformBatchDeleteStorage =
-  ActionsObj['performBatchDeleteStorage'];
-export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
+  | UserStorageControllerGetStateAction
+  | UserStorageControllerMethodActions;
 
 export type AllowedActions =
   // Keyring Requests
   | KeyringControllerGetStateAction
   // Snap Requests
-  | HandleSnapRequest
+  | SnapControllerHandleRequestAction
   // Auth Requests
-  | AuthenticationControllerGetBearerToken
-  | AuthenticationControllerGetSessionProfile
-  | AuthenticationControllerPerformSignIn
-  | AuthenticationControllerIsSignedIn
+  | AuthenticationControllerGetBearerTokenAction
+  | AuthenticationControllerGetSessionProfileAction
+  | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerIsSignedInAction
   // Contact Syncing
   | AddressBookControllerListAction
   | AddressBookControllerSetAction
@@ -201,7 +188,6 @@ export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
 export type Events = UserStorageControllerStateChangeEvent;
 
 export type AllowedEvents =
-  | UserStorageControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Address Book Events
@@ -223,7 +209,7 @@ export type UserStorageControllerMessenger = Messenger<
  * - data stored on UserStorage is FULLY encrypted, with the only keys stored/managed on the client.
  * - No one can access this data unless they are have the SRP and are able to run the signing snap.
  */
-export default class UserStorageController extends BaseController<
+export class UserStorageController extends BaseController<
   typeof controllerName,
   UserStorageControllerState,
   UserStorageControllerMessenger
@@ -256,7 +242,13 @@ export default class UserStorageController extends BaseController<
 
   #isUnlocked = false;
 
-  #storageKeyCache: Record<`metamask:${string}`, string> = {};
+  // Both caches are keyed by `${entropySourceId}:${message}` (the primary SRP
+  // resolves to its HD keyring metadata ID) so two SRPs that transiently
+  // resolve to the same `profileId` can never share a cached storage key /
+  // signature and leak data across each other's user storage.
+  #storageKeyCache: Record<string, string> = {};
+
+  #snapSignMessageCache: Record<string, string> = {};
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
@@ -337,17 +329,34 @@ export default class UserStorageController extends BaseController<
       },
       {
         storage: {
-          getStorageKey: async (message) =>
-            this.#storageKeyCache[message] ?? null,
-          setStorageKey: async (message, key) => {
-            this.#storageKeyCache[message] = key;
+          getStorageKey: async (message, entropySourceId) => {
+            // No derived key can exist while locked (the KeyringController
+            // clears its keyrings on lock, so the scope is unresolvable).
+            if (!this.#isUnlocked) {
+              return null;
+            }
+            return (
+              this.#storageKeyCache[
+                this.#scopedCacheKey(message, entropySourceId)
+              ] ?? null
+            );
+          },
+          // Only ever reached after a successful signature, i.e. while unlocked.
+          setStorageKey: async (message, key, entropySourceId) => {
+            this.#storageKeyCache[
+              this.#scopedCacheKey(message, entropySourceId)
+            ] = key;
           },
         },
       },
     );
 
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     this.#keyringController.setupLockedStateSubscriptions();
-    this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
 
     // Contact Syncing
@@ -356,47 +365,6 @@ export default class UserStorageController extends BaseController<
       getMessenger: () => this.messenger,
       trace: this.#trace,
     });
-  }
-
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      'UserStorageController:performGetStorage',
-      this.performGetStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performGetStorageAllFeatureEntries',
-      this.performGetStorageAllFeatureEntries.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performSetStorage',
-      this.performSetStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performBatchSetStorage',
-      this.performBatchSetStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performDeleteStorage',
-      this.performDeleteStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performBatchDeleteStorage',
-      this.performBatchDeleteStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:getStorageKey',
-      this.getStorageKey.bind(this),
-    );
   }
 
   /**
@@ -554,20 +522,69 @@ export default class UserStorageController extends BaseController<
    *
    * @returns A promise that resolves to an array of HD keyring metadata IDs.
    */
-  async listEntropySources() {
+  async listEntropySources(): Promise<string[]> {
     if (!this.#isUnlocked) {
       throw new Error(
         'listEntropySources - unable to list entropy sources, wallet is locked',
       );
     }
 
+    return this.#getHdKeyringEntropySourceIds();
+  }
+
+  /**
+   * Reads the HD keyring entropy source IDs (metadata IDs) from the
+   * KeyringController, primary first. Returns an empty array when none are
+   * available (e.g. the wallet is locked, where `keyrings` is cleared).
+   *
+   * @returns The HD keyring metadata IDs, primary first.
+   */
+  #getHdKeyringEntropySourceIds(): string[] {
     const { keyrings } = this.messenger.call('KeyringController:getState');
-    return keyrings
+    return (keyrings ?? [])
       .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
       .map((keyring) => keyring.metadata.id);
   }
 
-  #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
+  /**
+   * Resolves the primary SRP's entropy source ID (the first HD keyring's
+   * metadata ID), used to scope the primary's cache entries. The ID is randomly
+   * regenerated whenever the vault is recreated (e.g. on restore), so a new
+   * primary can never inherit a previous vault's cached key.
+   *
+   * @returns The primary HD keyring metadata ID.
+   * @throws If no HD keyring is available; callers must only resolve the scope
+   * while the wallet is unlocked.
+   */
+  #getPrimaryEntropySourceId(): string {
+    const [primaryEntropySourceId] = this.#getHdKeyringEntropySourceIds();
+    if (!primaryEntropySourceId) {
+      throw new Error('#getPrimaryEntropySourceId - no HD keyring available');
+    }
+    return primaryEntropySourceId;
+  }
+
+  /**
+   * Builds a cache key scoped to a specific entropy source, so each SRP's
+   * signature/storage key derivation stays isolated even when two SRPs
+   * transiently resolve to the same `profileId` (see `#storageKeyCache`).
+   *
+   * When `entropySourceId` is omitted (primary SRP), it is resolved to the
+   * primary HD keyring's metadata ID rather than a stable literal. Because that
+   * ID is randomly regenerated whenever the vault is recreated (e.g. on
+   * restore), the cached entry is naturally invalidated across vaults — a
+   * different SRP can never inherit the previous primary's cached key.
+   *
+   * @param message - The tagged message used for signing.
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The scoped cache key.
+   */
+  #scopedCacheKey(
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ): string {
+    return `${entropySourceId ?? this.#getPrimaryEntropySourceId()}:${message}`;
+  }
 
   /**
    * Signs a specific message using an underlying auth snap.
@@ -581,15 +598,15 @@ export default class UserStorageController extends BaseController<
     message: `metamask:${string}`,
     entropySourceId?: string,
   ): Promise<string> {
-    // the message is SRP specific already, so there's no need to use the entropySourceId in the cache
-    if (this.#_snapSignMessageCache[message]) {
-      return this.#_snapSignMessageCache[message];
-    }
-
     if (!this.#isUnlocked) {
       throw new Error(
         '#snapSignMessage - unable to call snap, wallet is locked',
       );
+    }
+
+    const cacheKey = this.#scopedCacheKey(message, entropySourceId);
+    if (this.#snapSignMessageCache[cacheKey]) {
+      return this.#snapSignMessageCache[cacheKey];
     }
 
     const result = (await this.messenger.call(
@@ -597,7 +614,7 @@ export default class UserStorageController extends BaseController<
       createSnapSignMessageRequest(message, entropySourceId),
     )) as string;
 
-    this.#_snapSignMessageCache[message] = result;
+    this.#snapSignMessageCache[cacheKey] = result;
 
     return result;
   }

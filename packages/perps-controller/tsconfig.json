@@ -1,9 +1,17 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
   },
   "references": [
+    {
+      "path": "../account-tree-controller"
+    },
+    {
+      "path": "../authenticated-user-storage"
+    },
     {
       "path": "../base-controller"
     },
@@ -11,7 +19,25 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../geolocation-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
       "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../transaction-controller"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

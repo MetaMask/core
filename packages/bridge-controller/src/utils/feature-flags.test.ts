@@ -1,13 +1,13 @@
-import {
-  formatFeatureFlags,
-  getBridgeFeatureFlags,
-  hasMinimumRequiredVersion,
-} from './feature-flags';
 import { DEFAULT_CHAIN_RANKING } from '../constants/bridge';
 import type {
   FeatureFlagsPlatformConfig,
   BridgeControllerMessenger,
 } from '../types';
+import {
+  formatFeatureFlags,
+  getBridgeFeatureFlags,
+  hasMinimumRequiredVersion,
+} from './feature-flags';
 
 describe('feature-flags', () => {
   describe('formatFeatureFlags', () => {
@@ -21,6 +21,10 @@ describe('feature-flags', () => {
           '1': {
             isActiveSrc: true,
             isActiveDest: true,
+            batchSellDestStablecoins: [
+              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              'eip155:1/slip44:60',
+            ],
           },
           '10': {
             isActiveSrc: true,
@@ -62,6 +66,10 @@ describe('feature-flags', () => {
           'eip155:1': {
             isActiveSrc: true,
             isActiveDest: true,
+            batchSellDestStablecoins: [
+              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              'eip155:1/slip44:60',
+            ],
           },
           'eip155:10': {
             isActiveSrc: true,
@@ -407,6 +415,10 @@ describe('feature-flags', () => {
           '1': {
             isActiveSrc: true,
             isActiveDest: true,
+            batchSellDestStablecoins: [
+              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              'eip155:1/slip44:60',
+            ],
           },
         },
         chainRanking: [],
@@ -450,6 +462,10 @@ describe('feature-flags', () => {
           'eip155:1': {
             isActiveSrc: true,
             isActiveDest: true,
+            batchSellDestStablecoins: [
+              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              'eip155:1/slip44:60',
+            ],
           },
         },
         chainRanking: [...DEFAULT_CHAIN_RANKING],

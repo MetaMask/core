@@ -1,22 +1,5 @@
 import type { Eip1193Provider } from 'ethers';
 
-import {
-  authenticate,
-  authorizeOIDC,
-  getNonce,
-  getUserProfileLineage,
-} from './services';
-import type {
-  AuthConfig,
-  AuthSigningOptions,
-  AuthStorageOptions,
-  AuthType,
-  IBaseAuth,
-  LoginResponse,
-  UserProfile,
-  UserProfileLineage,
-} from './types';
-import * as timeUtils from './utils/time';
 import type { MetaMetricsAuth } from '../../shared/types/services';
 import { ValidationError, RateLimitedError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
@@ -27,6 +10,27 @@ import {
   isSnapConnected,
 } from '../utils/messaging-signing-snap-requests';
 import { validateLoginResponse } from '../utils/validate-login-response';
+import {
+  authenticate,
+  authorizeOIDC,
+  getCustomerServiceToken,
+  getNonce,
+  getUserProfileLineage,
+  pairProfiles,
+} from './services';
+import type { PairProfilesResponse } from './services';
+import type {
+  AuthConfig,
+  AuthSigningOptions,
+  AuthStorageOptions,
+  AuthType,
+  IBaseAuth,
+  LoginResponse,
+  UserProfile,
+  UserProfileLineage,
+} from './types';
+import { computeIdentifierId } from './utils/identifier';
+import * as timeUtils from './utils/time';
 
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
@@ -36,6 +40,10 @@ type JwtBearerAuth_SRP_Options = {
     maxLoginRetries?: number; // maximum number of login retries on rate limit
   };
 };
+
+// How long a successful pairing result stays cached so identical payloads
+// (concurrent or sequential retries) reuse it instead of re-hitting the endpoint.
+export const PAIR_DEDUPE_TTL_MS = 30_000;
 
 const getDefaultEIP6963Provider = async () => {
   const provider = await getMetaMaskProviderEIP6963();
@@ -77,7 +85,18 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   readonly #metametrics?: MetaMetricsAuth;
 
   // Map to store ongoing login promises by entropySourceId
-  readonly #ongoingLogins = new Map<string, Promise<LoginResponse>>();
+  readonly #ongoingLogins = new Map<
+    string | undefined,
+    Promise<LoginResponse>
+  >();
+
+  // Map to dedupe pairing calls by an order-insensitive token-set key.
+  // Holds the in-flight promise (coalescing concurrent callers) and keeps it
+  // for a short TTL after success (collapsing sequential retries).
+  readonly #ongoingPairings = new Map<
+    string,
+    { promise: Promise<PairProfilesResponse>; expiresAt: number }
+  >();
 
   // Default cooldown when 429 has no Retry-After header
   readonly #cooldownDefaultMs: number;
@@ -140,9 +159,58 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     return await this.#options.signing.getIdentifier(entropySourceId);
   }
 
-  async getUserProfileLineage(): Promise<UserProfileLineage> {
-    const accessToken = await this.getAccessToken();
+  async getUserProfileLineage(
+    entropySourceId?: string,
+  ): Promise<UserProfileLineage> {
+    const accessToken = await this.getAccessToken(entropySourceId);
     return await getUserProfileLineage(this.#config.env, accessToken);
+  }
+
+  async getCustomerServiceToken(entropySourceId?: string): Promise<string> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    return await getCustomerServiceToken(this.#config.env, accessToken);
+  }
+
+  async pairSrpProfiles(
+    accessTokens: string[],
+    authAccessToken: string,
+  ): Promise<PairProfilesResponse> {
+    // Order-insensitive key: the same token set in any order maps to the same
+    // entry. Sort a copy so the request payload itself stays primary-first.
+    const key = JSON.stringify([...accessTokens].sort());
+
+    const cached = this.#ongoingPairings.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return await cached.promise;
+    }
+
+    const promise = pairProfiles(
+      accessTokens,
+      authAccessToken,
+      this.#config.env,
+    );
+    // Store the in-flight promise immediately so concurrent callers coalesce
+    // regardless of how long the request takes.
+    this.#ongoingPairings.set(key, {
+      promise,
+      expiresAt: Number.MAX_SAFE_INTEGER,
+    });
+
+    try {
+      const result = await promise;
+      // Keep the resolved result cached for a short window so sequential
+      // retries with the same payload reuse it.
+      this.#ongoingPairings.set(key, {
+        promise,
+        expiresAt: Date.now() + PAIR_DEDUPE_TTL_MS,
+      });
+      return result;
+    } catch (error) {
+      // Never cache failures: the pairing retry loop must be able to re-hit
+      // the endpoint on the next attempt.
+      this.#ongoingPairings.delete(key);
+      throw error;
+    }
   }
 
   async signMessage(
@@ -177,6 +245,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   ): Promise<LoginResponse | null> {
     const auth = await this.#options.storage.getLoginResponse(entropySourceId);
     if (!validateLoginResponse(auth)) {
+      return null;
+    }
+
+    // get canonical profile id from server if not present in the cached session
+    if (!auth.profile.canonicalProfileId) {
       return null;
     }
 
@@ -215,6 +288,37 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       this.#metametrics,
     );
 
+    // Resolve original profileId from aliases.
+    // This is done mainly to preserve the original profileId for storage key derivation
+    // until we migrate to the canonical profileId storage system.
+    const canonicalProfileId = authResponse.profile.profileId;
+    const profile = { ...authResponse.profile };
+
+    if (authResponse.profileAliases?.length > 0) {
+      const targetIdentifierId = computeIdentifierId(
+        publicKey,
+        this.#config.env,
+      );
+
+      const matchingAliases = authResponse.profileAliases.filter((alias) =>
+        alias.identifierIds.some((id) => id.id === targetIdentifierId),
+      );
+
+      // Prefer the leaf alias (single identifier) — it's the original profile
+      // created for this SRP. Multi-identifier aliases are former canonicals
+      // that absorbed other profiles; they are correct only when this SRP's
+      // original profile was itself a canonical before being absorbed.
+      const targetAlias =
+        matchingAliases.find((alias) => alias.identifierIds.length === 1) ??
+        matchingAliases[0];
+
+      if (targetAlias) {
+        profile.profileId = targetAlias.aliasProfileId;
+      }
+    }
+
+    profile.canonicalProfileId = canonicalProfileId;
+
     // Authorize
     const tokenResponse = await authorizeOIDC(
       authResponse.token,
@@ -224,7 +328,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
     // Save
     const result: LoginResponse = {
-      profile: authResponse.profile,
+      profile,
       token: tokenResponse,
     };
 
@@ -234,11 +338,8 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   async #deferredLogin(entropySourceId?: string): Promise<LoginResponse> {
-    // Use a key that accounts for undefined entropySourceId
-    const loginKey = entropySourceId ?? '__default__';
-
     // Check if there's already an ongoing login for this entropySourceId
-    const existingLogin = this.#ongoingLogins.get(loginKey);
+    const existingLogin = this.#ongoingLogins.get(entropySourceId);
     if (existingLogin) {
       return existingLogin;
     }
@@ -247,15 +348,14 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     const loginPromise = this.#loginWithRetry(entropySourceId);
 
     // Store the promise in the map
-    this.#ongoingLogins.set(loginKey, loginPromise);
+    this.#ongoingLogins.set(entropySourceId, loginPromise);
 
     try {
       // Wait for the login to complete
-      const result = await loginPromise;
-      return result;
+      return await loginPromise;
     } finally {
       // Always clean up the ongoing login promise when done
-      this.#ongoingLogins.delete(loginKey);
+      this.#ongoingLogins.delete(entropySourceId);
     }
   }
 

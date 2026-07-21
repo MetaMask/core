@@ -1,17 +1,21 @@
-import type { ENV } from './endpoints';
-import * as endpoints from './endpoints';
 import type { PushNotificationEnv } from '../types';
 import type {
   CreateRegToken,
   DeleteRegToken,
 } from '../types/push-service-interface';
+import type { ENV } from './endpoints';
+import * as endpoints from './endpoints';
 
 export type RegToken = {
   token: string;
   platform: 'extension' | 'mobile' | 'portfolio';
   locale: string;
+  os?: 'android' | 'ios';
+  appVersion?: string;
   oldToken?: string;
 };
+
+export type RegistrationPlatform = 'extension' | 'mobile';
 
 /**
  * Links API Response Shape
@@ -24,7 +28,19 @@ export type PushTokenRequest = {
     token: string;
     platform: 'extension' | 'mobile' | 'portfolio';
     locale: string;
+    os?: 'android' | 'ios';
+    appVersion?: string;
     oldToken?: string;
+  };
+};
+
+export type DeletePushTokenRequest = {
+  addresses: string[];
+  // API request uses snake_case for this property
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  registration_token: {
+    platform: RegistrationPlatform;
+    token: string;
   };
 };
 
@@ -66,6 +82,48 @@ export async function updateLinksAPI(
   }
 }
 
+type DeletePushTokenParams = {
+  bearerToken: string;
+  addresses: string[];
+  platform: RegistrationPlatform;
+  token: string;
+  env?: ENV;
+};
+
+/**
+ * Deletes push notification links for addresses and platform.
+ *
+ * @param params - params for deleting registration links
+ * @returns A promise that resolves with true if the delete request was successful, false otherwise.
+ */
+export async function deleteLinksAPI(
+  params: DeletePushTokenParams,
+): Promise<boolean> {
+  try {
+    const body: DeletePushTokenRequest = {
+      addresses: params.addresses,
+      registration_token: {
+        platform: params.platform,
+        token: params.token,
+      },
+    };
+    const response = await fetch(
+      endpoints.REGISTRATION_TOKENS_ENDPOINT(params.env),
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${params.bearerToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 type ActivatePushNotificationsParams = {
   // Create Push Token
   env: PushNotificationEnv;
@@ -75,7 +133,10 @@ type ActivatePushNotificationsParams = {
   // Other Request Parameters
   bearerToken: string;
   addresses: string[];
-  regToken: Pick<RegToken, 'locale' | 'platform' | 'oldToken'>;
+  regToken: Pick<
+    RegToken,
+    'appVersion' | 'locale' | 'oldToken' | 'os' | 'platform'
+  >;
 };
 
 /**
@@ -101,6 +162,8 @@ export async function activatePushNotifications(
       token: regToken,
       platform: params.regToken.platform,
       locale: params.regToken.locale,
+      os: params.regToken.os,
+      appVersion: params.regToken.appVersion,
       oldToken: params.regToken.oldToken,
     },
     env: params.controllerEnv,

@@ -4,14 +4,30 @@
     "baseUrl": "./"
   },
   "references": [
-    { "path": "../../packages/accounts-controller" },
-    { "path": "../../packages/base-controller" },
-    { "path": "../../packages/controller-utils" },
-    { "path": "../../packages/keyring-controller" },
-    { "path": "../../packages/messenger" },
-    { "path": "../../packages/polling-controller" },
-    { "path": "../../packages/profile-sync-controller" },
-    { "path": "../../packages/transaction-controller" }
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    }
   ],
   "include": ["../../types", "./src"],
   /**

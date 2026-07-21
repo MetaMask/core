@@ -113,6 +113,11 @@ export type PermissionInfo<TPermission extends PermissionTypes> = Omit<
 >;
 
 /**
+ * Lifecycle status of a granted permission for UI and sync.
+ */
+export type GatorPermissionStatus = 'Active' | 'Revoked' | 'Expired';
+
+/**
  * Granted permission with metadata (siteOrigin, optional revocationMetadata).
  *
  * @template TPermission - The type of the permission provided.
@@ -122,6 +127,10 @@ export type PermissionInfoWithMetadata<
 > = {
   permissionResponse: PermissionInfo<TPermission>;
   siteOrigin: string;
+  /**
+   * Whether the permission is active, revoked (off-chain and/or on-chain), or expired by time rule.
+   */
+  status: GatorPermissionStatus;
   revocationMetadata?: RevocationMetadata;
 };
 

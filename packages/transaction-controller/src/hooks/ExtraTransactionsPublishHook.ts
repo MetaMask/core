@@ -164,6 +164,7 @@ export class ExtraTransactionsPublishHook {
 
     await this.#addTransactionBatch({
       from,
+      isInternal: true,
       networkClientId,
       requireApproval: false,
       transactions,

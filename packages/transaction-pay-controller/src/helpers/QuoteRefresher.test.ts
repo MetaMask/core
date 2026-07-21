@@ -2,14 +2,15 @@
 
 import { createDeferredPromise } from '@metamask/utils';
 
-import { QuoteRefresher } from './QuoteRefresher';
 import { flushPromises } from '../../../../tests/helpers';
+import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
   TransactionData,
   TransactionPayControllerMessenger,
 } from '../types';
 import { refreshQuotes } from '../utils/quotes';
+import { QuoteRefresher } from './QuoteRefresher';
 
 jest.mock('../utils/quotes');
 
@@ -51,6 +52,7 @@ describe('QuoteRefresher', () => {
 
   it('polls if quotes detected in state', async () => {
     new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData: jest.fn(),
     });
@@ -65,6 +67,7 @@ describe('QuoteRefresher', () => {
 
   it('does not poll if no quotes in state', async () => {
     new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData: jest.fn(),
     });
@@ -77,8 +80,34 @@ describe('QuoteRefresher', () => {
     expect(refreshQuotesMock).not.toHaveBeenCalled();
   });
 
+  it('does not poll if only no-op quotes in state', async () => {
+    new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      messenger,
+      updateTransactionData: jest.fn(),
+    });
+
+    publish(
+      'TransactionPayController:stateChange',
+      {
+        transactionData: {
+          '123': {
+            quotes: [{ strategy: TransactionPayStrategy.None }],
+          } as TransactionData,
+        },
+      },
+      [],
+    );
+
+    jest.runAllTimers();
+    await flushPromises();
+
+    expect(refreshQuotesMock).not.toHaveBeenCalled();
+  });
+
   it('polls again after interval', async () => {
     new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData: jest.fn(),
     });
@@ -96,6 +125,7 @@ describe('QuoteRefresher', () => {
 
   it('stops polling if quotes removed', async () => {
     new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData: jest.fn(),
     });
@@ -113,6 +143,7 @@ describe('QuoteRefresher', () => {
     const updateTransactionData = jest.fn();
 
     new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData,
     });
@@ -134,6 +165,7 @@ describe('QuoteRefresher', () => {
     const updateTransactionData = jest.fn();
 
     new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData,
     });
@@ -159,6 +191,7 @@ describe('QuoteRefresher', () => {
     const updateTransactionData = jest.fn();
 
     new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData,
     });

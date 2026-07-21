@@ -7,8 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0]
+
+### Added
+
+- Add `getSessionProperties` async function that hydrates the persisted session properties of a CAIP-25 caveat value with an `eip155Capabilities` record, mapping each permitted EVM account address to its per-chain capabilities resolved from the provided `getCapabilities` hook ([#9294](https://github.com/MetaMask/core/pull/9294))
+  - `getCapabilities` has the signature `(params: { address: string }) => Promise<Record<Hex, Record<string, Json>>>`.
+
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [1.6.2]
+
+### Changed
+
+- Bump `@metamask/api-specs` from `^0.14.0` to `^0.15.0` ([#9096](https://github.com/MetaMask/core/pull/9096))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.2.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+
+## [1.6.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/permission-controller` from `^13.1.0` to `^13.1.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [1.6.0]
+
+### Added
+
+- Add `Eip1193Compatible` property in `KnownSessionProperties` enum to support EIP-1193-style connections established through `connect-evm` ([#8731](https://github.com/MetaMask/core/pull/8731))
+- Set `sessionProperties: { 'eip1193-compatible': true }` in `getCaip25PermissionFromLegacyPermissions` so that legacy EIP-1193 permission requests are tagged as EIP-1193-compatible ([#8731](https://github.com/MetaMask/core/pull/8731))
+
+### Changed
+
+- Bump `@metamask/permission-controller` from `^12.2.1` to `^13.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317), [#8661](https://github.com/MetaMask/core/pull/8661), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+## [1.5.0]
+
+### Added
+
+- Add optional `sortAccountIdsByLastSelected` parameter to `getSessionScopes` function to enable custom account ordering within session scopes ([#8255](https://github.com/MetaMask/core/pull/8255))
+
+### Changed
+
+- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
 - Bump `@metamask/controller-utils` from `^11.17.0` to `^11.19.0` ([#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995))
 
 ## [1.4.0]
@@ -101,7 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-internal-api` to `^6.2.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
-- Bump `@metamask/network-controller` to `^23.6.0` ([#5935](https://github.com/MetaMask/core/pull/5935),[#5882](https://github.com/MetaMask/core/pull/5882))
+- Bump `@metamask/network-controller` to `^23.6.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5882](https://github.com/MetaMask/core/pull/5882))
 - Change `caip25CaveatBuilder` to list unsupported scopes in the unsupported scopes error ([#5806](https://github.com/MetaMask/core/pull/5806))
 
 ### Fixed
@@ -185,7 +230,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.7.0...HEAD
+[1.7.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.2...@metamask/chain-agnostic-permission@1.7.0
+[1.6.2]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.1...@metamask/chain-agnostic-permission@1.6.2
+[1.6.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.0...@metamask/chain-agnostic-permission@1.6.1
+[1.6.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.5.0...@metamask/chain-agnostic-permission@1.6.0
+[1.5.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.4.0...@metamask/chain-agnostic-permission@1.5.0
 [1.4.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.3.0...@metamask/chain-agnostic-permission@1.4.0
 [1.3.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.2...@metamask/chain-agnostic-permission@1.3.0
 [1.2.2]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.1...@metamask/chain-agnostic-permission@1.2.2

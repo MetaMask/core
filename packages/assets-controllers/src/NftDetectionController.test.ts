@@ -25,6 +25,14 @@ import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
 
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
+import { jestAdvanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import {
+  buildMockFindNetworkClientIdByChainId,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { Source } from './constants';
 import { getDefaultNftControllerState } from './NftController';
 import {
@@ -32,14 +40,6 @@ import {
   BlockaidResultType,
 } from './NftDetectionController';
 import type { NftDetectionControllerMessenger } from './NftDetectionController';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import {
-  buildMockFindNetworkClientIdByChainId,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 type AllActions = MessengerActions<NftDetectionControllerMessenger>;
 

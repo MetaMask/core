@@ -13,4 +13,11 @@ export type {
   TopGainersSortOption,
   TrendingSortOption,
   V1SuggestedOccurrenceFloorsResponse,
+  TokenSecurityData,
+  TokenSecurityFeature,
+  TokenSecurityHolder,
+  TokenSecurityMarket,
+  TokenSecurityFees,
+  TokenSecurityFinancialStats,
+  TokenSecurityMetadata,
 } from './types';

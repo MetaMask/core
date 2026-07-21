@@ -1,5 +1,15 @@
 import { SDK } from '@metamask/profile-sync-controller';
 
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import { backupAndSyncLogger } from '../../logger';
+import type { AccountWalletEntropyObject } from '../../wallet';
+import type {
+  BackupAndSyncContext,
+  LegacyUserStorageSyncedAccount,
+  UserStorageSyncedWallet,
+  UserStorageSyncedWalletGroup,
+} from '../types';
+import { toErrorMessage } from '../utils/errors';
 import {
   USER_STORAGE_GROUPS_FEATURE_KEY,
   USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
@@ -13,15 +23,6 @@ import {
   parseLegacyAccountFromUserStorageResponse,
 } from './format-utils';
 import { executeWithRetry } from './network-utils';
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type {
-  BackupAndSyncContext,
-  LegacyUserStorageSyncedAccount,
-  UserStorageSyncedWallet,
-  UserStorageSyncedWalletGroup,
-} from '../types';
 
 /**
  * Retrieves the wallet from user storage.
@@ -53,7 +54,7 @@ export const getWalletFromUserStorage = async (
       return parseWalletFromUserStorageResponse(walletData);
     } catch (error) {
       backupAndSyncLogger(
-        `Failed to parse wallet data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to parse wallet data from user storage: ${toErrorMessage(error)}`,
       );
       return null;
     }
@@ -81,12 +82,14 @@ export const pushWalletToUserStorage = async (
 
     backupAndSyncLogger(`Pushing wallet to user storage: ${stringifiedWallet}`);
 
-    return await context.messenger.call(
+    const result = await context.messenger.call(
       'UserStorageController:performSetStorage',
       `${USER_STORAGE_WALLETS_FEATURE_KEY}.${USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY}`,
       stringifiedWallet,
       entropySourceId,
     );
+    context.mutationTracker?.setRemoteWrite(true);
+    return result;
   });
 };
 
@@ -119,7 +122,7 @@ export const getAllGroupsFromUserStorage = async (
           return parseGroupFromUserStorageResponse(stringifiedGroup);
         } catch (error) {
           backupAndSyncLogger(
-            `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+            `Failed to parse group data from user storage: ${toErrorMessage(error)}`,
           );
           return null;
         }
@@ -163,7 +166,7 @@ export const getGroupFromUserStorage = async (
       return parseGroupFromUserStorageResponse(groupData);
     } catch (error) {
       backupAndSyncLogger(
-        `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to parse group data from user storage: ${toErrorMessage(error)}`,
       );
       return null;
     }
@@ -192,12 +195,14 @@ export const pushGroupToUserStorage = async (
 
     backupAndSyncLogger(`Pushing group to user storage: ${stringifiedGroup}`);
 
-    return await context.messenger.call(
+    const result = await context.messenger.call(
       'UserStorageController:performSetStorage',
       `${USER_STORAGE_GROUPS_FEATURE_KEY}.${formattedGroup.groupIndex}`,
       stringifiedGroup,
       entropySourceId,
     );
+    context.mutationTracker?.setRemoteWrite(true);
+    return result;
   });
 };
 
@@ -231,12 +236,14 @@ export const pushGroupToUserStorageBatch = async (
       `Pushing groups to user storage: ${entries.map(([_, value]) => value).join(', ')}`,
     );
 
-    return await context.messenger.call(
+    const result = await context.messenger.call(
       'UserStorageController:performBatchSetStorage',
       USER_STORAGE_GROUPS_FEATURE_KEY,
       entries,
       entropySourceId,
     );
+    context.mutationTracker?.setRemoteWrite(true);
+    return result;
   });
 };
 
@@ -270,7 +277,7 @@ export const getAllLegacyUserStorageAccounts = async (
           return parseLegacyAccountFromUserStorageResponse(stringifiedAccount);
         } catch (error) {
           backupAndSyncLogger(
-            `Failed to parse legacy account data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+            `Failed to parse legacy account data from user storage: ${toErrorMessage(error)}`,
           );
           return null;
         }

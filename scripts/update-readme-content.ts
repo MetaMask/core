@@ -3,6 +3,7 @@
 import execa from 'execa';
 import fs from 'fs';
 import path from 'path';
+import yargs from 'yargs';
 
 type Workspace = {
   location: string;
@@ -29,15 +30,45 @@ main().catch((error) => {
  * 1. Retrieve all of the workspace packages in this project and their relationships to each other.
  * 2. Produce a Markdown fragment that represents a Mermaid graph.
  * 3. Produce a Markdown fragment that represents a list of the workspace packages, and links to them.
- * 4. Update the README with the new content.
+ * 4. Update the README with the new content, or check that it is up to date if `--check` is given.
  */
 async function main(): Promise<void> {
+  const { check: isCheckMode } = await yargs(process.argv.slice(2))
+    .option('check', {
+      type: 'boolean',
+      default: false,
+      description:
+        'Check whether the README is up to date without writing changes.',
+    })
+    .strict()
+    .help('help')
+    .usage(
+      `Update the list and graph of packages in the README.\nUsage: $0 [command] [options]`,
+    ).argv;
   const workspaces = await retrieveWorkspaces();
-  await updateReadme(
-    getDependencyGraph(workspaces),
-    getPackageList(workspaces),
+  const existingReadmeContent = await fs.promises.readFile(README_PATH, 'utf8');
+
+  const newReadmeContent = await generateNewReadmeContent(
+    existingReadmeContent,
+    generatePackageList(workspaces),
+    generateDependencyGraph(workspaces),
   );
-  console.log('README content updated.');
+
+  if (isCheckMode) {
+    if (existingReadmeContent === newReadmeContent) {
+      console.log('README content is up to date.');
+    } else {
+      console.error(
+        'README content is out of date. Run `yarn readme-content:update` to update it.',
+      );
+      // `process` is a constant.
+      // eslint-disable-next-line require-atomic-updates
+      process.exitCode = 1;
+    }
+  } else {
+    await fs.promises.writeFile(README_PATH, newReadmeContent);
+    console.log('README content updated. Make sure to commit the changes!');
+  }
 }
 
 /**
@@ -60,13 +91,26 @@ async function retrieveWorkspaces(): Promise<Workspace[]> {
 }
 
 /**
- * Gets the Markdown fragment that represents a Mermaid graph of the
+ * Generates the Markdown fragment that represents a list of the workspace packages in this project.
+ *
+ * @param workspaces - The Yarn workspaces inside of this project.
+ * @returns The new package list Markdown fragment.
+ */
+function generatePackageList(workspaces: Workspace[]): string {
+  return workspaces
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((workspace) => `- [\`${workspace.name}\`](${workspace.location})`)
+    .join('\n');
+}
+
+/**
+ * Generates the Markdown fragment that represents a Mermaid graph of the
  * dependencies between the workspace packages in this project.
  *
  * @param workspaces - The Yarn workspaces inside of this project.
  * @returns The new dependency graph Markdown fragment.
  */
-function getDependencyGraph(workspaces: Workspace[]): string {
+function generateDependencyGraph(workspaces: Workspace[]): string {
   const nodeLines = buildMermaidNodeLines(workspaces);
   const connectionLines = buildMermaidConnectionLines(workspaces);
   return assembleMermaidMarkdownFragment(nodeLines, connectionLines);
@@ -139,43 +183,21 @@ function assembleMermaidMarkdownFragment(
 }
 
 /**
- * Gets the Markdown fragment that represents a list of the workspace packages
- * in this project.
+ * Generates a new version of the README by replacing the list and graph
+ * sections with the given content.
  *
- * @param workspaces - The Yarn workspaces inside of this project.
- * @returns The new package list Markdown fragment.
+ * @param existingReadmeContent - The existing content of the README.
+ * @param newPackageList - The new list of packages to use.
+ * @param newDependencyGraph - The new graph of packages to use.
+ * @returns The new README content.
  */
-function getPackageList(workspaces: Workspace[]): string {
-  return workspaces
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((workspace) => `- [\`${workspace.name}\`](${workspace.location})`)
-    .join('\n');
-}
-
-/**
- * Updates the dependency graph section in the README with the given Markdown
- * fragment.
- *
- * @param newGraph - The new dependency graph Markdown fragment.
- * @param newPackageList - The new package list Markdown fragment.
- */
-async function updateReadme(
-  newGraph: string,
+async function generateNewReadmeContent(
+  existingReadmeContent: string,
   newPackageList: string,
-): Promise<void> {
-  const readmeContent = await fs.promises.readFile(README_PATH, 'utf8');
+  newDependencyGraph: string,
+): Promise<string> {
+  let newReadmeContent = existingReadmeContent;
 
-  // Dependency graph
-  let newReadmeContent = readmeContent.replace(
-    new RegExp(
-      `(${DEPENDENCY_GRAPH_START_MARKER}).+(${DEPENDENCY_GRAPH_END_MARKER})`,
-      'su',
-    ),
-    (_match, startMarker, endMarker) =>
-      [startMarker, '', newGraph, '', endMarker].join('\n'),
-  );
-
-  // Package list
   newReadmeContent = newReadmeContent.replace(
     new RegExp(
       `(${PACKAGE_LIST_START_MARKER}).+(${PACKAGE_LIST_END_MARKER})`,
@@ -185,5 +207,14 @@ async function updateReadme(
       [startMarker, '', newPackageList, '', endMarker].join('\n'),
   );
 
-  await fs.promises.writeFile(README_PATH, newReadmeContent);
+  newReadmeContent = newReadmeContent.replace(
+    new RegExp(
+      `(${DEPENDENCY_GRAPH_START_MARKER}).+(${DEPENDENCY_GRAPH_END_MARKER})`,
+      'su',
+    ),
+    (_match, startMarker, endMarker) =>
+      [startMarker, '', newDependencyGraph, '', endMarker].join('\n'),
+  );
+
+  return newReadmeContent;
 }

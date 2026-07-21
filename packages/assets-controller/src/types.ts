@@ -1,3 +1,4 @@
+import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipAssetType, CaipChainId, Json } from '@metamask/utils';
 
@@ -9,7 +10,7 @@ import type { CaipAssetType, CaipChainId, Json } from '@metamask/utils';
  * - Native: "eip155:1/slip44:60" (ETH)
  * - ERC20: "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" (USDC)
  * - ERC721: "eip155:1/erc721:0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D/1234" (BAYC #1234)
- * - SPL: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+ * - SPL: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
  */
 export type Caip19AssetId = CaipAssetType;
 
@@ -190,7 +191,7 @@ export type AssetMetadata =
  * Base price attributes.
  */
 export type BaseAssetPrice = {
-  /** Current price in USD */
+  /** Current price in selected currency */
   price: number;
   /** Timestamp of last price update */
   lastUpdated: number;
@@ -200,11 +201,10 @@ export type BaseAssetPrice = {
  * Price data for fungible tokens (native, ERC20, SPL)
  * Matches V3SpotPricesResponse from the Price API.
  */
-export type FungibleAssetPrice = {
+export type FungibleAssetPrice = BaseAssetPrice & {
+  assetPriceType: 'fungible';
   /** CoinGecko ID */
   id?: string;
-  /** Current price in USD */
-  price: number;
   /** Market capitalization */
   marketCap?: number;
   /** All-time high price */
@@ -239,14 +239,15 @@ export type FungibleAssetPrice = {
   pricePercentChange200d?: number;
   /** 1y price change percentage */
   pricePercentChange1y?: number;
-  /** Timestamp of last price update (added by client) */
-  lastUpdated: number;
+  /** Current price in USD */
+  usdPrice: number;
 };
 
 /**
  * Price data for NFT collections
  */
-export type NFTAssetPrice = {
+export type NFTAssetPrice = BaseAssetPrice & {
+  assetPriceType: 'nft';
   /** Floor price */
   floorPrice?: number;
   /** Last sale price */
@@ -257,16 +258,13 @@ export type NFTAssetPrice = {
   averagePrice?: number;
   /** Number of sales in 24h */
   sales24h?: number;
-} & BaseAssetPrice;
+};
 
 /**
  * Union type representing all possible asset price types.
  * All types must be JSON-serializable.
  */
-export type AssetPrice =
-  | FungibleAssetPrice
-  | NFTAssetPrice
-  | (BaseAssetPrice & { [key: string]: Json });
+export type AssetPrice = FungibleAssetPrice | NFTAssetPrice;
 
 // ============================================================================
 // BALANCE TYPES (vary by asset type)
@@ -340,10 +338,19 @@ export type DataRequest = {
   dataTypes: DataType[];
   /** Specific CAIP-19 asset IDs */
   customAssets?: Caip19AssetId[];
+  /**
+   * When true, the data source should poll only the user's `customAssets`
+   * for the requested chains and skip refreshing the regular tracked
+   * balances. Used by the AssetsController to issue a supplemental RPC
+   * subscription on chains that another data source is already covering.
+   */
+  customAssetsOnly?: boolean;
   /** Force fresh fetch, bypass cache */
   forceUpdate?: boolean;
   /** Hint for polling interval (ms) - used by data sources that implement polling */
   updateInterval?: number;
+  /** Specific CAIP-19 asset IDs for price update */
+  assetsForPriceUpdate?: Caip19AssetId[];
 };
 
 /**
@@ -360,7 +367,38 @@ export type DataResponse = {
   errors?: Record<ChainId, string>;
   /** Detected assets (assets that do not have metadata) */
   detectedAssets?: Record<AccountId, Caip19AssetId[]>;
+  /**
+   * How to apply this response to state. See {@link AssetsUpdateMode}.
+   * Defaults to `'merge'` if omitted.
+   */
+  updateMode?: AssetsUpdateMode;
+  /**
+   * When set with `updateMode: 'merge'`, balances on chains present in
+   * `assetsBalance` replace the prior chain slice (stale tokens on those chains
+   * are dropped). Custom assets on covered chains are preserved. Used for
+   * `getAssets({ forceUpdate: true })` so unlock/startup reflects the API snapshot
+   * without switching to `updateMode: 'full'`.
+   */
+  replaceCoveredChainBalances?: boolean;
 };
+
+/**
+ * Type of {@link DataResponse.updateMode}: how the controller applies the response to state.
+ *
+ * - **full**: Response is the full set for the scope. Assets in state but not in the
+ *   response are cleared (except custom assets). Use for initial fetch or full refresh.
+ * - **merge**: By default only assets present in the response are updated;
+ *   nothing is removed. When {@link DataResponse.replaceCoveredChainBalances}
+ *   is true, balances on chains present in the response replace the prior chain
+ *   slice (stale tokens on those chains are dropped; custom assets preserved).
+ *   Metadata and prices from the response are applied. Use for event-driven updates.
+ * - **update**: Balance-only overlay — incoming balance amounts are patched in place;
+ *   existing balances, metadata, and prices are never removed or overwritten.
+ *   Missing metadata and prices from the response are seeded so RPC-only chains
+ *   can render on first fetch. Use for force refresh when the API may return a
+ *   partial chain snapshot.
+ */
+export type AssetsUpdateMode = 'full' | 'merge' | 'update';
 
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
@@ -438,6 +476,8 @@ export type AssetsControllerStateInternal = {
   customAssets: Record<AccountId, Caip19AssetId[]>;
   /** UI preferences per asset (e.g. hidden) - separate from metadata */
   assetPreferences: Record<Caip19AssetId, AssetPreferences>;
+  /** Currently-active ISO 4217 currency code */
+  selectedCurrency: SupportedCurrency;
 };
 
 /**
@@ -451,6 +491,12 @@ export type Context = {
   response: DataResponse;
   /** Get current assets state */
   getAssetsState: () => AssetsControllerStateInternal;
+  /**
+   * Optional breakdown of latency (ms) per data source, e.g. from parallel
+   * middlewares. Keys are source names (often "MiddlewareName.SourceName").
+   * Merged into the controller's durationByDataSource for tracing.
+   */
+  durationByDataSource?: Record<string, number>;
 };
 
 /**
@@ -465,6 +511,16 @@ export type Middleware = (
   context: Context,
   next: NextFunction,
 ) => Promise<Context>;
+
+/**
+ * An assets data source: any object that can participate in the assets
+ * middleware chain with a display name (e.g. for tracing). Used by
+ * createParallelMiddleware and by the controller when executing the chain.
+ */
+export type AssetsDataSource = {
+  getName(): string;
+  assetsMiddleware: Middleware;
+};
 
 /**
  * Wraps a middleware to only execute if specific dataTypes are requested.

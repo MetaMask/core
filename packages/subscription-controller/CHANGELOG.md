@@ -7,11 +7,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.1]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.16.0` to `^62.17.1` ([#7897](https://github.com/MetaMask/core/pull/7897), [#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.3.0` ([#9119](https://github.com/MetaMask/core/pull/9119), [#9463](https://github.com/MetaMask/core/pull/9463))
+- Bump `@metamask/transaction-controller` from `^68.0.0` to `^69.0.0` ([#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218), [#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349), [#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.8` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [6.2.0]
+
+### Added
+
+- Expose missing `SubscriptionController:stopAllPolling` action through its messenger ([#9061](https://github.com/MetaMask/core/pull/9061))
+  - Corresponding action type is available as well.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.2.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.1` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^68.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848), [#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089))
+- Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+## [6.1.3]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^65.3.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613), [#8691](https://github.com/MetaMask/core/pull/8691), [#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.0.5` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [6.1.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/profile-sync-controller` from `^28.0.1` to `^28.0.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+## [6.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/polling-controller` from `^16.0.3` to `^16.0.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/profile-sync-controller` from `^28.0.0` to `^28.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/transaction-controller` from `^63.2.0` to `^63.3.1` ([#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [6.1.0]
+
+### Added
+
+- Expose all public `SubscriptionController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
+  - `SubscriptionController:getSubscriptionsEligibilities`
+  - `SubscriptionController:unCancelSubscription`
+  - `SubscriptionController:submitUserEvent`
+  - `SubscriptionController:assignUserToCohort`
+  - `SubscriptionController:getTokenApproveAmount`
+  - `SubscriptionController:getTokenMinimumBalanceAmount`
+  - `SubscriptionController:clearState`
+  - `SubscriptionController:triggerAccessTokenRefresh`
+  - Corresponding action types are now exported (e.g. `SubscriptionControllerGetPricingAction`)
+
+### Changed
+
+- Normalized payment token addresses before the comparison in `getCryptoApproveTransactionParams` method. ([#8297](https://github.com/MetaMask/core/pull/8297))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.2.0` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301))
+
+## [6.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^63.0.0` ([#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [6.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.16.0` to `^62.21.0` ([#7897](https://github.com/MetaMask/core/pull/7897), [#7996](https://github.com/MetaMask/core/pull/7996), [#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031), [#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/polling-controller` from `^16.0.2` to `^16.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+- Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
 
 ## [6.0.0]
 
@@ -299,7 +381,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.1...HEAD
+[6.2.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.0...@metamask/subscription-controller@6.2.1
+[6.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.3...@metamask/subscription-controller@6.2.0
+[6.1.3]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.2...@metamask/subscription-controller@6.1.3
+[6.1.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.1...@metamask/subscription-controller@6.1.2
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.0...@metamask/subscription-controller@6.1.1
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.0.2...@metamask/subscription-controller@6.1.0
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.0.1...@metamask/subscription-controller@6.0.2
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.0.0...@metamask/subscription-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.2...@metamask/subscription-controller@6.0.0
 [5.4.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.1...@metamask/subscription-controller@5.4.2
 [5.4.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.0...@metamask/subscription-controller@5.4.1

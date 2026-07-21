@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^2.0.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632), [#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [2.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
 ## [2.0.0]
 
 ### Changed
@@ -38,7 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5577](https://github.com/MetaMask/core/pull/5577))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/app-metadata-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/app-metadata-controller@2.0.1...HEAD
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/app-metadata-controller@2.0.0...@metamask/app-metadata-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/app-metadata-controller@1.1.1...@metamask/app-metadata-controller@2.0.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/app-metadata-controller@1.1.0...@metamask/app-metadata-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/app-metadata-controller@1.0.0...@metamask/app-metadata-controller@1.1.0

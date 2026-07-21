@@ -7,12 +7,12 @@ import type {
 import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 
+import { jestAdvanceTime } from '../../../../tests/helpers';
 import {
   MultichainTrackingHelper,
   MultichainTrackingHelperOptions,
 } from './MultichainTrackingHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
-import { jestAdvanceTime } from '../../../../tests/helpers';
 
 jest.mock(
   '@metamask/eth-query',
@@ -80,7 +80,7 @@ function newMultichainTrackingHelper(
   mockNonceLock: { releaseLock: jest.Mock };
   mockNonceTrackers: Record<Hex, jest.Mocked<NonceTracker>>;
   mockPendingTransactionTrackers: Record<
-    Hex,
+    NetworkClientId,
     jest.Mocked<PendingTransactionTracker>
   >;
 } {
@@ -178,19 +178,23 @@ function newMultichainTrackingHelper(
     });
 
   const mockPendingTransactionTrackers: Record<
-    Hex,
+    NetworkClientId,
     jest.Mocked<PendingTransactionTracker>
   > = {};
   const mockCreatePendingTransactionTracker = jest
     .fn()
-    .mockImplementation(({ chainId }: { chainId: Hex }) => {
-      const mockPendingTransactionTracker = {
-        start: jest.fn(),
-        stop: jest.fn(),
-      } as unknown as jest.Mocked<PendingTransactionTracker>;
-      mockPendingTransactionTrackers[chainId] = mockPendingTransactionTracker;
-      return mockPendingTransactionTracker;
-    });
+    .mockImplementation(
+      ({ networkClientId }: { networkClientId: NetworkClientId }) => {
+        const mockPendingTransactionTracker = {
+          start: jest.fn(),
+          stop: jest.fn(),
+        } as unknown as jest.Mocked<PendingTransactionTracker>;
+
+        mockPendingTransactionTrackers[networkClientId] =
+          mockPendingTransactionTracker;
+        return mockPendingTransactionTracker;
+      },
+    );
 
   const options = {
     isMultichainEnabled: true,
@@ -205,6 +209,7 @@ function newMultichainTrackingHelper(
     createNonceTracker: mockCreateNonceTracker,
     createPendingTransactionTracker: mockCreatePendingTransactionTracker,
     onNetworkStateChange: jest.fn(),
+    onInitialized: jest.fn(),
     ...opts,
   };
 
@@ -221,6 +226,8 @@ function newMultichainTrackingHelper(
 
 describe('MultichainTrackingHelper', () => {
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+
     for (const network of [
       'mainnet',
       'goerli',
@@ -232,22 +239,28 @@ describe('MultichainTrackingHelper', () => {
     }
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   describe('onNetworkStateChange', () => {
-    it('refreshes the tracking map', () => {
+    it('refreshes the tracking map', async () => {
       const { options, helper } = newMultichainTrackingHelper();
 
+      await jestAdvanceTime({ duration: 10 });
       options.onNetworkStateChange.mock.calls[0][0]({} as NetworkState, []);
 
-      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
+      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(2);
       expect(helper.has('mainnet')).toBe(true);
       expect(helper.has('goerli')).toBe(true);
       expect(helper.has('sepolia')).toBe(true);
       expect(helper.has('customNetworkClientId-1')).toBe(true);
     });
 
-    it('refreshes the tracking map and excludes removed networkClientIds in the patches', () => {
+    it('refreshes the tracking map and excludes removed networkClientIds in the patches', async () => {
       const { options, helper } = newMultichainTrackingHelper();
 
+      await jestAdvanceTime({ duration: 10 });
       options.onNetworkStateChange.mock.calls[0][0]({} as NetworkState, [
         {
           op: 'remove',
@@ -256,7 +269,7 @@ describe('MultichainTrackingHelper', () => {
         },
       ]);
 
-      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
+      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(2);
       expect(helper.has('mainnet')).toBe(false);
       expect(helper.has('goerli')).toBe(true);
       expect(helper.has('sepolia')).toBe(true);
@@ -264,11 +277,11 @@ describe('MultichainTrackingHelper', () => {
     });
   });
 
-  describe('initialize', () => {
-    it('initializes the tracking map', () => {
+  describe('#waitForNetworkController', () => {
+    it('initializes the tracking map', async () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      helper.initialize();
+      await jestAdvanceTime({ duration: 10 });
 
       expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
       expect(helper.has('mainnet')).toBe(true);
@@ -279,10 +292,10 @@ describe('MultichainTrackingHelper', () => {
   });
 
   describe('stopAllTracking', () => {
-    it('clears the tracking map', () => {
+    it('clears the tracking map', async () => {
       const { helper } = newMultichainTrackingHelper();
 
-      helper.initialize();
+      await jestAdvanceTime({ duration: 10 });
 
       expect(helper.has('mainnet')).toBe(true);
       expect(helper.has('goerli')).toBe(true);
@@ -299,7 +312,7 @@ describe('MultichainTrackingHelper', () => {
   });
 
   describe('#startTrackingByNetworkClientId', () => {
-    it('instantiates trackers and adds them to the tracking map', () => {
+    it('instantiates trackers and adds them to the tracking map', async () => {
       const { options, helper } = newMultichainTrackingHelper({
         getNetworkClientRegistry: jest.fn().mockReturnValue({
           mainnet: {
@@ -310,7 +323,7 @@ describe('MultichainTrackingHelper', () => {
         }),
       });
 
-      helper.initialize();
+      await jestAdvanceTime({ duration: 10 });
 
       expect(options.createNonceTracker).toHaveBeenCalledTimes(1);
       expect(options.createNonceTracker).toHaveBeenCalledWith({
@@ -321,9 +334,7 @@ describe('MultichainTrackingHelper', () => {
 
       expect(options.createPendingTransactionTracker).toHaveBeenCalledTimes(1);
       expect(options.createPendingTransactionTracker).toHaveBeenCalledWith({
-        provider: MOCK_PROVIDERS.mainnet,
         blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
-        chainId: '0x1',
         networkClientId: 'mainnet',
       });
 
@@ -332,7 +343,7 @@ describe('MultichainTrackingHelper', () => {
   });
 
   describe('#stopTrackingByNetworkClientId', () => {
-    it('stops trackers and removes them from the tracking map', () => {
+    it('stops trackers and removes them from the tracking map', async () => {
       const { options, mockPendingTransactionTrackers, helper } =
         newMultichainTrackingHelper({
           getNetworkClientRegistry: jest.fn().mockReturnValue({
@@ -344,16 +355,16 @@ describe('MultichainTrackingHelper', () => {
           }),
         });
 
-      helper.initialize();
+      await jestAdvanceTime({ duration: 10 });
 
       expect(helper.has('mainnet')).toBe(true);
 
       helper.stopAllTracking();
 
-      expect(mockPendingTransactionTrackers['0x1'].stop).toHaveBeenCalled();
+      expect(mockPendingTransactionTrackers.mainnet.stop).toHaveBeenCalled();
       expect(
         options.removePendingTransactionTrackerListeners,
-      ).toHaveBeenCalledWith(mockPendingTransactionTrackers['0x1']);
+      ).toHaveBeenCalledWith(mockPendingTransactionTrackers.mainnet);
       expect(helper.has('mainnet')).toBe(false);
     });
   });
@@ -367,7 +378,7 @@ describe('MultichainTrackingHelper', () => {
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
           .mockResolvedValue(jest.fn());
 
-        helper.initialize();
+        await jestAdvanceTime({ duration: 10 });
 
         await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
@@ -384,7 +395,7 @@ describe('MultichainTrackingHelper', () => {
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
           .mockResolvedValue(jest.fn());
 
-        helper.initialize();
+        await jestAdvanceTime({ duration: 10 });
 
         await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
@@ -401,7 +412,7 @@ describe('MultichainTrackingHelper', () => {
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
           .mockResolvedValue(releaseLockForChainIdKey);
 
-        helper.initialize();
+        await jestAdvanceTime({ duration: 10 });
 
         const nonceLock = await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
@@ -415,7 +426,9 @@ describe('MultichainTrackingHelper', () => {
       });
 
       it('throws an error if the networkClientId does not exist in the tracking map', async () => {
-        const { helper } = newMultichainTrackingHelper();
+        const { helper } = newMultichainTrackingHelper({
+          getNetworkClientRegistry: jest.fn().mockReturnValue({}),
+        });
 
         jest
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
@@ -438,7 +451,7 @@ describe('MultichainTrackingHelper', () => {
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
           .mockResolvedValue(releaseLockForChainIdKey);
 
-        helper.initialize();
+        await jestAdvanceTime({ duration: 10 });
 
         mockNonceTrackers['0x1'].getNonceLock.mockRejectedValue(
           'failed to acquire lock from nonceTracker',
@@ -472,7 +485,6 @@ describe('MultichainTrackingHelper', () => {
     });
 
     it('should block on attempts to get the lock for the same chainId and key combination', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
       const { helper } = newMultichainTrackingHelper();
 
       const firstReleaseLockPromise = helper.acquireNonceLockForChainIdKey({
@@ -512,8 +524,6 @@ describe('MultichainTrackingHelper', () => {
       ]);
 
       expect(secondReleaseLockIfAcquired).toStrictEqual(expect.any(Function));
-
-      jest.useRealTimers();
     });
   });
 
@@ -528,7 +538,6 @@ describe('MultichainTrackingHelper', () => {
         });
         expect(provider).toBe(MOCK_PROVIDERS.goerli);
 
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
       });
 
@@ -541,7 +550,6 @@ describe('MultichainTrackingHelper', () => {
         });
         expect(provider).toBe(MOCK_PROVIDERS['customNetworkClientId-1']);
 
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(2);
         expect(options.getNetworkClientById).toHaveBeenCalledWith(
           'missingNetworkClientId',
         );
@@ -563,7 +571,6 @@ describe('MultichainTrackingHelper', () => {
         });
         expect(provider).toBe(MOCK_PROVIDERS.goerli);
 
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
       });
     });
@@ -575,7 +582,6 @@ describe('MultichainTrackingHelper', () => {
         const { provider } = helper.getNetworkClient({ chainId: '0xa' });
         expect(provider).toBe(MOCK_PROVIDERS['customNetworkClientId-1']);
 
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
           '0xa',
         );

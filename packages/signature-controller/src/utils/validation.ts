@@ -10,13 +10,13 @@ import type { Json } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { validate } from 'jsonschema';
 
-import { isDelegationRequest } from './delegations';
 import type {
   MessageParamsPersonal,
   MessageParamsTyped,
   MessageParamsTypedData,
   OriginalRequest,
 } from '../types';
+import { isDelegationRequest } from './delegations';
 
 export const PRIMARY_TYPE_DELEGATION = 'Delegation';
 export const DELEGATOR_FIELD = 'delegator';

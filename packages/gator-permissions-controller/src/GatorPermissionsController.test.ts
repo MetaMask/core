@@ -2,6 +2,7 @@ import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   createTimestampTerms,
   createNativeTokenStreamingTerms,
+  encodeDelegations,
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
 import {
@@ -14,28 +15,70 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
+import type {
+  SnapControllerHandleRequestAction,
+  SnapControllerHasSnapAction,
+} from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { hexToBigInt, numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { DELEGATION_FRAMEWORK_VERSION } from './constants';
-import { GatorPermissionsFetchError } from './errors';
-import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
-import GatorPermissionsController from './GatorPermissionsController';
+import { flushPromises } from '../../../tests/helpers';
 import {
   mockGatorPermissionsStorageEntriesFactory,
   mockNativeTokenStreamStorageEntry,
-} from './test/mocks';
+} from '../tests/mocks';
+import { DELEGATION_FRAMEWORK_VERSION } from './constants';
+import { GatorPermissionsFetchError } from './errors';
+import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
+import { GatorPermissionsController } from './GatorPermissionsController';
 import type {
   PermissionInfoWithMetadata,
+  GatorPermissionStatus,
   StoredGatorPermission,
   RevocationParams,
   SupportedPermissionType,
 } from './types';
-import { flushPromises } from '../../../tests/helpers';
+
+const PERMISSION_STATUSES: GatorPermissionStatus[] = [
+  'Active',
+  'Revoked',
+  'Expired',
+];
+
+/**
+ * Default JSON-RPC behavior for permission status sync tests (disabled = false,
+ * latest block far in the future).
+ *
+ * @returns A Jest mock function suitable as a provider `request` implementation.
+ */
+function createDefaultPermissionStatusProviderRequest(): jest.MockedFunction<
+  (args: { method: string; params?: unknown[] }) => Promise<unknown>
+> {
+  return jest.fn(async (req) => {
+    if (req.method === 'eth_call') {
+      return '0x0000000000000000000000000000000000000000000000000000000000000000';
+    }
+    if (req.method === 'eth_getBlockByNumber') {
+      return { timestamp: '0x77359400' };
+    }
+    throw new Error(`Unexpected RPC method in tests: ${req.method}`);
+  });
+}
+
+/**
+ * Handlers last wired by {@link getRootMessenger} for NetworkController actions
+ * (assertable when sync must resolve on-chain permission status).
+ */
+let lastNetworkControllerTestMocks: {
+  findNetworkClientIdByChainId: jest.Mock;
+  getNetworkClientById: jest.Mock;
+  permissionStatusProviderRequest: jest.MockedFunction<
+    (args: { method: string; params?: unknown[] }) => Promise<unknown>
+  >;
+} | null = null;
 
 const MOCK_CHAIN_ID_1: Hex = '0xaa36a7';
 const MOCK_CHAIN_ID_2: Hex = '0x1';
@@ -43,6 +86,7 @@ const MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID =
   'local:http://localhost:8082' as SnapId;
 
 const DEFAULT_TEST_CONFIG = {
+  gatorPermissionsProviderSnapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
   supportedPermissionTypes: [
     'native-token-stream',
     'native-token-periodic',
@@ -141,6 +185,24 @@ describe('GatorPermissionsController', () => {
 
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
     });
+
+    it('instantiates successfully without gatorPermissionsProviderSnapId', () => {
+      const configWithoutSnapId = {
+        supportedPermissionTypes: DEFAULT_TEST_CONFIG.supportedPermissionTypes,
+      };
+
+      let controller: GatorPermissionsController | undefined;
+
+      expect(() => {
+        controller = new GatorPermissionsController({
+          messenger: getGatorPermissionsControllerMessenger(),
+          config: configWithoutSnapId,
+        });
+      }).not.toThrow();
+
+      expect(controller).toBeDefined();
+      expect(controller?.state.grantedPermissions).toStrictEqual([]);
+    });
   });
 
   describe('fetchAndUpdateGatorPermissions', () => {
@@ -180,7 +242,9 @@ describe('GatorPermissionsController', () => {
         config: DEFAULT_TEST_CONFIG,
       });
 
-      await controller.fetchAndUpdateGatorPermissions();
+      await rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
 
       const { grantedPermissions } = controller.state;
       expect(Array.isArray(grantedPermissions)).toBe(true);
@@ -193,6 +257,7 @@ describe('GatorPermissionsController', () => {
       grantedPermissions.forEach((entry) => {
         expect(entry.permissionResponse).toBeDefined();
         expect(entry.siteOrigin).toBeDefined();
+        expect(PERMISSION_STATUSES).toContain(entry.status);
         // Sanitized response omits internal fields (to, dependencies)
         expect(
           (entry.permissionResponse as Record<string, unknown>).to,
@@ -219,6 +284,142 @@ describe('GatorPermissionsController', () => {
           },
         },
       ]);
+    });
+
+    it('calls NetworkController to resolve on-chain status when snap returns a single-delegation context', async () => {
+      const frameworkContracts =
+        DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][CHAIN_ID.sepolia];
+      const { NativeTokenStreamingEnforcer, DelegationManager } =
+        frameworkContracts;
+
+      const delegation = {
+        delegate: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
+        delegator: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+        authority: ROOT_AUTHORITY,
+        caveats: [
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: createNativeTokenStreamingTerms({
+              initialAmount: hexToBigInt('0x6f05b59d3b20000'),
+              maxAmount: hexToBigInt('0x22b1c8c1227a0000'),
+              amountPerSecond: hexToBigInt('0x6f05b59d3b20000'),
+              startTime: 1747699200,
+            }),
+            args: '0x',
+          },
+        ],
+        salt: 0n,
+        signature: '0x' as Hex,
+      };
+      const encodedContext = encodeDelegations([delegation]);
+      const base = mockNativeTokenStreamStorageEntry(MOCK_CHAIN_ID_1);
+      const storedEntry = {
+        ...base,
+        permissionResponse: {
+          ...base.permissionResponse,
+          context: encodedContext,
+          delegationManager: DelegationManager,
+        },
+      };
+
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: jest
+          .fn()
+          .mockResolvedValue([storedEntry]),
+      });
+
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+        config: DEFAULT_TEST_CONFIG,
+      });
+
+      await rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
+
+      expect(lastNetworkControllerTestMocks).not.toBeNull();
+      expect(
+        lastNetworkControllerTestMocks?.findNetworkClientIdByChainId,
+      ).toHaveBeenCalledWith(MOCK_CHAIN_ID_1);
+      expect(
+        lastNetworkControllerTestMocks?.getNetworkClientById,
+      ).toHaveBeenCalledWith('test-network-client-id');
+      expect(
+        lastNetworkControllerTestMocks?.permissionStatusProviderRequest,
+      ).toHaveBeenCalled();
+
+      expect(controller.state.grantedPermissions).toHaveLength(1);
+      expect(controller.state.grantedPermissions[0].status).toBe('Active');
+    });
+
+    it('defaults merged status to Active when persisted row omits status for the same context', async () => {
+      const frameworkContracts =
+        DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][CHAIN_ID.sepolia];
+      const { NativeTokenStreamingEnforcer, DelegationManager } =
+        frameworkContracts;
+
+      const delegation = {
+        delegate: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
+        delegator: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+        authority: ROOT_AUTHORITY,
+        caveats: [
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: createNativeTokenStreamingTerms({
+              initialAmount: hexToBigInt('0x6f05b59d3b20000'),
+              maxAmount: hexToBigInt('0x22b1c8c1227a0000'),
+              amountPerSecond: hexToBigInt('0x6f05b59d3b20000'),
+              startTime: 1747699200,
+            }),
+            args: '0x',
+          },
+        ],
+        salt: 0n,
+        signature: '0x' as Hex,
+      };
+      const encodedContext = encodeDelegations([delegation]);
+      const base = mockNativeTokenStreamStorageEntry(MOCK_CHAIN_ID_1);
+      const storedEntry = {
+        ...base,
+        permissionResponse: {
+          ...base.permissionResponse,
+          context: encodedContext,
+          delegationManager: DelegationManager,
+        },
+      };
+
+      const persistedRowMissingStatus = {
+        permissionResponse: {
+          chainId: storedEntry.permissionResponse.chainId,
+          from: storedEntry.permissionResponse.from,
+          permission: storedEntry.permissionResponse.permission,
+          context: encodedContext,
+          delegationManager: DelegationManager,
+        },
+        siteOrigin: storedEntry.siteOrigin,
+      } as PermissionInfoWithMetadata;
+
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: jest
+          .fn()
+          .mockResolvedValue([storedEntry]),
+      });
+
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+        config: DEFAULT_TEST_CONFIG,
+        state: {
+          grantedPermissions: [persistedRowMissingStatus],
+          lastSyncedTimestamp: 1,
+        },
+      });
+
+      await rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
+
+      expect(controller.state.grantedPermissions).toHaveLength(1);
+      expect(controller.state.grantedPermissions[0].status).toBe('Active');
     });
 
     it('categorizes erc20-token-revocation permissions into its own bucket', async () => {
@@ -251,7 +452,9 @@ describe('GatorPermissionsController', () => {
         config: DEFAULT_TEST_CONFIG,
       });
 
-      await controller.fetchAndUpdateGatorPermissions();
+      await rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
 
       const { grantedPermissions } = controller.state;
       expect(grantedPermissions).toHaveLength(1);
@@ -259,6 +462,7 @@ describe('GatorPermissionsController', () => {
         'erc20-token-revocation',
       );
       expect(grantedPermissions[0].permissionResponse.chainId).toBe(chainId);
+      expect(PERMISSION_STATUSES).toContain(grantedPermissions[0].status);
     });
 
     it('handles null permissions data', async () => {
@@ -271,7 +475,9 @@ describe('GatorPermissionsController', () => {
         config: DEFAULT_TEST_CONFIG,
       });
 
-      await controller.fetchAndUpdateGatorPermissions();
+      await rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
 
       expect(controller.state.grantedPermissions).toStrictEqual([]);
     });
@@ -286,7 +492,9 @@ describe('GatorPermissionsController', () => {
         config: DEFAULT_TEST_CONFIG,
       });
 
-      await controller.fetchAndUpdateGatorPermissions();
+      await rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
 
       expect(controller.state.grantedPermissions).toStrictEqual([]);
     });
@@ -303,9 +511,11 @@ describe('GatorPermissionsController', () => {
         config: DEFAULT_TEST_CONFIG,
       });
 
-      await expect(controller.fetchAndUpdateGatorPermissions()).rejects.toThrow(
-        'Failed to fetch gator permissions',
-      );
+      await expect(
+        rootMessenger.call(
+          'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+        ),
+      ).rejects.toThrow('Failed to fetch gator permissions');
 
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
       expect(controller.state.lastSyncedTimestamp).toBe(-1);
@@ -326,13 +536,18 @@ describe('GatorPermissionsController', () => {
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
 
-      const controller = new GatorPermissionsController({
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger: getGatorPermissionsControllerMessenger(rootMessenger),
         config: DEFAULT_TEST_CONFIG,
       });
 
-      const promise1 = controller.fetchAndUpdateGatorPermissions();
-      const promise2 = controller.fetchAndUpdateGatorPermissions();
+      const promise1 = rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
+      const promise2 = rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
 
       expect(promise1).toBe(promise2);
 
@@ -348,15 +563,20 @@ describe('GatorPermissionsController', () => {
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
 
-      const controller = new GatorPermissionsController({
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger: getGatorPermissionsControllerMessenger(rootMessenger),
         config: DEFAULT_TEST_CONFIG,
       });
 
-      await controller.fetchAndUpdateGatorPermissions();
+      await rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
       expect(mockHandleRequestHandler).toHaveBeenCalledTimes(1);
 
-      await controller.fetchAndUpdateGatorPermissions();
+      await rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
       expect(mockHandleRequestHandler).toHaveBeenCalledTimes(2);
     });
   });
@@ -377,7 +597,7 @@ describe('GatorPermissionsController', () => {
 
       expect(controller.state.lastSyncedTimestamp).toBe(-1);
 
-      await controller.initialize();
+      await rootMessenger.call('GatorPermissionsController:initialize');
 
       expect(mockHandleRequestHandler).toHaveBeenCalledTimes(1);
       expect(controller.state.lastSyncedTimestamp).not.toBe(-1);
@@ -399,7 +619,7 @@ describe('GatorPermissionsController', () => {
         state: { lastSyncedTimestamp: recentTimestamp },
       });
 
-      await controller.initialize();
+      await rootMessenger.call('GatorPermissionsController:initialize');
 
       expect(mockHandleRequestHandler).not.toHaveBeenCalled();
       expect(controller.state.lastSyncedTimestamp).toBe(recentTimestamp);
@@ -421,7 +641,7 @@ describe('GatorPermissionsController', () => {
         state: { lastSyncedTimestamp: staleTimestamp },
       });
 
-      await controller.initialize();
+      await rootMessenger.call('GatorPermissionsController:initialize');
 
       expect(mockHandleRequestHandler).toHaveBeenCalledTimes(1);
       expect(controller.state.lastSyncedTimestamp).not.toBe(staleTimestamp);
@@ -446,7 +666,7 @@ describe('GatorPermissionsController', () => {
         state: { lastSyncedTimestamp: lastSyncedTwoSecondsAgo },
       });
 
-      await controller.initialize();
+      await rootMessenger.call('GatorPermissionsController:initialize');
 
       expect(mockHandleRequestHandler).toHaveBeenCalledTimes(1);
       expect(controller.state.lastSyncedTimestamp).not.toBe(
@@ -575,27 +795,32 @@ describe('GatorPermissionsController', () => {
     });
 
     let controller: GatorPermissionsController;
+    let rootMessenger: RootMessenger;
 
     beforeEach(() => {
+      rootMessenger = getRootMessenger();
       controller = new GatorPermissionsController({
-        messenger: getGatorPermissionsControllerMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
         config: DEFAULT_TEST_CONFIG,
       });
     });
 
     it('throws if contracts are not found', () => {
       expect(() =>
-        controller.decodePermissionFromPermissionContextForOrigin({
-          origin: controller.gatorPermissionsProviderSnapId,
-          chainId: 999999,
-          delegation: {
-            caveats: [],
-            delegator: '0x1111111111111111111111111111111111111111',
-            delegate: '0x2222222222222222222222222222222222222222',
-            authority: ROOT_AUTHORITY as Hex,
+        rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId: 999999,
+            delegation: {
+              caveats: [],
+              delegator: '0x1111111111111111111111111111111111111111',
+              delegate: '0x2222222222222222222222222222222222222222',
+              authority: ROOT_AUTHORITY as Hex,
+            },
+            metadata: buildMetadata(''),
           },
-          metadata: buildMetadata(''),
-        }),
+        ),
       ).toThrow('Contracts not found for chainId: 999999');
     });
 
@@ -610,9 +835,9 @@ describe('GatorPermissionsController', () => {
       const delegator = delegatorAddressA;
       const delegate = delegateAddressB;
 
-      const timestampBeforeThreshold = 1720000;
+      const beforeThreshold = 1720000;
       const expiryTerms = createTimestampTerms(
-        { timestampAfterThreshold: 0, timestampBeforeThreshold },
+        { afterThreshold: 0, beforeThreshold },
         { out: 'hex' },
       );
 
@@ -647,18 +872,21 @@ describe('GatorPermissionsController', () => {
         caveats,
       };
 
-      const result = controller.decodePermissionFromPermissionContextForOrigin({
-        origin: controller.gatorPermissionsProviderSnapId,
-        chainId,
-        delegation,
-        metadata: buildMetadata('Test justification'),
-      });
+      const result = rootMessenger.call(
+        'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+        {
+          origin: controller.gatorPermissionsProviderSnapId,
+          chainId,
+          delegation,
+          metadata: buildMetadata('Test justification'),
+        },
+      );
 
       expect(result.chainId).toBe(numberToHex(chainId));
       expect(result.from).toBe(delegator);
       expect(result.to).toStrictEqual(delegate);
       expect(result.permission.type).toBe('native-token-stream');
-      expect(result.expiry).toBe(timestampBeforeThreshold);
+      expect(result.expiry).toBe(beforeThreshold);
       // amounts are hex-encoded in decoded data; startTime is numeric
       expect(result.permission.data.startTime).toBe(startTime);
       // BigInt fields are encoded as hex; compare after decoding
@@ -674,17 +902,20 @@ describe('GatorPermissionsController', () => {
 
     it('throws when origin does not match permissions provider', () => {
       expect(() =>
-        controller.decodePermissionFromPermissionContextForOrigin({
-          origin: 'not-the-provider',
-          chainId: 1,
-          delegation: {
-            delegate: '0x1',
-            delegator: '0x2',
-            authority: ROOT_AUTHORITY as Hex,
-            caveats: [],
+        rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: 'not-the-provider',
+            chainId: 1,
+            delegation: {
+              delegate: '0x1',
+              delegator: '0x2',
+              authority: ROOT_AUTHORITY as Hex,
+              caveats: [],
+            },
+            metadata: buildMetadata(''),
           },
-          metadata: buildMetadata(''),
-        }),
+        ),
       ).toThrow('Origin not-the-provider not allowed');
     });
 
@@ -692,7 +923,7 @@ describe('GatorPermissionsController', () => {
       const { TimestampEnforcer, ValueLteEnforcer } = contracts;
 
       const expiryTerms = createTimestampTerms(
-        { timestampAfterThreshold: 0, timestampBeforeThreshold: 100 },
+        { afterThreshold: 0, beforeThreshold: 100 },
         { out: 'hex' },
       );
 
@@ -707,17 +938,68 @@ describe('GatorPermissionsController', () => {
       ];
 
       expect(() =>
-        controller.decodePermissionFromPermissionContextForOrigin({
-          origin: controller.gatorPermissionsProviderSnapId,
-          chainId,
-          delegation: {
-            delegate: delegatorAddressA,
-            delegator: delegateAddressB,
-            authority: ROOT_AUTHORITY as Hex,
-            caveats,
+        rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId,
+            delegation: {
+              delegate: delegatorAddressA,
+              delegator: delegateAddressB,
+              authority: ROOT_AUTHORITY as Hex,
+              caveats,
+            },
+            metadata: buildMetadata(''),
           },
-          metadata: buildMetadata(''),
-        }),
+        ),
+      ).toThrow('Failed to decode permission');
+    });
+
+    it('throws when caveat terms are invalid for the matched permission rule', () => {
+      const {
+        TimestampEnforcer,
+        NativeTokenStreamingEnforcer,
+        ExactCalldataEnforcer,
+        NonceEnforcer,
+      } = contracts;
+
+      const expiryTerms = createTimestampTerms(
+        { afterThreshold: 0, beforeThreshold: 1720000 },
+        { out: 'hex' },
+      );
+
+      // Enforcers match native-token-stream but stream terms are truncated (invalid)
+      const truncatedStreamTerms: Hex = `0x${'00'.repeat(50)}`;
+      const caveats = [
+        {
+          enforcer: TimestampEnforcer,
+          terms: expiryTerms,
+          args: '0x',
+        } as const,
+        {
+          enforcer: NativeTokenStreamingEnforcer,
+          terms: truncatedStreamTerms,
+          args: '0x',
+        } as const,
+        { enforcer: ExactCalldataEnforcer, terms: '0x', args: '0x' } as const,
+        { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
+      ];
+
+      expect(() =>
+        rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+            chainId,
+            delegation: {
+              delegate: delegatorAddressA,
+              delegator: delegateAddressB,
+              authority: ROOT_AUTHORITY as Hex,
+              caveats,
+            },
+            metadata: buildMetadata(''),
+          },
+        ),
       ).toThrow('Failed to decode permission');
     });
 
@@ -732,9 +1014,9 @@ describe('GatorPermissionsController', () => {
       const delegator = delegatorAddressA;
       const delegate = delegateAddressB;
 
-      const timestampBeforeThreshold = 2000;
+      const beforeThreshold = 2000;
       const expiryTerms = createTimestampTerms(
-        { timestampAfterThreshold: 0, timestampBeforeThreshold },
+        { afterThreshold: 0, beforeThreshold },
         { out: 'hex' },
       );
 
@@ -766,17 +1048,20 @@ describe('GatorPermissionsController', () => {
         '0x0000000000000000000000000000000000000000' as Hex;
 
       expect(() =>
-        controller.decodePermissionFromPermissionContextForOrigin({
-          origin: controller.gatorPermissionsProviderSnapId,
-          chainId,
-          delegation: {
-            delegate,
-            delegator,
-            authority: invalidAuthority,
-            caveats,
+        rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId,
+            delegation: {
+              delegate,
+              delegator,
+              authority: invalidAuthority,
+              caveats,
+            },
+            metadata: buildMetadata(''),
           },
-          metadata: buildMetadata(''),
-        }),
+        ),
       ).toThrow('Failed to decode permission');
     });
   });
@@ -784,11 +1069,10 @@ describe('GatorPermissionsController', () => {
   describe('submitRevocation', () => {
     it('should successfully submit a revocation when gator permissions are enabled', async () => {
       const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
-      const messenger = getMessenger(
-        getRootMessenger({
-          snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
-        }),
-      );
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
 
       const controller = new GatorPermissionsController({
         messenger,
@@ -812,7 +1096,10 @@ describe('GatorPermissionsController', () => {
         txHash: undefined,
       };
 
-      await controller.submitRevocation(revocationParams);
+      await rootMessenger.call(
+        'GatorPermissionsController:submitRevocation',
+        revocationParams,
+      );
 
       expect(mockHandleRequestHandler).toHaveBeenCalledWith({
         snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
@@ -829,12 +1116,12 @@ describe('GatorPermissionsController', () => {
 
     it('should submit revocation when controller is configured', async () => {
       const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
-      const messenger = getMessenger(
-        getRootMessenger({
-          snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
-        }),
-      );
-      const controller = new GatorPermissionsController({
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger,
         config: DEFAULT_TEST_CONFIG,
       });
@@ -845,7 +1132,10 @@ describe('GatorPermissionsController', () => {
       };
 
       expect(
-        await controller.submitRevocation(revocationParams),
+        await rootMessenger.call(
+          'GatorPermissionsController:submitRevocation',
+          revocationParams,
+        ),
       ).toBeUndefined();
     });
 
@@ -853,13 +1143,13 @@ describe('GatorPermissionsController', () => {
       const mockHandleRequestHandler = jest
         .fn()
         .mockRejectedValue(new Error('Snap request failed'));
-      const messenger = getMessenger(
-        getRootMessenger({
-          snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
-        }),
-      );
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
 
-      const controller = new GatorPermissionsController({
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger,
         config: {
           ...DEFAULT_TEST_CONFIG,
@@ -874,7 +1164,10 @@ describe('GatorPermissionsController', () => {
       };
 
       await expect(
-        controller.submitRevocation(revocationParams),
+        rootMessenger.call(
+          'GatorPermissionsController:submitRevocation',
+          revocationParams,
+        ),
       ).rejects.toThrow(
         'Failed to handle snap request to gator permissions provider for method permissionsProvider_submitRevocation',
       );
@@ -882,11 +1175,10 @@ describe('GatorPermissionsController', () => {
 
     it('should clear pending revocation in finally block even if refresh fails', async () => {
       const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
-      const messenger = getMessenger(
-        getRootMessenger({
-          snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
-        }),
-      );
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
 
       const controller = new GatorPermissionsController({
         messenger,
@@ -923,12 +1215,18 @@ describe('GatorPermissionsController', () => {
       // Should throw GatorPermissionsFetchError (not GatorPermissionsProviderError)
       // because revocation succeeded but refresh failed
       await expect(
-        controller.submitRevocation(revocationParams),
+        rootMessenger.call(
+          'GatorPermissionsController:submitRevocation',
+          revocationParams,
+        ),
       ).rejects.toThrow(GatorPermissionsFetchError);
 
       // Verify the error message indicates refresh failure, not revocation failure
       await expect(
-        controller.submitRevocation(revocationParams),
+        rootMessenger.call(
+          'GatorPermissionsController:submitRevocation',
+          revocationParams,
+        ),
       ).rejects.toThrow(
         'Failed to refresh permissions list after successful revocation',
       );
@@ -941,11 +1239,10 @@ describe('GatorPermissionsController', () => {
   describe('submitDirectRevocation', () => {
     it('should add to pending revocations and immediately submit revocation', async () => {
       const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
-      const messenger = getMessenger(
-        getRootMessenger({
-          snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
-        }),
-      );
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
 
       const controller = new GatorPermissionsController({
         messenger,
@@ -961,7 +1258,10 @@ describe('GatorPermissionsController', () => {
         txHash: undefined,
       };
 
-      await controller.submitDirectRevocation(revocationParams);
+      await rootMessenger.call(
+        'GatorPermissionsController:submitDirectRevocation',
+        revocationParams,
+      );
 
       // Should have called submitRevocation
       expect(mockHandleRequestHandler).toHaveBeenCalledWith({
@@ -981,11 +1281,10 @@ describe('GatorPermissionsController', () => {
 
     it('should add pending revocation with placeholder txId', async () => {
       const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
-      const messenger = getMessenger(
-        getRootMessenger({
-          snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
-        }),
-      );
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
 
       const controller = new GatorPermissionsController({
         messenger,
@@ -1006,7 +1305,10 @@ describe('GatorPermissionsController', () => {
       // Spy on submitRevocation to check pending state before it's called
       const submitRevocationSpy = jest.spyOn(controller, 'submitRevocation');
 
-      await controller.submitDirectRevocation(revocationParams);
+      await rootMessenger.call(
+        'GatorPermissionsController:submitDirectRevocation',
+        revocationParams,
+      );
 
       // Verify that pending revocation was added (before submitRevocation clears it)
       // We check by verifying submitRevocation was called, which clears pending
@@ -1018,11 +1320,10 @@ describe('GatorPermissionsController', () => {
       const mockHandleRequestHandler = jest
         .fn()
         .mockRejectedValue(new Error('Snap request failed'));
-      const messenger = getMessenger(
-        getRootMessenger({
-          snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
-        }),
-      );
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
 
       const controller = new GatorPermissionsController({
         messenger,
@@ -1041,7 +1342,10 @@ describe('GatorPermissionsController', () => {
       };
 
       await expect(
-        controller.submitDirectRevocation(revocationParams),
+        rootMessenger.call(
+          'GatorPermissionsController:submitDirectRevocation',
+          revocationParams,
+        ),
       ).rejects.toThrow(
         'Failed to handle snap request to gator permissions provider for method permissionsProvider_submitRevocation',
       );
@@ -1054,10 +1358,12 @@ describe('GatorPermissionsController', () => {
 
   describe('isPendingRevocation', () => {
     it('should return true when permission context is in pending revocations', () => {
-      const messenger = getMessenger();
+      const rootMessenger = getRootMessenger();
+      const messenger = getMessenger(rootMessenger);
       const permissionContext =
         '0x1234567890abcdef1234567890abcdef12345678' as Hex;
-      const controller = new GatorPermissionsController({
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger,
         config: {
           ...DEFAULT_TEST_CONFIG,
@@ -1074,12 +1380,19 @@ describe('GatorPermissionsController', () => {
         },
       });
 
-      expect(controller.isPendingRevocation(permissionContext)).toBe(true);
+      expect(
+        rootMessenger.call(
+          'GatorPermissionsController:isPendingRevocation',
+          permissionContext,
+        ),
+      ).toBe(true);
     });
 
     it('should return false when permission context is not in pending revocations', () => {
-      const messenger = getMessenger();
-      const controller = new GatorPermissionsController({
+      const rootMessenger = getRootMessenger();
+      const messenger = getMessenger(rootMessenger);
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger,
         config: {
           ...DEFAULT_TEST_CONFIG,
@@ -1097,17 +1410,20 @@ describe('GatorPermissionsController', () => {
       });
 
       expect(
-        controller.isPendingRevocation(
+        rootMessenger.call(
+          'GatorPermissionsController:isPendingRevocation',
           '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef' as Hex,
         ),
       ).toBe(false);
     });
 
     it('should be case-insensitive when checking permission context', () => {
-      const messenger = getMessenger();
+      const rootMessenger = getRootMessenger();
+      const messenger = getMessenger(rootMessenger);
       const permissionContext =
         '0x1234567890abcdef1234567890abcdef12345678' as Hex;
-      const controller = new GatorPermissionsController({
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger,
         config: {
           ...DEFAULT_TEST_CONFIG,
@@ -1125,7 +1441,10 @@ describe('GatorPermissionsController', () => {
       });
 
       expect(
-        controller.isPendingRevocation(permissionContext.toUpperCase() as Hex),
+        rootMessenger.call(
+          'GatorPermissionsController:isPendingRevocation',
+          permissionContext.toUpperCase() as Hex,
+        ),
       ).toBe(true);
     });
   });
@@ -1146,7 +1465,8 @@ describe('GatorPermissionsController', () => {
       });
       const messenger = getMessenger(rootMessenger);
 
-      const controller = new GatorPermissionsController({
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger,
         config: {
           ...DEFAULT_TEST_CONFIG,
@@ -1158,7 +1478,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Emit transaction approved event (user confirms)
       rootMessenger.publish('TransactionController:transactionApproved', {
@@ -1217,7 +1540,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Emit transaction approved event (user confirms)
       rootMessenger.publish('TransactionController:transactionApproved', {
@@ -1258,7 +1584,8 @@ describe('GatorPermissionsController', () => {
       });
       const messenger = getMessenger(rootMessenger);
 
-      const controller = new GatorPermissionsController({
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger,
         config: {
           ...DEFAULT_TEST_CONFIG,
@@ -1271,7 +1598,10 @@ describe('GatorPermissionsController', () => {
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
       const hash = '0x-mock-hash';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Emit transaction approved event (user confirms)
       rootMessenger.publish('TransactionController:transactionApproved', {
@@ -1334,7 +1664,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Verify pending revocation is not in state yet
       expect(controller.state.pendingRevocations).toStrictEqual([]);
@@ -1372,7 +1705,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Emit transaction failed event
       rootMessenger.publish('TransactionController:transactionFailed', {
@@ -1418,7 +1754,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Emit transaction dropped event
       rootMessenger.publish('TransactionController:transactionDropped', {
@@ -1464,7 +1803,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Emit transaction failed event
       rootMessenger.publish('TransactionController:transactionFailed', {
@@ -1503,7 +1845,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Emit transaction dropped event
       rootMessenger.publish('TransactionController:transactionDropped', {
@@ -1528,7 +1873,8 @@ describe('GatorPermissionsController', () => {
       });
       const messenger = getMessenger(rootMessenger);
 
-      const controller = new GatorPermissionsController({
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger,
         config: {
           ...DEFAULT_TEST_CONFIG,
@@ -1540,7 +1886,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Fast-forward time by 2 hours
       jest.advanceTimersByTime(2 * 60 * 60 * 1000);
@@ -1571,7 +1920,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Before approval, pending revocation should not be in state
       expect(controller.state.pendingRevocations).toStrictEqual([]);
@@ -1594,7 +1946,8 @@ describe('GatorPermissionsController', () => {
       });
       const messenger = getMessenger(rootMessenger);
 
-      const controller = new GatorPermissionsController({
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger,
         config: {
           ...DEFAULT_TEST_CONFIG,
@@ -1606,7 +1959,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Emit transaction approved event for our transaction
       rootMessenger.publish('TransactionController:transactionApproved', {
@@ -1635,7 +1991,8 @@ describe('GatorPermissionsController', () => {
       });
       const messenger = getMessenger(rootMessenger);
 
-      const controller = new GatorPermissionsController({
+      // eslint-disable-next-line no-new
+      new GatorPermissionsController({
         messenger,
         config: {
           ...DEFAULT_TEST_CONFIG,
@@ -1647,7 +2004,10 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation({ txId, permissionContext });
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
 
       // Emit transaction approved event (user confirms)
       rootMessenger.publish('TransactionController:transactionApproved', {
@@ -1696,34 +2056,59 @@ type RootMessenger = Messenger<
  * @param args.snapControllerHandleRequestActionHandler - Used to mock the
  * `SnapController:handleRequest` action on the messenger.
  * @param args.snapControllerHasActionHandler - Used to mock the
- * `SnapController:has` action on the messenger.
+ * `SnapController:hasSnap` action on the messenger.
  * @returns The unrestricted messenger suited for GatorPermissionsController.
  */
 function getRootMessenger({
   snapControllerHandleRequestActionHandler = jest
     .fn<
-      ReturnType<HandleSnapRequest['handler']>,
-      Parameters<HandleSnapRequest['handler']>
+      ReturnType<SnapControllerHandleRequestAction['handler']>,
+      Parameters<SnapControllerHandleRequestAction['handler']>
     >()
     .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES),
   snapControllerHasActionHandler = jest
-    .fn<ReturnType<HasSnap['handler']>, Parameters<HasSnap['handler']>>()
+    .fn<
+      ReturnType<SnapControllerHasSnapAction['handler']>,
+      Parameters<SnapControllerHasSnapAction['handler']>
+    >()
     .mockResolvedValue(true as never),
 }: {
-  snapControllerHandleRequestActionHandler?: HandleSnapRequest['handler'];
-  snapControllerHasActionHandler?: HasSnap['handler'];
+  snapControllerHandleRequestActionHandler?: SnapControllerHandleRequestAction['handler'];
+  snapControllerHasActionHandler?: SnapControllerHasSnapAction['handler'];
 } = {}): RootMessenger {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
+
+  const permissionStatusProviderRequest =
+    createDefaultPermissionStatusProviderRequest();
+  const findNetworkClientIdByChainId = jest
+    .fn()
+    .mockReturnValue('test-network-client-id');
+  const getNetworkClientById = jest.fn().mockReturnValue({
+    provider: { request: permissionStatusProviderRequest },
+  });
+  lastNetworkControllerTestMocks = {
+    findNetworkClientIdByChainId,
+    getNetworkClientById,
+    permissionStatusProviderRequest,
+  };
 
   rootMessenger.registerActionHandler(
     'SnapController:handleRequest',
     snapControllerHandleRequestActionHandler,
   );
   rootMessenger.registerActionHandler(
-    'SnapController:has',
+    'SnapController:hasSnap',
     snapControllerHasActionHandler,
+  );
+  rootMessenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    findNetworkClientIdByChainId,
+  );
+  rootMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    getNetworkClientById,
   );
   return rootMessenger;
 }
@@ -1749,7 +2134,12 @@ function getGatorPermissionsControllerMessenger(
   });
   rootMessenger.delegate({
     messenger: gatorPermissionsControllerMessenger,
-    actions: ['SnapController:handleRequest', 'SnapController:has'],
+    actions: [
+      'SnapController:handleRequest',
+      'SnapController:hasSnap',
+      'NetworkController:findNetworkClientIdByChainId',
+      'NetworkController:getNetworkClientById',
+    ],
     events: [
       'TransactionController:transactionApproved',
       'TransactionController:transactionRejected',

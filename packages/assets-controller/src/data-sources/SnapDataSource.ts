@@ -8,19 +8,15 @@ import type {
   SubjectPermissions,
 } from '@metamask/permission-controller';
 import type {
-  GetRunnableSnaps,
-  HandleSnapRequest,
+  SnapControllerGetRunnableSnapsAction,
+  SnapControllerHandleRequestAction,
+  SnapControllerSnapInstalledEvent,
 } from '@metamask/snaps-controllers';
 import type { Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType, SnapCaveatType } from '@metamask/snaps-utils';
 import { parseCaipAssetType } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { AbstractDataSource } from './AbstractDataSource';
-import type {
-  DataSourceState,
-  SubscriptionRequest,
-} from './AbstractDataSource';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
@@ -31,6 +27,11 @@ import type {
   DataResponse,
   Middleware,
 } from '../types';
+import { AbstractDataSource } from './AbstractDataSource';
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource';
 
 // ============================================================================
 // SNAP KEYRING EVENT TYPES
@@ -144,11 +145,12 @@ const defaultSnapState: SnapDataSourceState = {
  */
 export type SnapDataSourceAllowedEvents =
   | AccountsControllerAccountBalancesUpdatedEvent
-  | PermissionControllerStateChange;
+  | PermissionControllerStateChange
+  | SnapControllerSnapInstalledEvent;
 
 export type SnapDataSourceAllowedActions =
-  | GetRunnableSnaps
-  | HandleSnapRequest
+  | SnapControllerGetRunnableSnapsAction
+  | SnapControllerHandleRequestAction
   | GetPermissions;
 
 // ============================================================================
@@ -254,6 +256,10 @@ export class SnapDataSource extends AbstractDataSource<
       'PermissionController:stateChange',
       this.#handlePermissionStateChangeBound,
     );
+    // Rediscover keyring snaps when any snap gets installed
+    messenger.subscribe('SnapController:snapInstalled', () => {
+      this.#discoverKeyringSnaps();
+    });
   }
 
   /**
@@ -298,7 +304,7 @@ export class SnapDataSource extends AbstractDataSource<
 
     // Only report if we have snap-related updates
     if (assetsBalance) {
-      const response: DataResponse = { assetsBalance };
+      const response: DataResponse = { assetsBalance, updateMode: 'merge' };
       for (const subscription of this.activeSubscriptions.values()) {
         subscription.onAssetsUpdate(response)?.catch(console.error);
       }
@@ -439,12 +445,13 @@ export class SnapDataSource extends AbstractDataSource<
       return {};
     }
     if (!request?.accountsWithSupportedChains?.length) {
-      return { assetsBalance: {}, assetsInfo: {} };
+      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'merge' };
     }
 
     const results: DataResponse = {
       assetsBalance: {},
       assetsInfo: {},
+      updateMode: 'merge',
     };
 
     // Fetch balances for each account using its snap ID from metadata

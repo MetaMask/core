@@ -22,7 +22,7 @@ import type { SampleGasPricesServiceFetchGasPricesAction } from './sample-gas-pr
  * controller's actions and events and to namespace the controller's state data
  * when composed with other controllers.
  */
-export const controllerName = 'SampleGasPricesController';
+const CONTROLLER_NAME = 'SampleGasPricesController';
 
 // === STATE ===
 
@@ -94,7 +94,7 @@ const MESSENGER_EXPOSED_METHODS = ['updateGasPrices'] as const;
  * Retrieves the state of the {@link SampleGasPricesController}.
  */
 export type SampleGasPricesControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   SampleGasPricesControllerState
 >;
 
@@ -117,7 +117,7 @@ type AllowedActions =
  */
 export type SampleGasPricesControllerStateChangeEvent =
   ControllerStateChangeEvent<
-    typeof controllerName,
+    typeof CONTROLLER_NAME,
     SampleGasPricesControllerState
   >;
 
@@ -138,7 +138,7 @@ type AllowedEvents = NetworkControllerStateChangeEvent;
  * {@link SampleGasPricesController}.
  */
 export type SampleGasPricesControllerMessenger = Messenger<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   SampleGasPricesControllerActions | AllowedActions,
   SampleGasPricesControllerEvents | AllowedEvents
 >;
@@ -219,7 +219,7 @@ export type SampleGasPricesControllerMessenger = Messenger<
  * ```
  */
 export class SampleGasPricesController extends BaseController<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   SampleGasPricesControllerState,
   SampleGasPricesControllerMessenger
 > {
@@ -246,7 +246,7 @@ export class SampleGasPricesController extends BaseController<
     super({
       messenger,
       metadata: gasPricesControllerMetadata,
-      name: controllerName,
+      name: CONTROLLER_NAME,
       state: {
         ...getDefaultSampleGasPricesControllerState(),
         ...state,

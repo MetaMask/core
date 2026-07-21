@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [19.1.5]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [19.1.4]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [19.1.3]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [19.1.2]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^12.0.0` ([#8344](https://github.com/MetaMask/core/pull/8344), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^31.0.0` ([#8636](https://github.com/MetaMask/core/pull/8636), [#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [19.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [19.1.0]
+
+### Added
+
+- Expose missing public `EnsController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `EnsController:resetState`
+    - `EnsController:clear`
+    - `EnsController:delete`
+    - `EnsController:get`
+    - `EnsController:set`
+    - `EnsController:reverseResolveAddress`
+  - Corresponding action types (e.g. `EnsControllerResetStateAction`) are available as well.
+
 ## [19.0.3]
 
 ### Changed
@@ -101,9 +157,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
-- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0`,, ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0`, ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0`, ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [15.0.1]
 
@@ -137,7 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -357,15 +413,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - `src/third-party/EnsController.ts`
     - `src/third-party/EnsController.test.ts`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.5...HEAD
+[19.1.5]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.4...@metamask/ens-controller@19.1.5
+[19.1.4]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.3...@metamask/ens-controller@19.1.4
+[19.1.3]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.2...@metamask/ens-controller@19.1.3
+[19.1.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.1...@metamask/ens-controller@19.1.2
+[19.1.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.0...@metamask/ens-controller@19.1.1
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.3...@metamask/ens-controller@19.1.0
 [19.0.3]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.2...@metamask/ens-controller@19.0.3
 [19.0.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.1...@metamask/ens-controller@19.0.2
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.0...@metamask/ens-controller@19.0.1

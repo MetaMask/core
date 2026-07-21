@@ -1,7 +1,6 @@
 export {
   TokenDetector,
   type TokenDetectorConfig,
-  type TokenDetectorMessenger,
   type DetectionPollingInput,
   type OnDetectionUpdateCallback,
 } from './TokenDetector';

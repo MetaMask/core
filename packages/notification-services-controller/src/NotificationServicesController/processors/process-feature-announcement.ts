@@ -1,5 +1,6 @@
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
 import type { INotification } from '../types/notification/notification';
+import { getNotificationSubtype } from '../utils/get-notification-subtype';
 import { shouldAutoExpire } from '../utils/should-auto-expire';
 
 /**
@@ -32,6 +33,7 @@ export function processFeatureAnnouncement(
   return {
     type: notification.type,
     id: notification.data.id,
+    notification_subtype: getNotificationSubtype(notification),
     createdAt: new Date(notification.createdAt).toISOString(),
     data: notification.data,
     isRead: false,

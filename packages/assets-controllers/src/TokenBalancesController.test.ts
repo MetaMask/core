@@ -16,7 +16,12 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import type nock from 'nock';
 
+import { jestAdvanceTime, flushPromises } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import type { RpcEndpoint } from '../../network-controller/src/NetworkController';
 import { mockAPI_accountsAPI_MultichainAccountBalances as mockAPIAccountsAPIMultichainAccountBalancesCamelCase } from './__fixtures__/account-api-v4-mocks';
+import { waitFor } from './__fixtures__/test-utils';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import * as multicall from './multicall';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 import type {
@@ -25,16 +30,16 @@ import type {
   ChecksumAddress,
   TokenBalancesControllerState,
   TokenBalances,
+  UpdateBalancesOptions,
 } from './TokenBalancesController';
 import {
   TokenBalancesController,
+  UPDATE_BALANCES_BATCH_MS,
   caipChainIdToHex,
+  mergeUpdateBalancesOptions,
   parseAssetType,
 } from './TokenBalancesController';
 import type { TokensControllerState } from './TokensController';
-import { jestAdvanceTime, flushPromises } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import type { RpcEndpoint } from '../../network-controller/src/NetworkController';
 
 type AllTokenBalancesControllerActions =
   MessengerActions<TokenBalancesControllerMessenger>;
@@ -120,7 +125,6 @@ const setupController = ({
       'AccountActivityService:statusChanged',
       'AccountsController:selectedEvmAccountChange',
       'TransactionController:transactionConfirmed',
-      'TransactionController:incomingTransactionsReceived',
     ],
   });
 
@@ -323,10 +327,217 @@ describe('Utility Functions', () => {
   });
 });
 
+describe('mergeUpdateBalancesOptions', () => {
+  const arrangeChainIdInput = (
+    chainIds: ChainIdHex[] | undefined,
+  ): UpdateBalancesOptions => ({
+    chainIds,
+    tokenAddresses: undefined,
+    queryAllAccounts: undefined,
+  });
+
+  const arrangeTokenAddressesInput = (
+    tokenAddresses: string[] | undefined,
+  ): UpdateBalancesOptions => ({
+    chainIds: undefined,
+    tokenAddresses,
+    queryAllAccounts: undefined,
+  });
+
+  const arrangeQueryAllAccountsInput = (
+    queryAllAccounts: boolean | undefined,
+  ): UpdateBalancesOptions => ({
+    chainIds: undefined,
+    tokenAddresses: undefined,
+    queryAllAccounts,
+  });
+
+  const chainIdTestCases: {
+    testName: string;
+    balanceInputs: [UpdateBalancesOptions, UpdateBalancesOptions];
+    expectedOutput: Partial<UpdateBalancesOptions>;
+  }[] = [
+    {
+      testName: 'merges chainIds as union when both specify chainIds',
+      balanceInputs: [
+        arrangeChainIdInput(['0x1']),
+        arrangeChainIdInput(['0x89', '0x1']),
+      ],
+      expectedOutput: { chainIds: ['0x1', '0x89'] },
+    },
+    {
+      testName: 'returns undefined chainIds when first option has no chainIds',
+      balanceInputs: [
+        arrangeChainIdInput(undefined),
+        arrangeChainIdInput(['0x89']),
+      ],
+      expectedOutput: { chainIds: undefined },
+    },
+    {
+      testName: 'returns undefined chainIds when second option has no chainIds',
+      balanceInputs: [
+        arrangeChainIdInput(['0x1']),
+        arrangeChainIdInput(undefined),
+      ],
+      expectedOutput: { chainIds: undefined },
+    },
+    {
+      testName: 'returns undefined chainIds when neither option has chainIds',
+      balanceInputs: [
+        arrangeChainIdInput(undefined),
+        arrangeChainIdInput(undefined),
+      ],
+      expectedOutput: { chainIds: undefined },
+    },
+  ];
+
+  const tokenAddressesTestCases: {
+    testName: string;
+    balanceInputs: [UpdateBalancesOptions, UpdateBalancesOptions];
+    expectedOutput: Partial<UpdateBalancesOptions>;
+  }[] = [
+    {
+      testName:
+        'merges tokenAddresses as union when both specify tokenAddresses',
+      balanceInputs: [
+        arrangeTokenAddressesInput(['0xabc', '0xdef']),
+        arrangeTokenAddressesInput(['0xdef', '0x123']),
+      ],
+      expectedOutput: {
+        tokenAddresses: ['0xabc', '0xdef', '0x123'],
+      },
+    },
+    {
+      testName:
+        'returns undefined tokenAddresses when first option has no tokenAddresses',
+      balanceInputs: [
+        arrangeTokenAddressesInput(undefined),
+        arrangeTokenAddressesInput(['0xdef']),
+      ],
+      expectedOutput: { tokenAddresses: undefined },
+    },
+    {
+      testName:
+        'returns undefined tokenAddresses when second option has no tokenAddresses',
+      balanceInputs: [
+        arrangeTokenAddressesInput(['0xabc']),
+        arrangeTokenAddressesInput(undefined),
+      ],
+      expectedOutput: { tokenAddresses: undefined },
+    },
+  ];
+
+  const queryAllAccountsTestCases: {
+    testName: string;
+    balanceInputs: [UpdateBalancesOptions, UpdateBalancesOptions];
+    expectedOutput: Partial<UpdateBalancesOptions>;
+  }[] = [
+    {
+      testName: 'returns true when first is true (true, false)',
+      balanceInputs: [
+        arrangeQueryAllAccountsInput(true),
+        arrangeQueryAllAccountsInput(false),
+      ],
+      expectedOutput: { queryAllAccounts: true },
+    },
+    {
+      testName: 'returns true when second is true (false, true)',
+      balanceInputs: [
+        arrangeQueryAllAccountsInput(false),
+        arrangeQueryAllAccountsInput(true),
+      ],
+      expectedOutput: { queryAllAccounts: true },
+    },
+    {
+      testName: 'returns true when both have queryAllAccounts true',
+      balanceInputs: [
+        arrangeQueryAllAccountsInput(true),
+        arrangeQueryAllAccountsInput(true),
+      ],
+      expectedOutput: { queryAllAccounts: true },
+    },
+    {
+      testName: 'returns true when second is true and first is undefined',
+      balanceInputs: [
+        arrangeQueryAllAccountsInput(undefined),
+        arrangeQueryAllAccountsInput(true),
+      ],
+      expectedOutput: { queryAllAccounts: true },
+    },
+    {
+      testName: 'returns false when both have queryAllAccounts false',
+      balanceInputs: [
+        arrangeQueryAllAccountsInput(false),
+        arrangeQueryAllAccountsInput(false),
+      ],
+      expectedOutput: { queryAllAccounts: false },
+    },
+    {
+      testName: 'returns false when both are undefined',
+      balanceInputs: [
+        arrangeQueryAllAccountsInput(undefined),
+        arrangeQueryAllAccountsInput(undefined),
+      ],
+      expectedOutput: { queryAllAccounts: false },
+    },
+    {
+      testName: 'returns false when second is false and first is undefined',
+      balanceInputs: [
+        arrangeQueryAllAccountsInput(undefined),
+        arrangeQueryAllAccountsInput(false),
+      ],
+      expectedOutput: { queryAllAccounts: false },
+    },
+  ];
+
+  it.each(chainIdTestCases)(
+    '$testName',
+    ({ balanceInputs, expectedOutput }) => {
+      expect(
+        mergeUpdateBalancesOptions(balanceInputs[0], balanceInputs[1]),
+      ).toStrictEqual(expect.objectContaining(expectedOutput));
+    },
+  );
+
+  it.each(tokenAddressesTestCases)(
+    '$testName',
+    ({ balanceInputs, expectedOutput }) => {
+      expect(
+        mergeUpdateBalancesOptions(balanceInputs[0], balanceInputs[1]),
+      ).toStrictEqual(expect.objectContaining(expectedOutput));
+    },
+  );
+
+  it.each(queryAllAccountsTestCases)(
+    '$testName',
+    ({ balanceInputs, expectedOutput }) => {
+      expect(
+        mergeUpdateBalancesOptions(balanceInputs[0], balanceInputs[1]),
+      ).toStrictEqual(expect.objectContaining(expectedOutput));
+    },
+  );
+
+  it('merges all fields together when both options are fully specified', () => {
+    const a: UpdateBalancesOptions = {
+      chainIds: ['0x1'],
+      tokenAddresses: ['0xaaa'],
+      queryAllAccounts: false,
+    };
+    const b: UpdateBalancesOptions = {
+      chainIds: ['0x89', '0x1'],
+      tokenAddresses: ['0xbbb', '0xaaa'],
+      queryAllAccounts: true,
+    };
+    expect(mergeUpdateBalancesOptions(a, b)).toStrictEqual({
+      chainIds: ['0x1', '0x89'],
+      tokenAddresses: ['0xaaa', '0xbbb'],
+      queryAllAccounts: true,
+    });
+  });
+});
+
 describe('TokenBalancesController', () => {
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
-
     // Mock safelyExecuteWithTimeout to execute the operation normally by default
     mockedSafelyExecuteWithTimeout.mockImplementation(
       async (operation: () => Promise<unknown>) => {
@@ -524,22 +735,27 @@ describe('TokenBalancesController', () => {
   });
 
   it('should poll and update balances in the right interval', async () => {
-    const pollSpy = jest.spyOn(
-      TokenBalancesController.prototype,
-      '_executePoll',
-    );
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    try {
+      const pollSpy = jest.spyOn(
+        TokenBalancesController.prototype,
+        '_executePoll',
+      );
 
-    const interval = 10;
-    const { controller } = setupController({ config: { interval } });
+      const interval = 10;
+      const { controller } = setupController({ config: { interval } });
 
-    controller.startPolling({ chainIds: ['0x1'] });
+      controller.startPolling({ chainIds: ['0x1'] });
 
-    await jestAdvanceTime({ duration: 1 });
-    expect(pollSpy).toHaveBeenCalled();
-    expect(pollSpy).not.toHaveBeenCalledTimes(2);
+      await jestAdvanceTime({ duration: 1 });
+      expect(pollSpy).toHaveBeenCalled();
+      expect(pollSpy).not.toHaveBeenCalledTimes(2);
 
-    await jestAdvanceTime({ duration: interval * 1.5 });
-    expect(pollSpy).toHaveBeenCalledTimes(2);
+      await jestAdvanceTime({ duration: interval * 1.5 });
+      expect(pollSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('should update balances on poll', async () => {
@@ -577,14 +793,16 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
   });
 
@@ -623,14 +841,16 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddress]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress]: toHex(balance),
-            [STAKING_CONTRACT_ADDRESS]: '0x0',
+      await waitFor(() => {
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [accountAddress]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress]: toHex(balance),
+              [STAKING_CONTRACT_ADDRESS]: '0x0',
+            },
           },
-        },
+        });
       });
     }
   });
@@ -648,7 +868,10 @@ describe('TokenBalancesController', () => {
       chainIds: [chainId],
       queryAllAccounts: true,
     });
-    expect(controller.state.tokenBalances).toStrictEqual({});
+
+    await waitFor(() => {
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
 
     const balance = 123456;
     jest
@@ -679,16 +902,16 @@ describe('TokenBalancesController', () => {
       [],
     );
 
-    await jestAdvanceTime({ duration: 1 });
-
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
   });
 
@@ -734,15 +957,17 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    // Verify initial balance is set
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      // Verify initial balance is set
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
 
     // Publish an update with no tokens
@@ -756,14 +981,14 @@ describe('TokenBalancesController', () => {
       [],
     );
 
-    await jestAdvanceTime({ duration: 1 });
-
-    // Verify balance was removed
-    expect(updateSpy).toHaveBeenCalledTimes(2);
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {}, // Empty balances object
-      },
+    await waitFor(() => {
+      // Verify balance was removed
+      expect(updateSpy).toHaveBeenCalledTimes(2);
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {}, // Empty balances object
+        },
+      });
     });
   });
   it('skips removing balances when incoming chainIds are not in the current chainIds list for tokenBalances', async () => {
@@ -804,15 +1029,17 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    // Verify initial balance is set
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      // Verify initial balance is set
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
 
     // Publish an update with no tokens
@@ -826,17 +1053,17 @@ describe('TokenBalancesController', () => {
       [],
     );
 
-    await jestAdvanceTime({ duration: 1 });
-
-    expect(updateSpy).toHaveBeenCalledTimes(2);
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledTimes(2);
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
   });
 
@@ -878,15 +1105,17 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    // Verify initial balance is set
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      // Verify initial balance is set
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
 
     // Publish an update with no tokens
@@ -906,18 +1135,18 @@ describe('TokenBalancesController', () => {
       [],
     );
 
-    await jestAdvanceTime({ duration: 1 });
-
-    // Verify initial balances are still there
-    expect(updateSpy).toHaveBeenCalledTimes(1); // should be called only once when we first updated the balances and not twice
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      // Verify initial balances are still there
+      expect(updateSpy).toHaveBeenCalledTimes(1); // should be called only once when we first updated the balances and not twice
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
   });
 
@@ -978,21 +1207,23 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [account1]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance1),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [account1]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance1),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
-      [account2]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance2),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+        [account2]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance2),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
   });
 
@@ -1046,43 +1277,59 @@ describe('TokenBalancesController', () => {
 
     await controller.updateBalances({ chainIds: [chainId] });
 
-    // Verify tracked token balance was updated
-    expect(
-      controller.state.tokenBalances[accountAddress]?.[chainId]?.[trackedToken],
-    ).toBe(toHex(trackedBalance));
+    await waitFor(() => {
+      // Verify tracked token balance was updated
+      expect(
+        controller.state.tokenBalances[accountAddress]?.[chainId]?.[
+          trackedToken
+        ],
+      ).toBe(toHex(trackedBalance));
 
-    // Verify ignored token balance was updated (ignored tokens should still be tracked)
-    expect(
-      controller.state.tokenBalances[accountAddress]?.[chainId]?.[ignoredToken],
-    ).toBe(toHex(ignoredBalance));
+      // Verify ignored token balance was updated (ignored tokens should still be tracked)
+      expect(
+        controller.state.tokenBalances[accountAddress]?.[chainId]?.[
+          ignoredToken
+        ],
+      ).toBe(toHex(ignoredBalance));
 
-    // Verify untracked token balance was NOT updated
-    expect(
-      controller.state.tokenBalances[accountAddress]?.[chainId]?.[
-        untrackedToken
-      ],
-    ).toBeUndefined();
+      // Verify untracked token balance was NOT updated
+      expect(
+        controller.state.tokenBalances[accountAddress]?.[chainId]?.[
+          untrackedToken
+        ],
+      ).toBeUndefined();
 
-    // Verify native token is always updated regardless of tracking
-    expect(
-      controller.state.tokenBalances[accountAddress]?.[chainId]?.[
-        NATIVE_TOKEN_ADDRESS
-      ],
-    ).toBe('0x0');
+      // Verify native token is always updated regardless of tracking
+      expect(
+        controller.state.tokenBalances[accountAddress]?.[chainId]?.[
+          NATIVE_TOKEN_ADDRESS
+        ],
+      ).toBe('0x0');
+    });
   });
 
   it('should always update native token balances regardless of tracking status', async () => {
     const chainId = '0x1';
     const accountAddress = '0x0000000000000000000000000000000000000000';
+    const tokenAddress = '0x0000000000000000000000000000000000000001';
 
-    // Setup with no tracked tokens
+    // One tracked token so the controller fetches; we assert native is always updated
     const tokens = {
       allDetectedTokens: {},
-      allTokens: {},
+      allTokens: {
+        [chainId]: {
+          [accountAddress]: [
+            { address: tokenAddress, symbol: 'T', decimals: 18 },
+          ],
+        },
+      },
       allIgnoredTokens: {},
     };
 
-    const { controller } = setupController({ tokens });
+    const { controller } = setupController({
+      tokens,
+      listAccounts: [createMockInternalAccount({ address: accountAddress })],
+    });
 
     const nativeBalance = new BN('1000000000000000000'); // 1 ETH
 
@@ -1093,6 +1340,9 @@ describe('TokenBalancesController', () => {
           [NATIVE_TOKEN_ADDRESS]: {
             [accountAddress]: nativeBalance,
           },
+          [tokenAddress]: {
+            [accountAddress]: new BN(0),
+          },
         },
         stakedBalances: {
           [accountAddress]: new BN(0),
@@ -1101,12 +1351,14 @@ describe('TokenBalancesController', () => {
 
     await controller.updateBalances({ chainIds: [chainId] });
 
-    // Verify native token balance was updated even though no tokens are tracked
-    expect(
-      controller.state.tokenBalances[accountAddress]?.[chainId]?.[
-        NATIVE_TOKEN_ADDRESS
-      ],
-    ).toBe(toHex(nativeBalance));
+    await waitFor(() => {
+      // Verify native token balance was updated
+      expect(
+        controller.state.tokenBalances[accountAddress]?.[chainId]?.[
+          NATIVE_TOKEN_ADDRESS
+        ],
+      ).toBe(toHex(nativeBalance));
+    });
   });
 
   it('should filter untracked tokens from balance updates', async () => {
@@ -1149,17 +1401,22 @@ describe('TokenBalancesController', () => {
 
     await controller.updateBalances({ chainIds: [chainId] });
 
-    // Verify tracked token balance was updated
-    expect(
-      controller.state.tokenBalances[accountAddress]?.[chainId]?.[trackedToken],
-    ).toBe(toHex(trackedBalance));
+    await waitFor(() => {
+      // Verify tracked token balance was updated
 
-    // Verify untracked token balance was NOT updated
-    expect(
-      controller.state.tokenBalances[accountAddress]?.[chainId]?.[
-        untrackedToken
-      ],
-    ).toBeUndefined();
+      expect(
+        controller.state.tokenBalances[accountAddress]?.[chainId]?.[
+          trackedToken
+        ],
+      ).toBe(toHex(trackedBalance));
+
+      // Verify untracked token balance was NOT updated
+      expect(
+        controller.state.tokenBalances[accountAddress]?.[chainId]?.[
+          untrackedToken
+        ],
+      ).toBeUndefined();
+    });
   });
 
   it('does not update balances when multi-account balances is enabled and all returned values did not change', async () => {
@@ -1205,21 +1462,23 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [account1]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance1),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [account1]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance1),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
-      [account2]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance2),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+        [account2]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance2),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
 
     await controller._executePoll({
@@ -1227,8 +1486,10 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    // Should only update once since the values haven't changed
-    expect(updateSpy).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      // Should only update once since the values haven't changed
+      expect(updateSpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('does not update balances when multi-account balances is enabled and multi-account contract failed', async () => {
@@ -1267,14 +1528,16 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [account1]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: '0x0',
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [account1]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: '0x0',
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
 
     await controller._executePoll({
@@ -1282,7 +1545,9 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    expect(updateSpy).toHaveBeenCalledTimes(1); // Called once because native/staking balances are added
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledTimes(1); // Called once because native/staking balances are added
+    });
   });
 
   it('updates balances when multi-account balances is enabled and some returned values changed', async () => {
@@ -1329,21 +1594,23 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [account1]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance1),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [account1]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance1),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
-      [account2]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance2),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+        [account2]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance2),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
 
     jest
@@ -1363,21 +1630,23 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [account1]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance1),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [account1]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance1),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
-      [account2]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance3),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+        [account2]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance3),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
 
     expect(updateSpy).toHaveBeenCalledTimes(2);
@@ -1426,15 +1695,17 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: false,
     });
 
-    // Should only contain balance for selected account
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [selectedAccount]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress]: toHex(balance),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      // Should only contain balance for selected account
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [selectedAccount]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress]: toHex(balance),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
   });
 
@@ -1506,6 +1777,263 @@ describe('TokenBalancesController', () => {
       expect(controller.state).toStrictEqual({
         tokenBalances: {},
       });
+    });
+  });
+
+  describe('isDeprecated', () => {
+    const initialState: TokenBalancesControllerState = {
+      tokenBalances: {
+        '0x0000000000000000000000000000000000000001': {
+          '0x1': {
+            '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
+          },
+        },
+      },
+    };
+
+    it('clears persisted tokenBalances at construction when isDeprecated() returns true', () => {
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => true },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('preserves persisted tokenBalances at construction when isDeprecated() returns false', () => {
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => false },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual(
+        initialState.tokenBalances,
+      );
+    });
+
+    it('does not fetch and clears stale tokenBalances when isDeprecated returns true', async () => {
+      let deprecated = false;
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual(
+        initialState.tokenBalances,
+      );
+
+      const fetchSpy = jest.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      );
+
+      deprecated = true;
+
+      await controller.updateBalances({ chainIds: ['0x1'] });
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on _executePoll when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual(
+        initialState.tokenBalances,
+      );
+
+      const fetchSpy = jest.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      );
+
+      deprecated = true;
+
+      await controller._executePoll({ chainIds: ['0x1'] });
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on NetworkController:stateChange when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual(
+        initialState.tokenBalances,
+      );
+
+      deprecated = true;
+
+      messenger.publish(
+        'NetworkController:stateChange',
+        {
+          networkConfigurationsByChainId: {},
+        } as NetworkState,
+        [
+          {
+            op: 'remove',
+            path: ['networkConfigurationsByChainId', '0x1'],
+          },
+        ],
+      );
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('does not throw at construction when isDeprecated() is true and state is already empty', () => {
+      const { controller } = setupController({
+        config: { isDeprecated: () => true },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances when a queued batched update flushes after isDeprecated toggles to true', async () => {
+      jest.useFakeTimers();
+      let deprecated = false;
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      const fetchSpy = jest.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      );
+
+      // Schedule a batched update while still enabled.
+      const promise = controller.updateBalances({ chainIds: ['0x1'] });
+
+      // Toggle deprecation before the batch flushes.
+      deprecated = true;
+
+      await jest.advanceTimersByTimeAsync(UPDATE_BALANCES_BATCH_MS);
+      await promise;
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on TokensController:stateChange when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      deprecated = true;
+
+      messenger.publish(
+        'TokensController:stateChange',
+        {
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
+          allTokens: {
+            '0x1': {
+              '0x0000000000000000000000000000000000000001': [
+                { address: '0xtoken', decimals: 0, symbol: 'S' },
+              ],
+            },
+          },
+        } as unknown as TokensControllerState,
+        [],
+      );
+
+      await flushPromises();
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on KeyringController:accountRemoved when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      deprecated = true;
+
+      messenger.publish(
+        'KeyringController:accountRemoved',
+        '0x0000000000000000000000000000000000000001',
+      );
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on AccountsController:selectedEvmAccountChange when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+        tokens: {
+          allTokens: {
+            '0x1': {
+              '0x0000000000000000000000000000000000000001': [
+                { address: '0xtoken', decimals: 0, symbol: 'S' },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
+        },
+      });
+
+      deprecated = true;
+
+      messenger.publish(
+        'AccountsController:selectedEvmAccountChange',
+        createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        }),
+      );
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on AccountActivityService:balanceUpdated when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      deprecated = true;
+
+      messenger.publish('AccountActivityService:balanceUpdated', {
+        address: '0x0000000000000000000000000000000000000001',
+        chain: 'eip155:1',
+        updates: [
+          {
+            asset: {
+              type: 'eip155:1/slip44:60',
+              unit: 'ETH',
+              fungible: true,
+              decimals: 18,
+            },
+            postBalance: { amount: '0x1' },
+            transfers: [],
+          },
+        ],
+      });
+
+      await flushPromises();
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on AccountActivityService:statusChanged when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      deprecated = true;
+
+      messenger.publish('AccountActivityService:statusChanged', {
+        chainIds: ['eip155:1'],
+        status: 'up',
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
     });
   });
 
@@ -1581,35 +2109,37 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddress]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress]: toHex(balance),
-            [STAKING_CONTRACT_ADDRESS]: '0x0',
+      await waitFor(() => {
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [accountAddress]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress]: toHex(balance),
+              [STAKING_CONTRACT_ADDRESS]: '0x0',
+            },
           },
-        },
-        [accountAddress2]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress2]: toHex(balance2),
-            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          [accountAddress2]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress2]: toHex(balance2),
+              [STAKING_CONTRACT_ADDRESS]: '0x0',
+            },
           },
-        },
+        });
       });
 
       messenger.publish('KeyringController:accountRemoved', account.address);
 
-      await jestAdvanceTime({ duration: 1 });
-
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddress2]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress2]: toHex(balance2),
-            [STAKING_CONTRACT_ADDRESS]: '0x0',
+      await waitFor(() => {
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [accountAddress2]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress2]: toHex(balance2),
+              [STAKING_CONTRACT_ADDRESS]: '0x0',
+            },
           },
-        },
+        });
       });
     });
   });
@@ -1734,8 +2264,10 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // Verify the new multicall function was called
-      expect(mockGetTokenBalances).toHaveBeenCalled();
+      await waitFor(() => {
+        // Verify the new multicall function was called
+        expect(mockGetTokenBalances).toHaveBeenCalled();
+      });
     });
 
     it('should use queryAllAccounts when provided', async () => {
@@ -1778,13 +2310,15 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // Verify RPC fetcher was called with queryAllAccounts: true
-      expect(mockRpcFetch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          chainIds: ['0x1'],
-          queryAllAccounts: true,
-        }),
-      );
+      await waitFor(() => {
+        // Verify RPC fetcher was called with queryAllAccounts: true
+        expect(mockRpcFetch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            chainIds: ['0x1'],
+            queryAllAccounts: true,
+          }),
+        );
+      });
 
       mockRpcFetch.mockRestore();
     });
@@ -1826,11 +2360,15 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // Verify the controller is properly configured
-      expect(controller).toBeDefined();
+      await waitFor(() => {
+        // Verify the controller is properly configured
+        expect(controller).toBeDefined();
 
-      // Verify multicall was attempted
-      expect(multicall.getTokenBalancesForMultipleAddresses).toHaveBeenCalled();
+        // Verify multicall was attempted
+        expect(
+          multicall.getTokenBalancesForMultipleAddresses,
+        ).toHaveBeenCalled();
+      });
     });
 
     it('should handle different constructor options', () => {
@@ -1894,20 +2432,22 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // Verify that staked balances are included in the state change event (even if zero)
-      expect(publishSpy).toHaveBeenCalledWith(
-        'TokenBalancesController:stateChange',
-        expect.objectContaining({
-          tokenBalances: {
-            [accountAddress]: {
-              [chainId]: expect.objectContaining({
-                [STAKING_CONTRACT_ADDRESS]: '0x0', // Zero staked balance should be included
-              }),
+      await waitFor(() => {
+        // Verify that staked balances are included in the state change event (even if zero)
+        expect(publishSpy).toHaveBeenCalledWith(
+          'TokenBalancesController:stateChange',
+          expect.objectContaining({
+            tokenBalances: {
+              [accountAddress]: {
+                [chainId]: expect.objectContaining({
+                  [STAKING_CONTRACT_ADDRESS]: '0x0', // Zero staked balance should be included
+                }),
+              },
             },
-          },
-        }),
-        expect.any(Array),
-      );
+          }),
+          expect.any(Array),
+        );
+      });
     });
   });
 
@@ -1954,14 +2494,16 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // Only successful token should be in state
-      expect(
-        controller.state.tokenBalances[accountAddress][chainId],
-      ).toStrictEqual({
-        [NATIVE_TOKEN_ADDRESS]: '0x0',
-        [tokenAddress1]: toHex(100),
-        [tokenAddress2]: '0x0',
-        [STAKING_CONTRACT_ADDRESS]: '0x0',
+      await waitFor(() => {
+        // Only successful token should be in state
+        expect(
+          controller.state.tokenBalances[accountAddress][chainId],
+        ).toStrictEqual({
+          [NATIVE_TOKEN_ADDRESS]: '0x0',
+          [tokenAddress1]: toHex(100),
+          [tokenAddress2]: '0x0',
+          [STAKING_CONTRACT_ADDRESS]: '0x0',
+        });
       });
     });
   });
@@ -2002,14 +2544,16 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // Verify both tokens are in state
-      expect(
-        controller.state.tokenBalances[accountAddress][chainId],
-      ).toStrictEqual({
-        [NATIVE_TOKEN_ADDRESS]: '0x0',
-        [tokenAddress1]: toHex(100),
-        [tokenAddress2]: toHex(200),
-        [STAKING_CONTRACT_ADDRESS]: '0x0',
+      await waitFor(() => {
+        // Verify both tokens are in state
+        expect(
+          controller.state.tokenBalances[accountAddress][chainId],
+        ).toStrictEqual({
+          [NATIVE_TOKEN_ADDRESS]: '0x0',
+          [tokenAddress1]: toHex(100),
+          [tokenAddress2]: toHex(200),
+          [STAKING_CONTRACT_ADDRESS]: '0x0',
+        });
       });
 
       // For this test, we just verify the basic functionality without testing
@@ -2046,8 +2590,10 @@ describe('TokenBalancesController', () => {
     // This should not throw and should return early
     await controller.updateBalances({ queryAllAccounts: true });
 
-    // Verify no balances were fetched
-    expect(controller.state.tokenBalances).toStrictEqual({});
+    await waitFor(() => {
+      // Verify no balances were fetched
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
   });
 
   it('handles case when no balances are aggregated', async () => {
@@ -2070,8 +2616,10 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    // Verify no state update occurred
-    expect(controller.state.tokenBalances).toStrictEqual({});
+    await waitFor(() => {
+      // Verify no state update occurred
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
   });
 
   it('handles case when no network configuration is found', async () => {
@@ -2088,8 +2636,10 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    // Verify no balances were fetched
-    expect(controller.state.tokenBalances).toStrictEqual({});
+    await waitFor(() => {
+      // Verify no balances were fetched
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
   });
 
   it('update native balance when fetch is successful', async () => {
@@ -2135,14 +2685,16 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    // Verify no balances were fetched
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {
-          [tokenAddress]: toHex(100),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      // Verify no balances were fetched
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [tokenAddress]: toHex(100),
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
   });
 
@@ -2199,20 +2751,22 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    // Verify that:
-    // - tokenAddress1 has its actual fetched balance
-    // - tokenAddress2, tokenAddress3, and detectedTokenAddress have balance 0
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress1]: toHex(123456), // Actual fetched balance
-          [tokenAddress2]: '0x0', // Zero balance for missing token
-          [tokenAddress3]: '0x0', // Zero balance for missing token
-          [detectedTokenAddress]: '0x0', // Zero balance for missing detected token
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      // Verify that:
+      // - tokenAddress1 has its actual fetched balance
+      // - tokenAddress2, tokenAddress3, and detectedTokenAddress have balance 0
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress1]: toHex(123456), // Actual fetched balance
+            [tokenAddress2]: '0x0', // Zero balance for missing token
+            [tokenAddress3]: '0x0', // Zero balance for missing token
+            [detectedTokenAddress]: '0x0', // Zero balance for missing detected token
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
   });
 
@@ -2255,16 +2809,18 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    // Verify all tokens have zero balance
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddress]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress1]: '0x0', // Zero balance when fetch fails
-          [tokenAddress2]: '0x0', // Zero balance when fetch fails
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      // Verify all tokens have zero balance
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress1]: '0x0', // Zero balance when fetch fails
+            [tokenAddress2]: '0x0', // Zero balance when fetch fails
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
   });
 
@@ -2315,22 +2871,24 @@ describe('TokenBalancesController', () => {
       queryAllAccounts: true,
     });
 
-    // Verify both accounts have their respective tokens with appropriate balances
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [account1]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress1]: toHex(500), // Actual fetched balance
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+    await waitFor(() => {
+      // Verify both accounts have their respective tokens with appropriate balances
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [account1]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress1]: toHex(500), // Actual fetched balance
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
-      [account2]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
-          [tokenAddress2]: '0x0', // Zero balance for missing token
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
+        [account2]: {
+          [chainId]: {
+            [NATIVE_TOKEN_ADDRESS]: '0x0',
+            [tokenAddress2]: '0x0', // Zero balance for missing token
+            [STAKING_CONTRACT_ADDRESS]: '0x0',
+          },
         },
-      },
+      });
     });
   });
 
@@ -2372,14 +2930,16 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddress]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress]: toHex(new BN('1000000000000000000')),
-            [STAKING_CONTRACT_ADDRESS]: toHex(stakedBalance),
+      await waitFor(() => {
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [accountAddress]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress]: toHex(new BN('1000000000000000000')),
+              [STAKING_CONTRACT_ADDRESS]: toHex(stakedBalance),
+            },
           },
-        },
+        });
       });
     });
 
@@ -2432,21 +2992,23 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [account1]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress]: toHex(new BN('1000000000000000000')),
-            [STAKING_CONTRACT_ADDRESS]: toHex(new BN('3000000000000000000')),
+      await waitFor(() => {
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [account1]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress]: toHex(new BN('1000000000000000000')),
+              [STAKING_CONTRACT_ADDRESS]: toHex(new BN('3000000000000000000')),
+            },
           },
-        },
-        [account2]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress]: toHex(new BN('2000000000000000000')),
-            [STAKING_CONTRACT_ADDRESS]: toHex(new BN('4000000000000000000')),
+          [account2]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress]: toHex(new BN('2000000000000000000')),
+              [STAKING_CONTRACT_ADDRESS]: toHex(new BN('4000000000000000000')),
+            },
           },
-        },
+        });
       });
     });
 
@@ -2486,14 +3048,16 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddress]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress]: toHex(new BN('1000000000000000000')),
-            [STAKING_CONTRACT_ADDRESS]: '0x0', // Zero balance
+      await waitFor(() => {
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [accountAddress]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress]: toHex(new BN('1000000000000000000')),
+              [STAKING_CONTRACT_ADDRESS]: '0x0', // Zero balance
+            },
           },
-        },
+        });
       });
     });
 
@@ -2531,14 +3095,16 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddress]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress]: toHex(new BN('1000000000000000000')),
-            [STAKING_CONTRACT_ADDRESS]: '0x0',
+      await waitFor(() => {
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [accountAddress]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress]: toHex(new BN('1000000000000000000')),
+              [STAKING_CONTRACT_ADDRESS]: '0x0',
+            },
           },
-        },
+        });
       });
     });
 
@@ -2581,14 +3147,16 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddress]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress]: toHex(new BN('1000000000000000000')),
-            // No staking contract address for unsupported chain
+      await waitFor(() => {
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [accountAddress]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress]: toHex(new BN('1000000000000000000')),
+              // No staking contract address for unsupported chain
+            },
           },
-        },
+        });
       });
     });
   });
@@ -2639,9 +3207,11 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // With safelyExecuteWithTimeout, errors are logged as console.error
-      // and the operation continues gracefully
-      expect(consoleErrorSpy).toHaveBeenCalledWith(mockError);
+      await waitFor(() => {
+        // With safelyExecuteWithTimeout, errors are logged as console.error
+        // and the operation continues gracefully
+        expect(consoleErrorSpy).toHaveBeenCalledWith(mockError);
+      });
 
       // Restore mocks
       multicallSpy.mockRestore();
@@ -2649,55 +3219,60 @@ describe('TokenBalancesController', () => {
     });
 
     it('should log error when updateBalances fails after token change', async () => {
-      const chainId = '0x1';
-      const accountAddress = '0x0000000000000000000000000000000000000000';
-      const tokenAddress = '0x0000000000000000000000000000000000000001';
-      const mockError = new Error('UpdateBalances failed');
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      try {
+        const chainId = '0x1';
+        const accountAddress = '0x0000000000000000000000000000000000000000';
+        const tokenAddress = '0x0000000000000000000000000000000000000001';
+        const mockError = new Error('UpdateBalances failed');
 
-      // Spy on console.warn
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        // Spy on console.warn
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      const { controller, messenger } = setupController();
+        const { controller, messenger } = setupController();
 
-      // Mock updateBalances to throw an error
-      const updateBalancesSpy = jest
-        .spyOn(controller, 'updateBalances')
-        .mockRejectedValue(mockError);
+        // Mock updateBalances to throw an error
+        const updateBalancesSpy = jest
+          .spyOn(controller, 'updateBalances')
+          .mockRejectedValue(mockError);
 
-      // Publish a token change that should trigger updateBalances
-      messenger.publish(
-        'TokensController:stateChange',
-        {
-          allDetectedTokens: {},
-          allIgnoredTokens: {},
-          allTokens: {
-            [chainId]: {
-              [accountAddress]: [
-                { address: tokenAddress, decimals: 0, symbol: 'S' },
-              ],
+        // Publish a token change that should trigger updateBalances
+        messenger.publish(
+          'TokensController:stateChange',
+          {
+            allDetectedTokens: {},
+            allIgnoredTokens: {},
+            allTokens: {
+              [chainId]: {
+                [accountAddress]: [
+                  { address: tokenAddress, decimals: 0, symbol: 'S' },
+                ],
+              },
             },
           },
-        },
-        [],
-      );
+          [],
+        );
 
-      await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
-      // Verify updateBalances was called
-      expect(updateBalancesSpy).toHaveBeenCalled();
+        // Verify updateBalances was called
+        expect(updateBalancesSpy).toHaveBeenCalled();
 
-      // Wait a bit more for the catch block to execute
-      await jestAdvanceTime({ duration: 1 });
+        // Wait a bit more for the catch block to execute
+        await jestAdvanceTime({ duration: 1 });
 
-      // Verify the error was logged
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'Error updating balances after token change:',
-        mockError,
-      );
+        // Verify the error was logged
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          'Error updating balances after token change:',
+          mockError,
+        );
 
-      // Restore the original method
-      updateBalancesSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
+        // Restore the original method
+        updateBalancesSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('should handle timeout scenario', async () => {
@@ -2725,9 +3300,6 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({ tokens });
 
-      // Use fake timers for precise control
-      jest.useFakeTimers();
-
       // Mock safelyExecuteWithTimeout to simulate timeout by returning undefined
       mockedSafelyExecuteWithTimeout.mockImplementation(
         async () => undefined, // Simulates timeout behavior
@@ -2741,27 +3313,23 @@ describe('TokenBalancesController', () => {
           stakedBalances: {},
         });
 
-      try {
-        // Start the balance update - should complete gracefully despite timeout
-        await controller.updateBalances({
-          chainIds: [chainId],
-          queryAllAccounts: true,
-        });
+      // Start the balance update - should complete gracefully despite timeout
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
+      await waitFor(() => {
         // With safelyExecuteWithTimeout, timeouts are handled gracefully
         // The system should continue operating without throwing errors
         // No specific timeout error message should be logged at controller level
 
         // Verify that the update completed without errors
         expect(controller.state.tokenBalances).toBeDefined();
+      });
 
-        // Restore mocks
-        multicallSpy.mockRestore();
-        consoleWarnSpy.mockRestore();
-      } finally {
-        // Always restore timers
-        jest.useRealTimers();
-      }
+      multicallSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
     });
   });
 
@@ -2813,15 +3381,17 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // Should only have one entry with proper checksum address
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddress]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddressProperChecksum]: '0x186a0', // Only checksum version exists
-            [STAKING_CONTRACT_ADDRESS]: '0x0',
+      await waitFor(() => {
+        // Should only have one entry with proper checksum address
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [accountAddress]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddressProperChecksum]: '0x186a0', // Only checksum version exists
+              [STAKING_CONTRACT_ADDRESS]: '0x0',
+            },
           },
-        },
+        });
       });
 
       // Verify no duplicate entries exist
@@ -2887,16 +3457,18 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // All addresses should be normalized to proper checksum format
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddress]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress1Checksum]: toHex(500),
-            [tokenAddress2Checksum]: toHex(1000),
-            [STAKING_CONTRACT_ADDRESS]: '0x0',
+      await waitFor(() => {
+        // All addresses should be normalized to proper checksum format
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [accountAddress]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddress1Checksum]: toHex(500),
+              [tokenAddress2Checksum]: toHex(1000),
+              [STAKING_CONTRACT_ADDRESS]: '0x0',
+            },
           },
-        },
+        });
       });
     });
 
@@ -2942,15 +3514,17 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // Should only have one normalized entry with proper checksum
-      expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddress]: {
-          [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddressChecksum]: '0x186a0', // Only checksum version exists
-            [STAKING_CONTRACT_ADDRESS]: '0x0',
+      await waitFor(() => {
+        // Should only have one normalized entry with proper checksum
+        expect(controller.state.tokenBalances).toStrictEqual({
+          [accountAddress]: {
+            [chainId]: {
+              [NATIVE_TOKEN_ADDRESS]: '0x0',
+              [tokenAddressChecksum]: '0x186a0', // Only checksum version exists
+              [STAKING_CONTRACT_ADDRESS]: '0x0',
+            },
           },
-        },
+        });
       });
 
       // Verify no case variations exist as separate keys
@@ -3003,11 +3577,13 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // Should have balances set for the account and chain
-      expect(controller.state.tokenBalances[accountAddress]).toBeDefined();
-      expect(
-        controller.state.tokenBalances[accountAddress][chainId],
-      ).toBeDefined();
+      await waitFor(() => {
+        // Should have balances set for the account and chain
+        expect(controller.state.tokenBalances[accountAddress]).toBeDefined();
+        expect(
+          controller.state.tokenBalances[accountAddress][chainId],
+        ).toBeDefined();
+      });
 
       const chainBalances =
         controller.state.tokenBalances[accountAddress][chainId];
@@ -3084,20 +3660,21 @@ describe('TokenBalancesController', () => {
         chainIds: [chainId],
         queryAllAccounts: false,
       });
-
-      // Verify that getTokenBalancesForMultipleAddresses was called with only the selected account
-      expect(mockGetTokenBalances).toHaveBeenCalledWith(
-        [
-          {
-            accountAddress: selectedAccount,
-            tokenAddresses: [tokenAddress, NATIVE_TOKEN_ADDRESS],
-          },
-        ],
-        chainId,
-        expect.any(Object), // provider
-        true, // include native
-        true, // include staked
-      );
+      await waitFor(() => {
+        // Verify that getTokenBalancesForMultipleAddresses was called with only the selected account
+        expect(mockGetTokenBalances).toHaveBeenCalledWith(
+          [
+            {
+              accountAddress: selectedAccount,
+              tokenAddresses: [tokenAddress, NATIVE_TOKEN_ADDRESS],
+            },
+          ],
+          chainId,
+          expect.any(Object), // provider
+          true, // include native
+          true, // include staked
+        );
+      });
 
       // Should only contain balance for selected account when queryMultipleAccounts is false
       expect(controller.state.tokenBalances).toStrictEqual({
@@ -3161,6 +3738,13 @@ describe('TokenBalancesController', () => {
   });
 
   describe('Per-chain polling intervals', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('should use default interval when no chain-specific config is provided', () => {
       const defaultInterval = 30000;
       const { controller } = setupController({
@@ -4064,147 +4648,162 @@ describe('TokenBalancesController', () => {
 
   describe('Error handling and edge cases', () => {
     it('should handle polling errors gracefully', async () => {
-      const chainId = '0x1';
-      const accountAddress = '0x0000000000000000000000000000000000000000';
-      const tokenAddress = '0x0000000000000000000000000000000000000001';
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      try {
+        const chainId = '0x1';
+        const accountAddress = '0x0000000000000000000000000000000000000000';
+        const tokenAddress = '0x0000000000000000000000000000000000000001';
 
-      const tokens = {
-        allDetectedTokens: {},
-        allTokens: {
-          [chainId]: {
-            [accountAddress]: [
-              { address: tokenAddress, symbol: 'TEST', decimals: 18 },
-            ],
+        const tokens = {
+          allDetectedTokens: {},
+          allTokens: {
+            [chainId]: {
+              [accountAddress]: [
+                { address: tokenAddress, symbol: 'TEST', decimals: 18 },
+              ],
+            },
           },
-        },
-      };
+        };
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      const { controller } = setupController({
-        tokens,
-        config: { interval: 100 },
-      });
+        const { controller } = setupController({
+          tokens,
+          config: { interval: 100 },
+        });
 
-      // Mock _executePoll to throw an error
-      const pollSpy = jest
-        .spyOn(controller, '_executePoll')
-        .mockRejectedValue(new Error('Polling failed'));
+        // Mock _executePoll to throw an error
+        const pollSpy = jest
+          .spyOn(controller, '_executePoll')
+          .mockRejectedValue(new Error('Polling failed'));
 
-      controller.startPolling({ chainIds: ['0x1'] });
+        controller.startPolling({ chainIds: ['0x1'] });
 
-      // Wait for initial poll and error
-      await jestAdvanceTime({ duration: 1 });
+        // Wait for initial poll and error
+        await jestAdvanceTime({ duration: 1 });
 
-      // Wait for interval poll and error
-      await jestAdvanceTime({ duration: 100 });
+        // Wait for interval poll and error
+        await jestAdvanceTime({ duration: 100 });
 
-      // Should have attempted polls despite errors
-      expect(pollSpy).toHaveBeenCalledTimes(2);
+        // Should have attempted polls despite errors
+        expect(pollSpy).toHaveBeenCalledTimes(2);
 
-      controller.stopAllPolling();
-      consoleSpy.mockRestore();
+        controller.stopAllPolling();
+        consoleSpy.mockRestore();
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('should handle updateBalances errors in token change handler', async () => {
-      const chainId = '0x1';
-      const accountAddress = '0x0000000000000000000000000000000000000000';
-      const tokenAddress = '0x0000000000000000000000000000000000000001';
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      try {
+        const chainId = '0x1';
+        const accountAddress = '0x0000000000000000000000000000000000000000';
+        const tokenAddress = '0x0000000000000000000000000000000000000001';
 
-      const tokens = {
-        allDetectedTokens: {},
-        allTokens: {
-          [chainId]: {
-            [accountAddress]: [
-              { address: tokenAddress, symbol: 'TEST', decimals: 18 },
-            ],
+        const tokens = {
+          allDetectedTokens: {},
+          allTokens: {
+            [chainId]: {
+              [accountAddress]: [
+                { address: tokenAddress, symbol: 'TEST', decimals: 18 },
+              ],
+            },
           },
-        },
-      };
+        };
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      const { controller, messenger } = setupController({
-        tokens,
-      });
+        const { controller, messenger } = setupController({
+          tokens,
+        });
 
-      // Mock updateBalances to throw an error
-      const updateBalancesSpy = jest
-        .spyOn(controller, 'updateBalances')
-        .mockRejectedValue(new Error('Update failed'));
+        // Mock updateBalances to throw an error
+        const updateBalancesSpy = jest
+          .spyOn(controller, 'updateBalances')
+          .mockRejectedValue(new Error('Update failed'));
 
-      // Simulate token change that triggers balance update
-      const newTokens = {
-        ...tokens,
-        allTokens: {
-          [chainId]: {
-            [accountAddress]: [
-              { address: tokenAddress, symbol: 'TEST', decimals: 18 },
-              {
-                address: '0x0000000000000000000000000000000000000002',
-                symbol: 'NEW',
-                decimals: 18,
-              },
-            ],
+        // Simulate token change that triggers balance update
+        const newTokens = {
+          ...tokens,
+          allTokens: {
+            [chainId]: {
+              [accountAddress]: [
+                { address: tokenAddress, symbol: 'TEST', decimals: 18 },
+                {
+                  address: '0x0000000000000000000000000000000000000002',
+                  symbol: 'NEW',
+                  decimals: 18,
+                },
+              ],
+            },
           },
-        },
-        allIgnoredTokens: {},
-        ignoredTokens: [],
-        detectedTokens: [],
-        tokens: [],
-      };
+          allIgnoredTokens: {},
+          ignoredTokens: [],
+          detectedTokens: [],
+          tokens: [],
+        };
 
-      // Trigger token change by publishing state change
-      messenger.publish('TokensController:stateChange', newTokens, [
-        { op: 'replace', path: [], value: newTokens },
-      ]);
+        // Trigger token change by publishing state change
+        messenger.publish('TokensController:stateChange', newTokens, [
+          { op: 'replace', path: [], value: newTokens },
+        ]);
 
-      // Wait for async error handling
-      await jestAdvanceTime({ duration: 1 });
+        // Wait for async error handling
+        await jestAdvanceTime({ duration: 1 });
 
-      expect(updateBalancesSpy).toHaveBeenCalled();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error updating balances after token change:',
-        expect.any(Error),
-      );
+        expect(updateBalancesSpy).toHaveBeenCalled();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error updating balances after token change:',
+          expect.any(Error),
+        );
 
-      consoleSpy.mockRestore();
+        consoleSpy.mockRestore();
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('should handle malformed JSON in _stopPollingByPollingTokenSetId gracefully', async () => {
-      const { controller } = setupController();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      try {
+        const { controller } = setupController();
 
-      // Start polling to create an active session
-      controller.startPolling({ chainIds: ['0x1', '0x2'] });
+        // Start polling to create an active session
+        controller.startPolling({ chainIds: ['0x1', '0x2'] });
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      // Call with malformed JSON - this should trigger the fallback behavior
-      const malformedTokenSetId = '{invalid json}';
-      controller._stopPollingByPollingTokenSetId(malformedTokenSetId);
+        // Call with malformed JSON - this should trigger the fallback behavior
+        const malformedTokenSetId = '{invalid json}';
+        controller._stopPollingByPollingTokenSetId(malformedTokenSetId);
 
-      // Should log the error
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to parse tokenSetId, stopping all polling:',
-        expect.any(SyntaxError),
-      );
+        // Should log the error
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Failed to parse tokenSetId, stopping all polling:',
+          expect.any(SyntaxError),
+        );
 
-      // Verify that controller can recover by starting new polling session successfully
-      // This demonstrates that the fallback stop-all-polling behavior worked
-      const updateBalancesSpy = jest
-        .spyOn(controller, 'updateBalances')
-        .mockResolvedValue();
+        // Verify that controller can recover by starting new polling session successfully
+        // This demonstrates that the fallback stop-all-polling behavior worked
+        const updateBalancesSpy = jest
+          .spyOn(controller, 'updateBalances')
+          .mockResolvedValue();
 
-      // Start new polling session - should work normally after error recovery
-      controller.startPolling({ chainIds: ['0x1'] });
+        // Start new polling session - should work normally after error recovery
+        controller.startPolling({ chainIds: ['0x1'] });
 
-      // Wait for any immediate polling to complete
-      await jestAdvanceTime({ duration: 1 });
+        // Wait for any immediate polling to complete
+        await jestAdvanceTime({ duration: 1 });
 
-      // Clean up
-      controller.stopAllPolling();
-      consoleSpy.mockRestore();
-      updateBalancesSpy.mockRestore();
+        // Clean up
+        controller.stopAllPolling();
+        consoleSpy.mockRestore();
+        updateBalancesSpy.mockRestore();
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('should properly destroy controller and cleanup resources', () => {
@@ -4261,14 +4860,16 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      // With safelyExecuteWithTimeout timeout simulation, the system should continue operating
-      // The controller should have initialized the token with 0 balance despite timeout
-      expect(controller.state.tokenBalances).toStrictEqual({
-        '0x0000000000000000000000000000000000000000': {
-          '0x1': {
-            '0x0000000000000000000000000000000000000001': '0x0',
+      await waitFor(() => {
+        // With safelyExecuteWithTimeout timeout simulation, the system should continue operating
+        // The controller should have initialized the token with 0 balance despite timeout
+        expect(controller.state.tokenBalances).toStrictEqual({
+          '0x0000000000000000000000000000000000000000': {
+            '0x1': {
+              '0x0000000000000000000000000000000000000001': '0x0',
+            },
           },
-        },
+        });
       });
 
       // Restore the mock to its default behavior
@@ -4416,9 +5017,9 @@ describe('TokenBalancesController', () => {
 
       // First call: external services disabled, should use RPC fetcher
       await controller.updateBalances({ chainIds: [chainId] });
-
-      // RPC fetcher should have been called since external services are disabled
-      expect(multicallSpy).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(multicallSpy).toHaveBeenCalled();
+      });
       multicallSpy.mockClear();
 
       // Now enable external services - this should be respected dynamically
@@ -4429,11 +5030,13 @@ describe('TokenBalancesController', () => {
       // (though it may still fall back to RPC if the API call fails in test)
       await controller.updateBalances({ chainIds: [chainId] });
 
-      // The test verifies that the allowExternalServices function is evaluated
-      // dynamically by checking that the controller was constructed successfully
-      // and that balance updates work in both states
-      expect(controller).toBeDefined();
-      expect(controller.state.tokenBalances).toBeDefined();
+      await waitFor(() => {
+        // The test verifies that the allowExternalServices function is evaluated
+        // dynamically by checking that the controller was constructed successfully
+        // and that balance updates work in both states
+        expect(controller).toBeDefined();
+        expect(controller.state.tokenBalances).toBeDefined();
+      });
 
       multicallSpy.mockRestore();
     });
@@ -4544,8 +5147,9 @@ describe('TokenBalancesController', () => {
 
       // This should trigger the continue statement (line 440) when no chains are supported
       await controller.updateBalances({ chainIds: [chainId] });
-
-      expect(mockSupports).toHaveBeenCalledWith(chainId);
+      await waitFor(() => {
+        expect(mockSupports).toHaveBeenCalledWith(chainId);
+      });
       mockSupports.mockRestore();
     });
 
@@ -4633,13 +5237,25 @@ describe('TokenBalancesController', () => {
       const originalFetch = global.fetch;
       global.fetch = mockGlobalFetch;
 
-      // Create controller with accountsApiChainIds to enable AccountsApi fetcher
+      // Create controller with accountsApiChainIds to enable AccountsApi fetcher; tokens so we fetch for chainId1
+      const tokenAddress = '0x0000000000000000000000000000000000000001';
       const { controller } = setupController({
         config: {
           accountsApiChainIds: () => [chainId1, chainId2], // This enables AccountsApi for these chains
           allowExternalServices: () => true,
         },
         listAccounts: [account],
+        tokens: {
+          allTokens: {
+            [chainId1]: {
+              [accountAddress]: [
+                { address: tokenAddress, symbol: 'T', decimals: 18 },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
+        },
       });
 
       // Reset mocks after controller creation
@@ -4649,13 +5265,16 @@ describe('TokenBalancesController', () => {
       // Test Case 1: Execute line 517 -> line 320 with chainId returned by accountsApiChainIds()
       mockSupports.mockReturnValue(true);
       await controller.updateBalances({ chainIds: [chainId1] }); // This triggers line 517 -> line 320
-
-      // Verify line 320 logic was executed (originalFetcher.supports was called)
-      expect(mockSupports).toHaveBeenCalledWith(chainId1);
+      await waitFor(() => {
+        expect(mockSupports).toHaveBeenCalledWith(chainId1);
+      });
 
       // Test Case 2: Execute line 517 -> line 320 with chainId NOT returned by accountsApiChainIds()
       mockSupports.mockClear();
       await controller.updateBalances({ chainIds: [chainId3] }); // This triggers line 517 -> line 320
+      await new Promise((resolve) =>
+        setTimeout(resolve, UPDATE_BALANCES_BATCH_MS + 100),
+      ); // Allow debounce + async to complete
 
       // Should NOT have called originalFetcher.supports because chainId3 is not returned by accountsApiChainIds()
       // This tests the short-circuit evaluation on line 322: this.#accountsApiChainIds().includes(chainId)
@@ -4720,9 +5339,6 @@ describe('TokenBalancesController', () => {
         ],
       });
 
-      // Wait for async update
-      await flushPromises();
-
       // Verify balance was updated (account addresses are lowercase in state)
       const checksumTokenAddress = tokenAddress;
       expect(
@@ -4772,28 +5388,27 @@ describe('TokenBalancesController', () => {
         ],
       });
 
-      // Wait for async update
-      await flushPromises();
+      await waitFor(() => {
+        // Verify native balance was updated in TokenBalancesController (account addresses are lowercase in state)
+        const lowercaseAddr = accountAddress.toLowerCase();
+        expect(
+          controller.state.tokenBalances[lowercaseAddr as ChecksumAddress]?.[
+            chainId
+          ]?.[NATIVE_TOKEN_ADDRESS],
+        ).toBe('0xde0b6b3a7640000');
 
-      // Verify native balance was updated in TokenBalancesController (account addresses are lowercase in state)
-      const lowercaseAddr = accountAddress.toLowerCase();
-      expect(
-        controller.state.tokenBalances[lowercaseAddr as ChecksumAddress]?.[
-          chainId
-        ]?.[NATIVE_TOKEN_ADDRESS],
-      ).toBe('0xde0b6b3a7640000');
-
-      // Verify AccountTrackerController was called
-      expect(updateNativeBalancesSpy).toHaveBeenCalledWith(
-        'AccountTrackerController:updateNativeBalances',
-        [
-          {
-            address: lowercaseAddr,
-            chainId,
-            balance: '0xde0b6b3a7640000',
-          },
-        ],
-      );
+        // Verify AccountTrackerController was called
+        expect(updateNativeBalancesSpy).toHaveBeenCalledWith(
+          'AccountTrackerController:updateNativeBalances',
+          [
+            {
+              address: lowercaseAddr,
+              chainId,
+              balance: '0xde0b6b3a7640000',
+            },
+          ],
+        );
+      });
     });
 
     it('should handle balance update errors and trigger fallback polling', async () => {
@@ -4827,11 +5442,10 @@ describe('TokenBalancesController', () => {
         ],
       });
 
-      // Wait for async update
-      await flushPromises();
-
-      // Verify fallback polling was triggered
-      expect(updateBalancesSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+      await waitFor(() => {
+        // Verify fallback polling was triggered
+        expect(updateBalancesSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+      });
     });
 
     it('should handle unsupported asset types and trigger fallback polling', async () => {
@@ -4863,12 +5477,10 @@ describe('TokenBalancesController', () => {
           },
         ],
       });
-
-      // Wait for async update
-      await flushPromises();
-
-      // Verify fallback polling was triggered
-      expect(updateBalancesSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+      await waitFor(() => {
+        // Verify fallback polling was triggered
+        expect(updateBalancesSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+      });
     });
 
     it('should handle status change to "up" and increase polling interval', async () => {
@@ -4992,6 +5604,68 @@ describe('TokenBalancesController', () => {
       jest.useRealTimers();
     });
 
+    it('should skip non-EVM chains like solana without crashing', async () => {
+      jest.useFakeTimers();
+
+      const { controller, messenger } = setupController();
+
+      const updateConfigSpy = jest.spyOn(
+        controller,
+        'updateChainPollingConfigs',
+      );
+
+      messenger.publish('AccountActivityService:statusChanged', {
+        chainIds: ['solana:mainnet'],
+        status: 'up',
+      });
+
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
+      jest.advanceTimersByTime(30000);
+      await flushPromises();
+
+      expect(updateConfigSpy).not.toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it('should process EVM chains and skip non-EVM chains in mixed status changes', async () => {
+      jest.useFakeTimers();
+
+      const { controller, messenger } = setupController();
+
+      const updateConfigSpy = jest.spyOn(
+        controller,
+        'updateChainPollingConfigs',
+      );
+
+      messenger.publish('AccountActivityService:statusChanged', {
+        chainIds: ['eip155:1', 'solana:mainnet'],
+        status: 'up',
+      });
+
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
+      jest.advanceTimersByTime(30000);
+      await flushPromises();
+
+      expect(updateConfigSpy).toHaveBeenCalledTimes(1);
+      expect(updateConfigSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          '0x1': { interval: 300000 },
+        }),
+        { immediateUpdate: true },
+      );
+      expect(updateConfigSpy).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          'solana:mainnet': expect.anything(),
+        }),
+        expect.anything(),
+      );
+
+      jest.useRealTimers();
+    });
+
     it('should handle multiple chains in a single balance update', async () => {
       const accountAddress = '0x1234567890123456789012345678901234567890';
       const token1 = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; // USDC
@@ -5059,20 +5733,19 @@ describe('TokenBalancesController', () => {
         ],
       });
 
-      // Wait for async update
-      await flushPromises();
-
-      // Verify both balances were updated (account addresses are lowercase in state)
-      expect(
-        controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
-          '0x1'
-        ]?.[token1],
-      ).toBe('0xf4240');
-      expect(
-        controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
-          '0x1'
-        ]?.[token2],
-      ).toBe('0x1e8480');
+      await waitFor(() => {
+        // Verify both balances were updated (account addresses are lowercase in state)
+        expect(
+          controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
+            '0x1'
+          ]?.[token1],
+        ).toBe('0xf4240');
+        expect(
+          controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
+            '0x1'
+          ]?.[token2],
+        ).toBe('0x1e8480');
+      });
     });
 
     it('should handle invalid token addresses and trigger fallback polling', async () => {
@@ -5102,10 +5775,9 @@ describe('TokenBalancesController', () => {
           },
         ],
       });
-
-      await flushPromises();
-
-      expect(updateBalancesSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+      await waitFor(() => {
+        expect(updateBalancesSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+      });
     });
 
     it('should handle status changes with hex chain ID format', async () => {
@@ -5182,23 +5854,21 @@ describe('TokenBalancesController', () => {
           },
         ],
       });
+      await waitFor(() => {
+        // Verify addDetectedTokensViaWs was called with the new token addresses and chainId
+        expect(addTokensSpy).toHaveBeenCalledWith({
+          tokensSlice: [newTokenAddress],
+          chainId,
+        });
 
-      // Wait for async processing
-      await flushPromises();
-
-      // Verify addDetectedTokensViaWs was called with the new token addresses and chainId
-      expect(addTokensSpy).toHaveBeenCalledWith({
-        tokensSlice: [newTokenAddress],
-        chainId,
+        // Verify balance was updated from websocket (account addresses are lowercase in state)
+        const lowercaseAddr2 = accountAddress.toLowerCase();
+        expect(
+          controller.state.tokenBalances[lowercaseAddr2 as ChecksumAddress]?.[
+            chainId
+          ]?.[newTokenAddress],
+        ).toBe('0xf4240');
       });
-
-      // Verify balance was updated from websocket (account addresses are lowercase in state)
-      const lowercaseAddr2 = accountAddress.toLowerCase();
-      expect(
-        controller.state.tokenBalances[lowercaseAddr2 as ChecksumAddress]?.[
-          chainId
-        ]?.[newTokenAddress],
-      ).toBe('0xf4240');
     });
 
     it('should process tracked tokens from allTokens without calling addTokens', async () => {
@@ -5260,18 +5930,17 @@ describe('TokenBalancesController', () => {
         ],
       });
 
-      // Wait for async processing
-      await flushPromises();
+      await waitFor(() => {
+        // Verify addTokens was NOT called since token is already tracked
+        expect(addTokensSpy).not.toHaveBeenCalled();
 
-      // Verify addTokens was NOT called since token is already tracked
-      expect(addTokensSpy).not.toHaveBeenCalled();
-
-      // Verify balance was updated (account addresses are lowercase in state)
-      expect(
-        controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
-          chainId
-        ]?.[trackedTokenAddress],
-      ).toBe('0xf4240');
+        // Verify balance was updated (account addresses are lowercase in state)
+        expect(
+          controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
+            chainId
+          ]?.[trackedTokenAddress],
+        ).toBe('0xf4240');
+      });
     });
 
     it('should process ignored tokens from allIgnoredTokens without calling addTokens', async () => {
@@ -5327,18 +5996,17 @@ describe('TokenBalancesController', () => {
         ],
       });
 
-      // Wait for async processing
-      await flushPromises();
+      await waitFor(() => {
+        // Verify addTokens was NOT called since token is ignored (tracked)
+        expect(addTokensSpy).not.toHaveBeenCalled();
 
-      // Verify addTokens was NOT called since token is ignored (tracked)
-      expect(addTokensSpy).not.toHaveBeenCalled();
-
-      // Verify balance was still updated (ignored tokens should still have balances tracked, account addresses are lowercase in state)
-      expect(
-        controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
-          chainId
-        ]?.[ignoredTokenAddress],
-      ).toBe('0xf4240');
+        // Verify balance was still updated (ignored tokens should still have balances tracked, account addresses are lowercase in state)
+        expect(
+          controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
+            chainId
+          ]?.[ignoredTokenAddress],
+        ).toBe('0xf4240');
+      });
     });
 
     it('should handle native tokens without checking if they are tracked', async () => {
@@ -5388,19 +6056,18 @@ describe('TokenBalancesController', () => {
         ],
       });
 
-      // Wait for async processing
-      await flushPromises();
+      await waitFor(() => {
+        // Verify addTokens was NOT called for native token
+        expect(addTokensSpy).not.toHaveBeenCalled();
 
-      // Verify addTokens was NOT called for native token
-      expect(addTokensSpy).not.toHaveBeenCalled();
-
-      // Verify native balance was updated (account addresses are lowercase in state)
-      const lowercaseAddr3 = accountAddress.toLowerCase();
-      expect(
-        controller.state.tokenBalances[lowercaseAddr3 as ChecksumAddress]?.[
-          chainId
-        ]?.[NATIVE_TOKEN_ADDRESS],
-      ).toBe('0xde0b6b3a7640000');
+        // Verify native balance was updated (account addresses are lowercase in state)
+        const lowercaseAddr3 = accountAddress.toLowerCase();
+        expect(
+          controller.state.tokenBalances[lowercaseAddr3 as ChecksumAddress]?.[
+            chainId
+          ]?.[NATIVE_TOKEN_ADDRESS],
+        ).toBe('0xde0b6b3a7640000');
+      });
     });
 
     it('should handle addTokens errors and trigger fallback polling', async () => {
@@ -5458,17 +6125,16 @@ describe('TokenBalancesController', () => {
         ],
       });
 
-      // Wait for async processing
-      await flushPromises();
+      await waitFor(() => {
+        // Verify error was logged
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error updating balances from AccountActivityService for chain eip155:1, account 0x1234567890123456789012345678901234567890:',
+          expect.any(Error),
+        );
 
-      // Verify error was logged
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error updating balances from AccountActivityService for chain eip155:1, account 0x1234567890123456789012345678901234567890:',
-        expect.any(Error),
-      );
-
-      // Verify fallback polling was triggered (once in addTokens error handler)
-      expect(updateBalancesSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+        // Verify fallback polling was triggered (once in addTokens error handler)
+        expect(updateBalancesSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+      });
 
       consoleSpy.mockRestore();
     });
@@ -5544,26 +6210,25 @@ describe('TokenBalancesController', () => {
         ],
       });
 
-      // Wait for async processing
-      await flushPromises();
+      await waitFor(() => {
+        // Verify addTokens was called only for the untracked token with networkClientId
+        expect(addTokensSpy).toHaveBeenCalledWith({
+          tokensSlice: [untrackedToken],
+          chainId,
+        });
 
-      // Verify addTokens was called only for the untracked token with networkClientId
-      expect(addTokensSpy).toHaveBeenCalledWith({
-        tokensSlice: [untrackedToken],
-        chainId,
+        // Verify both token balances were updated from websocket (account addresses are lowercase in state)
+        expect(
+          controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
+            chainId
+          ]?.[trackedToken],
+        ).toBe('0xf4240');
+        expect(
+          controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
+            chainId
+          ]?.[untrackedToken],
+        ).toBe('0x1e8480');
       });
-
-      // Verify both token balances were updated from websocket (account addresses are lowercase in state)
-      expect(
-        controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
-          chainId
-        ]?.[trackedToken],
-      ).toBe('0xf4240');
-      expect(
-        controller.state.tokenBalances[lowercaseAddress as ChecksumAddress]?.[
-          chainId
-        ]?.[untrackedToken],
-      ).toBe('0x1e8480');
     });
 
     it('should cleanup debouncing timer on destroy', () => {
@@ -5600,6 +6265,7 @@ describe('TokenBalancesController', () => {
         mockAPIAccountsAPIMultichainAccountBalancesCamelCase(accountAddress);
 
       const account = createMockInternalAccount({ address: accountAddress });
+      const tokenAddress = '0x2791bca1f2de4661ed88a30c99a7a9449aa84174'; // USDC from mock response
 
       const { controller } = setupController({
         config: {
@@ -5607,6 +6273,17 @@ describe('TokenBalancesController', () => {
           allowExternalServices: () => true,
         },
         listAccounts: [account],
+        tokens: {
+          allTokens: {
+            [chainId]: {
+              [accountAddress]: [
+                { address: tokenAddress, symbol: 'USDC', decimals: 6 },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
+        },
       });
 
       return {
@@ -5623,10 +6300,12 @@ describe('TokenBalancesController', () => {
         queryAllAccounts: true,
       });
 
-      expect(controller.state.tokenBalances[accountAddress]).toBeDefined();
-      expect(
-        controller.state.tokenBalances[checksumAccountAddress],
-      ).toBeUndefined();
+      await waitFor(() => {
+        expect(controller.state.tokenBalances[accountAddress]).toBeDefined();
+        expect(
+          controller.state.tokenBalances[checksumAccountAddress],
+        ).toBeUndefined();
+      });
 
       expect(mockAccountsAPI.isDone()).toBe(true);
     });
@@ -5706,22 +6385,6 @@ describe('TokenBalancesController', () => {
       });
     });
 
-    it('should handle TransactionController:incomingTransactionsReceived event', async () => {
-      const { controller, messenger } = setupController();
-      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
-
-      messenger.publish('TransactionController:incomingTransactionsReceived', [
-        { chainId: '0x1' },
-        { chainId: '0x89' },
-      ] as unknown as TransactionMeta[]);
-
-      await jest.advanceTimersByTimeAsync(0);
-
-      expect(updateBalancesSpy).toHaveBeenCalledWith({
-        chainIds: ['0x1', '0x89'],
-      });
-    });
-
     it('should handle errors from #onTokensChanged gracefully', async () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
       const { controller, messenger } = setupController();
@@ -5787,6 +6450,13 @@ describe('TokenBalancesController', () => {
   });
 
   describe('polling behavior', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('should not poll when controller polling is not active', async () => {
       const { controller } = setupController({
         config: {
@@ -5976,6 +6646,13 @@ describe('TokenBalancesController', () => {
   });
 
   describe('polling timer management', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('should clear existing timer when setting new one for same interval', async () => {
       // This test verifies line 586
       const { controller } = setupController({
@@ -5998,119 +6675,129 @@ describe('TokenBalancesController', () => {
     });
 
     it('should handle immediate polling errors gracefully', async () => {
-      // This test verifies that errors in updateBalances are caught by the polling error handler
-      const consoleWarnSpy = jest
-        .spyOn(console, 'warn')
-        .mockImplementation(() => undefined);
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      try {
+        // This test verifies that errors in updateBalances are caught by the polling error handler
+        const consoleWarnSpy = jest
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
 
-      const selectedAccount = createMockInternalAccount({
-        address: '0x0000000000000000000000000000000000000001',
-      });
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
 
-      const { controller, messenger } = setupController({
-        config: {
-          accountsApiChainIds: () => [],
-        },
-        listAccounts: [selectedAccount],
-        tokens: {
-          allTokens: {
-            '0x1': {
-              [selectedAccount.address]: [
-                {
-                  address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-                  symbol: 'USDC',
-                  decimals: 6,
-                },
-              ],
-            },
+        const { controller, messenger } = setupController({
+          config: {
+            accountsApiChainIds: () => [],
           },
-          allDetectedTokens: {},
-          allIgnoredTokens: {},
-        },
-      });
+          listAccounts: [selectedAccount],
+          tokens: {
+            allTokens: {
+              '0x1': {
+                [selectedAccount.address]: [
+                  {
+                    address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                    symbol: 'USDC',
+                    decimals: 6,
+                  },
+                ],
+              },
+            },
+            allDetectedTokens: {},
+            allIgnoredTokens: {},
+          },
+        });
 
-      // Unregister handler and re-register to cause an error in updateBalances
-      // Breaking AccountsController:getSelectedAccount causes error before #fetchAllBalances
-      messenger.unregisterActionHandler(
-        'AccountsController:getSelectedAccount',
-      );
-      messenger.registerActionHandler(
-        'AccountsController:getSelectedAccount',
-        () => {
-          throw new Error('Account error');
-        },
-      );
+        // Unregister handler and re-register to cause an error in updateBalances
+        // Breaking AccountsController:getSelectedAccount causes error before #fetchAllBalances
+        messenger.unregisterActionHandler(
+          'AccountsController:getSelectedAccount',
+        );
+        messenger.registerActionHandler(
+          'AccountsController:getSelectedAccount',
+          () => {
+            throw new Error('Account error');
+          },
+        );
 
-      controller.startPolling({ chainIds: ['0x1'] });
+        controller.startPolling({ chainIds: ['0x1'] });
 
-      await jest.advanceTimersByTimeAsync(100);
+        await jest.advanceTimersByTimeAsync(100);
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Polling failed'),
-        expect.anything(),
-      );
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Polling failed'),
+          expect.anything(),
+        );
 
-      consoleWarnSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('should handle interval polling errors gracefully', async () => {
-      // This test verifies that errors in interval polling are caught and logged
-      const consoleWarnSpy = jest
-        .spyOn(console, 'warn')
-        .mockImplementation(() => undefined);
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      try {
+        // This test verifies that errors in interval polling are caught and logged
+        const consoleWarnSpy = jest
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
 
-      const selectedAccount = createMockInternalAccount({
-        address: '0x0000000000000000000000000000000000000001',
-      });
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
 
-      const { controller, messenger } = setupController({
-        config: {
-          accountsApiChainIds: () => [],
-          interval: 1000,
-        },
-        listAccounts: [selectedAccount],
-        tokens: {
-          allTokens: {
-            '0x1': {
-              [selectedAccount.address]: [
-                {
-                  address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-                  symbol: 'USDC',
-                  decimals: 6,
-                },
-              ],
-            },
+        const { controller, messenger } = setupController({
+          config: {
+            accountsApiChainIds: () => [],
+            interval: 1000,
           },
-          allDetectedTokens: {},
-          allIgnoredTokens: {},
-        },
-      });
+          listAccounts: [selectedAccount],
+          tokens: {
+            allTokens: {
+              '0x1': {
+                [selectedAccount.address]: [
+                  {
+                    address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                    symbol: 'USDC',
+                    decimals: 6,
+                  },
+                ],
+              },
+            },
+            allDetectedTokens: {},
+            allIgnoredTokens: {},
+          },
+        });
 
-      controller.startPolling({ chainIds: ['0x1'] });
+        controller.startPolling({ chainIds: ['0x1'] });
 
-      await jest.advanceTimersByTimeAsync(100);
+        await jest.advanceTimersByTimeAsync(100);
 
-      // Now break the handler to cause errors on subsequent polls
-      // Breaking AccountsController:getSelectedAccount causes error before #fetchAllBalances
-      messenger.unregisterActionHandler(
-        'AccountsController:getSelectedAccount',
-      );
-      messenger.registerActionHandler(
-        'AccountsController:getSelectedAccount',
-        () => {
-          throw new Error('Account error');
-        },
-      );
+        // Now break the handler to cause errors on subsequent polls
+        // Breaking AccountsController:getSelectedAccount causes error before #fetchAllBalances
+        messenger.unregisterActionHandler(
+          'AccountsController:getSelectedAccount',
+        );
+        messenger.registerActionHandler(
+          'AccountsController:getSelectedAccount',
+          () => {
+            throw new Error('Account error');
+          },
+        );
 
-      // Wait for interval polling to trigger
-      await jest.advanceTimersByTimeAsync(1500);
+        // Wait for interval polling to trigger
+        await jest.advanceTimersByTimeAsync(1500);
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Polling failed'),
-        expect.anything(),
-      );
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Polling failed'),
+          expect.anything(),
+        );
 
-      consoleWarnSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
@@ -6201,11 +6888,23 @@ describe('TokenBalancesController', () => {
       const selectedAccount = createMockInternalAccount({
         address: '0x1234567890123456789012345678901234567890',
       });
+      const tokenAddress = '0x0000000000000000000000000000000000000001';
 
       const { controller, messenger } = setupController({
         listAccounts: [selectedAccount],
         config: {
           accountsApiChainIds: () => [],
+        },
+        tokens: {
+          allTokens: {
+            '0x1': {
+              [selectedAccount.address]: [
+                { address: tokenAddress, symbol: 'T', decimals: 18 },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
         },
       });
 
@@ -6223,9 +6922,9 @@ describe('TokenBalancesController', () => {
 
       // updateBalances should proceed after unlock
       await controller.updateBalances({ chainIds: ['0x1'] });
-
-      // Verify fetch WAS called because isActive is true
-      expect(fetchSpy).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalled();
+      });
 
       fetchSpy.mockRestore();
     });
@@ -6403,15 +7102,14 @@ describe('TokenBalancesController', () => {
         chainIds: [chainId],
         tokenAddresses: [token1, token2],
       });
-
-      const balances =
-        controller.state.tokenBalances[accountAddress as ChecksumAddress]?.[
-          chainId
-        ];
-
-      expect(balances).toBeDefined();
-      expect(balances?.[token1 as ChecksumAddress]).toBeDefined();
-      expect(balances?.[token2 as ChecksumAddress]).toBeDefined();
+      await waitFor(() => {
+        const balances =
+          controller.state.tokenBalances[accountAddress as ChecksumAddress]?.[
+            chainId
+          ];
+        expect(balances?.[token1 as ChecksumAddress]).toBeDefined();
+        expect(balances?.[token2 as ChecksumAddress]).toBeDefined();
+      });
       // token3 should also be present because multicall returns all tokens
       // The filtering happens at the fetcher level, not the state update level
     });
@@ -6450,15 +7148,15 @@ describe('TokenBalancesController', () => {
         chainIds: [chainId],
         queryAllAccounts: true,
       });
-
-      const balances =
-        controller.state.tokenBalances[accountAddress as ChecksumAddress]?.[
-          chainId
-        ];
-
-      // Both tokens should have their returned balances
-      expect(balances?.[token1 as ChecksumAddress]).toBe(toHex(100));
-      expect(balances?.[token2 as ChecksumAddress]).toBe(toHex(200));
+      await waitFor(() => {
+        const balances =
+          controller.state.tokenBalances[accountAddress as ChecksumAddress]?.[
+            chainId
+          ];
+        // Both tokens should have their returned balances
+        expect(balances?.[token1 as ChecksumAddress]).toBe(toHex(100));
+        expect(balances?.[token2 as ChecksumAddress]).toBe(toHex(200));
+      });
     });
 
     it('should not call addDetectedTokensViaWs for empty token arrays (line 1082)', async () => {
@@ -6610,14 +7308,13 @@ describe('TokenBalancesController', () => {
       // Start polling - the poll function catches errors and logs them
       controller.startPolling({ chainIds: ['0x1'] });
 
-      // Wait for the promise to be caught
-      await flushPromises();
-
-      // Verify warning was logged (either immediate or interval polling message)
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Polling failed'),
-        expect.any(Error),
-      );
+      await waitFor(() => {
+        // Verify warning was logged (either immediate or interval polling message)
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Polling failed'),
+          expect.any(Error),
+        );
+      });
 
       controller.stopAllPolling();
       consoleWarnSpy.mockRestore();
@@ -6667,17 +7364,107 @@ describe('TokenBalancesController', () => {
         chainIds: [chainId],
         queryAllAccounts: true,
       });
-
-      // Verify detectTokens was called with forceRpc for unprocessed chains
-      expect(messengerCallSpy).toHaveBeenCalledWith(
-        'TokenDetectionController:detectTokens',
-        {
-          chainIds: ['0x89'],
-          forceRpc: true,
-        },
-      );
+      await waitFor(() => {
+        // Verify detectTokens was called with forceRpc for unprocessed chains
+        expect(messengerCallSpy).toHaveBeenCalledWith(
+          'TokenDetectionController:detectTokens',
+          {
+            chainIds: ['0x89'],
+            forceRpc: true,
+          },
+        );
+      });
 
       messengerCallSpy.mockRestore();
+    });
+
+    it('should forward unprocessed token fallbacks from API fetcher to RPC fetcher', async () => {
+      const chainId = '0x1' as ChainIdHex;
+      const accountAddress = '0x0000000000000000000000000000000000000000';
+      const token1 = '0x1111111111111111111111111111111111111111';
+
+      const tokens = {
+        allDetectedTokens: {},
+        allTokens: {
+          [chainId]: {
+            [accountAddress]: [
+              { address: token1, symbol: 'TK1', decimals: 18 },
+            ],
+          },
+        },
+      };
+
+      const selectedAccount = createMockInternalAccount({
+        address: accountAddress,
+      });
+
+      const apiFetchSpy = jest
+        .spyOn(AccountsApiBalanceFetcher.prototype, 'fetch')
+        .mockResolvedValue({
+          balances: [
+            {
+              success: true,
+              value: new BN(1),
+              account: accountAddress,
+              token: NATIVE_TOKEN_ADDRESS as Hex,
+              chainId,
+            },
+          ],
+          unprocessedTokens: {
+            [accountAddress]: {
+              [chainId]: [token1],
+            },
+          },
+        });
+
+      const { controller } = setupController({
+        tokens,
+        listAccounts: [selectedAccount],
+        config: {
+          accountsApiChainIds: () => [chainId],
+        },
+      });
+
+      const rpcFetchSpy = jest
+        .spyOn(RpcBalanceFetcher.prototype, 'fetch')
+        .mockResolvedValue({
+          balances: [
+            {
+              success: true,
+              value: new BN(200),
+              account: accountAddress as ChecksumAddress,
+              token: token1 as Hex,
+              chainId,
+            },
+          ],
+        });
+
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
+      await waitFor(() => {
+        expect(apiFetchSpy).toHaveBeenCalled();
+        expect(rpcFetchSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            chainIds: [chainId],
+            unprocessedTokens: {
+              [accountAddress]: {
+                [chainId]: [token1],
+              },
+            },
+          }),
+        );
+      });
+
+      expect(
+        controller.state.tokenBalances[accountAddress as ChecksumAddress]?.[
+          chainId
+        ]?.[toChecksumHexAddress(token1) as ChecksumAddress],
+      ).toStrictEqual(toHex(200));
+
+      apiFetchSpy.mockRestore();
+      rpcFetchSpy.mockRestore();
     });
 
     it('should handle fetcher throwing error (lines 868-880)', async () => {
@@ -6721,11 +7508,12 @@ describe('TokenBalancesController', () => {
         chainIds: [chainId],
         queryAllAccounts: true,
       });
-
-      // Verify warning was logged
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Balance fetcher failed'),
-      );
+      await waitFor(() => {
+        // Verify warning was logged
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Balance fetcher failed'),
+        );
+      });
 
       // Verify detectTokens was called with forceRpc when fetcher fails
       expect(messengerCallSpy).toHaveBeenCalledWith(
@@ -6785,18 +7573,19 @@ describe('TokenBalancesController', () => {
         chainIds: [chainId],
         queryAllAccounts: true,
       });
+      await waitFor(() => {
+        const balances =
+          controller.state.tokenBalances[accountAddress as ChecksumAddress]?.[
+            chainId
+          ];
+        const token1Checksum = toChecksumHexAddress(token1) as ChecksumAddress;
+        const token2Checksum = toChecksumHexAddress(token2) as ChecksumAddress;
 
-      const balances =
-        controller.state.tokenBalances[accountAddress as ChecksumAddress]?.[
-          chainId
-        ];
-      const token1Checksum = toChecksumHexAddress(token1) as ChecksumAddress;
-      const token2Checksum = toChecksumHexAddress(token2) as ChecksumAddress;
-
-      // token1 should be present with balance (success=true)
-      expect(balances?.[token1Checksum]).toBe(toHex(100));
-      // token2 should NOT be present (success=false)
-      expect(balances?.[token2Checksum]).toBeUndefined();
+        // token1 should be present with balance (success=true)
+        expect(balances?.[token1Checksum]).toBe(toHex(100));
+        // token2 should NOT be present (success=false)
+        expect(balances?.[token2Checksum]).toBeUndefined();
+      });
     });
 
     it('should skip balances with undefined value (line 963)', async () => {
@@ -6844,18 +7633,19 @@ describe('TokenBalancesController', () => {
         chainIds: [chainId],
         queryAllAccounts: true,
       });
+      await waitFor(() => {
+        const balances =
+          controller.state.tokenBalances[accountAddress as ChecksumAddress]?.[
+            chainId
+          ];
+        const token1Checksum = toChecksumHexAddress(token1) as ChecksumAddress;
+        const token2Checksum = toChecksumHexAddress(token2) as ChecksumAddress;
 
-      const balances =
-        controller.state.tokenBalances[accountAddress as ChecksumAddress]?.[
-          chainId
-        ];
-      const token1Checksum = toChecksumHexAddress(token1) as ChecksumAddress;
-      const token2Checksum = toChecksumHexAddress(token2) as ChecksumAddress;
-
-      // token1 should be present with balance
-      expect(balances?.[token1Checksum]).toBe(toHex(100));
-      // token2 should NOT be present (value=undefined)
-      expect(balances?.[token2Checksum]).toBeUndefined();
+        // token1 should be present with balance
+        expect(balances?.[token1Checksum]).toBe(toHex(100));
+        // token2 should NOT be present (value=undefined)
+        expect(balances?.[token2Checksum]).toBeUndefined();
+      });
     });
   });
 });

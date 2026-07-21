@@ -1,5 +1,6 @@
-import type { INotification } from '../types/notification/notification';
 import type { NormalisedAPINotification } from '../types/notification-api/notification-api';
+import type { INotification } from '../types/notification/notification';
+import { getNotificationSubtype } from '../utils/get-notification-subtype';
 import { shouldAutoExpire } from '../utils/should-auto-expire';
 
 /**
@@ -17,6 +18,7 @@ export function processAPINotifications(
   return {
     ...notification,
     id: notification.id,
+    notification_subtype: getNotificationSubtype(notification),
     createdAt: createdAtDate.toISOString(),
     isRead: expired || !notification.unread,
   };

@@ -9,8 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.3.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [0.1.1]
+
+### Changed
+
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.19.0` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^12.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995), [#8344](https://github.com/MetaMask/core/pull/8344), [#8755](https://github.com/MetaMask/core/pull/8755))
 
 ## [0.1.0]
 
@@ -23,5 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive TypeScript type definitions ([#6789](https://github.com/MetaMask/core/pull/6789))
 - Documentation and examples ([#6789](https://github.com/MetaMask/core/pull/6789))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-7702-internal-rpc-middleware@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-7702-internal-rpc-middleware@0.1.1...HEAD
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/eip-7702-internal-rpc-middleware@0.1.0...@metamask/eip-7702-internal-rpc-middleware@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eip-7702-internal-rpc-middleware@0.1.0

@@ -17,7 +17,10 @@ import type { Nft, NftMetadata } from './NftController';
 import { getNativeTokenAddress } from './token-prices-service';
 import type { AbstractTokenPricesService } from './token-prices-service';
 import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
-import type { ContractExchangeRates } from './TokenRatesController';
+import type {
+  ContractExchangeRates,
+  ContractMarketData,
+} from './TokenRatesController';
 
 /**
  * The maximum number of token addresses that should be sent to the Price API in
@@ -160,6 +163,8 @@ export enum SupportedTokenDetectionNetworks {
   Sei = '0x531', // decimal: 1329
   MonadMainnet = '0x8f', // decimal: 143
   Hyperevm = '0x3e7', // decimal: 999
+  Arc = '0x13b2', // decimal: 5042
+  Robinhood = '0x1237', // decimal: 4663
 }
 
 /**
@@ -341,6 +346,13 @@ export async function reduceInBatchesSerially<Value, Result>({
   return finalResult;
 }
 
+type FetchTokenContractExchangeRatesArgs = {
+  tokenPricesService: AbstractTokenPricesService;
+  nativeCurrency: string;
+  tokenAddresses: Hex[];
+  chainId: Hex;
+};
+
 /**
  * Retrieves token prices for a set of contract addresses in a specific currency and chainId.
  *
@@ -349,19 +361,27 @@ export async function reduceInBatchesSerially<Value, Result>({
  * @param args.nativeCurrency - The native currency to request price in.
  * @param args.tokenAddresses - The list of contract addresses.
  * @param args.chainId - The chainId of the tokens.
- * @returns The prices for the requested tokens.
+ * @param args.includeMarketData - When true, returns full market data (price,
+ * percentage changes, market cap, etc.) per token instead of just the price.
+ * @returns The prices (or full market data) for the requested tokens.
  */
+export async function fetchTokenContractExchangeRates(
+  args: FetchTokenContractExchangeRatesArgs & { includeMarketData: true },
+): Promise<ContractMarketData>;
+
+export async function fetchTokenContractExchangeRates(
+  args: FetchTokenContractExchangeRatesArgs & { includeMarketData?: false },
+): Promise<ContractExchangeRates>;
+
 export async function fetchTokenContractExchangeRates({
   tokenPricesService,
   nativeCurrency,
   tokenAddresses,
   chainId,
-}: {
-  tokenPricesService: AbstractTokenPricesService;
-  nativeCurrency: string;
-  tokenAddresses: Hex[];
-  chainId: Hex;
-}): Promise<ContractExchangeRates> {
+  includeMarketData = false,
+}: FetchTokenContractExchangeRatesArgs & {
+  includeMarketData?: boolean;
+}): Promise<ContractExchangeRates | ContractMarketData> {
   const isChainIdSupported =
     tokenPricesService.validateChainIdSupported(chainId);
   const isCurrencySupported =
@@ -398,6 +418,25 @@ export async function fetchTokenContractExchangeRates({
     },
     initialResult: {},
   });
+
+  if (includeMarketData) {
+    return Object.entries(tokenPricesByTokenAddress).reduce<ContractMarketData>(
+      (obj, [tokenAddress, tokenPrice]) => {
+        if (tokenPrice) {
+          const checksummedAddress = toChecksumHexAddress(tokenAddress);
+          return {
+            ...obj,
+            [checksummedAddress]: {
+              ...tokenPrice,
+              tokenAddress: checksummedAddress,
+            },
+          };
+        }
+        return obj;
+      },
+      {},
+    );
+  }
 
   return Object.entries(tokenPricesByTokenAddress).reduce(
     (obj, [tokenAddress, tokenPrice]) => {

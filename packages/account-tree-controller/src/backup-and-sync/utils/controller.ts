@@ -82,7 +82,7 @@ export function getLocalGroupsForEntropyWallet(
 export type StateSnapshot = {
   accountGroupsMetadata: AccountTreeControllerState['accountGroupsMetadata'];
   accountWalletsMetadata: AccountTreeControllerState['accountWalletsMetadata'];
-  selectedAccountGroup: AccountTreeControllerState['accountTree']['selectedAccountGroup'];
+  selectedAccountGroup: AccountTreeControllerState['selectedAccountGroup'];
   accountTreeWallets: AccountTreeControllerState['accountTree']['wallets'];
 };
 
@@ -103,8 +103,7 @@ export function createStateSnapshot(
     accountWalletsMetadata: JSON.parse(
       JSON.stringify(context.controller.state.accountWalletsMetadata),
     ),
-    selectedAccountGroup:
-      context.controller.state.accountTree.selectedAccountGroup,
+    selectedAccountGroup: context.controller.state.selectedAccountGroup,
     accountTreeWallets: JSON.parse(
       JSON.stringify(context.controller.state.accountTree.wallets),
     ),
@@ -126,7 +125,7 @@ export function restoreStateFromSnapshot(
   context.controllerStateUpdateFn((state) => {
     state.accountGroupsMetadata = snapshot.accountGroupsMetadata;
     state.accountWalletsMetadata = snapshot.accountWalletsMetadata;
-    state.accountTree.selectedAccountGroup = snapshot.selectedAccountGroup;
+    state.selectedAccountGroup = snapshot.selectedAccountGroup;
     state.accountTree.wallets = snapshot.accountTreeWallets;
   });
 

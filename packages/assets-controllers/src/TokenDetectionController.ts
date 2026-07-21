@@ -27,7 +27,7 @@ import type {
   NetworkClientId,
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
@@ -39,23 +39,31 @@ import type {
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { isEqual, mapValues, isObject, get } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
-import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
-import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
+import {
+  formatIconUrlWithProxy,
+  isTokenDetectionSupportedForNetwork,
+} from './assetsUtil';
+import {
+  MUSD_ERC20_ADDRESS_LOWER,
+  MUSD_TOKEN_DETECTION_CHAIN_IDS,
+  MUSD_TOKEN_METADATA_BY_CHAIN,
+  SUPPORTED_NETWORKS_ACCOUNTS_API_V4,
+} from './constants';
+import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types';
 import type {
-  GetTokenListState,
   TokenListMap,
-  TokenListStateChange,
+  TokenListToken,
   TokensChainsCache,
 } from './TokenListController';
+import type { TokenListService } from './TokenListService';
 import type { Token } from './TokenRatesController';
+import type { TokensControllerGetStateAction } from './TokensController';
 import type {
   TokensControllerAddDetectedTokensAction,
   TokensControllerAddTokensAction,
-  TokensControllerGetStateAction,
-} from './TokensController';
+} from './TokensController-method-action-types';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -92,22 +100,9 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
   };
 }, {});
 
-/**
- * Function that takes a TokensChainsCache object and maps chainId with TokenListMap.
- *
- * @param tokensChainsCache - TokensChainsCache input object
- * @returns returns the map of chainId with TokenListMap
- */
-export function mapChainIdWithTokenListMap(
-  tokensChainsCache: TokensChainsCache,
-): Record<string, unknown> {
-  return mapValues(tokensChainsCache, (value) => {
-    if (isObject(value) && 'data' in value) {
-      return get(value, ['data']);
-    }
-    return value;
-  });
-}
+const MUSD_TOKEN_DETECTION_CHAIN_ID_SET = new Set<Hex>(
+  MUSD_TOKEN_DETECTION_CHAIN_IDS,
+);
 
 export const controllerName = 'TokenDetectionController';
 
@@ -118,41 +113,23 @@ export type TokenDetectionControllerGetStateAction = ControllerGetStateAction<
   TokenDetectionState
 >;
 
-export type TokenDetectionControllerAddDetectedTokensViaWsAction = {
-  type: `TokenDetectionController:addDetectedTokensViaWs`;
-  handler: TokenDetectionController['addDetectedTokensViaWs'];
-};
-
-export type TokenDetectionControllerAddDetectedTokensViaPollingAction = {
-  type: `TokenDetectionController:addDetectedTokensViaPolling`;
-  handler: TokenDetectionController['addDetectedTokensViaPolling'];
-};
-
-export type TokenDetectionControllerDetectTokensAction = {
-  type: `TokenDetectionController:detectTokens`;
-  handler: TokenDetectionController['detectTokens'];
-};
-
 export type TokenDetectionControllerActions =
   | TokenDetectionControllerGetStateAction
-  | TokenDetectionControllerAddDetectedTokensViaWsAction
-  | TokenDetectionControllerAddDetectedTokensViaPollingAction
-  | TokenDetectionControllerDetectTokensAction;
+  | TokenDetectionControllerMethodActions;
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetAccountAction
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | NetworkControllerGetNetworkConfigurationByNetworkClientIdAction
   | NetworkControllerGetStateAction
-  | GetTokenListState
   | KeyringControllerGetStateAction
   | PreferencesControllerGetStateAction
   | TokensControllerGetStateAction
   | TokensControllerAddDetectedTokensAction
   | TokensControllerAddTokensAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | AuthenticationController.AuthenticationControllerGetBearerToken;
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -163,7 +140,6 @@ export type TokenDetectionControllerEvents =
 export type AllowedEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
   | NetworkControllerNetworkDidChangeEvent
-  | TokenListStateChange
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
@@ -180,6 +156,16 @@ type TokenDetectionPollingInput = {
   chainIds: Hex[];
   address: string;
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'addDetectedTokensViaWs',
+  'addDetectedTokensViaPolling',
+  'detectTokens',
+  'enable',
+  'disable',
+  'start',
+  'stop',
+] as const;
 
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
@@ -206,7 +192,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #selectedAccountId: string;
 
-  #tokensChainsCache: TokensChainsCache = {};
+  readonly #tokenListService: TokenListService;
 
   #disabled: boolean;
 
@@ -217,6 +203,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   readonly #useTokenDetection: () => boolean;
 
   readonly #useExternalServices: () => boolean;
+
+  readonly #isDeprecated: () => boolean;
 
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
@@ -237,12 +225,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    *
    * @param options - The controller options.
    * @param options.messenger - The controller messenger.
+   * @param options.tokenListService - Shared service for fetching the token list per chain.
    * @param options.disabled - If set to true, all network requests are blocked.
    * @param options.interval - Polling interval used to fetch new token rates
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useTokenDetection - Feature Switch for using token detection (default: true)
    * @param options.useExternalServices - Feature Switch for using external services (default: false)
+   * @param options.isDeprecated - Optional callback that disables token detection when it returns true.
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -250,8 +240,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     getBalancesInSingleCall,
     trackMetaMetricsEvent,
     messenger,
+    tokenListService,
     useTokenDetection = (): boolean => true,
     useExternalServices = (): boolean => true,
+    isDeprecated = (): boolean => false,
   }: {
     interval?: number;
     disabled?: boolean;
@@ -268,8 +260,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       };
     }) => void;
     messenger: TokenDetectionControllerMessenger;
+    tokenListService: TokenListService;
     useTokenDetection?: () => boolean;
     useExternalServices?: () => boolean;
+    isDeprecated?: () => boolean;
   }) {
     super({
       name: controllerName,
@@ -278,31 +272,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       metadata: {},
     });
 
-    this.messenger.registerActionHandler(
-      `${controllerName}:addDetectedTokensViaWs` as const,
-      this.addDetectedTokensViaWs.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:addDetectedTokensViaPolling` as const,
-      this.addDetectedTokensViaPolling.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:detectTokens` as const,
-      this.detectTokens.bind(this),
-    );
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
     this.#disabled = disabled;
     this.setIntervalLength(interval);
 
     this.#selectedAccountId = this.#getSelectedAccount().id;
 
-    const { tokensChainsCache } = this.messenger.call(
-      'TokenListController:getState',
-    );
-
-    this.#tokensChainsCache = tokensChainsCache;
+    this.#tokenListService = tokenListService;
 
     const { useTokenDetection: defaultUseTokenDetection } = this.messenger.call(
       'PreferencesController:getState',
@@ -318,8 +295,20 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.#useTokenDetection = useTokenDetection;
     this.#useExternalServices = useExternalServices;
+    this.#isDeprecated = isDeprecated;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    }
 
     this.#registerEventListeners();
+  }
+
+  #enforceDisabledState(): void {
+    if (Object.keys(this.state).length === 0) {
+      return;
+    }
+    this.update(() => ({}));
   }
 
   /**
@@ -337,21 +326,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       this.#isUnlocked = false;
       this.#stopPolling();
     });
-
-    this.messenger.subscribe(
-      'TokenListController:stateChange',
-      ({ tokensChainsCache }) => {
-        const isEqualValues = this.#compareTokensChainsCache(
-          tokensChainsCache,
-          this.#tokensChainsCache,
-        );
-        if (!isEqualValues) {
-          this.#restartTokenDetection().catch(() => {
-            // Silently handle token detection errors
-          });
-        }
-      },
-    );
 
     this.messenger.subscribe(
       'PreferencesController:stateChange',
@@ -433,6 +407,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * Start polling for detected tokens.
    */
   async start(): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     this.enable();
     await this.#startPolling();
   }
@@ -465,30 +443,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.#intervalId = setInterval(async () => {
       await this.detectTokens();
     }, this.getIntervalLength());
-  }
-
-  /**
-   * Compares current and previous tokensChainsCache object focusing only on the data object.
-   *
-   * @param tokensChainsCache - current tokensChainsCache input object
-   * @param previousTokensChainsCache - previous tokensChainsCache input object
-   * @returns boolean indicating if the two objects are equal
-   */
-
-  #compareTokensChainsCache(
-    tokensChainsCache: TokensChainsCache,
-    previousTokensChainsCache: TokensChainsCache,
-  ): boolean {
-    const cleanPreviousTokensChainsCache = mapChainIdWithTokenListMap(
-      previousTokensChainsCache,
-    );
-    const cleanTokensChainsCache =
-      mapChainIdWithTokenListMap(tokensChainsCache);
-    const isEqualValues = isEqual(
-      cleanTokensChainsCache,
-      cleanPreviousTokensChainsCache,
-    );
-    return isEqualValues;
   }
 
   #getCorrectNetworkClientIdByChainId(
@@ -526,6 +480,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     chainIds,
     address,
   }: TokenDetectionPollingInput): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     if (!this.isActive) {
       return;
     }
@@ -557,29 +515,39 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.setIntervalLength(DEFAULT_INTERVAL);
   }
 
-  #shouldDetectTokens(chainId: Hex): boolean {
+  /**
+   * Returns the token cache for `chainId` if detection should proceed, or `null` if it
+   * should be skipped.  Each call fetches a fresh snapshot from `TokenListService` (which
+   * may serve from its in-memory cache) so concurrent calls for different chains never
+   * overwrite each other's data.
+   *
+   * @param chainId - The chain ID to build a detection cache for.
+   * @returns A `TokensChainsCache` scoped to `chainId`, or `null` when detection should be skipped.
+   */
+  async #getChainCacheForDetection(
+    chainId: Hex,
+  ): Promise<TokensChainsCache | null> {
     if (!isTokenDetectionSupportedForNetwork(chainId)) {
-      return false;
+      return null;
     }
     if (
       !this.#isDetectionEnabledFromPreferences &&
       chainId !== ChainId.mainnet
     ) {
-      return false;
+      return null;
     }
 
     const isMainnetDetectionInactive =
       !this.#isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
     if (isMainnetDetectionInactive) {
-      this.#tokensChainsCache = this.#getConvertedStaticMainnetTokenList();
-    } else {
-      const { tokensChainsCache } = this.messenger.call(
-        'TokenListController:getState',
-      );
-      this.#tokensChainsCache = tokensChainsCache ?? {};
+      return this.#getConvertedStaticMainnetTokenList();
     }
 
-    return true;
+    const tokenListMap =
+      await this.#tokenListService.fetchTokensByChainId(chainId);
+    return this.#applyMusdDefaultToTokensChainsCache(chainId, {
+      [chainId]: { data: tokenListMap, timestamp: Date.now() },
+    });
   }
 
   async #detectTokensUsingRpc(
@@ -587,12 +555,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     addressToDetect: string,
   ): Promise<void> {
     for (const { chainId, networkClientId } of chainsToDetectUsingRpc) {
-      if (!this.#shouldDetectTokens(chainId)) {
+      const chainCache = await this.#getChainCacheForDetection(chainId);
+      if (!chainCache) {
         continue;
       }
 
       const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({
         chainId,
+        chainCache,
         selectedAddress: addressToDetect,
       });
       const tokenDetectionPromises = tokenCandidateSlices.map((tokensSlice) =>
@@ -601,6 +571,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           selectedAddress: addressToDetect,
           networkClientId,
           chainId,
+          chainCache,
         }),
       );
 
@@ -609,7 +580,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   /**
-   * For each token in the token list provided by the TokenListController, checks the token's balance for the selected account address on the active network.
+   * For each token in the token list provided by the TokenListService, checks the token's balance for the selected account address on the active network.
    * On mainnet, if token detection is disabled in preferences, ERC20 token auto detection will be triggered for each contract address in the legacy token list from the @metamask/contract-metadata repo.
    *
    * @param options - Options for token detection.
@@ -628,6 +599,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     selectedAddress?: string;
     forceRpc?: boolean;
   } = {}): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     if (!this.isActive) {
       return;
     }
@@ -663,9 +638,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #getSlicesOfTokensToDetect({
     chainId,
+    chainCache,
     selectedAddress,
   }: {
     chainId: Hex;
+    chainCache: TokensChainsCache;
     selectedAddress: string;
   }): string[][] {
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
@@ -681,9 +658,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     );
 
     const tokensToDetect: string[] = [];
-    for (const tokenAddress of Object.keys(
-      this.#tokensChainsCache?.[chainId]?.data || {},
-    )) {
+    for (const tokenAddress of Object.keys(chainCache[chainId]?.data ?? {})) {
       if (
         [
           tokensAddresses,
@@ -723,12 +698,103 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       }),
       {},
     );
+    const dataWithMusd = this.#mergeMusdIntoTokenListMap(ChainId.mainnet, data);
     return {
       '0x1': {
-        data,
+        data: dataWithMusd,
         timestamp: 0,
       },
     };
+  }
+
+  /**
+   * mUSD token list row derived from Tokens API v3/assets (baked in for offline detection).
+   *
+   * @param chainId - Hex chain id (mainnet, Linea, or Monad).
+   * @returns Token list entry for the detection cache.
+   */
+  #buildMusdTokenListToken(chainId: Hex): TokenListToken {
+    const meta =
+      MUSD_TOKEN_METADATA_BY_CHAIN[
+        chainId as (typeof MUSD_TOKEN_DETECTION_CHAIN_IDS)[number]
+      ];
+    return {
+      address: MUSD_ERC20_ADDRESS_LOWER,
+      name: meta.name,
+      symbol: meta.symbol,
+      decimals: meta.decimals,
+      aggregators: [...meta.aggregators],
+      iconUrl: formatIconUrlWithProxy({
+        chainId,
+        tokenAddress: MUSD_ERC20_ADDRESS_LOWER,
+      }),
+      occurrences: 999,
+    };
+  }
+
+  /**
+   * Merge mUSD into a flat token map when the chain is one of the default mUSD networks.
+   *
+   * @param chainId - Network being detected.
+   * @param data - Existing token map for that chain.
+   * @returns New map including mUSD when applicable.
+   */
+  #mergeMusdIntoTokenListMap(chainId: Hex, data: TokenListMap): TokenListMap {
+    return {
+      ...data,
+      [MUSD_ERC20_ADDRESS_LOWER]: this.#buildMusdTokenListToken(chainId),
+    };
+  }
+
+  /**
+   * Shallow-clone the token list cache for the current chain and merge mUSD so we never
+   * mutate the cache by reference.
+   *
+   * @param chainId - Network being detected.
+   * @param cache - Full tokens-by-chain cache.
+   * @returns Cache object safe to read and mutate for this detection pass.
+   */
+  #applyMusdDefaultToTokensChainsCache(
+    chainId: Hex,
+    cache: TokensChainsCache,
+  ): TokensChainsCache {
+    if (!MUSD_TOKEN_DETECTION_CHAIN_ID_SET.has(chainId)) {
+      return cache;
+    }
+    const existing = cache[chainId];
+    return {
+      ...cache,
+      [chainId]: {
+        data: this.#mergeMusdIntoTokenListMap(chainId, existing?.data ?? {}),
+        timestamp: existing?.timestamp ?? 0,
+      },
+    };
+  }
+
+  /**
+   * If mUSD is in the (possibly merged) token list for this chain, include its address
+   * in the slice so we still run detection when balance is zero (single-call / Accounts API
+   * / WebSocket do not list the contract when balance is zero).
+   *
+   * @param tokensSlice - Address batch from the caller.
+   * @param chainId - Network being updated.
+   * @returns The slice, possibly with mUSD appended.
+   */
+  #includeMusdInTokenDetectionSlice(
+    tokensSlice: string[],
+    chainId: Hex,
+  ): string[] {
+    if (!MUSD_TOKEN_DETECTION_CHAIN_ID_SET.has(chainId)) {
+      return tokensSlice;
+    }
+    if (
+      tokensSlice.some((a) =>
+        isEqualCaseInsensitive(a, MUSD_ERC20_ADDRESS_LOWER),
+      )
+    ) {
+      return tokensSlice;
+    }
+    return [...tokensSlice, MUSD_ERC20_ADDRESS_LOWER];
   }
 
   async #addDetectedTokens({
@@ -736,11 +802,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     selectedAddress,
     networkClientId,
     chainId,
+    chainCache,
   }: {
     tokensSlice: string[];
     selectedAddress: string;
     networkClientId: NetworkClientId;
     chainId: Hex;
+    chainCache: TokensChainsCache;
   }): Promise<void> {
     await safelyExecute(async () => {
       const balances = await this.#getBalancesInSingleCall(
@@ -749,11 +817,18 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         networkClientId,
       );
 
+      const chainData = chainCache[chainId]?.data ?? {};
       const tokensWithBalance: Token[] = [];
       const eventTokensDetails: string[] = [];
       for (const nonZeroTokenAddress of Object.keys(balances)) {
+        // chainData keys are lowercase (normalised by buildTokenListMap);
+        // balance keys are checksummed, so normalise before lookup.
+        const tokenListEntry = chainData[nonZeroTokenAddress.toLowerCase()];
+        if (!tokenListEntry) {
+          continue;
+        }
         const { decimals, symbol, aggregators, iconUrl, name, rwaData } =
-          this.#tokensChainsCache[chainId].data[nonZeroTokenAddress];
+          tokenListEntry;
         eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
         tokensWithBalance.push({
           address: nonZeroTokenAddress,
@@ -765,6 +840,38 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           name,
           ...(rwaData && { rwaData }),
         });
+      }
+
+      // mUSD is always in the chain token cache on supported networks, but
+      // getBalancesInSingleCall omits zero balances; still add mUSD so the wallet
+      // shows the asset (balance updates via the usual balance pipeline).
+      if (MUSD_TOKEN_DETECTION_CHAIN_ID_SET.has(chainId)) {
+        const musdInSlice = tokensSlice.some((addr) =>
+          isEqualCaseInsensitive(addr, MUSD_ERC20_ADDRESS_LOWER),
+        );
+        const musdHasNonZeroFromRpc = Object.keys(balances).some((addr) =>
+          isEqualCaseInsensitive(addr, MUSD_ERC20_ADDRESS_LOWER),
+        );
+        if (musdInSlice && !musdHasNonZeroFromRpc) {
+          const musdListToken = Object.entries(chainData).find(([key]) =>
+            isEqualCaseInsensitive(key, MUSD_ERC20_ADDRESS_LOWER),
+          )?.[1];
+          if (musdListToken) {
+            const { decimals, symbol, aggregators, iconUrl, name, rwaData } =
+              musdListToken;
+            eventTokensDetails.push(`${symbol} - ${MUSD_ERC20_ADDRESS_LOWER}`);
+            tokensWithBalance.push({
+              address: MUSD_ERC20_ADDRESS_LOWER,
+              decimals,
+              symbol,
+              aggregators,
+              image: iconUrl,
+              isERC721: false,
+              name,
+              ...(rwaData && { rwaData }),
+            });
+          }
+        }
       }
 
       if (tokensWithBalance.length) {
@@ -808,6 +915,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     tokensSlice: string[];
     chainId: Hex;
   }): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     // Check if token detection is enabled via preferences
     if (!this.#useTokenDetection()) {
       return;
@@ -818,29 +929,36 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    // Refresh the token cache to ensure we have the latest token metadata
-    // This fixes a bug where the cache from construction time could be stale/empty
-    const { tokensChainsCache } = this.messenger.call(
-      'TokenListController:getState',
+    let tokenListMap: TokenListMap;
+    try {
+      tokenListMap = await this.#tokenListService.fetchTokensByChainId(chainId);
+    } catch {
+      // These methods return void; there is no token array to return.
+      // Gracefully exit so the caller is unaffected — the next polling cycle
+      // will retry the fetch.
+      return;
+    }
+    const chainCache = this.#applyMusdDefaultToTokensChainsCache(chainId, {
+      [chainId]: { data: tokenListMap, timestamp: Date.now() },
+    });
+
+    const effectiveSlice = this.#includeMusdInTokenDetectionSlice(
+      tokensSlice,
+      chainId,
     );
-    this.#tokensChainsCache = tokensChainsCache ?? {};
 
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
 
-    for (const tokenAddress of tokensSlice) {
+    for (const tokenAddress of effectiveSlice) {
       // Normalize addresses explicitly (don't assume input format)
       const lowercaseTokenAddress = tokenAddress.toLowerCase();
       const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
 
       // Check map of validated tokens (cache keys are lowercase)
-      const tokenData =
-        this.#tokensChainsCache[chainId]?.data?.[lowercaseTokenAddress];
+      const tokenData = chainCache[chainId]?.data?.[lowercaseTokenAddress];
 
       if (!tokenData) {
-        console.warn(
-          `Token metadata not found in cache for ${tokenAddress} on chain ${chainId}`,
-        );
         continue;
       }
 
@@ -907,6 +1025,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     tokensSlice: string[];
     chainId: Hex;
   }): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     // Check if token detection is enabled via preferences
     if (!this.#useTokenDetection()) {
       return;
@@ -917,12 +1039,18 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    // Refresh the token cache to ensure we have the latest token metadata
-    // This fixes a bug where the cache from construction time could be stale/empty
-    const { tokensChainsCache } = this.messenger.call(
-      'TokenListController:getState',
-    );
-    this.#tokensChainsCache = tokensChainsCache ?? {};
+    let tokenListMap: TokenListMap;
+    try {
+      tokenListMap = await this.#tokenListService.fetchTokensByChainId(chainId);
+    } catch {
+      // These methods return void; there is no token array to return.
+      // Gracefully exit so the caller is unaffected — the next polling cycle
+      // will retry the fetch.
+      return;
+    }
+    const chainCache = this.#applyMusdDefaultToTokensChainsCache(chainId, {
+      [chainId]: { data: tokenListMap, timestamp: Date.now() },
+    });
 
     const selectedAddress = this.#getSelectedAddress();
 
@@ -939,10 +1067,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       allIgnoredTokens[chainId]?.[selectedAddress] ?? []
     ).map((address) => address.toLowerCase());
 
+    const effectiveSlice = this.#includeMusdInTokenDetectionSlice(
+      tokensSlice,
+      chainId,
+    );
+
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
 
-    for (const tokenAddress of tokensSlice) {
+    for (const tokenAddress of effectiveSlice) {
       const lowercaseTokenAddress = tokenAddress.toLowerCase();
       const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
 
@@ -957,13 +1090,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       }
 
       // Check map of validated tokens (cache keys are lowercase)
-      const tokenData =
-        this.#tokensChainsCache[chainId]?.data?.[lowercaseTokenAddress];
+      const tokenData = chainCache[chainId]?.data?.[lowercaseTokenAddress];
 
       if (!tokenData) {
-        console.warn(
-          `Token metadata not found in cache for ${tokenAddress} on chain ${chainId}`,
-        );
         continue;
       }
 

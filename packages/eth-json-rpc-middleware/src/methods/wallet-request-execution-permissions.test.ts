@@ -1,13 +1,13 @@
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
 
+import type { WalletMiddlewareParams } from '../wallet';
 import type {
   ProcessRequestExecutionPermissionsHook,
   RequestExecutionPermissionsRequestParams,
   RequestExecutionPermissionsResult,
 } from './wallet-request-execution-permissions';
 import { createWalletRequestExecutionPermissionsHandler } from './wallet-request-execution-permissions';
-import type { WalletMiddlewareParams } from '../wallet';
 
 const FROM_ADDRESS_MOCK = '0x123abc123abc123abc123abc123abc123abc123A';
 const TO_ADDRESS_MOCK = '0x016562aA41A8697720ce0943F003141f5dEAe006';

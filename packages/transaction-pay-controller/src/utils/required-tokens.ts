@@ -2,21 +2,22 @@ import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
+import { createModuleLogger } from '@metamask/utils';
 
+import { projectLogger } from '../logger';
+import type {
+  TransactionPayControllerMessenger,
+  TransactionPayRequiredToken,
+} from '../types';
 import {
-  getNativeToken,
+  computeTokenAmounts,
   getTokenBalance,
   getTokenFiatRate,
   getTokenInfo,
 } from './token';
-import type {
-  FiatRates,
-  TransactionPayControllerMessenger,
-  TransactionPayRequiredToken,
-} from '../types';
+
+const log = createModuleLogger(projectLogger, 'required-tokens');
 
 const FOUR_BYTE_TOKEN_TRANSFER = '0xa9059cbb';
 
@@ -46,10 +47,8 @@ export function parseRequiredTokens(
     return assetTokens;
   }
 
-  return [
-    getTokenTransferToken(transaction, messenger),
-    getGasFeeToken(transaction, messenger),
-  ].filter(Boolean) as TransactionPayRequiredToken[];
+  const transferToken = getTokenTransferToken(transaction, messenger);
+  return transferToken ? [transferToken] : [];
 }
 
 /**
@@ -66,98 +65,32 @@ function getTokenTransferToken(
   const { data, to } = getTokenTransferData(transaction) ?? {};
 
   if (!to || !data) {
+    log('No token transfer detected', {
+      transactionId: transaction.id,
+    });
     return undefined;
   }
 
   let transferAmount: Hex | undefined;
+  let decodeError: unknown;
 
   try {
     const result = new Interface(abiERC20).decodeFunctionData('transfer', data);
     transferAmount = toHex(result._value);
-  } catch {
-    // Intentionally empty
+  } catch (error) {
+    decodeError = error;
   }
 
   if (transferAmount === undefined) {
+    log('Failed to decode transfer calldata', {
+      transactionId: transaction.id,
+      to,
+      error: decodeError,
+    });
     return undefined;
   }
 
   return buildRequiredToken(transaction, to, transferAmount, messenger);
-}
-
-/**
- * Get the gas fee token required for a transaction.
- *
- * @param transaction - Transaction metadata.
- * @param messenger - Controller messenger.
- * @returns The gas fee token or undefined if it could not be determined.
- */
-function getGasFeeToken(
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
-): TransactionPayRequiredToken | undefined {
-  const { chainId, txParams } = transaction;
-  const { gas, maxFeePerGas } = txParams;
-  const nativeTokenAddress = getNativeToken(chainId);
-
-  const maxGasCostRawHex = add0x(
-    new BigNumber(gas ?? '0x0')
-      .multipliedBy(new BigNumber(maxFeePerGas ?? '0x0'))
-      .toString(16),
-  );
-
-  const token = buildRequiredToken(
-    transaction,
-    nativeTokenAddress,
-    maxGasCostRawHex,
-    messenger,
-  );
-
-  if (!token) {
-    return undefined;
-  }
-
-  const amountUsdValue = new BigNumber(token.amountUsd);
-
-  const hasBalance = new BigNumber(token.balanceRaw).isGreaterThanOrEqualTo(
-    token.amountRaw,
-  );
-
-  if (hasBalance || amountUsdValue.isGreaterThanOrEqualTo(1)) {
-    return {
-      ...token,
-      allowUnderMinimum: true,
-      skipIfBalance: true,
-    };
-  }
-
-  const fiatRates = getTokenFiatRate(
-    messenger,
-    nativeTokenAddress,
-    chainId,
-  ) as FiatRates;
-
-  const oneDollarRawHex = add0x(
-    new BigNumber(1).dividedBy(fiatRates.usdRate).shiftedBy(18).toString(16),
-  );
-
-  const oneDollarToken = buildRequiredToken(
-    transaction,
-    nativeTokenAddress,
-    oneDollarRawHex,
-    messenger,
-  );
-
-  /* istanbul ignore next */
-  if (!oneDollarToken) {
-    return undefined;
-  }
-
-  return {
-    ...oneDollarToken,
-    allowUnderMinimum: true,
-    skipIfBalance: true,
-  };
 }
 
 /**
@@ -185,21 +118,32 @@ function buildRequiredToken(
   const tokenBalance = getTokenBalance(messenger, from, chainId, tokenAddress);
 
   if (tokenDecimals === undefined || !symbol || fiatRates === undefined) {
+    log('Missing token data', {
+      transactionId: transaction.id,
+      chainId,
+      tokenAddress,
+      missing: {
+        decimals: tokenDecimals === undefined,
+        symbol: !symbol,
+        fiatRates: fiatRates === undefined,
+      },
+    });
     return undefined;
   }
 
   const {
-    amountHuman: balanceHuman,
-    amountRaw: balanceRaw,
-    amountFiat: balanceFiat,
-    amountUsd: balanceUsd,
-  } = calculateAmounts(tokenBalance, tokenDecimals, fiatRates);
+    human: balanceHuman,
+    raw: balanceRaw,
+    fiat: balanceFiat,
+    usd: balanceUsd,
+  } = computeTokenAmounts(tokenBalance, tokenDecimals, fiatRates);
 
-  const { amountHuman, amountRaw, amountFiat, amountUsd } = calculateAmounts(
-    amountRawHex,
-    tokenDecimals,
-    fiatRates,
-  );
+  const {
+    human: amountHuman,
+    raw: amountRaw,
+    fiat: amountFiat,
+    usd: amountUsd,
+  } = computeTokenAmounts(amountRawHex, tokenDecimals, fiatRates);
 
   return {
     address: tokenAddress,
@@ -216,46 +160,6 @@ function buildRequiredToken(
     decimals: tokenDecimals,
     skipIfBalance: false,
     symbol,
-  };
-}
-
-/**
- * Calculates the various amount representations for a token value.
- *
- * @param amountRawInput - Raw amount.
- * @param decimals - Number of decimals for the token.
- * @param fiatRates - Fiat rates for the token.
- * @returns Object containing amount in fiat, human-readable, raw, and USD formats.
- */
-function calculateAmounts(
-  amountRawInput: BigNumber.Value,
-  decimals: number,
-  fiatRates: FiatRates,
-): {
-  amountFiat: string;
-  amountHuman: string;
-  amountRaw: string;
-  amountUsd: string;
-} {
-  const amountRawValue = new BigNumber(amountRawInput);
-  const amountHumanValue = amountRawValue.shiftedBy(-decimals);
-
-  const amountFiat = amountHumanValue
-    .multipliedBy(fiatRates.fiatRate)
-    .toString(10);
-
-  const amountUsd = amountHumanValue
-    .multipliedBy(fiatRates.usdRate)
-    .toString(10);
-
-  const amountRaw = amountRawValue.toFixed(0);
-  const amountHuman = amountHumanValue.toString(10);
-
-  return {
-    amountFiat,
-    amountHuman,
-    amountRaw,
-    amountUsd,
   };
 }
 

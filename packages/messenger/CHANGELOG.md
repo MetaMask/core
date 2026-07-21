@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
+### Added
+
+- Add `Messenger.getRegisteredActionTypes` method, which returns the action types the messenger can call directly ([#9271](https://github.com/MetaMask/core/pull/9271))
+- Add a `buildChild` utility method to `Messenger` ([#9338](https://github.com/MetaMask/core/pull/9338))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+### Removed
+
+- **BREAKING:** Remove deprecated `generate-action-types` CLI tool ([#9367](https://github.com/MetaMask/core/pull/9367))
+  - The CLI has been extracted to `@metamask/messenger-cli`. Use `messenger-action-types` from that package instead.
+
+### Fixed
+
+- Fix `Messenger.delegate` and `Messenger.revoke` to reduce the chance of TS2590 errors when delegatee has large number of actions/events or a large number of actions/events are being delegated ([#8748](https://github.com/MetaMask/core/pull/8748))
+
+## [1.2.0]
+
+### Added
+
+- Allow overriding action handler in subclass ([#8617](https://github.com/MetaMask/core/pull/8617))
+  - The `Messenger` class now has a protected `getAction` method which returns the action handler for a given action name.
+- Add `subscribeOnce` and `waitUntil` utility methods to `Messenger` ([#8575](https://github.com/MetaMask/core/pull/8575))
+
+### Deprecated
+
+- Deprecate `generate-action-types` CLI tool and `messenger-generate-action-types` binary ([#8378](https://github.com/MetaMask/core/pull/8378))
+  - The CLI has been extracted to `@metamask/messenger-cli`. Use `messenger-action-types` from this package instead.
+
+### Fixed
+
+- Throw different error for missing delegated actions ([#8557](https://github.com/MetaMask/core/pull/8557))
+
+## [1.1.1]
+
+### Fixed
+
+- Drop peer dependency on `eslint` to prevent audit failures on consumers using ESLint 8.x ([#8371](https://github.com/MetaMask/core/pull/8371))
+
+## [1.1.0]
+
+### Added
+
+- Add `generate-action-types` CLI tool ([#8264](https://github.com/MetaMask/core/pull/8264))
+  - Generates TypeScript action type files for controllers and services that define `MESSENGER_EXPOSED_METHODS`.
+  - Available as a CLI binary (`messenger-generate-action-types`).
+    - `typescript` and `eslint` are peer dependencies.
+
+## [1.0.0]
+
+### Changed
+
+- This package is now considered stable ([#8317](https://github.com/MetaMask/core/pull/8317))
+
 ## [0.3.0]
 
 ### Added
@@ -58,7 +116,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing `RestrictedMessenger` instances should be replaced with a `Messenger` with the `parent` constructor parameter set to the global messenger. We can now use the same class everywhere, passing capabilities using `delegate`.
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.2.0...@metamask/messenger@2.0.0
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.1...@metamask/messenger@1.2.0
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.0...@metamask/messenger@1.1.1
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.0.0...@metamask/messenger@1.1.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.3.0...@metamask/messenger@1.0.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.2.0...@metamask/messenger@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.1.0...@metamask/messenger@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/messenger@0.1.0

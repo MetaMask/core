@@ -11,20 +11,34 @@ export type {
   AccountTreeControllerState,
   AccountTreeControllerGetStateAction,
   AccountTreeControllerActions,
-  AccountTreeControllerSetSelectedAccountGroupAction,
-  AccountTreeControllerGetSelectedAccountGroupAction,
-  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
-  AccountTreeControllerGetAccountContextAction,
-  AccountTreeControllerSetAccountWalletNameAction,
-  AccountTreeControllerSetAccountGroupNameAction,
-  AccountTreeControllerSetAccountGroupPinnedAction,
-  AccountTreeControllerSetAccountGroupHiddenAction,
   AccountTreeControllerStateChangeEvent,
   AccountTreeControllerAccountTreeChangeEvent,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerAccountGroupCreatedEvent,
+  AccountTreeControllerAccountGroupUpdatedEvent,
+  AccountTreeControllerAccountGroupRemovedEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
 } from './types';
+
+export type {
+  AccountTreeControllerGetAccountWalletObjectAction,
+  AccountTreeControllerGetAccountWalletObjectsAction,
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerGetAccountGroupObjectAction,
+  AccountTreeControllerGetAccountContextAction,
+  AccountTreeControllerGetSelectedAccountGroupAction,
+  AccountTreeControllerSetSelectedAccountGroupAction,
+  AccountTreeControllerSetAccountGroupNameAction,
+  AccountTreeControllerSetAccountWalletNameAction,
+  AccountTreeControllerSetAccountGroupPinnedAction,
+  AccountTreeControllerSetAccountGroupHiddenAction,
+  AccountTreeControllerClearStateAction,
+  AccountTreeControllerSyncWithUserStorageAction,
+  AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
+  AccountTreeControllerInitAction,
+  AccountTreeControllerReinitAction,
+} from './AccountTreeController-method-action-types';
 
 export type { AccountContext } from './AccountTreeController';
 

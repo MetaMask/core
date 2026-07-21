@@ -1,6 +1,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -26,6 +27,7 @@ import {
   PermissionControllerMessenger,
   PermissionControllerOptions,
   PermissionControllerState,
+  PermissionMiddlewareActions,
   PermissionOptions,
   PermissionsRequest,
   RestrictedMethodOptions,
@@ -35,6 +37,8 @@ import {
 import {
   CaveatMutatorOperation,
   constructPermission,
+  createPermissionMiddleware,
+  createPermissionMiddlewareV2,
   MethodNames,
   PermissionController,
   PermissionType,
@@ -635,6 +639,32 @@ function getPermissionControllerMessenger(
 }
 
 /**
+ * Gets a messenger scoped to the actions required by the permission
+ * middleware, delegated from the given root messenger.
+ *
+ * @param rootMessenger - The root messenger to delegate from.
+ * @returns A messenger suitable for passing to `createPermissionMiddleware`.
+ */
+function getPermissionMiddlewareMessenger(
+  rootMessenger: RootMessenger,
+): Messenger<'PermissionMiddleware', PermissionMiddlewareActions> {
+  const messenger = new Messenger<
+    'PermissionMiddleware',
+    PermissionMiddlewareActions,
+    never,
+    RootMessenger
+  >({ namespace: 'PermissionMiddleware', parent: rootMessenger });
+  rootMessenger.delegate({
+    actions: [
+      'PermissionController:executeRestrictedMethod',
+      'PermissionController:hasUnrestrictedMethod',
+    ],
+    messenger,
+  });
+  return messenger;
+}
+
+/**
  * Gets the default unrestricted methods array.
  * Used as a default in {@link getPermissionControllerOptions}.
  *
@@ -926,36 +956,6 @@ describe('PermissionController', () => {
 
       controller.clearState();
       expect(controller.state).toStrictEqual({ subjects: {} });
-    });
-  });
-
-  describe('getRestrictedMethod', () => {
-    it('gets the implementation of a restricted method', async () => {
-      const controller = getDefaultPermissionController();
-      const method = controller.getRestrictedMethod(
-        PermissionNames.wallet_getSecretArray,
-      );
-
-      expect(
-        await method({
-          method: 'wallet_getSecretArray',
-          context: { origin: 'github.com' },
-        }),
-      ).toStrictEqual(['a', 'b', 'c']);
-    });
-
-    it('throws an error if the requested permission target is not a restricted method', () => {
-      const controller = getDefaultPermissionController();
-      expect(() =>
-        controller.getRestrictedMethod(PermissionNames.endowmentAnySubject),
-      ).toThrow(errors.methodNotFound(PermissionNames.endowmentAnySubject));
-    });
-
-    it('throws an error if the method does not exist', () => {
-      const controller = getDefaultPermissionController();
-      expect(() => controller.getRestrictedMethod('foo')).toThrow(
-        errors.methodNotFound('foo'),
-      );
     });
   });
 
@@ -5622,15 +5622,17 @@ describe('PermissionController', () => {
         ),
       ).rejects.toThrow(
         new Error(
-          `Internal request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
+          `Request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
         ),
       );
     });
   });
 
   describe('controller actions', () => {
-    it('action: PermissionController:clearPermissions', () => {
+    it('action: PermissionController:clearState', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5638,7 +5640,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const clearStateSpy = jest.spyOn(controller, 'clearState');
 
       controller.grantPermissions({
         subject: { origin: 'foo' },
@@ -5649,13 +5650,19 @@ describe('PermissionController', () => {
 
       expect(hasProperty(controller.state.subjects, 'foo')).toBe(true);
 
-      messenger.call('PermissionController:clearPermissions');
-      expect(clearStateSpy).toHaveBeenCalledTimes(1);
+      messenger.call('PermissionController:clearState');
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:clearState',
+      );
       expect(controller.state).toStrictEqual({ subjects: {} });
     });
 
     it('action: PermissionController:getEndowments', async () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5663,7 +5670,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const getEndowmentsSpy = jest.spyOn(controller, 'getEndowments');
 
       await expect(
         messenger.call(
@@ -5704,23 +5710,24 @@ describe('PermissionController', () => {
         ),
       ).toStrictEqual(['endowment1']);
 
-      expect(getEndowmentsSpy).toHaveBeenCalledTimes(3);
-      expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenCalledTimes(3);
+      expect(messenger.call).toHaveBeenNthCalledWith(
         1,
+        'PermissionController:getEndowments',
         'foo',
         PermissionNames.endowmentAnySubject,
-        undefined,
       );
 
-      expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         2,
+        'PermissionController:getEndowments',
         'foo',
         PermissionNames.endowmentAnySubject,
-        undefined,
       );
 
-      expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         3,
+        'PermissionController:getEndowments',
         'foo',
         PermissionNames.endowmentAnySubject,
         { arbitrary: 'requestData' },
@@ -5729,6 +5736,8 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:getSubjectNames', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5736,7 +5745,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const getSubjectNamesSpy = jest.spyOn(controller, 'getSubjectNames');
 
       expect(
         messenger.call('PermissionController:getSubjectNames'),
@@ -5752,11 +5760,21 @@ describe('PermissionController', () => {
       expect(
         messenger.call('PermissionController:getSubjectNames'),
       ).toStrictEqual(['foo']);
-      expect(getSubjectNamesSpy).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:getSubjectNames',
+      );
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        2,
+        'PermissionController:getSubjectNames',
+      );
     });
 
     it('action: PermissionController:hasPermission', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5764,7 +5782,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const hasPermissionSpy = jest.spyOn(controller, 'hasPermission');
 
       expect(
         messenger.call(
@@ -5797,21 +5814,24 @@ describe('PermissionController', () => {
         ),
       ).toBe(false);
 
-      expect(hasPermissionSpy).toHaveBeenCalledTimes(3);
-      expect(hasPermissionSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenCalledTimes(3);
+      expect(messenger.call).toHaveBeenNthCalledWith(
         1,
+        'PermissionController:hasPermission',
         'foo',
         PermissionNames.wallet_getSecretArray,
       );
 
-      expect(hasPermissionSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         2,
+        'PermissionController:hasPermission',
         'foo',
         PermissionNames.wallet_getSecretArray,
       );
 
-      expect(hasPermissionSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         3,
+        'PermissionController:hasPermission',
         'foo',
         PermissionNames.wallet_getSecretObject,
       );
@@ -5819,6 +5839,8 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:hasPermissions', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5826,7 +5848,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const hasPermissionsSpy = jest.spyOn(controller, 'hasPermissions');
 
       expect(messenger.call('PermissionController:hasPermissions', 'foo')).toBe(
         false,
@@ -5842,13 +5863,23 @@ describe('PermissionController', () => {
       expect(messenger.call('PermissionController:hasPermissions', 'foo')).toBe(
         true,
       );
-      expect(hasPermissionsSpy).toHaveBeenCalledTimes(2);
-      expect(hasPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
-      expect(hasPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
+      expect(messenger.call).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:hasPermissions',
+        'foo',
+      );
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        2,
+        'PermissionController:hasPermissions',
+        'foo',
+      );
     });
 
     it('action: PermissionController:getPermissions', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5856,7 +5887,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const getPermissionsSpy = jest.spyOn(controller, 'getPermissions');
 
       expect(
         messenger.call('PermissionController:getPermissions', 'foo'),
@@ -5876,13 +5906,23 @@ describe('PermissionController', () => {
         ),
       ).toStrictEqual(['wallet_getSecretArray']);
 
-      expect(getPermissionsSpy).toHaveBeenCalledTimes(3);
-      expect(getPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
-      expect(getPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
+      expect(messenger.call).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:getPermissions',
+        'foo',
+      );
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        2,
+        'PermissionController:getPermissions',
+        'foo',
+      );
     });
 
     it('action: PermissionController:revokeAllPermissions', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5897,10 +5937,6 @@ describe('PermissionController', () => {
           wallet_getSecretArray: {},
         },
       });
-      const revokeAllPermissionsSpy = jest.spyOn(
-        controller,
-        'revokeAllPermissions',
-      );
 
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         true,
@@ -5911,12 +5947,18 @@ describe('PermissionController', () => {
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         false,
       );
-      expect(revokeAllPermissionsSpy).toHaveBeenCalledTimes(1);
-      expect(revokeAllPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:revokeAllPermissions',
+        'foo',
+      );
     });
 
     it('action: PermissionController:revokePermissionForAllSubjects', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5931,10 +5973,6 @@ describe('PermissionController', () => {
           wallet_getSecretArray: {},
         },
       });
-      const revokePermissionForAllSubjectsSpy = jest.spyOn(
-        controller,
-        'revokePermissionForAllSubjects',
-      );
 
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         true,
@@ -5948,9 +5986,10 @@ describe('PermissionController', () => {
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         false,
       );
-      expect(revokePermissionForAllSubjectsSpy).toHaveBeenCalledTimes(1);
-      expect(revokePermissionForAllSubjectsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
         1,
+        'PermissionController:revokePermissionForAllSubjects',
         'wallet_getSecretArray',
       );
     });
@@ -6005,18 +6044,19 @@ describe('PermissionController', () => {
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
-      const controller = new PermissionController<
+
+      // eslint-disable-next-line no-new
+      new PermissionController<
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
 
-      // requestPermissions calls unregistered action ApprovalController:addRequest that
-      // can't be easily mocked, thus we mock the whole implementation
-      const requestPermissionsSpy = jest
-        .spyOn(controller, 'requestPermissions')
-        .mockImplementation();
+      messenger.registerActionHandler(
+        'ApprovalController:addRequest',
+        async ({ requestData }) => requestData,
+      );
 
-      await messenger.call(
+      const [result] = await messenger.call(
         'PermissionController:requestPermissions',
         { origin: 'foo' },
         {
@@ -6024,26 +6064,29 @@ describe('PermissionController', () => {
         },
       );
 
-      expect(requestPermissionsSpy).toHaveBeenCalledTimes(1);
+      expect(result).toHaveProperty('wallet_getSecretArray');
     });
 
     it('action: PermissionController:requestPermissionsIncremental', async () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
-      const controller = new PermissionController<
+
+      // eslint-disable-next-line no-new
+      new PermissionController<
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
 
-      // requestPermissionsIncremental calls unregistered action ApprovalController:addRequest
-      // that can't be easily mocked, thus we mock the whole implementation.
-      const requestPermissionsIncrementalSpy = jest
-        .spyOn(controller, 'requestPermissionsIncremental')
-        .mockImplementation();
+      messenger.registerActionHandler(
+        'ApprovalController:addRequest',
+        async ({ requestData }) => requestData,
+      );
 
-      await messenger.call(
+      const [result] = await messenger.call(
         'PermissionController:requestPermissionsIncremental',
         { origin: 'foo' },
         {
@@ -6051,11 +6094,18 @@ describe('PermissionController', () => {
         },
       );
 
-      expect(requestPermissionsIncrementalSpy).toHaveBeenCalledTimes(1);
+      expect(result).toHaveProperty('wallet_getSecretArray');
+      expect(messenger.call).toHaveBeenCalledWith(
+        'PermissionController:requestPermissionsIncremental',
+        { origin: 'foo' },
+        { wallet_getSecretArray: {} },
+      );
     });
 
     it('action: PermissionController:updateCaveat', async () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const state = {
         subjects: {
           'metamask.io': {
@@ -6084,8 +6134,6 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
-
       messenger.call(
         'PermissionController:updateCaveat',
         'metamask.io',
@@ -6094,7 +6142,15 @@ describe('PermissionController', () => {
         ['baz'],
       );
 
-      expect(updateCaveatSpy).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:updateCaveat',
+        'metamask.io',
+        'wallet_getSecretArray',
+        CaveatTypes.filterArrayResponse,
+        ['baz'],
+      );
       expect(controller.state).toStrictEqual({
         subjects: {
           'metamask.io': {
@@ -6158,11 +6214,105 @@ describe('PermissionController', () => {
           .caveats[0],
       );
     });
+
+    it('action: PermissionController:hasUnrestrictedMethod', () => {
+      const messenger = getRootMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      // eslint-disable-next-line no-new
+      new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      expect(
+        messenger.call(
+          'PermissionController:hasUnrestrictedMethod',
+          'wallet_unrestrictedMethod',
+        ),
+      ).toBe(true);
+
+      expect(
+        messenger.call(
+          'PermissionController:hasUnrestrictedMethod',
+          PermissionNames.wallet_getSecretArray,
+        ),
+      ).toBe(false);
+
+      expect(
+        messenger.call(
+          'PermissionController:hasUnrestrictedMethod',
+          'wallet_unknownMethod',
+        ),
+      ).toBe(false);
+    });
+
+    it('action: PermissionController:executeRestrictedMethod', async () => {
+      const messenger = getRootMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+      const origin = 'metamask.io';
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretArray]: {},
+        },
+      });
+
+      const result = await messenger.call(
+        'PermissionController:executeRestrictedMethod',
+        origin,
+        PermissionNames.wallet_getSecretArray,
+      );
+
+      expect(result).toStrictEqual(['a', 'b', 'c']);
+    });
   });
 
   describe('permission middleware', () => {
+    /**
+     * Builds a permission controller and a messenger suitable for passing to
+     * `createPermissionMiddleware` that are wired to the same root messenger.
+     *
+     * @param opts - Permission controller options overrides.
+     * @returns The controller and the middleware messenger.
+     */
+    const setup = (
+      opts?: Record<string, unknown>,
+    ): {
+      controller: PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >;
+      middlewareMessenger: Messenger<
+        'PermissionMiddleware',
+        PermissionMiddlewareActions
+      >;
+    } => {
+      const rootMessenger = getRootMessenger();
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(
+        getPermissionControllerOptions({
+          messenger: getPermissionControllerMessenger(rootMessenger),
+          ...opts,
+        }),
+      );
+      const middlewareMessenger =
+        getPermissionMiddlewareMessenger(rootMessenger);
+      return { controller, middlewareMessenger };
+    };
+
     it('executes a restricted method', async () => {
-      const controller = getDefaultPermissionController();
+      const { controller, middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -6173,7 +6323,12 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
       const response = await engine.handle({
         jsonrpc: '2.0',
@@ -6186,7 +6341,7 @@ describe('PermissionController', () => {
     });
 
     it('executes a restricted method with a caveat', async () => {
-      const controller = getDefaultPermissionController();
+      const { controller, middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -6199,7 +6354,12 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
       const response = await engine.handle({
         jsonrpc: '2.0',
@@ -6212,7 +6372,7 @@ describe('PermissionController', () => {
     });
 
     it('executes a restricted method with multiple caveats', async () => {
-      const controller = getDefaultPermissionController();
+      const { controller, middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -6228,7 +6388,12 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
       const response = await engine.handle({
         jsonrpc: '2.0',
@@ -6241,11 +6406,16 @@ describe('PermissionController', () => {
     });
 
     it('passes through unrestricted methods', async () => {
-      const controller = getDefaultPermissionController();
+      const { middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
       engine.push((_req, res, _next, end) => {
         res.result = 'success';
         end();
@@ -6261,27 +6431,17 @@ describe('PermissionController', () => {
       expect(response.result).toBe('success');
     });
 
-    it('throws an error if the subject has an invalid "origin" property', async () => {
-      const controller = getDefaultPermissionController();
-
-      ['', null, undefined, 2].forEach((invalidOrigin) => {
-        expect(() =>
-          controller.createPermissionMiddleware({
-            // @ts-expect-error Intentional destructive testing
-            origin: invalidOrigin,
-          }),
-        ).toThrow(
-          new Error('The subject "origin" must be a non-empty string.'),
-        );
-      });
-    });
-
     it('returns an error if the subject does not have the requisite permission', async () => {
-      const controller = getDefaultPermissionController();
+      const { middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
       const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
@@ -6307,11 +6467,16 @@ describe('PermissionController', () => {
     });
 
     it('returns an error if the method does not exist', async () => {
-      const controller = getDefaultPermissionController();
+      const { middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
       const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
@@ -6339,14 +6504,9 @@ describe('PermissionController', () => {
       permissionSpecifications.wallet_doubleNumber.methodImplementation =
         (): undefined => undefined;
 
-      const controller = new PermissionController<
-        DefaultPermissionSpecifications,
-        DefaultCaveatSpecifications
-      >(
-        getPermissionControllerOptions({
-          permissionSpecifications,
-        }),
-      );
+      const { controller, middlewareMessenger } = setup({
+        permissionSpecifications,
+      });
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -6357,7 +6517,12 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
       const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
@@ -6365,21 +6530,222 @@ describe('PermissionController', () => {
         method: PermissionNames.wallet_doubleNumber,
       };
 
-      const expectedError = errors.internalError(
-        `Request for method "${PermissionNames.wallet_doubleNumber}" returned undefined result.`,
-        { request: { ...request } },
-      );
-
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       const { error } = response;
 
-      expect(error.message).toStrictEqual(expectedError.message);
-      // @ts-expect-error We do expect this property to exist.
-      expect(error.data?.cause).toBeNull();
-      // @ts-expect-error Intentional destructive testing
-      delete error.data.cause;
-      expect(error).toMatchObject(expect.objectContaining(expectedError));
+      // The public `executeRestrictedMethod` throws a plain `Error` when the
+      // restricted method returns `undefined`; the JSON-RPC engine wraps it
+      // as an internal error response.
+      expect(error.message).toBe(
+        `Request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
+      );
+      expect(error.code).toBe(-32603);
+    });
+
+    describe('v2', () => {
+      it('executes a restricted method', async () => {
+        const { controller, middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {},
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: PermissionNames.wallet_getSecretArray,
+        });
+
+        expect(result).toStrictEqual(['a', 'b', 'c']);
+      });
+
+      it('passes through unrestricted methods', async () => {
+        const { middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+            (): string => 'success',
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'wallet_unrestrictedMethod',
+        });
+
+        expect(result).toBe('success');
+      });
+
+      it('throws if the subject does not have the requisite permission', async () => {
+        const { middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        await expect(
+          engine.handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: PermissionNames.wallet_getSecretArray,
+          }),
+        ).rejects.toThrow(
+          'Unauthorized to perform action. Try requesting the required permission(s) first.',
+        );
+      });
+
+      it('executes a restricted method with a caveat', async () => {
+        const { controller, middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {
+              caveats: [
+                { type: CaveatTypes.filterArrayResponse, value: ['b'] },
+              ],
+            },
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: PermissionNames.wallet_getSecretArray,
+        });
+
+        expect(result).toStrictEqual(['b']);
+      });
+
+      it('executes a restricted method with multiple caveats', async () => {
+        const { controller, middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {
+              caveats: [
+                { type: CaveatTypes.filterArrayResponse, value: ['a', 'c'] },
+                { type: CaveatTypes.reverseArrayResponse, value: null },
+              ],
+            },
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: PermissionNames.wallet_getSecretArray,
+        });
+
+        expect(result).toStrictEqual(['c', 'a']);
+      });
+
+      it('throws if the method does not exist', async () => {
+        const { middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        await expect(
+          engine.handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'wallet_foo',
+          }),
+        ).rejects.toThrow(errors.methodNotFound('wallet_foo', { origin }));
+      });
+
+      it('throws if the restricted method returns undefined', async () => {
+        const permissionSpecifications = getDefaultPermissionSpecifications();
+        // @ts-expect-error Intentional destructive testing
+        permissionSpecifications.wallet_doubleNumber.methodImplementation =
+          (): undefined => undefined;
+
+        const { controller, middlewareMessenger } = setup({
+          permissionSpecifications,
+        });
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_doubleNumber]: {},
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        await expect(
+          engine.handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: PermissionNames.wallet_doubleNumber,
+          }),
+        ).rejects.toThrow(
+          `Request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
+        );
+      });
     });
   });
 

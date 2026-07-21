@@ -1,6 +1,14 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import type nock from 'nock';
+import { KeyringTypes } from '@metamask/keyring-controller';
+import nock from 'nock';
 
+import { Env, getEnvUrls } from '../../sdk';
+import { createSHA256Hash } from '../../shared/encryption';
+import type { UserStorageGenericPathWithFeatureAndKey } from '../../shared/storage-schema';
+import {
+  createEntryPath,
+  USER_STORAGE_FEATURE_NAMES,
+} from '../../shared/storage-schema';
 import { mockUserStorageMessenger } from './__fixtures__/mockMessenger';
 import {
   mockEndpointBatchUpsertUserStorage,
@@ -13,8 +21,7 @@ import {
 } from './__fixtures__/mockServices';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
-import UserStorageController, { defaultState } from './UserStorageController';
-import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
+import { UserStorageController, defaultState } from './UserStorageController';
 
 describe('UserStorageController', () => {
   describe('constructor', () => {
@@ -714,6 +721,126 @@ describe('UserStorageController', () => {
       expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
     });
 
+    it('does not serve the cached primary key to a new primary after a vault restore regenerates the entropy source id', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+      // The signed message (`metamask:${profileId}`) is identical across both
+      // calls, so the only thing that can isolate the two vaults is the entropy
+      // scope. The HD keyring metadata id is randomly regenerated on restore.
+      messengerMocks.mockSnapSignMessage
+        .mockResolvedValueOnce('signature-before-restore')
+        .mockResolvedValueOnce('signature-after-restore');
+
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const keyBeforeRestore = await controller.getStorageKey();
+
+      // Simulate a vault restore: same primary slot, brand-new entropy id.
+      messengerMocks.mockKeyringGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [],
+            metadata: { id: 'restored-entropy-source-id', name: '' },
+          },
+        ],
+      });
+
+      const keyAfterRestore = await controller.getStorageKey();
+
+      // The regenerated id changes the cache scope, so the new primary must
+      // re-derive its own key instead of inheriting the previous vault's cached
+      // key — proving no `'primary'`-style stable key carries across restores.
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(2);
+      expect(keyAfterRestore).not.toBe(keyBeforeRestore);
+      expect(keyAfterRestore).toBe(createSHA256Hash('signature-after-restore'));
+    });
+
+    it('serves the snap signature from the entropy-scoped cache for the same entropy source, even after the storage-key cache is flushed', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const mockAPI1 = await mockEndpointGetUserStorage();
+      const mockAPI2 = await mockEndpointGetUserStorage();
+
+      await controller.performGetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+        'entropy-source-1',
+      );
+      // Drop the derived storage key so the next call must re-derive it. The
+      // signature must still come from the entropy-scoped snap-signature cache,
+      // so the snap is never asked to sign a second time for this SRP. (Without
+      // this flush the storage-key cache would short-circuit before the
+      // signature cache is ever exercised.)
+      controller.flushStorageKeyCache();
+      await controller.performGetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+        'entropy-source-1',
+      );
+
+      mockAPI1.done();
+      mockAPI2.done();
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('derives a distinct storage key per entropy source even when both resolve to the same profileId', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+
+      // Precondition (made explicit, not relying on the fixture default): both
+      // SRPs resolve to the SAME `profileId`, so the signed
+      // `metamask:${profileId}` message is identical. Isolation must therefore
+      // come from `entropySourceId`, never the message — otherwise one SRP
+      // reuses another SRP's storage key and reads/writes its user storage.
+      // `profileId === canonicalProfileId` mirrors the real bug: a secondary
+      // SRP whose own profileId was overwritten with the shared canonical.
+      messengerMocks.mockAuthGetSessionProfile.mockResolvedValue({
+        identifierId: 'shared-identifier-id',
+        profileId: 'shared-profile-id',
+        canonicalProfileId: 'shared-profile-id',
+        metaMetricsId: 'shared-metametrics-id',
+      });
+      // Each entropy source signs with its own key, so the identical message
+      // yields a different signature — and thus a different derived storage key.
+      messengerMocks.mockSnapSignMessage
+        .mockResolvedValueOnce('signature-for-entropy-source-1')
+        .mockResolvedValueOnce('signature-for-entropy-source-2');
+
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const featureKeyPath =
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings` as UserStorageGenericPathWithFeatureAndKey;
+      const baseUrl = `${getEnvUrls(Env.PRD).userStorageApiUrl}/api/v1/userstorage`;
+      const pathForSource1 = `${baseUrl}/${createEntryPath(
+        featureKeyPath,
+        createSHA256Hash('signature-for-entropy-source-1'),
+      )}`;
+      const pathForSource2 = `${baseUrl}/${createEntryPath(
+        featureKeyPath,
+        createSHA256Hash('signature-for-entropy-source-2'),
+      )}`;
+
+      // One endpoint per derived storage key. If the caches were shared, the
+      // second source would reuse the first's key, hit `pathForSource1` again,
+      // and leave `mockSource2` unsatisfied (and the second request unmatched).
+      const mockSource1 = nock(pathForSource1).get('').reply(404);
+      const mockSource2 = nock(pathForSource2).get('').reply(404);
+
+      await controller.performGetStorage(featureKeyPath, 'entropy-source-1');
+      await controller.performGetStorage(featureKeyPath, 'entropy-source-2');
+
+      // Both distinct paths were requested → the two SRPs derived different
+      // storage keys despite the shared profileId.
+      mockSource1.done();
+      mockSource2.done();
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(2);
+    });
+
     it('throws if the wallet is locked', async () => {
       const messengerMocks = mockUserStorageMessenger();
       messengerMocks.mockKeyringGetState.mockReturnValue({
@@ -737,7 +864,13 @@ describe('UserStorageController', () => {
 
       messengerMocks.mockKeyringGetState.mockReturnValue({
         isUnlocked: true,
-        keyrings: [],
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [],
+            metadata: { id: 'primary-entropy-source-id', name: '' },
+          },
+        ],
       });
 
       const controller = new UserStorageController({

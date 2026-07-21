@@ -1,0 +1,30 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../authenticated-user-storage"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../chomp-api-service"
+    },
+    {
+      "path": "../delegation-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

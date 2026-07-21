@@ -16,13 +16,16 @@ export type {
   MultichainNetworkConfiguration,
   MultichainNetworkControllerState,
   MultichainNetworkControllerGetStateAction,
-  MultichainNetworkControllerSetActiveNetworkAction,
   MultichainNetworkControllerStateChange,
   MultichainNetworkControllerNetworkDidChangeEvent,
   MultichainNetworkControllerActions,
   MultichainNetworkControllerEvents,
   MultichainNetworkControllerMessenger,
 } from './types';
+export type {
+  MultichainNetworkControllerSetActiveNetworkAction,
+  MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction,
+} from './MultichainNetworkController/MultichainNetworkController-method-action-types';
 export {
   checkIfSupportedCaipChainId,
   toMultichainNetworkConfiguration,

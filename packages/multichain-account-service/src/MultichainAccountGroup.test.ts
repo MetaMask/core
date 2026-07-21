@@ -5,7 +5,7 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import { AccountCreationType, EthScope, SolScope } from '@metamask/keyring-api';
+import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { GroupState } from './MultichainAccountGroup';
@@ -22,7 +22,6 @@ import {
   setupBip44AccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
-  mockCreateAccountsOnce,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 
@@ -85,7 +84,7 @@ function setup({
   return { wallet, group, providers, messenger: serviceMessenger };
 }
 
-describe('MultichainAccount', () => {
+describe('MultichainAccountGroup', () => {
   describe('constructor', () => {
     it('constructs a multichain account group', async () => {
       const accounts = [
@@ -181,141 +180,43 @@ describe('MultichainAccount', () => {
     });
   });
 
-  describe('alignAccounts', () => {
-    it('aligns accounts for all providers', async () => {
-      const groupIndex = 0;
-      const { group, providers, wallet } = setup({
-        groupIndex,
-        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+  describe('isAligned', () => {
+    it('returns true when every provider has at least one account in the group', () => {
+      const { group } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
       });
 
-      mockCreateAccountsOnce(providers[0], [MOCK_WALLET_1_EVM_ACCOUNT]);
-      mockCreateAccountsOnce(providers[1], [MOCK_WALLET_1_SOL_ACCOUNT]);
-
-      await group.alignAccounts();
-
-      expect(providers[0].createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
-        entropySource: wallet.entropySource,
-        groupIndex,
-      });
-      expect(providers[1].createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
-        entropySource: wallet.entropySource,
-        groupIndex,
-      });
-
-      expect(group.getAccounts()).toHaveLength(2);
-      expect(group.getAccounts()).toStrictEqual([
-        MOCK_WALLET_1_EVM_ACCOUNT,
-        MOCK_WALLET_1_SOL_ACCOUNT,
-      ]);
+      expect(group.isAligned()).toBe(true);
     });
 
-    it('warns if alignment fails for a single provider', async () => {
-      const groupIndex = 0;
-      const { group, providers, wallet } = setup({
-        groupIndex,
-        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+    it('returns false when at least one provider has no accounts in the group', () => {
+      const { group } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // second provider has no accounts for this group
+        ],
       });
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      providers[1].createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
-      );
-
-      await group.alignAccounts();
-
-      expect(providers[1].createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
-        entropySource: wallet.entropySource,
-        groupIndex,
-      });
-      expect(consoleSpy).toHaveBeenCalledWith(
-        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing. Provider threw the following error:\n- Provider 2: Unable to create accounts`,
-      );
+      expect(group.isAligned()).toBe(false);
     });
 
-    it('warns if alignment fails for multiple providers', async () => {
-      const groupIndex = 0;
-      const { group, providers, wallet } = setup({
-        groupIndex,
-        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [], []],
-      });
+    it('returns true for a group with no providers', () => {
+      const { group } = setup({ accounts: [] });
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      providers[1].createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
-      );
-
-      providers[2].createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
-      );
-
-      await group.alignAccounts();
-
-      expect(providers[1].createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
-        entropySource: wallet.entropySource,
-        groupIndex,
-      });
-      expect(providers[2].createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
-        entropySource: wallet.entropySource,
-        groupIndex,
-      });
-      expect(consoleSpy).toHaveBeenCalledWith(
-        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing. Providers threw the following errors:\n- Provider 2: Unable to create accounts\n- Provider 3: Unable to create accounts`,
-      );
+      expect(group.isAligned()).toBe(true);
     });
 
-    it('does not create accounts when a provider is disabled', async () => {
-      const groupIndex = 0;
+    it('returns true when a provider mock is configured to return true despite having no accounts (simulates disabled wrapper)', () => {
       const { group, providers } = setup({
-        groupIndex,
-        accounts: [[], []],
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // second provider has no accounts
+        ],
       });
+      // Simulate a disabled AccountProviderWrapper, which always returns true.
+      providers[1].isAligned.mockReturnValue(true);
 
-      providers[1].setEnabled(false);
-      await group.alignAccounts();
-
-      expect(providers[0].createAccounts).toHaveBeenCalled();
-      expect(providers[1].createAccounts).not.toHaveBeenCalled();
-    });
-
-    it('removes accounts from the group when a provider is disabled', async () => {
-      const groupIndex = 0;
-      const { group, providers } = setup({
-        groupIndex,
-        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
-      });
-
-      providers[0].setEnabled(false);
-      await group.alignAccounts();
-
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
-      expect(providers[1].createAccounts).toHaveBeenCalled();
-
-      expect(group.getAccount(MOCK_WALLET_1_EVM_ACCOUNT.id)).toBeUndefined();
-    });
-
-    it('captures an error when a provider fails to create its account', async () => {
-      const groupIndex = 0;
-      const { group, providers, messenger } = setup({
-        groupIndex,
-        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
-      });
-      const providerError = new Error('Unable to create accounts');
-      providers[1].createAccounts.mockRejectedValueOnce(providerError);
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      await group.alignAccounts();
-      expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to align accounts with provider "Provider 2"'),
-      );
-      expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
-        'cause',
-        providerError,
-      );
+      expect(group.isAligned()).toBe(true);
     });
   });
 });

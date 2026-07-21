@@ -2,10 +2,18 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "outDir": "./dist",
     "rootDir": "./src"
   },
   "references": [
+    {
+      "path": "../account-tree-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../authenticated-user-storage/tsconfig.build.json"
+    },
     {
       "path": "../base-controller/tsconfig.build.json"
     },
@@ -13,7 +21,25 @@
       "path": "../controller-utils/tsconfig.build.json"
     },
     {
+      "path": "../geolocation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
       "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../profile-sync-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

@@ -6,9 +6,31 @@ import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import {
+  array,
+  number,
+  string,
+  type as structType,
+} from '@metamask/superstruct';
 import type { IDisposable } from 'cockatiel';
 
-import type { ProfileMetricsServiceMethodActions } from '.';
+import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types';
+
+/**
+ * The shape of an entry in the `POST /api/v2/nonce/batch` response body.
+ *
+ * `identifier` echoes the request identifier verbatim, mirroring the
+ * documented behavior of the single-account `GET /api/v2/nonce` endpoint on
+ * the same auth service. Defined with `type()` (not `object()`) so the
+ * client tolerates additive server-side schema changes.
+ */
+const NonceBatchResponseStruct = array(
+  structType({
+    expires_in: number(),
+    identifier: string(),
+    nonce: string(),
+  }),
+);
 
 // === GENERAL ===
 
@@ -19,11 +41,35 @@ import type { ProfileMetricsServiceMethodActions } from '.';
 export const serviceName = 'ProfileMetricsService';
 
 /**
- * An account address along with its associated scopes.
+ * A cryptographic proof that the caller controls the private key of an
+ * account, as defined by the `PUT /api/v2/profile/accounts` endpoint of the
+ * auth API. When present, the server verifies the signature against
+ * `metamask:proof-of-ownership:<nonce>:<canonical address>` and permanently
+ * marks the account as `verified: true`.
+ */
+export type AccountOwnershipProof = {
+  /**
+   * Single-use nonce obtained from {@link ProfileMetricsService.fetchNonces}.
+   * Consumed by the server on verification; replay is not possible.
+   */
+  nonce: string;
+  /**
+   * Chain-native signature of `metamask:proof-of-ownership:<nonce>:<address>`,
+   * always 0x-prefixed. The exact format varies by chain (see the auth API
+   * spec — EIP-191 for `eip155`, ed25519 for `solana`, TIP-191 for `tron`,
+   * BIP-322 for `bip122`).
+   */
+  signature: string;
+};
+
+/**
+ * An account address along with its associated scopes and an optional
+ * ownership proof.
  */
 export type AccountWithScopes = {
   address: string;
   scopes: `${string}:${string}`[];
+  proof?: AccountOwnershipProof;
 };
 
 /**
@@ -35,9 +81,33 @@ export type ProfileMetricsSubmitMetricsRequest = {
   accounts: AccountWithScopes[];
 };
 
+/**
+ * The shape of the request object for fetching a batch of single-use nonces.
+ */
+export type ProfileMetricsFetchNoncesRequest = {
+  /**
+   * The identifiers (canonical addresses) to mint a nonce for. The auth API
+   * accepts between 1 and {@link MAX_NONCE_BATCH_SIZE} identifiers per call.
+   */
+  identifiers: string[];
+  /**
+   * The entropy source ID to use when fetching a bearer token. Pass `null` or
+   * omit for accounts that do not belong to any entropy source.
+   */
+  entropySourceId?: string | null;
+};
+
+/**
+ * Maximum number of identifiers the auth API will mint nonces for in a single
+ * `POST /api/v2/nonce/batch` request. {@link ProfileMetricsService.fetchNonces}
+ * uses this as the chunk size when the caller requests more than this many
+ * nonces at once.
+ */
+export const MAX_NONCE_BATCH_SIZE = 50;
+
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['submitMetrics'] as const;
+const MESSENGER_EXPOSED_METHODS = ['submitMetrics', 'fetchNonces'] as const;
 
 /**
  * Actions that {@link ProfileMetricsService} exposes to other consumers.
@@ -48,7 +118,7 @@ export type ProfileMetricsServiceActions = ProfileMetricsServiceMethodActions;
  * Actions from other messengers that {@link ProfileMetricsService} calls.
  */
 type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Events that {@link ProfileMetricsService} exposes to other consumers.
@@ -73,6 +143,9 @@ export type ProfileMetricsServiceMessenger = Messenger<
 
 // === SERVICE DEFINITION ===
 
+/**
+ * A service for submitting user profile metrics (metrics ID and accounts).
+ */
 export class ProfileMetricsService {
   /**
    * The name of the service.
@@ -192,17 +265,115 @@ export class ProfileMetricsService {
   }
 
   /**
+   * Fetch single-use nonces from the auth API, one per identifier.
+   *
+   * Requests larger than {@link MAX_NONCE_BATCH_SIZE} are split into multiple
+   * `POST /api/v2/nonce/batch` calls fired in parallel; the resulting maps are
+   * merged into a single record. Each chunk independently goes through the
+   * service policy (retry, circuit-breaker, degraded). If any chunk ultimately
+   * fails, the whole call rejects so the caller can soft-degrade the entire
+   * entropy-source batch consistently.
+   *
+   * The returned record is keyed by the auth API's echoed `identifier` field
+   * (`response[i].identifier -> response[i].nonce`). The call asserts that
+   * the response identifier set is exactly the requested set; any mismatch
+   * (missing, extra, or duplicated identifier) causes the chunk to throw so
+   * the caller never silently proceeds with partial nonces.
+   *
+   * @param data - The identifiers to mint nonces for, plus the optional
+   * entropy source ID used to scope the bearer token.
+   * @returns A map of identifier -> nonce.
+   * @throws {RangeError} if no identifiers are provided.
+   */
+  async fetchNonces(
+    data: ProfileMetricsFetchNoncesRequest,
+  ): Promise<Record<string, string>> {
+    if (data.identifiers.length === 0) {
+      throw new RangeError(
+        'ProfileMetricsService.fetchNonces requires at least 1 identifier.',
+      );
+    }
+    const chunks: string[][] = [];
+    for (let i = 0; i < data.identifiers.length; i += MAX_NONCE_BATCH_SIZE) {
+      chunks.push(data.identifiers.slice(i, i + MAX_NONCE_BATCH_SIZE));
+    }
+    const chunkResults = await Promise.all(
+      chunks.map((identifiers) =>
+        this.#fetchNoncesChunk(identifiers, data.entropySourceId),
+      ),
+    );
+    return Object.assign({}, ...chunkResults);
+  }
+
+  /**
+   * Mint nonces for a single ≤ {@link MAX_NONCE_BATCH_SIZE}-sized chunk of
+   * identifiers. Wrapped in {@link #policy} for retry / degraded / circuit
+   * semantics consistent with the rest of the service.
+   *
+   * @param identifiers - The identifiers in this chunk. Must be 1..MAX_NONCE_BATCH_SIZE.
+   * @param entropySourceId - The entropy source ID forwarded to the bearer
+   * token resolver.
+   * @returns A map of identifier -> nonce for this chunk.
+   */
+  async #fetchNoncesChunk(
+    identifiers: string[],
+    entropySourceId: string | null | undefined,
+  ): Promise<Record<string, string>> {
+    return await this.#policy.execute(async () => {
+      const authToken = await this.#messenger.call(
+        'AuthenticationController:getBearerToken',
+        entropySourceId ?? undefined,
+      );
+      const url = new URL(`${this.#baseURL}/nonce/batch`);
+      const localResponse = await this.#fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ identifiers }),
+        credentials: 'omit',
+      });
+      if (!localResponse.ok) {
+        throw new HttpError(
+          localResponse.status,
+          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
+        );
+      }
+      const body: unknown = await localResponse.json();
+      if (!NonceBatchResponseStruct.is(body)) {
+        throw new Error(`Malformed response received from '${url.toString()}'`);
+      }
+      const result: Record<string, string> = {};
+      for (const entry of body) {
+        result[entry.identifier] = entry.nonce;
+      }
+      const echoesRequest =
+        body.length === identifiers.length &&
+        identifiers.every((id) =>
+          Object.prototype.hasOwnProperty.call(result, id),
+        );
+      if (!echoesRequest) {
+        throw new Error(
+          `Fetching '${url.toString()}' returned a response whose identifier set does not match the request`,
+        );
+      }
+      return result;
+    });
+  }
+
+  /**
    * Submit metrics to the API.
    *
    * @param data - The data to send in the metrics update request.
    * @returns The response from the API.
    */
   async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
-    const authToken = await this.#messenger.call(
-      'AuthenticationController:getBearerToken',
-      data.entropySourceId ?? undefined,
-    );
     await this.#policy.execute(async () => {
+      const authToken = await this.#messenger.call(
+        'AuthenticationController:getBearerToken',
+        data.entropySourceId ?? undefined,
+      );
       const url = new URL(`${this.#baseURL}/profile/accounts`);
       const localResponse = await this.#fetch(url, {
         method: 'PUT',
@@ -214,6 +385,11 @@ export class ProfileMetricsService {
           metametrics_id: data.metametricsId,
           accounts: data.accounts,
         }),
+        // The auth API is stateless (no cookies used)
+        // prevent marketing cookies scoped to
+        // .metamask.io from being forwarded to api which
+        // causes 431 Request Header Fields Too Large errors.
+        credentials: 'omit',
       });
       if (!localResponse.ok) {
         throw new HttpError(

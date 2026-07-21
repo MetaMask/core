@@ -1,17 +1,19 @@
 import type {
   EncryptionKey,
-  EncryptionResult,
   KeyDerivationOptions,
 } from '@metamask/browser-passworder';
+import {
+  DefaultEncryptionResult,
+  Encryptor,
+} from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
 import { webcrypto } from 'node:crypto';
 
-import type { VaultEncryptor } from '../../src/types';
-
-export default class MockVaultEncryptor
-  implements
-    VaultEncryptor<EncryptionKey | webcrypto.CryptoKey, KeyDerivationOptions>
-{
+export default class MockVaultEncryptor implements Encryptor<
+  EncryptionKey | webcrypto.CryptoKey,
+  KeyDerivationOptions,
+  DefaultEncryptionResult<KeyDerivationOptions>
+> {
   defaultDerivationParams: KeyDerivationOptions = {
     algorithm: 'PBKDF2',
     params: {
@@ -123,7 +125,7 @@ export default class MockVaultEncryptor
   async encryptWithKey(
     encryptionKey: EncryptionKey | webcrypto.CryptoKey,
     data: unknown,
-  ): Promise<EncryptionResult> {
+  ): Promise<DefaultEncryptionResult<KeyDerivationOptions>> {
     const dataString = JSON.stringify(data);
     const dataBuffer = Buffer.from(dataString);
     const vector = webcrypto.getRandomValues(new Uint8Array(16));
@@ -141,7 +143,7 @@ export default class MockVaultEncryptor
     const buffer = new Uint8Array(encBuff);
     const vectorStr = Buffer.from(vector).toString('base64');
     const vaultStr = Buffer.from(buffer).toString('base64');
-    const encryptionResult: EncryptionResult = {
+    const encryptionResult: DefaultEncryptionResult<KeyDerivationOptions> = {
       data: vaultStr,
       iv: vectorStr,
     };
@@ -155,9 +157,9 @@ export default class MockVaultEncryptor
 
   async decryptWithKey(
     encryptionKey: EncryptionKey | webcrypto.CryptoKey,
-    payload: EncryptionResult,
+    payload: DefaultEncryptionResult<KeyDerivationOptions>,
   ): Promise<unknown> {
-    let encData: EncryptionResult;
+    let encData: DefaultEncryptionResult<KeyDerivationOptions>;
     if (typeof payload === 'string') {
       encData = JSON.parse(payload);
     } else {

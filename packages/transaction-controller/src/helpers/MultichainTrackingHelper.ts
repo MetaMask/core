@@ -10,8 +10,8 @@ import type { NonceLock, NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import type { PendingTransactionTracker } from './PendingTransactionTracker';
 import { createModuleLogger, projectLogger } from '../logger';
+import type { PendingTransactionTracker } from './PendingTransactionTracker';
 
 /**
  * Registry of network clients provided by the NetworkController
@@ -36,9 +36,7 @@ export type MultichainTrackingHelperOptions = {
     chainId: Hex;
   }) => NonceTracker;
   createPendingTransactionTracker: (opts: {
-    provider: Provider;
     blockTracker: BlockTracker;
-    chainId: Hex;
     networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
   onNetworkStateChange: (
@@ -46,6 +44,7 @@ export type MultichainTrackingHelperOptions = {
       ...payload: NetworkControllerStateChangeEvent['payload']
     ) => void,
   ) => void;
+  onInitialized: () => void;
 };
 
 export class MultichainTrackingHelper {
@@ -66,11 +65,13 @@ export class MultichainTrackingHelper {
   }) => NonceTracker;
 
   readonly #createPendingTransactionTracker: (opts: {
-    provider: Provider;
     blockTracker: BlockTracker;
-    chainId: Hex;
     networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
+
+  #initialized = false;
+
+  #initInterval?: ReturnType<typeof setInterval>;
 
   readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
 
@@ -90,6 +91,7 @@ export class MultichainTrackingHelper {
     createNonceTracker,
     createPendingTransactionTracker,
     onNetworkStateChange,
+    onInitialized,
   }: MultichainTrackingHelperOptions) {
     this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.#getNetworkClientById = getNetworkClientById;
@@ -101,6 +103,10 @@ export class MultichainTrackingHelper {
     this.#createPendingTransactionTracker = createPendingTransactionTracker;
 
     onNetworkStateChange((_, patches) => {
+      if (!this.#initialized) {
+        return;
+      }
+
       const networkClients = this.#getNetworkClientRegistry();
 
       patches.forEach(({ op, path }) => {
@@ -112,14 +118,38 @@ export class MultichainTrackingHelper {
 
       this.#refreshTrackingMap(networkClients);
     });
+
+    this.#waitForNetworkController(onInitialized);
   }
 
-  initialize(): void {
-    const networkClients = this.#getNetworkClientRegistry();
+  #waitForNetworkController(onInitialized: () => void): void {
+    log('Waiting for NetworkController to be available');
 
-    this.#refreshTrackingMap(networkClients);
+    const tryInit = (): boolean => {
+      try {
+        const networkClients = this.#getNetworkClientRegistry();
+        this.#refreshTrackingMap(networkClients);
+        this.#initialized = true;
+        log('Initialized');
+        onInitialized();
+        return true;
+      } catch {
+        return false;
+      }
+    };
 
-    log('Initialized');
+    if (tryInit()) {
+      return;
+    }
+
+    this.#initInterval = setInterval(() => {
+      if (tryInit()) {
+        clearInterval(this.#initInterval);
+        this.#initInterval = undefined;
+      } else {
+        log('NetworkController not yet available, retrying');
+      }
+    }, 10);
   }
 
   has(networkClientId: NetworkClientId): boolean {
@@ -211,6 +241,11 @@ export class MultichainTrackingHelper {
   };
 
   stopAllTracking(): void {
+    if (this.#initInterval) {
+      clearInterval(this.#initInterval);
+      this.#initInterval = undefined;
+    }
+
     for (const [networkClientId] of this.#trackingMap) {
       this.#stopTrackingByNetworkClientId(networkClientId);
     }
@@ -318,9 +353,7 @@ export class MultichainTrackingHelper {
     });
 
     const pendingTransactionTracker = this.#createPendingTransactionTracker({
-      provider,
       blockTracker,
-      chainId,
       networkClientId,
     });
 

@@ -1,6 +1,4 @@
-import { Contract } from '@ethersproject/contracts';
-import { Web3Provider } from '@ethersproject/providers';
-import type { ExternalProvider } from '@ethersproject/providers';
+import { Interface } from '@ethersproject/abi';
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 import BN from 'bn.js';
@@ -14,6 +12,7 @@ import type {
   TransactionMeta,
 } from '../types';
 import { prepareTransaction } from '../utils/prepare';
+import { rpcRequest } from '../utils/provider';
 import { padHexToEvenLength, toBN } from '../utils/utils';
 
 const log = createModuleLogger(projectLogger, 'oracle-layer1-gas-fee-flow');
@@ -69,6 +68,8 @@ const GAS_PRICE_ORACLE_ABI = [
 const DEFAULT_GAS_PRICE_ORACLE_ADDRESS =
   '0x420000000000000000000000000000000000000F' as Hex;
 
+const GAS_PRICE_ORACLE_INTERFACE = new Interface(GAS_PRICE_ORACLE_ABI);
+
 /**
  * Layer 1 gas fee flow that obtains gas fee estimate using an oracle smart contract.
  */
@@ -106,29 +107,35 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     messenger: TransactionControllerMessenger;
   }): Promise<boolean>;
 
+  /**
+   * Transforms the raw oracle L1 fee before it is combined with the operator
+   * fee. Subclasses can override this to apply chain-specific conversions
+   * (e.g. currency conversion via an on-chain exchange rate).
+   *
+   * Defaults to returning the fee unchanged.
+   *
+   * @param oracleFee - The raw L1 fee returned by the oracle contract.
+   * @param _request - The original fee flow request (messenger + transaction).
+   * @returns The transformed fee.
+   */
+  protected async transformOracleFee(
+    oracleFee: BN,
+    _request: Layer1GasFeeFlowRequest,
+  ): Promise<BN> {
+    return oracleFee;
+  }
+
   async getLayer1Fee(
     request: Layer1GasFeeFlowRequest,
   ): Promise<Layer1GasFeeFlowResponse> {
     try {
-      const { provider, transactionMeta } = request;
-
-      const contract = this.#getGasPriceOracleContract(
-        provider,
-        transactionMeta.chainId,
-      );
-
-      const oracleFee = await this.#getOracleLayer1GasFee(
-        contract,
-        transactionMeta,
-      );
-      const operatorFee = await this.#getOperatorLayer1GasFee(
-        contract,
-        transactionMeta,
-      );
+      const oracleFee = await this.#getOracleLayer1GasFee(request);
+      const transformedFee = await this.transformOracleFee(oracleFee, request);
+      const operatorFee = await this.#getOperatorLayer1GasFee(request);
 
       return {
         layer1Fee: add0x(
-          padHexToEvenLength(oracleFee.add(operatorFee).toString(16)),
+          padHexToEvenLength(transformedFee.add(operatorFee).toString(16)),
         ),
       };
     } catch (error) {
@@ -137,38 +144,53 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     }
   }
 
-  async #getOracleLayer1GasFee(
-    contract: Contract,
-    transactionMeta: TransactionMeta,
-  ): Promise<BN> {
+  async #getOracleLayer1GasFee(request: Layer1GasFeeFlowRequest): Promise<BN> {
     const serializedTransaction = this.#buildUnserializedTransaction(
-      transactionMeta,
+      request.transactionMeta,
       this.shouldSignTransaction(),
     ).serialize();
 
-    const result = await contract.getL1Fee(serializedTransaction);
+    const result = await this.#callGasPriceOracle(request, 'getL1Fee', [
+      serializedTransaction,
+    ]);
 
-    if (result === undefined) {
+    if (typeof result !== 'string' || result === '0x') {
       throw new Error('No value returned from oracle contract');
     }
 
     return toBN(result);
   }
 
-  async #getOperatorLayer1GasFee(
-    contract: Contract,
+  /**
+   * Returns the gas value to pass to the operator-fee oracle, or undefined
+   * to skip the operator-fee call entirely. Defaults to the simulated
+   * `gasUsed` on the transaction. Subclasses can override to supply a
+   * fallback (e.g. estimated gas limit) when `gasUsed` is unavailable.
+   *
+   * @param transactionMeta - The transaction metadata.
+   * @returns The gas value, or undefined to skip the operator-fee call.
+   */
+  protected getOperatorFeeGas(
     transactionMeta: TransactionMeta,
-  ): Promise<BN> {
-    const { gasUsed } = transactionMeta;
+  ): string | undefined {
+    return transactionMeta.gasUsed;
+  }
 
-    if (!gasUsed) {
+  async #getOperatorLayer1GasFee(
+    request: Layer1GasFeeFlowRequest,
+  ): Promise<BN> {
+    const gas = this.getOperatorFeeGas(request.transactionMeta);
+
+    if (!gas) {
       return ZERO;
     }
 
     try {
-      const result = await contract.getOperatorFee(gasUsed);
+      const result = await this.#callGasPriceOracle(request, 'getOperatorFee', [
+        gas,
+      ]);
 
-      if (result === undefined) {
+      if (typeof result !== 'string' || result === '0x') {
         return ZERO;
       }
 
@@ -207,15 +229,31 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     };
   }
 
-  #getGasPriceOracleContract(
-    provider: Layer1GasFeeFlowRequest['provider'],
-    chainId: Hex,
-  ): Contract {
-    return new Contract(
-      this.getOracleAddressForChain(chainId),
-      GAS_PRICE_ORACLE_ABI,
-      // Network controller provider type is incompatible with ethers provider
-      new Web3Provider(provider as unknown as ExternalProvider),
-    );
+  // The oracle is called via a direct `eth_call` RPC request rather than an
+  // ethers `Contract` with `Web3Provider`, as `Web3Provider` schedules its
+  // JSON-RPC dispatch with `setTimeout`, which never fires on React Native
+  // when the timer pump is starved (e.g. iOS display link freeze), blocking
+  // `addTransaction` indefinitely.
+  // See https://github.com/MetaMask/metamask-mobile/issues/32863
+  async #callGasPriceOracle(
+    request: Layer1GasFeeFlowRequest,
+    functionName: string,
+    args: readonly unknown[],
+  ): Promise<unknown> {
+    const { messenger, transactionMeta } = request;
+    const { chainId, networkClientId } = transactionMeta;
+
+    const to = this.getOracleAddressForChain(chainId);
+    const data = GAS_PRICE_ORACLE_INTERFACE.encodeFunctionData(
+      functionName,
+      args,
+    ) as Hex;
+
+    return await rpcRequest({
+      messenger,
+      networkClientId,
+      method: 'eth_call',
+      params: [{ to, data }, 'latest'],
+    });
   }
 }

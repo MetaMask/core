@@ -1,12 +1,17 @@
+import { BRIDGE_PROD_API_BASE_URL, REFRESH_INTERVAL_MS } from '../constants';
+import { QuoteStatusFetchWithRetryOutcomeType } from '../quote-status-manager/constants';
+import { QuoteStatusGetError } from '../quote-status-manager/errors';
+import { QuoteStatusGetWithRetryOutcome } from '../quote-status-manager/quote-status-get-with-retry-outcome';
+import type { QuoteStatusManager } from '../quote-status-manager/quotes-status-manager';
+import { BridgeClientId } from '../types';
+import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
 import {
+  fetchBridgeQuoteStatus,
   fetchBridgeTxStatus,
   getBridgeStatusUrl,
   getStatusRequestDto,
   shouldSkipFetchDueToFetchFailures,
 } from './bridge-status';
-import { BRIDGE_PROD_API_BASE_URL, REFRESH_INTERVAL_MS } from '../constants';
-import { BridgeClientId } from '../types';
-import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
 
 describe('utils', () => {
   const mockStatusRequest: StatusRequestWithSrcTxHash = {
@@ -215,6 +220,119 @@ describe('utils', () => {
           BRIDGE_PROD_API_BASE_URL,
         ),
       ).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('fetchBridgeQuoteStatus', () => {
+    const mockQuoteId = 'quote-1';
+
+    /**
+     * Builds a mock `QuoteStatusManager` whose `getStatus` method resolves
+     * with the given outcome.
+     *
+     * @param outcome - The outcome `getStatus` should resolve with.
+     * @returns An object with the mocked manager and its `getStatus` spy.
+     */
+    function createMockQuoteStatusManager(
+      outcome: QuoteStatusGetWithRetryOutcome | undefined,
+    ): {
+      quoteStatusManager: QuoteStatusManager;
+      getStatus: jest.Mock;
+    } {
+      const getStatus = jest.fn().mockResolvedValue(outcome);
+      return {
+        quoteStatusManager: { getStatus } as unknown as QuoteStatusManager,
+        getStatus,
+      };
+    }
+
+    it('returns the submitted tx status when the manager reports it', async () => {
+      const { quoteStatusManager, getStatus } = createMockQuoteStatusManager(
+        new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
+          { submittedTx: mockValidResponse as never },
+        ),
+      );
+
+      const result = await fetchBridgeQuoteStatus(
+        quoteStatusManager,
+        mockQuoteId,
+      );
+
+      expect(getStatus).toHaveBeenCalledWith(mockQuoteId);
+      expect(result).toStrictEqual({
+        status: mockValidResponse,
+        validationFailures: [],
+      });
+    });
+
+    it('returns validation failures from the outcome error alongside the submitted tx status', async () => {
+      const { quoteStatusManager } = createMockQuoteStatusManager(
+        new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
+          { submittedTx: mockValidResponse as never },
+          new QuoteStatusGetError('unexpected response shape', {
+            quoteId: mockQuoteId,
+            validationFailures: ['socket|status'],
+          }),
+        ),
+      );
+
+      const result = await fetchBridgeQuoteStatus(
+        quoteStatusManager,
+        mockQuoteId,
+      );
+
+      expect(result).toStrictEqual({
+        status: mockValidResponse,
+        validationFailures: ['socket|status'],
+      });
+    });
+
+    it('returns null when the manager is disabled (resolves undefined)', async () => {
+      const { quoteStatusManager } = createMockQuoteStatusManager(undefined);
+
+      const result = await fetchBridgeQuoteStatus(
+        quoteStatusManager,
+        mockQuoteId,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when the outcome has no response', async () => {
+      const { quoteStatusManager } = createMockQuoteStatusManager(
+        new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
+          undefined,
+          new QuoteStatusGetError('request error', {
+            quoteId: mockQuoteId,
+          }),
+        ),
+      );
+
+      const result = await fetchBridgeQuoteStatus(
+        quoteStatusManager,
+        mockQuoteId,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when the response has no submittedTx yet', async () => {
+      const { quoteStatusManager } = createMockQuoteStatusManager(
+        new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
+          {},
+        ),
+      );
+
+      const result = await fetchBridgeQuoteStatus(
+        quoteStatusManager,
+        mockQuoteId,
+      );
+
+      expect(result).toBeNull();
     });
   });
 

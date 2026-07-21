@@ -1,37 +1,18 @@
 import { successfulFetch } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
 
-import type {
-  GetAccountAddressRelationshipRequest,
-  GetAccountTransactionsResponse,
-} from './accounts-api';
-import {
-  getAccountAddressRelationship,
-  getAccountTransactions,
-} from './accounts-api';
 import { FirstTimeInteractionError } from '../errors';
+import type { GetAccountAddressRelationshipRequest } from './accounts-api';
+import { getAccountAddressRelationship } from './accounts-api';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
   successfulFetch: jest.fn(),
 }));
 
-const ADDRESS_MOCK = '0x123';
-const CHAIN_IDS_MOCK = ['0x1', '0x2'] as Hex[];
-const CURSOR_MOCK = '0x456';
-const END_TIMESTAMP_MOCK = 123;
-const START_TIMESTAMP_MOCK = 456;
 const CHAIN_ID_SUPPORTED = 1;
 const CHAIN_ID_UNSUPPORTED = 123456789;
 const FROM_ADDRESS = '0xSender';
 const TO_ADDRESS = '0xRecipient';
-const TAG_MOCK = 'test1';
-const TAG_2_MOCK = 'test2';
-
-const ACCOUNT_RESPONSE_MOCK = {
-  data: [{}],
-} as unknown as GetAccountTransactionsResponse;
-
 const FIRST_TIME_REQUEST_MOCK: GetAccountAddressRelationshipRequest = {
   chainId: CHAIN_ID_SUPPORTED,
   from: FROM_ADDRESS,
@@ -39,8 +20,6 @@ const FIRST_TIME_REQUEST_MOCK: GetAccountAddressRelationshipRequest = {
 };
 
 describe('Accounts API', () => {
-  const fetchMock = jest.mocked(successfulFetch);
-
   /**
    * Mock the fetch function to return the given response JSON.
    *
@@ -125,50 +104,6 @@ describe('Accounts API', () => {
           getAccountAddressRelationship(FIRST_TIME_REQUEST_MOCK),
         ).rejects.toThrow(FirstTimeInteractionError);
       });
-    });
-  });
-
-  describe('getAccountTransactions', () => {
-    it('queries the accounts API with the correct parameters', async () => {
-      mockFetch(ACCOUNT_RESPONSE_MOCK);
-
-      const response = await getAccountTransactions({
-        address: ADDRESS_MOCK,
-        chainIds: CHAIN_IDS_MOCK,
-        cursor: CURSOR_MOCK,
-        endTimestamp: END_TIMESTAMP_MOCK,
-        startTimestamp: START_TIMESTAMP_MOCK,
-      });
-
-      expect(response).toStrictEqual(ACCOUNT_RESPONSE_MOCK);
-
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(fetchMock).toHaveBeenCalledWith(
-        `https://accounts.api.cx.metamask.io/v1/accounts/${ADDRESS_MOCK}/transactions?networks=${CHAIN_IDS_MOCK[0]},${CHAIN_IDS_MOCK[1]}&startTimestamp=${START_TIMESTAMP_MOCK}&endTimestamp=${END_TIMESTAMP_MOCK}&cursor=${CURSOR_MOCK}`,
-        expect.any(Object),
-      );
-    });
-
-    it('includes the client header', async () => {
-      mockFetch(ACCOUNT_RESPONSE_MOCK);
-
-      await getAccountTransactions({
-        address: ADDRESS_MOCK,
-        chainIds: CHAIN_IDS_MOCK,
-        cursor: CURSOR_MOCK,
-        endTimestamp: END_TIMESTAMP_MOCK,
-        startTimestamp: START_TIMESTAMP_MOCK,
-        tags: [TAG_MOCK, TAG_2_MOCK],
-      });
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          headers: {
-            'x-metamask-clientproduct': `metamask-transaction-controller__${TAG_MOCK}__${TAG_2_MOCK}`,
-          },
-        }),
-      );
     });
   });
 });

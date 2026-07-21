@@ -5,9 +5,6 @@
   },
   "references": [
     {
-      "path": "../error-reporting-service"
-    },
-    {
       "path": "../eth-block-tracker"
     },
     {
@@ -15,9 +12,6 @@
     },
     {
       "path": "../json-rpc-engine"
-    },
-    {
-      "path": "../network-controller"
     },
     {
       "path": "../message-manager"

@@ -10,6 +10,18 @@ import {
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import type { AssetsControllerMessenger } from '../AssetsController';
+import { projectLogger, createModuleLogger } from '../logger';
+import type {
+  AccountId,
+  ChainId,
+  Caip19AssetId,
+  AssetBalance,
+  AssetMetadata,
+  DataRequest,
+  DataResponse,
+  Middleware,
+} from '../types';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -24,18 +36,6 @@ import {
   getStakingContractAddress,
   getSupportedStakingChainIds,
 } from './evm-rpc-services';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
-import type {
-  AccountId,
-  ChainId,
-  Caip19AssetId,
-  AssetBalance,
-  AssetMetadata,
-  DataRequest,
-  DataResponse,
-  Middleware,
-} from '../types';
 
 const CONTROLLER_NAME = 'StakedBalanceDataSource';
 const DEFAULT_POLL_INTERVAL = 180_000; // 3 minutes
@@ -90,7 +90,10 @@ type SubscriptionData = {
   /** Per-account supported chains; used by refreshStakedBalance and transaction handlers. */
   accountsWithSupportedChains: AccountWithSupportedChains[];
   /** Callback to report asset updates. */
-  onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+  onAssetsUpdate: (
+    response: DataResponse,
+    request?: DataRequest,
+  ) => void | Promise<void>;
 };
 
 /**
@@ -189,19 +192,18 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         this.#getProvider(hexChainId),
     });
 
-    // Wire the callback so polling results flow back to subscriptions
-    this.#stakedBalanceFetcher.setOnStakedBalanceUpdate(
-      this.#handleStakedBalanceUpdate.bind(this),
-    );
+    // Polling controller invokes this synchronously; keep failures inside the poll tick.
+    this.#stakedBalanceFetcher.setOnStakedBalanceUpdate((result) => {
+      try {
+        this.#handleStakedBalanceUpdate(result);
+      } catch (error) {
+        log('Staked balance update handler failed', { error });
+      }
+    });
 
     this.#messenger.subscribe(
       'TransactionController:transactionConfirmed',
       this.#onTransactionConfirmed.bind(this),
-    );
-
-    this.#messenger.subscribe(
-      'TransactionController:incomingTransactionsReceived',
-      this.#onIncomingTransactions.bind(this),
     );
 
     this.#messenger.subscribe(
@@ -301,43 +303,6 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     if (toRefresh.length > 0) {
       this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
         log('Failed to refresh staked balance after transaction', { error });
-      });
-    }
-  }
-
-  /**
-   * When incoming transactions are received, refresh staked balance only for
-   * chains where at least one transaction is from or to the staking contract.
-   *
-   * @param payload - From TransactionController:incomingTransactionsReceived (array of { chainId?, txParams? }).
-   */
-  #onIncomingTransactions(
-    payload: { chainId?: string; txParams?: { from?: string; to?: string } }[],
-  ): void {
-    if (!this.#enabled) {
-      return;
-    }
-    const chainIdsToRefresh = new Set<string>();
-    for (const item of payload ?? []) {
-      if (!item?.chainId) {
-        continue;
-      }
-      if (this.#isTransactionInvolvingStakingContract(item)) {
-        chainIdsToRefresh.add(item.chainId);
-      }
-    }
-    const caipChainIds = [...chainIdsToRefresh].map(
-      (hexChainId) => `eip155:${parseInt(hexChainId, 16)}` as ChainId,
-    );
-    if (caipChainIds.length === 0) {
-      return;
-    }
-    const toRefresh = this.#getToRefreshForChains(caipChainIds);
-    if (toRefresh.length > 0) {
-      this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
-        log('Failed to refresh staked balance after incoming transactions', {
-          error,
-        });
       });
     }
   }
@@ -450,14 +415,46 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       }
     }
 
+    const chainIds = [...new Set(toRefresh.map(({ chainId }) => chainId))];
+    const chainsByAccountId = new Map<AccountId, ChainId[]>();
+    for (const { account, chainId } of toRefresh) {
+      const list = chainsByAccountId.get(account.id) ?? [];
+      if (!list.includes(chainId)) {
+        list.push(chainId);
+      }
+      chainsByAccountId.set(account.id, list);
+    }
+    const accountById = new Map<AccountId, InternalAccount>();
+    for (const { account } of toRefresh) {
+      if (!accountById.has(account.id)) {
+        accountById.set(account.id, account);
+      }
+    }
+    const request: DataRequest = {
+      accountsWithSupportedChains: [...accountById.entries()].map(
+        ([accountId, account]) => ({
+          account,
+          supportedChains: chainsByAccountId.get(accountId) ?? [],
+        }),
+      ),
+      chainIds,
+      dataTypes: ['balance'],
+    };
+
     if (Object.keys(assetsBalance).length > 0) {
-      const response: DataResponse = { assetsInfo, assetsBalance };
+      const response: DataResponse = {
+        assetsInfo,
+        assetsBalance,
+        updateMode: 'merge',
+      };
       for (const subscription of this.#activeSubscriptions.values()) {
-        subscription.onAssetsUpdate(response)?.catch((error: unknown) => {
-          log('Failed to report staked balance update after transaction', {
-            error,
+        subscription
+          .onAssetsUpdate(response, request)
+          ?.catch((error: unknown) => {
+            log('Failed to report staked balance update after transaction', {
+              error,
+            });
           });
-        });
       }
     }
   }
@@ -600,6 +597,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
     const assetId = stakedAssetId(caipChainId, contractAddress);
 
+    // request.dataTypes: ['balance'] so controller skips Token/Price enrichment.
     const response: DataResponse = {
       assetsInfo: {
         [assetId]: STAKED_ETH_METADATA,
@@ -609,6 +607,13 @@ export class StakedBalanceDataSource extends AbstractDataSource<
           [assetId]: { amount: result.balance.amount },
         },
       },
+      updateMode: 'merge',
+    };
+
+    const request: DataRequest = {
+      accountsWithSupportedChains: [],
+      chainIds: [caipChainId],
+      dataTypes: ['balance'],
     };
 
     log('Staked balance update', {
@@ -618,9 +623,11 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     });
 
     for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response)?.catch((error: unknown) => {
-        log('Failed to report staked balance update', { error });
-      });
+      subscription
+        .onAssetsUpdate(response, request)
+        ?.catch((error: unknown) => {
+          log('Failed to report staked balance update', { error });
+        });
     }
   }
 
