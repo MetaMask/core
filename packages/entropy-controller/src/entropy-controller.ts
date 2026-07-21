@@ -184,22 +184,19 @@ export class EntropyController extends BaseController<
       return;
     }
 
-    const entropyKeyrings = keyrings.filter(isKeyringOwningEntropy);
+    const entropySources: EntropyControllerState['entropySources'] = {};
+    for (const keyring of keyrings.filter(isKeyringOwningEntropy)) {
+      const { id } = keyring.metadata;
 
-    const newSources: EntropyControllerState['entropySources'] = {};
-
-    for (const keyringObj of entropyKeyrings) {
-      const { id } = keyringObj.metadata;
-
-      if (keyringObj.type === KeyringTypes.hd) {
-        await this.#syncHdKeyring(id, newSources);
-      } else if (keyringObj.type === KeyringTypes.simple) {
-        await this.#syncSimpleKeyring(id, newSources);
+      if (keyring.type === KeyringTypes.hd) {
+        await this.#syncHdKeyring(id, entropySources);
+      } else if (keyring.type === KeyringTypes.simple) {
+        await this.#syncSimpleKeyring(id, entropySources);
       }
     }
 
     this.update((state) => {
-      state.entropySources = newSources;
+      state.entropySources = entropySources;
     });
   }
 
