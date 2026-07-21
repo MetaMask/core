@@ -9,15 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.3.0]
 
-### Uncategorized
-
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-- Release/1115.0.0 ([#9470](https://github.com/MetaMask/core/pull/9470))
-- Release 1114.0.0 ([#9463](https://github.com/MetaMask/core/pull/9463))
-- Release/1112.0.0 ([#9458](https://github.com/MetaMask/core/pull/9458))
-- Release/1111.0.0 ([#9456](https://github.com/MetaMask/core/pull/9456))
-- Release 1102.0.0 ([#9421](https://github.com/MetaMask/core/pull/9421))
-
 ### Added
 
 - Add `proLayoutPreferences` state field (`orderBookExpanded`, `chartExpanded`, `orderBookPosition`, `orderFormPosition`) to `PerpsControllerState` for persisting Pro-mode layout across markets, along with the exported `ProLayoutPreferences` type and `DEFAULT_PRO_LAYOUT_PREFERENCES` constant, `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` controller methods (exposed as messenger actions with exported `PerpsControllerGetProLayoutPreferencesAction` / `PerpsControllerSetProLayoutPreferencesAction` types), and a `selectProLayoutPreferences` selector; the getter and selector merge over defaults so callers always receive a fully-populated object ([#9550](https://github.com/MetaMask/core/pull/9550))
@@ -30,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Emit an additional `partially_filled` `PERPS_TRADE_TRANSACTION` event with `order_size` (the final submitted size), `amount_filled`, and `remaining_amount` when an open trade fills for less than the size actually submitted to the exchange, mirroring the close path so partial fills are visible in analytics; classification uses the provider's post-normalization submitted size (returned as `OrderResult.submittedSize`) rather than the caller's pre-normalization `size`, so a complete fill of the normalized size is not misreported as partial; full fills are unchanged ([#9471](https://github.com/MetaMask/core/pull/9471))
 - Widen the `TradeAction` type to include `flip_long_to_short` and `flip_short_to_long` (already forwarded verbatim at runtime), so clients no longer need casts when deriving flip actions ([#9471](https://github.com/MetaMask/core/pull/9471))
 - Add `number_positions_closed` (the successful-close count) to the batch `PERPS_POSITION_CLOSE_TRANSACTION` summary event emitted by `closePositions`, which previously carried only status/completion_duration/bulk_action_id ([#9471](https://github.com/MetaMask/core/pull/9471))
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+- Release/1115.0.0 ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Release 1114.0.0 ([#9463](https://github.com/MetaMask/core/pull/9463))
+- Release/1112.0.0 ([#9458](https://github.com/MetaMask/core/pull/9458))
+- Release/1111.0.0 ([#9456](https://github.com/MetaMask/core/pull/9456))
+- Release 1102.0.0 ([#9421](https://github.com/MetaMask/core/pull/9421))
 
 ### Fixed
 
