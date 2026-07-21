@@ -398,6 +398,7 @@ const config = createConfig([
       'packages/json-rpc-middleware-stream/**',
       'packages/messenger/**',
       'packages/messenger-cli/**',
+      'packages/money-account-controller/**',
       'packages/multichain-api-middleware/**',
       'packages/network-connection-banner-controller/**',
       'packages/permission-controller/**',
