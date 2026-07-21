@@ -163,6 +163,14 @@ export class AggregatedOrderBookConnection {
 
   #activeCount = 0;
 
+  // Tracks the single `l2Book` payload the dedicated socket carries per asset,
+  // keyed by symbol. The SDK dispatches `l2Book` events by `coin` only, so two
+  // subscriptions for the same asset with different params (e.g. `nSigFigs`)
+  // would cross-contaminate on this shared socket — exactly the collision this
+  // connection exists to avoid. `count` refcounts the (identical) subscriptions
+  // sharing a payload so the entry is dropped once the last one unsubscribes.
+  readonly #payloads = new Map<string, { signature: string; count: number }>();
+
   // Set when the socket's auto-reconnection is exhausted (SDK `terminate`
   // event). A terminated socket cannot recover, so the next subscribe must
   // build a fresh transport instead of reusing the dead one.
@@ -179,17 +187,52 @@ export class AggregatedOrderBookConnection {
    * returned function can be called before the async subscribe resolves and
    * will cancel the pending subscription.
    *
+   * Only one `l2Book` payload per asset may be active at a time. Subscribing to
+   * an asset that already has a live subscription with different params (e.g. a
+   * different `nSigFigs` or `mantissa`) throws, because the shared socket
+   * dispatches by `coin` and the conflicting streams would clobber each other.
+   *
    * @param params - Subscription parameters.
    * @returns An unsubscribe function.
+   * @throws If the asset already has an active subscription with different params.
    */
   subscribe(params: SubscribeAggregatedOrderBookParams): () => void {
     const levels = params.levels ?? DEFAULT_LEVELS;
+    // The `l2Book` payload the transport carries. `levels` is client-side only
+    // (it slices each snapshot), so it is deliberately excluded from the payload
+    // and its signature.
+    const payload = {
+      type: 'l2Book' as const,
+      coin: params.symbol,
+      nSigFigs: params.nSigFigs,
+      mantissa: params.mantissa ?? null,
+      fast: true,
+    };
+    const signature = JSON.stringify(payload);
+
     const transport = this.#ensureTransport(this.#isTestnet());
+
+    // Reject a conflicting payload for an asset already on this socket. A
+    // recreated transport (first use, network change, or terminate) starts with
+    // an empty payload map, so this can only trip on the reuse path — the shared
+    // socket that would actually suffer the collision.
+    const existingPayload = this.#payloads.get(params.symbol);
+    if (existingPayload && existingPayload.signature !== signature) {
+      throw new Error(
+        `AggregatedOrderBookConnection: "${params.symbol}" is already subscribed with different params; only one l2Book payload per asset is allowed on the dedicated socket.`,
+      );
+    }
+
     const { socket } = transport;
 
     let cancelled = false;
     let subscription: ISubscription | null = null;
     this.#activeCount += 1;
+    if (existingPayload) {
+      existingPayload.count += 1;
+    } else {
+      this.#payloads.set(params.symbol, { signature, count: 1 });
+    }
 
     const reportStatus = (status: OrderBookConnectionStatus): void => {
       if (!cancelled) {
@@ -236,6 +279,13 @@ export class AggregatedOrderBookConnection {
       // older unsubscribe must not decrement it and tear down the live socket.
       if (transport === this.#transport) {
         this.#activeCount = Math.max(0, this.#activeCount - 1);
+        const entry = this.#payloads.get(params.symbol);
+        if (entry) {
+          entry.count -= 1;
+          if (entry.count <= 0) {
+            this.#payloads.delete(params.symbol);
+          }
+        }
         if (this.#activeCount === 0) {
           this.#closeTransport();
         }
@@ -252,13 +302,7 @@ export class AggregatedOrderBookConnection {
     transport
       .subscribe<HyperliquidL2BookEvent>(
         'l2Book',
-        {
-          type: 'l2Book',
-          coin: params.symbol,
-          nSigFigs: params.nSigFigs,
-          mantissa: params.mantissa ?? null,
-          fast: true,
-        },
+        payload,
         (event: CustomEvent<HyperliquidL2BookEvent>) => {
           const data = event.detail;
           if (cancelled || data?.coin !== params.symbol || !data?.levels) {
@@ -324,6 +368,7 @@ export class AggregatedOrderBookConnection {
     const transport = this.#transport;
     this.#transport = null;
     this.#activeCount = 0;
+    this.#payloads.clear();
     this.#terminated = false;
     if (transport) {
       transport.close();

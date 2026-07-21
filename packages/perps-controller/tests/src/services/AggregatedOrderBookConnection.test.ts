@@ -256,6 +256,71 @@ describe('AggregatedOrderBookConnection', () => {
     expect(mockState.transports[0].subscribe).toHaveBeenCalledTimes(2);
   });
 
+  it('rejects a second subscription for the same asset with different params', () => {
+    const connection = new AggregatedOrderBookConnection({
+      isTestnet: (): boolean => false,
+    });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+
+    expect(() =>
+      connection.subscribe({ symbol: 'BTC', nSigFigs: 5, callback: jest.fn() }),
+    ).toThrow(
+      'AggregatedOrderBookConnection: "BTC" is already subscribed with different params',
+    );
+    // The conflicting subscribe must not reach the transport.
+    expect(mockState.transports[0].subscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows a repeat subscription for the same asset with identical params', () => {
+    const connection = new AggregatedOrderBookConnection({
+      isTestnet: (): boolean => false,
+    });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+
+    expect(() =>
+      connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() }),
+    ).not.toThrow();
+    expect(mockState.transports).toHaveLength(1);
+    expect(mockState.transports[0].subscribe).toHaveBeenCalledTimes(2);
+  });
+
+  it('treats a different levels value as identical (levels is client-side only)', () => {
+    const connection = new AggregatedOrderBookConnection({
+      isTestnet: (): boolean => false,
+    });
+    connection.subscribe({
+      symbol: 'BTC',
+      nSigFigs: 2,
+      levels: 5,
+      callback: jest.fn(),
+    });
+
+    expect(() =>
+      connection.subscribe({
+        symbol: 'BTC',
+        nSigFigs: 2,
+        levels: 20,
+        callback: jest.fn(),
+      }),
+    ).not.toThrow();
+  });
+
+  it('allows different params for the same asset once the prior subscription is removed', () => {
+    const connection = new AggregatedOrderBookConnection({
+      isTestnet: (): boolean => false,
+    });
+    const unsub = connection.subscribe({
+      symbol: 'BTC',
+      nSigFigs: 2,
+      callback: jest.fn(),
+    });
+    unsub();
+
+    expect(() =>
+      connection.subscribe({ symbol: 'BTC', nSigFigs: 5, callback: jest.fn() }),
+    ).not.toThrow();
+  });
+
   it('closes the transport once the last subscription is removed', async () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
