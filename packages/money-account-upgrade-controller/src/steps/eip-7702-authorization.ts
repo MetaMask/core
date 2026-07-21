@@ -2,6 +2,7 @@ import type { Provider } from '@metamask/network-controller';
 import { add0x, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { TerminalUpgradeError } from '../errors';
 import type { Step, StepContext } from './step';
 
 const EIP_7702_DELEGATION_PREFIX = '0xef0100';
@@ -47,7 +48,7 @@ export const eip7702AuthorizationStep: Step = {
       if (existingDelegation === delegatorImplAddress.toLowerCase()) {
         return 'already-done';
       }
-      throw new Error(
+      throw new TerminalUpgradeError(
         `Account ${address} is already upgraded to another smart account: ${existingDelegation}.`,
       );
     }
@@ -184,7 +185,7 @@ async function fetchDelegationAddress(
     return add0x(normalized.slice(EIP_7702_DELEGATION_PREFIX.length));
   }
 
-  throw new Error(
+  throw new TerminalUpgradeError(
     `Account ${address} has unexpected on-chain code; expected either no code or an EIP-7702 delegation.`,
   );
 }

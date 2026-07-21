@@ -18,6 +18,7 @@
   "metamask/logging-controller": "team-confirmations",
   "metamask/message-manager": "team-confirmations",
   "metamask/name-controller": "team-confirmations",
+  "metamask/sentinel-api-service": "team-confirmations,team-transactions",
   "metamask/signature-controller": "team-confirmations",
   "metamask/transaction-controller": "team-confirmations",
   "metamask/transaction-pay-controller": "team-confirmations",

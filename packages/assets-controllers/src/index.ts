@@ -176,6 +176,7 @@ export {
   SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
   SPOT_PRICES_SUPPORT_INFO,
+  getAssetId,
 } from './token-prices-service';
 export {
   fetchRwas,

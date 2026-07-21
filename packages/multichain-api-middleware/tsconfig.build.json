@@ -7,11 +7,27 @@
     "rootDir": "./src"
   },
   "references": [
-    { "path": "../accounts-controller/tsconfig.build.json" },
-    { "path": "../chain-agnostic-permission/tsconfig.build.json" },
-    { "path": "../json-rpc-engine/tsconfig.build.json" },
-    { "path": "../network-controller/tsconfig.build.json" },
-    { "path": "../permission-controller/tsconfig.build.json" }
+    {
+      "path": "../accounts-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../chain-agnostic-permission/tsconfig.build.json"
+    },
+    {
+      "path": "../json-rpc-engine/tsconfig.build.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../permission-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../multichain-transactions-controller/tsconfig.build.json"
+    }
   ],
   "include": ["../../types", "./src"]
 }

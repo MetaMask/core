@@ -33,6 +33,9 @@ type MockApiClient = {
     fetchTokenV2SupportedNetworks: jest.Mock;
     fetchV3Assets: jest.Mock;
   };
+  token: {
+    fetchV1SuggestedOccurrenceFloors: jest.Mock;
+  };
 };
 
 type SetupResult = {
@@ -57,6 +60,7 @@ function createTestMessenger(
 function createMockApiClient(
   supportedNetworks: string[] = ['eip155:1'],
   assetsResponse: V3AssetResponse[] = [],
+  suggestedOccurrenceFloors: Record<string, number> = { '1': 3 },
 ): MockApiClient {
   return {
     tokens: {
@@ -65,6 +69,11 @@ function createMockApiClient(
         partialSupport: [],
       }),
       fetchV3Assets: jest.fn().mockResolvedValue(assetsResponse),
+    },
+    token: {
+      fetchV1SuggestedOccurrenceFloors: jest
+        .fn()
+        .mockResolvedValue(suggestedOccurrenceFloors),
     },
   };
 }
@@ -131,15 +140,21 @@ function setupController(options: {
   supportedNetworks?: string[];
   assetsResponse?: V3AssetResponse[];
   nativeAssetIds?: string[];
+  suggestedOccurrenceFloors?: Record<string, number>;
 }): SetupResult {
   const {
     messenger,
     supportedNetworks = ['eip155:1'],
     assetsResponse = [],
     nativeAssetIds = [],
+    suggestedOccurrenceFloors = { '1': 3 },
   } = options;
 
-  const apiClient = createMockApiClient(supportedNetworks, assetsResponse);
+  const apiClient = createMockApiClient(
+    supportedNetworks,
+    assetsResponse,
+    suggestedOccurrenceFloors,
+  );
 
   const controller = new TokenDataSource(messenger, {
     queryApiClient:
@@ -266,6 +281,34 @@ describe('TokenDataSource', () => {
       isContractVerified: true,
       description: undefined,
     });
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
+  it('middleware heals metadata for balances missing assetsInfo even when not detected', async () => {
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '1.5' },
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
     expect(next).toHaveBeenCalledWith(context);
   });
 
@@ -806,13 +849,14 @@ describe('TokenDataSource', () => {
     const spamAsset =
       'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
 
-    const { controller } = setupController({
+    const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [
         createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 5 }),
         createMockAssetResponse(spamAsset, { occurrences: 1 }),
       ],
+      suggestedOccurrenceFloors: { '1': 3 },
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -832,6 +876,7 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
+    expect(apiClient.token.fetchV1SuggestedOccurrenceFloors).toHaveBeenCalled();
     expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
     expect(context.response.assetsInfo?.[spamAsset]).toBeUndefined();
 
@@ -847,6 +892,92 @@ describe('TokenDataSource', () => {
     expect(context.response.detectedAssets?.['mock-account-id']).not.toContain(
       spamAsset,
     );
+  });
+
+  it('middleware uses per-chain suggested occurrence floors from Token API', async () => {
+    // Monad (143) suggests floor 1 — a token with occurrences=1 should pass.
+    const monadToken =
+      'eip155:143/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:143'],
+      assetsResponse: [createMockAssetResponse(monadToken, { occurrences: 1 })],
+      suggestedOccurrenceFloors: { '1': 3, '143': 1 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ chainIds: ['eip155:143' as ChainId] }),
+      response: {
+        detectedAssets: {
+          'mock-account-id': [monadToken],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.token.fetchV1SuggestedOccurrenceFloors).toHaveBeenCalled();
+    expect(context.response.assetsInfo?.[monadToken]).toBeDefined();
+  });
+
+  it('middleware falls back to occurrence floor 3 when chain is missing from suggested floors', async () => {
+    const polygonToken =
+      'eip155:137/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:137'],
+      assetsResponse: [
+        createMockAssetResponse(polygonToken, { occurrences: 1 }),
+      ],
+      // No entry for 137 — should use default floor 3.
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ chainIds: ['eip155:137' as ChainId] }),
+      response: {
+        detectedAssets: {
+          'mock-account-id': [polygonToken],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[polygonToken]).toBeUndefined();
+  });
+
+  it('middleware falls back to occurrence floor 3 when suggested floors fetch fails', async () => {
+    const spamAsset =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [createMockAssetResponse(spamAsset, { occurrences: 1 })],
+    });
+
+    apiClient.token.fetchV1SuggestedOccurrenceFloors.mockRejectedValueOnce(
+      new Error('floors unavailable'),
+    );
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [spamAsset],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[spamAsset]).toBeUndefined();
+    expect(next).toHaveBeenCalledWith(context);
   });
 
   it('middleware bypasses occurrence filter for custom assets when state-stored ID is checksummed and API returns lower-case', async () => {

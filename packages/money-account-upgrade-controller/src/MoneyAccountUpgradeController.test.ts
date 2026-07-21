@@ -10,11 +10,14 @@ import type { Hex } from '@metamask/utils';
 
 import type {
   MoneyAccountUpgradeControllerMessenger,
+  MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeStepError,
 } from '.';
 import {
   MoneyAccountUpgradeController,
+  getDefaultMoneyAccountUpgradeControllerState,
   isMoneyAccountUpgradeStepError,
+  isTerminalMoneyAccountUpgradeError,
 } from '.';
 
 const MOCK_CHAIN_ID = '0x1' as Hex; // mainnet, supported in delegation-deployments@1.3.0
@@ -70,6 +73,7 @@ type Mocks = {
   getServiceDetails: jest.Mock;
   signPersonalMessage: jest.Mock;
   associateAddress: jest.Mock;
+  getAssociatedAddresses: jest.Mock;
   createUpgrade: jest.Mock;
   signEip7702Authorization: jest.Mock;
   findNetworkClientIdByChainId: jest.Mock;
@@ -83,7 +87,11 @@ type Mocks = {
   createIntents: jest.Mock;
 };
 
-function setup(): {
+function setup({
+  state,
+}: {
+  state?: Partial<MoneyAccountUpgradeControllerState>;
+} = {}): {
   controller: MoneyAccountUpgradeController;
   rootMessenger: RootMessenger;
   messenger: MoneyAccountUpgradeControllerMessenger;
@@ -115,6 +123,7 @@ function setup(): {
       address: MOCK_ACCOUNT_ADDRESS,
       status: 'created',
     }),
+    getAssociatedAddresses: jest.fn().mockResolvedValue([]),
     createUpgrade: jest.fn().mockResolvedValue({
       signerAddress: MOCK_ACCOUNT_ADDRESS,
       address: MAINNET_CONTRACTS.EIP7702StatelessDeleGatorImpl,
@@ -154,6 +163,10 @@ function setup(): {
   rootMessenger.registerActionHandler(
     'ChompApiService:associateAddress',
     mocks.associateAddress,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:getAssociatedAddresses',
+    mocks.getAssociatedAddresses,
   );
   rootMessenger.registerActionHandler(
     'ChompApiService:createUpgrade',
@@ -206,6 +219,7 @@ function setup(): {
       'ChompApiService:getServiceDetails',
       'KeyringController:signPersonalMessage',
       'ChompApiService:associateAddress',
+      'ChompApiService:getAssociatedAddresses',
       'ChompApiService:createUpgrade',
       'KeyringController:signEip7702Authorization',
       'NetworkController:findNetworkClientIdByChainId',
@@ -223,9 +237,23 @@ function setup(): {
 
   const controller = new MoneyAccountUpgradeController({
     messenger,
+    state,
   });
 
   return { controller, rootMessenger, messenger, mocks };
+}
+
+/**
+ * Resets the call history of every mock in the bag, preserving their
+ * configured implementations. Useful for asserting that a later
+ * `upgradeAccount` call performs no work.
+ *
+ * @param mocks - The mocks bag from `setup`.
+ */
+function clearMockCalls(mocks: Mocks): void {
+  for (const mock of Object.values(mocks)) {
+    mock.mockClear();
+  }
 }
 
 describe('MoneyAccountUpgradeController', () => {
@@ -234,6 +262,27 @@ describe('MoneyAccountUpgradeController', () => {
       const { mocks } = setup();
 
       expect(mocks.getServiceDetails).not.toHaveBeenCalled();
+    });
+
+    it('starts with the default empty state', () => {
+      const { controller } = setup();
+
+      expect(controller.state).toStrictEqual(
+        getDefaultMoneyAccountUpgradeControllerState(),
+      );
+      expect(controller.state.upgradedAccounts).toStrictEqual({});
+    });
+
+    it('merges provided partial state with the defaults', () => {
+      const status = { configFingerprint: 'fingerprint', completedAt: 123 };
+
+      const { controller } = setup({
+        state: { upgradedAccounts: { [MOCK_ACCOUNT_ADDRESS]: status } },
+      });
+
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toStrictEqual(status);
     });
   });
 
@@ -508,6 +557,181 @@ describe('MoneyAccountUpgradeController', () => {
       expect((error as MoneyAccountUpgradeStepError).message).toBe(
         'Money Account upgrade failed at step "associate-address": plain string failure',
       );
+    });
+
+    it('marks the failure terminal when the account is delegated to another implementation', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      // EIP-7702 delegation code pointing at a third-party impl.
+      mocks.providerRequest.mockImplementation(
+        async ({ method }: { method: string }) => {
+          if (method === 'eth_getCode') {
+            return `0xef0100${'9'.repeat(40)}`;
+          }
+          return '0x0';
+        },
+      );
+
+      const error = await controller
+        .upgradeAccount(MOCK_ACCOUNT_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(isTerminalMoneyAccountUpgradeError(error)).toBe(true);
+    });
+
+    it('marks ordinary step failures as non-terminal', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      mocks.signPersonalMessage.mockRejectedValue(new Error('network down'));
+
+      const error = await controller
+        .upgradeAccount(MOCK_ACCOUNT_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(isMoneyAccountUpgradeStepError(error)).toBe(true);
+      expect(isTerminalMoneyAccountUpgradeError(error)).toBe(false);
+    });
+  });
+
+  describe('upgrade status tracking', () => {
+    it('records a successful upgrade against the lowercased address', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      const mixedCaseAddress = MOCK_ACCOUNT_ADDRESS.replace(
+        '0xabc',
+        '0xABC',
+      ) as Hex;
+
+      await controller.upgradeAccount(mixedCaseAddress);
+
+      expect(mocks.signPersonalMessage).toHaveBeenCalled();
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toStrictEqual({
+        configFingerprint: expect.any(String),
+        completedAt: expect.any(Number),
+      });
+    });
+
+    it('skips the steps on a subsequent call for an already-upgraded account', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      clearMockCalls(mocks);
+
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+      expect(mocks.providerRequest).not.toHaveBeenCalled();
+      expect(mocks.listDelegations).not.toHaveBeenCalled();
+      expect(mocks.getIntentsByAddress).not.toHaveBeenCalled();
+    });
+
+    it('treats recorded upgrades case-insensitively', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      clearMockCalls(mocks);
+
+      await controller.upgradeAccount(
+        MOCK_ACCOUNT_ADDRESS.replace('0xabc', '0xABC') as Hex,
+      );
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+    });
+
+    it('skips the steps when constructed with state from a previous successful upgrade', async () => {
+      const first = setup();
+      await first.controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await first.controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      const second = setup({ state: first.controller.state });
+      await second.controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await second.controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(second.mocks.signPersonalMessage).not.toHaveBeenCalled();
+      expect(second.mocks.providerRequest).not.toHaveBeenCalled();
+    });
+
+    it('does not record the account when a step fails, and re-runs on the next call', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      mocks.signPersonalMessage.mockRejectedValueOnce(
+        new Error('signing failed'),
+      );
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('signing failed');
+
+      expect(controller.state.upgradedAccounts).toStrictEqual({});
+
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toBeDefined();
+    });
+
+    it('re-runs the sequence when the active config no longer matches the recorded fingerprint', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      const { configFingerprint: originalFingerprint } =
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS];
+
+      // CHOMP rotates its delegate address — the recorded upgrade no longer
+      // reflects the active config.
+      mocks.getServiceDetails.mockResolvedValue({
+        ...MOCK_SERVICE_DETAILS_RESPONSE,
+        chains: {
+          [MOCK_CHAIN_ID]: {
+            ...MOCK_SERVICE_DETAILS_RESPONSE.chains[MOCK_CHAIN_ID],
+            autoDepositDelegate:
+              '0x2222222222222222222222222222222222222222' as Hex,
+          },
+        },
+      });
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      clearMockCalls(mocks);
+
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.signPersonalMessage).toHaveBeenCalled();
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS]
+          .configFingerprint,
+      ).not.toBe(originalFingerprint);
     });
   });
 });

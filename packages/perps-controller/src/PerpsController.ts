@@ -21,7 +21,11 @@ import {
 } from './constants/eventNames';
 import { USDC_SYMBOL } from './constants/hyperLiquidConfig';
 import { PerpsMeasurementName } from './constants/performanceMetrics';
-import type { SortOptionId } from './constants/perpsConfig';
+import type {
+  SortOptionId,
+  ProLayoutPreferences,
+  PerpsMode,
+} from './constants/perpsConfig';
 import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
@@ -29,6 +33,8 @@ import {
   PERPS_DISK_CACHE_USER_DATA,
   buildProviderCacheKey,
   MAX_SLIPPAGE_BOUNDS,
+  DEFAULT_PERPS_MODE,
+  DEFAULT_PRO_LAYOUT_PREFERENCES,
 } from './constants/perpsConfig';
 import type { PerpsControllerMethodActions } from './PerpsController-method-action-types';
 import { PERPS_ERROR_CODES } from './perpsErrorCodes';
@@ -234,6 +240,15 @@ export enum InitializationState {
   Failed = 'failed',
 }
 
+// Re-exported so consumers can keep importing these from the controller entry
+// point; the canonical definitions live in the dependency-free constants module.
+export {
+  PerpsMode,
+  DEFAULT_PERPS_MODE,
+  DEFAULT_PRO_LAYOUT_PREFERENCES,
+} from './constants/perpsConfig';
+export type { ProLayoutPreferences } from './constants/perpsConfig';
+
 /**
  * State shape for PerpsController
  */
@@ -397,6 +412,13 @@ export type PerpsControllerState = {
     direction: SortDirection;
   };
 
+  // Pro-mode layout preferences (network-independent). Flat object that
+  // persists across markets (unlike the per-market tradeConfigurations).
+  proLayoutPreferences: ProLayoutPreferences;
+
+  // Perps interface mode (lite/pro), network-independent global preference.
+  mode: PerpsMode;
+
   // Error handling
   lastError: string | null;
   lastUpdateTimestamp: number;
@@ -488,6 +510,8 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
     optionId: MARKET_SORTING_CONFIG.DefaultSortOptionId,
     direction: MARKET_SORTING_CONFIG.DefaultDirection,
   },
+  proLayoutPreferences: { ...DEFAULT_PRO_LAYOUT_PREFERENCES },
+  mode: DEFAULT_PERPS_MODE,
   hip3ConfigVersion: 0,
   selectedPaymentToken: null,
   cachedMarketDataByProvider: {},
@@ -660,6 +684,18 @@ const metadata: StateMetadata<PerpsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  proLayoutPreferences: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  mode: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   hip3ConfigVersion: {
     includeInStateLogs: true,
     persist: true,
@@ -810,6 +846,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'resetSelectedPaymentToken',
   'getMaxSlippage',
   'setMaxSlippage',
+  'getProLayoutPreferences',
+  'setProLayoutPreferences',
+  'setPerpsMode',
   'saveMarketFilterPreferences',
   'saveOrderBookGrouping',
   'savePendingTradeConfiguration',
@@ -2074,7 +2113,6 @@ export class PerpsController extends BaseController<
       },
       stateManager: {
         update: (updater: (state: PerpsControllerState) => void) =>
-          // @ts-expect-error TS2589 - excessively deep instantiation from BaseController generic
           this.update(updater),
         getState: (): PerpsControllerState => this.#getControllerState(),
       },
@@ -5089,6 +5127,48 @@ export class PerpsController extends BaseController<
       MAX_SLIPPAGE_BOUNDS.StepBps;
     this.update((state) => {
       state.maxSlippageBps = snapped;
+    });
+  }
+
+  /**
+   * Get the user's pro-mode layout preferences (network-independent).
+   *
+   * @returns The current pro-mode layout preferences.
+   */
+  getProLayoutPreferences(): ProLayoutPreferences {
+    // Merge over defaults so callers always receive a fully-populated object,
+    // even if the persisted state predates one of the fields.
+    return {
+      ...DEFAULT_PRO_LAYOUT_PREFERENCES,
+      ...this.state.proLayoutPreferences,
+    };
+  }
+
+  /**
+   * Update the user's pro-mode layout preferences.
+   *
+   * Patch-style setter: only the provided fields are updated, the rest are
+   * preserved. This keeps the signature stable as new layout fields are added.
+   *
+   * @param patch - Partial set of pro-mode layout preferences to update.
+   */
+  setProLayoutPreferences(patch: Partial<ProLayoutPreferences>): void {
+    this.update((state) => {
+      state.proLayoutPreferences = {
+        ...state.proLayoutPreferences,
+        ...patch,
+      };
+    });
+  }
+
+  /**
+   * Set the Perps interface mode (lite/pro).
+   *
+   * @param mode - The mode to switch to.
+   */
+  setPerpsMode(mode: PerpsMode): void {
+    this.update((state) => {
+      state.mode = mode;
     });
   }
 
