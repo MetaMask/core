@@ -153,9 +153,7 @@ function createServiceMessenger(
 
 function createService(
   env: Env = Env.DEV,
-  {
-    trace,
-  }: { trace?: MoneyAccountApiDataServiceTraceCallback } = {},
+  { trace }: { trace?: MoneyAccountApiDataServiceTraceCallback } = {},
 ): {
   service: MoneyAccountApiDataService;
   rootMessenger: RootMessenger;
