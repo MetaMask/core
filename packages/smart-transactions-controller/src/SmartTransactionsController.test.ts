@@ -26,7 +26,11 @@ import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
 import packageJson from '../package.json';
-import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers.js';
+import {
+  advanceTime,
+  flushPromises,
+  getFakeProvider,
+} from '../tests/helpers.js';
 import {
   API_BASE_URL,
   SENTINEL_API_BASE_URL_MAP,
