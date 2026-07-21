@@ -29,14 +29,18 @@ export function isKeyringOwningEntropy(keyring: KeyringObject): boolean {
  * Using the secret as the HMAC key and the `EntropyType` as the domain
  * separator ensures non-reversibility and type-scoping.
  *
+ * Synchronous because `@noble/hashes` exposes a synchronous HMAC API, which
+ * guarantees that entropy sources are derived in the same tick as the keyring
+ * state change that triggers a sync — no async boundary between the two.
+ *
  * @param secret - The raw entropy bytes.
  * @param entropyType - The type of entropy source.
  * @returns The 32-byte HMAC-SHA256 digest.
  */
-async function toEntropyFingerprintBytes(
+function toEntropyFingerprintBytes(
   secret: Uint8Array,
   entropyType: EntropyType,
-): Promise<Uint8Array> {
+): Uint8Array {
   const message = new TextEncoder().encode(
     `metamask:${entropyType}:fingerprint`,
   );
@@ -51,20 +55,17 @@ async function toEntropyFingerprintBytes(
  * It is suitable for comparison and auditing — e.g. detecting that two
  * separate components hold the same underlying secret.
  *
- * The return type is `Promise<string>` to allow a future migration to the Web
- * Crypto API without breaking callers.
- *
  * @param secret - The raw entropy bytes (e.g. BIP-39 mnemonic bytes, a 32-byte
  * private key).
  * @param entropyType - The type of entropy source, expressed as
  * `category:implementation` (e.g. `'bip44:srp'`, `'raw:private-key'`).
  * @returns The lowercase hex-encoded 32-byte HMAC-SHA256 digest.
  */
-export async function toEntropyFingerprint(
+export function toEntropyFingerprint(
   secret: Uint8Array,
   entropyType: EntropyType,
-): Promise<string> {
-  return bytesToHex(await toEntropyFingerprintBytes(secret, entropyType));
+): string {
+  return bytesToHex(toEntropyFingerprintBytes(secret, entropyType));
 }
 
 /**
@@ -82,10 +83,10 @@ export async function toEntropyFingerprint(
  * @returns A deterministic UUID v4 string suitable for use as an
  * {@link EntropyId}.
  */
-export async function toEntropyId(
+export function toEntropyId(
   secret: Uint8Array,
   entropyType: EntropyType,
-): Promise<EntropyId> {
-  const bytes = await toEntropyFingerprintBytes(secret, entropyType);
+): EntropyId {
+  const bytes = toEntropyFingerprintBytes(secret, entropyType);
   return uuid({ random: bytes.slice(0, 16) });
 }
