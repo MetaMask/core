@@ -1,5 +1,3 @@
-import { EncryptionKey } from '@metamask/browser-passworder';
-import { Encryptor } from '@metamask/keyring-controller';
 import { Messenger } from '@metamask/messenger';
 import {
   SeedlessOnboardingController,
@@ -7,7 +5,6 @@ import {
 } from '@metamask/seedless-onboarding-controller';
 
 import { InitializationConfiguration } from '../../types';
-import { encryptorFactory } from '../keyring-controller/encryptor';
 
 export const seedlessOnboardingController: InitializationConfiguration<
   SeedlessOnboardingController,
@@ -19,8 +16,6 @@ export const seedlessOnboardingController: InitializationConfiguration<
       ...options,
       state,
       messenger,
-      encryptor: (options.encryptor ??
-        encryptorFactory(600_000)) as Encryptor<EncryptionKey>,
     }),
   getMessenger: (parent) =>
     new Messenger({

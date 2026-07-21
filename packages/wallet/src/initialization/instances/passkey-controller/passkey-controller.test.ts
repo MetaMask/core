@@ -5,22 +5,12 @@ import {
 } from '@metamask/passkey-controller';
 import type { PasskeyRecord } from '@metamask/passkey-controller';
 
-import { defaultConfigurations } from '../../defaults';
 import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
 } from '../../defaults';
 import { passkeyController } from './passkey-controller';
-
-const { PasskeyController: ActualPasskeyController } = jest.requireActual(
-  '@metamask/passkey-controller',
-);
-
-jest.mock('@metamask/passkey-controller', () => ({
-  ...jest.requireActual('@metamask/passkey-controller'),
-  PasskeyController: jest.fn(),
-}));
 
 const REQUIRED_OPTIONS = {
   expectedRPID: 'extension-id',
@@ -38,17 +28,6 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 }
 
 describe('passkeyController', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (PasskeyController as jest.Mock).mockImplementation(
-      (...args: unknown[]) => new ActualPasskeyController(...args),
-    );
-  });
-
-  it('is registered as a default initialization configuration', () => {
-    expect(Object.values(defaultConfigurations)).toContain(passkeyController);
-  });
-
   it('initializes a PasskeyController with default state', () => {
     const messenger = passkeyController.getMessenger(getRootMessenger());
 
@@ -58,7 +37,7 @@ describe('passkeyController', () => {
       options: REQUIRED_OPTIONS,
     });
 
-    expect(instance).toBeInstanceOf(ActualPasskeyController);
+    expect(instance).toBeInstanceOf(PasskeyController);
     expect(instance.state).toStrictEqual(getDefaultPasskeyControllerState());
   });
 
@@ -89,10 +68,30 @@ describe('passkeyController', () => {
     expect(instance.state.passkeyRecord).toStrictEqual(passkeyRecord);
   });
 
-  it('forwards custom passkey configuration options', () => {
+  it('defaults userName and userDisplayName to rpName when omitted', () => {
     const messenger = passkeyController.getMessenger(getRootMessenger());
 
-    passkeyController.init({
+    const instance = passkeyController.init({
+      state: undefined,
+      messenger,
+      options: REQUIRED_OPTIONS,
+    });
+
+    const options = instance.generateRegistrationOptions({
+      prfAvailable: false,
+    });
+
+    expect(options.user).toStrictEqual({
+      id: expect.any(String),
+      name: 'MetaMask',
+      displayName: 'MetaMask',
+    });
+  });
+
+  it('uses custom passkey configuration options', () => {
+    const messenger = passkeyController.getMessenger(getRootMessenger());
+
+    const instance = passkeyController.init({
       state: undefined,
       messenger,
       options: {
@@ -105,16 +104,19 @@ describe('passkeyController', () => {
       },
     });
 
-    expect(PasskeyController).toHaveBeenCalledWith(
-      expect.objectContaining({
-        rpId: 'rp-id',
-        rpName: 'Custom RP',
-        userName: 'custom-user',
-        userDisplayName: 'Custom Display Name',
-        expectedRPID: ['extension-id', 'other-id'],
-        expectedOrigin: ['https://a.example', 'https://b.example'],
-      }),
-    );
+    const options = instance.generateRegistrationOptions({
+      prfAvailable: false,
+    });
+
+    expect(options.rp).toStrictEqual({
+      name: 'Custom RP',
+      id: 'rp-id',
+    });
+    expect(options.user).toStrictEqual({
+      id: expect.any(String),
+      name: 'custom-user',
+      displayName: 'Custom Display Name',
+    });
   });
 
   it('exposes its state through the root messenger', () => {
