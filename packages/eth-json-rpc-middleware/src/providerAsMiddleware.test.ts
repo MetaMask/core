@@ -7,11 +7,11 @@ import {
   assertIsJsonRpcSuccess,
 } from '@metamask/utils';
 
-import { createRequest } from '../test/util/helpers';
+import { createRequest } from '../test/util/helpers.js';
 import {
   providerAsMiddleware,
   providerAsMiddlewareV2,
-} from './providerAsMiddleware';
+} from './providerAsMiddleware.js';
 
 const createMockProvider = (resultOrError: Json | Error): InternalProvider =>
   ({
