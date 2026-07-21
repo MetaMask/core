@@ -297,18 +297,21 @@ export class AggregatedOrderBookConnection {
     // flip, post-termination resubscribe, or `close()`). Unlike `teardown` it
     // leaves the shared refcount/payload state alone — `#closeTransport` clears
     // those wholesale — but still notifies the caller and releases this
-    // subscription's resources so nothing leaks on the dead socket. Runs while
-    // `#transport` still points at the old transport, so the `error` report is
-    // not suppressed by the stale-transport guard.
+    // subscription's resources so nothing leaks on the dead socket.
     const forceTerminate = (): void => {
       if (cancelled) {
         return;
       }
-      // A subscription whose socket already terminated has reported `error`;
-      // a still-live one (e.g. abandoned by a network flip) needs the terminal
-      // signal so the caller stops trusting a now-dead book.
+      // Notify directly rather than via `reportStatus`: `#closeTransport`
+      // detaches `#transport` before invoking these callbacks (so a reentrant
+      // subscribe from this handler builds a fresh transport instead of binding
+      // to the dying one), which would otherwise trip `reportStatus`'s
+      // stale-transport guard. A subscription whose socket already terminated
+      // has reported `error`; a still-live one (abandoned by a network flip or
+      // `close()`) needs the terminal signal so the caller stops trusting a
+      // now-dead book.
       if (!terminated) {
-        reportStatus('error');
+        params.onStatusChange?.('error');
       }
       cancelled = true;
       removeSocketListeners();
@@ -430,6 +433,16 @@ export class AggregatedOrderBookConnection {
     // it the SDK defaults `maxRetries` to Infinity and a sustained outage would
     // never exhaust reconnection to reach the `error`/manual-reconnect state.
     this.#closeTransport();
+    // `#closeTransport` notifies subscribers, which may synchronously re-enter
+    // `subscribe` and build a matching transport. Reuse it instead of orphaning
+    // it (which would leak the reentrant subscription on an unreferenced socket).
+    if (
+      this.#transport &&
+      this.#transportIsTestnet === isTestnet &&
+      !this.#terminated
+    ) {
+      return this.#transport;
+    }
     const transport = new WebSocketTransport({
       isTestnet,
       ...HYPERLIQUID_TRANSPORT_CONFIG,
@@ -442,21 +455,25 @@ export class AggregatedOrderBookConnection {
 
   #closeTransport(): void {
     const transport = this.#transport;
-    // Tear down any subscriptions still live on this transport *before*
-    // detaching it, so orphaned callers are notified (`error`) and their SDK
-    // subscriptions / socket listeners are released instead of leaking on a
-    // dead socket. Snapshot the set since each callback mutates it. Subscriptions
-    // torn down normally have already removed themselves, so this is a no-op for
-    // them.
-    for (const forceTerminate of [...this.#activeSubscriptions]) {
-      forceTerminate();
-    }
+    // Snapshot the subscriptions to force-terminate, then detach ALL shared
+    // state (the set, `#transport`, refcounts) *before* invoking any callback.
+    // Those callbacks notify subscribers via `onStatusChange`, which can
+    // synchronously re-enter `subscribe`; detaching first guarantees a reentrant
+    // subscribe builds a fresh transport (rather than reusing this dying one)
+    // and registers itself in a clean set (rather than being swept up by, or
+    // lingering past, this teardown). Subscriptions torn down normally have
+    // already removed themselves, so their entry is a no-op here.
+    const subscriptions = [...this.#activeSubscriptions];
+    this.#activeSubscriptions.clear();
     this.#transport = null;
     this.#activeCount = 0;
     this.#payloads.clear();
     this.#terminated = false;
     if (transport) {
       transport.close();
+    }
+    for (const forceTerminate of subscriptions) {
+      forceTerminate();
     }
   }
 }

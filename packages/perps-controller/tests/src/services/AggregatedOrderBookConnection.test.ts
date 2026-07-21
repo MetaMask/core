@@ -696,6 +696,44 @@ describe('AggregatedOrderBookConnection', () => {
       expect(callbackOld).not.toHaveBeenCalled();
     });
 
+    it('binds a reentrant subscribe from an onStatusChange handler to a fresh transport', () => {
+      const connection = new AggregatedOrderBookConnection({
+        isTestnet: (): boolean => false,
+      });
+      let reentered = false;
+      const onStatusChange = jest.fn((status: string) => {
+        // Re-subscribe synchronously from within the terminal `error`
+        // notification emitted while the transport is being torn down.
+        if (status === 'error' && !reentered) {
+          reentered = true;
+          connection.subscribe({
+            symbol: 'ETH',
+            nSigFigs: 2,
+            callback: jest.fn(),
+          });
+        }
+      });
+      connection.subscribe({
+        symbol: 'BTC',
+        nSigFigs: 2,
+        callback: jest.fn(),
+        onStatusChange,
+      });
+      const [firstTransport] = mockState.transports;
+
+      // Closing force-terminates BTC, whose `error` handler re-subscribes. The
+      // reentrant subscription must bind to a NEW transport, not the dying one.
+      connection.close();
+
+      expect(reentered).toBe(true);
+      expect(firstTransport.close).toHaveBeenCalledTimes(1);
+      expect(mockState.transports).toHaveLength(2);
+      const newTransport = mockState.transports[1];
+      expect(newTransport).not.toBe(firstTransport);
+      // The reentrant subscription's transport is left live (not orphaned).
+      expect(newTransport.close).not.toHaveBeenCalled();
+    });
+
     it('reports error when the subscription request rejects', async () => {
       mockState.rejectSubscribe = true;
       const connection = new AggregatedOrderBookConnection({
