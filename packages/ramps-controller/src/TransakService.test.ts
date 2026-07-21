@@ -6,17 +6,17 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll, isDone } from 'nock';
 
-import { flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers.js';
 import type {
   TransakServiceMessenger,
   TransakAccessToken,
-} from './TransakService';
+} from './TransakService.js';
 import {
   TransakService,
   TransakEnvironment,
   TransakOrderIdTransformer,
   TransakApiError,
-} from './TransakService';
+} from './TransakService.js';
 
 // === Test Constants ===
 
