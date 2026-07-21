@@ -10,11 +10,14 @@ import { Formatter } from './types';
  *
  * @param sources - Array of source information objects.
  * @param formatter - The formatter to use for formatting the generated content.
+ * @param esm - Whether to add `.js` extensions to import paths for ESM
+ * compatibility.
  * @returns Whether all files are up to date.
  */
 export async function checkActionTypesFiles(
   sources: SourceInfo[],
   formatter: Formatter,
+  esm = false,
 ): Promise<boolean> {
   let hasErrors = false;
 
@@ -33,7 +36,11 @@ export async function checkActionTypesFiles(
       `${baseFileName}-method-action-types.ts`,
     );
 
-    const expectedContent = await generateActionTypesContent(source, formatter);
+    const expectedContent = await generateActionTypesContent(
+      source,
+      formatter,
+      esm,
+    );
 
     try {
       await fs.promises.access(actualFile);

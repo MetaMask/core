@@ -12,6 +12,7 @@ export type {
 } from './money-account-api-data-service-method-action-types';
 export type {
   PositionResponse,
+  PositionBalance,
   InterestResponse,
   HistoryResponse,
   RateHistoryResponse,

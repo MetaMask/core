@@ -77,11 +77,12 @@ const config = createConfig([
       '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
+      '.platform-api-docs/**',
       '.skills-cache/**',
       '.yarn/**',
       'merged-packages/**',
+      'packages/wallet-framework-docs/site/build/**',
       'scripts/create-package/package-template/**',
-      '.platform-api-docs/**',
     ],
   },
   {
