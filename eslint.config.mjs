@@ -409,6 +409,7 @@ const config = createConfig([
       'packages/polling-controller/**',
       'packages/preferences-controller/**',
       'packages/rate-limit-controller/**',
+      'packages/profile-sync-controller/**',
       'packages/ramps-controller/**',
       'packages/react-data-query/**',
       'packages/sample-controllers/**',
