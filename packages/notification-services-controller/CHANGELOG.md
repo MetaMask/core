@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
 ### Uncategorized
 
 - Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
@@ -848,7 +850,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@25.0.0...@metamask/notification-services-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.3.0...@metamask/notification-services-controller@25.0.0
 [24.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.2.0...@metamask/notification-services-controller@24.3.0
 [24.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.3...@metamask/notification-services-controller@24.2.0
