@@ -13,6 +13,7 @@ import { hexToBigInt, numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { DELEGATION_FRAMEWORK_VERSION } from './constants';
+import { toEnforcerAddressesByName } from './decodePermission/enforcerAddresses';
 import {
   encodeDisabledDelegationsCalldata,
   getExpiryFromDelegation,
@@ -22,11 +23,17 @@ import {
   updateGrantedPermissionsStatus,
 } from './permissionOnChainStatus';
 import type { PermissionInfoWithMetadata } from './types';
+import type { DelegationDeploymentsEnforcerAddressesByName } from './types';
 
-const contracts =
+const sepoliaContracts =
   DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][CHAIN_ID.sepolia];
 
-const { TimestampEnforcer, NativeTokenStreamingEnforcer } = contracts;
+const delegationContracts =
+  sepoliaContracts as DelegationDeploymentsEnforcerAddressesByName;
+
+const enforcerAddresses = toEnforcerAddressesByName(delegationContracts);
+
+const { TimestampEnforcer, NativeTokenStreamingEnforcer } = delegationContracts;
 
 describe('permissionOnChainStatus', () => {
   describe('encodeDisabledDelegationsCalldata', () => {
@@ -70,7 +77,7 @@ describe('permissionOnChainStatus', () => {
         salt: 0n,
         signature: '0x' as const,
       };
-      const result = getExpiryFromDelegation(delegation, contracts);
+      const result = getExpiryFromDelegation(delegation, enforcerAddresses);
       expect(result).toBe(expirySeconds);
     });
 
@@ -94,7 +101,7 @@ describe('permissionOnChainStatus', () => {
         salt: 0n,
         signature: '0x' as const,
       };
-      expect(getExpiryFromDelegation(delegation, contracts)).toBeNull();
+      expect(getExpiryFromDelegation(delegation, enforcerAddresses)).toBeNull();
     });
 
     it('returns null when TimestampEnforcer terms fail to decode', () => {
@@ -113,7 +120,7 @@ describe('permissionOnChainStatus', () => {
         salt: 0n,
         signature: '0x' as const,
       };
-      expect(getExpiryFromDelegation(delegation, contracts)).toBeNull();
+      expect(getExpiryFromDelegation(delegation, enforcerAddresses)).toBeNull();
     });
   });
 
@@ -129,7 +136,7 @@ describe('permissionOnChainStatus', () => {
       expect(
         await readDelegationDisabledOnChain({
           provider,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
           delegationHash:
             '0x1111111111111111111111111111111111111111111111111111111111111111',
         }),
@@ -159,9 +166,6 @@ describe('permissionOnChainStatus', () => {
   });
 
   describe('resolveGrantedPermissionOnChainStatus', () => {
-    const contractsByChainId =
-      DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
-
     it('returns Revoked when revocationMetadata is present without calling the network', async () => {
       const getProviderForChainId = jest.fn();
       const entry: PermissionInfoWithMetadata = {
@@ -180,7 +184,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context: '0x00000000',
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Active',
@@ -189,7 +193,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Revoked');
@@ -214,7 +217,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context: '0x00000000',
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Expired',
@@ -222,7 +225,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Expired');
@@ -247,7 +249,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context: '0x00000000',
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         // status is missing, so we must add type assertion
@@ -255,7 +257,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Active');
@@ -299,7 +300,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Expired',
@@ -319,7 +320,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Active');
@@ -373,7 +373,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Active',
@@ -393,7 +393,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Expired');
@@ -436,7 +435,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Active',
@@ -453,7 +452,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Revoked');
@@ -482,7 +480,7 @@ describe('permissionOnChainStatus', () => {
       const context = encodeDelegations([delegation]);
       const entry: PermissionInfoWithMetadata = {
         permissionResponse: {
-          chainId: numberToHex(CHAIN_ID.sepolia),
+          chainId: numberToHex(999999),
           from: delegation.delegator,
           permission: {
             type: 'native-token-stream',
@@ -496,7 +494,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Expired',
@@ -513,7 +511,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId: {},
       });
 
       expect(result.status).toBe('Expired');
@@ -567,7 +564,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Expired',
@@ -587,7 +584,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Active');
@@ -597,9 +593,6 @@ describe('permissionOnChainStatus', () => {
   describe('updateGrantedPermissionsStatus', () => {
     it('resolves each permission entry', async () => {
       const getProviderForChainId = jest.fn();
-      const contractsByChainId =
-        DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
-
       const entry: PermissionInfoWithMetadata = {
         permissionResponse: {
           chainId: numberToHex(CHAIN_ID.sepolia),
@@ -616,7 +609,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context: '0x00000000',
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://a.example',
         status: 'Active',
@@ -625,7 +618,7 @@ describe('permissionOnChainStatus', () => {
 
       const results = await updateGrantedPermissionsStatus(
         [entry, { ...entry, siteOrigin: 'https://b.example' }],
-        { getProviderForChainId, contractsByChainId },
+        { getProviderForChainId },
       );
 
       expect(results).toHaveLength(2);

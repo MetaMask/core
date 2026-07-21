@@ -6,7 +6,32 @@ import type {
 } from '@metamask/7715-permission-types';
 import type { Hex } from '@metamask/utils';
 
-import type { StoredGatorPermission } from '../src/types';
+import type {
+  DelegationDeploymentsEnforcerAddressesByName,
+  StoredGatorPermission,
+} from '../src/types';
+
+/**
+ * Builds a mock delegation-deployments enforcer address map for unit tests.
+ *
+ * @returns Mock enforcer deployment addresses keyed by contract name.
+ */
+export const buildMockDelegationEnforcerContracts =
+  (): DelegationDeploymentsEnforcerAddressesByName => ({
+    ERC20PeriodTransferEnforcer: '0x1111111111111111111111111111111111111111',
+    ERC20StreamingEnforcer: '0x2222222222222222222222222222222222222222',
+    ApprovalRevocationEnforcer: '0x1212121212121212121212121212121212121212',
+    ExactCalldataEnforcer: '0x3333333333333333333333333333333333333333',
+    NativeTokenPeriodTransferEnforcer:
+      '0x4444444444444444444444444444444444444444',
+    NativeTokenStreamingEnforcer: '0x5555555555555555555555555555555555555555',
+    TimestampEnforcer: '0x6666666666666666666666666666666666666666',
+    ValueLteEnforcer: '0x7777777777777777777777777777777777777777',
+    NonceEnforcer: '0x8888888888888888888888888888888888888888',
+    AllowedCalldataEnforcer: '0x9999999999999999999999999999999999999999',
+    AllowedTargetsEnforcer: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    RedeemerEnforcer: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  });
 
 /**
  * Mock stored gator permission: native-token-stream (as returned by the Snap).

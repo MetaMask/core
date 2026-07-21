@@ -1,3 +1,4 @@
+import type { PermissionDecoderConfig } from '@metamask/7715-permission-types';
 import { Rule } from '@metamask/7715-permission-types';
 import type { Caveat } from '@metamask/delegation-core';
 import {
@@ -8,17 +9,22 @@ import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { randomBytes } from 'crypto';
 
-import { PermissionType, RuleDecoder } from '../types';
-import { getChecksumEnforcersByChainId } from '../utils';
+import type { DelegationDeploymentsEnforcerAddressesByName } from '../../types';
+import { toEnforcerAddressesByName } from '../enforcerAddresses';
+import { PermissionType } from '../types';
 import { makePermissionDecoder } from './makePermissionDecoder';
 
 const randomAddress = () => `0x${randomBytes(20).toString('hex')}` as const;
 
+type RuleDecoder = PermissionDecoderConfig['rules'][number];
+
 describe('makePermissionDecoder', () => {
   const permissionType = 'specified-permission-type' as PermissionType;
 
-  const contracts = DELEGATOR_CONTRACTS['1.3.0'][CHAIN_ID.sepolia];
-  const contractAddresses = getChecksumEnforcersByChainId(contracts);
+  const contracts = DELEGATOR_CONTRACTS['1.3.0'][
+    CHAIN_ID.sepolia
+  ] as DelegationDeploymentsEnforcerAddressesByName;
+  const contractAddresses = toEnforcerAddressesByName(contracts);
 
   describe('factory function', () => {
     it('returns the specified permission type', () => {
