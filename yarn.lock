@@ -6565,7 +6565,6 @@ __metadata:
     nock: "npm:^13.3.1"
     oxfmt: "npm:^0.44.0"
     prettier: "npm:^3.3.3"
-    prettier-2: "npm:prettier@^2.8.8"
     rimraf: "npm:^5.0.5"
     semver: "npm:^7.6.3"
     simple-git-hooks: "npm:^2.8.0"
@@ -22688,15 +22687,6 @@ __metadata:
   version: 1.2.1
   resolution: "prelude-ls@npm:1.2.1"
   checksum: 10/0b9d2c76801ca652a7f64892dd37b7e3fab149a37d2424920099bf894acccc62abb4424af2155ab36dea8744843060a2d8ddc983518d0b1e22265a22324b72ed
-  languageName: node
-  linkType: hard
-
-"prettier-2@npm:prettier@^2.8.8":
-  version: 2.8.8
-  resolution: "prettier@npm:2.8.8"
-  bin:
-    prettier: bin-prettier.js
-  checksum: 10/00cdb6ab0281f98306cd1847425c24cbaaa48a5ff03633945ab4c701901b8e96ad558eb0777364ffc312f437af9b5a07d0f45346266e8245beaf6247b9c62b24
   languageName: node
   linkType: hard
 
