@@ -102,6 +102,8 @@ describe('order-syncing/controller-integration', () => {
             return { isBackupAndSyncEnabled, isRampsSyncingEnabled };
           case 'AuthenticationController:isSignedIn':
             return isSignedIn;
+          case 'UserStorageController:listEntropySources':
+            return ['entropy-primary'];
           case 'UserStorageController:performGetStorageAllFeatureEntries':
             return performGetStorageAllFeatureEntries(...args);
           case 'UserStorageController:performBatchSetStorage':
@@ -342,6 +344,9 @@ describe('order-syncing/controller-integration', () => {
           }
           if (action === 'AuthenticationController:isSignedIn') {
             return true;
+          }
+          if (action === 'UserStorageController:listEntropySources') {
+            return ['entropy-primary'];
           }
           if (
             action ===
@@ -712,6 +717,9 @@ describe('order-syncing/controller-integration', () => {
           }
           if (action === 'AuthenticationController:isSignedIn') {
             return true;
+          }
+          if (action === 'UserStorageController:listEntropySources') {
+            return ['entropy-primary'];
           }
           if (
             action ===

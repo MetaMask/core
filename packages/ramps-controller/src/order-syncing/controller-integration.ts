@@ -296,16 +296,39 @@ async function getRemoteOrders(
   const { onOrderSyncErroneousSituation } = config;
 
   try {
-    const remoteOrdersJsonArray = await getMessenger().call(
-      'UserStorageController:performGetStorageAllFeatureEntries',
-      USER_STORAGE_RAMPS_ORDERS_FEATURE,
-    );
+    // Multi-SRP: Portfolio uploads under the connected account's HD entropy
+    // profile. Reading only the primary SRP misses secondary-wallet orders.
+    let entropySourceIds: (string | undefined)[] = [undefined];
+    try {
+      const listed = await getMessenger().call(
+        'UserStorageController:listEntropySources',
+      );
+      if (listed.length > 0) {
+        entropySourceIds = listed;
+      }
+    } catch {
+      // Wallet locked / action missing — fall back to primary (omit id).
+    }
 
-    if (!remoteOrdersJsonArray || remoteOrdersJsonArray.length === 0) {
+    const remoteOrdersJsonArray: string[] = [];
+
+    for (const entropySourceId of entropySourceIds) {
+      const entries = await getMessenger().call(
+        'UserStorageController:performGetStorageAllFeatureEntries',
+        USER_STORAGE_RAMPS_ORDERS_FEATURE,
+        entropySourceId,
+      );
+      if (entries?.length) {
+        remoteOrdersJsonArray.push(...entries);
+      }
+    }
+
+    if (remoteOrdersJsonArray.length === 0) {
       return [];
     }
 
     const orders: SyncRampsOrder[] = [];
+    const seenKeys = new Set<string>();
 
     for (const orderJson of remoteOrdersJsonArray) {
       try {
@@ -327,7 +350,15 @@ async function getRemoteOrders(
           );
           continue;
         }
-        orders.push(mapUserStorageEntryToRampsOrder(entry));
+        const mapped = mapUserStorageEntryToRampsOrder(entry);
+        const key = createOrderStorageKey(mapped);
+        if (key && seenKeys.has(key)) {
+          continue;
+        }
+        if (key) {
+          seenKeys.add(key);
+        }
+        orders.push(mapped);
       } catch (error) {
         // Do not attach raw order JSON — it can include wallet/PII fields.
         onOrderSyncErroneousSituation?.(
