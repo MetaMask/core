@@ -4,7 +4,7 @@ import {
   SeedlessOnboardingControllerMessenger,
 } from '@metamask/seedless-onboarding-controller';
 
-import { InitializationConfiguration } from '../../types';
+import { InitializationConfiguration } from '../../types.js';
 
 export const seedlessOnboardingController: InitializationConfiguration<
   SeedlessOnboardingController,

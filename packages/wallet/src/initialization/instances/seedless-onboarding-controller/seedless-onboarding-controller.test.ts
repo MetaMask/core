@@ -9,10 +9,10 @@ import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
-import { encryptorFactory } from '../keyring-controller/encryptor';
-import { seedlessOnboardingController } from './seedless-onboarding-controller';
-import type { SeedlessOnboardingControllerInstanceOptions } from './types';
+} from '../../defaults.js';
+import { encryptorFactory } from '../keyring-controller/encryptor.js';
+import { seedlessOnboardingController } from './seedless-onboarding-controller.js';
+import type { SeedlessOnboardingControllerInstanceOptions } from './types.js';
 
 /**
  * Creates a root messenger for use in tests.

@@ -1,21 +1,29 @@
 import { Messenger } from '@metamask/messenger';
 import {
   PasskeyController,
+  PasskeyControllerErrorCode,
   getDefaultPasskeyControllerState,
 } from '@metamask/passkey-controller';
-import type { PasskeyRecord } from '@metamask/passkey-controller';
+import type {
+  PasskeyAuthenticationResponse,
+  PasskeyRecord,
+  PasskeyRegistrationResponse,
+} from '@metamask/passkey-controller';
 
+import { defaultConfigurations } from '../../defaults.js';
 import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
-import { passkeyController } from './passkey-controller';
+} from '../../defaults.js';
+import { passkeyController } from './passkey-controller.js';
+import type { PasskeyControllerInstanceOptions } from './types.js';
 
-const REQUIRED_OPTIONS = {
+const REQUIRED_OPTIONS: PasskeyControllerInstanceOptions = {
   expectedRPID: 'extension-id',
   expectedOrigin: 'https://extension.origin',
   rpName: 'MetaMask',
+  getIsOnboardingCompleted: () => false,
 };
 
 /**
@@ -28,6 +36,13 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 }
 
 describe('passkeyController', () => {
+  it('is registered as a default initialization configuration', () => {
+    // Proves the controller is part of the default ensemble that `initialize()`
+    // wires, without constructing a `Wallet` (which keeps this PR independent of
+    // the constructor-options shape).
+    expect(Object.values(defaultConfigurations)).toContain(passkeyController);
+  });
+
   it('initializes a PasskeyController with default state', () => {
     const messenger = passkeyController.getMessenger(getRootMessenger());
 
@@ -95,6 +110,7 @@ describe('passkeyController', () => {
       state: undefined,
       messenger,
       options: {
+        ...REQUIRED_OPTIONS,
         expectedRPID: ['extension-id', 'other-id'],
         expectedOrigin: ['https://a.example', 'https://b.example'],
         rpId: 'rp-id',
@@ -117,6 +133,31 @@ describe('passkeyController', () => {
       name: 'custom-user',
       displayName: 'Custom Display Name',
     });
+  });
+
+  it('uses the provided getIsOnboardingCompleted callback', async () => {
+    const messenger = passkeyController.getMessenger(getRootMessenger());
+    const getIsOnboardingCompleted = jest.fn().mockReturnValue(true);
+
+    const instance = passkeyController.init({
+      state: undefined,
+      messenger,
+      options: {
+        ...REQUIRED_OPTIONS,
+        getIsOnboardingCompleted,
+      },
+    });
+
+    await expect(
+      instance.protectVaultKeyWithPasskey({
+        registrationResponse: {} as PasskeyRegistrationResponse,
+        authenticationResponse: {} as PasskeyAuthenticationResponse,
+      }),
+    ).rejects.toMatchObject({
+      code: PasskeyControllerErrorCode.EnrollmentPasswordRequired,
+    });
+
+    expect(getIsOnboardingCompleted).toHaveBeenCalled();
   });
 
   it('exposes its state through the root messenger', () => {

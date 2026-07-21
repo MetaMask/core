@@ -4,7 +4,12 @@ import {
   PasskeyControllerMessenger,
 } from '@metamask/passkey-controller';
 
-import { InitializationConfiguration } from '../../types';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+} from '../../defaults.js';
+import { InitializationConfiguration } from '../../types.js';
 
 export const passkeyController: InitializationConfiguration<
   PasskeyController,
@@ -17,9 +22,26 @@ export const passkeyController: InitializationConfiguration<
       messenger,
       state,
     }),
-  getMessenger: (parent) =>
-    new Messenger({
-      namespace: 'PasskeyController',
-      parent,
-    }),
+  getMessenger: (parent: RootMessenger<DefaultActions, DefaultEvents>) => {
+    const passkeyControllerMessenger: PasskeyControllerMessenger =
+      new Messenger({
+        namespace: 'PasskeyController',
+        parent,
+      });
+
+    parent.delegate({
+      messenger: passkeyControllerMessenger,
+      actions: [
+        'KeyringController:verifyPassword',
+        'KeyringController:exportEncryptionKey',
+        'KeyringController:submitEncryptionKey',
+        'KeyringController:changePassword',
+        'KeyringController:exportSeedPhrase',
+        'KeyringController:exportAccount',
+      ],
+      events: [],
+    });
+
+    return passkeyControllerMessenger;
+  },
 };
