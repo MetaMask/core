@@ -2,7 +2,7 @@ import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
 
-import type { ChainId } from '../types';
+import type { ChainId } from '../types.js';
 
 /**
  * Per-network rollout stage for the Snaps → AssetsController assets migration.

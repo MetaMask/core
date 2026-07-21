@@ -14,20 +14,20 @@ import type {
   DataRequest,
   Context,
   AssetsControllerStateInternal,
-} from '../types';
+} from '../types.js';
 import {
   SNAPS_ASSETS_MIGRATION_FLAG_KEYS,
   SnapsAssetsMigrationStage,
-} from '../utils/snaps-assets-migration';
+} from '../utils/snaps-assets-migration.js';
 import type {
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceAllowedActions,
   AccountsApiDataSourceAllowedEvents,
-} from './AccountsApiDataSource';
+} from './AccountsApiDataSource.js';
 import {
   AccountsApiDataSource,
   filterResponseToKnownAssets,
-} from './AccountsApiDataSource';
+} from './AccountsApiDataSource.js';
 
 type AllActions = AccountsApiDataSourceAllowedActions;
 type AllEvents = AccountsApiDataSourceAllowedEvents;

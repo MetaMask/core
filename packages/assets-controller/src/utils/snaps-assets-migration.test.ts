@@ -1,6 +1,6 @@
 import type { Json } from '@metamask/utils';
 
-import type { ChainId } from '../types';
+import type { ChainId } from '../types.js';
 import {
   SNAPS_ASSETS_MIGRATION_FLAG_KEYS,
   SNAPS_ASSETS_MIGRATION_NAMESPACES,
@@ -11,7 +11,7 @@ import {
   isSnapsAssetsMigrationNamespace,
   parseSnapsAssetsMigrationStage,
   shouldSupportChain,
-} from './snaps-assets-migration';
+} from './snaps-assets-migration.js';
 
 const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;
 const STELLAR_CHAIN_ID = 'stellar:pubnet' as ChainId;

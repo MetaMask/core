@@ -383,6 +383,7 @@ const config = createConfig([
       'packages/accounts-controller/**',
       'packages/address-book-controller/**',
       'packages/approval-controller/**',
+      'packages/assets-controller/**',
       'packages/authenticated-user-storage/**',
       'packages/base-controller/**',
       'packages/base-data-service/**',
