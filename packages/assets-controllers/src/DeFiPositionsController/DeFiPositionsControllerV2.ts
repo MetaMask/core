@@ -10,7 +10,6 @@ import type { Messenger } from '@metamask/messenger';
 
 import {
   buildDeFiBalancesQuery,
-  DEFI_BALANCES_V6_REQUEST_OPTIONS,
   toAccountMatchKey,
 } from './build-defi-balances-query';
 import type { DeFiPositionsControllerV2MethodActions } from './DeFiPositionsControllerV2-method-action-types';
@@ -265,11 +264,9 @@ export class DeFiPositionsControllerV2 extends BaseController<
       const response =
         await this.#apiClient.accounts.fetchV6MultiAccountBalances(accountIds, {
           networks,
-          includeDeFiBalances:
-            DEFI_BALANCES_V6_REQUEST_OPTIONS.includeDeFiBalances,
-          forceFetchDeFiPositions:
-            DEFI_BALANCES_V6_REQUEST_OPTIONS.forceFetchDeFiPositions,
-          includePrices: DEFI_BALANCES_V6_REQUEST_OPTIONS.includePrices,
+          includeDeFiBalances: true,
+          forceFetchDeFiPositions: true,
+          includePrices: true,
           vsCurrency,
         });
 

@@ -20,10 +20,7 @@ import type {
 } from '@metamask/messenger';
 
 import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
-import {
-  DEFI_BALANCES_V6_REQUEST_OPTIONS,
-  DEFI_SUPPORTED_NETWORKS,
-} from './build-defi-balances-query';
+import { DEFI_SUPPORTED_NETWORKS } from './build-defi-balances-query';
 import type { DeFiPositionsControllerV2Messenger } from './DeFiPositionsControllerV2';
 import {
   DeFiPositionsControllerV2,
@@ -267,7 +264,9 @@ describe('DeFiPositionsControllerV2', () => {
         networks: DEFI_SUPPORTED_NETWORKS.filter((network) =>
           network.startsWith('eip155:'),
         ),
-        ...DEFI_BALANCES_V6_REQUEST_OPTIONS,
+        includeDeFiBalances: true,
+        forceFetchDeFiPositions: true,
+        includePrices: true,
         vsCurrency: 'usd',
       },
     );
@@ -370,7 +369,9 @@ describe('DeFiPositionsControllerV2', () => {
       ],
       {
         networks: [...expectedEvmNetworks, ...expectedSolanaNetworks],
-        ...DEFI_BALANCES_V6_REQUEST_OPTIONS,
+        includeDeFiBalances: true,
+        forceFetchDeFiPositions: true,
+        includePrices: true,
         vsCurrency: 'usd',
       },
     );

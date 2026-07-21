@@ -13,7 +13,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
 import {
   buildDeFiBalancesQuery,
-  DEFI_BALANCES_V6_REQUEST_OPTIONS,
   DEFI_SUPPORTED_NETWORKS,
   normalizeCaipAccountId,
 } from './build-defi-balances-query';
@@ -69,14 +68,6 @@ describe('normalizeCaipAccountId', () => {
 });
 
 describe('buildDeFiBalancesQuery', () => {
-  it('exports the fixed v6 request options used by the controller', () => {
-    expect(DEFI_BALANCES_V6_REQUEST_OPTIONS).toStrictEqual({
-      includeDeFiBalances: true,
-      forceFetchDeFiPositions: true,
-      includePrices: true,
-    });
-  });
-
   it('builds an EVM CAIP account spanning all supported EVM networks', () => {
     const result = buildDeFiBalancesQuery([mockEvmAccount, mockBtcAccount]);
 

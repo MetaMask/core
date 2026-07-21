@@ -35,18 +35,6 @@ export const DEFI_SUPPORTED_NETWORKS: readonly CaipChainId[] = [
 
 const SOLANA_MAINNET_CAIP_CHAIN_ID: CaipChainId = SolScope.Mainnet;
 
-/**
- * Fixed request flags used against the v6 multiaccount balances endpoint so the
- * response only carries what the DeFi views need (positions + prices).
- * Fiat currency (`vsCurrency`) is not fixed here — it comes from
- * AssetsController `selectedCurrency` at fetch time.
- */
-export const DEFI_BALANCES_V6_REQUEST_OPTIONS = {
-  includeDeFiBalances: true,
-  forceFetchDeFiPositions: true,
-  includePrices: true,
-} as const;
-
 export type DeFiBalancesQuery = {
   /** CAIP-2 networks to query, deduped across accounts. */
   networks: CaipChainId[];
