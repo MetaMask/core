@@ -1,12 +1,13 @@
 import * as hl from '@nktkas/hyperliquid';
 
+import { HYPERLIQUID_TRANSPORT_CONFIG } from '../../../src/constants/hyperLiquidConfig';
 import {
   AggregatedOrderBookConnection,
   processAggregatedOrderBook,
 } from '../../../src/services/AggregatedOrderBookConnection';
 
 type MockTransport = {
-  options: { isTestnet: boolean };
+  options: Record<string, unknown>;
   close: jest.Mock;
   socket: EventTarget;
   subscribe: jest.Mock;
@@ -32,7 +33,7 @@ jest.mock('@nktkas/hyperliquid', () => {
   };
 
   class WebSocketTransport {
-    options: { isTestnet: boolean };
+    options: Record<string, unknown>;
 
     close = jest.fn();
 
@@ -60,7 +61,7 @@ jest.mock('@nktkas/hyperliquid', () => {
       },
     );
 
-    constructor(options: { isTestnet: boolean }) {
+    constructor(options: Record<string, unknown>) {
       this.options = options;
       state.transports.push(this as unknown as MockTransport);
     }
@@ -181,7 +182,13 @@ describe('AggregatedOrderBookConnection', () => {
     });
 
     expect(mockState.transports).toHaveLength(1);
-    expect(mockState.transports[0].options).toStrictEqual({ isTestnet: false });
+    // The dedicated transport reuses the package's transport config so it shares
+    // the finite five-attempt reconnection policy (not the SDK's Infinity).
+    expect(mockState.transports[0].options).toStrictEqual({
+      isTestnet: false,
+      ...HYPERLIQUID_TRANSPORT_CONFIG,
+      reconnect: HYPERLIQUID_TRANSPORT_CONFIG.reconnect,
+    });
     expect(mockState.listeners[0].channel).toBe('l2Book');
     // Runs in fast mode (5 levels) via the raw subscription payload.
     expect(mockState.listeners[0].params).toStrictEqual({
@@ -198,7 +205,11 @@ describe('AggregatedOrderBookConnection', () => {
       isTestnet: (): boolean => true,
     });
     connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: jest.fn() });
-    expect(mockState.transports[0].options).toStrictEqual({ isTestnet: true });
+    expect(mockState.transports[0].options).toStrictEqual({
+      isTestnet: true,
+      ...HYPERLIQUID_TRANSPORT_CONFIG,
+      reconnect: HYPERLIQUID_TRANSPORT_CONFIG.reconnect,
+    });
   });
 
   it('transforms snapshots and forwards them to the callback', () => {
@@ -284,7 +295,11 @@ describe('AggregatedOrderBookConnection', () => {
     connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
     expect(mockState.transports).toHaveLength(2);
     expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);
-    expect(mockState.transports[1].options).toStrictEqual({ isTestnet: true });
+    expect(mockState.transports[1].options).toStrictEqual({
+      isTestnet: true,
+      ...HYPERLIQUID_TRANSPORT_CONFIG,
+      reconnect: HYPERLIQUID_TRANSPORT_CONFIG.reconnect,
+    });
   });
 
   it('does not tear down the new transport when an old subscription unsubscribes after a network change', () => {

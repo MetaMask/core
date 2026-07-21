@@ -1,6 +1,7 @@
 import { WebSocketTransport } from '@nktkas/hyperliquid';
 import type { ISubscription } from '@nktkas/hyperliquid';
 
+import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig';
 import type { OrderBookData } from '../types';
 
 /**
@@ -304,9 +305,16 @@ export class AggregatedOrderBookConnection {
       return this.#transport;
     }
     // First use, the network changed, or the previous socket was terminated —
-    // (re)create the dedicated transport.
+    // (re)create the dedicated transport. Reuse the package's transport config
+    // so this socket shares the finite five-attempt reconnection policy; without
+    // it the SDK defaults `maxRetries` to Infinity and a sustained outage would
+    // never exhaust reconnection to reach the `error`/manual-reconnect state.
     this.#closeTransport();
-    const transport = new WebSocketTransport({ isTestnet });
+    const transport = new WebSocketTransport({
+      isTestnet,
+      ...HYPERLIQUID_TRANSPORT_CONFIG,
+      reconnect: HYPERLIQUID_TRANSPORT_CONFIG.reconnect,
+    });
     this.#transport = transport;
     this.#transportIsTestnet = isTestnet;
     return transport;
