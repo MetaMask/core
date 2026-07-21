@@ -171,9 +171,9 @@ export class AggregatedOrderBookConnection {
   // sharing a payload so the entry is dropped once the last one unsubscribes.
   readonly #payloads = new Map<string, { signature: string; count: number }>();
 
-  // Set when the socket's auto-reconnection is exhausted (SDK `terminate`
-  // event). A terminated socket cannot recover, so the next subscribe must
-  // build a fresh transport instead of reusing the dead one.
+  // Set when the socket's auto-reconnection is exhausted (its
+  // `terminationSignal` aborts). A terminated socket cannot recover, so the next
+  // subscribe must build a fresh transport instead of reusing the dead one.
   #terminated = false;
 
   constructor({ isTestnet }: AggregatedOrderBookConnectionOptions) {
@@ -240,23 +240,32 @@ export class AggregatedOrderBookConnection {
       }
     };
 
-    // Reflect the socket's live health. `terminate` fires only once automatic
-    // reconnection (maxRetries) is exhausted — that is the unrecoverable state
-    // the UI surfaces with a manual reconnect button.
+    // Reflect the socket's live health. Every drop dispatches a `close` event;
+    // the reconnecting socket only exposes permanent termination through its
+    // `terminationSignal` (an `AbortSignal`), which it aborts *before* the final
+    // close. So an aborted signal on close — unless it was our own `close()`
+    // (`TERMINATED_BY_USER`) — means automatic reconnection is exhausted: the
+    // unrecoverable state the UI surfaces with a manual reconnect button. A
+    // still-live signal means a transient drop the socket will auto-reconnect.
     const handleOpen = (): void => reportStatus('connected');
-    const handleClose = (): void => reportStatus('connecting');
-    const handleTerminate = (): void => {
-      this.#terminated = true;
-      reportStatus('error');
+    const handleClose = (): void => {
+      const { terminationSignal } = socket;
+      const terminatedByUser =
+        (terminationSignal.reason as { code?: string } | undefined)?.code ===
+        'TERMINATED_BY_USER';
+      if (terminationSignal.aborted && !terminatedByUser) {
+        this.#terminated = true;
+        reportStatus('error');
+        return;
+      }
+      reportStatus('connecting');
     };
     socket.addEventListener('open', handleOpen);
     socket.addEventListener('close', handleClose);
-    socket.addEventListener('terminate', handleTerminate);
 
     const removeSocketListeners = (): void => {
       socket.removeEventListener('open', handleOpen);
       socket.removeEventListener('close', handleClose);
-      socket.removeEventListener('terminate', handleTerminate);
     };
 
     // Releases this subscription's refcount and tears down the socket once no

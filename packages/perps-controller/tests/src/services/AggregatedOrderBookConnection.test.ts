@@ -6,10 +6,20 @@ import {
   processAggregatedOrderBook,
 } from '../../../src/services/AggregatedOrderBookConnection';
 
+/**
+ * Mirrors the reconnecting socket: a `terminationSignal` plus a helper that
+ * reproduces permanent termination (abort the signal, then a final `close`).
+ */
+type MockSocket = EventTarget & {
+  terminationSignal: AbortSignal;
+  /** Simulate permanent termination with the given `ReconnectingWebSocketError` code. */
+  terminate: (code?: string) => void;
+};
+
 type MockTransport = {
   options: Record<string, unknown>;
   close: jest.Mock;
-  socket: EventTarget;
+  socket: MockSocket;
   subscribe: jest.Mock;
 };
 /** Invokes the connection's listener with the raw snapshot (wrapped as `detail`). */
@@ -32,12 +42,30 @@ jest.mock('@nktkas/hyperliquid', () => {
     rejectSubscribe: false,
   };
 
+  // Reproduces the reconnecting socket's termination model: permanent
+  // termination aborts `terminationSignal` (reason carries a `code`) *before*
+  // the final `close` event fires — never a standalone `terminate` event.
+  class MockSocket extends EventTarget {
+    readonly #abortController = new AbortController();
+
+    get terminationSignal(): AbortSignal {
+      return this.#abortController.signal;
+    }
+
+    terminate(code = 'RECONNECTION_LIMIT'): void {
+      if (!this.#abortController.signal.aborted) {
+        this.#abortController.abort({ code });
+      }
+      this.dispatchEvent(new Event('close'));
+    }
+  }
+
   class WebSocketTransport {
     options: Record<string, unknown>;
 
     close = jest.fn();
 
-    socket = new EventTarget();
+    socket = new MockSocket();
 
     subscribe = jest.fn(
       (
@@ -479,8 +507,29 @@ describe('AggregatedOrderBookConnection', () => {
         onStatusChange,
       });
 
-      mockState.transports[0].socket.dispatchEvent(new Event('terminate'));
+      // Reconnection exhausted: the socket aborts its `terminationSignal` then
+      // dispatches a final `close`.
+      mockState.transports[0].socket.terminate();
       expect(onStatusChange).toHaveBeenLastCalledWith('error');
+    });
+
+    it('reports connecting (not error) when close fires from an intentional close()', () => {
+      const connection = new AggregatedOrderBookConnection({
+        isTestnet: (): boolean => false,
+      });
+      const onStatusChange = jest.fn();
+      connection.subscribe({
+        symbol: 'BTC',
+        nSigFigs: 2,
+        callback: jest.fn(),
+        onStatusChange,
+      });
+
+      // A user-triggered close aborts the signal with `TERMINATED_BY_USER`; that
+      // must not be surfaced as the unrecoverable `error` state.
+      mockState.transports[0].socket.terminate('TERMINATED_BY_USER');
+      expect(onStatusChange).toHaveBeenLastCalledWith('connecting');
+      expect(onStatusChange).not.toHaveBeenCalledWith('error');
     });
 
     it('reports error when the subscription request rejects', async () => {
@@ -536,7 +585,7 @@ describe('AggregatedOrderBookConnection', () => {
       unsub();
       onStatusChange.mockClear();
 
-      socket.dispatchEvent(new Event('terminate'));
+      socket.terminate();
       expect(onStatusChange).not.toHaveBeenCalled();
     });
 
@@ -549,7 +598,7 @@ describe('AggregatedOrderBookConnection', () => {
         nSigFigs: 2,
         callback: jest.fn(),
       });
-      mockState.transports[0].socket.dispatchEvent(new Event('terminate'));
+      mockState.transports[0].socket.terminate();
 
       // Reconnect flow: tear the dead subscription down, then resubscribe.
       unsub();
