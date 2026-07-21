@@ -26,21 +26,21 @@ import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
 import packageJson from '../package.json';
-import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers';
+import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers.js';
 import {
   API_BASE_URL,
   SENTINEL_API_BASE_URL_MAP,
   SmartTransactionsTraceName,
-} from './constants';
+} from './constants.js';
 import {
   DEFAULT_INTERVAL,
   SmartTransactionsController,
   getDefaultSmartTransactionsControllerState,
-} from './SmartTransactionsController';
-import type { SmartTransactionsControllerMessenger } from './SmartTransactionsController';
-import type { SmartTransaction, UnsignedTransaction } from './types';
-import { SmartTransactionStatuses, ClientId } from './types';
-import * as utils from './utils';
+} from './SmartTransactionsController.js';
+import type { SmartTransactionsControllerMessenger } from './SmartTransactionsController.js';
+import type { SmartTransaction, UnsignedTransaction } from './types.js';
+import { SmartTransactionStatuses, ClientId } from './types.js';
+import * as utils from './utils.js';
 
 type AllActions = MessengerActions<SmartTransactionsControllerMessenger>;
 

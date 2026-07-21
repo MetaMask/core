@@ -406,6 +406,7 @@ const config = createConfig([
       'packages/react-data-query/**',
       'packages/sample-controllers/**',
       'packages/selected-network-controller/**',
+      'packages/smart-transactions-controller/**',
       'packages/wallet/**',
       'packages/wallet-cli/**',
       'packages/wallet-framework-docs/**',
