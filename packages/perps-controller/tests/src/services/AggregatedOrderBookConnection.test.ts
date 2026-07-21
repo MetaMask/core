@@ -197,7 +197,7 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => true,
     });
-    connection.subscribe({ symbol: 'ETH', callback: jest.fn() });
+    connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: jest.fn() });
     expect(mockState.transports[0].options).toStrictEqual({ isTestnet: true });
   });
 
@@ -223,7 +223,7 @@ describe('AggregatedOrderBookConnection', () => {
       isTestnet: (): boolean => false,
     });
     const callback = jest.fn();
-    connection.subscribe({ symbol: 'BTC', callback });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback });
 
     mockState.listeners[0].listener({
       coin: 'ETH',
@@ -238,8 +238,8 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
-    connection.subscribe({ symbol: 'ETH', callback: jest.fn() });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+    connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: jest.fn() });
 
     expect(mockState.transports).toHaveLength(1);
     expect(mockState.transports[0].subscribe).toHaveBeenCalledTimes(2);
@@ -249,8 +249,16 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    const unsubA = connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
-    const unsubB = connection.subscribe({ symbol: 'ETH', callback: jest.fn() });
+    const unsubA = connection.subscribe({
+      symbol: 'BTC',
+      nSigFigs: 2,
+      callback: jest.fn(),
+    });
+    const unsubB = connection.subscribe({
+      symbol: 'ETH',
+      nSigFigs: 2,
+      callback: jest.fn(),
+    });
     await flush();
 
     const [transport] = mockState.transports;
@@ -269,11 +277,11 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => testnet,
     });
-    connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
     expect(mockState.transports).toHaveLength(1);
 
     testnet = true;
-    connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
     expect(mockState.transports).toHaveLength(2);
     expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);
     expect(mockState.transports[1].options).toStrictEqual({ isTestnet: true });
@@ -286,6 +294,7 @@ describe('AggregatedOrderBookConnection', () => {
     });
     const unsubOld = connection.subscribe({
       symbol: 'BTC',
+      nSigFigs: 2,
       callback: jest.fn(),
     });
 
@@ -293,6 +302,7 @@ describe('AggregatedOrderBookConnection', () => {
     testnet = true;
     const unsubNew = connection.subscribe({
       symbol: 'BTC',
+      nSigFigs: 2,
       callback: jest.fn(),
     });
     expect(mockState.transports).toHaveLength(2);
@@ -312,7 +322,11 @@ describe('AggregatedOrderBookConnection', () => {
       isTestnet: (): boolean => false,
     });
     const callback = jest.fn();
-    const unsub = connection.subscribe({ symbol: 'BTC', callback });
+    const unsub = connection.subscribe({
+      symbol: 'BTC',
+      nSigFigs: 2,
+      callback,
+    });
 
     // Unsubscribe before the snapshot listener is invoked.
     unsub();
@@ -330,7 +344,7 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
     connection.close();
     expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);
   });
@@ -343,6 +357,7 @@ describe('AggregatedOrderBookConnection', () => {
       const onStatusChange = jest.fn();
       connection.subscribe({
         symbol: 'BTC',
+        nSigFigs: 2,
         callback: jest.fn(),
         onStatusChange,
       });
@@ -359,6 +374,7 @@ describe('AggregatedOrderBookConnection', () => {
       const onStatusChange = jest.fn();
       connection.subscribe({
         symbol: 'BTC',
+        nSigFigs: 2,
         callback: jest.fn(),
         onStatusChange,
       });
@@ -378,6 +394,7 @@ describe('AggregatedOrderBookConnection', () => {
       const onStatusChange = jest.fn();
       connection.subscribe({
         symbol: 'BTC',
+        nSigFigs: 2,
         callback: jest.fn(),
         onStatusChange,
       });
@@ -394,6 +411,7 @@ describe('AggregatedOrderBookConnection', () => {
       const onStatusChange = jest.fn();
       connection.subscribe({
         symbol: 'BTC',
+        nSigFigs: 2,
         callback: jest.fn(),
         onStatusChange,
       });
@@ -409,6 +427,7 @@ describe('AggregatedOrderBookConnection', () => {
       });
       const unsub = connection.subscribe({
         symbol: 'BTC',
+        nSigFigs: 2,
         callback: jest.fn(),
       });
 
@@ -429,6 +448,7 @@ describe('AggregatedOrderBookConnection', () => {
       const onStatusChange = jest.fn();
       const unsub = connection.subscribe({
         symbol: 'BTC',
+        nSigFigs: 2,
         callback: jest.fn(),
         onStatusChange,
       });
@@ -446,13 +466,14 @@ describe('AggregatedOrderBookConnection', () => {
       });
       const unsub = connection.subscribe({
         symbol: 'BTC',
+        nSigFigs: 2,
         callback: jest.fn(),
       });
       mockState.transports[0].socket.dispatchEvent(new Event('terminate'));
 
       // Reconnect flow: tear the dead subscription down, then resubscribe.
       unsub();
-      connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
+      connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
 
       expect(mockState.transports).toHaveLength(2);
       expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);

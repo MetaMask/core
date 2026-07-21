@@ -40,8 +40,12 @@ export type SubscribeAggregatedOrderBookParams = {
   symbol: string;
   /** Number of levels per side to keep. */
   levels?: number;
-  /** Server-side aggregation significant figures. */
-  nSigFigs?: 2 | 3 | 4 | 5;
+  /**
+   * Server-side aggregation significant figures. Required: omitting it would
+   * request the raw, full-precision book instead of an aggregated one, which
+   * contradicts this service's contract.
+   */
+  nSigFigs: 2 | 3 | 4 | 5;
   /** Mantissa refinement when `nSigFigs` is 5. */
   mantissa?: 2 | 5;
   /** Invoked with each processed snapshot. */
@@ -250,7 +254,7 @@ export class AggregatedOrderBookConnection {
         {
           type: 'l2Book',
           coin: params.symbol,
-          nSigFigs: params.nSigFigs ?? null,
+          nSigFigs: params.nSigFigs,
           mantissa: params.mantissa ?? null,
           fast: true,
         },
