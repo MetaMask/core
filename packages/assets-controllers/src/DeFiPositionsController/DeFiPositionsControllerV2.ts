@@ -273,7 +273,9 @@ export class DeFiPositionsControllerV2 extends BaseController<
           vsCurrency,
         });
 
-      if (this.#lastFetchByKey.get(throttleKey)?.generation !== fetchGeneration) {
+      if (
+        this.#lastFetchByKey.get(throttleKey)?.generation !== fetchGeneration
+      ) {
         // A newer fetch for this account set has already claimed the slot.
         return;
       }
@@ -310,7 +312,9 @@ export class DeFiPositionsControllerV2 extends BaseController<
     } catch (error) {
       // Only the latest attempt may clear the claim; an older failure must not
       // reopen the throttle window for a newer in-flight or completed fetch.
-      if (this.#lastFetchByKey.get(throttleKey)?.generation === fetchGeneration) {
+      if (
+        this.#lastFetchByKey.get(throttleKey)?.generation === fetchGeneration
+      ) {
         this.#lastFetchByKey.delete(throttleKey);
       }
       console.error('Failed to fetch DeFi positions', error);
