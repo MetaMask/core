@@ -687,64 +687,6 @@ describe('Transaction Utils', () => {
       expect(mockCallback).toHaveBeenCalledWith('tx1');
     });
   });
-
-  describe('isPredictWithdrawTransaction', () => {
-    it('returns true when the transaction type is predictWithdraw', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        type: TransactionType.predictWithdraw,
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
-    });
-
-    it('returns true when a nested transaction has type predictWithdraw', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [{ type: TransactionType.predictWithdraw }],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
-    });
-
-    it('returns true when one of multiple nested transactions has type predictWithdraw', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [
-          { type: TransactionType.simpleSend },
-          { type: TransactionType.predictWithdraw },
-        ],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
-    });
-
-    it('returns false when nested transactions have different types', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [{ type: TransactionType.simpleSend }],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
-    });
-
-    it('returns false when nestedTransactions is undefined', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
-    });
-
-    it('returns false when nestedTransactions is empty', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
-    });
-  });
 });
 
 const TX_HASH_MOCK = '0xabc123';
