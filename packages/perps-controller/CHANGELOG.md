@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
 - Gate HIP-3 markets to USDC collateral only, following HyperLiquid's USDH sunset (TAT-3304) ([#9530](https://github.com/MetaMask/core/pull/9530))
   - Market discovery (`getMarkets`) now filters a HIP-3 DEX out entirely when its collateral token positively resolves to something other than USDC, so such a market can never be surfaced to trade, even via an allowlist entry naming the DEX.
+  - `getMarketDataWithPrices` applies the same check before merging each HIP-3 DEX's results (both the initial fetch and the empty-universe retry), and before caching the snapshot used for stale fallbacks, so a non-USDC-collateral HIP-3 DEX can no longer appear in overview data (fresh or stale) while order placement rejects it.
   - Placing an order on a non-USDC-collateral HIP-3 DEX now fails immediately with a new `UNSUPPORTED_COLLATERAL` error code instead of attempting the previous USDC→USDH auto-swap path.
   - The collateral check fails closed: it only treats a DEX as USDC-collateral when the collateral token positively resolves to USDC against spot metadata, so missing or stale metadata never lets a non-USDC-collateral DEX through.
   - Removed the now-unreachable USDH auto-swap machinery this replaces (spot USDH/USDC balance lookups, the USDC→USDH spot swap, and the auto-swap orchestration).

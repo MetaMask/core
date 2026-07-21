@@ -6150,6 +6150,69 @@ export class HyperLiquidProvider implements PerpsProvider {
     };
   }
 
+  /**
+   * Filter out successful HIP-3 DexFetchResults whose collateral token is
+   * not USDC, so getMarketDataWithPrices enforces the same USDC-only policy
+   * as market discovery (#fetchMarketsForDex) and order placement
+   * (#handleHip3PreOrder) — otherwise a non-USDC HIP-3 market could appear
+   * in overview data (and the cached stale snapshot derived from it) while
+   * order placement rejects it (TAT-3304).
+   *
+   * Main-DEX results (dex === null) and already-failed results pass through
+   * unchanged. #isUsdcCollateralDex fails closed, and on an unexpected
+   * error checking it (e.g. a spotMeta fetch failure) this also fails
+   * closed by dropping the DEX's result, rather than failing the whole
+   * method and losing main-DEX overview data.
+   *
+   * @param results - The DEX fetch results to filter.
+   * @returns A promise that resolves to the filtered results.
+   */
+  async #excludeNonUsdcCollateralResults(
+    results: DexFetchResult[],
+  ): Promise<DexFetchResult[]> {
+    return Promise.all(
+      results.map(async (result) => {
+        if (result.dex === null || !result.success) {
+          return result;
+        }
+
+        let isUsdcDex: boolean;
+        try {
+          isUsdcDex = await this.#isUsdcCollateralDex(result.dex);
+        } catch (error) {
+          this.#deps.debugLogger.log(
+            'HyperLiquidProvider: Failed to check collateral type for HIP-3 DEX; excluding from market data',
+            {
+              dex: result.dex,
+              error: ensureError(
+                error,
+                'HyperLiquidProvider.excludeNonUsdcCollateralResults',
+              ).message,
+            },
+          );
+          isUsdcDex = false;
+        }
+
+        if (isUsdcDex) {
+          return result;
+        }
+
+        this.#deps.debugLogger.log(
+          'HyperLiquidProvider: Excluding non-USDC-collateral HIP-3 DEX from market data',
+          { dex: result.dex },
+        );
+
+        return {
+          ...result,
+          meta: null,
+          assetCtxs: [],
+          allMids: {},
+          success: false,
+        };
+      }),
+    );
+  }
+
   #mergeDexResultsInto(
     results: DexFetchResult[],
     combinedUniverse: MetaResponse['universe'],
@@ -6333,14 +6396,21 @@ export class HyperLiquidProvider implements PerpsProvider {
       }),
     );
 
+    // TAT-3304: Exclude non-USDC-collateral HIP-3 DEXs before merging, so
+    // getMarketDataWithPrices (and the stale snapshot #cacheFreshMarketDataSnapshot
+    // derives from it) enforces the same USDC-only policy as market discovery
+    // and order placement.
+    const usdcFilteredDexDataResults =
+      await this.#excludeNonUsdcCollateralResults(dexDataResults);
+
     // Combine universe, assetCtxs, and allMids from all DEXs
     const combinedUniverse: MetaResponse['universe'] = [];
     const combinedAssetCtxs: PerpsAssetCtx[] = [];
     const combinedAllMids: Record<string, string> = {};
-    let latestDexResults = dexDataResults;
+    let latestDexResults = usdcFilteredDexDataResults;
 
     this.#mergeDexResultsInto(
-      dexDataResults,
+      usdcFilteredDexDataResults,
       combinedUniverse,
       combinedAssetCtxs,
       combinedAllMids,
@@ -6362,15 +6432,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       const retryResults = await Promise.all(
         enabledDexs.map((dex) => this.#fetchSingleDexFresh(infoClient, dex)),
       );
+      const usdcFilteredRetryResults =
+        await this.#excludeNonUsdcCollateralResults(retryResults);
 
       this.#mergeDexResultsInto(
-        retryResults,
+        usdcFilteredRetryResults,
         combinedUniverse,
         combinedAssetCtxs,
         combinedAllMids,
       );
 
-      latestDexResults = retryResults;
+      latestDexResults = usdcFilteredRetryResults;
 
       if (combinedUniverse.length === 0) {
         const failedDexs = retryResults
