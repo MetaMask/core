@@ -1,8 +1,8 @@
 import { rm } from 'node:fs/promises';
 
-import { pingDaemon, sendCommand } from './daemon-client';
-import { stopDaemon } from './stop-daemon';
-import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils';
+import { pingDaemon, sendCommand } from './daemon-client.js';
+import { stopDaemon } from './stop-daemon.js';
+import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils.js';
 
 jest.mock('node:fs/promises');
 jest.mock('./daemon-client');

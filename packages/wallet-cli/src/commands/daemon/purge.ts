@@ -1,10 +1,10 @@
 import { Command, Flags } from '@oclif/core';
 import { rm } from 'node:fs/promises';
 
-import { pingDaemon } from '../../daemon/daemon-client';
-import { getDaemonPaths } from '../../daemon/paths';
-import { confirmPurge } from '../../daemon/prompts';
-import { stopDaemon } from '../../daemon/stop-daemon';
+import { pingDaemon } from '../../daemon/daemon-client.js';
+import { getDaemonPaths } from '../../daemon/paths.js';
+import { confirmPurge } from '../../daemon/prompts.js';
+import { stopDaemon } from '../../daemon/stop-daemon.js';
 
 export default class DaemonPurge extends Command {
   static override description =

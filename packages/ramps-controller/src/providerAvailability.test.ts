@@ -3,8 +3,8 @@ import {
   isFiatDepositAvailable,
   providerServesAsset,
   regionHasProviderForAsset,
-} from './providerAvailability';
-import type { Provider } from './RampsService';
+} from './providerAvailability.js';
+import type { Provider } from './RampsService.js';
 
 const ASSET_ID = 'eip155:1/erc20:0xtoken';
 

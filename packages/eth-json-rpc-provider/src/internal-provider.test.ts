@@ -15,7 +15,7 @@ import { promisify } from 'util';
 import {
   InternalProvider,
   convertEip1193RequestToJsonRpcRequest,
-} from './internal-provider';
+} from './internal-provider.js';
 
 jest.mock('uuid');
 

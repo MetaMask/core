@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { generateActionTypesContent } from './generate-content';
-import type { SourceInfo } from './parse-source';
-import type { Formatter } from './types';
+import { generateActionTypesContent } from './generate-content.js';
+import type { SourceInfo } from './parse-source.js';
+import type { Formatter } from './types.js';
 
 /**
  * Generates action types files for all controllers/services.

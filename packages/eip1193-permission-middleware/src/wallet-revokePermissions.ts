@@ -13,7 +13,7 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { EndowmentTypes, RestrictedMethods } from './types';
+import { EndowmentTypes, RestrictedMethods } from './types.js';
 
 export type RevokePermissionsHooks = {
   revokePermissionsForOrigin: (

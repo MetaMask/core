@@ -10,7 +10,7 @@ import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
 
-import type { WalletMiddlewareKeyValues } from '../../src/wallet';
+import type { WalletMiddlewareKeyValues } from '../../src/wallet.js';
 
 export const createRequest = <
   Input extends Partial<JsonRpcRequest<Json[]>>,

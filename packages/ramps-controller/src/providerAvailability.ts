@@ -1,4 +1,4 @@
-import type { Provider } from './RampsService';
+import type { Provider } from './RampsService.js';
 
 /**
  * Whether a provider serves the given deposit asset.

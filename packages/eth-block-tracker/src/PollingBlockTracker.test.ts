@@ -1,9 +1,9 @@
 import { createDeferredPromise } from '@metamask/utils';
 
-import { PollingBlockTracker } from '.';
-import EMPTY_FUNCTION from '../tests/emptyFunction';
-import recordCallsToSetTimeout from '../tests/recordCallsToSetTimeout';
-import { withPollingBlockTracker } from '../tests/withBlockTracker';
+import EMPTY_FUNCTION from '../tests/emptyFunction.js';
+import recordCallsToSetTimeout from '../tests/recordCallsToSetTimeout.js';
+import { withPollingBlockTracker } from '../tests/withBlockTracker.js';
+import { PollingBlockTracker } from './index.js';
 
 type Sync = {
   oldBlock: string;

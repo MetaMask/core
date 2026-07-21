@@ -1,10 +1,10 @@
 import { isJsonRpcFailure } from '@metamask/utils';
 import { Command } from '@oclif/core';
 
-import { pingDaemon, sendCommand } from '../../daemon/daemon-client';
-import { getDaemonPaths } from '../../daemon/paths';
-import type { DaemonStatusInfo } from '../../daemon/types';
-import { isProcessAlive, readPidFile } from '../../daemon/utils';
+import { pingDaemon, sendCommand } from '../../daemon/daemon-client.js';
+import { getDaemonPaths } from '../../daemon/paths.js';
+import type { DaemonStatusInfo } from '../../daemon/types.js';
+import { isProcessAlive, readPidFile } from '../../daemon/utils.js';
 
 export default class DaemonStatus extends Command {
   static override description = 'Check the status of the wallet daemon';

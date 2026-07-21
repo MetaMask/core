@@ -137,6 +137,7 @@ export {
   isEIP1559Transaction,
   normalizeTransactionParams,
 } from './utils/utils';
+export { hasTransactionType } from './utils/transaction-type';
 export { CHAIN_IDS } from './constants';
 export { HARDFORK } from './utils/prepare';
 export { getAccountAddressRelationship } from './api/accounts-api';

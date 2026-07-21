@@ -8,8 +8,8 @@ import { createDeferredPromise, getErrorMessage } from '@metamask/utils';
 import type { DeferredPromise, JsonRpcRequest } from '@metamask/utils';
 import getCreateRandomId from 'json-rpc-random-id';
 
-import type { BlockTracker } from './BlockTracker';
-import { projectLogger, createModuleLogger } from './logging-utils';
+import type { BlockTracker } from './BlockTracker.js';
+import { projectLogger, createModuleLogger } from './logging-utils.js';
 
 const log = createModuleLogger(projectLogger, 'polling-block-tracker');
 const createRandomId = getCreateRandomId();

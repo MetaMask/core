@@ -1,4 +1,4 @@
-import { stripArrayTypeIfPresent } from './common';
+import { stripArrayTypeIfPresent } from './common.js';
 
 describe('CommonUtils', () => {
   describe('stripArrayTypeIfPresent', () => {

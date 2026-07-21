@@ -2,6 +2,7 @@ import base, { createConfig } from '@metamask/eslint-config';
 import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
+import node from 'eslint-plugin-n';
 
 const NODE_LTS_VERSION = 22;
 
@@ -372,6 +373,67 @@ const config = createConfig([
     files: ['packages/wallet-framework-docs/site/docusaurus.config.ts'],
     rules: {
       'n/no-process-env': 'off',
+    },
+  },
+  {
+    // For now, we specify an array of packages here. Once all packages are
+    // updated, we can remove this.
+    files: [
+      'packages/base-controller/**',
+      'packages/base-data-service/**',
+      'packages/build-utils/**',
+      'packages/chain-agnostic-permission/**',
+      'packages/composable-controller/**',
+      'packages/connectivity-controller/**',
+      'packages/controller-utils/**',
+      'packages/eip-5792-middleware/**',
+      'packages/eip1193-permission-middleware/**',
+      'packages/eth-block-tracker/**',
+      'packages/eth-json-rpc-middleware/**',
+      'packages/eth-json-rpc-provider/**',
+      'packages/json-rpc-engine/**',
+      'packages/json-rpc-middleware-stream/**',
+      'packages/messenger/**',
+      'packages/messenger-cli/**',
+      'packages/multichain-api-middleware/**',
+      'packages/network-connection-banner-controller/**',
+      'packages/permission-controller/**',
+      'packages/permission-log-controller/**',
+      'packages/platform-api-docs/**',
+      'packages/polling-controller/**',
+      'packages/preferences-controller/**',
+      'packages/rate-limit-controller/**',
+      'packages/ramps-controller/**',
+      'packages/react-data-query/**',
+      'packages/sample-controllers/**',
+      'packages/selected-network-controller/**',
+      'packages/wallet/**',
+      'packages/wallet-cli/**',
+      'packages/wallet-framework-docs/**',
+    ],
+
+    // `import-x/extensions` doesn't support using ".js" for TypeScript
+    // files(?), so we load the `n` plugin and use
+    // `n/file-extension-in-import` instead.
+    plugins: { n: node },
+
+    rules: {
+      'n/file-extension-in-import': ['error', 'always'],
+      'import-x/extensions': [
+        'error',
+        {
+          js: 'ignorePackages',
+          ts: 'never',
+          tsx: 'never',
+          json: 'always',
+        },
+      ],
+      'import-x/no-useless-path-segments': [
+        'error',
+        {
+          noUselessIndex: false,
+        },
+      ],
     },
   },
 ]);

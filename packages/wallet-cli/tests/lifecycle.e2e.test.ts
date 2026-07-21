@@ -3,8 +3,8 @@ import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { getDaemonPaths } from '../src/daemon/paths';
-import { isProcessAlive, readPidFile } from '../src/daemon/utils';
+import { getDaemonPaths } from '../src/daemon/paths.js';
+import { isProcessAlive, readPidFile } from '../src/daemon/utils.js';
 
 // Subprocess-level lifecycle test for the `mm daemon` command suite. Unlike the
 // in-process suites (`socket-integration.test.ts` exercises the transport in
