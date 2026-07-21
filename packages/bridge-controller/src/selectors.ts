@@ -67,8 +67,7 @@ export type ExchangeRateSourcesForLookup = Pick<
   BridgeControllerState,
   'assetExchangeRates'
 > &
-  Partial<Pick<CurrencyRateState, 'currencyRates'>> &
-  Partial<Pick<MultichainAssetsRatesControllerState, 'historicalPrices'>> & {
+  Partial<Pick<CurrencyRateState, 'currencyRates'>> & {
     marketData?:
       | TokenRatesControllerState['marketData']
       | Record<string, Record<string, { price?: number; currency?: string }>>;
@@ -317,55 +316,55 @@ const selectBridgeFeesPerGas = createBridgeSelector(
   },
 );
 
-// Selects cross-chain swap quotes including their metadata
-const selectBridgeQuotesWithMetadata = createBridgeSelector(
+const selectExchangeRateSources = createStructuredBridgeSelector({
+  currencyRates: (state) => state.currencyRates,
+  marketData: (state) => state.marketData,
+  conversionRates: (state) => state.conversionRates,
+  assetExchangeRates: (state) => state.assetExchangeRates,
+});
+
+// Selects metadata for cross-chain swap quotes
+const selectMetadata = createBridgeSelector(
   [
     ({ quotes }) => quotes,
     selectBridgeFeesPerGas,
-    (state) => state,
-    createBridgeSelector(
-      [
-        (state) => state,
-        ({ quoteRequest: [{ destChainId, destTokenAddress }] }) =>
-          destTokenAddress
-            ? formatAddressToAssetId(destTokenAddress, destChainId)
-            : undefined,
-      ],
-      selectExchangeRateByAssetId,
-    ),
-    createBridgeSelector(
-      [
-        (state) => state,
-        ({ quoteRequest: [{ srcChainId }] }) =>
-          srcChainId
-            ? getNativeAssetForChainId(srcChainId)?.assetId
-            : undefined,
-      ],
-      selectExchangeRateByAssetId,
-    ),
+    selectExchangeRateSources,
+    ({ quoteRequest }) => quoteRequest,
   ],
-  (
-    quotes,
-    bridgeFeesPerGas,
-    exchangeRateSources,
-    destTokenExchangeRate,
-    nativeExchangeRate,
-  ) => {
-    return quotes.map((quote) => {
-      const sourceAssetId = quote.quote.srcAsset.assetId;
-      const srcTokenExchangeRate = selectExchangeRateByAssetId(
-        exchangeRateSources,
-        sourceAssetId,
-      );
-      const quoteMetadata = calcQuoteMetadata(quote, {
-        srcTokenExchangeRate,
+  (quotes, bridgeFeesPerGas, exchangeRateSources, quoteRequest) => {
+    const { destTokenAddress, srcChainId, destChainId } = quoteRequest[0];
+
+    return quotes.map((quote) =>
+      calcQuoteMetadata(quote, {
+        srcTokenExchangeRate: selectExchangeRateByAssetId(
+          exchangeRateSources,
+          quote.quote.srcAsset.assetId,
+        ),
         bridgeFeesPerGas,
-        destTokenExchangeRate,
-        nativeExchangeRate,
-      });
-      return mergeQuoteMetadata(quote, quoteMetadata);
-    });
+        destTokenExchangeRate: selectExchangeRateByAssetId(
+          exchangeRateSources,
+          formatAddressToAssetId(
+            destTokenAddress ?? quote.quote.destAsset.assetId,
+            destChainId,
+          ),
+        ),
+        nativeExchangeRate: selectExchangeRateByAssetId(
+          exchangeRateSources,
+          getNativeAssetForChainId(srcChainId ?? quote.quote.srcChainId)
+            ?.assetId,
+        ),
+      }),
+    );
   },
+);
+
+// Selects cross-chain swap quotes including their metadata
+const selectBridgeQuotesWithMetadata = createBridgeSelector(
+  [selectMetadata, ({ quotes }) => quotes],
+  (quoteMetadata, quotes) =>
+    quotes.map((quote, index) =>
+      mergeQuoteMetadata(quote, quoteMetadata[index]),
+    ),
 );
 
 const selectSortedBridgeQuotes = createBridgeSelector(

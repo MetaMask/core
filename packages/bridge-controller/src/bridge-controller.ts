@@ -530,7 +530,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     if (this.#getUseAssetsControllerForRates()) {
       return {
         ...this.messenger.call('AssetsController:getExchangeRatesForBridge'),
-        historicalPrices: {},
         ...this.state,
       };
     }
