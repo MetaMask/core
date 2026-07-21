@@ -1678,8 +1678,7 @@ describe('HyperLiquidProvider', () => {
             }),
           );
 
-          const staleMarketDataPromise =
-            hip3Provider.getMarketDataWithPrices();
+          const staleMarketDataPromise = hip3Provider.getMarketDataWithPrices();
           await jest.advanceTimersByTimeAsync(2000);
           const staleMarketData = await staleMarketDataPromise;
 
