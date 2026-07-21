@@ -1,11 +1,11 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 
-import type { NetworkEnablementControllerState } from './NetworkEnablementController';
+import type { NetworkEnablementControllerState } from './NetworkEnablementController.js';
 import {
   deriveKeys,
   isOnlyNetworkEnabledInNamespace,
   isPopularNetwork,
-} from './utils';
+} from './utils.js';
 
 describe('Utils', () => {
   describe('deriveKeys', () => {

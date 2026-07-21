@@ -413,6 +413,7 @@ const config = createConfig([
       'packages/multichain-transactions-controller/**',
       'packages/name-controller/**',
       'packages/network-connection-banner-controller/**',
+      'packages/network-enablement-controller/**',
       'packages/permission-controller/**',
       'packages/permission-log-controller/**',
       'packages/platform-api-docs/**',

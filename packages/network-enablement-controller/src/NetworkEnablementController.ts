@@ -18,14 +18,14 @@ import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/t
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
-import { POPULAR_NETWORKS } from './constants';
-import type { NetworkEnablementControllerMethodActions } from './NetworkEnablementController-method-action-types';
-import { Slip44Service } from './services';
+import { POPULAR_NETWORKS } from './constants.js';
+import type { NetworkEnablementControllerMethodActions } from './NetworkEnablementController-method-action-types.js';
+import { Slip44Service } from './services/index.js';
 import {
   deriveKeys,
   isOnlyNetworkEnabledInNamespace,
   isPopularNetwork,
-} from './utils';
+} from './utils.js';
 
 const controllerName = 'NetworkEnablementController';
 
