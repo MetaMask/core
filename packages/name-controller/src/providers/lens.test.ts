@@ -1,6 +1,6 @@
-import { NameType } from '../types';
-import { graphQL } from '../util';
-import { LensNameProvider } from './lens';
+import { NameType } from '../types.js';
+import { graphQL } from '../util.js';
+import { LensNameProvider } from './lens.js';
 
 jest.mock('../util');
 
