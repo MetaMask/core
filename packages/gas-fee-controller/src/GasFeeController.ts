@@ -671,7 +671,9 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
   async #onNetworkControllerDidChange({
     selectedNetworkClientId,
   }: NetworkState) {
-    const newChainId = this.#getChainIdForNetworkClient(selectedNetworkClientId);
+    const newChainId = this.#getChainIdForNetworkClient(
+      selectedNetworkClientId,
+    );
 
     if (newChainId !== this.currentChainId) {
       // Reset so the next fetch rebuilds it from the new network's provider.
