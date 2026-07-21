@@ -1222,7 +1222,7 @@ describe('PollingBlockTracker', () => {
       });
     });
 
-    it('returns a separate promise for each concurrent call', async () => {
+    it('should return the same promise if called multiple times', async () => {
       await withPollingBlockTracker(
         {
           provider: {
@@ -1242,9 +1242,7 @@ describe('PollingBlockTracker', () => {
           const promiseToCheckLatestBlock1 = blockTracker.checkForLatestBlock();
           const promiseToCheckLatestBlock2 = blockTracker.checkForLatestBlock();
 
-          expect(promiseToCheckLatestBlock1).not.toBe(
-            promiseToCheckLatestBlock2,
-          );
+          expect(promiseToCheckLatestBlock1).toBe(promiseToCheckLatestBlock2);
         },
       );
     });
