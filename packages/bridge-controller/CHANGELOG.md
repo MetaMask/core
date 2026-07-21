@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Extract `QuoteMetadata` type and calculation to a new file
   - Implement `mergeQuoteMetadata` util which appends QuoteMetadata to QuoteResponse
   - Return priceImpact and relayerFee as part of `QuoteMetadata`
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))
+- Bump `@metamask/assets-controller` from `^11.0.0` to `^11.1.0` ([#9579](https://github.com/MetaMask/core/pull/9579))
 
 ### Fixed
 

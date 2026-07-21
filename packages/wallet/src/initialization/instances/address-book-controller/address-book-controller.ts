@@ -4,7 +4,7 @@ import {
 } from '@metamask/address-book-controller';
 import { Messenger } from '@metamask/messenger';
 
-import type { InitializationConfiguration } from '../../types';
+import type { InitializationConfiguration } from '../../types.js';
 
 export const addressBookController: InitializationConfiguration<
   AddressBookController,

@@ -4,7 +4,7 @@ import type {
   KeyringControllerOptions,
 } from '@metamask/keyring-controller';
 
-import { keyringController } from './keyring-controller';
+import { keyringController } from './keyring-controller.js';
 
 jest.mock('@metamask/keyring-controller', () => ({
   ...jest.requireActual('@metamask/keyring-controller'),

@@ -248,6 +248,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'passkey-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'passkey-controller',
   },
   'permission-controller': {
     teams: ['@MetaMask/core-platform'],
@@ -298,6 +299,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'seedless-onboarding-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'seedless-onboarding-controller',
   },
   'selected-network-controller': {
     teams: ['@MetaMask/core-platform'],

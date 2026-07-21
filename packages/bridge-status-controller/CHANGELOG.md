@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update utils to use `mergeQuoteMetadata` and optional QuoteMetadata access patterns. ([#9507](https://github.com/MetaMask/core/pull/9507))
 - Update QuoteMetadata usages to handle optional values ([#9507](https://github.com/MetaMask/core/pull/9507))
 - Use `gasFee.total` instead of `gasFee.effective` for gas metrics properties. ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))
 
 ## [74.3.0]
 

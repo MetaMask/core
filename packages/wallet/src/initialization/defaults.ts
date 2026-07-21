@@ -6,8 +6,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import * as defaultConfigurations from './instances';
-import type { InitializationConfiguration, InstanceState } from './types';
+import * as defaultConfigurations from './instances/index.js';
+import type { InitializationConfiguration, InstanceState } from './types.js';
 
 export { defaultConfigurations };
 

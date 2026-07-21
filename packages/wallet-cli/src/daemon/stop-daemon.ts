@@ -1,7 +1,7 @@
 import { rm } from 'node:fs/promises';
 
-import { pingDaemon, sendCommand } from './daemon-client';
-import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils';
+import { pingDaemon, sendCommand } from './daemon-client.js';
+import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils.js';
 
 /**
  * Stop the daemon, preferring a graceful shutdown.

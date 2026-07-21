@@ -1,3 +1,3 @@
-export * from './controller';
-export { toErrorMessage } from './errors';
-export { createSyncMutationTracker } from './mutation-tracker';
+export * from './controller.js';
+export { toErrorMessage } from './errors.js';
+export { createSyncMutationTracker } from './mutation-tracker.js';

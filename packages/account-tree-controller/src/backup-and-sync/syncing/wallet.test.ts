@@ -1,12 +1,15 @@
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
-import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
-import { pushWalletToUserStorage } from '../user-storage/network-operations';
-import { compareAndSyncMetadata } from './metadata';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+} from '../types.js';
+import { pushWalletToUserStorage } from '../user-storage/network-operations.js';
+import { compareAndSyncMetadata } from './metadata.js';
 import {
   syncWalletMetadataAndCheckIfPushNeeded,
   syncWalletMetadata,
-} from './wallet';
+} from './wallet.js';
 
 jest.mock('./metadata');
 jest.mock('../user-storage/network-operations');

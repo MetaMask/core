@@ -1,4 +1,4 @@
-import { createSyncMutationTracker } from './mutation-tracker';
+import { createSyncMutationTracker } from './mutation-tracker.js';
 
 describe('BackupAndSync - Utils - createSyncMutationTracker', () => {
   it('starts with no recorded writes', () => {
