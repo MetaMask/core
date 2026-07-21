@@ -66,9 +66,9 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^30.0.0",
     "deepmerge": "^4.2.2",
-    "jest": "^30.2.0",
+    "jest": "^30.4.2",
     "jest-environment-node": "^29.7.0",
-    "ts-jest": "^29.4.6",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typescript": "~5.3.3"
   },
