@@ -139,6 +139,7 @@ jobs:
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - run: yarn test:scripts
+      - run: yarn test:scripts:shell
       - name: Require clean working directory
         shell: bash
         run: |
