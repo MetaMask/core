@@ -24,7 +24,11 @@ describe('useQuery', () => {
 
 describe('useInfiniteQuery', () => {
   it('calls the underlying TanStack query function', () => {
-    const options = { queryKey: ['foo'] };
+    const options = {
+      queryKey: ['foo'],
+      initialPageParam: undefined,
+      getNextPageParam: (): undefined => undefined,
+    };
     expect(() => useInfiniteQuery(options)).not.toThrow();
     expect(useInfiniteQueryTanStack).toHaveBeenCalledWith({
       staleTime: 0,
