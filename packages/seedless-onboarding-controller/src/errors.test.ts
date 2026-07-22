@@ -1,8 +1,7 @@
 import { TOPRFErrorCode } from '@metamask/toprf-secure-backup';
-
-import { SeedlessOnboardingControllerErrorMessage } from './constants';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 
+import { SeedlessOnboardingControllerErrorMessage } from './constants';
 import { SecretType } from './constants';
 import {
   getErrorMessageFromTOPRFErrorCode,

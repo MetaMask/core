@@ -157,8 +157,11 @@ export class InvalidPrimarySecretDataTypeError extends Error {
   data: InvalidPrimarySecretDataTypeErrorData;
 
   constructor(data: InvalidPrimarySecretDataTypeErrorData) {
-    super(SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType);
-    this.name = 'SeedlessOnboardingController - InvalidPrimarySecretDataTypeError';
+    super(
+      SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+    );
+    this.name =
+      'SeedlessOnboardingController - InvalidPrimarySecretDataTypeError';
     this.data = data;
   }
 
