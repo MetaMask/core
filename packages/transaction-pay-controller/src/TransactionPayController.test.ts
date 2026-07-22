@@ -1,9 +1,6 @@
 /* eslint-disable no-new */
 
-import type {
-  BeginAtomicBatchUpdateResult,
-  TransactionMeta,
-} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 
@@ -23,7 +20,7 @@ import type {
   UpdateTransactionDataCallback,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
-import { updateQuotes } from './utils/quotes';
+import { abortQuotes, updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import {
   getTransaction,
@@ -51,6 +48,7 @@ describe('TransactionPayController', () => {
   );
   const getTransactionMock = jest.mocked(getTransaction);
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
+  const abortQuotesMock = jest.mocked(abortQuotes);
   const updateQuotesMock = jest.mocked(updateQuotes);
   const subscribeTransactionChangesMock = jest.mocked(
     subscribeTransactionChanges,
@@ -58,7 +56,7 @@ describe('TransactionPayController', () => {
   const subscribeAssetChangesMock = jest.mocked(subscribeAssetChanges);
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
-  let beginAtomicBatchUpdateMock: jest.Mock;
+  let updateTransactionCallbackMock: jest.Mock;
   let getKeyringControllerStateMock: jest.Mock;
 
   /**
@@ -82,7 +80,7 @@ describe('TransactionPayController', () => {
 
     const mocks = getMessengerMock({ skipRegister: true });
     messenger = mocks.messenger;
-    beginAtomicBatchUpdateMock = mocks.beginAtomicBatchUpdateMock;
+    updateTransactionCallbackMock = mocks.updateTransactionCallbackMock;
     getKeyringControllerStateMock = mocks.getKeyringControllerStateMock;
 
     getKeyringControllerStateMock.mockReturnValue({
@@ -136,18 +134,21 @@ describe('TransactionPayController', () => {
       { transactionIndex: 1, transactionData: '0xBBBB' as Hex },
     ];
 
-    function mockAtomicUpdate(): BeginAtomicBatchUpdateResult {
-      const result = {
-        revision: 1,
-        transaction: { ...transaction, transactionRevision: 1 },
-        preparation: Promise.resolve({
-          revision: 1,
-          status: 'prepared' as const,
-          transaction: { ...transaction, transactionRevision: 1 },
-        }),
+    function mockTransactionUpdateCallback(): TransactionMeta {
+      const updatedTransaction = {
+        ...transaction,
+        nestedTransactions: transaction.nestedTransactions?.map(
+          (nestedTransaction) => ({ ...nestedTransaction }),
+        ),
+        txParams: { ...transaction.txParams },
       };
-      beginAtomicBatchUpdateMock.mockReturnValue(result);
-      return result;
+      updateTransactionCallbackMock.mockImplementation(
+        (_transactionId, callback) => {
+          callback(updatedTransaction);
+          return updatedTransaction;
+        },
+      );
+      return updatedTransaction;
     }
 
     function getStateWithOldQuote(): TransactionPayControllerOptions['state'] {
@@ -223,7 +224,7 @@ describe('TransactionPayController', () => {
           amountHuman: '1.23',
         }),
       ).rejects.toThrow('Transaction amount preparation is not applicable');
-      expect(beginAtomicBatchUpdateMock).not.toHaveBeenCalled();
+      expect(updateTransactionCallbackMock).not.toHaveBeenCalled();
     });
 
     it('passes the exact human amount and commits the complete patch once', async () => {
@@ -235,7 +236,7 @@ describe('TransactionPayController', () => {
         requiredNestedTransactionIndexes: [0, 1],
       });
       getTransactionMock.mockReturnValue(transaction);
-      mockAtomicUpdate();
+      const updatedTransaction = mockTransactionUpdateCallback();
       const controller = createController({ prepareTransactionAmount });
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => undefined);
       updateQuotesMock.mockClear();
@@ -252,17 +253,26 @@ describe('TransactionPayController', () => {
         signal: expect.any(AbortSignal),
         transaction,
       });
-      expect(beginAtomicBatchUpdateMock).toHaveBeenCalledWith({
-        transactionId: TRANSACTION_ID_MOCK,
-        requiredAssets,
-        nestedTransactionUpdates,
-      });
+      expect(abortQuotesMock).toHaveBeenCalledWith(TRANSACTION_ID_MOCK);
+      expect(abortQuotesMock.mock.invocationCallOrder[0]).toBeLessThan(
+        prepareTransactionAmount.mock.invocationCallOrder[0],
+      );
+      expect(updateTransactionCallbackMock).toHaveBeenCalledWith(
+        TRANSACTION_ID_MOCK,
+        expect.any(Function),
+      );
+      expect(updatedTransaction.requiredAssets).toStrictEqual(requiredAssets);
+      expect(
+        updatedTransaction.nestedTransactions?.map(({ data }) => data),
+      ).toStrictEqual(['0xAAAA', '0xBBBB']);
+      expect(updatedTransaction.txParams.data).toContain('aaaa');
+      expect(updatedTransaction.txParams.data).toContain('bbbb');
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
-      expect(updateQuotesMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          transactionRevision: 1,
-          transactionPreparation: expect.any(Promise),
-        }),
+      expect(updateQuotesMock.mock.calls[0][0]).not.toHaveProperty(
+        'transactionPreparation',
+      );
+      expect(updateQuotesMock.mock.calls[0][0]).not.toHaveProperty(
+        'transactionRevision',
       );
     });
 
@@ -282,11 +292,11 @@ describe('TransactionPayController', () => {
       expectOldQuoteInvalidated(controller, true);
       await expect(result).rejects.toThrow(callbackError);
       expectOldQuoteInvalidated(controller, false);
-      expect(beginAtomicBatchUpdateMock).not.toHaveBeenCalled();
+      expect(updateTransactionCallbackMock).not.toHaveBeenCalled();
       expect(updateQuotesMock).not.toHaveBeenCalled();
     });
 
-    it('keeps an old quote cleared when revision preparation or vendor quoting fails', async () => {
+    it('keeps an old quote cleared when vendor quoting fails', async () => {
       const pipelineError = new Error('Quote pipeline failed');
       const controller = createController({
         prepareTransactionAmount: jest.fn().mockResolvedValue({
@@ -299,7 +309,7 @@ describe('TransactionPayController', () => {
         state: getStateWithOldQuote(),
       });
       getTransactionMock.mockReturnValue(transaction);
-      mockAtomicUpdate();
+      mockTransactionUpdateCallback();
       updateQuotesMock.mockRejectedValue(pipelineError);
 
       const result = controller.updateAmount({
@@ -326,7 +336,7 @@ describe('TransactionPayController', () => {
         state: getStateWithOldQuote(),
       });
       getTransactionMock.mockReturnValue(transaction);
-      mockAtomicUpdate();
+      mockTransactionUpdateCallback();
 
       const first = controller.updateAmount({
         transactionId: TRANSACTION_ID_MOCK,
@@ -364,7 +374,7 @@ describe('TransactionPayController', () => {
         .fn()
         .mockReturnValue(preparation.promise);
       getTransactionMock.mockReturnValue(transaction);
-      mockAtomicUpdate();
+      mockTransactionUpdateCallback();
       const controller = createController({ prepareTransactionAmount });
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => undefined);
       const request = {
@@ -407,7 +417,7 @@ describe('TransactionPayController', () => {
           requiredNestedTransactionIndexes: [0, 1],
         });
       getTransactionMock.mockReturnValue(transaction);
-      mockAtomicUpdate();
+      mockTransactionUpdateCallback();
       const controller = createController({ prepareTransactionAmount });
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => undefined);
 
@@ -426,7 +436,49 @@ describe('TransactionPayController', () => {
       expect(await second).toBe(true);
     });
 
-    it('rejects a partial patch without committing a revision', async () => {
+    it('rejects an update if the current transaction has no nested transactions', async () => {
+      const prepareTransactionAmount = jest.fn().mockResolvedValue({
+        kind: 'prepared',
+        amountRaw: '123',
+        requiredAssets,
+        nestedTransactionUpdates,
+        requiredNestedTransactionIndexes: [0, 1],
+      });
+      getTransactionMock.mockReturnValue(transaction);
+      updateTransactionCallbackMock.mockImplementation(
+        (_transactionId, callback) => {
+          const currentTransaction = {
+            ...transaction,
+            nestedTransactions: undefined,
+            txParams: { ...transaction.txParams },
+          };
+          callback(currentTransaction);
+          return currentTransaction;
+        },
+      );
+      const controller = createController({
+        prepareTransactionAmount,
+        state: {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {},
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        },
+      });
+
+      await expect(
+        controller.updateAmount({
+          transactionId: TRANSACTION_ID_MOCK,
+          amountHuman: '1.23',
+        }),
+      ).rejects.toThrow('Nested transaction not found with index - 0');
+      expect(updateQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects a partial patch without committing the transaction', async () => {
       const controller = createController({
         prepareTransactionAmount: jest.fn().mockResolvedValue({
           kind: 'prepared',
@@ -444,7 +496,7 @@ describe('TransactionPayController', () => {
           amountHuman: '1.23',
         }),
       ).rejects.toThrow('incomplete patch');
-      expect(beginAtomicBatchUpdateMock).not.toHaveBeenCalled();
+      expect(updateTransactionCallbackMock).not.toHaveBeenCalled();
     });
 
     it('suppresses the listener quote launch caused by its atomic publication', async () => {
@@ -461,13 +513,16 @@ describe('TransactionPayController', () => {
       updateQuotesMock.mockClear();
       const listenerUpdateTransactionData =
         subscribeTransactionChangesMock.mock.calls[0][1];
-      const atomicUpdate = mockAtomicUpdate();
-      beginAtomicBatchUpdateMock.mockImplementationOnce((request) => {
-        listenerUpdateTransactionData(request.transactionId, (data) => {
-          data.tokens = [{ address: TOKEN_ADDRESS_MOCK }] as never;
-        });
-        return atomicUpdate;
-      });
+      const updatedTransaction = mockTransactionUpdateCallback();
+      updateTransactionCallbackMock.mockImplementationOnce(
+        (transactionId, callback) => {
+          listenerUpdateTransactionData(transactionId, (data) => {
+            data.tokens = [{ address: TOKEN_ADDRESS_MOCK }] as never;
+          });
+          callback(updatedTransaction);
+          return updatedTransaction;
+        },
+      );
 
       await controller.updateAmount({
         transactionId: TRANSACTION_ID_MOCK,

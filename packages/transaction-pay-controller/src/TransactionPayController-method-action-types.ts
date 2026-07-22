@@ -21,7 +21,7 @@ export type TransactionPayControllerSetTransactionConfigAction = {
 
 /**
  * Prepares and atomically commits an exact transaction amount, then launches
- * one quote generation joined to revision-bound local preparation.
+ * one quote generation for the updated transaction.
  * Identical in-flight intents share the same promise; different intents
  * supersede and abort earlier work.
  *

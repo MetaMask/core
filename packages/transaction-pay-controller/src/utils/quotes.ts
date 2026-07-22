@@ -1,6 +1,5 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type {
-  AtomicBatchPreparationResult,
   BatchTransaction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
@@ -48,8 +47,6 @@ export type UpdateQuotesRequest = {
   signal?: AbortSignal;
   transactionData: TransactionData | undefined;
   transactionId: string;
-  transactionPreparation?: Promise<AtomicBatchPreparationResult>;
-  transactionRevision?: number;
   updateTransactionData: UpdateTransactionDataCallback;
 };
 
@@ -73,8 +70,6 @@ export async function updateQuotes(
     signal: externalSignal,
     transactionData,
     transactionId,
-    transactionPreparation,
-    transactionRevision,
     updateTransactionData,
   } = request;
 
@@ -166,36 +161,10 @@ export async function updateQuotes(
       messenger,
       fiatPayment?.selectedPaymentMethodId,
       signal,
-      transactionPreparation,
     );
 
     if (signal.aborted) {
       log('Quote request aborted before persisting results', { transactionId });
-      return false;
-    }
-
-    let preparedTransaction = transaction;
-
-    if (transactionPreparation) {
-      const preparationResult = await transactionPreparation;
-      const latestTransaction = getTransaction(transactionId, messenger);
-
-      if (
-        preparationResult.status !== 'prepared' ||
-        preparationResult.revision !== transactionRevision ||
-        latestTransaction?.transactionRevision !== transactionRevision
-      ) {
-        log('Discarding quotes for stale transaction revision', {
-          transactionId,
-          transactionRevision,
-        });
-        return false;
-      }
-
-      preparedTransaction = preparationResult.transaction;
-    }
-
-    if (signal.aborted) {
       return false;
     }
 
@@ -212,7 +181,7 @@ export async function updateQuotes(
       messenger,
       quotes: executableQuotes as TransactionPayQuote<unknown>[],
       tokens,
-      transaction: preparedTransaction,
+      transaction,
     });
 
     log('Calculated totals', { transactionId, totals });
@@ -386,15 +355,24 @@ export async function refreshQuotes(
   }
 }
 
+/**
+ * Abort the active quote request for a transaction.
+ *
+ * @param transactionId - ID of the transaction whose quote should be aborted.
+ */
+export function abortQuotes(transactionId: string): void {
+  const request = inFlightQuoteRequests.get(transactionId);
+
+  if (request && !request.signal.aborted) {
+    log('Aborting quote request', { transactionId });
+    request.abort(new Error('Superseded by newer quote request'));
+  }
+}
+
 function abortPreviousAndCreateController(
   transactionId: string,
 ): AbortController {
-  const previous = inFlightQuoteRequests.get(transactionId);
-
-  if (previous && !previous.signal.aborted) {
-    log('Aborting previous quote request', { transactionId });
-    previous.abort(new Error('Superseded by newer quote request'));
-  }
+  abortQuotes(transactionId);
 
   const controller = new AbortController();
   inFlightQuoteRequests.set(transactionId, controller);
@@ -661,7 +639,6 @@ async function refreshPaymentTokenBalance({
  * @param messenger - Controller messenger.
  * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
  * @param signal - Signal that aborts when the quote request is superseded.
- * @param transactionPreparation - Revision-bound local preparation.
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
@@ -675,7 +652,6 @@ async function getQuotes(
   messenger: TransactionPayControllerMessenger,
   fiatPaymentMethod?: string,
   signal?: AbortSignal,
-  transactionPreparation?: Promise<AtomicBatchPreparationResult>,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
@@ -720,7 +696,6 @@ async function getQuotes(
     requests,
     signal,
     transaction,
-    transactionPreparation,
   };
 
   for (const { name, strategy } of strategies) {

@@ -129,9 +129,6 @@ import type {
   AddTransactionOptions,
   PublishHookResult,
   GetGasFeeTokensRequest,
-  BeginAtomicBatchUpdateRequest,
-  BeginAtomicBatchUpdateResult,
-  AtomicBatchPreparationResult,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -674,7 +671,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'addTransaction',
   'addTransactionBatch',
   'approveTransactionsWithSameNonce',
-  'beginAtomicBatchUpdate',
   'clearUnapprovedTransactions',
   'confirmExternalTransaction',
   'emulateNewTransaction',
@@ -2572,85 +2568,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Atomically updates all amount-dependent data in an atomic batch and starts
-   * revision-bound local preparation.
-   *
-   * @param request - Complete atomic batch update.
-   * @returns The synchronously published revision and its preparation handle.
-   */
-  beginAtomicBatchUpdate(
-    request: BeginAtomicBatchUpdateRequest,
-  ): BeginAtomicBatchUpdateResult {
-    const { transactionId, requiredAssets, nestedTransactionUpdates } = request;
-    const currentTransaction = this.#getTransaction(transactionId);
-    let revision = 0;
-
-    if (!currentTransaction) {
-      throw new Error(
-        `Cannot update transaction as ID not found - ${transactionId}`,
-      );
-    }
-
-    if (nestedTransactionUpdates.length === 0) {
-      throw new Error(
-        'Atomic batch update requires at least one nested transaction update',
-      );
-    }
-
-    const { nestedTransactions, transactionData } = updateEIP7702BatchData(
-      currentTransaction.txParams.from as Hex,
-      currentTransaction.nestedTransactions ?? [],
-      nestedTransactionUpdates,
-    );
-
-    log('Beginning atomic batch update', request);
-
-    const updatedTransactionMeta = this.#updateTransactionInternal(
-      { transactionId, skipResimulateCheck: true },
-      (transactionMeta) => {
-        revision = (transactionMeta.transactionRevision ?? 0) + 1;
-        transactionMeta.nestedTransactions = nestedTransactions;
-        transactionMeta.requiredAssets = requiredAssets;
-        transactionMeta.transactionRevision = revision;
-        transactionMeta.txParams.data = transactionData;
-        transactionMeta.txParams.gas = undefined;
-        transactionMeta.gasLimitNoBuffer = undefined;
-        transactionMeta.gasUsed = undefined;
-        transactionMeta.securityAlertResponse = undefined;
-        transactionMeta.simulationData = undefined;
-        transactionMeta.simulationFails = undefined;
-
-        if (transactionMeta.revert) {
-          delete transactionMeta.revert.gas;
-
-          if (
-            !transactionMeta.revert.simulation &&
-            !transactionMeta.revert.receipt
-          ) {
-            transactionMeta.revert = undefined;
-          }
-        }
-      },
-    );
-
-    const transaction = cloneDeep(updatedTransactionMeta);
-    const draftTransaction = cloneDeep({
-      ...transaction,
-      txParams: {
-        ...transaction.txParams,
-        // Clear existing gas to force estimation.
-        gas: undefined,
-      },
-    });
-
-    return {
-      revision,
-      transaction,
-      preparation: this.#prepareAtomicBatchUpdate(draftTransaction, revision),
-    };
-  }
-
-  /**
    * Update the transaction data of a single nested transaction within an atomic batch transaction.
    *
    * @param options - The options bag.
@@ -2682,72 +2599,45 @@ export class TransactionController extends BaseController<
       );
     }
 
-    const { preparation, transaction } = this.beginAtomicBatchUpdate({
-      transactionId,
-      requiredAssets: currentTransaction.requiredAssets ?? [],
-      nestedTransactionUpdates: [{ transactionIndex, transactionData }],
-    });
-
-    await preparation;
-
-    return transaction.txParams.data as Hex;
-  }
-
-  async #prepareAtomicBatchUpdate(
-    draftTransaction: TransactionMeta,
-    revision: number,
-  ): Promise<AtomicBatchPreparationResult> {
-    const [gasPreparationResult, simulationPreparationResult] =
-      await Promise.allSettled([
-        this.#updateGasEstimate(draftTransaction),
-        this.#isSimulationEnabled()
-          ? this.#updateSimulationData(draftTransaction)
-          : Promise.resolve(),
-      ]);
-
-    if (gasPreparationResult.status === 'rejected') {
-      throw gasPreparationResult.reason;
-    }
-
-    const currentTransaction = this.#getTransaction(draftTransaction.id);
-
-    if (currentTransaction?.transactionRevision !== revision) {
-      return {
-        revision,
-        status: 'superseded',
-        transaction: cloneDeep(currentTransaction ?? draftTransaction),
-      };
-    }
-
-    const preparedTransaction = this.#updateTransactionInternal(
-      {
-        transactionId: draftTransaction.id,
-        skipResimulateCheck: true,
-      },
+    const { nestedTransactions, transactionData: updatedTransactionData } =
+      updateEIP7702BatchData(
+        currentTransaction.txParams.from as Hex,
+        currentTransaction.nestedTransactions ?? [],
+        [{ transactionIndex, transactionData }],
+      );
+    const updatedTransactionMeta = this.#updateTransactionInternal(
+      { transactionId },
       (transactionMeta) => {
-        transactionMeta.txParams.gas = draftTransaction.txParams.gas;
-        transactionMeta.simulationFails = draftTransaction.simulationFails;
-        transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
-
-        const draftGasRevert = draftTransaction.revert?.gas;
-        if (draftGasRevert) {
-          transactionMeta.revert = {
-            ...transactionMeta.revert,
-            gas: draftGasRevert,
-          };
-        }
+        transactionMeta.nestedTransactions = nestedTransactions;
+        transactionMeta.txParams.data = updatedTransactionData;
       },
     );
+    const draftTransaction = cloneDeep({
+      ...updatedTransactionMeta,
+      txParams: {
+        ...updatedTransactionMeta.txParams,
+        // Clear existing gas to force estimation.
+        gas: undefined,
+      },
+    });
 
-    if (simulationPreparationResult.status === 'rejected') {
-      throw simulationPreparationResult.reason;
-    }
+    await this.#updateGasEstimate(draftTransaction);
 
-    return {
-      revision,
-      status: 'prepared',
-      transaction: cloneDeep(preparedTransaction),
-    };
+    this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      transactionMeta.txParams.gas = draftTransaction.txParams.gas;
+      transactionMeta.simulationFails = draftTransaction.simulationFails;
+      transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
+
+      const draftGasRevert = draftTransaction.revert?.gas;
+      if (draftGasRevert) {
+        transactionMeta.revert = {
+          ...transactionMeta.revert,
+          gas: draftGasRevert,
+        };
+      }
+    });
+
+    return updatedTransactionData;
   }
 
   /**
@@ -4233,17 +4123,6 @@ export class TransactionController extends BaseController<
         simulationData,
       );
 
-      return;
-    }
-
-    if (
-      latestTransactionMeta.transactionRevision !==
-      transactionMeta.transactionRevision
-    ) {
-      log('Ignoring stale simulation data', {
-        transactionId,
-        revision: transactionMeta.transactionRevision,
-      });
       return;
     }
 

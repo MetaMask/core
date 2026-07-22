@@ -1,9 +1,8 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type {
-  BeginAtomicBatchUpdateResult,
-  TransactionMeta,
-} from '@metamask/transaction-controller';
+import { updateEIP7702BatchData } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
@@ -33,7 +32,7 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
-import { updateQuotes } from './utils/quotes';
+import { abortQuotes, updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import {
   getTransaction,
@@ -207,7 +206,7 @@ export class TransactionPayController extends BaseController<
 
   /**
    * Prepares and atomically commits an exact transaction amount, then launches
-   * one quote generation joined to revision-bound local preparation.
+   * one quote generation for the updated transaction.
    * Identical in-flight intents share the same promise; different intents
    * supersede and abort earlier work.
    *
@@ -268,6 +267,7 @@ export class TransactionPayController extends BaseController<
       transactionData.quotesLastUpdated = undefined;
       transactionData.totals = undefined;
     });
+    abortQuotes(transactionId);
 
     const amountPreparation = await this.#prepareTransactionAmount({
       amountHuman,
@@ -285,10 +285,7 @@ export class TransactionPayController extends BaseController<
       throw new Error('Transaction amount preparation is not applicable');
     }
 
-    const atomicUpdate = this.#beginAtomicBatchUpdate(
-      transactionId,
-      amountPreparation,
-    );
+    this.#updateTransactionAmount(transactionId, amountPreparation);
 
     return await updateQuotes({
       getStrategies: this.#getStrategiesWithFallback.bind(this),
@@ -296,28 +293,34 @@ export class TransactionPayController extends BaseController<
       signal,
       transactionData: this.state.transactionData[transactionId],
       transactionId,
-      transactionPreparation: atomicUpdate.preparation,
-      transactionRevision: atomicUpdate.revision,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
   }
 
-  #beginAtomicBatchUpdate(
+  #updateTransactionAmount(
     transactionId: string,
     amountPreparation: Extract<
       PrepareTransactionAmountResult,
       { kind: 'prepared' }
     >,
-  ): BeginAtomicBatchUpdateResult {
+  ): void {
     this.#quoteSuppressedTransactionIds.add(transactionId);
 
     try {
-      return this.messenger.call(
-        'TransactionController:beginAtomicBatchUpdate',
-        {
-          transactionId,
-          requiredAssets: amountPreparation.requiredAssets,
-          nestedTransactionUpdates: amountPreparation.nestedTransactionUpdates,
+      this.messenger.call(
+        'TransactionController:updateTransactionCallback',
+        transactionId,
+        (transactionMeta) => {
+          const { nestedTransactions, transactionData } =
+            updateEIP7702BatchData(
+              transactionMeta.txParams.from as Hex,
+              transactionMeta.nestedTransactions ?? [],
+              amountPreparation.nestedTransactionUpdates,
+            );
+
+          transactionMeta.nestedTransactions = nestedTransactions;
+          transactionMeta.requiredAssets = amountPreparation.requiredAssets;
+          transactionMeta.txParams.data = transactionData;
         },
       );
     } finally {
