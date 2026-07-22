@@ -8,8 +8,8 @@ import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import type { Json } from '@metamask/utils';
 import {
   AlwaysOnlineAdapter,
-  Env,
   importSecretRecoveryPhrase,
+  SubscriptionEnv,
   Wallet,
 } from '@metamask/wallet';
 import type { WalletOptions } from '@metamask/wallet';
@@ -108,7 +108,7 @@ function buildInstanceOptions(
       storage: new InMemoryStorageAdapter(),
     },
     subscriptionController: {
-      env: Env.PRD,
+      env: SubscriptionEnv.PRD,
       fetchFunction: globalThis.fetch,
     },
     transactionController: {

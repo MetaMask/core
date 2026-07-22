@@ -2,8 +2,8 @@ import { ClientConfigApiService } from '@metamask/remote-feature-flag-controller
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import {
   AlwaysOnlineAdapter,
-  Env,
   importSecretRecoveryPhrase,
+  SubscriptionEnv,
   Wallet,
 } from '@metamask/wallet';
 import { rmSync } from 'node:fs';
@@ -120,7 +120,7 @@ describe('createWallet', () => {
       InMemoryStorageAdapter,
     );
     expect(instanceOptions.subscriptionController).toStrictEqual({
-      env: Env.PRD,
+      env: SubscriptionEnv.PRD,
       fetchFunction: globalThis.fetch,
     });
     expect(instanceOptions.transactionController?.disableSwaps).toBe(true);
