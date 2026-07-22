@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `AggregatedOrderBookConnection` service (with the `processAggregatedOrderBook` helper and the `OrderBookConnectionStatus`, `SubscribeAggregatedOrderBookParams`, and `AggregatedOrderBookConnectionOptions` types) for managing a dedicated, reference-counted aggregated order book subscription ([#9549](https://github.com/MetaMask/core/pull/9549))
 - Add `BOTTOM_NAV_BAR` to `PERPS_EVENT_VALUE.SOURCE` for bottom navigation bar analytics attribution ([#9551](https://github.com/MetaMask/core/pull/9551))
 
 ### Changed
