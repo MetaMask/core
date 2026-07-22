@@ -975,12 +975,6 @@ describe('Relay Submit Utils', () => {
             [ORIGINAL_TRANSACTION_ID_MOCK]: TRANSACTION_DATA_MOCK,
           },
         });
-
-        // The payment override is only prepended onto the source execute batch
-        // for same-chain flows, so align the quote's source and destination
-        // chains for these override-prepend assertions.
-        request.quotes[0].original.details.currencyOut.currency.chainId =
-          request.quotes[0].original.details.currencyIn.currency.chainId;
       });
 
       it('prepends override tx params to submit batch', async () => {
@@ -1014,7 +1008,7 @@ describe('Relay Submit Utils', () => {
         expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
       });
 
-      it('does not prepend override for cross-chain flows', async () => {
+      it('prepends override tx params to submit batch for cross-chain flows', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
         request.quotes[0].original.details.currencyIn.currency.chainId = 137;
@@ -1025,10 +1019,18 @@ describe('Relay Submit Utils', () => {
 
         await submitRelayQuotes(request);
 
-        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+        expect(getPaymentOverrideDataMock).toHaveBeenCalled();
+        const batchCall = addTransactionBatchMock.mock.calls[0][0];
+        expect(batchCall.transactions[0].params).toStrictEqual(
+          expect.objectContaining({
+            data: PAYMENT_OVERRIDE_TX_MOCK.data,
+            to: PAYMENT_OVERRIDE_TX_MOCK.to,
+            value: PAYMENT_OVERRIDE_TX_MOCK.value,
+          }),
+        );
       });
 
-      it('does not prepend override for non-atomic same-chain flows', async () => {
+      it('does not prepend override for non-atomic flows', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
         request.quotes[0].request.atomic = false;
