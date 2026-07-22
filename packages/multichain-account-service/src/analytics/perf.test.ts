@@ -1,13 +1,13 @@
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 
-import { projectLogger } from '../logger';
+import { projectLogger } from '../logger.js';
 import {
   isPerfEnabled,
   log as perfLog,
   tick,
   withLocalPerfTrace,
-} from './perf';
-import { now } from './timer';
+} from './perf.js';
+import { now } from './timer.js';
 
 jest.mock('./timer', () => ({
   now: jest.fn(),

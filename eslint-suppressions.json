@@ -1100,7 +1100,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 16
+      "count": 14
     }
   },
   "packages/gas-fee-controller/src/gas-util.ts": {

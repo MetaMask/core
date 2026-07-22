@@ -2,7 +2,7 @@ import {
   createEntryPath,
   getFeatureAndKeyFromPath,
   USER_STORAGE_FEATURE_NAMES,
-} from './storage-schema';
+} from './storage-schema.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ErroneousUserStoragePath = any;

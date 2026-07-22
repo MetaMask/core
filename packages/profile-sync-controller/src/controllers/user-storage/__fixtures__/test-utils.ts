@@ -1,11 +1,11 @@
 import type nock from 'nock';
 
-import encryption from '../../../shared/encryption/encryption';
-import { MOCK_STORAGE_KEY } from '../mocks/mockStorage';
+import encryption from '../../../shared/encryption/encryption.js';
+import { MOCK_STORAGE_KEY } from '../mocks/mockStorage.js';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
-} from '../types';
+} from '../types.js';
 
 /**
  * Test Utility - creates a realistic mock user-storage entry

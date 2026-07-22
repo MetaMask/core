@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `trace` callback to `MoneyAccountApiDataService` constructor for network request tracing ([#9451](https://github.com/MetaMask/core/pull/9451))
+  - All HTTP calls (`fetchPositions`, `fetchInterest`, `fetchHistory`, `fetchRateHistory`) emit best-effort backdated traces with `startTime`, `success`, and `errorName` attributes
+  - Tracing is isolated from fetch/retry logic; trace failures do not impact queries
+
 ## [0.2.0]
 
 ### Added

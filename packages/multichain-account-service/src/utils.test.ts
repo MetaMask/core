@@ -2,7 +2,7 @@ import {
   toErrorMessage,
   assertGroupIndexRangeIsValid,
   assertGroupIndexIsValid,
-} from './utils';
+} from './utils.js';
 
 describe('toErrorMessage', () => {
   it('returns the message of an Error instance', () => {
