@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat!: allow dynamic infura networks ([#9432](https://github.com/MetaMask/core/pull/9432))
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
-
 ### Added
 
 - Add `DeFiPositionsControllerV2`, which fetches DeFi positions from the Accounts API v6 multiaccount balances endpoint and stores them in a client-ready shape under `allDeFiPositionsV2` ([#9503](https://github.com/MetaMask/core/pull/9503))
