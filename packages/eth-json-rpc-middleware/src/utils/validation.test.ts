@@ -425,7 +425,7 @@ describe('Validation Utils', () => {
           to: VALID_TO,
           data: padded,
         }),
-      ).toThrow('Invalid input.');
+      ).toThrow('Request too large');
     });
 
     it('throws for an accessList-padding attack that passes the schema', () => {
@@ -443,7 +443,7 @@ describe('Validation Utils', () => {
           to: VALID_TO,
           accessList: padded,
         }),
-      ).toThrow('Invalid input.');
+      ).toThrow('Request too large');
     });
 
     it('does not throw for a legitimate multi-entry accessList well under the size limit', () => {

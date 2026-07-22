@@ -3,9 +3,11 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
 import {
   array,
+  number,
   object,
   optional,
   string,
+  union,
   validate,
 } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
@@ -260,7 +262,7 @@ export const TransactionParamsStruct = object({
   chainId: optional(string()),
   data: optional(string()),
   from: string(),
-  gas: optional(string()),
+  gas: optional(union([string(), number()])),
   gasLimit: optional(string()),
   gasPrice: optional(string()),
   maxFeePerGas: optional(string()),
@@ -306,7 +308,7 @@ export function validateTransactionParams(params: unknown): void {
     new TextEncoder().encode(JSON.stringify(params)).byteLength >
     MAX_TRANSACTION_PARAMS_SIZE_BYTES
   ) {
-    throw rpcErrors.invalidInput();
+    throw rpcErrors.invalidInput('Request too large');
   }
 
   validateParams(params, TransactionParamsStruct);
