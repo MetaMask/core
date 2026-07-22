@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.1.0]
+
 ### Changed
 
 - Consume `hasTransactionType` helper from `@metamask/transaction-controller` to derive relevant transaction type against the top-level `TransactionMeta` ([#9570](https://github.com/MetaMask/core/pull/9570))
-- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589))
 - Bump `@metamask/assets-controller` from `^11.0.0` to `^11.1.0` ([#9579](https://github.com/MetaMask/core/pull/9579))
 
 ## [25.0.0]
@@ -1306,7 +1308,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.1.0...HEAD
+[25.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.0.0...@metamask/transaction-pay-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.1.0...@metamask/transaction-pay-controller@25.0.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.3...@metamask/transaction-pay-controller@24.1.0
 [24.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.2...@metamask/transaction-pay-controller@24.0.3
