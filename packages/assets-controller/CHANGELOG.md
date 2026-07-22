@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.1.0` to `^69.2.0` ([#9589](https://github.com/MetaMask/core/pull/9589))
+
 ### Fixed
 
 - `TokenDataSource` balance-only metadata heals no longer apply EVM occurrence / non-EVM Blockaid spam filtering (or delete those holdings from `assetsBalance`); filtering still applies to newly `detectedAssets`. Fixes missing `assetsInfo` for already-tracked balances after [#9547](https://github.com/MetaMask/core/pull/9547) ([#9584](https://github.com/MetaMask/core/pull/9584))
@@ -30,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TokensApiClient` (used by `RpcDataSource` / `TokenDetector`) now sets the token-list `occurrenceFloor` query param from the same Token API `GET /v1/suggestedOccurrenceFloors` endpoint (cached 1h), replacing the hardcoded Linea/MegaETH/Tempo special cases. Missing chains or failed fetches fall back to 3 ([#9537](https://github.com/MetaMask/core/pull/9537))
 - Bump `@metamask/network-enablement-controller` from `^5.5.0` to `^5.6.0` ([#9520](https://github.com/MetaMask/core/pull/9520))
 - Bump `@metamask/phishing-controller` from `^17.2.1` to `^17.3.0` ([#9532](https://github.com/MetaMask/core/pull/9532))
-- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))
 
 ### Fixed
 
