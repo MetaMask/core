@@ -2610,6 +2610,23 @@ export class TransactionController extends BaseController<
       (transactionMeta) => {
         transactionMeta.nestedTransactions = nestedTransactions;
         transactionMeta.txParams.data = updatedTransactionData;
+        transactionMeta.txParams.gas = undefined;
+        transactionMeta.gasLimitNoBuffer = undefined;
+        transactionMeta.gasUsed = undefined;
+        transactionMeta.securityAlertResponse = undefined;
+        transactionMeta.simulationData = undefined;
+        transactionMeta.simulationFails = undefined;
+
+        if (transactionMeta.revert) {
+          delete transactionMeta.revert.gas;
+
+          if (
+            !transactionMeta.revert.simulation &&
+            !transactionMeta.revert.receipt
+          ) {
+            transactionMeta.revert = undefined;
+          }
+        }
       },
     );
     const draftTransaction = cloneDeep({

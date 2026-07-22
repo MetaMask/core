@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `updateTransactionCallback` for atomic callback-based metadata updates and export `updateEIP7702BatchData` for synchronous indexed updates to nested transaction calldata ([#9543](https://github.com/MetaMask/core/pull/9543))
 
+### Fixed
+
+- Clear stale gas and simulation metadata synchronously when updating EIP-7702 batch calldata ([#9543](https://github.com/MetaMask/core/pull/9543))
+
 ## [69.0.0]
 
 ### Changed
