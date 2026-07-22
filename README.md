@@ -86,6 +86,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
+- [`@metamask/kyc-controller`](packages/kyc-controller)
 - [`@metamask/local-node-utils`](packages/local-node-utils)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
@@ -191,6 +192,7 @@ linkStyle default opacity:0.5
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
+  kyc_controller(["@metamask/kyc-controller"]);
   local_node_utils(["@metamask/local-node-utils"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
@@ -418,6 +420,11 @@ linkStyle default opacity:0.5
   keyring_controller --> base_controller;
   keyring_controller --> controller_utils;
   keyring_controller --> messenger;
+  kyc_controller --> base_controller;
+  kyc_controller --> controller_utils;
+  kyc_controller --> geolocation_controller;
+  kyc_controller --> messenger;
+  kyc_controller --> profile_sync_controller;
   logging_controller --> base_controller;
   logging_controller --> controller_utils;
   logging_controller --> messenger;

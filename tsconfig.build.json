@@ -146,6 +146,9 @@
       "path": "./packages/keyring-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/kyc-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/local-node-utils/tsconfig.build.json"
     },
     {
