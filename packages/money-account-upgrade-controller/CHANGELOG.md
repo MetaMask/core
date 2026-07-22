@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
-### Uncategorized
-
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-
 ### Added
 
 - **BREAKING:** Add persisted state tracking fully upgraded accounts ([#9500](https://github.com/MetaMask/core/pull/9500))

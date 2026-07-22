@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.0]
 
-### Uncategorized
-
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
-
 ### Added
 
 - Add `getAssociatedAddresses` method, exposed as the `ChompApiService:getAssociatedAddresses` messenger action, which fetches the active address associations of the authenticated profile via `GET /v1/auth/address` ([#9387](https://github.com/MetaMask/core/pull/9387))
