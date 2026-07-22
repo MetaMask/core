@@ -225,7 +225,10 @@ describe('QuoteStatusApiService', () => {
       expect(error.message).toBe(
         'unexpected response shape from quote/updateStatus',
       );
-      expect(error.details).toStrictEqual({ quoteId: REQUEST_DATA.quoteId });
+      expect(error.details).toStrictEqual({
+        quoteId: REQUEST_DATA.quoteId,
+        srcTxHash: REQUEST_DATA.srcTxHash,
+      });
     });
 
     it('throws on an unexpected error response shape when no onError callback is provided', async () => {
