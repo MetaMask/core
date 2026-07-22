@@ -18,7 +18,7 @@ import type {
   DelegationResponse,
   NotificationPreferences,
   PriceAlertPreference,
-} from './types';
+} from './types.js';
 
 /**
  * Matches a 0x-prefixed hex string with zero or more hex digits.
