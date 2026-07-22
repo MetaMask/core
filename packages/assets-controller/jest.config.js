@@ -15,7 +15,6 @@ module.exports = merge(baseConfig, {
   displayName,
 
   // An object that configures minimum threshold enforcement for coverage results
-  // TODO: Increase thresholds as more tests are added
   coverageThreshold: {
     global: {
       branches: 80.2,
