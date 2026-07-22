@@ -33,6 +33,7 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
 export type AllowedBridgeChainIds = (typeof ALLOWED_BRIDGE_CHAIN_IDS)[number];
 
 export const BRIDGE_DEV_API_BASE_URL = 'https://bridge.dev-api.cx.metamask.io';
+export const BRIDGE_UAT_API_BASE_URL = 'https://bridge.uat-api.cx.metamask.io';
 export const BRIDGE_PROD_API_BASE_URL = 'https://bridge.api.cx.metamask.io';
 
 export enum BridgeClientId {
