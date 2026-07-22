@@ -159,24 +159,30 @@ const calcTotalGasFee = ({
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
-  const totalGasLimitInDec = tradeGasLimit
-    ? new BigNumber(tradeGasLimit.toString())
-        .plus(approvalGasLimit?.toString() ?? '0')
-        .plus(resetApprovalGasLimit?.toString() ?? '0')
+  const totalGasLimitInDec =
+    tradeGasLimit || approvalGasLimit || resetApprovalGasLimit
+      ? new BigNumber(tradeGasLimit?.toString() ?? '0')
+          .plus(approvalGasLimit?.toString() ?? '0')
+          .plus(resetApprovalGasLimit?.toString() ?? '0')
+      : undefined;
+
+  const l1GasFeesInDecGWei = l1GasFeesInHexWei
+    ? weiHexToGweiDec(toHex(l1GasFeesInHexWei))
     : undefined;
 
-  const l1GasFeesInDecGWei = weiHexToGweiDec(toHex(l1GasFeesInHexWei ?? '0'));
   const gasFeesInDecGwei = totalGasLimitInDec
-    ?.times(feePerGasInDecGwei ?? '0')
-    .plus(l1GasFeesInDecGWei);
+    ? totalGasLimitInDec
+        ?.times(feePerGasInDecGwei ?? '0')
+        ?.plus(l1GasFeesInDecGWei ?? '0')
+    : undefined;
   const gasFeesInDecEth = gasFeesInDecGwei?.times(new BigNumber(10).pow(-9));
 
   const gasFeesInDisplayCurrency = nativeToDisplayCurrencyExchangeRate
     ? gasFeesInDecEth?.times(nativeToDisplayCurrencyExchangeRate.toString())
-    : null;
+    : undefined;
   const gasFeesInUSD = nativeToUsdExchangeRate
     ? gasFeesInDecEth?.times(nativeToUsdExchangeRate.toString())
-    : null;
+    : undefined;
 
   return {
     amount: gasFeesInDecEth?.toFixed(),

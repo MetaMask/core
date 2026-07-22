@@ -631,12 +631,67 @@ describe('Quote Metadata Utils', () => {
       expect(result?.total?.amount).toBeDefined();
     });
 
-    it('should handle missing trade gasLimit', () => {
+    it('should handle missing trade and approval gasLimits, with l1GasFeesInHexWei', () => {
+      const noGasLimitQuote = {
+        quote: {} as Quote,
+        trade: { gasLimit: undefined },
+        approval: { gasLimit: undefined },
+        l1GasFeesInHexWei: '0x5AF3107A4000',
+        estimatedProcessingTimeInSeconds: 60,
+      } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
+
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: noGasLimitQuote,
+        feePerGasInDecGwei: '102',
+        exchangeRate: '2000',
+        usdExchangeRate: '1500',
+      });
+
+      expect(result?.total?.amount).toBeUndefined();
+    });
+
+    it('should handle missing trade gasLimit, with l1GasFeesInHexWei', () => {
       const noGasLimitQuote = {
         quote: {} as Quote,
         trade: { gasLimit: undefined },
         approval: { gasLimit: 46000 },
         l1GasFeesInHexWei: '0x5AF3107A4000',
+        estimatedProcessingTimeInSeconds: 60,
+      } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
+
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: noGasLimitQuote,
+        feePerGasInDecGwei: '102',
+        exchangeRate: '2000',
+        usdExchangeRate: '1500',
+      });
+
+      expect(result?.total?.amount).toBe('0.004792');
+    });
+
+    it('should handle missing trade gasLimit, with approval', () => {
+      const noGasLimitQuote = {
+        quote: {} as Quote,
+        trade: { gasLimit: undefined },
+        approval: { gasLimit: 46000 },
+        estimatedProcessingTimeInSeconds: 60,
+      } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
+
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: noGasLimitQuote,
+        feePerGasInDecGwei: '102',
+        exchangeRate: '2000',
+        usdExchangeRate: '1500',
+      });
+
+      expect(result?.total?.amount).toBe('0.004692');
+    });
+
+    it('should handle missing trade and approval gasLimit', () => {
+      const noGasLimitQuote = {
+        quote: {} as Quote,
+        trade: { gasLimit: undefined },
+        approval: { gasLimit: undefined },
         estimatedProcessingTimeInSeconds: 60,
       } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
 

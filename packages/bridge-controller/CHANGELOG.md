@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [77.7.0]
-
-### Added
-
-- Add `BottomNavBar` value to `MetaMetricsSwapsEventSource` for attributing swap and bridge flows to the bottom navigation bar entry point ([#9551](https://github.com/MetaMask/core/pull/9551))
-
 ### Changed
 
 - **BREAKING:** Make `QuoteMetadata` fields optional and remove unused values
@@ -21,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extract quote-metadata calculation into `utils/quote-metadata/` ([#9507](https://github.com/MetaMask/core/pull/9507))
   - Implement `mergeQuoteMetadata` util which appends QuoteMetadata to QuoteResponse
   - Return `priceImpact` and `relayerFee` as part of `QuoteMetadata`
+
+## [77.7.0]
+
+### Added
+
+- Add `BottomNavBar` value to `MetaMetricsSwapsEventSource` for attributing swap and bridge flows to the bottom navigation bar entry point ([#9551](https://github.com/MetaMask/core/pull/9551))
+
+### Changed
+
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.1` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593))
 - Bump `@metamask/assets-controller` from `^11.0.0` to `^11.1.1` ([#9579](https://github.com/MetaMask/core/pull/9579), [#9593](https://github.com/MetaMask/core/pull/9593))
 - Bump `@metamask/assets-controllers` from `^109.4.1` to `^110.0.0` ([#9593](https://github.com/MetaMask/core/pull/9593))
