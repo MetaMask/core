@@ -135,6 +135,18 @@ export type TransactionControllerUpdateTransactionAction = {
 };
 
 /**
+ * Updates an existing transaction using a callback.
+ *
+ * @param transactionId - ID of the transaction to update.
+ * @param callback - Function that updates the transaction metadata.
+ * @returns The updated transaction metadata.
+ */
+export type TransactionControllerUpdateTransactionCallbackAction = {
+  type: `TransactionController:updateTransactionCallback`;
+  handler: TransactionController['updateTransactionCallback'];
+};
+
+/**
  * Mark a transaction as failed, transitioning it through the standard failure
  * path.
  *
@@ -453,6 +465,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerEstimateGasBufferedAction
   | TransactionControllerUpdateTransactionAction
+  | TransactionControllerUpdateTransactionCallbackAction
   | TransactionControllerFailTransactionAction
   | TransactionControllerUpdateSecurityAlertResponseAction
   | TransactionControllerWipeTransactionsAction
