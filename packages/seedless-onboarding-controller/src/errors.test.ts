@@ -1,4 +1,4 @@
-import { TOPRFErrorCode } from '@metamask/toprf-secure-backup';
+import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
@@ -6,6 +6,7 @@ import { SecretType } from './constants';
 import {
   getErrorMessageFromTOPRFErrorCode,
   InvalidPrimarySecretDataTypeError,
+  RecoveryError,
   SeedlessOnboardingError,
 } from './errors';
 import { SecretMetadata } from './SecretMetadata';
@@ -54,6 +55,47 @@ describe('getErrorMessageFromTOPRFErrorCode', () => {
         'fallback',
       ),
     ).toBe('fallback');
+  });
+});
+
+describe('RecoveryError', () => {
+  it('includes rate limit data when TOPRFError has valid rateLimitDetails', () => {
+    const error = RecoveryError.getInstance(
+      new TOPRFError(TOPRFErrorCode.RateLimitExceeded, 'Rate limit exceeded', {
+        rateLimitDetails: {
+          remainingTime: 250,
+          message: 'Rate limit in effect',
+          lockTime: 300,
+          guessCount: 7,
+        },
+      }),
+    );
+
+    expect(error).toStrictEqual(
+      new RecoveryError(
+        SeedlessOnboardingControllerErrorMessage.TooManyLoginAttempts,
+        {
+          remainingTime: 250,
+          numberOfAttempts: 7,
+        },
+      ),
+    );
+  });
+
+  it('omits rate limit data when rateLimitDetails are incomplete', () => {
+    const error = RecoveryError.getInstance(
+      new TOPRFError(TOPRFErrorCode.RateLimitExceeded, 'Rate limit exceeded', {
+        rateLimitDetails: {
+          remainingTime: 250,
+        },
+      }),
+    );
+
+    expect(error).toStrictEqual(
+      new RecoveryError(
+        SeedlessOnboardingControllerErrorMessage.TooManyLoginAttempts,
+      ),
+    );
   });
 });
 
