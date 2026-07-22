@@ -7727,6 +7727,75 @@ describe('TransactionController', () => {
       expect(result).not.toContain('4567');
     });
 
+    it('clears stale preparation metadata before gas estimation completes', async () => {
+      const gasPreparation = createDeferredPromise<void>();
+      const receiptRevert = { message: 'Receipt reverted' };
+      const simulationRevert = { message: 'Simulation reverted' };
+      updateGasMock.mockImplementationOnce(async ({ txMeta }) => {
+        await gasPreparation.promise;
+        txMeta.txParams.gas = '0x222';
+        txMeta.gasLimitNoBuffer = '0x200';
+      });
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                gasLimitNoBuffer: '0x100',
+                gasUsed: '0x101',
+                nestedTransactions: [{ to: ACCOUNT_2_MOCK, data: '0x1234' }],
+                revert: {
+                  gas: { message: 'Gas reverted' },
+                  receipt: receiptRevert,
+                  simulation: simulationRevert,
+                },
+                securityAlertResponse: {
+                  reason: 'Previous revision warning',
+                  result_type: 'Warning',
+                },
+                simulationData: SIMULATION_DATA_RESULT_MOCK,
+                simulationFails: {
+                  debug: {},
+                  reason: 'Previous gas estimate failed',
+                },
+                txParams: {
+                  ...TRANSACTION_META_MOCK.txParams,
+                  gas: '0x102',
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      const updatePromise = controller.updateAtomicBatchData({
+        transactionId: TRANSACTION_META_MOCK.id,
+        transactionIndex: 0,
+        transactionData: '0x89AB',
+      });
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction.nestedTransactions?.[0].data).toBe('0x89AB');
+      expect(transaction.txParams.data).toContain('89ab');
+      expect(transaction.txParams.gas).toBeUndefined();
+      expect(transaction.gasLimitNoBuffer).toBeUndefined();
+      expect(transaction.gasUsed).toBeUndefined();
+      expect(transaction.securityAlertResponse).toBeUndefined();
+      expect(transaction.simulationData).toBeUndefined();
+      expect(transaction.simulationFails).toBeUndefined();
+      expect(transaction.revert).toStrictEqual({
+        receipt: receiptRevert,
+        simulation: simulationRevert,
+      });
+
+      gasPreparation.resolve();
+      await updatePromise;
+
+      expect(controller.state.transactions[0].txParams.gas).toBe('0x222');
+      expect(controller.state.transactions[0].gasLimitNoBuffer).toBe('0x200');
+    });
+
     it('updates gas', async () => {
       const gasMock = '0x1234';
       const gasLimitNoBufferMock = '0x123';
