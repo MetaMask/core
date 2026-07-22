@@ -1,21 +1,21 @@
 import type { Eip1193Provider } from 'ethers';
 
-import { Env, Platform } from '../shared/env';
-import { arrangeAuthAPIs } from './__fixtures__/auth';
-import type { MockVariable } from './__fixtures__/test-utils';
-import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils';
-import { JwtBearerAuth } from './authentication';
-import * as AuthServices from './authentication-jwt-bearer/services';
-import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
+import { Env, Platform } from '../shared/env.js';
+import { arrangeAuthAPIs } from './__fixtures__/auth.js';
+import type { MockVariable } from './__fixtures__/test-utils.js';
+import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils.js';
+import * as AuthServices from './authentication-jwt-bearer/services.js';
+import type { LoginResponse, Pair } from './authentication-jwt-bearer/types.js';
+import { JwtBearerAuth } from './authentication.js';
 import {
   NonceRetrievalError,
   PairError,
   SignInError,
   UnsupportedAuthTypeError,
   ValidationError,
-} from './errors';
-import { MOCK_ACCESS_JWT, MOCK_SRP_LOGIN_RESPONSE } from './mocks/auth';
-import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider';
+} from './errors.js';
+import { MOCK_ACCESS_JWT, MOCK_SRP_LOGIN_RESPONSE } from './mocks/auth.js';
+import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider.js';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';

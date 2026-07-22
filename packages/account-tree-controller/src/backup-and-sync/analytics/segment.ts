@@ -1,4 +1,4 @@
-import type { ProfileId } from '../authentication';
+import type { ProfileId } from '../authentication/index.js';
 
 export const BackupAndSyncAnalyticsEvent = {
   WalletRenamed: 'wallet_renamed',

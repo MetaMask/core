@@ -1,17 +1,17 @@
-import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SHARED_SALT } from '../shared/encryption/constants';
-import type { Env } from '../shared/env';
-import { getEnvUrls } from '../shared/env';
+import { SHARED_SALT } from '../shared/encryption/constants.js';
+import encryption, { createSHA256Hash } from '../shared/encryption/index.js';
+import type { Env } from '../shared/env.js';
+import { getEnvUrls } from '../shared/env.js';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericFeatureName,
   UserStorageGenericPathWithFeatureAndKey,
   UserStorageGenericPathWithFeatureOnly,
-} from '../shared/storage-schema';
-import { createEntryPath } from '../shared/storage-schema';
-import type { NativeScrypt } from '../shared/types/encryption';
-import type { IBaseAuth } from './authentication-jwt-bearer/types';
-import { NotFoundError, UserStorageError } from './errors';
+} from '../shared/storage-schema.js';
+import { createEntryPath } from '../shared/storage-schema.js';
+import type { NativeScrypt } from '../shared/types/encryption.js';
+import type { IBaseAuth } from './authentication-jwt-bearer/types.js';
+import { NotFoundError, UserStorageError } from './errors.js';
 
 export const STORAGE_URL = (env: Env, encryptedPath: string) =>
   `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${encryptedPath}`;

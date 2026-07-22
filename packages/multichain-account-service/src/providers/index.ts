@@ -1,13 +1,13 @@
-export * from './BaseBip44AccountProvider';
-export * from './SnapAccountProvider';
-export * from './AccountProviderWrapper';
+export * from './BaseBip44AccountProvider.js';
+export * from './SnapAccountProvider.js';
+export * from './AccountProviderWrapper.js';
 
 // Errors that can bubble up outside of provider calls.
-export { TimeoutError, isTimeoutError } from './utils';
+export { TimeoutError, isTimeoutError } from './utils.js';
 
 // Concrete providers:
-export * from './SolAccountProvider';
-export * from './EvmAccountProvider';
-export * from './BtcAccountProvider';
-export * from './TrxAccountProvider';
-export * from './XlmAccountProvider';
+export * from './SolAccountProvider.js';
+export * from './EvmAccountProvider.js';
+export * from './BtcAccountProvider.js';
+export * from './TrxAccountProvider.js';
+export * from './XlmAccountProvider.js';

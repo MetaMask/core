@@ -9,10 +9,15 @@ import nock, { cleanAll as nockCleanAll } from 'nock';
 
 import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants';
 import { MoneyAccountApiResponseValidationError } from './errors';
-import type { MoneyAccountApiDataServiceMessenger } from './money-account-api-data-service';
+import type {
+  MoneyAccountApiDataServiceMessenger,
+  MoneyAccountApiDataServiceTraceCallback,
+  MoneyAccountApiDataServiceTraceRequest,
+} from './money-account-api-data-service';
 import {
   MoneyAccountApiDataService,
   serviceName,
+  TRACES,
 } from './money-account-api-data-service';
 
 // ============================================================
@@ -146,7 +151,10 @@ function createServiceMessenger(
 // Factory
 // ============================================================
 
-function createService(env: Env = Env.DEV): {
+function createService(
+  env: Env = Env.DEV,
+  { trace }: { trace?: MoneyAccountApiDataServiceTraceCallback } = {},
+): {
   service: MoneyAccountApiDataService;
   rootMessenger: RootMessenger;
   messenger: MoneyAccountApiDataServiceMessenger;
@@ -156,6 +164,7 @@ function createService(env: Env = Env.DEV): {
   const service = new MoneyAccountApiDataService({
     messenger,
     env,
+    trace,
   });
   return { service, rootMessenger, messenger };
 }
@@ -617,6 +626,214 @@ describe('MoneyAccountApiDataService', () => {
         MOCK_VAULT_ADDRESS,
       );
       expect(result).toStrictEqual(MOCK_RATE_HISTORY_RESPONSE);
+      service.destroy();
+    });
+  });
+
+  describe('tracing', () => {
+    let mockTrace: jest.Mock<MoneyAccountApiDataServiceTraceCallback>;
+
+    beforeEach(() => {
+      mockTrace = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it('emits a trace for fetchPositions on cache miss', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, MOCK_POSITION_RESPONSE);
+
+      await service.fetchPositions(MOCK_ADDRESS);
+
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+      const [request] = mockTrace.mock.calls[0] as [
+        MoneyAccountApiDataServiceTraceRequest,
+        unknown,
+      ];
+      expect(request.name).toBe(TRACES.POSITIONS_API);
+      expect(request.data).toStrictEqual(
+        expect.objectContaining({
+          operation: 'fetchPositions',
+          success: true,
+        }),
+      );
+      expect(request.startTime).toStrictEqual(expect.any(Number));
+      service.destroy();
+    });
+
+    it('emits a trace for fetchInterest on cache miss', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/interest`)
+        .query({ vault_address: MOCK_VAULT_ADDRESS, window: '7d' })
+        .reply(200, MOCK_INTEREST_RESPONSE);
+
+      await service.fetchInterest(MOCK_ADDRESS, {
+        vaultAddress: MOCK_VAULT_ADDRESS,
+        window: '7d',
+      });
+
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+      const [request] = mockTrace.mock.calls[0] as [
+        MoneyAccountApiDataServiceTraceRequest,
+        unknown,
+      ];
+      expect(request.name).toBe(TRACES.INTEREST_API);
+      expect(request.data).toStrictEqual(
+        expect.objectContaining({
+          operation: 'fetchInterest',
+          success: true,
+        }),
+      );
+      service.destroy();
+    });
+
+    it('emits a trace for fetchHistory on cache miss', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/history`)
+        .reply(200, MOCK_HISTORY_RESPONSE);
+
+      await service.fetchHistory(MOCK_ADDRESS);
+
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+      const [request] = mockTrace.mock.calls[0] as [
+        MoneyAccountApiDataServiceTraceRequest,
+        unknown,
+      ];
+      expect(request.name).toBe(TRACES.HISTORY_API);
+      expect(request.data).toStrictEqual(
+        expect.objectContaining({
+          operation: 'fetchHistory',
+          success: true,
+        }),
+      );
+      service.destroy();
+    });
+
+    it('emits a trace for fetchRateHistory on cache miss', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate-history`)
+        .reply(200, MOCK_RATE_HISTORY_RESPONSE);
+
+      await service.fetchRateHistory(MOCK_VAULT_ADDRESS);
+
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+      const [request] = mockTrace.mock.calls[0] as [
+        MoneyAccountApiDataServiceTraceRequest,
+        unknown,
+      ];
+      expect(request.name).toBe(TRACES.RATE_HISTORY_API);
+      expect(request.data).toStrictEqual(
+        expect.objectContaining({
+          operation: 'fetchRateHistory',
+          success: true,
+        }),
+      );
+      service.destroy();
+    });
+
+    it('does not emit a trace on cache hit', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .once()
+        .reply(200, MOCK_POSITION_RESPONSE);
+
+      await service.fetchPositions(MOCK_ADDRESS);
+      mockTrace.mockClear();
+
+      await service.fetchPositions(MOCK_ADDRESS);
+      expect(mockTrace).not.toHaveBeenCalled();
+      service.destroy();
+    });
+
+    it('records success: false and errorName on failed request', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+
+      await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toThrow(
+        HttpError,
+      );
+
+      expect(mockTrace).toHaveBeenCalled();
+      const lastCall = mockTrace.mock.calls[
+        mockTrace.mock.calls.length - 1
+      ] as [MoneyAccountApiDataServiceTraceRequest, unknown];
+      expect(lastCall[0].data).toStrictEqual(
+        expect.objectContaining({
+          success: false,
+          errorName: expect.any(String),
+        }),
+      );
+      service.destroy();
+    });
+
+    it('traces non-Error rejections with the thrown value type', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+      jest
+        .spyOn(globalThis, 'fetch')
+        .mockRejectedValue('network down' as never);
+
+      await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toBe(
+        'network down',
+      );
+
+      expect(mockTrace).toHaveBeenCalled();
+      const lastCall = mockTrace.mock.calls[
+        mockTrace.mock.calls.length - 1
+      ] as [MoneyAccountApiDataServiceTraceRequest, unknown];
+      expect(lastCall[0].data).toStrictEqual(
+        expect.objectContaining({
+          success: false,
+          errorName: 'string',
+        }),
+      );
+      jest.restoreAllMocks();
+      service.destroy();
+    });
+
+    it('does not break the request when trace callback throws synchronously', async () => {
+      const throwingTrace = jest.fn().mockImplementation(() => {
+        throw new Error('trace sync failure');
+      }) as unknown as MoneyAccountApiDataServiceTraceCallback;
+
+      const { service } = createService(Env.DEV, { trace: throwingTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, MOCK_POSITION_RESPONSE);
+
+      const result = await service.fetchPositions(MOCK_ADDRESS);
+      expect(result).toStrictEqual(MOCK_POSITION_RESPONSE);
+      service.destroy();
+    });
+
+    it('does not break the request when trace callback rejects', async () => {
+      const rejectingTrace = jest
+        .fn()
+        .mockRejectedValue(
+          new Error('trace async failure'),
+        ) as unknown as MoneyAccountApiDataServiceTraceCallback;
+
+      const { service } = createService(Env.DEV, { trace: rejectingTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, MOCK_POSITION_RESPONSE);
+
+      const result = await service.fetchPositions(MOCK_ADDRESS);
+      expect(result).toStrictEqual(MOCK_POSITION_RESPONSE);
       service.destroy();
     });
   });

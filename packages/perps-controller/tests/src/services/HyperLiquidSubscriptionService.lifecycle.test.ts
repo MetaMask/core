@@ -431,6 +431,9 @@ describe('HyperLiquidSubscriptionService', () => {
         return Promise.resolve(mockSubscription);
       }),
       assetCtxs: jest.fn(() => Promise.resolve(mockSubscription)),
+      fastAssetCtxs: jest.fn((_callback: any) =>
+        Promise.resolve(mockSubscription),
+      ),
       spotState: jest.fn((_params: any, _callback: any) =>
         Promise.resolve(mockSubscription),
       ),
@@ -639,6 +642,51 @@ describe('HyperLiquidSubscriptionService', () => {
       });
 
       // Should not throw
+      expect(typeof unsubscribe).toBe('function');
+    });
+
+    it('retries the fastAssetCtxs subscription on a transient SDK error and succeeds (TAT-3387)', async () => {
+      const mockUnsubscribe = jest.fn().mockResolvedValue(undefined);
+      const transientError = new Error(
+        'Unknown error while making a WebSocket request',
+      );
+      transientError.name = 'WebSocketRequestError';
+
+      // First attempt fails with a transient error; second attempt succeeds
+      mockSubscriptionClient.fastAssetCtxs
+        .mockRejectedValueOnce(transientError)
+        .mockResolvedValueOnce({ unsubscribe: mockUnsubscribe });
+
+      const mockCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+      });
+
+      // Let the first attempt fail and the 500ms backoff elapse
+      await jest.advanceTimersByTimeAsync(500);
+      await jest.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(2);
+
+      unsubscribe();
+    });
+
+    it('does not retry the fastAssetCtxs subscription on a non-transient error', async () => {
+      mockSubscriptionClient.fastAssetCtxs.mockRejectedValue(
+        new Error('Non-transient failure'),
+      );
+
+      const mockCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      // Non-transient errors should not be retried (single attempt only)
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(1);
       expect(typeof unsubscribe).toBe('function');
     });
 

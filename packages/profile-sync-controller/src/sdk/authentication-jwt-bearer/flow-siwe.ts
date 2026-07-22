@@ -1,7 +1,7 @@
 import { SiweMessage } from 'siwe';
 
-import { ValidationError } from '../errors';
-import { validateLoginResponse } from '../utils/validate-login-response';
+import { ValidationError } from '../errors.js';
+import { validateLoginResponse } from '../utils/validate-login-response.js';
 import {
   SIWE_LOGIN_URL,
   authenticate,
@@ -9,7 +9,7 @@ import {
   getCustomerServiceToken,
   getNonce,
   getUserProfileLineage,
-} from './services';
+} from './services.js';
 import type {
   AuthConfig,
   AuthStorageOptions,
@@ -18,7 +18,7 @@ import type {
   LoginResponse,
   UserProfile,
   UserProfileLineage,
-} from './types';
+} from './types.js';
 
 type JwtBearerAuth_SIWE_Options = {
   storage: AuthStorageOptions;

@@ -1,8 +1,8 @@
 import { SnapId } from '@metamask/snaps-sdk';
 import type { TruncatedSnap } from '@metamask/snaps-utils';
 
-import { projectLogger as log } from './logger';
-import type { SnapAccountServiceMessenger } from './SnapAccountService';
+import { projectLogger as log } from './logger.js';
+import type { SnapAccountServiceMessenger } from './SnapAccountService.js';
 
 /**
  * Checks if a given Snap is an account management Snap.
