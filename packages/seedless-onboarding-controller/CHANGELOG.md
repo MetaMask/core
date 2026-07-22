@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `InvalidPrimarySecretDataTypeError` with an ordered list of non-sensitive `SecretType` / `EncAccountDataType` values when fetched secret metadata does not include a primary mnemonic ([#9587](https://github.com/MetaMask/core/pull/9587))
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
