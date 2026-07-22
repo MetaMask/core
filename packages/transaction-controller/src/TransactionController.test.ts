@@ -7776,6 +7776,28 @@ describe('TransactionController', () => {
       await result.preparation;
     });
 
+    it('commits successful gas preparation before propagating a simulation failure', async () => {
+      const simulationError = new Error('Simulation failed');
+      updateGasMock.mockImplementationOnce(async ({ txMeta }) => {
+        txMeta.txParams.gas = '0x123';
+        txMeta.gasLimitNoBuffer = '0x100';
+      });
+      getGasFeeTokensMock.mockRejectedValueOnce(simulationError);
+      const { controller } = setupAtomicBatchController();
+
+      const { preparation } = controller.beginAtomicBatchUpdate({
+        transactionId: TRANSACTION_META_MOCK.id,
+        requiredAssets,
+        nestedTransactionUpdates: [
+          { transactionIndex: 0, transactionData: '0xAAAA' },
+        ],
+      });
+
+      await expect(preparation).rejects.toThrow(simulationError);
+      expect(controller.state.transactions[0].txParams.gas).toBe('0x123');
+      expect(controller.state.transactions[0].gasLimitNoBuffer).toBe('0x100');
+    });
+
     it('ignores simulation results started before the current revision', async () => {
       const staleSimulation = createDeferredPromise<{
         simulationData: SimulationData;

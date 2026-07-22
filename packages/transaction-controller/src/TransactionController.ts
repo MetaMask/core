@@ -2716,12 +2716,17 @@ export class TransactionController extends BaseController<
     draftTransaction: TransactionMeta,
     revision: number,
   ): Promise<AtomicBatchPreparationResult> {
-    await Promise.all([
-      this.#updateGasEstimate(draftTransaction),
-      this.#isSimulationEnabled()
-        ? this.#updateSimulationData(draftTransaction)
-        : Promise.resolve(),
-    ]);
+    const [gasPreparationResult, simulationPreparationResult] =
+      await Promise.allSettled([
+        this.#updateGasEstimate(draftTransaction),
+        this.#isSimulationEnabled()
+          ? this.#updateSimulationData(draftTransaction)
+          : Promise.resolve(),
+      ]);
+
+    if (gasPreparationResult.status === 'rejected') {
+      throw gasPreparationResult.reason;
+    }
 
     const currentTransaction = this.#getTransaction(draftTransaction.id);
 
@@ -2752,6 +2757,10 @@ export class TransactionController extends BaseController<
         }
       },
     );
+
+    if (simulationPreparationResult.status === 'rejected') {
+      throw simulationPreparationResult.reason;
+    }
 
     return {
       revision,
