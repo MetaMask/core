@@ -2,6 +2,10 @@ import { getDefaultAddressBookControllerState } from '@metamask/address-book-con
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
+import {
+  Env,
+  getDefaultSubscriptionControllerState,
+} from '@metamask/subscription-controller';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
 
@@ -23,6 +27,11 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
   },
 };
 
+const SUBSCRIPTION_CONTROLLER_OPTIONS = {
+  env: Env.DEV,
+  fetchFunction: globalThis.fetch,
+};
+
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
     instanceOptions: {
@@ -36,6 +45,7 @@ async function setupWallet(): Promise<Wallet> {
         storage: new InMemoryStorageAdapter(),
       },
       remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
     },
   });
 
@@ -99,6 +109,7 @@ describe('Wallet', () => {
           storage: new InMemoryStorageAdapter(),
         },
         remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
       },
     });
 
@@ -148,6 +159,7 @@ describe('Wallet', () => {
           storage: new InMemoryStorageAdapter(),
         },
         remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
       },
     });
     const { state } = wallet;
@@ -191,6 +203,7 @@ describe('Wallet', () => {
           storage: new InMemoryStorageAdapter(),
         },
         remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
       },
     });
 
@@ -301,6 +314,7 @@ describe('Wallet', () => {
             storage: new InMemoryStorageAdapter(),
           },
           remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
         },
       });
 
@@ -333,6 +347,7 @@ describe('Wallet', () => {
             storage: new InMemoryStorageAdapter(),
           },
           remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
         },
       });
 
@@ -373,6 +388,7 @@ describe('Wallet', () => {
             storage: new InMemoryStorageAdapter(),
           },
           remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
         },
       });
 
@@ -433,6 +449,17 @@ describe('Wallet', () => {
     });
   });
 
+  describe('SubscriptionController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call('SubscriptionController:getState'),
+      ).toStrictEqual(getDefaultSubscriptionControllerState());
+      expect(wallet.getInstance('SubscriptionController')).toBeDefined();
+    });
+  });
+
   describe('RemoteFeatureFlagController', () => {
     it('is wired and exposes its state on the wallet messenger', async () => {
       const wallet = await setupWallet();
@@ -470,6 +497,7 @@ describe('Wallet', () => {
               }),
             },
           },
+          subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
         },
       });
       const { messenger } = wallet;

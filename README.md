@@ -656,6 +656,7 @@ linkStyle default opacity:0.5
   wallet --> remote_feature_flag_controller;
   wallet --> seedless_onboarding_controller;
   wallet --> storage_service;
+  wallet --> subscription_controller;
   wallet --> transaction_controller;
   wallet_cli --> base_controller;
   wallet_cli --> remote_feature_flag_controller;

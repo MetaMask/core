@@ -44,6 +44,9 @@
       "path": "../storage-service"
     },
     {
+      "path": "../subscription-controller"
+    },
+    {
       "path": "../transaction-controller"
     }
   ],
