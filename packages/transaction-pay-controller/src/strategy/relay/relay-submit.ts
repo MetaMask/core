@@ -630,19 +630,27 @@ async function submitTransactions(
     (transaction.txParams.from as Hex).toLowerCase();
 
   // Only prepend the payment override onto the source execute batch for
-  // same-chain flows. For cross-chain flows (e.g. Predict withdraw on Polygon
-  // depositing to a Money Account on Monad) the deposit is carried in the relay
-  // quote's destination txs[] and runs on the destination chain; its delegation
-  // is signed for the destination chainId, so redeeming it inside the
-  // source-chain batch recovers a wrong signer and reverts. In that case we
-  // fall through and prepend the original (e.g. Predict withdraw) tx instead.
+  // same-chain atomic flows. For cross-chain flows (e.g. Predict withdraw on
+  // Polygon depositing to a Money Account on Monad) the deposit is carried in
+  // the relay quote's destination txs[] and runs on the destination chain; its
+  // delegation is signed for the destination chainId, so redeeming it inside
+  // the source-chain batch recovers a wrong signer and reverts. In that case
+  // we fall through and prepend the original (e.g. Predict withdraw) tx
+  // instead. Non-atomic flows are also excluded: their second leg is submitted
+  // separately by `submitPostCompletionBatch` after Relay completion, so
+  // prepending it here would double-embed the vault deposit.
   const isSameChainOverride =
     quote.original.details.currencyIn.currency.chainId ===
     quote.original.details.currencyOut.currency.chainId;
+  const isNonAtomic = quote.request.atomic === false;
 
   let allParams = normalizedParams;
 
-  if (quote.request.paymentOverride && isSameChainOverride) {
+  if (
+    quote.request.paymentOverride &&
+    isSameChainOverride &&
+    !isNonAtomic
+  ) {
     const { transactionData } = messenger.call(
       'TransactionPayController:getState',
     );

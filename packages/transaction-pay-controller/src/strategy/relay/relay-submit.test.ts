@@ -1028,6 +1028,30 @@ describe('Relay Submit Utils', () => {
         expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
       });
 
+      it('does not prepend override for non-atomic same-chain flows', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        request.quotes[0].request.atomic = false;
+        request.quotes[0].original.details.currencyOut.minimumAmount =
+          '530000';
+        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+          transactionHash:
+            '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex,
+        });
+        successfulFetchMock.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [FALLBACK_HASH],
+          }),
+        } as Response);
+
+        await submitRelayQuotes(request);
+
+        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+      });
+
       it('does not prepend when callback returns empty array', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
