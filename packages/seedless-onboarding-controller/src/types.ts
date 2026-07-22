@@ -115,6 +115,18 @@ export type InvalidPrimarySecretDataTypeErrorData = {
   dataTypeCounts: Partial<Record<EncAccountDataType | 'unknown', number>>;
 };
 
+/**
+ * Augmented `Error` shape produced by `createSentryError`. The runtime value
+ * carries a `cause` and (optionally) a structured `context` payload that
+ * downstream Sentry tooling can read.
+ */
+export type SentryError<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+> = Error & {
+  cause: Error;
+  context?: TContext;
+};
+
 // State
 export type SeedlessOnboardingControllerState =
   Partial<AuthenticatedUserDetails> &

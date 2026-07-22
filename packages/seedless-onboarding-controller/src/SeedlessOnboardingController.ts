@@ -1655,7 +1655,10 @@ export class SeedlessOnboardingController<
             result.dataType === EncAccountDataType.PrimarySrp),
       );
       if (primaryIndex === -1) {
-        throw InvalidPrimarySecretDataTypeError.fromSecretMetadata(results);
+        const error =
+          InvalidPrimarySecretDataTypeError.fromSecretMetadata(results);
+        this.messenger.captureException?.(error.toSentryError());
+        throw error;
       }
       if (primaryIndex !== 0) {
         const [primary] = results.splice(primaryIndex, 1);

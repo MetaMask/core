@@ -6,8 +6,9 @@ import type { SecretMetadata } from './SecretMetadata';
 import type {
   InvalidPrimarySecretDataTypeErrorData,
   RecoveryErrorData,
+  SentryError,
 } from './types';
-import { summarizeSecretMetadataCounts } from './utils';
+import { summarizeSecretMetadataCounts, createSentryError } from './utils';
 
 /**
  * Get the error message from the TOPRF error code.
@@ -176,18 +177,12 @@ export class InvalidPrimarySecretDataTypeError extends Error {
   }
 
   /**
-   * Serializes the error for logging/transmission.
-   * Only non-sensitive type counts are included.
+   * Creates a Sentry-compatible error with non-sensitive type counts in context.
    *
-   * @returns A JSON-serializable representation of the error.
+   * @returns A Sentry error wrapping this domain error.
    */
-  toJSON(): Record<string, unknown> {
-    return {
-      name: this.name,
-      message: this.message,
-      data: this.data,
-      stack: this.stack,
-    };
+  toSentryError(): SentryError<InvalidPrimarySecretDataTypeErrorData> {
+    return createSentryError(this.message, this, this.data);
   }
 }
 

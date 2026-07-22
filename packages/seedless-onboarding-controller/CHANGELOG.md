@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `InvalidPrimarySecretDataTypeError` with Sentry-safe type counts when fetched secret metadata does not include a primary mnemonic
+- Add `InvalidPrimarySecretDataTypeError` with Sentry-safe type counts when fetched secret metadata does not include a primary mnemonic, and report it via `captureException`
 
 ### Changed
 

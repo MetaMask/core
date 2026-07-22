@@ -43,6 +43,7 @@ export function createCustomSeedlessOnboardingMessenger(): {
   // Create the root messenger
   const baseMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException: jest.fn(),
   });
 
   const keyringControllerMessenger = new Messenger<

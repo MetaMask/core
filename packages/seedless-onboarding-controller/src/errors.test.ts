@@ -78,43 +78,55 @@ describe('InvalidPrimarySecretDataTypeError', () => {
   });
 
   it('creates an error from secret metadata without exposing secret payloads', () => {
+    const privateKeySecret = '0xdeadbeef-private-key-secret';
+    const mnemonicSecret =
+      'witch collapse practice feed shame open despair creek road again ice least';
     const secrets = [
-      new SecretMetadata('private-key-1', {
+      new SecretMetadata(privateKeySecret, {
         type: SecretType.PrivateKey,
         dataType: EncAccountDataType.ImportedPrivateKey,
       }),
-      new SecretMetadata('private-key-2', {
-        type: SecretType.PrivateKey,
-        dataType: EncAccountDataType.ImportedPrivateKey,
+      new SecretMetadata(mnemonicSecret, {
+        type: SecretType.Mnemonic,
+        dataType: EncAccountDataType.ImportedSrp,
       }),
     ];
 
     const error = InvalidPrimarySecretDataTypeError.fromSecretMetadata(secrets);
 
     expect(error.data).toStrictEqual({
-      secretTypeCounts: { [SecretType.PrivateKey]: 2 },
-      dataTypeCounts: { [EncAccountDataType.ImportedPrivateKey]: 2 },
+      secretTypeCounts: {
+        [SecretType.PrivateKey]: 1,
+        [SecretType.Mnemonic]: 1,
+      },
+      dataTypeCounts: {
+        [EncAccountDataType.ImportedPrivateKey]: 1,
+        [EncAccountDataType.ImportedSrp]: 1,
+      },
     });
-    expect(error.toJSON()).not.toHaveProperty('secrets');
-    expect(JSON.stringify(error.toJSON())).not.toContain('private-key-1');
+
+    const serializedSentryError = JSON.stringify(error.toSentryError());
+    for (const secret of [privateKeySecret, mnemonicSecret]) {
+      expect(serializedSentryError).not.toContain(secret);
+    }
+    expect(JSON.stringify(error.data)).not.toContain(privateKeySecret);
+    expect(JSON.stringify(error.data)).not.toContain(mnemonicSecret);
   });
 
-  it('serializes only non-sensitive data for Sentry', () => {
+  it('creates a Sentry-compatible error with type counts in context', () => {
     const error = new InvalidPrimarySecretDataTypeError({
-      secretTypeCounts: { [SecretType.Mnemonic]: 1 },
-      dataTypeCounts: { [EncAccountDataType.ImportedSrp]: 1 },
+      secretTypeCounts: { [SecretType.PrivateKey]: 1 },
+      dataTypeCounts: { [EncAccountDataType.ImportedPrivateKey]: 1 },
     });
 
-    expect(error.toJSON()).toStrictEqual({
-      name: 'SeedlessOnboardingController - InvalidPrimarySecretDataTypeError',
-      message:
-        SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-      data: {
-        secretTypeCounts: { [SecretType.Mnemonic]: 1 },
-        dataTypeCounts: { [EncAccountDataType.ImportedSrp]: 1 },
-      },
-      stack: error.stack,
-    });
+    const sentryError = error.toSentryError();
+
+    expect(sentryError.message).toBe(
+      SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+    );
+    expect(sentryError.cause).toBe(error);
+    expect(sentryError.context).toStrictEqual(error.data);
+    expect(JSON.stringify(sentryError)).not.toContain('private-key');
   });
 });
 

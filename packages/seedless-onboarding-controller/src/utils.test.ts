@@ -10,6 +10,7 @@ import {
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
+  createSentryError,
   getSecretTypeFromDataType,
   summarizeSecretMetadataCounts,
 } from './utils';
@@ -277,6 +278,19 @@ describe('utils', () => {
           unknown: 1,
         },
       });
+    });
+  });
+
+  describe('createSentryError', () => {
+    it('wraps an inner error with optional context', () => {
+      const innerError = new Error('inner');
+      const sentryError = createSentryError('outer', innerError, {
+        count: 1,
+      });
+
+      expect(sentryError.message).toBe('outer');
+      expect(sentryError.cause).toBe(innerError);
+      expect(sentryError.context).toStrictEqual({ count: 1 });
     });
   });
 });
