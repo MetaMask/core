@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `upgradeAccount` now skips the step sequence entirely when the account is recorded in state as upgraded under the active config fingerprint, and records the account after a successful run. If the chain, CHOMP contract addresses, or Delegation Framework version change, the fingerprint no longer matches and the sequence re-runs ([#9500](https://github.com/MetaMask/core/pull/9500))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/authenticated-user-storage` from `^3.0.0` to `^3.0.1` ([#9458](https://github.com/MetaMask/core/pull/9458))
+- Bump `@metamask/chomp-api-service` from `^3.1.0` to `^4.0.0` ([#9592](https://github.com/MetaMask/core/pull/9592))
 
 ## [2.2.1]
 
