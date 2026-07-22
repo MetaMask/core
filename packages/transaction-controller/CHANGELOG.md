@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `beginAtomicBatchUpdate` for coherent multi-call updates with monotonic revisions and revision-bound gas preparation ([#9543](https://github.com/MetaMask/core/pull/9543))
+- Add `beginAtomicBatchUpdate` for coherent multi-call updates with monotonic revisions and revision-bound gas preparation, and export `updateEIP7702BatchData` for synchronous indexed updates to nested transaction calldata ([#9543](https://github.com/MetaMask/core/pull/9543))
 
 ## [69.0.0]
 

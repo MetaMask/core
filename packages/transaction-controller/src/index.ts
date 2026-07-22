@@ -137,6 +137,7 @@ export { mergeGasFeeEstimates } from './utils/gas-flow';
 export {
   decodeAuthorizationSignature,
   generateEIP7702BatchTransaction,
+  updateEIP7702BatchData,
 } from './utils/eip7702';
 export {
   isEIP1559Transaction,

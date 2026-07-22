@@ -144,9 +144,9 @@ import {
 import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import {
-  generateEIP7702BatchTransaction,
   getDelegationAddress,
   signAuthorizationList,
+  updateEIP7702BatchData,
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import {
@@ -2582,56 +2582,22 @@ export class TransactionController extends BaseController<
       );
     }
 
-    const updateIndexes = new Set<number>();
-
-    for (const { transactionIndex } of nestedTransactionUpdates) {
-      if (updateIndexes.has(transactionIndex)) {
-        throw new Error(
-          `Duplicate nested transaction index - ${transactionIndex}`,
-        );
-      }
-
-      if (!currentTransaction.nestedTransactions?.[transactionIndex]) {
-        throw new Error(
-          `Nested transaction not found with index - ${transactionIndex}`,
-        );
-      }
-
-      updateIndexes.add(transactionIndex);
-    }
+    const { nestedTransactions, transactionData } = updateEIP7702BatchData(
+      currentTransaction.txParams.from as Hex,
+      currentTransaction.nestedTransactions ?? [],
+      nestedTransactionUpdates,
+    );
 
     log('Beginning atomic batch update', request);
 
     const updatedTransactionMeta = this.#updateTransactionInternal(
       { transactionId, skipResimulateCheck: true },
       (transactionMeta) => {
-        const { nestedTransactions, txParams } = transactionMeta;
-        const from = txParams.from as Hex;
-
-        for (const {
-          transactionIndex,
-          transactionData,
-        } of nestedTransactionUpdates) {
-          const nestedTransaction = nestedTransactions?.[transactionIndex];
-
-          if (!nestedTransaction) {
-            throw new Error(
-              `Nested transaction not found with index - ${transactionIndex}`,
-            );
-          }
-
-          nestedTransaction.data = transactionData;
-        }
-
-        const batchTransaction = generateEIP7702BatchTransaction(
-          from,
-          nestedTransactions ?? [],
-        );
-
         revision = (transactionMeta.transactionRevision ?? 0) + 1;
+        transactionMeta.nestedTransactions = nestedTransactions;
         transactionMeta.requiredAssets = requiredAssets;
         transactionMeta.transactionRevision = revision;
-        transactionMeta.txParams.data = batchTransaction.data;
+        transactionMeta.txParams.data = transactionData;
         transactionMeta.txParams.gas = undefined;
         transactionMeta.gasLimitNoBuffer = undefined;
         transactionMeta.gasUsed = undefined;

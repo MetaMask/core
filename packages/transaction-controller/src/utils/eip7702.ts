@@ -10,6 +10,7 @@ import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   BatchTransactionParams,
+  NestedTransactionUpdate,
   Authorization,
   AuthorizationList,
   TransactionMeta,
@@ -161,6 +162,59 @@ export async function isAccountUpgradedToEIP7702(
   return {
     delegationAddress,
     isSupported,
+  };
+}
+
+/**
+ * Update indexed transactions in an EIP-7702 batch and regenerate its calldata.
+ *
+ * @param from - The sender address.
+ * @param transactions - The existing nested transactions.
+ * @param updates - Indexed calldata updates.
+ * @returns Updated nested transactions and regenerated batch calldata.
+ */
+export function updateEIP7702BatchData(
+  from: Hex,
+  transactions: BatchTransactionParams[],
+  updates: NestedTransactionUpdate[],
+): {
+  nestedTransactions: BatchTransactionParams[];
+  transactionData: Hex;
+} {
+  const updatesByIndex = new Map<number, Hex>();
+
+  for (const { transactionIndex, transactionData } of updates) {
+    if (updatesByIndex.has(transactionIndex)) {
+      throw new Error(
+        `Duplicate nested transaction index - ${transactionIndex}`,
+      );
+    }
+
+    if (!transactions[transactionIndex]) {
+      throw new Error(
+        `Nested transaction not found with index - ${transactionIndex}`,
+      );
+    }
+
+    updatesByIndex.set(transactionIndex, transactionData);
+  }
+
+  const nestedTransactions = transactions.map((transaction, index) => {
+    const transactionData = updatesByIndex.get(index);
+
+    return {
+      ...transaction,
+      ...(transactionData === undefined ? {} : { data: transactionData }),
+    };
+  });
+  const batchTransaction = generateEIP7702BatchTransaction(
+    from,
+    nestedTransactions,
+  );
+
+  return {
+    nestedTransactions,
+    transactionData: batchTransaction.data as Hex,
   };
 }
 
