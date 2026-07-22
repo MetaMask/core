@@ -6024,7 +6024,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^77.7.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^77.8.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -6078,7 +6078,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^39.0.5"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/bridge-controller": "npm:^77.7.0"
+    "@metamask/bridge-controller": "npm:^77.8.0"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/gas-fee-controller": "npm:^26.2.4"
     "@metamask/keyring-controller": "npm:^27.1.0"
@@ -6460,6 +6460,7 @@ __metadata:
     "@typescript-eslint/eslint-plugin": "npm:^8.48.0"
     "@typescript-eslint/parser": "npm:^8.48.0"
     "@yarnpkg/types": "npm:^4.0.0"
+    bats: "npm:^1.13.0"
     comment-json: "npm:^4.5.1"
     eslint: "npm:^9.39.1"
     eslint-config-prettier: "npm:^9.1.0"
@@ -13005,6 +13006,15 @@ __metadata:
   version: 0.6.1
   resolution: "batch@npm:0.6.1"
   checksum: 10/61f9934c7378a51dce61b915586191078ef7f1c3eca707fdd58b96ff2ff56d9e0af2bdab66b1462301a73c73374239e6542d9821c0af787f3209a23365d07e7f
+  languageName: node
+  linkType: hard
+
+"bats@npm:^1.13.0":
+  version: 1.13.0
+  resolution: "bats@npm:1.13.0"
+  bin:
+    bats: bin/bats
+  checksum: 10/cc120033073f5ed798accfc27d2f45863204d03673d985fdb5d850246df6adf8007be4678511ec206e5a47b46f15801fa612ca7d8e16ccf6afa7a009286c1627
   languageName: node
   linkType: hard
 
