@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.0]
+
 ### Uncategorized
 
 - chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
@@ -421,7 +423,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.0...HEAD
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.3...@metamask/seedless-onboarding-controller@10.1.0
 [10.0.3]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.2...@metamask/seedless-onboarding-controller@10.0.3
 [10.0.2]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.1...@metamask/seedless-onboarding-controller@10.0.2
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.0...@metamask/seedless-onboarding-controller@10.0.1

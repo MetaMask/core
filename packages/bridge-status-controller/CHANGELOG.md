@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
-
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^77.5.0` to `^77.7.0` ([#9558](https://github.com/MetaMask/core/pull/9558), [#9593](https://github.com/MetaMask/core/pull/9593))
