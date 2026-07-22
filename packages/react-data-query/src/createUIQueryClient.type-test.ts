@@ -15,7 +15,7 @@ import type {
 import { Messenger } from '@metamask/messenger';
 import type { QueryClient } from '@tanstack/query-core';
 
-import { createUIQueryClient } from '.';
+import { createUIQueryClient } from './createUIQueryClient.js';
 
 type FirstDataServiceGetAssetsAction = {
   type: 'FirstDataService:getAssets';
