@@ -1,6 +1,6 @@
 import type {
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import type {
@@ -94,13 +94,17 @@ const stateMetadata = {
  */
 const DEFAULT_FALLBACK_CONFIG: Record<string, RegistryNetworkConfig> = {};
 
-const MESSENGER_EXPOSED_METHODS = ['startPolling', 'stopPolling'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'startPolling',
+  'stopPolling',
+  'getNetworkConfigByCaip2ChainId',
+] as const;
 
 /**
  * Published when the state of {@link ConfigRegistryController} changes.
  */
-export type ConfigRegistryControllerStateChangeEvent =
-  ControllerStateChangeEvent<
+export type ConfigRegistryControllerStateChangedEvent =
+  ControllerStateChangedEvent<
     typeof controllerName,
     ConfigRegistryControllerState
   >;
@@ -133,7 +137,7 @@ type AllowedActions =
  * Events that {@link ConfigRegistryControllerMessenger} exposes to other consumers.
  */
 export type ConfigRegistryControllerEvents =
-  ConfigRegistryControllerStateChangeEvent;
+  ConfigRegistryControllerStateChangedEvent;
 
 /**
  * Events from other messengers that {@link ConfigRegistryControllerMessenger}
@@ -203,6 +207,18 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       MESSENGER_EXPOSED_METHODS,
     );
     this.#setupEventListeners();
+  }
+
+  /**
+   * Get the network configuration for a given CAIP-2 chain ID.
+   *
+   * @param caip2ChainId - The CAIP-2 chain ID (e.g., "eip155:1").
+   * @returns The network configuration if found, otherwise undefined.
+   */
+  getNetworkConfigByCaip2ChainId(
+    caip2ChainId: string,
+  ): RegistryNetworkConfig | undefined {
+    return this.state.configs.networks[caip2ChainId];
   }
 
   async _executePoll(_input: null): Promise<void> {

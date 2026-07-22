@@ -3,11 +3,14 @@ import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
 import { createMockJWTToken } from '../tests/mocks/utils';
+import { SecretType } from './constants';
+import { SecretMetadata } from './SecretMetadata';
 import type { DecodedNodeAuthToken } from './types';
 import {
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
+  getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
 } from './utils';
 
@@ -227,6 +230,43 @@ describe('utils', () => {
       expect(() => getSecretTypeFromDataType(unknownDataType)).toThrow(
         'Unknown EncAccountDataType: UnknownType',
       );
+    });
+  });
+
+  describe('getInvalidPrimarySecretDataTypeErrorData', () => {
+    it('should return dataType values in secret order', () => {
+      const secrets = [
+        new SecretMetadata('seed phrase', {
+          type: SecretType.Mnemonic,
+          dataType: EncAccountDataType.ImportedSrp,
+        }),
+        new SecretMetadata('private key', {
+          type: SecretType.PrivateKey,
+          dataType: EncAccountDataType.ImportedPrivateKey,
+        }),
+        new SecretMetadata('another private key', {
+          type: SecretType.PrivateKey,
+          dataType: EncAccountDataType.ImportedPrivateKey,
+        }),
+      ];
+
+      expect(getInvalidPrimarySecretDataTypeErrorData(secrets)).toStrictEqual([
+        EncAccountDataType.ImportedSrp,
+        EncAccountDataType.ImportedPrivateKey,
+        EncAccountDataType.ImportedPrivateKey,
+      ]);
+    });
+
+    it('should fall back to SecretType when dataType is missing', () => {
+      const secrets = [
+        new SecretMetadata('seed phrase', {
+          type: SecretType.Mnemonic,
+        }),
+      ];
+
+      expect(getInvalidPrimarySecretDataTypeErrorData(secrets)).toStrictEqual([
+        SecretType.Mnemonic,
+      ]);
     });
   });
 });

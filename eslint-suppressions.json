@@ -1995,11 +1995,6 @@
       "count": 10
     }
   },
-  "packages/seedless-onboarding-controller/src/errors.ts": {
-    "no-restricted-syntax": {
-      "count": 4
-    }
-  },
   "packages/seedless-onboarding-controller/tests/mocks/vaultEncryptor.ts": {
     "no-restricted-syntax": {
       "count": 5

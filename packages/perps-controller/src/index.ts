@@ -392,7 +392,6 @@ export {
   TESTNET_HIP3_CONFIG,
   MAINNET_HIP3_CONFIG,
   HIP3_MARGIN_CONFIG,
-  USDH_CONFIG,
   INITIAL_AMOUNT_UI_PROGRESS,
   WITHDRAWAL_PROGRESS_STAGES,
   PROGRESS_BAR_COMPLETION_DELAY_MS,
@@ -603,6 +602,15 @@ export {
 // Services (only externally consumed items)
 export { TradingReadinessCache } from './services/TradingReadinessCache';
 export type { ServiceContext } from './services/ServiceContext';
+export {
+  AggregatedOrderBookConnection,
+  processAggregatedOrderBook,
+} from './services/AggregatedOrderBookConnection';
+export type {
+  OrderBookConnectionStatus,
+  SubscribeAggregatedOrderBookParams,
+  AggregatedOrderBookConnectionOptions,
+} from './services/AggregatedOrderBookConnection';
 
 // Removed with Live Market Prices component:
 // - usePerpsPrices
