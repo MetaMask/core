@@ -273,6 +273,9 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
     ) {
       const subscriptionListener = subscriptions.get(hash);
 
+      // We can't write a test for this, as it's unrealistic
+      // (we just need a check to appease TypeScript).
+      // istanbul ignore next
       if (subscriptionListener) {
         messenger.unsubscribe(
           `${service}:cacheUpdated:${hash}`,
