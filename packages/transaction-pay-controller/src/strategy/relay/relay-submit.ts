@@ -237,7 +237,8 @@ async function submitPostCompletionBatch({
 
   const recipient = quote.request.recipient ?? quote.request.from;
 
-  const depositCalls = quote.request.isPostQuote
+  const depositCalls: BatchTransactionParams[] | undefined = quote.request
+    .isPostQuote
     ? await buildPostQuoteDepositCalls({
         messenger,
         sourceAmountRaw,
@@ -261,12 +262,19 @@ async function submitPostCompletionBatch({
  * transaction carries no vault calls. Delegates to the client
  * `getPaymentOverrideData` callback with the settled amount.
  *
+ * The callback MUST return a non-empty batch. Post-quote parent metas (e.g.
+ * Perps/Predict withdraws) carry no vault-side nested calls, so falling back
+ * to `getAmountData` in `resolveVaultDepositBatch` cannot recover the second
+ * leg once Relay has already settled funds to the recipient. Throw eagerly so
+ * the failure surfaces at the correct call site with an actionable message.
+ *
  * @param options - Build options.
  * @param options.messenger - Controller messenger.
  * @param options.quote - The Relay quote that was submitted.
  * @param options.sourceAmountRaw - Settled amount in raw units.
  * @param options.transaction - Original transaction meta.
- * @returns The batch calls, or undefined when none are returned.
+ * @returns The batch calls.
+ * @throws If the callback returns an empty batch.
  */
 async function buildPostQuoteDepositCalls({
   messenger,
@@ -278,7 +286,7 @@ async function buildPostQuoteDepositCalls({
   quote: TransactionPayQuote<RelayQuote>;
   sourceAmountRaw: string;
   transaction: TransactionMeta;
-}): Promise<BatchTransactionParams[] | undefined> {
+}): Promise<BatchTransactionParams[]> {
   const { transactionData } = messenger.call(
     'TransactionPayController:getState',
   );
@@ -297,7 +305,13 @@ async function buildPostQuoteDepositCalls({
     },
   );
 
-  return calls.length ? calls : undefined;
+  if (!calls.length) {
+    throw new Error(
+      'Missing post-quote deposit calls from getPaymentOverrideData',
+    );
+  }
+
+  return calls;
 }
 
 /**

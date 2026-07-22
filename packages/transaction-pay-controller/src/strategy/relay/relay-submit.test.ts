@@ -1939,17 +1939,13 @@ describe('Relay Submit Utils', () => {
           );
         });
 
-        it('forwards undefined depositCalls when getPaymentOverrideData returns no calls', async () => {
+        it('throws when getPaymentOverrideData returns no calls', async () => {
           getPaymentOverrideDataMock.mockResolvedValue({ calls: [] });
 
-          await submitRelayQuotes(request);
-
-          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-              depositCalls: undefined,
-              sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK,
-            }),
+          await expect(submitRelayQuotes(request)).rejects.toThrow(
+            'Missing post-quote deposit calls from getPaymentOverrideData',
           );
+          expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
         });
       });
 
