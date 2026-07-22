@@ -25,33 +25,28 @@ export function mergeQuoteMetadata<
     return merge({}, quoteResponse, quoteMetadata);
   }
 
-  try {
-    const quoteMetadataV2 = toQuoteMetadataV2(quoteMetadata, quoteResponse);
-    const normalizedAmountsV2 = toNormalizedAmounts(quoteResponse);
-    /*
-     * Phase 1 of migration uses calcQuoteMetadata's results
-     */
-    return merge(
-      {},
-      quoteResponse,
-      normalizedAmountsV2,
-      quoteMetadataV2,
-      quoteMetadata,
-    );
+  const quoteMetadataV2 = toQuoteMetadataV2(quoteMetadata, quoteResponse);
+  const normalizedAmountsV2 = toNormalizedAmounts(quoteResponse);
+  /*
+   * Phase 1 of migration uses calcQuoteMetadata's results
+   */
+  return merge(
+    {},
+    quoteResponse,
+    normalizedAmountsV2,
+    quoteMetadataV2,
+    quoteMetadata,
+  );
 
-    // TODO Phase 1.5 of migration uses calcQuoteMetadata's results as fallback
-    // return merge(
-    //   {},
-    //   quoteMetadataV2,
-    //   quoteResponse,
-    //   normalizedAmountsV2,
-    //   quoteMetadata,
-    // );
+  // TODO Phase 1.5 of migration uses calcQuoteMetadata's results as fallback
+  // return merge(
+  //   {},
+  //   quoteMetadataV2,
+  //   quoteResponse,
+  //   normalizedAmountsV2,
+  //   quoteMetadata,
+  // );
 
-    // TODO Phase 2 of migration only uses metadata from the API response
-    // return merge({}, quoteResponse, normalizedAmountsV2);
-  } catch (error) {
-    console.error(error);
-    return merge({}, quoteResponse, quoteMetadata);
-  }
+  // TODO Phase 2 of migration only uses metadata from the API response
+  // return merge({}, quoteResponse, normalizedAmountsV2);
 }

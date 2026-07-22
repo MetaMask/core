@@ -36,7 +36,7 @@ export const calcTokenValue = (
   if (value === undefined || decimals === undefined) {
     return undefined;
   }
-  const divisor = new BigNumber(10).pow(decimals ?? 0);
+  const divisor = new BigNumber(10).pow(decimals);
   return new BigNumber(value).times(divisor).toFixed();
 };
 
@@ -70,7 +70,10 @@ export const sumAmounts = (
   const fees = maybeFees
     .flat()
     .flat()
-    .filter((value) => value !== undefined && value !== null);
+    .filter(
+      (value): value is DeepPartial<QuoteResponse['quote']['dest']> =>
+        value !== undefined && value !== null,
+    );
 
   if (!fees || fees.length === 0) {
     return undefined;
@@ -90,7 +93,7 @@ export const sumAmounts = (
         minAmountNormalized,
         minAmountValueInCurrency,
         minAmountUsd,
-      } = fee ?? {};
+      } = fee;
       return {
         amount: acc.amount.plus(amount ?? 0),
         normalizedAmount: acc.normalizedAmount.plus(normalizedAmount ?? 0),

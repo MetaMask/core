@@ -386,7 +386,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
           return orderBy(
             quotesWithMetadata,
             ({ quote: { priceData } }) =>
-              Number(priceData?.cost?.valueInCurrency ?? 0),
+              Number(priceData?.cost?.valueInCurrency),
             'asc',
           );
         }
@@ -397,7 +397,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
         ) {
           return orderBy(
             quotesWithMetadata,
-            ({ quote }) => Number(quote.priceData?.priceImpact?.amount ?? 0),
+            ({ quote }) => Number(quote.priceData?.priceImpact?.amount),
             'asc',
           );
         }

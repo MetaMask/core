@@ -266,9 +266,3 @@ export const isNonEvmChainId = (
     isStellarChainId(chainId)
   );
 };
-
-export const isEvmQuoteResponse = (
-  quoteResponse: QuoteResponseV1,
-): quoteResponse is QuoteResponseV1<TxData, TxData> => {
-  return !isNonEvmChainId(quoteResponse.quote.srcChainId);
-};

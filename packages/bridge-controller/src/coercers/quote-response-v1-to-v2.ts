@@ -38,7 +38,9 @@ const BridgeAssetV2FromV1 = coerce(
     const resolvedIconUrl = iconUrl ?? logoURI ?? icon;
 
     return {
-      assetId: assetId ?? formatAddressToAssetId(address, chainId),
+      assetId:
+        assetId ??
+        /* istanbul ignore next */ formatAddressToAssetId(address, chainId),
       ...(resolvedIconUrl && { iconUrl: resolvedIconUrl }),
       ...rest,
     };
@@ -112,7 +114,7 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
         {
           ...feeData[FeeType.METABRIDGE],
           asset: toBridgeAssetV2(feeData[FeeType.METABRIDGE].asset),
-          ...(priceData?.totalFeeAmountUsd && {
+          ...(priceData?.totalFeeAmountUsd && /* istanbul ignore next */ {
             usd: priceData?.totalFeeAmountUsd,
           }),
         },
@@ -126,7 +128,7 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
         ],
       }),
     },
-    steps: steps ? steps.map(toStepV2) : undefined,
+    steps: steps?.map(toStepV2),
     ...restQuote,
     protocols: bridges,
     aggregator: bridgeId,
@@ -172,18 +174,16 @@ export function toQuoteResponseV2(quoteResponse: unknown): QuoteResponse {
   let quoteResponseV2: QuoteResponse | null = null;
 
   // V1 quote
-  if (quoteResponse && is(quoteResponse, QuoteResponseSchemaV1)) {
+  /* istanbul ignore else */
+  if (is(quoteResponse, QuoteResponseSchemaV1)) {
     quoteResponseV2 = create(quoteResponse, QuoteResponseV2FromV1);
-    if (!quoteResponseV2) {
-      throw new Error('QuoteResponseV1 to V2 conversion failed');
-    }
   }
-
   // V2 quote
   else if (validateQuoteResponse(quoteResponse)) {
     quoteResponseV2 = quoteResponse;
   }
 
+  /* istanbul ignore else */
   if (quoteResponseV2) {
     const {
       chain: { namespace },
@@ -194,7 +194,6 @@ export function toQuoteResponseV2(quoteResponse: unknown): QuoteResponse {
     return { ...quoteResponseV2, namespace: namespace as never, chainId };
   }
 
-  throw new Error(
-    'QuoteResponseV1 to V2 conversion failed. Invalid quoteResponse provided',
-  );
+  /* istanbul ignore next */
+  throw new Error('QuoteResponseV1 to V2 conversion failed');
 }

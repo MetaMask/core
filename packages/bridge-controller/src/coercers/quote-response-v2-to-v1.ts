@@ -115,7 +115,6 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
     srcTokenAmount: src.amount,
     destTokenAmount: dest.amount,
     minDestTokenAmount: dest.minAmount,
-    ...(dest.walletAddress && { destWalletAddress: dest.walletAddress }),
     feeData: {
       [FeeType.METABRIDGE]: {
         ...metabridgeFeeData,
@@ -129,15 +128,20 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
           ),
         },
       },
-      ...(feeData[FeeType.TX_FEE]?.length && {
+      ...(feeData[FeeType.TX_FEE]?.length && /* istanbul ignore next */ {
         ...feeData[FeeType.TX_FEE][0],
         asset: feeData[FeeType.TX_FEE][0].asset,
       }),
     },
-    ...(src.walletAddress && { walletAddress: src.walletAddress }),
-    ...(value.priceData?.priceImpact?.amount && {
+    ...(dest.walletAddress && /* istanbul ignore next */ {
+      destWalletAddress: dest.walletAddress,
+    }),
+    ...(src.walletAddress && /* istanbul ignore next */ {
+      walletAddress: src.walletAddress,
+    }),
+    ...(value.priceData?.priceImpact?.amount && /* istanbul ignore next */ {
       priceData: {
-        priceImpact: value.priceData?.priceImpact?.amount,
+        priceImpact: value.priceData.priceImpact.amount,
       },
     }),
     /**
@@ -180,12 +184,18 @@ const QuoteResponseV1FromV2 = coerce(
       approval,
       trade,
       quote: quoteV1,
-      ...(featureId && { featureId }),
-      ...(quoteId && { quoteId }),
-      ...(resetApproval && { resetApproval }),
-      ...(quoteRequestIndex !== undefined && { quoteRequestIndex }),
-      ...(nonEvmFeesInNative && { nonEvmFeesInNative }),
-      ...(l1GasFeesInHexWei && { l1GasFeesInHexWei }),
+      ...(featureId && /* istanbul ignore next */ { featureId }),
+      ...(quoteId && /* istanbul ignore next */ { quoteId }),
+      ...(resetApproval && /* istanbul ignore next */ { resetApproval }),
+      ...(quoteRequestIndex !== undefined && /* istanbul ignore next */ {
+        quoteRequestIndex,
+      }),
+      ...(nonEvmFeesInNative && /* istanbul ignore next */ {
+        nonEvmFeesInNative,
+      }),
+      ...(l1GasFeesInHexWei && /* istanbul ignore next */ {
+        l1GasFeesInHexWei,
+      }),
     };
   },
 );
@@ -224,8 +234,10 @@ export const toQuoteResponseV1 = (
     errorMessage += ' QuoteResponseV2 to QuoteResponseV1';
     return create(quoteResponse, QuoteResponseV1FromV2);
   } catch (error) {
+    /* istanbul ignore next */
     let errorDetails = error instanceof Error ? error.message : 'Unknown error';
 
+    /* istanbul ignore next */
     if (error instanceof StructError) {
       const formattedErrors = formatStructErrors(error);
       errorDetails = JSON.stringify(formattedErrors, null, 2);

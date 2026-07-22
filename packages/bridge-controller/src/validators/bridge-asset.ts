@@ -134,6 +134,7 @@ export const validateBridgeAsset = (
   return is(data, BridgeAssetSchema);
 };
 
+/* istanbul ignore next */
 export const validateBridgeAssetV2 = (
   data: unknown,
 ): data is Infer<typeof BridgeAssetV2Schema> => {

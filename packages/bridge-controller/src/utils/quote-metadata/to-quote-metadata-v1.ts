@@ -13,14 +13,8 @@ import type { QuoteMetadata } from './types';
  * @returns A partial {@link QuoteMetadata} object
  */
 export const toQuoteMetadataV1 = (
-  quoteResponse:
-    | (DeepPartial<QuoteResponse | QuoteResponseV1> & QuoteMetadata)
-    | null,
+  quoteResponse: DeepPartial<QuoteResponse | QuoteResponseV1> & QuoteMetadata,
 ): QuoteMetadata => {
-  if (!quoteResponse) {
-    return {};
-  }
-
   const {
     toTokenAmount,
     minToTokenAmount,
@@ -49,7 +43,7 @@ export const toQuoteMetadataV1 = (
     ...(includedTxFees && { includedTxFees }),
   };
 
-  // Phase 1
+  // Phase 1 only uses legacyMetadata
   return merge({}, legacyMetadata);
 
   // TODO Phase 1.5 uses legacyMetadata as fallback
