@@ -109,7 +109,7 @@ describe('Wallet', () => {
           storage: new InMemoryStorageAdapter(),
         },
         remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
+        subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
       },
     });
 
@@ -159,7 +159,7 @@ describe('Wallet', () => {
           storage: new InMemoryStorageAdapter(),
         },
         remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
+        subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
       },
     });
     const { state } = wallet;
@@ -203,7 +203,7 @@ describe('Wallet', () => {
           storage: new InMemoryStorageAdapter(),
         },
         remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
+        subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
       },
     });
 
@@ -314,7 +314,7 @@ describe('Wallet', () => {
             storage: new InMemoryStorageAdapter(),
           },
           remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
+          subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
         },
       });
 
@@ -347,7 +347,7 @@ describe('Wallet', () => {
             storage: new InMemoryStorageAdapter(),
           },
           remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
+          subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
         },
       });
 
@@ -388,7 +388,7 @@ describe('Wallet', () => {
             storage: new InMemoryStorageAdapter(),
           },
           remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-      subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
+          subscriptionController: SUBSCRIPTION_CONTROLLER_OPTIONS,
         },
       });
 

@@ -54,7 +54,10 @@ export const subscriptionController: InitializationConfiguration<
     return new SubscriptionController({
       messenger,
       state,
-      subscriptionService: resolveSubscriptionService(messenger, serviceOptions),
+      subscriptionService: resolveSubscriptionService(
+        messenger,
+        serviceOptions,
+      ),
       pollingInterval,
     });
   },

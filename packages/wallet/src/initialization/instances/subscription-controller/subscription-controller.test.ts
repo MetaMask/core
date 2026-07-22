@@ -242,8 +242,8 @@ describe('subscriptionController', () => {
       },
     });
 
-    expect(
-      rootMessenger.call('SubscriptionController:getState'),
-    ).toStrictEqual(getDefaultSubscriptionControllerState());
+    expect(rootMessenger.call('SubscriptionController:getState')).toStrictEqual(
+      getDefaultSubscriptionControllerState(),
+    );
   });
 });
