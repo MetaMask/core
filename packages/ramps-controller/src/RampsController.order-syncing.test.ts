@@ -5,13 +5,13 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { RampsControllerMessenger } from './RampsController';
+import type { RampsControllerMessenger } from './RampsController.js';
 import {
   RampsController,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
-} from './RampsController';
-import { RampsOrderStatus } from './RampsService';
-import type { RampsOrder } from './RampsService';
+} from './RampsController.js';
+import { RampsOrderStatus } from './RampsService.js';
+import type { RampsOrder } from './RampsService.js';
 
 function createMockOrder(overrides: Partial<RampsOrder> = {}): RampsOrder {
   return {
@@ -206,8 +206,11 @@ describe('RampsController order syncing', () => {
 
   it('queues mid-sync deletes and drains them after sync', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_700);
-    const { controller, performBatchSetStorage, performGetStorageAllFeatureEntries } =
-      setupControllerWithOrderSyncingMocks();
+    const {
+      controller,
+      performBatchSetStorage,
+      performGetStorageAllFeatureEntries,
+    } = setupControllerWithOrderSyncingMocks();
 
     const order = createMockOrder({
       providerOrderId: 'mid-sync-delete',
@@ -231,9 +234,9 @@ describe('RampsController order syncing', () => {
       ]),
     );
     const tombstone = JSON.parse(
-      (
-        performBatchSetStorage.mock.calls[0][1] as [string, string][]
-      ).find(([key]) => key === 'mid-sync-delete')?.[1] as string,
+      (performBatchSetStorage.mock.calls[0][1] as [string, string][]).find(
+        ([key]) => key === 'mid-sync-delete',
+      )?.[1] as string,
     ) as { dt?: number };
     expect(tombstone.dt).toBe(1_700_000_000_700);
   });

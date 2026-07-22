@@ -235,8 +235,7 @@ export async function syncOrdersWithUserStorage(
           )
           .map((localOrder) => ({
             ...stripSyncMetadata(localOrder),
-            lastUpdatedAt:
-              (localOrder as SyncRampsOrder).lastUpdatedAt ?? now,
+            lastUpdatedAt: (localOrder as SyncRampsOrder).lastUpdatedAt ?? now,
           })),
         ...pendingDeletes.map((order) => ({
           ...stripSyncMetadata(order),

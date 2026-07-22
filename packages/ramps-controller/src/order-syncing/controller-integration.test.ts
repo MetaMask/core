@@ -193,6 +193,46 @@ describe('order-syncing/controller-integration', () => {
       );
     });
 
+    it('keeps the first remote entry when duplicate storage keys are returned', async () => {
+      const firstRemote = createMockOrder({
+        providerOrderId: 'dup-key',
+        id: '/providers/transak/orders/dup-key',
+        fiatAmount: 100,
+      });
+      const secondRemote = createMockOrder({
+        providerOrderId: 'dup-key',
+        id: '/providers/transak/orders/dup-key',
+        fiatAmount: 999,
+      });
+      const firstEntry = JSON.stringify(
+        mapRampsOrderToUserStorageEntry({
+          ...firstRemote,
+          lastUpdatedAt: 1_700_000_000_000,
+        }),
+      );
+      const secondEntry = JSON.stringify(
+        mapRampsOrderToUserStorageEntry({
+          ...secondRemote,
+          lastUpdatedAt: 1_700_000_000_100,
+        }),
+      );
+
+      const { options, addOrder } = arrangeMocks({
+        localOrders: [],
+        remoteEntries: [firstEntry, secondEntry],
+      });
+
+      await syncOrdersWithUserStorage({}, options);
+
+      expect(addOrder).toHaveBeenCalledTimes(1);
+      expect(addOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerOrderId: 'dup-key',
+          fiatAmount: 100,
+        }),
+      );
+    });
+
     it('applies remote soft-deletes locally when the tombstone is newer', async () => {
       const localOrder = createMockOrder();
       const deletedRemote: SyncRampsOrder = {
@@ -597,9 +637,9 @@ describe('order-syncing/controller-integration', () => {
       );
 
       const tombstoneEntry = JSON.parse(
-        (
-          performBatchSetStorage.mock.calls[0][1] as [string, string][]
-        ).find(([key]) => key === 'deleted-mid-sync')?.[1] as string,
+        (performBatchSetStorage.mock.calls[0][1] as [string, string][]).find(
+          ([key]) => key === 'deleted-mid-sync',
+        )?.[1] as string,
       ) as { dt?: number; o: { paymentDetails?: unknown } };
       expect(tombstoneEntry.dt).toBe(1_700_000_000_500);
       expect(tombstoneEntry.o.paymentDetails).toBeUndefined();
