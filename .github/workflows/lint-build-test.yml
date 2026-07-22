@@ -78,6 +78,9 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
+          # Full history so `changelog:validate` can find the merge base with the
+          # base branch to detect which packages are being released.
+          fetch-depth: 0
       - run: yarn workspace "$PACKAGE_NAME" changelog:validate
         env:
           PACKAGE_NAME: ${{ matrix.package-name }}

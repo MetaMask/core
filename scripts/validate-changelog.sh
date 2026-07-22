@@ -18,39 +18,28 @@ resolve_branch_name() {
 }
 
 # Print the version of the package (in the current working directory) as it was
-# at the point this branch diverged from the base branch. Prints nothing when
-# the base cannot be determined (e.g. an unrelated history or a base branch that
-# isn't available).
+# at the point this branch diverged from the base branch (the merge base, so the
+# result stays correct even as the base branch moves on). Prints nothing when the
+# package did not exist at that point (a newly added package).
 #
-# Comparing against the merge base rather than the base branch tip keeps the
-# result correct even as the base branch moves on.
+# Exits non-zero when the base branch history isn't available, so a misconfigured
+# checkout fails loudly rather than silently skipping validation. CI must check
+# out with enough history for the merge base to resolve (see `fetch-depth` on the
+# "Validate changelog" workflow job).
 resolve_base_version() {
-  local base_ref="${CHANGELOG_BASE_REF:-}"
-  if [[ -z "${base_ref}" ]]; then
-    local candidate
-    for candidate in "origin/main" "main"; do
-      if git rev-parse --verify --quiet "${candidate}" >/dev/null; then
-        base_ref="${candidate}"
-        break
-      fi
-    done
-    if [[ -z "${base_ref}" ]] && git fetch --quiet --depth=1 origin main 2>/dev/null; then
-      base_ref="FETCH_HEAD"
-    fi
+  local base_ref="${CHANGELOG_BASE_REF:-origin/main}"
+
+  local base_commit
+  if ! base_commit="$(git merge-base "${base_ref}" HEAD 2>/dev/null)"; then
+    echo "Could not find a common ancestor between HEAD and \"${base_ref}\". Make sure \"${base_ref}\" is available with enough history." >&2
+    return 1
   fi
 
-  local base_commit=""
-  if [[ -n "${base_ref}" ]]; then
-    base_commit="$(git merge-base "${base_ref}" HEAD 2>/dev/null || true)"
-    # Deepen the history if a shallow CI checkout hides the common ancestor.
-    if [[ -z "${base_commit}" ]]; then
-      git fetch --quiet --deepen=100 origin main 2>/dev/null || git fetch --quiet --unshallow origin 2>/dev/null || true
-      base_commit="$(git merge-base "${base_ref}" HEAD 2>/dev/null || true)"
-    fi
-  fi
-
-  if [[ -n "${base_commit}" ]]; then
-    git show "${base_commit}:./package.json" 2>/dev/null | node -e "const fs=require('fs');try{process.stdout.write(String(JSON.parse(fs.readFileSync(0,'utf8')).version||''))}catch{process.stdout.write('')}" || true
+  # A newly added package won't exist at the base commit; that just means there
+  # is no base version to compare against.
+  local base_package_json
+  if base_package_json="$(git show "${base_commit}:./package.json" 2>/dev/null)"; then
+    printf '%s' "${base_package_json}" | jq --raw-output '.version // empty'
   fi
 }
 
@@ -66,8 +55,8 @@ resolve_base_version() {
 # version was bumped on that branch (its current version differs from the base
 # version). `0.0.0` marks an unpublished package with no released version, so
 # `--rc` (which requires a matching version heading) never applies. An empty
-# base version means the base could not be determined, in which case we skip
-# `--rc` so an undetermined base never blocks a release PR.
+# base version means the package is newly added (it did not exist at the base),
+# so there is nothing to compare against and `--rc` is skipped.
 should_validate_as_release_candidate() {
   local branch_name="$1"
   local current_version="$2"
@@ -93,7 +82,7 @@ main() {
   branch_name="$(resolve_branch_name)"
 
   local current_version
-  current_version="$(node -p "require('./package.json').version")"
+  current_version="$(jq --raw-output '.version' package.json)"
 
   local base_version=""
   if [[ "${branch_name}" =~ ^release/ ]]; then
@@ -108,6 +97,8 @@ main() {
 }
 
 # Only run when executed directly, so tests can source the functions above.
+# `set` lives here rather than at the top of the file so that sourcing the
+# script doesn't turn on `errexit` in the caller's (test) shell.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   set -euo pipefail
   main "$@"
