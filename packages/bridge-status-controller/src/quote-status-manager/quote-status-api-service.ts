@@ -129,7 +129,7 @@ export class QuoteStatusApiService {
       this.#onError?.(
         new QuoteStatusUpdateError(
           'unexpected response shape from quote/updateStatus',
-          { quoteId: data.quoteId },
+          { quoteId: data.quoteId, srcTxHash: data.srcTxHash },
         ),
       );
       throw error;
