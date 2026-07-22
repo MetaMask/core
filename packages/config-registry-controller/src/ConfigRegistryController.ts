@@ -1,6 +1,6 @@
 import type {
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import type {
@@ -99,8 +99,8 @@ const MESSENGER_EXPOSED_METHODS = ['startPolling', 'stopPolling'] as const;
 /**
  * Published when the state of {@link ConfigRegistryController} changes.
  */
-export type ConfigRegistryControllerStateChangeEvent =
-  ControllerStateChangeEvent<
+export type ConfigRegistryControllerStateChangedEvent =
+  ControllerStateChangedEvent<
     typeof controllerName,
     ConfigRegistryControllerState
   >;
@@ -133,7 +133,7 @@ type AllowedActions =
  * Events that {@link ConfigRegistryControllerMessenger} exposes to other consumers.
  */
 export type ConfigRegistryControllerEvents =
-  ConfigRegistryControllerStateChangeEvent;
+  ConfigRegistryControllerStateChangedEvent;
 
 /**
  * Events from other messengers that {@link ConfigRegistryControllerMessenger}
