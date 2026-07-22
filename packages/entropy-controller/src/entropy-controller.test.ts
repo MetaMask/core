@@ -14,20 +14,11 @@ import { toEntropyId } from './utils';
 const HD_MNEMONIC = new TextEncoder().encode(
   'test test test test test test test test test test test junk',
 );
-const PRIVATE_KEY_HEX =
-  '4af1bceebf7f3634ec3cff8a2c38e51178d5d4ce585c52d6043e5e2cc3f1d3e1';
 const PRIVATE_KEY_BYTES = Uint8Array.from(
-  PRIVATE_KEY_HEX.match(/../gu)!.map((b) => parseInt(b, 16)),
+  '4af1bceebf7f3634ec3cff8a2c38e51178d5d4ce585c52d6043e5e2cc3f1d3e1'
+    .match(/../gu)!
+    .map((b) => parseInt(b, 16)),
 );
-
-type KeyringStub = {
-  type: string;
-  metadata: { id: string; name: string };
-  /** HD keyring: mnemonic bytes, or null if not yet initialised. */
-  mnemonic?: Uint8Array | null;
-  /** Accounts held by this keyring. `id` and `privateKey` are only relevant for Simple keyrings. */
-  accounts: { address: string; id?: string; privateKey?: string }[];
-};
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -35,94 +26,17 @@ type RootMessenger = Messenger<
   MessengerEvents<EntropyControllerMessenger>
 >;
 
-type Mocks = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  KeyringController: {
-    getState: jest.Mock;
-    withKeyringV2Unsafe: jest.Mock;
-  };
-};
-
-/** Drains all pending microtasks and macrotasks. */
-function flushPromises(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
-
 async function setup({
-  keyrings = [],
   options = {},
 }: {
-  keyrings?: KeyringStub[];
   options?: Partial<ConstructorParameters<typeof EntropyController>[0]>;
 } = {}): Promise<{
   controller: EntropyController;
   rootMessenger: RootMessenger;
-  messenger: EntropyControllerMessenger;
-  mocks: Mocks;
 }> {
-  const mocks: Mocks = {
-    KeyringController: {
-      getState: jest.fn(),
-      withKeyringV2Unsafe: jest.fn(),
-    },
-  };
-
-  mocks.KeyringController.getState.mockImplementation(
-    () => ({
-      keyrings: keyrings.map((k) => ({
-        type: k.type,
-        accounts: k.accounts.map((a) => a.address),
-        metadata: k.metadata,
-      })),
-      isUnlocked: true,
-    }) as never,
-  );
-
-  mocks.KeyringController.withKeyringV2Unsafe.mockImplementation(
-    async (
-      selector: { id: string },
-      operation: (payload: {
-        keyring: unknown;
-        metadata: unknown;
-      }) => Promise<unknown>,
-    ) => {
-      const stub = keyrings.find((k) => k.metadata.id === selector.id);
-      return operation({
-        keyring: {
-          mnemonic: stub?.mnemonic ?? null,
-          getAccounts: async () =>
-            (stub?.accounts ?? [])
-              .filter((a) => a.id !== undefined)
-              .map(({ id }) => ({ id })),
-          exportAccount: async (accountId: string) => {
-            const account = stub?.accounts.find((a) => a.id === accountId);
-            return {
-              type: 'private-key',
-              encoding: 'hexadecimal',
-              privateKey: account?.privateKey ?? '',
-            };
-          },
-        },
-        metadata: { id: selector.id, name: '' },
-      });
-    },
-  );
-
-  const rootMessenger = new Messenger<
-    MockAnyNamespace,
-    MessengerActions<EntropyControllerMessenger>,
-    MessengerEvents<EntropyControllerMessenger>
-  >({ namespace: MOCK_ANY_NAMESPACE });
-
-  rootMessenger.registerActionHandler(
-    'KeyringController:getState',
-    mocks.KeyringController.getState,
-  );
-
-  rootMessenger.registerActionHandler(
-    'KeyringController:withKeyringV2Unsafe',
-    mocks.KeyringController.withKeyringV2Unsafe,
-  );
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const messenger = new Messenger<
     'EntropyController',
@@ -133,33 +47,9 @@ async function setup({
     parent: rootMessenger,
   });
 
-  rootMessenger.delegate({
-    messenger,
-    actions: [
-      'KeyringController:getState',
-      'KeyringController:withKeyringV2Unsafe',
-    ],
-    events: ['KeyringController:stateChange'],
-  });
+  const controller = new EntropyController({ messenger, ...options });
 
-  const controller = new EntropyController({
-    messenger,
-    ...options,
-  });
-
-  return { controller, rootMessenger, messenger, mocks };
-}
-
-/** Publishes a stateChange event with the given keyrings to trigger an entropy sync. */
-function publishKeyringStateChange(
-  rootMessenger: RootMessenger,
-  keyrings: { type: string; accounts: string[]; metadata: { id: string; name: string } }[],
-): void {
-  rootMessenger.publish(
-    'KeyringController:stateChange',
-    { keyrings } as never,
-    [],
-  );
+  return { controller, rootMessenger };
 }
 
 describe('EntropyController', () => {
@@ -169,7 +59,7 @@ describe('EntropyController', () => {
         entropySources: {
           'entropy-1': {
             type: 'bip44:srp' as const,
-            metadata: {},
+            metadata: { legacyEntropySource: 'keyring-1' },
           },
         },
       };
@@ -190,32 +80,18 @@ describe('EntropyController', () => {
     });
   });
 
-  describe('entropy sync', () => {
-    it('populates entropySources from an HD keyring', async () => {
+  describe('registerSource', () => {
+    it('registers an HD keyring entropy source', async () => {
       const keyringId = 'hd-keyring-id';
       const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
-      const keyringStubs = [
-        {
-          type: 'HD Key Tree',
-          metadata: { id: keyringId, name: '' },
-          mnemonic: HD_MNEMONIC,
-          accounts: [{ address: '0xabc' }],
-        },
-      ];
 
-      const { controller, rootMessenger } = await setup({
-        keyrings: keyringStubs,
+      const { controller, rootMessenger } = await setup();
+
+      await rootMessenger.call('EntropyController:registerSource', {
+        type: 'bip44:srp',
+        mnemonic: HD_MNEMONIC,
+        metadata: { legacyEntropySource: keyringId },
       });
-
-      publishKeyringStateChange(
-        rootMessenger,
-        keyringStubs.map((k) => ({
-          type: k.type,
-          accounts: k.accounts.map((a) => a.address),
-          metadata: k.metadata,
-        })),
-      );
-      await flushPromises();
 
       expect(controller.state.entropySources).toStrictEqual({
         [expectedId]: {
@@ -225,31 +101,17 @@ describe('EntropyController', () => {
       });
     });
 
-    it('populates entropySources from a Simple keyring', async () => {
+    it('registers a Simple keyring entropy source', async () => {
       const keyringId = 'simple-keyring-id';
-      const accountId = 'account-uuid-1';
       const expectedId = await toEntropyId(PRIVATE_KEY_BYTES, 'raw:private-key');
-      const keyringStubs = [
-        {
-          type: 'Simple Key Pair',
-          metadata: { id: keyringId, name: '' },
-          accounts: [{ address: '0xdef', id: accountId, privateKey: PRIVATE_KEY_HEX }],
-        },
-      ];
 
-      const { controller, rootMessenger } = await setup({
-        keyrings: keyringStubs,
+      const { controller, rootMessenger } = await setup();
+
+      await rootMessenger.call('EntropyController:registerSource', {
+        type: 'raw:private-key',
+        privateKey: PRIVATE_KEY_BYTES,
+        metadata: { legacyEntropySource: keyringId },
       });
-
-      publishKeyringStateChange(
-        rootMessenger,
-        keyringStubs.map((k) => ({
-          type: k.type,
-          accounts: k.accounts.map((a) => a.address),
-          metadata: k.metadata,
-        })),
-      );
-      await flushPromises();
 
       expect(controller.state.entropySources).toStrictEqual({
         [expectedId]: {
@@ -259,277 +121,103 @@ describe('EntropyController', () => {
       });
     });
 
-    it('handles a Simple keyring with multiple accounts', async () => {
-      const keyringId = 'simple-keyring-id';
-      const secondKeyHex =
-        '1111111111111111111111111111111111111111111111111111111111111111';
-      const secondKeyBytes = Uint8Array.from(
-        secondKeyHex.match(/../gu)!.map((b) => parseInt(b, 16)),
+    it('merges new sources without replacing existing ones', async () => {
+      const hdKeyringId = 'hd-keyring-id';
+      const simpleKeyringId = 'simple-keyring-id';
+      const expectedHdId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
+      const expectedSimpleId = await toEntropyId(
+        PRIVATE_KEY_BYTES,
+        'raw:private-key',
       );
-      const expectedId1 = await toEntropyId(PRIVATE_KEY_BYTES, 'raw:private-key');
-      const expectedId2 = await toEntropyId(secondKeyBytes, 'raw:private-key');
-      const keyringStubs = [
-        {
-          type: 'Simple Key Pair',
-          metadata: { id: keyringId, name: '' },
-          accounts: [
-            { address: '0xaaa', id: 'account-1', privateKey: PRIVATE_KEY_HEX },
-            { address: '0xbbb', id: 'account-2', privateKey: secondKeyHex },
-          ],
-        },
-      ];
 
-      const { controller, rootMessenger } = await setup({
-        keyrings: keyringStubs,
+      const { controller, rootMessenger } = await setup();
+
+      await rootMessenger.call('EntropyController:registerSource', {
+        type: 'bip44:srp',
+        mnemonic: HD_MNEMONIC,
+        metadata: { legacyEntropySource: hdKeyringId },
       });
 
-      publishKeyringStateChange(
-        rootMessenger,
-        keyringStubs.map((k) => ({
-          type: k.type,
-          accounts: k.accounts.map((a) => a.address),
-          metadata: k.metadata,
-        })),
-      );
-      await flushPromises();
+      await rootMessenger.call('EntropyController:registerSource', {
+        type: 'raw:private-key',
+        privateKey: PRIVATE_KEY_BYTES,
+        metadata: { legacyEntropySource: simpleKeyringId },
+      });
 
       expect(controller.state.entropySources).toStrictEqual({
-        [expectedId1]: {
+        [expectedHdId]: {
+          type: 'bip44:srp',
+          metadata: { legacyEntropySource: hdKeyringId },
+        },
+        [expectedSimpleId]: {
           type: 'raw:private-key',
-          metadata: { legacyEntropySource: keyringId },
-        },
-        [expectedId2]: {
-          type: 'raw:private-key',
-          metadata: { legacyEntropySource: keyringId },
+          metadata: { legacyEntropySource: simpleKeyringId },
         },
       });
     });
 
-    it('ignores keyrings that do not own entropy', async () => {
-      const keyringStubs = [
-        {
-          type: 'Snap Keyring',
-          metadata: { id: 'snap-id', name: '' },
-          accounts: [{ address: '0xabc' }],
-        },
-      ];
-
-      const { controller, rootMessenger } = await setup({
-        keyrings: keyringStubs,
-      });
-
-      publishKeyringStateChange(
-        rootMessenger,
-        keyringStubs.map((k) => ({
-          type: k.type,
-          accounts: k.accounts.map((a) => a.address),
-          metadata: k.metadata,
-        })),
-      );
-      await flushPromises();
-
-      expect(controller.state.entropySources).toStrictEqual({});
-    });
-
-    it('skips an HD keyring whose mnemonic is not yet initialised', async () => {
-      const keyringId = 'hd-keyring-id';
-      const keyringStubs = [
-        {
-          type: 'HD Key Tree',
-          metadata: { id: keyringId, name: '' },
-          mnemonic: null,
-          accounts: [],
-        },
-      ];
-
-      const { controller, rootMessenger } = await setup({
-        keyrings: keyringStubs,
-      });
-
-      publishKeyringStateChange(rootMessenger, [
-        { type: 'HD Key Tree', accounts: [], metadata: { id: keyringId, name: '' } },
-      ]);
-      await flushPromises();
-
-      expect(controller.state.entropySources).toStrictEqual({});
-    });
-
-    it('replaces the entire entropySources map on each sync', async () => {
+    it('is idempotent — registering the same source twice yields one entry', async () => {
       const keyringId = 'hd-keyring-id';
       const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
-      const keyringStubs = [
-        {
-          type: 'HD Key Tree',
-          metadata: { id: keyringId, name: '' },
-          mnemonic: HD_MNEMONIC,
-          accounts: [{ address: '0xabc' }],
-        },
-      ];
+
+      const { controller, rootMessenger } = await setup();
+
+      await rootMessenger.call('EntropyController:registerSource', {
+        type: 'bip44:srp',
+        mnemonic: HD_MNEMONIC,
+        metadata: { legacyEntropySource: keyringId },
+      });
+
+      await rootMessenger.call('EntropyController:registerSource', {
+        type: 'bip44:srp',
+        mnemonic: HD_MNEMONIC,
+        metadata: { legacyEntropySource: keyringId },
+      });
+
+      expect(Object.keys(controller.state.entropySources)).toHaveLength(1);
+      expect(controller.state.entropySources[expectedId]).toBeDefined();
+    });
+  });
+
+  describe('unregisterSource', () => {
+    it('removes all entropy sources belonging to the given keyring', async () => {
+      const keyringId = 'hd-keyring-id';
+      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
 
       const { controller, rootMessenger } = await setup({
         options: {
           state: {
             entropySources: {
-              'stale-id': {
+              [expectedId]: {
                 type: 'bip44:srp',
-                metadata: { legacyEntropySource: 'old-keyring-id' },
+                metadata: { legacyEntropySource: keyringId },
+              },
+              'other-entropy-id': {
+                type: 'bip44:srp',
+                metadata: { legacyEntropySource: 'other-keyring-id' },
               },
             },
           },
         },
-        keyrings: keyringStubs,
       });
 
-      publishKeyringStateChange(rootMessenger, [
-        {
-          type: 'HD Key Tree',
-          accounts: ['0xabc'],
-          metadata: { id: keyringId, name: '' },
-        },
-      ]);
-      await flushPromises();
+      rootMessenger.call('EntropyController:unregisterSource', keyringId);
 
-      expect(controller.state.entropySources).toStrictEqual({
-        [expectedId]: {
-          type: 'bip44:srp',
-          metadata: { legacyEntropySource: keyringId },
-        },
-      });
-      expect(controller.state.entropySources['stale-id']).toBeUndefined();
+      expect(controller.state.entropySources[expectedId]).toBeUndefined();
+      expect(
+        controller.state.entropySources['other-entropy-id'],
+      ).toBeDefined();
     });
 
-    it('does nothing when the vault is locked', async () => {
-      const keyringId = 'hd-keyring-id';
-      const keyringStubs = [
-        {
-          type: 'HD Key Tree',
-          metadata: { id: keyringId, name: '' },
-          mnemonic: HD_MNEMONIC,
-          accounts: [{ address: '0xabc' }],
-        },
-      ];
+    it('does nothing when no sources match the keyring', async () => {
+      const { controller, rootMessenger } = await setup();
 
-      const { controller, rootMessenger, mocks } = await setup({
-        keyrings: keyringStubs,
-      });
-
-      mocks.KeyringController.getState.mockReturnValueOnce({
-        keyrings: [],
-        isUnlocked: false,
-      });
-
-      publishKeyringStateChange(rootMessenger, [
-        {
-          type: 'HD Key Tree',
-          accounts: ['0xabc'],
-          metadata: { id: keyringId, name: '' },
-        },
-      ]);
-      await flushPromises();
+      rootMessenger.call(
+        'EntropyController:unregisterSource',
+        'unknown-keyring-id',
+      );
 
       expect(controller.state.entropySources).toStrictEqual({});
-    });
-
-    it('synchronizes automatically when keyrings state changes', async () => {
-      const keyringId = 'hd-keyring-id';
-      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
-
-      const { controller, rootMessenger } = await setup({
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            metadata: { id: keyringId, name: '' },
-            mnemonic: HD_MNEMONIC,
-            accounts: [{ address: '0xabc' }],
-          },
-        ],
-      });
-
-      publishKeyringStateChange(rootMessenger, [
-        {
-          type: 'HD Key Tree',
-          accounts: ['0xabc'],
-          metadata: { id: keyringId, name: '' },
-        },
-      ]);
-      await flushPromises();
-
-      expect(controller.state.entropySources).toStrictEqual({
-        [expectedId]: {
-          type: 'bip44:srp',
-          metadata: { legacyEntropySource: keyringId },
-        },
-      });
-    });
-
-    it('synchronizes when the vault unlocks (keyrings go from empty to populated)', async () => {
-      // Unlocking populates state.keyrings, which triggers the stateChange
-      // selector and kicks off a sync — no separate unlock subscription needed.
-      const keyringId = 'hd-keyring-id';
-      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
-
-      const { controller, rootMessenger } = await setup({
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            metadata: { id: keyringId, name: '' },
-            mnemonic: HD_MNEMONIC,
-            accounts: [{ address: '0xabc' }],
-          },
-        ],
-      });
-
-      // Simulate unlock: keyrings transition from [] to the restored set.
-      publishKeyringStateChange(rootMessenger, [
-        {
-          type: 'HD Key Tree',
-          accounts: ['0xabc'],
-          metadata: { id: keyringId, name: '' },
-        },
-      ]);
-      await flushPromises();
-
-      expect(controller.state.entropySources).toStrictEqual({
-        [expectedId]: {
-          type: 'bip44:srp',
-          metadata: { legacyEntropySource: keyringId },
-        },
-      });
-    });
-
-    it('does not synchronize when unrelated state changes', async () => {
-      const keyringId = 'hd-keyring-id';
-
-      const { controller, rootMessenger, mocks } = await setup({
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            metadata: { id: keyringId, name: '' },
-            mnemonic: HD_MNEMONIC,
-            accounts: [{ address: '0xabc' }],
-          },
-        ],
-      });
-
-      const keyrings = [
-        { type: 'HD Key Tree', accounts: ['0xabc'], metadata: { id: keyringId, name: '' } },
-      ];
-
-      // First publish establishes the selector baseline.
-      publishKeyringStateChange(rootMessenger, keyrings);
-      await flushPromises();
-
-      mocks.KeyringController.withKeyringV2Unsafe.mockClear();
-
-      // Second publish with the SAME keyrings reference — selector equality prevents re-trigger.
-      rootMessenger.publish(
-        'KeyringController:stateChange',
-        { keyrings } as never,
-        [],
-      );
-      await flushPromises();
-
-      expect(mocks.KeyringController.withKeyringV2Unsafe).not.toHaveBeenCalled();
     });
   });
 

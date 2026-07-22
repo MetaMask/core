@@ -21,23 +21,9 @@ export const entropyController: InitializationConfiguration<
       state,
       messenger,
     }),
-  getMessenger: (parent: RootMessenger<DefaultActions, DefaultEvents>) => {
-    const entropyControllerMessenger: EntropyControllerMessenger = new Messenger(
-      {
-        namespace: 'EntropyController',
-        parent,
-      },
-    );
-
-    parent.delegate({
-      messenger: entropyControllerMessenger,
-      actions: [
-        'KeyringController:getState',
-        'KeyringController:withKeyringV2Unsafe',
-      ],
-      events: ['KeyringController:stateChange'],
-    });
-
-    return entropyControllerMessenger;
-  },
+  getMessenger: (parent: RootMessenger<DefaultActions, DefaultEvents>) =>
+    new Messenger({
+      namespace: 'EntropyController',
+      parent,
+    }) as EntropyControllerMessenger,
 };

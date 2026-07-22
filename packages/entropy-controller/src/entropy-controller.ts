@@ -4,19 +4,10 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { HdKeyring } from '@metamask/eth-hd-keyring/v2';
-import type { SimpleKeyring } from '@metamask/eth-simple-keyring/v2';
-import type {
-  KeyringControllerGetStateAction,
-  KeyringControllerStateChangeEvent,
-  KeyringControllerWithKeyringV2UnsafeAction,
-} from '@metamask/keyring-controller';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import { hexToBytes } from '@metamask/utils';
 
 import type { EntropyId, EntropyMetadata, EntropyType } from './types';
-import { isKeyringOwningEntropy, toEntropyId } from './utils';
+import { toEntropyId } from './utils';
 
 /**
  * The name of the {@link EntropyController}, used to namespace the
@@ -84,16 +75,45 @@ export type EntropyControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * Actions that {@link EntropyControllerMessenger} exposes to other consumers.
+ * Derives and registers a single entropy source.
+ *
+ * Called by `KeyringController` after a keyring is successfully persisted,
+ * so that the entropy ID is available atomically from the caller's perspective.
  */
-export type EntropyControllerActions = EntropyControllerGetStateAction;
+export type EntropyControllerRegisterSourceAction = {
+  type: `${typeof CONTROLLER_NAME}:registerSource`;
+  handler: (
+    source:
+      | {
+          type: 'bip44:srp';
+          mnemonic: Uint8Array;
+          metadata: EntropyMetadata;
+        }
+      | {
+          type: 'raw:private-key';
+          privateKey: Uint8Array;
+          metadata: EntropyMetadata;
+        },
+  ) => Promise<void>;
+};
 
 /**
- * Actions from other messengers that {@link EntropyControllerMessenger} calls.
+ * Removes all entropy sources associated with a given keyring ID.
+ *
+ * Called by `KeyringController` after a keyring is removed.
  */
-type AllowedActions =
-  | KeyringControllerGetStateAction
-  | KeyringControllerWithKeyringV2UnsafeAction;
+export type EntropyControllerUnregisterSourceAction = {
+  type: `${typeof CONTROLLER_NAME}:unregisterSource`;
+  handler: (keyringId: string) => void;
+};
+
+/**
+ * Actions that {@link EntropyControllerMessenger} exposes to other consumers.
+ */
+export type EntropyControllerActions =
+  | EntropyControllerGetStateAction
+  | EntropyControllerRegisterSourceAction
+  | EntropyControllerUnregisterSourceAction;
 
 /**
  * Published when the state of {@link EntropyController} changes.
@@ -109,19 +129,13 @@ export type EntropyControllerStateChangeEvent = ControllerStateChangeEvent<
 export type EntropyControllerEvents = EntropyControllerStateChangeEvent;
 
 /**
- * Events from other messengers that {@link EntropyControllerMessenger}
- * subscribes to.
- */
-type AllowedEvents = KeyringControllerStateChangeEvent;
-
-/**
  * The messenger restricted to actions and events accessed by
  * {@link EntropyController}.
  */
 export type EntropyControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
-  EntropyControllerActions | AllowedActions,
-  EntropyControllerEvents | AllowedEvents
+  EntropyControllerActions,
+  EntropyControllerEvents
 >;
 
 /**
@@ -133,6 +147,13 @@ export type EntropyControllerMessenger = Messenger<
  * registry is the single source of truth for which entropy sources exist and
  * what kind they are. Actual key material and signing operations are left to
  * entropy source implementations and chain-specific keyrings.
+ *
+ * Rather than reacting to `KeyringController` state changes, this controller
+ * exposes `registerSource` and `unregisterSource` actions that `KeyringController`
+ * calls directly after its own operations succeed. This ensures that entropy
+ * sources are registered atomically from the caller's perspective — by the time
+ * `addNewKeyring` or `submitPassword` resolves, the corresponding entropy IDs
+ * are already present in state.
  */
 export class EntropyController extends BaseController<
   typeof CONTROLLER_NAME,
@@ -164,110 +185,59 @@ export class EntropyController extends BaseController<
       },
     });
 
-    // Syncing on `keyrings` state changes covers all cases, including vault
-    // unlock: unlocking populates `state.keyrings`, which triggers this
-    // selector and kicks off a sync automatically.
-    this.messenger.subscribe(
-      'KeyringController:stateChange',
-      () => {
-        this.#syncEntropies().catch(console.error);
-      },
-      (state) => state.keyrings,
+    this.messenger.registerActionHandler(
+      `${CONTROLLER_NAME}:registerSource`,
+      this.#registerSource.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${CONTROLLER_NAME}:unregisterSource`,
+      this.#unregisterSource.bind(this),
     );
   }
 
-  async #syncEntropies(): Promise<void> {
-    const { isUnlocked, keyrings } = this.messenger.call(
-      'KeyringController:getState',
-    );
-    if (!isUnlocked) {
-      return;
-    }
-
-    const entropySources: EntropyControllerState['entropySources'] = {};
-    for (const keyring of keyrings.filter(isKeyringOwningEntropy)) {
-      const { id } = keyring.metadata;
-
-      if (keyring.type === KeyringTypes.hd) {
-        await this.#syncHdKeyring(id, entropySources);
-      } else if (keyring.type === KeyringTypes.simple) {
-        await this.#syncSimpleKeyring(id, entropySources);
-      }
-    }
-
+  /**
+   * Derives and merges a single entropy source into state.
+   *
+   * @param source - The entropy source to register, including raw bytes and
+   * the metadata that links it back to its originating keyring.
+   */
+  async #registerSource(
+    source:
+      | {
+          type: 'bip44:srp';
+          mnemonic: Uint8Array;
+          metadata: EntropyMetadata;
+        }
+      | {
+          type: 'raw:private-key';
+          privateKey: Uint8Array;
+          metadata: EntropyMetadata;
+        },
+  ): Promise<void> {
+    const bytes = source.type === 'bip44:srp' ? source.mnemonic : source.privateKey;
+    const entropyId = await toEntropyId(bytes, source.type);
     this.update((state) => {
-      state.entropySources = entropySources;
+      state.entropySources[entropyId] = {
+        type: source.type,
+        metadata: source.metadata,
+      };
     });
   }
 
   /**
-   * Derives the entropy source entry for a single HD keyring and adds it to
-   * the given map.
+   * Removes all entropy sources whose `legacyEntropySource` matches the given
+   * keyring ID.
    *
-   * Reads the mnemonic via `withKeyringV2Unsafe` and derives a stable
-   * `EntropyId` with type `'bip44:srp'`. Skips the keyring silently if the
-   * mnemonic is not yet initialised.
-   *
-   * @param id - The keyring metadata ID.
-   * @param sources - The map to populate in-place.
+   * @param keyringId - The ID of the keyring being removed.
    */
-  async #syncHdKeyring(
-    id: string,
-    sources: EntropyControllerState['entropySources'],
-  ): Promise<void> {
-    await this.messenger.call(
-      'KeyringController:withKeyringV2Unsafe',
-      { id },
-      async ({ keyring }) => {
-        const hdKeyring = keyring as HdKeyring;
-        if (!hdKeyring.mnemonic) {
-          return;
+  #unregisterSource(keyringId: string): void {
+    this.update((state) => {
+      for (const [entropyId, entry] of Object.entries(state.entropySources)) {
+        if (entry.metadata.legacyEntropySource === keyringId) {
+          delete state.entropySources[entropyId];
         }
-        const entropyId = await toEntropyId(hdKeyring.mnemonic, 'bip44:srp');
-        sources[entropyId] = {
-          type: 'bip44:srp',
-          metadata: { legacyEntropySource: id },
-        };
-      },
-    );
-  }
-
-  /**
-   * Derives entropy source entries for a single Simple keyring and adds them
-   * to the given map.
-   *
-   * Enumerates accounts via `withKeyringV2Unsafe`, exports each private key
-   * via `exportAccount`, and derives a stable `EntropyId` with type
-   * `'raw:private-key'` for each one.
-   *
-   * @param id - The keyring metadata ID.
-   * @param sources - The map to populate in-place.
-   */
-  async #syncSimpleKeyring(
-    id: string,
-    sources: EntropyControllerState['entropySources'],
-  ): Promise<void> {
-    await this.messenger.call(
-      'KeyringController:withKeyringV2Unsafe',
-      { id },
-      async ({ keyring }) => {
-        const simpleKeyring = keyring as SimpleKeyring;
-        const accounts = await simpleKeyring.getAccounts();
-        for (const account of accounts) {
-          const exported = await simpleKeyring.exportAccount(account.id, {
-            type: 'private-key',
-            encoding: 'hexadecimal',
-          });
-          const entropyId = await toEntropyId(
-            hexToBytes(exported.privateKey),
-            'raw:private-key',
-          );
-          sources[entropyId] = {
-            type: 'raw:private-key',
-            metadata: { legacyEntropySource: id },
-          };
-        }
-      },
-    );
+      }
+    });
   }
 }
