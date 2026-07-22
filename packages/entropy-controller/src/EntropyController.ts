@@ -15,6 +15,11 @@ import type { Entropy, EntropyId, EntropyType } from './types';
  */
 const CONTROLLER_NAME = 'EntropyController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'addEntropy',
+  'removeEntropy',
+] as const;
+
 /**
  * Describes the shape of the state object for {@link EntropyController}.
  */
@@ -159,14 +164,9 @@ export class EntropyController extends BaseController<
       },
     });
 
-    this.messenger.registerActionHandler(
-      `${CONTROLLER_NAME}:addEntropy`,
-      this.addEntropy.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${CONTROLLER_NAME}:removeEntropy`,
-      this.removeEntropy.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
