@@ -7,16 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Core Platform packages ([#9571](https://github.com/MetaMask/core/pull/9571))
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-- chore: remove vestigial lint scripts from migrated packages ([#9048](https://github.com/MetaMask/core/pull/9048))
-- Release 978.0.0 ([#8774](https://github.com/MetaMask/core/pull/8774))
-- Release 975.0.0 ([#8765](https://github.com/MetaMask/core/pull/8765))
-- feat(gator-permissions-controller): Added redeemer rule ([#8537](https://github.com/MetaMask/core/pull/8537))
-- Release 947.0.0 ([#8636](https://github.com/MetaMask/core/pull/8636))
-
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
