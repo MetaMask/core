@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+
 ### Changed
 
 - Point `GeolocationApiService` at API Platform's `geolocation-api` service instead of the legacy Ramps-owned `on-ramp` geolocation endpoint, which is slated for deprecation ([#9417](https://github.com/MetaMask/core/pull/9417))
