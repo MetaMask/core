@@ -9,10 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING** Wire `SubscriptionController` into the default wallet initialization
-  - Adds a required `subscriptionController` slot to `instanceOptions`. When `subscriptionService` is omitted, the wallet constructs a default `SubscriptionService` from `env`, `fetchFunction`, and optional `getAccessToken` (defaults to `AuthenticationController:getBearerToken` via messenger delegation), `captureException`, and `pollingInterval` (defaults to five minutes).
-  - Hosts must register `AuthenticationController` on the wallet root messenger for authenticated subscription API calls; `AuthenticationController:getBearerToken`, `AuthenticationController:performSignOut`, and `AuthenticationController:stateChange` are delegated to the controller messenger.
-  - Re-export `Env` from `@metamask/subscription-controller` for consumers configuring `instanceOptions.subscriptionController.env`.
+- **BREAKING** Wire `SubscriptionController` into the default wallet initialization ([#9598](https://github.com/MetaMask/core/pull/9598))
 
 - **BREAKING** Wire `SeedlessOnboardingController` and `PasskeyController` into the default wallet initialization ([#9533](https://github.com/MetaMask/core/pull/9533))
 
