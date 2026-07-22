@@ -121,7 +121,6 @@ export type {
 export type { Quote } from './validators/quote';
 export { FeeType, DiscountType } from './validators/quote';
 export { ActionTypes } from './validators/step';
-
 export {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,

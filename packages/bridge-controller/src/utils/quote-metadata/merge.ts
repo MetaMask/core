@@ -1,6 +1,5 @@
 import { merge } from 'lodash';
 
-import type { DeepPartial } from '../..';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
 import type { QuoteMetadata } from './types';
 
@@ -13,7 +12,7 @@ import type { QuoteMetadata } from './types';
  */
 export function mergeQuoteMetadata(
   quoteResponse: QuoteResponseV1,
-  quoteMetadata: DeepPartial<QuoteMetadata>,
-): QuoteResponseV1 & DeepPartial<QuoteMetadata> {
+  quoteMetadata: QuoteMetadata,
+): QuoteResponseV1 & QuoteMetadata {
   return merge({}, quoteResponse, quoteMetadata);
 }

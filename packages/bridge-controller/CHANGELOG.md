@@ -9,14 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Make `QuoteMetadata` fields optional and remove `0` and `null` amount fallbacks. Missing values are now `undefined`. ([#9507](https://github.com/MetaMask/core/pull/9507))
-- **BREAKING:** Remove `gasFee.effective`, `gasFee.max`, and `totalMaxNetworkFee` from `QuoteMetadata`. Prefer `gasFee.total` and `totalNetworkFee`. ([#9507](https://github.com/MetaMask/core/pull/9507))
-- Add `priceImpact` and `relayerFee` to `QuoteMetadata`. ([#9507](https://github.com/MetaMask/core/pull/9507))
-- Move quote-metadata calculation into `utils/quote-metadata/`, and export `calcQuoteMetadata` and `mergeQuoteMetadata`. ([#9507](https://github.com/MetaMask/core/pull/9507))
-- Refactor quoteMetadata calculation and data access to prepare for metadata migration ([#9507](https://github.com/MetaMask/core/pull/9507))
-  - Extract `QuoteMetadata` type and calculation to a new file
+- **BREAKING:** Make `QuoteMetadata` fields optional and remove unused values
+  - Remove falsy (`0` and `null`) fallbacks; missing values are now `undefined`
+  - Replace `gasFee.effective`, `gasFee.max`, and `totalMaxNetworkFee` usages with `gasFee.total` and `totalNetworkFee`.
+- Extract quote-metadata calculation into `utils/quote-metadata/` ([#9507](https://github.com/MetaMask/core/pull/9507))
   - Implement `mergeQuoteMetadata` util which appends QuoteMetadata to QuoteResponse
-  - Return priceImpact and relayerFee as part of `QuoteMetadata`
+  - Return `priceImpact` and `relayerFee` as part of `QuoteMetadata`
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))
 - Bump `@metamask/assets-controller` from `^11.0.0` to `^11.1.0` ([#9579](https://github.com/MetaMask/core/pull/9579))
 
