@@ -14,11 +14,6 @@ import { toEntropyId } from './utils';
 const HD_MNEMONIC = new TextEncoder().encode(
   'test test test test test test test test test test test junk',
 );
-const PRIVATE_KEY_BYTES = Uint8Array.from(
-  '4af1bceebf7f3634ec3cff8a2c38e51178d5d4ce585c52d6043e5e2cc3f1d3e1'
-    .match(/../gu)!
-    .map((b) => parseInt(b, 16)),
-);
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -57,9 +52,8 @@ describe('EntropyController', () => {
     it('accepts initial state', async () => {
       const givenState = {
         entropySources: {
-          'entropy-1': {
-            type: 'bip44:srp' as const,
-            metadata: { legacyEntropySource: 'keyring-1' },
+          'entropy:bip44:mnemonic:some-uuid': {
+            type: 'bip44:mnemonic' as const,
           },
         },
       };
@@ -80,141 +74,95 @@ describe('EntropyController', () => {
     });
   });
 
-  describe('registerSource', () => {
-    it('registers an HD keyring entropy source', async () => {
-      const keyringId = 'hd-keyring-id';
-      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
+  describe('addEntropy', () => {
+    it('registers a mnemonic entropy source', async () => {
+      const expectedId = await toEntropyId('bip44', 'mnemonic', HD_MNEMONIC);
 
       const { controller, rootMessenger } = await setup();
 
-      await rootMessenger.call('EntropyController:registerSource', {
-        type: 'bip44:srp',
-        mnemonic: HD_MNEMONIC,
-        metadata: { legacyEntropySource: keyringId },
+      rootMessenger.call('EntropyController:addEntropy', {
+        type: 'bip44:mnemonic',
+        id: expectedId,
       });
 
       expect(controller.state.entropySources).toStrictEqual({
-        [expectedId]: {
-          type: 'bip44:srp',
-          metadata: { legacyEntropySource: keyringId },
-        },
-      });
-    });
-
-    it('registers a Simple keyring entropy source', async () => {
-      const keyringId = 'simple-keyring-id';
-      const expectedId = await toEntropyId(PRIVATE_KEY_BYTES, 'raw:private-key');
-
-      const { controller, rootMessenger } = await setup();
-
-      await rootMessenger.call('EntropyController:registerSource', {
-        type: 'raw:private-key',
-        privateKey: PRIVATE_KEY_BYTES,
-        metadata: { legacyEntropySource: keyringId },
-      });
-
-      expect(controller.state.entropySources).toStrictEqual({
-        [expectedId]: {
-          type: 'raw:private-key',
-          metadata: { legacyEntropySource: keyringId },
-        },
+        [expectedId]: { type: 'bip44:mnemonic' },
       });
     });
 
     it('merges new sources without replacing existing ones', async () => {
-      const hdKeyringId = 'hd-keyring-id';
-      const simpleKeyringId = 'simple-keyring-id';
-      const expectedHdId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
-      const expectedSimpleId = await toEntropyId(
-        PRIVATE_KEY_BYTES,
-        'raw:private-key',
+      const firstMnemonic = HD_MNEMONIC;
+      const secondMnemonic = new TextEncoder().encode(
+        'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
       );
+      const firstId = await toEntropyId('bip44', 'mnemonic', firstMnemonic);
+      const secondId = await toEntropyId('bip44', 'mnemonic', secondMnemonic);
 
       const { controller, rootMessenger } = await setup();
 
-      await rootMessenger.call('EntropyController:registerSource', {
-        type: 'bip44:srp',
-        mnemonic: HD_MNEMONIC,
-        metadata: { legacyEntropySource: hdKeyringId },
+      rootMessenger.call('EntropyController:addEntropy', {
+        type: 'bip44:mnemonic',
+        id: firstId,
       });
-
-      await rootMessenger.call('EntropyController:registerSource', {
-        type: 'raw:private-key',
-        privateKey: PRIVATE_KEY_BYTES,
-        metadata: { legacyEntropySource: simpleKeyringId },
+      rootMessenger.call('EntropyController:addEntropy', {
+        type: 'bip44:mnemonic',
+        id: secondId,
       });
 
       expect(controller.state.entropySources).toStrictEqual({
-        [expectedHdId]: {
-          type: 'bip44:srp',
-          metadata: { legacyEntropySource: hdKeyringId },
-        },
-        [expectedSimpleId]: {
-          type: 'raw:private-key',
-          metadata: { legacyEntropySource: simpleKeyringId },
-        },
+        [firstId]: { type: 'bip44:mnemonic' },
+        [secondId]: { type: 'bip44:mnemonic' },
       });
     });
 
     it('is idempotent — registering the same source twice yields one entry', async () => {
-      const keyringId = 'hd-keyring-id';
-      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
+      const id = await toEntropyId('bip44', 'mnemonic', HD_MNEMONIC);
 
       const { controller, rootMessenger } = await setup();
 
-      await rootMessenger.call('EntropyController:registerSource', {
-        type: 'bip44:srp',
-        mnemonic: HD_MNEMONIC,
-        metadata: { legacyEntropySource: keyringId },
+      rootMessenger.call('EntropyController:addEntropy', {
+        type: 'bip44:mnemonic',
+        id,
       });
-
-      await rootMessenger.call('EntropyController:registerSource', {
-        type: 'bip44:srp',
-        mnemonic: HD_MNEMONIC,
-        metadata: { legacyEntropySource: keyringId },
+      rootMessenger.call('EntropyController:addEntropy', {
+        type: 'bip44:mnemonic',
+        id,
       });
 
       expect(Object.keys(controller.state.entropySources)).toHaveLength(1);
-      expect(controller.state.entropySources[expectedId]).toBeDefined();
+      expect(controller.state.entropySources[id]).toBeDefined();
     });
   });
 
-  describe('unregisterSource', () => {
-    it('removes all entropy sources belonging to the given keyring', async () => {
-      const keyringId = 'hd-keyring-id';
-      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
+  describe('removeEntropy', () => {
+    it('removes an entropy source by its ID', async () => {
+      const id = await toEntropyId('bip44', 'mnemonic', HD_MNEMONIC);
 
       const { controller, rootMessenger } = await setup({
         options: {
           state: {
             entropySources: {
-              [expectedId]: {
-                type: 'bip44:srp',
-                metadata: { legacyEntropySource: keyringId },
-              },
-              'other-entropy-id': {
-                type: 'bip44:srp',
-                metadata: { legacyEntropySource: 'other-keyring-id' },
-              },
+              [id]: { type: 'bip44:mnemonic' },
+              'entropy:bip44:mnemonic:other-uuid': { type: 'bip44:mnemonic' },
             },
           },
         },
       });
 
-      rootMessenger.call('EntropyController:unregisterSource', keyringId);
+      rootMessenger.call('EntropyController:removeEntropy', id);
 
-      expect(controller.state.entropySources[expectedId]).toBeUndefined();
+      expect(controller.state.entropySources[id]).toBeUndefined();
       expect(
-        controller.state.entropySources['other-entropy-id'],
+        controller.state.entropySources['entropy:bip44:mnemonic:other-uuid'],
       ).toBeDefined();
     });
 
-    it('does nothing when no sources match the keyring', async () => {
+    it('does nothing when the ID does not exist', async () => {
       const { controller, rootMessenger } = await setup();
 
       rootMessenger.call(
-        'EntropyController:unregisterSource',
-        'unknown-keyring-id',
+        'EntropyController:removeEntropy',
+        'entropy:bip44:mnemonic:nonexistent',
       );
 
       expect(controller.state.entropySources).toStrictEqual({});

@@ -6155,11 +6155,11 @@ function stubKeyringClassWithAccount(
 function buildRootMessenger(): RootMessenger {
   const messenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
   messenger.registerActionHandler(
-    'EntropyController:registerSource',
-    jest.fn().mockResolvedValue(undefined),
+    'EntropyController:addEntropy',
+    jest.fn(),
   );
   messenger.registerActionHandler(
-    'EntropyController:unregisterSource',
+    'EntropyController:removeEntropy',
     jest.fn(),
   );
   return messenger;
@@ -6185,8 +6185,8 @@ function buildKeyringControllerMessenger(
   messenger.delegate({
     messenger: kcMessenger,
     actions: [
-      'EntropyController:registerSource',
-      'EntropyController:unregisterSource',
+      'EntropyController:addEntropy',
+      'EntropyController:removeEntropy',
     ],
   });
 

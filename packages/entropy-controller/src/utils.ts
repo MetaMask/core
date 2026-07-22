@@ -1,92 +1,65 @@
-import type { KeyringObject } from '@metamask/keyring-controller';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import { v4 as uuid } from 'uuid';
 
-import type { EntropyId, EntropyType } from './types';
+import type { EntropyCategory, EntropyId, EntropyImplementation } from './types';
 
 /**
- * Checks whether a keyring is a source of entropy — i.e. whether it owns
- * secret material that the {@link EntropyController} should track.
+ * Computes a deterministic, non-reversible fingerprint for a piece of entropy.
  *
- * Currently matches HD keyrings (`'HD Key Tree'`, which own a BIP-39 mnemonic)
- * and Simple keyrings (`'Simple Key Pair'`, which own imported private keys).
- *
- * @param keyring - The keyring object from `KeyringController` state.
- * @returns `true` if the keyring owns entropy, `false` otherwise.
- */
-export function isKeyringOwningEntropy(keyring: KeyringObject): boolean {
-  return keyring.type === KeyringTypes.hd || keyring.type === KeyringTypes.simple;
-}
-
-/**
- * Computes the raw HMAC-SHA256 digest for a piece of entropy — the shared
- * primitive underlying both {@link toEntropyFingerprint} and
- * {@link toEntropyId}.
- *
- * Using the secret as the HMAC key and the `EntropyType` as the domain
- * separator ensures non-reversibility and type-scoping.
+ * The fingerprint is a UUID v4 seeded from the first 16 bytes of
+ * `HMAC-SHA256(key=material, msg='metamask:fingerprint')`.
  *
  * `@noble/hashes` is synchronous today, but the async signature is kept as a
  * forward-compatible seam: a future migration to the Web Crypto API (or any
  * other async primitive) won't require changes at every call site.
  *
- * @param secret - The raw entropy bytes.
- * @param entropyType - The type of entropy source.
- * @returns The 32-byte HMAC-SHA256 digest.
+ * @param material - The raw entropy bytes (e.g. BIP-39 mnemonic bytes).
+ * @returns A deterministic UUID v4 string that uniquely identifies the entropy
+ * without exposing it.
  */
-async function toEntropyFingerprintBytes(
-  secret: Uint8Array,
-  entropyType: EntropyType,
-): Promise<Uint8Array> {
-  const message = new TextEncoder().encode(
-    `metamask:${entropyType}:fingerprint`,
-  );
-  return hmac(sha256, secret, message);
+export async function fingerprint(material: Uint8Array): Promise<string> {
+  const message = new TextEncoder().encode('metamask:fingerprint');
+  const digest = hmac(sha256, material, message);
+  return uuid({ random: digest.slice(0, 16) });
 }
 
 /**
  * Computes a deterministic, non-reversible hex fingerprint for a piece of
- * entropy.
+ * entropy. Suitable for comparison and auditing.
  *
- * The fingerprint is `hex(HMAC-SHA256(key=secret, msg='metamask:{entropyType}:fingerprint'))`.
- * It is suitable for comparison and auditing — e.g. detecting that two
- * separate components hold the same underlying secret.
- *
- * @param secret - The raw entropy bytes (e.g. BIP-39 mnemonic bytes, a 32-byte
- * private key).
- * @param entropyType - The type of entropy source, expressed as
- * `category:implementation` (e.g. `'bip44:srp'`, `'raw:private-key'`).
+ * @param material - The raw entropy bytes.
  * @returns The lowercase hex-encoded 32-byte HMAC-SHA256 digest.
  */
 export async function toEntropyFingerprint(
-  secret: Uint8Array,
-  entropyType: EntropyType,
+  material: Uint8Array,
 ): Promise<string> {
-  return bytesToHex(await toEntropyFingerprintBytes(secret, entropyType));
+  const message = new TextEncoder().encode('metamask:fingerprint');
+  const digest = hmac(sha256, material, message);
+  return bytesToHex(digest);
 }
 
 /**
- * Derives a deterministic UUID v4 to use as an {@link EntropyId}.
+ * Computes a stable {@link EntropyId} for an entropy source.
  *
- * The UUID is built from the first 16 bytes of
- * `HMAC-SHA256(key=secret, msg='metamask:{entropyType}:fingerprint')`,
- * formatted as a standard UUID v4 (with the version and variant bits fixed by
- * the UUID spec). Same secret + same type always produces the same ID.
+ * The ID is formatted as `entropy:{category}:{implementation}:{uuid}`, where
+ * the UUID segment is the {@link fingerprint} of `material` when provided, or
+ * `'_'` for entropy sources whose secret never leaves the device (e.g. hardware
+ * wallets).
  *
- * @param secret - The raw entropy bytes (e.g. BIP-39 mnemonic bytes, a 32-byte
- * private key).
- * @param entropyType - The type of entropy source, expressed as
- * `category:implementation` (e.g. `'bip44:srp'`, `'raw:private-key'`).
- * @returns A deterministic UUID v4 string suitable for use as an
- * {@link EntropyId}.
+ * @param category - The entropy category (e.g. `'bip44'`, `'raw'`).
+ * @param implementation - The entropy implementation (e.g. `'mnemonic'`,
+ * `'ledger'`, `'private-key'`).
+ * @param material - The raw entropy bytes. Omit for hardware wallets or any
+ * entropy source where the secret is not directly accessible.
+ * @returns A stable {@link EntropyId} string.
  */
 export async function toEntropyId(
-  secret: Uint8Array,
-  entropyType: EntropyType,
+  category: EntropyCategory,
+  implementation: EntropyImplementation,
+  material?: Uint8Array,
 ): Promise<EntropyId> {
-  const bytes = await toEntropyFingerprintBytes(secret, entropyType);
-  return uuid({ random: bytes.slice(0, 16) });
+  const uuidSegment = material ? await fingerprint(material) : '_';
+  return `entropy:${category}:${implementation}:${uuidSegment}`;
 }

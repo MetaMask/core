@@ -11,6 +11,9 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../entropy-controller"
+    },
+    {
       "path": "../messenger"
     }
   ],

@@ -15,10 +15,8 @@ import type {
   EthUserOperationPatch,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import type {
-  Keyring as KeyringV2,
-  KeyringType,
-} from '@metamask/keyring-api/v2';
+import { KeyringType } from '@metamask/keyring-api/v2';
+import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Keyring, KeyringClass } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
@@ -35,6 +33,13 @@ import {
   isValidJson,
   remove0x,
 } from '@metamask/utils';
+import { toEntropyId } from '@metamask/entropy-controller';
+import type {
+  Bip44MnemonicEntropy,
+  EntropyControllerAddEntropyAction,
+  EntropyControllerRemoveEntropyAction,
+  EntropyId,
+} from '@metamask/entropy-controller';
 import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
@@ -196,34 +201,11 @@ export type KeyringControllerEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerAccountRemovedEvent;
 
-// Inline types to avoid a circular package dependency with entropy-controller.
-type EntropyControllerRegisterSourceAction = {
-  type: 'EntropyController:registerSource';
-  handler: (
-    source:
-      | {
-          type: 'bip44:srp';
-          mnemonic: Uint8Array;
-          metadata: { legacyEntropySource: string };
-        }
-      | {
-          type: 'raw:private-key';
-          privateKey: Uint8Array;
-          metadata: { legacyEntropySource: string };
-        },
-  ) => Promise<void>;
-};
-
-type EntropyControllerUnregisterSourceAction = {
-  type: 'EntropyController:unregisterSource';
-  handler: (keyringId: string) => void;
-};
-
 export type KeyringControllerMessenger = Messenger<
   typeof name,
   | KeyringControllerActions
-  | EntropyControllerRegisterSourceAction
-  | EntropyControllerUnregisterSourceAction,
+  | EntropyControllerAddEntropyAction
+  | EntropyControllerRemoveEntropyAction,
   KeyringControllerEvents
 >;
 
@@ -789,6 +771,40 @@ function normalize(address: string): string | undefined {
   // TODO: Find a better way to not have those runtime checks based on the
   //       address value!
   return isEthAddress(address) ? ethNormalize(address) : address;
+}
+
+/**
+ * Returns `true` and narrows `keyringV2` to `HdKeyringV2 & { mnemonic: Uint8Array }` when
+ * the entry is a loaded HD keyring with accessible mnemonic bytes.
+ *
+ * @param keyring - The v1 keyring instance.
+ * @param keyringV2 - The optional v2 keyring instance.
+ * @returns `true` if the entry is an HD keyring v2 with an accessible mnemonic.
+ */
+function isHdKeyringV2(
+  keyring: EthKeyring,
+  keyringV2: KeyringV2 | undefined,
+): keyringV2 is HdKeyringV2 & { mnemonic: Uint8Array } {
+  return (
+    keyring.type === KeyringTypes.hd &&
+    keyringV2?.type === KeyringType.Hd &&
+    Boolean(keyringV2.mnemonic)
+  );
+}
+
+/**
+ * Computes the `EntropyId` for a BIP-44 mnemonic entropy source.
+ *
+ * Thin wrapper around {@link toEntropyId} that encodes the `'bip44'` category
+ * and `'mnemonic'` implementation so call sites don't repeat them.
+ *
+ * @param mnemonic - The raw mnemonic bytes.
+ * @returns The stable `EntropyId` for this mnemonic.
+ */
+async function toBip44MnemonicEntropyId(
+  mnemonic: Uint8Array,
+): Promise<EntropyId> {
+  return toEntropyId('bip44', 'mnemonic', mnemonic);
 }
 
 /**
@@ -1447,7 +1463,7 @@ export class KeyringController<
   async removeAccount(address: string): Promise<void> {
     this.#assertIsUnlocked();
 
-    let removedKeyringId: string | undefined;
+    let removedEntropy: EntropyId | undefined;
 
     await this.#persistOrRollback(async () => {
       const keyringIndex = await this.#findKeyringIndexForAccount(address);
@@ -1487,15 +1503,17 @@ export class KeyringController<
       await keyring.removeAccount(address as Hex);
 
       if (shouldRemoveKeyring) {
-        removedKeyringId = this.#getKeyringMetadata(keyring).id;
+        if (isHdKeyringV2(keyring, keyringV2)) {
+          removedEntropy = await toBip44MnemonicEntropyId(keyringV2.mnemonic);
+        }
         this.#keyrings.splice(keyringIndex, 1);
         await this.#destroyKeyring(keyring, keyringV2);
       }
     });
 
     this.messenger.publish(`${name}:accountRemoved`, address);
-    if (removedKeyringId) {
-      this.messenger.call('EntropyController:unregisterSource', removedKeyringId);
+    if (removedEntropy) {
+      this.messenger.call('EntropyController:removeEntropy', removedEntropy);
     }
   }
 
@@ -2265,6 +2283,7 @@ export class KeyringController<
 
     const createdEntries = new Set<KeyringEntry>();
     const removedEntries = new Set<KeyringEntry>();
+    const removedEntropies: EntropyId[] = [];
 
     const result = await this.#persistOrRollback(async () => {
 
@@ -2335,6 +2354,12 @@ export class KeyringController<
         throw error;
       }
 
+      for (const { keyring, keyringV2 } of removedEntries) {
+        if (isHdKeyringV2(keyring, keyringV2)) {
+          removedEntropies.push(await toBip44MnemonicEntropyId(keyringV2.mnemonic));
+        }
+      }
+
       await destroyKeyrings(removedEntries);
 
       // We update the real keyrings only after the operation completes successfully, so that
@@ -2361,8 +2386,8 @@ export class KeyringController<
     for (const entry of createdEntries) {
       await this.#registerEntropySource(entry);
     }
-    for (const { metadata } of removedEntries) {
-      this.messenger.call('EntropyController:unregisterSource', metadata.id);
+    for (const entropyId of removedEntropies) {
+      this.messenger.call('EntropyController:removeEntropy', entropyId);
     }
 
     return result;
@@ -2382,47 +2407,30 @@ export class KeyringController<
   }
 
   /**
-   * Registers entropy sources for a single keyring entry with
-   * `EntropyController`. Called after each successful persist operation.
+   * Registers an HD keyring's entropy source with `EntropyController`.
    *
-   * HD keyrings contribute one `bip44:srp` source (the mnemonic).
-   * Simple keyrings contribute one `raw:private-key` source per account,
-   * retrieved via `exportAccount` on the v2 keyring interface.
-   *
-   * The call is fire-and-forget from an error perspective — if `EntropyController`
-   * is not wired up in the current consumer, the messenger call throws and the
-   * error propagates. Consumers that do not use `EntropyController` should not
-   * wire `KeyringControllerMessenger` with these `AllowedActions`.
+   * Called after each successful persist. Non-HD keyrings are skipped.
+   * If `EntropyController` is not wired into the consumer's messenger, the
+   * call throws and the error propagates.
    *
    * @param entry - The keyring entry to register.
    */
   async #registerEntropySource(entry: KeyringEntry): Promise<void> {
-    const { keyring, keyringV2, metadata } = entry;
+    const { keyring, keyringV2 } = entry;
 
-    if (keyring.type === KeyringTypes.hd && keyringV2) {
-      const hdKeyring = keyringV2 as HdKeyringV2;
-      if (hdKeyring.mnemonic) {
-        await this.messenger.call('EntropyController:registerSource', {
-          type: 'bip44:srp',
-          mnemonic: hdKeyring.mnemonic,
-          metadata: { legacyEntropySource: metadata.id },
-        });
-      }
-    } else if (keyring.type === KeyringTypes.simple && keyringV2) {
-      const simpleKeyring = keyringV2 as SimpleKeyringV2;
-      const accounts = await simpleKeyring.getAccounts();
-      for (const account of accounts) {
-        const exported = await simpleKeyring.exportAccount(account.id, {
-          type: 'private-key',
-          encoding: 'hexadecimal',
-        });
-        await this.messenger.call('EntropyController:registerSource', {
-          type: 'raw:private-key',
-          privateKey: hexToBytes(add0x(exported.privateKey)),
-          metadata: { legacyEntropySource: metadata.id },
-        });
-      }
+    if (!isHdKeyringV2(keyring, keyringV2)) {
+      return;
     }
+
+    const entropy: Bip44MnemonicEntropy = {
+      type: 'bip44:mnemonic',
+      id: await toBip44MnemonicEntropyId(keyringV2.mnemonic),
+    };
+
+    this.messenger.call('EntropyController:addEntropy', entropy);
+
+    // TODO: set keyringV2.entropySource = entropy.id once @metamask/eth-hd-keyring/v2
+    // exposes a setter or constructor option.
   }
 
   /**

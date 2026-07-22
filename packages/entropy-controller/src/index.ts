@@ -1,16 +1,21 @@
 export { EntropyController } from './entropy-controller';
 export type {
   EntropyControllerActions,
+  EntropyControllerAddEntropyAction,
   EntropyControllerEvents,
   EntropyControllerGetStateAction,
   EntropyControllerMessenger,
+  EntropyControllerRemoveEntropyAction,
   EntropyControllerState,
   EntropyControllerStateChangeEvent,
 } from './entropy-controller';
 export type {
+  Bip44MnemonicEntropy,
+  Entropy,
   EntropyCategory,
   EntropyId,
-  EntropyMetadata,
+  EntropyImplementation,
   EntropyType,
 } from './types';
-export { isKeyringOwningEntropy, toEntropyFingerprint, toEntropyId } from './utils';
+export { isBip44MnemonicEntropy } from './types';
+export { fingerprint, toEntropyFingerprint, toEntropyId } from './utils';
