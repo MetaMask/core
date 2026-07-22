@@ -2,7 +2,7 @@ import { ClientConfigApiService } from '@metamask/remote-feature-flag-controller
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import {
   AlwaysOnlineAdapter,
-  Env,
+  ClaimsEnv,
   importSecretRecoveryPhrase,
   Wallet,
 } from '@metamask/wallet';
@@ -122,7 +122,7 @@ describe('createWallet', () => {
     expect(instanceOptions.transactionController?.disableSwaps).toBe(true);
     expect(instanceOptions.transactionController?.hooks).toStrictEqual({});
     expect(instanceOptions.claimsService).toStrictEqual({
-      env: Env.PRD,
+      env: ClaimsEnv.PRD,
       fetchFunction: globalThis.fetch,
     });
     expect(ClientConfigApiService).toHaveBeenCalled();

@@ -8,7 +8,7 @@ import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import type { Json } from '@metamask/utils';
 import {
   AlwaysOnlineAdapter,
-  Env,
+  ClaimsEnv,
   importSecretRecoveryPhrase,
   Wallet,
 } from '@metamask/wallet';
@@ -120,7 +120,7 @@ function buildInstanceOptions(
       hooks: {},
     },
     claimsService: {
-      env: Env.PRD,
+      env: ClaimsEnv.PRD,
       fetchFunction: globalThis.fetch,
     },
   };
