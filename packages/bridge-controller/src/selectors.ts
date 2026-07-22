@@ -332,7 +332,7 @@ const selectMetadata = createBridgeSelector(
     ({ quoteRequest }) => quoteRequest,
   ],
   (quotes, bridgeFeesPerGas, exchangeRateSources, quoteRequest) => {
-    const { destTokenAddress, srcChainId, destChainId } = quoteRequest[0];
+    const { destTokenAddress, srcChainId, destChainId } = quoteRequest[0] ?? {};
 
     return quotes.map((quote) =>
       calcQuoteMetadata(quote, {
