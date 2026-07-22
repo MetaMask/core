@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AuthenticatedUserStorageService } from './authenticated-user-storage';
+import type { AuthenticatedUserStorageService } from './authenticated-user-storage.js';
 
 /**
  * Returns all delegation records belonging to the authenticated user.
