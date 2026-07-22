@@ -1,12 +1,11 @@
-import { Contract } from '@ethersproject/contracts';
-import { Web3Provider } from '@ethersproject/providers';
-import type { ExternalProvider } from '@ethersproject/providers';
+import { Interface } from '@ethersproject/abi';
 import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 
 import { CHAIN_IDS } from '../constants';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types';
+import { rpcRequest } from '../utils/provider';
 import { toBN } from '../utils/utils';
 import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
 
@@ -27,6 +26,8 @@ const TOKEN_RATIO_ABI = [
     type: 'function',
   },
 ];
+
+const TOKEN_RATIO_INTERFACE = new Interface(TOKEN_RATIO_ABI);
 
 /**
  * Mantle layer 1 gas fee flow.
@@ -60,18 +61,31 @@ export class MantleLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
     oracleFee: BN,
     request: Layer1GasFeeFlowRequest,
   ): Promise<BN> {
-    const { provider, transactionMeta } = request;
-    const oracleAddress = this.getOracleAddressForChain(
-      transactionMeta.chainId,
-    );
+    const { messenger, transactionMeta } = request;
+    const { chainId, networkClientId } = transactionMeta;
 
-    const contract = new Contract(
-      oracleAddress,
-      TOKEN_RATIO_ABI,
-      new Web3Provider(provider as unknown as ExternalProvider),
-    );
+    const to = this.getOracleAddressForChain(chainId);
+    const data = TOKEN_RATIO_INTERFACE.encodeFunctionData(
+      'tokenRatio',
+      [],
+    ) as Hex;
 
-    const tokenRatio = toBN(await contract.tokenRatio());
+    // Direct `eth_call` RPC request rather than an ethers `Contract` with
+    // `Web3Provider`, whose `setTimeout`-based dispatch never fires on React
+    // Native when the timer pump is starved (e.g. iOS display link freeze).
+    // See https://github.com/MetaMask/metamask-mobile/issues/32863
+    const result = await rpcRequest({
+      messenger,
+      networkClientId,
+      method: 'eth_call',
+      params: [{ to, data }, 'latest'],
+    });
+
+    if (typeof result !== 'string' || result === '0x') {
+      throw new Error('No value returned from token ratio contract');
+    }
+
+    const tokenRatio = toBN(result);
     return oracleFee.mul(tokenRatio);
   }
 }

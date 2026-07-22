@@ -1,6 +1,7 @@
 import type { Hex } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 
+import { TerminalUpgradeError } from '../errors';
 import { equalsIgnoreCase } from './delegation-matchers';
 import type { Step } from './step';
 
@@ -38,7 +39,10 @@ function isConflictError(error: unknown): boolean {
  * also returns it when two same-profile requests race on the initial create
  * (the loser's conditional write fails). The step disambiguates by re-fetching
  * the associations: if the address is now present the race was benign and the
- * step reports `'already-done'`; otherwise the conflict propagates.
+ * step reports `'already-done'`. A confirmed cross-profile conflict is thrown
+ * as a {@link TerminalUpgradeError}, since no amount of retrying dissociates
+ * the address from the other profile; if the disambiguating lookup itself
+ * fails, the original (retryable) conflict propagates instead.
  */
 export const associateAddressStep: Step = {
   name: 'associate-address',
@@ -74,13 +78,19 @@ export const associateAddressStep: Step = {
       return response.status === 'active' ? 'already-done' : 'completed';
     } catch (error) {
       if (isConflictError(error)) {
+        let associated;
         try {
-          if (await isAssociated()) {
-            return 'already-done';
-          }
+          associated = await isAssociated();
         } catch {
           // Could not disambiguate — surface the original conflict.
+          throw error;
         }
+        if (associated) {
+          return 'already-done';
+        }
+        throw new TerminalUpgradeError(
+          `Address ${address} is associated with a different CHOMP profile.`,
+        );
       }
       throw error;
     }

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [69.2.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^6.5.0` to `^7.0.0` ([#9593](https://github.com/MetaMask/core/pull/9593))
+
+## [69.2.0]
+
+### Added
+
+- Export `hasTransactionType` helper for checking a transaction's type against the top-level `TransactionMeta` and any nested transactions ([#9570](https://github.com/MetaMask/core/pull/9570))
+
+## [69.1.0]
+
+### Changed
+
+- Query layer 1 gas fee oracles via direct `eth_call` RPC requests instead of an ethers `Contract` backed by `Web3Provider` ([#9505](https://github.com/MetaMask/core/pull/9505))
+  - `Web3Provider` schedules its JSON-RPC dispatch with `setTimeout`, which never fires on React Native iOS when the timer pump is starved, blocking `addTransaction` indefinitely and preventing dapp confirmations from appearing ([MetaMask/metamask-mobile#32863](https://github.com/MetaMask/metamask-mobile/issues/32863))
+
 ## [69.0.0]
 
 ### Changed
@@ -2584,7 +2603,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.2.1...HEAD
+[69.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.2.0...@metamask/transaction-controller@69.2.1
+[69.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.1.0...@metamask/transaction-controller@69.2.0
+[69.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.0.0...@metamask/transaction-controller@69.1.0
 [69.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.4.0...@metamask/transaction-controller@69.0.0
 [68.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.3.0...@metamask/transaction-controller@68.4.0
 [68.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.2...@metamask/transaction-controller@68.3.0

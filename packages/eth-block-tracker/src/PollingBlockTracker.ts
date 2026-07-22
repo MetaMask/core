@@ -8,8 +8,8 @@ import { createDeferredPromise, getErrorMessage } from '@metamask/utils';
 import type { DeferredPromise, JsonRpcRequest } from '@metamask/utils';
 import getCreateRandomId from 'json-rpc-random-id';
 
-import type { BlockTracker } from './BlockTracker';
-import { projectLogger, createModuleLogger } from './logging-utils';
+import type { BlockTracker } from './BlockTracker.js';
+import { projectLogger, createModuleLogger } from './logging-utils.js';
 
 const log = createModuleLogger(projectLogger, 'polling-block-tracker');
 const createRandomId = getCreateRandomId();
@@ -68,6 +68,8 @@ export class PollingBlockTracker<
   #pendingLatestBlock?: Omit<DeferredPromise<string>, 'resolve'>;
 
   #pendingFetch?: Omit<DeferredPromise<string>, 'resolve'>;
+
+  #pendingCheckForLatestBlock?: Promise<string>;
 
   readonly #onNewListener: (eventName: string | symbol) => void;
 
@@ -316,9 +318,15 @@ export class PollingBlockTracker<
    * @deprecated Use {@link getLatestBlock} instead.
    * @returns A promise that resolves to the latest block number.
    */
-  async checkForLatestBlock(): Promise<string> {
-    await this.#updateLatestBlock();
-    return await this.getLatestBlock();
+  checkForLatestBlock(): Promise<string> {
+    if (!this.#pendingCheckForLatestBlock) {
+      this.#pendingCheckForLatestBlock = this.#updateLatestBlock()
+        .then(() => this.getLatestBlock())
+        .finally(() => {
+          this.#pendingCheckForLatestBlock = undefined;
+        });
+    }
+    return this.#pendingCheckForLatestBlock;
   }
 
   #start(): void {

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MultichainAccountService } from './MultichainAccountService';
+import type { MultichainAccountService } from './MultichainAccountService.js';
 
 /**
  * Initialize the service and constructs the internal reprensentation of

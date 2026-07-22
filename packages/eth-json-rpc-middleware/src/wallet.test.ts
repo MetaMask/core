@@ -1,15 +1,15 @@
 import { MessageTypes, TypedMessage } from '@metamask/eth-sig-util';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 
+import { createHandleParams, createRequest } from '../test/util/helpers.js';
 import type {
   MessageParams,
   TransactionParams,
   TypedMessageParams,
   TypedMessageV1Params,
-} from '.';
-import { createWalletMiddleware } from '.';
-import { createHandleParams, createRequest } from '../test/util/helpers';
-import { DANGEROUS_PROTOTYPE_PROPERTIES } from './utils/validation';
+} from './index.js';
+import { createWalletMiddleware } from './index.js';
+import { DANGEROUS_PROTOTYPE_PROPERTIES } from './utils/validation.js';
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',

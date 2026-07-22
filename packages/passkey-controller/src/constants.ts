@@ -14,6 +14,8 @@ export const PasskeyControllerErrorCode = {
   MissingKeyMaterial: 'missing_key_material',
   VaultKeyDecryptionFailed: 'vault_key_decryption_failed',
   VaultKeyMismatch: 'vault_key_mismatch',
+  VaultKeyRenewalFailed: 'vault_key_renewal_failed',
+  EnrollmentPasswordRequired: 'enrollment_password_required',
 } as const;
 
 export type PasskeyControllerErrorCode =
@@ -32,4 +34,6 @@ export enum PasskeyControllerErrorMessage {
   MissingKeyMaterial = `${controllerName} - Passkey assertion missing required key material`,
   VaultKeyDecryptionFailed = `${controllerName} - Passkey vault key decryption failed`,
   VaultKeyMismatch = `${controllerName} - Passkey authentication does not match the current vault key`,
+  EnrollmentPasswordRequired = `${controllerName} - Password required to register passkey`,
+  VaultKeyRenewalFailed = `${controllerName} - Passkey vault key renewal failed`,
 }

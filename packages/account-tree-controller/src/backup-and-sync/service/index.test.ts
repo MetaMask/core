@@ -1,16 +1,19 @@
 import { AccountWalletType } from '@metamask/account-api';
 
-import { BackupAndSyncService } from '.';
-import type { AccountGroupObject } from '../../group';
-import type { AccountTreeControllerState } from '../../types';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { TraceName } from '../analytics';
-import { getProfileId } from '../authentication';
-import { performLegacyAccountSyncing, syncWalletMetadata } from '../syncing';
-import type { BackupAndSyncContext } from '../types';
-import { getAllGroupsFromUserStorage } from '../user-storage';
+import type { AccountGroupObject } from '../../group.js';
+import type { AccountTreeControllerState } from '../../types.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { TraceName } from '../analytics/index.js';
+import { getProfileId } from '../authentication/index.js';
+import {
+  performLegacyAccountSyncing,
+  syncWalletMetadata,
+} from '../syncing/index.js';
+import type { BackupAndSyncContext } from '../types.js';
+import { getAllGroupsFromUserStorage } from '../user-storage/index.js';
 // We only need to import the functions we actually spy on
-import { createStateSnapshot, getLocalEntropyWallets } from '../utils';
+import { createStateSnapshot, getLocalEntropyWallets } from '../utils/index.js';
+import { BackupAndSyncService } from './index.js';
 
 // Mock the sync functions and all external dependencies
 jest.mock('../syncing');
@@ -43,7 +46,7 @@ const mockCreateStateSnapshot = createStateSnapshot as jest.MockedFunction<
 // factory. Grab the real one so tests use the actual tracker behaviour rather
 // than a hand-rolled duplicate.
 const { createSyncMutationTracker } =
-  jest.requireActual<typeof import('../utils')>('../utils');
+  jest.requireActual<typeof import('../utils/index.js')>('../utils');
 
 describe('BackupAndSync - Service - BackupAndSyncService', () => {
   let mockContext: BackupAndSyncContext;
@@ -545,7 +548,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       const secondSyncPromise = backupAndSyncService.performFullSync();
 
       // Both promises should be the same reference
-      expect(firstSyncPromise).toStrictEqual(secondSyncPromise);
+      expect(firstSyncPromise).toBe(secondSyncPromise);
 
       // Resolve the sync work to complete the run
       resolveSync?.();
@@ -578,8 +581,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       ];
 
       // All promises should be the same reference (promise caching)
-      expect(promises[0]).toStrictEqual(promises[1]);
-      expect(promises[1]).toStrictEqual(promises[2]);
+      expect(promises[0]).toBe(promises[1]);
+      expect(promises[1]).toBe(promises[2]);
 
       // Wait for all to complete
       await Promise.all(promises);
@@ -641,8 +644,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       const atLeastOncePromise =
         backupAndSyncService.performFullSyncAtLeastOnce();
 
-      // Both should resolve to the same promise (first sync sets the first ever promise)
-      expect(firstSyncPromise).toStrictEqual(atLeastOncePromise);
+      // Both promises should be the same reference (first sync sets the first ever promise)
+      expect(firstSyncPromise).toBe(atLeastOncePromise);
 
       await Promise.all([firstSyncPromise, atLeastOncePromise]);
 
@@ -706,8 +709,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       ];
 
       // All promises should be the same reference (promise caching)
-      expect(promises[0]).toStrictEqual(promises[1]);
-      expect(promises[1]).toStrictEqual(promises[2]);
+      expect(promises[0]).toBe(promises[1]);
+      expect(promises[1]).toBe(promises[2]);
 
       // Wait for all to complete
       await Promise.all(promises);
@@ -740,7 +743,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         backupAndSyncService.performFullSyncAtLeastOnce();
 
       // Should return the same promise (cached first sync promise)
-      expect(firstSyncPromise).toStrictEqual(secondSyncPromise);
+      expect(firstSyncPromise).toBe(secondSyncPromise);
 
       // Wait for second promise (should resolve immediately since it's already complete)
       await secondSyncPromise;
@@ -788,7 +791,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       const fullSyncPromise = backupAndSyncService.performFullSync();
 
       // They should return the same promise (both use the first sync promise)
-      expect(atLeastOncePromise).toStrictEqual(fullSyncPromise);
+      expect(atLeastOncePromise).toBe(fullSyncPromise);
 
       await Promise.all([atLeastOncePromise, fullSyncPromise]);
 
@@ -810,7 +813,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       // But performFullSyncAtLeastOnce should still return the original promise
       const laterAtLeastOncePromise =
         backupAndSyncService.performFullSyncAtLeastOnce();
-      expect(laterAtLeastOncePromise).toStrictEqual(atLeastOncePromise);
+      expect(laterAtLeastOncePromise).toBe(atLeastOncePromise);
 
       // And should not trigger another sync
       await laterAtLeastOncePromise;

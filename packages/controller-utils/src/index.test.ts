@@ -1,4 +1,4 @@
-import * as allExports from '.';
+import * as allExports from './index.js';
 
 describe('@metamask/controller-utils', () => {
   it('has expected JavaScript exports', () => {

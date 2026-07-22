@@ -6,7 +6,7 @@ import type {
 import { CreateAccountOptions } from '@metamask/keyring-api';
 
 // Explicit import to avoid circular dependency between `analytics` and `providers`.
-import type { Bip44AccountProvider } from '../providers/BaseBip44AccountProvider';
+import type { Bip44AccountProvider } from '../providers/BaseBip44AccountProvider.js';
 
 /**
  * Fallback function for tracing.

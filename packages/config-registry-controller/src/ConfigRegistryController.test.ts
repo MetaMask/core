@@ -5,15 +5,15 @@ import type {
 } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 
-import { createMockNetworkConfig } from '../tests/helpers';
-import type { RegistryNetworkConfig } from './config-registry-api-service/types';
-import type { FetchConfigResult } from './config-registry-api-service/types';
-import type { ConfigRegistryControllerMessenger } from './ConfigRegistryController';
+import { createMockNetworkConfig } from '../tests/helpers.js';
+import type { RegistryNetworkConfig } from './config-registry-api-service/types.js';
+import type { FetchConfigResult } from './config-registry-api-service/types.js';
+import type { ConfigRegistryControllerMessenger } from './ConfigRegistryController.js';
 import {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
-} from './ConfigRegistryController';
-import { selectFeaturedNetworks, selectNetworks } from './selectors';
+} from './ConfigRegistryController.js';
+import { selectFeaturedNetworks, selectNetworks } from './selectors.js';
 
 const namespace = 'ConfigRegistryController' as const;
 
@@ -924,6 +924,46 @@ describe('ConfigRegistryController', () => {
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(callsAfterFirst);
         },
       );
+    });
+  });
+
+  describe('getNetworkConfigByCaip2ChainId', () => {
+    it('returns the correct network config for a given CAIP-2 chainId', async () => {
+      const mockNetworkConfig = createMockNetworkConfig({
+        chainId: 'eip155:1',
+        name: 'Ethereum Mainnet',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              configs: {
+                networks: {
+                  'eip155:1': createMockNetworkConfig({
+                    chainId: 'eip155:1',
+                    name: 'Ethereum Mainnet',
+                  }),
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          const networkConfig =
+            controller.getNetworkConfigByCaip2ChainId('eip155:1');
+
+          expect(networkConfig).toStrictEqual(mockNetworkConfig);
+        },
+      );
+    });
+
+    it('returns undefined for a non-existent CAIP-2 chainId', async () => {
+      await withController(async ({ controller }) => {
+        const networkConfig =
+          controller.getNetworkConfigByCaip2ChainId('eip155:9999');
+
+        expect(networkConfig).toBeUndefined();
+      });
     });
   });
 

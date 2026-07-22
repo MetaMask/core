@@ -19,20 +19,20 @@ import type {
   SRPInterface,
   UserProfile,
   UserProfileLineage,
-} from '../../sdk';
+} from '../../sdk/index.js';
 import {
   assertMessageStartsWithMetamask,
   AuthType,
   Env,
   JwtBearerAuth,
-} from '../../sdk';
-import type { MetaMetricsAuth } from '../../shared/types/services';
+} from '../../sdk/index.js';
+import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import {
   createSnapPublicKeyRequest,
   createSnapAllPublicKeysRequest,
   createSnapSignMessageRequest,
-} from './auth-snap-requests';
-import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types';
+} from './auth-snap-requests.js';
+import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types.js';
 
 const controllerName = 'AuthenticationController';
 

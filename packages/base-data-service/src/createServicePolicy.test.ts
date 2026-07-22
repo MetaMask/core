@@ -7,7 +7,7 @@ import {
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
   ServicePolicy,
-} from './createServicePolicy';
+} from './createServicePolicy.js';
 
 describe('createServicePolicy', () => {
   beforeEach(() => {

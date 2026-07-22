@@ -151,6 +151,9 @@ import { processAccountActivityBalanceUpdates } from './utils/processAccountActi
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
+/** Stable empty map so memoized formatters are not busted by `?? {}` identity churn. */
+const EMPTY_NATIVE_ASSET_MAP: Record<ChainId, Caip19AssetId> = {};
+
 // ============================================================================
 // PENDING TOKEN METADATA (UI input format for addCustomAsset)
 // ============================================================================
@@ -182,6 +185,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssets',
   'getAssetsBalance',
   'getAssetMetadata',
+  'getAsset',
   'getAssetsPrice',
   'getExchangeRatesForBridge',
   'getStateForTransactionPay',
@@ -449,7 +453,7 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     usedInUi: true,
   },
   assetsPrice: {
-    persist: false,
+    persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
@@ -1779,6 +1783,45 @@ export class AssetsController extends BaseController<
     return this.state.assetsInfo[assetId] as AssetMetadata | undefined;
   }
 
+  /**
+   * Get a single combined asset (balance + metadata + price + computed
+   * `fiatValue`) for an account directly from controller state.
+   *
+   * Reuses the same state-composition and filtering logic as `getAssets`
+   * (balance and metadata are required, a missing price falls back to
+   * `{ price: 0, lastUpdated: 0 }` with `fiatValue: 0`, and hidden or
+   * otherwise filtered assets are excluded) so the returned shape never
+   * drifts from `getAssets`. Reads from current state only and does not
+   * trigger a data-source refresh.
+   *
+   * @param accountId - The account ID (`InternalAccount.id`, not an address).
+   * @param assetId - The CAIP-19 asset ID including chain scope
+   * (e.g. `eip155:1/erc20:0x...`).
+   * @returns The combined `Asset`, or `undefined` when no complete
+   * renderable asset (balance + metadata) exists for the account/asset pair.
+   * @throws If `accountId` is empty or `assetId` is not a valid CAIP-19 asset ID.
+   */
+  getAsset(accountId: AccountId, assetId: Caip19AssetId): Asset | undefined {
+    if (typeof accountId !== 'string' || accountId.length === 0) {
+      throw new Error(
+        'AssetsController.getAsset: accountId must be a non-empty string',
+      );
+    }
+
+    let normalizedAssetId: Caip19AssetId;
+    try {
+      normalizedAssetId = normalizeAssetId(assetId);
+    } catch {
+      throw new Error(
+        `AssetsController.getAsset: invalid CAIP-19 assetId "${assetId}"`,
+      );
+    }
+
+    return this.#getAssetFromState(accountId, normalizedAssetId, {
+      assetTypeSet: new Set(['fungible']),
+    });
+  }
+
   async getAssetsPrice(
     accounts: InternalAccount[],
     options?: {
@@ -2206,13 +2249,14 @@ export class AssetsController extends BaseController<
    * Reads the native asset map (CAIP-2 chain ID -> CAIP-19 native asset ID)
    * from the QueryClient cache. Populated at construction via fetchQuery.
    *
-   * @returns Cached map, or empty object if not yet populated.
+   * @returns Cached map, or a stable empty object if not yet populated
+   * (stable identity so downstream memoized formatters can cache-hit).
    */
   #getNativeAssetMap(): Record<ChainId, Caip19AssetId> {
     return (
       this.#queryApiClient.getCachedData<Record<ChainId, Caip19AssetId>>(
         NATIVE_ASSETS_QUERY_KEY,
-      ) ?? {}
+      ) ?? EMPTY_NATIVE_ASSET_MAP
     );
   }
 
@@ -2702,84 +2746,120 @@ export class AssetsController extends BaseController<
   }
 
   #getAssetsFromState(
-    accounts: InternalAccount[],
+    accounts: Pick<InternalAccount, 'id'>[],
     chainIds: ChainId[],
     assetTypes: AssetType[],
   ): Record<AccountId, Record<Caip19AssetId, Asset>> {
-    const result: Record<AccountId, Record<Caip19AssetId, Asset>> = {};
+    const result = Object.create(null) as Record<
+      AccountId,
+      Record<Caip19AssetId, Asset>
+    >;
     // Convert to Sets for O(1) lookups
     const chainIdSet = new Set(chainIds);
     const assetTypeSet = new Set(assetTypes);
 
     for (const account of accounts) {
-      result[account.id] = {};
+      result[account.id] = Object.create(null) as Record<Caip19AssetId, Asset>;
 
       const accountBalances = this.state.assetsBalance[account.id] ?? {};
 
-      for (const [assetId, balance] of Object.entries(accountBalances)) {
+      for (const assetId of Object.keys(accountBalances)) {
         const typedAssetId = assetId as Caip19AssetId;
 
-        const metadataRaw = this.state.assetsInfo[typedAssetId];
+        const asset = this.#getAssetFromState(account.id, typedAssetId, {
+          chainIdSet,
+          assetTypeSet,
+        });
 
-        // Skip assets without metadata
-        if (!metadataRaw) {
-          continue;
+        if (asset) {
+          result[account.id][typedAssetId] = asset;
         }
-
-        const metadata = metadataRaw;
-
-        // Skip hidden assets (assetPreferences)
-        const prefs = this.state.assetPreferences[typedAssetId];
-        if (prefs?.hidden) {
-          continue;
-        }
-
-        const assetChainId = extractChainId(typedAssetId);
-
-        // Skip native tokens on Tempo networks
-        if (this.#shouldHideNativeToken(assetChainId, metadata)) {
-          continue;
-        }
-
-        if (!chainIdSet.has(assetChainId)) {
-          continue;
-        }
-
-        // Filter by asset type
-        const tokenAssetType = this.#tokenStandardToAssetType(metadata.type);
-        if (!assetTypeSet.has(tokenAssetType)) {
-          continue;
-        }
-
-        const typedBalance = balance;
-        const priceRaw = this.state.assetsPrice[typedAssetId];
-        const price: AssetPrice = priceRaw ?? {
-          price: 0,
-          lastUpdated: 0,
-        };
-
-        // Compute fiat value using BigNumber for precision
-        // Note: typedBalance.amount is already in human-readable format (e.g., "1" for 1 ETH)
-        // so we do NOT divide by 10^decimals here
-        const balanceAmount = new BigNumberJS(typedBalance.amount || '0');
-        const fiatValue = balanceAmount
-          .multipliedBy(price.price || 0)
-          .toNumber();
-
-        const asset: Asset = {
-          id: typedAssetId,
-          chainId: assetChainId,
-          balance: typedBalance,
-          metadata,
-          price,
-          fiatValue,
-        };
-
-        result[account.id][typedAssetId] = asset;
       }
     }
 
     return result;
+  }
+
+  /**
+   * Compose a single combined `Asset` (balance + metadata + price + computed
+   * `fiatValue`) for an account/asset pair directly from controller state,
+   * applying the same filtering rules as `#getAssetsFromState`.
+   *
+   * @param accountId - The account ID (`InternalAccount.id`).
+   * @param assetId - The normalized CAIP-19 asset ID.
+   * @param filters - Optional filters applied before composing the asset.
+   * @param filters.chainIdSet - When provided, the asset's chain must be in this set.
+   * @param filters.assetTypeSet - When provided, the asset's type must be in this set.
+   * @returns The combined `Asset`, or `undefined` when the asset is missing a
+   * balance/metadata, is hidden/filtered out, or fails a provided filter.
+   */
+  #getAssetFromState(
+    accountId: AccountId,
+    assetId: Caip19AssetId,
+    filters?: {
+      chainIdSet?: Set<ChainId>;
+      assetTypeSet?: Set<AssetType>;
+    },
+  ): Asset | undefined {
+    const balance = this.state.assetsBalance[accountId]?.[assetId];
+
+    // Skip assets without a balance entry
+    if (!balance) {
+      return undefined;
+    }
+
+    const metadata = this.state.assetsInfo[assetId];
+
+    // Skip assets without metadata
+    if (!metadata) {
+      return undefined;
+    }
+
+    // Skip hidden assets (assetPreferences)
+    const prefs = this.state.assetPreferences[assetId];
+    if (prefs?.hidden) {
+      return undefined;
+    }
+
+    const assetChainId = extractChainId(assetId);
+
+    // Skip native tokens on Tempo networks
+    if (this.#shouldHideNativeToken(assetChainId, metadata)) {
+      return undefined;
+    }
+
+    if (filters?.chainIdSet && !filters.chainIdSet.has(assetChainId)) {
+      return undefined;
+    }
+
+    // Filter by asset type
+    if (filters?.assetTypeSet) {
+      const tokenAssetType = this.#tokenStandardToAssetType(metadata.type);
+      if (!filters.assetTypeSet.has(tokenAssetType)) {
+        return undefined;
+      }
+    }
+
+    const priceRaw = this.state.assetsPrice[assetId];
+    const price: AssetPrice = priceRaw ?? {
+      price: 0,
+      lastUpdated: 0,
+    };
+
+    // Compute fiat value using BigNumber for precision
+    // Note: balance.amount is already in human-readable format (e.g., "1" for 1 ETH)
+    // so we do NOT divide by 10^decimals here
+    const balanceAmount = new BigNumberJS(balance.amount || '0');
+    const fiatValue = balanceAmount.multipliedBy(price.price || 0).toNumber();
+
+    return {
+      id: assetId,
+      chainId: assetChainId,
+      balance,
+      metadata,
+      price,
+      fiatValue,
+    };
   }
 
   /**
@@ -3675,6 +3755,7 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssets');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
+    this.messenger.unregisterActionHandler('AssetsController:getAsset');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
     this.messenger.unregisterActionHandler(
       'AssetsController:getExchangeRatesForBridge',

@@ -16,15 +16,15 @@ import {
   MOCK_XLM_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
   toGroupIndexRangeArray,
-} from '../tests';
-import type { RootMessenger, DeepPartial } from '../tests';
-import { AccountProviderWrapper } from './AccountProviderWrapper';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+} from '../tests/index.js';
+import type { RootMessenger, DeepPartial } from '../tests/index.js';
+import { AccountProviderWrapper } from './AccountProviderWrapper.js';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 import {
   XLM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   XLM_ACCOUNT_PROVIDER_NAME,
   XlmAccountProvider,
-} from './XlmAccountProvider';
+} from './XlmAccountProvider.js';
 
 function asConfig(
   partial: DeepPartial<SnapAccountProviderConfig>,

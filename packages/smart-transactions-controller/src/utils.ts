@@ -14,12 +14,12 @@ import _ from 'lodash';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import packageJson from '../package.json';
-import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
+import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants.js';
 import type {
   SmartTransaction,
   SmartTransactionsStatus,
   SmartTransactionsNetworkConfig,
-} from './types';
+} from './types.js';
 import {
   APIType,
   SmartTransactionStatuses,
@@ -27,7 +27,7 @@ import {
   SmartTransactionMinedTx,
   cancellationReasonToStatusMap,
   ClientId,
-} from './types';
+} from './types.js';
 
 export function isSmartTransactionPending(smartTransaction: SmartTransaction) {
   return smartTransaction.status === SmartTransactionStatuses.PENDING;

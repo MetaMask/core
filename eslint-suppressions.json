@@ -1100,7 +1100,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 16
+      "count": 14
     }
   },
   "packages/gas-fee-controller/src/gas-util.ts": {
@@ -2005,11 +2005,6 @@
       "count": 10
     }
   },
-  "packages/seedless-onboarding-controller/src/errors.ts": {
-    "no-restricted-syntax": {
-      "count": 4
-    }
-  },
   "packages/seedless-onboarding-controller/tests/mocks/vaultEncryptor.ts": {
     "no-restricted-syntax": {
       "count": 5
@@ -2238,11 +2233,6 @@
   "packages/transaction-pay-controller/src/strategy/across/across-actions.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/bridge/bridge-submit.ts": {
-    "no-restricted-syntax": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {

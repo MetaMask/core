@@ -1,4 +1,4 @@
-import * as indexModule from '.';
+import * as indexModule from './index.js';
 
 describe('index module', () => {
   it('has expected JavaScript exports', () => {

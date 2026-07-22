@@ -202,6 +202,13 @@ describe('eip7702AuthorizationStep', () => {
       expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
       expect(mocks.createUpgrade).not.toHaveBeenCalled();
     });
+
+    it('marks the failure as terminal', async () => {
+      const { messenger, mocks } = setup();
+      configureProvider(mocks, delegationCode(MOCK_THIRD_PARTY_IMPL));
+
+      await expect(run(messenger)).rejects.toMatchObject({ terminal: true });
+    });
   });
 
   describe('when the account has unexpected non-delegation code', () => {
@@ -215,6 +222,13 @@ describe('eip7702AuthorizationStep', () => {
       );
       expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
       expect(mocks.createUpgrade).not.toHaveBeenCalled();
+    });
+
+    it('marks the failure as terminal', async () => {
+      const { messenger, mocks } = setup();
+      configureProvider(mocks, '0x6080604052' as Hex);
+
+      await expect(run(messenger)).rejects.toMatchObject({ terminal: true });
     });
 
     it('throws when eth_getCode returns a non-hex value', async () => {

@@ -875,13 +875,163 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('getAsset', () => {
+    const metadata = {
+      type: 'erc20' as const,
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6,
+    };
+
+    it('returns the combined asset with computed fiatValue', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
+        },
+        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const asset = controller.getAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+        expect(asset).toStrictEqual({
+          id: MOCK_ASSET_ID,
+          chainId: 'eip155:1',
+          balance: { amount: '100' },
+          metadata,
+          price: { price: 2, lastUpdated: 123 },
+          fiatValue: 200,
+        });
+      });
+    });
+
+    it('normalizes a lowercase EVM asset ID before lookup', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1' } },
+        },
+        assetsPrice: { [MOCK_ASSET_ID]: { price: 1, lastUpdated: 1 } },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const asset = controller.getAsset(
+          MOCK_ACCOUNT_ID,
+          MOCK_ASSET_ID_LOWERCASE,
+        );
+
+        expect(asset?.id).toBe(MOCK_ASSET_ID);
+      });
+    });
+
+    it('returns undefined when the balance is missing', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        expect(
+          controller.getAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
+        ).toBeUndefined();
+      });
+    });
+
+    it('returns undefined when the metadata is missing', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
+        },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        expect(
+          controller.getAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
+        ).toBeUndefined();
+      });
+    });
+
+    it('falls back to a zero price and fiatValue when the price is missing', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
+        },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const asset = controller.getAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+        expect(asset?.price).toStrictEqual({ price: 0, lastUpdated: 0 });
+        expect(asset?.fiatValue).toBe(0);
+      });
+    });
+
+    it('returns undefined for a hidden asset', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
+        },
+        assetPreferences: { [MOCK_ASSET_ID]: { hidden: true } },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        expect(
+          controller.getAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
+        ).toBeUndefined();
+      });
+    });
+
+    it('throws when accountId is empty', async () => {
+      await withController(({ controller }) => {
+        expect(() =>
+          controller.getAsset('' as AccountId, MOCK_ASSET_ID),
+        ).toThrow('accountId must be a non-empty string');
+      });
+    });
+
+    it('throws when assetId is not a valid CAIP-19 asset ID', async () => {
+      await withController(({ controller }) => {
+        expect(() =>
+          controller.getAsset(
+            MOCK_ACCOUNT_ID,
+            'not-a-caip-19' as Caip19AssetId,
+          ),
+        ).toThrow('invalid CAIP-19 assetId');
+      });
+    });
+
+    it('is exposed as the AssetsController:getAsset messenger action', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
+        },
+        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+      };
+
+      await withController({ state: initialState }, ({ messenger }) => {
+        const asset = messenger.call(
+          'AssetsController:getAsset',
+          MOCK_ACCOUNT_ID,
+          MOCK_ASSET_ID,
+        );
+
+        expect(asset?.fiatValue).toBe(200);
+      });
+    });
+  });
+
   describe('getAssets', () => {
     it('returns empty object when no balances exist', async () => {
       await withController(async ({ controller }) => {
         const accounts = [createMockInternalAccount()];
         const assets = await controller.getAssets(accounts);
 
-        expect(assets[MOCK_ACCOUNT_ID]).toStrictEqual({});
+        // `#getAssetsFromState` returns null-prototype objects (prototype-pollution
+        // hardening), so assert emptiness via keys to avoid a prototype mismatch.
+        expect(Object.keys(assets[MOCK_ACCOUNT_ID])).toStrictEqual([]);
       });
     });
 
@@ -1405,7 +1555,7 @@ describe('AssetsController', () => {
         const accounts = [createMockInternalAccount()];
         const balances = await controller.getAssetsBalance(accounts);
 
-        expect(balances[MOCK_ACCOUNT_ID]).toStrictEqual({});
+        expect(Object.keys(balances[MOCK_ACCOUNT_ID])).toStrictEqual([]);
       });
     });
   });

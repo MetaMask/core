@@ -1,12 +1,12 @@
 export {
   getAuthenticatedStorageUrl,
   AuthenticatedUserStorageService,
-} from './authenticated-user-storage';
+} from './authenticated-user-storage.js';
 export {
   ASSETS_WATCHLIST_MAX_ASSETS,
   DEFAULT_AGENTIC_CLI_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
-} from './validators';
+} from './validators.js';
 export type {
   AuthenticatedUserStorageActions,
   AuthenticatedUserStorageCacheUpdatedEvent,
@@ -14,7 +14,7 @@ export type {
   AuthenticatedUserStorageGranularCacheUpdatedEvent,
   AuthenticatedUserStorageInvalidateQueriesAction,
   AuthenticatedUserStorageMessenger,
-} from './authenticated-user-storage';
+} from './authenticated-user-storage.js';
 export type {
   AuthenticatedUserStorageServiceListDelegationsAction,
   AuthenticatedUserStorageServiceCreateDelegationAction,
@@ -23,9 +23,9 @@ export type {
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
   AuthenticatedUserStorageServiceGetAssetsWatchlistAction,
   AuthenticatedUserStorageServiceSetAssetsWatchlistAction,
-} from './authenticated-user-storage-method-action-types';
-export { getUserStorageApiUrl } from './env';
-export type { Environment } from './env';
+} from './authenticated-user-storage-method-action-types.js';
+export { getUserStorageApiUrl } from './env.js';
+export type { Environment } from './env.js';
 export type {
   Caveat,
   SignedDelegation,
@@ -44,4 +44,4 @@ export type {
   NotificationPreferences,
   AssetsWatchlistBlob,
   ClientType,
-} from './types';
+} from './types.js';

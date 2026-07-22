@@ -2,7 +2,7 @@ import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
   assertValidLegacyUserStorageAccount,
-} from './validation';
+} from './validation.js';
 
 describe('BackupAndSync - UserStorage - Validation', () => {
   describe('assertValidUserStorageWallet', () => {

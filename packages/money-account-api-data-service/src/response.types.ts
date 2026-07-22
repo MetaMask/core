@@ -35,6 +35,16 @@ export type VaultPosition = {
 };
 
 /**
+ * Balance summary on the positions response.
+ * `null` when the API's wallet-balance path is disabled or unavailable.
+ */
+export type PositionBalance = {
+  musd_balance: string;
+  vmusd_value_in_musd: string;
+  total_balance: string;
+};
+
+/**
  * Response from `GET /v1/positions/:address`.
  * Derived from {@link PositionResponseStruct} to ensure type/struct parity.
  */

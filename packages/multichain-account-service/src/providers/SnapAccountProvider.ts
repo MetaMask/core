@@ -30,14 +30,14 @@ import {
   toCreateAccountsV2DataTraces,
   traceFallback,
   TraceName,
-} from '../analytics';
-import { reportError } from '../errors';
-import { projectLogger as log, WARNING_PREFIX } from '../logger';
-import type { MultichainAccountServiceMessenger } from '../types';
-import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
-import { createSnapKeyringClient } from './SnapKeyringClient';
-import type { Sender, SnapKeyringClient } from './SnapKeyringClient';
-import { withRetry, withTimeout } from './utils';
+} from '../analytics/index.js';
+import { reportError } from '../errors.js';
+import { projectLogger as log, WARNING_PREFIX } from '../logger.js';
+import type { MultichainAccountServiceMessenger } from '../types.js';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider.js';
+import { createSnapKeyringClient } from './SnapKeyringClient.js';
+import type { Sender, SnapKeyringClient } from './SnapKeyringClient.js';
+import { withRetry, withTimeout } from './utils.js';
 
 /**
  * A proxy to the Snap's keyring operations that routes every call through the

@@ -1,9 +1,9 @@
 import { Command } from '@oclif/core';
 
-import { pingDaemon } from '../../daemon/daemon-client';
-import { getDaemonPaths } from '../../daemon/paths';
-import { stopDaemon } from '../../daemon/stop-daemon';
-import { readPidFile } from '../../daemon/utils';
+import { pingDaemon } from '../../daemon/daemon-client.js';
+import { getDaemonPaths } from '../../daemon/paths.js';
+import { stopDaemon } from '../../daemon/stop-daemon.js';
+import { readPidFile } from '../../daemon/utils.js';
 
 export default class DaemonStop extends Command {
   static override description = 'Stop the wallet daemon';

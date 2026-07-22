@@ -962,6 +962,39 @@ export type PerpsControllerSetMaxSlippageAction = {
 };
 
 /**
+ * Get the user's pro-mode layout preferences (network-independent).
+ *
+ * @returns The current pro-mode layout preferences.
+ */
+export type PerpsControllerGetProLayoutPreferencesAction = {
+  type: `PerpsController:getProLayoutPreferences`;
+  handler: PerpsController['getProLayoutPreferences'];
+};
+
+/**
+ * Update the user's pro-mode layout preferences.
+ *
+ * Patch-style setter: only the provided fields are updated, the rest are
+ * preserved. This keeps the signature stable as new layout fields are added.
+ *
+ * @param patch - Partial set of pro-mode layout preferences to update.
+ */
+export type PerpsControllerSetProLayoutPreferencesAction = {
+  type: `PerpsController:setProLayoutPreferences`;
+  handler: PerpsController['setProLayoutPreferences'];
+};
+
+/**
+ * Set the Perps interface mode (lite/pro).
+ *
+ * @param mode - The mode to switch to.
+ */
+export type PerpsControllerSetPerpsModeAction = {
+  type: `PerpsController:setPerpsMode`;
+  handler: PerpsController['setPerpsMode'];
+};
+
+/**
  * Set the selected payment token for the Perps order/deposit flow.
  * Pass null or a token with description PERPS_CONSTANTS.PerpsBalanceTokenDescription to select Perps balance.
  * Only required fields (address, chainId) are stored in state; description and symbol are optional.
@@ -1170,6 +1203,9 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSaveMarketFilterPreferencesAction
   | PerpsControllerGetMaxSlippageAction
   | PerpsControllerSetMaxSlippageAction
+  | PerpsControllerGetProLayoutPreferencesAction
+  | PerpsControllerSetProLayoutPreferencesAction
+  | PerpsControllerSetPerpsModeAction
   | PerpsControllerSetSelectedPaymentTokenAction
   | PerpsControllerResetSelectedPaymentTokenAction
   | PerpsControllerGetOrderBookGroupingAction
