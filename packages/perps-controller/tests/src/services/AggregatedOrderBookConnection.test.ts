@@ -69,9 +69,14 @@ jest.mock('@nktkas/hyperliquid', () => {
   class WebSocketTransport {
     options: Record<string, unknown>;
 
-    close = jest.fn();
-
     socket = new MockSocket();
+
+    // Mirror the SDK: closing aborts the termination signal (as
+    // `TERMINATED_BY_USER` if not already aborted) and dispatches a final
+    // `close` event.
+    close = jest.fn(() => {
+      this.socket.terminate('TERMINATED_BY_USER');
+    });
 
     subscribe = jest.fn(
       (
@@ -732,6 +737,34 @@ describe('AggregatedOrderBookConnection', () => {
       expect(newTransport).not.toBe(firstTransport);
       // The reentrant subscription's transport is left live (not orphaned).
       expect(newTransport.close).not.toHaveBeenCalled();
+    });
+
+    it('does not leave the connection flagged terminated after closing an exhausted socket', () => {
+      const connection = new AggregatedOrderBookConnection({
+        isTestnet: (): boolean => false,
+      });
+      const onStatusChange = jest.fn();
+      connection.subscribe({
+        symbol: 'BTC',
+        nSigFigs: 2,
+        callback: jest.fn(),
+        onStatusChange,
+      });
+
+      // Reconnection is exhausted on the dedicated socket.
+      mockState.transports[0].socket.terminate();
+      expect(onStatusChange).toHaveBeenLastCalledWith('error');
+
+      // Resubscribe rebuilds the transport. Closing the exhausted socket
+      // dispatches a final `close`; that must not re-flag the connection as
+      // terminated after it was cleared.
+      connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+      expect(mockState.transports).toHaveLength(2);
+
+      // A further subscribe on the same network must REUSE the healthy new
+      // transport rather than tearing it down as if it were dead.
+      connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: jest.fn() });
+      expect(mockState.transports).toHaveLength(2);
     });
 
     it('reports error when the subscription request rejects', async () => {

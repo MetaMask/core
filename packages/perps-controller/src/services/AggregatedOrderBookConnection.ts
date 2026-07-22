@@ -273,6 +273,13 @@ export class AggregatedOrderBookConnection {
     // still-live signal means a transient drop the socket will auto-reconnect.
     const handleOpen = (): void => reportStatus('connected');
     const handleClose = (): void => {
+      // A torn-down subscription must not mutate shared connection state. Its
+      // listeners are normally detached before the socket closes, but guard
+      // anyway so a late `close` (e.g. from `transport.close()` racing listener
+      // removal) can't wrongly flip `#terminated`.
+      if (cancelled) {
+        return;
+      }
       const { terminationSignal } = socket;
       const terminatedByUser =
         (terminationSignal.reason as { code?: string } | undefined)?.code ===
@@ -469,11 +476,16 @@ export class AggregatedOrderBookConnection {
     this.#activeCount = 0;
     this.#payloads.clear();
     this.#terminated = false;
-    if (transport) {
-      transport.close();
-    }
+    // Force-terminate (which detaches each subscription's socket listeners)
+    // BEFORE closing the transport. `close()` on an already-exhausted socket
+    // dispatches a final `close`; if a stale `handleClose` were still attached
+    // it would re-set `#terminated` right after we cleared it, making the next
+    // `#ensureTransport` tear down the healthy replacement socket.
     for (const forceTerminate of subscriptions) {
       forceTerminate();
+    }
+    if (transport) {
+      transport.close();
     }
   }
 }
