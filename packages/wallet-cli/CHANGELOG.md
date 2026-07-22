@@ -26,5 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Report daemon socket connection errors consistently across `mm daemon call` and `mm daemon list` ([#9339](https://github.com/MetaMask/core/pull/9339))
 - Bump `@metamask/wallet` from `^3.0.0` to `^7.0.1` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9263](https://github.com/MetaMask/core/pull/9263), [#9349](https://github.com/MetaMask/core/pull/9349), [#9396](https://github.com/MetaMask/core/pull/9396), [#9470](https://github.com/MetaMask/core/pull/9470))
 - Wrap daemon password and SRP in opaque `Password` and `Srp` types that redact on logging; validated and unwrapped only at trust boundaries ([#8863](https://github.com/MetaMask/core/pull/8863))
+- Bump `@metamask/wallet` from `^7.0.1` to `8.0.0`. ([#9609](https://github.com/MetaMask/core/pull/9609))
 
 [Unreleased]: https://github.com/MetaMask/core/
