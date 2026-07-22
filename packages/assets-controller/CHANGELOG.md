@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `AccountsApiDataSource` `forceUpdate` balance fetches now use `staleTime`/`gcTime` of `100`ms (previously `0`/`0`) so bursts of near-simultaneous forced refreshes are de-duplicated by TanStack Query into a single Accounts API request instead of one request per trigger ([#9591](https://github.com/MetaMask/core/pull/9591))
 - `TokenDataSource` balance-only metadata heals no longer apply EVM occurrence / non-EVM Blockaid spam filtering (or delete those holdings from `assetsBalance`); filtering still applies to newly `detectedAssets`. Fixes missing `assetsInfo` for already-tracked balances after [#9547](https://github.com/MetaMask/core/pull/9547) ([#9584](https://github.com/MetaMask/core/pull/9584))
 
 ## [11.1.0]
