@@ -64,6 +64,37 @@ describe('createWallet (real Wallet, in-memory)', () => {
       await dispose();
     }
   });
+
+  it('auto-accepts a pending approval request instead of hanging', async () => {
+    const { wallet, dispose } = await createWallet({
+      databasePath: ':memory:',
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
+      infuraProjectId: INFURA_PROJECT_ID,
+      log: () => undefined,
+    });
+
+    try {
+      // `addRequest` awaits acceptance; on a headless daemon with no UI it would
+      // hang forever, so the auto-approval subscription must resolve it.
+      // `shouldShowRequest: false` keeps the no-op `showApprovalRequest` out of
+      // the picture — resolution comes purely from the state-change accept path.
+      // If auto-approval regressed, this would time out rather than resolve.
+      const accepted = await wallet.messenger.call(
+        'ApprovalController:addRequest',
+        { origin: 'https://example.com', type: 'test:approval' },
+        false,
+      );
+      expect(accepted).toBeUndefined();
+
+      // Accepting deletes the request, so nothing is left pending.
+      expect(
+        wallet.messenger.call('ApprovalController:getState').pendingApprovals,
+      ).toStrictEqual({});
+    } finally {
+      await dispose();
+    }
+  });
 });
 
 describe('createWallet (integration)', () => {

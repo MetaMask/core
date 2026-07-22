@@ -57,6 +57,8 @@ mm daemon purge           # stop, then delete all daemon state files (--force to
 
 State (socket, PID file, log, and the SQLite database) lives in the per-user oclif data directory; override it with `MM_DATA_DIR`.
 
+> **Security model — the daemon auto-approves everything.** Because it is headless, the daemon accepts every approval request (transactions and signatures included) with no per-request prompt; otherwise an awaited request would hang forever with no UI to resolve it. The trust boundary is therefore the daemon's `0600`, same-user Unix socket — anything that can reach the socket can move funds. A scoped/opt-in approval policy is planned for when a user-facing send command lands.
+
 ## Troubleshooting
 
 ### Rebuilding `better-sqlite3`
