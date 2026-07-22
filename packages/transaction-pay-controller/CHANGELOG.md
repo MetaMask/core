@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Reserve the HyperLiquid activation fee based on how HyperLiquid actually charges it ([#9594](https://github.com/MetaMask/core/pull/9594))
+  - Bridge withdrawals no longer count as activation, so accounts whose only outbound history is bridge withdrawals now get the fee reserved and their max withdrawals no longer fail with `Insufficient USDC balance for token transfer gas`
+  - Accounts created by an inbound transfer that paid the activation fee are detected as activated, so no fee is reserved and the full balance can be withdrawn
+  - Activation-check failures now reserve the fee instead of skipping it
+
 ## [25.1.1]
 
 ### Changed
