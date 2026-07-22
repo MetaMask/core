@@ -3306,9 +3306,16 @@ describe('SeedlessOnboardingController', () => {
               'SeedlessOnboardingController:fetchAllSecretData',
               MOCK_PASSWORD,
             ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-          );
+          ).rejects.toMatchObject({
+            message:
+              SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+            data: {
+              secretTypeCounts: { [SecretType.PrivateKey]: 1 },
+              dataTypeCounts: {
+                [EncAccountDataType.ImportedPrivateKey]: 1,
+              },
+            },
+          });
 
           expect(mockSecretDataGet.isDone()).toBe(true);
         },
@@ -3511,9 +3518,14 @@ describe('SeedlessOnboardingController', () => {
               'SeedlessOnboardingController:fetchAllSecretData',
               MOCK_PASSWORD,
             ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-          );
+          ).rejects.toMatchObject({
+            message:
+              SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+            data: {
+              secretTypeCounts: { [SecretType.Mnemonic]: 1 },
+              dataTypeCounts: { [EncAccountDataType.ImportedSrp]: 1 },
+            },
+          });
 
           expect(mockSecretDataGet.isDone()).toBe(true);
         },

@@ -1,4 +1,8 @@
-import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
+import type {
+  EncAccountDataType,
+  KeyPair,
+  NodeAuthTokens,
+} from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
 import type { AuthConnection, SecretType } from './constants';
@@ -89,6 +93,26 @@ export type RecoveryErrorData = {
    * The number of attempts made by the user.
    */
   numberOfAttempts: number;
+};
+
+/**
+ * Non-sensitive metadata included with `InvalidPrimarySecretDataTypeError`.
+ *
+ * Only secret and data type counts are included so the error can be reported to
+ * Sentry without exposing secret payloads.
+ */
+export type InvalidPrimarySecretDataTypeErrorData = {
+  /**
+   * Counts grouped by `SecretMetadata.type`.
+   */
+  secretTypeCounts: Partial<Record<SecretType, number>>;
+
+  /**
+   * Counts grouped by `SecretMetadata.dataType`.
+   *
+   * Items without a `dataType` are counted under `unknown`.
+   */
+  dataTypeCounts: Partial<Record<EncAccountDataType | 'unknown', number>>;
 };
 
 // State

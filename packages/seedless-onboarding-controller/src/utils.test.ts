@@ -3,12 +3,15 @@ import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
 import { createMockJWTToken } from '../tests/mocks/utils';
+import { SecretType } from './constants';
+import { SecretMetadata } from './SecretMetadata';
 import type { DecodedNodeAuthToken } from './types';
 import {
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
   getSecretTypeFromDataType,
+  summarizeSecretMetadataCounts,
 } from './utils';
 
 describe('utils', () => {
@@ -227,6 +230,53 @@ describe('utils', () => {
       expect(() => getSecretTypeFromDataType(unknownDataType)).toThrow(
         'Unknown EncAccountDataType: UnknownType',
       );
+    });
+  });
+
+  describe('summarizeSecretMetadataCounts', () => {
+    it('should count secrets by type and dataType', () => {
+      const secrets = [
+        new SecretMetadata('seed phrase', {
+          type: SecretType.Mnemonic,
+          dataType: EncAccountDataType.ImportedSrp,
+        }),
+        new SecretMetadata('private key', {
+          type: SecretType.PrivateKey,
+          dataType: EncAccountDataType.ImportedPrivateKey,
+        }),
+        new SecretMetadata('another private key', {
+          type: SecretType.PrivateKey,
+          dataType: EncAccountDataType.ImportedPrivateKey,
+        }),
+      ];
+
+      expect(summarizeSecretMetadataCounts(secrets)).toStrictEqual({
+        secretTypeCounts: {
+          [SecretType.Mnemonic]: 1,
+          [SecretType.PrivateKey]: 2,
+        },
+        dataTypeCounts: {
+          [EncAccountDataType.ImportedSrp]: 1,
+          [EncAccountDataType.ImportedPrivateKey]: 2,
+        },
+      });
+    });
+
+    it('should count items without dataType as unknown', () => {
+      const secrets = [
+        new SecretMetadata('seed phrase', {
+          type: SecretType.Mnemonic,
+        }),
+      ];
+
+      expect(summarizeSecretMetadataCounts(secrets)).toStrictEqual({
+        secretTypeCounts: {
+          [SecretType.Mnemonic]: 1,
+        },
+        dataTypeCounts: {
+          unknown: 1,
+        },
+      });
     });
   });
 });

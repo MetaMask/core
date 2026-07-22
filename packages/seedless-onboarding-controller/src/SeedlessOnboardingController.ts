@@ -53,6 +53,7 @@ import {
   Web3AuthNetwork,
 } from './constants';
 import {
+  InvalidPrimarySecretDataTypeError,
   PasswordSyncError,
   RecoveryError,
   SeedlessOnboardingError,
@@ -1654,9 +1655,7 @@ export class SeedlessOnboardingController<
             result.dataType === EncAccountDataType.PrimarySrp),
       );
       if (primaryIndex === -1) {
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-        );
+        throw InvalidPrimarySecretDataTypeError.fromSecretMetadata(results);
       }
       if (primaryIndex !== 0) {
         const [primary] = results.splice(primaryIndex, 1);

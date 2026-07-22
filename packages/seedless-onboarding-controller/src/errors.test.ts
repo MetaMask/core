@@ -1,10 +1,15 @@
 import { TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
+
+import { SecretType } from './constants';
 import {
   getErrorMessageFromTOPRFErrorCode,
+  InvalidPrimarySecretDataTypeError,
   SeedlessOnboardingError,
 } from './errors';
+import { SecretMetadata } from './SecretMetadata';
 
 describe('getErrorMessageFromTOPRFErrorCode', () => {
   it('returns TooManyLoginAttempts for RateLimitExceeded', () => {
@@ -50,6 +55,66 @@ describe('getErrorMessageFromTOPRFErrorCode', () => {
         'fallback',
       ),
     ).toBe('fallback');
+  });
+});
+
+describe('InvalidPrimarySecretDataTypeError', () => {
+  it('creates an error with the expected message and name', () => {
+    const error = new InvalidPrimarySecretDataTypeError({
+      secretTypeCounts: { [SecretType.PrivateKey]: 1 },
+      dataTypeCounts: { [EncAccountDataType.ImportedPrivateKey]: 1 },
+    });
+
+    expect(error.message).toBe(
+      SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+    );
+    expect(error.name).toBe(
+      'SeedlessOnboardingController - InvalidPrimarySecretDataTypeError',
+    );
+    expect(error.data).toStrictEqual({
+      secretTypeCounts: { [SecretType.PrivateKey]: 1 },
+      dataTypeCounts: { [EncAccountDataType.ImportedPrivateKey]: 1 },
+    });
+  });
+
+  it('creates an error from secret metadata without exposing secret payloads', () => {
+    const secrets = [
+      new SecretMetadata('private-key-1', {
+        type: SecretType.PrivateKey,
+        dataType: EncAccountDataType.ImportedPrivateKey,
+      }),
+      new SecretMetadata('private-key-2', {
+        type: SecretType.PrivateKey,
+        dataType: EncAccountDataType.ImportedPrivateKey,
+      }),
+    ];
+
+    const error = InvalidPrimarySecretDataTypeError.fromSecretMetadata(secrets);
+
+    expect(error.data).toStrictEqual({
+      secretTypeCounts: { [SecretType.PrivateKey]: 2 },
+      dataTypeCounts: { [EncAccountDataType.ImportedPrivateKey]: 2 },
+    });
+    expect(error.toJSON()).not.toHaveProperty('secrets');
+    expect(JSON.stringify(error.toJSON())).not.toContain('private-key-1');
+  });
+
+  it('serializes only non-sensitive data for Sentry', () => {
+    const error = new InvalidPrimarySecretDataTypeError({
+      secretTypeCounts: { [SecretType.Mnemonic]: 1 },
+      dataTypeCounts: { [EncAccountDataType.ImportedSrp]: 1 },
+    });
+
+    expect(error.toJSON()).toStrictEqual({
+      name: 'SeedlessOnboardingController - InvalidPrimarySecretDataTypeError',
+      message:
+        SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+      data: {
+        secretTypeCounts: { [SecretType.Mnemonic]: 1 },
+        dataTypeCounts: { [EncAccountDataType.ImportedSrp]: 1 },
+      },
+      stack: error.stack,
+    });
   });
 });
 

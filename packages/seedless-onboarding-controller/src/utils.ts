@@ -9,10 +9,12 @@ import {
 import { bytesToUtf8 } from '@noble/ciphers/utils';
 
 import { SecretType } from './constants';
+import type { SecretMetadata } from './SecretMetadata';
 import type {
   DecodedBaseJWTToken,
   DecodedNodeAuthToken,
   DeserializedVaultData,
+  InvalidPrimarySecretDataTypeErrorData,
   VaultData,
 } from './types';
 
@@ -172,4 +174,28 @@ export function getSecretTypeFromDataType(
     default:
       throw new Error(`Unknown EncAccountDataType: ${String(dataType)}`);
   }
+}
+
+/**
+ * Summarize secret metadata items into non-sensitive type counts.
+ *
+ * @param secrets - The secret metadata items to summarize.
+ * @returns Counts grouped by secret type and data type.
+ */
+export function summarizeSecretMetadataCounts(
+  secrets: SecretMetadata<string | Uint8Array>[],
+): InvalidPrimarySecretDataTypeErrorData {
+  const secretTypeCounts: Partial<Record<SecretType, number>> = {};
+  const dataTypeCounts: Partial<
+    Record<EncAccountDataType | 'unknown', number>
+  > = {};
+
+  for (const secret of secrets) {
+    secretTypeCounts[secret.type] = (secretTypeCounts[secret.type] ?? 0) + 1;
+
+    const dataTypeKey = secret.dataType ?? 'unknown';
+    dataTypeCounts[dataTypeKey] = (dataTypeCounts[dataTypeKey] ?? 0) + 1;
+  }
+
+  return { secretTypeCounts, dataTypeCounts };
 }

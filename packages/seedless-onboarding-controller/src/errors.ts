@@ -2,7 +2,12 @@ import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 import type { RateLimitErrorData } from '@metamask/toprf-secure-backup';
 
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
-import type { RecoveryErrorData } from './types';
+import type { SecretMetadata } from './SecretMetadata';
+import type {
+  InvalidPrimarySecretDataTypeErrorData,
+  RecoveryErrorData,
+} from './types';
+import { summarizeSecretMetadataCounts } from './utils';
 
 /**
  * Get the error message from the TOPRF error code.
@@ -138,6 +143,51 @@ export class RecoveryError extends Error {
       SeedlessOnboardingControllerErrorMessage.LoginFailedError,
     );
     return new RecoveryError(errorMessage, recoveryErrorData);
+  }
+}
+
+/**
+ * Error thrown when fetched secret metadata does not include a primary mnemonic.
+ */
+export class InvalidPrimarySecretDataTypeError extends Error {
+  /**
+   * Non-sensitive counts of the fetched secret metadata items.
+   */
+  data: InvalidPrimarySecretDataTypeErrorData;
+
+  constructor(data: InvalidPrimarySecretDataTypeErrorData) {
+    super(SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType);
+    this.name = 'SeedlessOnboardingController - InvalidPrimarySecretDataTypeError';
+    this.data = data;
+  }
+
+  /**
+   * Create an error from secret metadata items.
+   *
+   * @param secrets - The secret metadata items that failed validation.
+   * @returns A new `InvalidPrimarySecretDataTypeError`.
+   */
+  static fromSecretMetadata(
+    secrets: SecretMetadata<string | Uint8Array>[],
+  ): InvalidPrimarySecretDataTypeError {
+    return new InvalidPrimarySecretDataTypeError(
+      summarizeSecretMetadataCounts(secrets),
+    );
+  }
+
+  /**
+   * Serializes the error for logging/transmission.
+   * Only non-sensitive type counts are included.
+   *
+   * @returns A JSON-serializable representation of the error.
+   */
+  toJSON(): Record<string, unknown> {
+    return {
+      name: this.name,
+      message: this.message,
+      data: this.data,
+      stack: this.stack,
+    };
   }
 }
 
