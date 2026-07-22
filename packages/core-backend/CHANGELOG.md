@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
 ### Uncategorized
 
 - Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
@@ -365,7 +367,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.5.0...@metamask/core-backend@7.0.0
 [6.5.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.4.0...@metamask/core-backend@6.5.0
 [6.4.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.3...@metamask/core-backend@6.4.0
 [6.3.3]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.2...@metamask/core-backend@6.3.3
