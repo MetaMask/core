@@ -14,12 +14,12 @@ type PackageInfo = {
   teams: string[];
 
   /**
-   * The package's directory name(s) under
-   * `/packages/wallet/src/initialization/instances`, used to generate its rule(s)
+   * The package's directory name under
+   * `/packages/wallet/src/initialization/instances`, used to generate its rule
    * in the "Initialization" section. Omit this if the package has not been
    * added to the Wallet Library yet.
    */
-  initializationPaths?: string[];
+  initializationPath?: string;
 };
 
 /**
@@ -34,11 +34,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'accounts-controller': {
     teams: ['@MetaMask/accounts-engineers'],
-    initializationPaths: ['accounts-controller'],
+    initializationPath: 'accounts-controller',
   },
   'address-book-controller': {
     teams: ['@MetaMask/confirmations'],
-    initializationPaths: ['address-book-controller'],
+    initializationPath: 'address-book-controller',
   },
   'ai-controllers': {
     teams: ['@MetaMask/social-ai'],
@@ -57,7 +57,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'approval-controller': {
     teams: ['@MetaMask/confirmations'],
-    initializationPaths: ['approval-controller'],
+    initializationPath: 'approval-controller',
   },
   'assets-controller': {
     teams: ['@MetaMask/metamask-assets'],
@@ -98,7 +98,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'claims-controller': {
     teams: ['@MetaMask/web3auth'],
-    initializationPaths: ['claims-controller', 'claims-service'],
+    initializationPath: 'claims-controller',
   },
   'client-controller': {
     teams: [
@@ -121,7 +121,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'connectivity-controller': {
     teams: ['@MetaMask/core-platform'],
-    initializationPaths: ['connectivity-controller'],
+    initializationPath: 'connectivity-controller',
   },
   'controller-utils': {
     teams: ['@MetaMask/core-platform'],
@@ -183,7 +183,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'keyring-controller': {
     teams: ['@MetaMask/accounts-engineers', '@MetaMask/core-platform'],
-    initializationPaths: ['keyring-controller'],
+    initializationPath: 'keyring-controller',
   },
   'local-node-utils': {
     teams: [
@@ -249,7 +249,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'passkey-controller': {
     teams: ['@MetaMask/web3auth'],
-    initializationPaths: ['passkey-controller'],
+    initializationPath: 'passkey-controller',
   },
   'permission-controller': {
     teams: ['@MetaMask/core-platform'],
@@ -293,14 +293,14 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/core-platform',
     ],
-    initializationPaths: ['remote-feature-flag-controller'],
+    initializationPath: 'remote-feature-flag-controller',
   },
   'sample-controllers': {
     teams: ['@MetaMask/core-platform'],
   },
   'seedless-onboarding-controller': {
     teams: ['@MetaMask/web3auth'],
-    initializationPaths: ['seedless-onboarding-controller'],
+    initializationPath: 'seedless-onboarding-controller',
   },
   'selected-network-controller': {
     teams: ['@MetaMask/core-platform'],
@@ -343,14 +343,14 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/core-platform',
     ],
-    initializationPaths: ['storage-service'],
+    initializationPath: 'storage-service',
   },
   'subscription-controller': {
     teams: ['@MetaMask/web3auth'],
   },
   'transaction-controller': {
     teams: ['@MetaMask/confirmations'],
-    initializationPaths: ['transaction-controller'],
+    initializationPath: 'transaction-controller',
   },
   'transaction-pay-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -604,14 +604,14 @@ function buildInitializationSection(): CodeownersSection {
   return {
     title: 'Initialization',
     rules: Object.keys(PACKAGES)
-      .filter((name) => PACKAGES[name].initializationPaths !== undefined)
+      .filter((name) => PACKAGES[name].initializationPath !== undefined)
       .sort()
-      .flatMap((name) => {
-        const { teams, initializationPaths } = PACKAGES[name];
-        return (initializationPaths ?? []).map((initializationPath) => ({
+      .map((name) => {
+        const { teams, initializationPath } = PACKAGES[name];
+        return {
           pattern: `/packages/wallet/src/initialization/instances/${initializationPath}/`,
           owners: teams,
-        }));
+        };
       }),
   };
 }

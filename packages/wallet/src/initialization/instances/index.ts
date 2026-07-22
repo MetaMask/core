@@ -2,7 +2,7 @@ export { accountsController } from './accounts-controller/accounts-controller.js
 export { addressBookController } from './address-book-controller/address-book-controller.js';
 export { approvalController } from './approval-controller/approval-controller.js';
 export { claimsController } from './claims-controller/claims-controller.js';
-export { claimsService } from './claims-service/claims-service.js';
+export { claimsService } from './claims-controller/claims-service.js';
 export { connectivityController } from './connectivity-controller/connectivity-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
 export { networkController } from './network-controller/network-controller.js';

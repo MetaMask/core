@@ -150,7 +150,6 @@
 /packages/wallet/src/initialization/instances/address-book-controller/           @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/approval-controller/               @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/claims-controller/                 @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/claims-service/                    @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/connectivity-controller/           @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/keyring-controller/                @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
