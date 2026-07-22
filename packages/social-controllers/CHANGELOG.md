@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `marketCap` to the `Trade` type (and `TradeStruct`) — historical token market cap at trade time from the social API ([#9605](https://github.com/MetaMask/core/pull/9605))
+
 ## [2.5.0]
 
 ### Added
