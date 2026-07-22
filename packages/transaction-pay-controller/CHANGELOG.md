@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `atomic` and `recipient` fields on `TransactionConfig` / `TransactionData` / `QuoteRequest` for a generic non-atomic post-Relay flow: when `atomic` is `false`, Relay bridges to `recipient` and the second leg is submitted separately after completion via `getPaymentOverrideData` (post-quote) or `getAmountData` (non-post-quote), replacing the removed `relay-post-ma-vault` module ([#9497](https://github.com/MetaMask/core/pull/9497))
+
 ### Changed
 
 - Consume `hasTransactionType` helper from `@metamask/transaction-controller` to derive relevant transaction type against the top-level `TransactionMeta` ([#9570](https://github.com/MetaMask/core/pull/9570))

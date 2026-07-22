@@ -1,5 +1,9 @@
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  BatchTransactionParams,
+  NestedTransactionMetadata,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -32,6 +36,13 @@ export const VAULT_ERROR_PREFIX = 'Vault: ';
  * @param options - Submit options.
  * @param options.fromBlock - Block number to start searching for CHOMP deposits.
  * @param options.messenger - Controller messenger.
+ * @param options.moneyAccountAddress - Money Account address sending the vault
+ * deposit. Defaults to `transaction.txParams.from` (the deposit-flow sender);
+ * withdraw flows pass it explicitly since their `from` is the funding EOA.
+ * @param options.depositCalls - Pre-built vault-deposit batch for withdraw
+ * flows, whose parent transaction carries no vault calls. When omitted the
+ * batch is derived from the transaction's own nested calls re-encoded via
+ * `getAmountData`.
  * @param options.sourceAmountRaw - Settled mUSD amount in raw units.
  * @param options.transaction - Original Money Account transaction meta.
  * @param options.vaultDisabled - When `true`, skip the vault batch and leave
@@ -41,18 +52,23 @@ export const VAULT_ERROR_PREFIX = 'Vault: ';
 export async function submitMoneyAccountVaultDeposit({
   fromBlock,
   messenger,
+  moneyAccountAddress: moneyAccountAddressOverride,
+  depositCalls,
   sourceAmountRaw,
   transaction,
   vaultDisabled,
 }: {
   fromBlock?: Hex;
   messenger: TransactionPayControllerMessenger;
+  moneyAccountAddress?: Hex;
+  depositCalls?: BatchTransactionParams[];
   sourceAmountRaw: string;
   transaction: TransactionMeta;
   vaultDisabled: boolean;
 }): Promise<{ transactionHash?: Hex }> {
   const transactionId = transaction.id;
-  const moneyAccountAddress = transaction.txParams.from as Hex | undefined;
+  const moneyAccountAddress = (moneyAccountAddressOverride ??
+    transaction.txParams.from) as Hex | undefined;
 
   if (!moneyAccountAddress) {
     throw new Error('Missing Money Account address');
@@ -68,54 +84,13 @@ export async function submitMoneyAccountVaultDeposit({
     return { transactionHash: '0x' };
   }
 
-  const updatedTransaction =
-    getTransaction(transactionId, messenger) ?? transaction;
-  const { updates } = await messenger.call(
-    'TransactionPayController:getAmountData',
-    {
-      amount: sourceAmountRaw,
-      transaction: updatedTransaction,
-    },
-  );
-
-  if (!updates.length) {
-    throw new Error('No amount updates');
-  }
-
-  const nestedTransactions = updatedTransaction.nestedTransactions?.map(
-    (nestedTransaction) => ({ ...nestedTransaction }),
-  );
-
-  if (!nestedTransactions?.length) {
-    throw new Error('Missing nested transactions');
-  }
-
-  for (const { nestedTransactionIndex, data } of updates) {
-    if (nestedTransactions[nestedTransactionIndex]) {
-      nestedTransactions[nestedTransactionIndex].data = data;
-    }
-  }
-
-  updateTransaction(
-    {
-      transactionId,
-      messenger,
-      note: 'Money Account vault deposit: update vault amount',
-    },
-    (tx) => {
-      for (const { nestedTransactionIndex, data } of updates) {
-        if (tx.nestedTransactions?.[nestedTransactionIndex]) {
-          tx.nestedTransactions[nestedTransactionIndex].data = data;
-        }
-      }
-
-      if (tx.requiredAssets?.[0]) {
-        tx.requiredAssets[0].amount = `0x${BigInt(sourceAmountRaw).toString(
-          16,
-        )}`;
-      }
-    },
-  );
+  const nestedTransactions = await resolveVaultDepositBatch({
+    depositCalls,
+    messenger,
+    sourceAmountRaw,
+    transaction,
+    transactionId,
+  });
 
   // CHOMP pre-check: skip addTransactionBatch entirely if CHOMP has already
   // auto-vaulted the funds during or before the checkout window.
@@ -242,6 +217,92 @@ export async function submitMoneyAccountVaultDeposit({
   });
 
   return { transactionHash: hash as Hex };
+}
+
+/**
+ * Resolves the vault-deposit batch (approve + teller deposit) to submit.
+ *
+ * Withdraw flows have no vault calls on their own nested transactions, so the
+ * caller supplies a freshly built `depositCalls` batch. Deposit flows re-encode
+ * their existing nested vault calldata with the settled amount via
+ * `getAmountData` and also mutate the parent transaction so its stored calls
+ * and `requiredAssets` reflect the settled amount.
+ *
+ * @param options - Resolution options.
+ * @param options.depositCalls - Pre-built deposit batch for withdraw flows.
+ * @param options.messenger - Controller messenger.
+ * @param options.sourceAmountRaw - Settled mUSD amount in raw units.
+ * @param options.transaction - Original Money Account transaction meta.
+ * @param options.transactionId - ID of the original transaction.
+ * @returns Nested transactions to submit as the vault deposit batch.
+ */
+async function resolveVaultDepositBatch({
+  depositCalls,
+  messenger,
+  sourceAmountRaw,
+  transaction,
+  transactionId,
+}: {
+  depositCalls?: BatchTransactionParams[];
+  messenger: TransactionPayControllerMessenger;
+  sourceAmountRaw: string;
+  transaction: TransactionMeta;
+  transactionId: string;
+}): Promise<NestedTransactionMetadata[]> {
+  if (depositCalls?.length) {
+    return depositCalls;
+  }
+
+  const updatedTransaction =
+    getTransaction(transactionId, messenger) ?? transaction;
+  const { updates } = await messenger.call(
+    'TransactionPayController:getAmountData',
+    {
+      amount: sourceAmountRaw,
+      transaction: updatedTransaction,
+    },
+  );
+
+  if (!updates.length) {
+    throw new Error('No amount updates');
+  }
+
+  const nestedTransactions = updatedTransaction.nestedTransactions?.map(
+    (nestedTransaction) => ({ ...nestedTransaction }),
+  );
+
+  if (!nestedTransactions?.length) {
+    throw new Error('Missing nested transactions');
+  }
+
+  for (const { nestedTransactionIndex, data } of updates) {
+    if (nestedTransactions[nestedTransactionIndex]) {
+      nestedTransactions[nestedTransactionIndex].data = data;
+    }
+  }
+
+  updateTransaction(
+    {
+      transactionId,
+      messenger,
+      note: 'Money Account vault deposit: update vault amount',
+    },
+    (tx) => {
+      for (const { nestedTransactionIndex, data } of updates) {
+        if (tx.nestedTransactions?.[nestedTransactionIndex]) {
+          tx.nestedTransactions[nestedTransactionIndex].data = data;
+        }
+      }
+
+      if (tx.requiredAssets?.[0]) {
+        tx.requiredAssets[0].amount = `0x${BigInt(sourceAmountRaw).toString(
+          16,
+        )}`;
+      }
+    },
+  );
+
+  return nestedTransactions;
 }
 
 async function tryFindChompDeposit({

@@ -20,18 +20,21 @@ import {
   getRelayPollingInterval,
   getRelayPollingTimeout,
 } from '../../utils/feature-flags';
+import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit';
 import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
 import {
   collectTransactionIds,
   getTransaction,
+  getTransferredAmountFromTxHash,
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
-import { RELAY_STATUS_URL } from './constants';
+import { FALLBACK_HASH, RELAY_STATUS_URL } from './constants';
 import { submitRelayQuotes } from './relay-submit';
 import { submitViaRelayExecute } from './relay-submit-execute';
 import type { RelayQuote } from './types';
 
+jest.mock('../../utils/ma-vault-deposit');
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
@@ -160,6 +163,12 @@ describe('Relay Submit Utils', () => {
   );
 
   const submitViaRelayExecuteMock = jest.mocked(submitViaRelayExecute);
+  const submitMoneyAccountVaultDepositMock = jest.mocked(
+    submitMoneyAccountVaultDeposit,
+  );
+  const getTransferredAmountFromTxHashMock = jest.mocked(
+    getTransferredAmountFromTxHash,
+  );
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -1726,6 +1735,241 @@ describe('Relay Submit Utils', () => {
         await submitRelayQuotes(request);
 
         expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('atomic: false post-completion', () => {
+      const RECIPIENT_MOCK = '0xrecip0000000000000000000000000000000001' as Hex;
+      const TARGET_HASH_MOCK =
+        '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as Hex;
+      const ON_CHAIN_AMOUNT_MOCK = '535000';
+      const MINIMUM_AMOUNT_MOCK = '530000';
+      const VAULT_HASH_MOCK =
+        '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;
+      const TARGET_CHAIN_ID_MOCK = '0x2797' as Hex;
+      const TARGET_TOKEN_ADDRESS_MOCK =
+        '0xtoken000000000000000000000000000000001' as Hex;
+
+      beforeEach(() => {
+        request.quotes[0].request.atomic = false;
+        request.quotes[0].request.recipient = RECIPIENT_MOCK;
+        request.quotes[0].request.targetChainId = TARGET_CHAIN_ID_MOCK;
+        request.quotes[0].request.targetTokenAddress =
+          TARGET_TOKEN_ADDRESS_MOCK;
+        request.quotes[0].original.details.currencyOut = {
+          ...request.quotes[0].original.details.currencyOut,
+          currency: {
+            ...request.quotes[0].original.details.currencyOut.currency,
+            decimals: 6,
+          },
+          minimumAmount: MINIMUM_AMOUNT_MOCK,
+        };
+
+        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+          transactionHash: VAULT_HASH_MOCK,
+        });
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [TARGET_HASH_MOCK],
+          }),
+        } as Response);
+      });
+
+      it('resolves settled amount from on-chain Transfer log and submits vault deposit', async () => {
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: ON_CHAIN_AMOUNT_MOCK,
+          blockNumber: undefined,
+        });
+
+        const result = await submitRelayQuotes(request);
+
+        expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith({
+          messenger: expect.anything(),
+          txHash: TARGET_HASH_MOCK,
+          chainId: TARGET_CHAIN_ID_MOCK,
+          tokenAddress: TARGET_TOKEN_ADDRESS_MOCK,
+          walletAddress: RECIPIENT_MOCK,
+        });
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK,
+            moneyAccountAddress: RECIPIENT_MOCK,
+            vaultDisabled: false,
+          }),
+        );
+        expect(result).toStrictEqual({ transactionHash: VAULT_HASH_MOCK });
+      });
+
+      it('falls back to quote minimum output when on-chain amount is unavailable', async () => {
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: undefined,
+          blockNumber: undefined,
+        });
+
+        await submitRelayQuotes(request);
+
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
+        );
+      });
+
+      it('falls back to quote minimum output when on-chain read throws', async () => {
+        getTransferredAmountFromTxHashMock.mockRejectedValue(
+          new Error('rpc error'),
+        );
+
+        await submitRelayQuotes(request);
+
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
+        );
+      });
+
+      it('skips on-chain read and uses quote minimum when targetHash is FALLBACK_HASH', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [FALLBACK_HASH],
+          }),
+        } as Response);
+
+        await submitRelayQuotes(request);
+
+        expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
+        );
+      });
+
+      it('throws when neither on-chain nor quote-minimum amount is available', async () => {
+        request.quotes[0].original.details.currencyOut.minimumAmount = '';
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: undefined,
+          blockNumber: undefined,
+        });
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Cannot resolve post-completion amount',
+        );
+      });
+
+      it('falls back to completion targetHash when submit returns no hash', async () => {
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: ON_CHAIN_AMOUNT_MOCK,
+          blockNumber: undefined,
+        });
+        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+          transactionHash: undefined,
+        });
+
+        const result = await submitRelayQuotes(request);
+
+        expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+      });
+
+      it('falls back to quote.request.from when no recipient is set', async () => {
+        request.quotes[0].request.recipient = undefined;
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: ON_CHAIN_AMOUNT_MOCK,
+          blockNumber: undefined,
+        });
+
+        await submitRelayQuotes(request);
+
+        expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith(
+          expect.objectContaining({ walletAddress: FROM_MOCK }),
+        );
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({ moneyAccountAddress: FROM_MOCK }),
+        );
+      });
+
+      describe('post-quote flow', () => {
+        const DEPOSIT_CALLS_MOCK: BatchTransactionParams[] = [
+          {
+            to: '0xapprove0000000000000000000000000000001' as Hex,
+            data: '0xapprove' as Hex,
+            value: '0x0' as Hex,
+          },
+          {
+            to: '0xteller00000000000000000000000000000001' as Hex,
+            data: '0xdeposit' as Hex,
+            value: '0x0' as Hex,
+          },
+        ];
+
+        beforeEach(() => {
+          request.quotes[0].request.isPostQuote = true;
+          getControllerStateMock.mockReturnValue({
+            transactionData: {
+              [ORIGINAL_TRANSACTION_ID_MOCK]: {},
+            },
+          } as never);
+          getPaymentOverrideDataMock.mockResolvedValue({
+            calls: DEPOSIT_CALLS_MOCK,
+          });
+          getTransferredAmountFromTxHashMock.mockResolvedValue({
+            amountRaw: ON_CHAIN_AMOUNT_MOCK,
+            blockNumber: undefined,
+          });
+        });
+
+        it('calls getPaymentOverrideData with the settled amount (in human units) and forwards deposit calls', async () => {
+          await submitRelayQuotes(request);
+
+          expect(getPaymentOverrideDataMock).toHaveBeenCalledWith({
+            // 535000 raw with 6 decimals → 0.535 human
+            amount: '0.535',
+            transaction: expect.objectContaining({
+              id: ORIGINAL_TRANSACTION_ID_MOCK,
+            }),
+            transactionData: expect.anything(),
+          });
+          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              depositCalls: DEPOSIT_CALLS_MOCK,
+              sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK,
+            }),
+          );
+        });
+
+        it('forwards undefined depositCalls when getPaymentOverrideData returns no calls', async () => {
+          getPaymentOverrideDataMock.mockResolvedValue({ calls: [] });
+
+          await submitRelayQuotes(request);
+
+          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              depositCalls: undefined,
+              sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK,
+            }),
+          );
+        });
+      });
+
+      describe('non-post-quote flow', () => {
+        beforeEach(() => {
+          request.quotes[0].request.isPostQuote = false;
+          getTransferredAmountFromTxHashMock.mockResolvedValue({
+            amountRaw: ON_CHAIN_AMOUNT_MOCK,
+            blockNumber: undefined,
+          });
+        });
+
+        it('does not call getPaymentOverrideData and forwards no depositCalls', async () => {
+          await submitRelayQuotes(request);
+
+          expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+            expect.objectContaining({ depositCalls: undefined }),
+          );
+        });
       });
     });
   });
