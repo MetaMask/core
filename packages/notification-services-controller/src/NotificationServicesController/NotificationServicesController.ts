@@ -6,7 +6,10 @@ import type {
   SocialAIPreference,
   WalletActivityAccount,
 } from '@metamask/authenticated-user-storage';
-import { DEFAULT_AGENTIC_CLI_PREFERENCES } from '@metamask/authenticated-user-storage';
+import {
+  DEFAULT_AGENTIC_CLI_PREFERENCES,
+  DEFAULT_PRICE_ALERT_PREFERENCES,
+} from '@metamask/authenticated-user-storage';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -245,7 +248,10 @@ export const DEFAULT_SOCIAL_AI_PREFERENCES: Required<SocialAIPreference> = {
   mutedTraderProfileIds: [],
 };
 
-export { DEFAULT_AGENTIC_CLI_PREFERENCES } from '@metamask/authenticated-user-storage';
+export {
+  DEFAULT_AGENTIC_CLI_PREFERENCES,
+  DEFAULT_PRICE_ALERT_PREFERENCES,
+} from '@metamask/authenticated-user-storage';
 
 /**
  * Builds wallet-activity preferences from the keyring's current accounts.
@@ -329,6 +335,7 @@ const buildFreshPreferences = (
   perps: { ...DEFAULT_PERPS_PREFERENCES },
   socialAI: { ...DEFAULT_SOCIAL_AI_PREFERENCES },
   agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
+  priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
 });
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -519,11 +526,34 @@ export class NotificationServicesController extends BaseController<
       }
     },
     subscribe: (): void => {
+      // Coalesce pushes: at most one fetch in-flight, one queued.
+      // Re-fetch after completion because the new row may not be visible yet when the push arrives.
+      let pushFetchInFlight = false;
+      let pendingPushRefetch = false;
+
+      const fetchOnPush = async (): Promise<void> => {
+        pushFetchInFlight = true;
+        try {
+          await this.fetchAndUpdateMetamaskNotifications();
+        } finally {
+          pushFetchInFlight = false;
+          if (pendingPushRefetch) {
+            pendingPushRefetch = false;
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            fetchOnPush();
+          }
+        }
+      };
+
       this.messenger.subscribe(
         'NotificationServicesPushController:onNewNotifications',
-        (notification): void => {
+        (): void => {
+          if (pushFetchInFlight) {
+            pendingPushRefetch = true;
+            return;
+          }
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.updateMetamaskNotificationsList(notification);
+          fetchOnPush();
         },
       );
     },

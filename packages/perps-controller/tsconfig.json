@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
   },
   "references": [
     {
@@ -12,9 +14,6 @@
     },
     {
       "path": "../base-controller"
-    },
-    {
-      "path": "../bridge-controller"
     },
     {
       "path": "../controller-utils"

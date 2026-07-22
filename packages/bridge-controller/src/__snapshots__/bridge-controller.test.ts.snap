@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`BridgeController should handle errors from fetchBridgeQuotes 1`] = `
 {
@@ -97,6 +97,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
       "token_address_source": "eip155:1/slip44:60",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
+      "transaction_internal_id": "transaction-id",
       "usd_actual_gas": 10,
       "usd_actual_return": 100,
       "usd_amount_source": 100,

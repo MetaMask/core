@@ -19,6 +19,7 @@ module.exports = merge(baseConfig, {
   coveragePathIgnorePatterns: [
     ...baseConfig.coveragePathIgnorePatterns,
     '.*/strategy/types\\.ts$',
+    '.*/quote-status-manager/types\\.ts$',
     '.*/index\\.ts',
     '.*-method-action-types\\.ts',
   ],

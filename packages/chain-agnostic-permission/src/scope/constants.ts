@@ -1,6 +1,6 @@
 import MetaMaskOpenRPCDocument from '@metamask/api-specs';
 
-import type { NonWalletKnownCaipNamespace } from './types';
+import type { NonWalletKnownCaipNamespace } from './types.js';
 
 /**
  * ScopeStrings for offchain methods that are not specific to a chainId but are specific to a CAIP namespace.

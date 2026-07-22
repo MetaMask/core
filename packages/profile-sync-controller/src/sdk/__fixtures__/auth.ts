@@ -14,7 +14,9 @@ import {
   MOCK_SRP_LOGIN_RESPONSE,
   MOCK_SRP_LOGIN_URL,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
-} from '../mocks/auth';
+  MOCK_CUSTOMER_SERVICE_TOKEN_URL,
+  MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
+} from '../mocks/auth.js';
 
 type MockReply = {
   status: nock.StatusCode;
@@ -104,6 +106,21 @@ export const handleMockUserProfileLineage = (
   return mockUserProfileLineageEndpoint;
 };
 
+export const handleMockCustomerServiceToken = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
+  };
+  const mockCustomerServiceTokenEndpoint = nock(MOCK_CUSTOMER_SERVICE_TOKEN_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockCustomerServiceTokenEndpoint;
+};
+
 export const arrangeAuthAPIs = (options?: {
   mockNonceUrl?: MockReply;
   mockOAuth2TokenUrl?: MockReply;
@@ -112,6 +129,7 @@ export const arrangeAuthAPIs = (options?: {
   mockPairIdentifiers?: MockReply;
   mockPairProfiles?: MockReply;
   mockUserProfileLineageUrl?: MockReply;
+  mockCustomerServiceTokenUrl?: MockReply;
 }): {
   mockNonceUrl: nock.Scope;
   mockOAuth2TokenUrl: nock.Scope;
@@ -120,6 +138,7 @@ export const arrangeAuthAPIs = (options?: {
   mockPairIdentifiersUrl: nock.Scope;
   mockPairProfilesUrl: nock.Scope;
   mockUserProfileLineageUrl: nock.Scope;
+  mockCustomerServiceTokenUrl: nock.Scope;
 } => {
   const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
   const mockOAuth2TokenUrl = handleMockOAuth2Token(options?.mockOAuth2TokenUrl);
@@ -132,6 +151,9 @@ export const arrangeAuthAPIs = (options?: {
   const mockUserProfileLineageUrl = handleMockUserProfileLineage(
     options?.mockUserProfileLineageUrl,
   );
+  const mockCustomerServiceTokenUrl = handleMockCustomerServiceToken(
+    options?.mockCustomerServiceTokenUrl,
+  );
 
   return {
     mockNonceUrl,
@@ -141,5 +163,6 @@ export const arrangeAuthAPIs = (options?: {
     mockPairIdentifiersUrl,
     mockPairProfilesUrl,
     mockUserProfileLineageUrl,
+    mockCustomerServiceTokenUrl,
   };
 };

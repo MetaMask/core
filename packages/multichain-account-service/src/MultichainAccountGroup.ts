@@ -8,12 +8,12 @@ import type { Bip44Account } from '@metamask/account-api';
 import type { AccountSelector } from '@metamask/account-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
 
-import type { Logger } from './logger';
-import { projectLogger as log, createModuleLogger } from './logger';
-import type { ServiceState, StateKeys } from './MultichainAccountService';
-import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { Bip44AccountProvider } from './providers';
-import type { MultichainAccountServiceMessenger } from './types';
+import type { Logger } from './logger.js';
+import { projectLogger as log, createModuleLogger } from './logger.js';
+import type { ServiceState, StateKeys } from './MultichainAccountService.js';
+import type { MultichainAccountWallet } from './MultichainAccountWallet.js';
+import type { Bip44AccountProvider } from './providers/index.js';
+import type { MultichainAccountServiceMessenger } from './types.js';
 
 export type GroupState =
   ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];
@@ -263,13 +263,27 @@ export class MultichainAccountGroup<
    */
   isAligned(): boolean {
     return this.#providers.every((provider) =>
-      provider.isAligned(
-        {
-          entropySource: this.#wallet.entropySource,
-          groupIndex: this.#groupIndex,
-        },
-        this.#providerToAccounts.get(provider) ?? [],
-      ),
+      this.isProviderAligned(provider),
+    );
+  }
+
+  /**
+   * Check whether a single provider has an aligned account in this group.
+   *
+   * A provider is aligned when the account IDs it contributed to this group are
+   * non-empty and owned by it. Disabled {@link AccountProviderWrapper} instances
+   * always report `true`.
+   *
+   * @param provider - The provider to check.
+   * @returns `true` when the provider is aligned for this group.
+   */
+  isProviderAligned(provider: Bip44AccountProvider<Account>): boolean {
+    return provider.isAligned(
+      {
+        entropySource: this.#wallet.entropySource,
+        groupIndex: this.#groupIndex,
+      },
+      this.#providerToAccounts.get(provider) ?? [],
     );
   }
 }

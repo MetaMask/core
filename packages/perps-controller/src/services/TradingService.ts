@@ -1,3 +1,4 @@
+import { BigNumber } from 'bignumber.js';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -41,6 +42,16 @@ import type { ServiceContext } from './ServiceContext';
 export type TradingServiceControllerDeps = {
   rewardsIntegrationService: RewardsIntegrationService;
 };
+
+/**
+ * Subset of tracking data carrying discovery attribution + hl_fee_rate that is
+ * shared across trade/close/cancel/risk events (TAT-3080, TAT-3149). Both
+ * {@link TrackingData} and {@link TPSLTrackingData} satisfy this shape.
+ */
+type AttributionTrackingData = Pick<
+  TrackingData,
+  'entryPoint' | 'discoverySource' | 'perpDiscoverySource' | 'hlFeeRate'
+>;
 
 /**
  * TradingService
@@ -101,6 +112,52 @@ export class TradingService {
       method,
       ...additionalContext,
     };
+  }
+
+  /**
+   * Build discovery/attribution properties shared across trade/close/cancel/risk
+   * events (TAT-3080, TAT-3149). Each property is only included when present so
+   * that, in particular, hl_fee_rate is omitted entirely when unavailable.
+   *
+   * @param trackingData - Optional tracking data carried on the operation params.
+   * @returns The attribution properties to merge into an analytics event.
+   */
+  #buildAttributionProperties(
+    trackingData?: AttributionTrackingData,
+  ): PerpsAnalyticsProperties {
+    const properties: PerpsAnalyticsProperties = {};
+    if (trackingData?.entryPoint !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.ENTRY_POINT] = trackingData.entryPoint;
+    }
+    if (trackingData?.discoverySource !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.DISCOVERY_SOURCE] =
+        trackingData.discoverySource;
+    }
+    if (trackingData?.perpDiscoverySource !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.PERP_DISCOVERY_SOURCE] =
+        trackingData.perpDiscoverySource;
+    }
+    if (trackingData?.hlFeeRate !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.HL_FEE_RATE] = trackingData.hlFeeRate;
+    }
+    return properties;
+  }
+
+  /**
+   * Emit a transaction event with status=submitted before the provider round-trip
+   * (TAT-3134). Fired for trade, close, cancel and risk-management operations.
+   *
+   * @param event - The analytics event name to emit.
+   * @param properties - Additional event properties (asset, attribution, etc.).
+   */
+  #trackSubmitted(
+    event: PerpsAnalyticsEvent,
+    properties: PerpsAnalyticsProperties,
+  ): void {
+    this.#deps.metrics.trackPerpsEvent(event, {
+      [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.SUBMITTED,
+      ...properties,
+    });
   }
 
   /**
@@ -241,6 +298,56 @@ export class TradingService {
       Object.keys(params.trackingData.abTests).length > 0
     ) {
       properties[PERPS_EVENT_PROPERTY.AB_TESTS] = params.trackingData.abTests;
+    }
+
+    // Propagate discovery attribution + hl_fee_rate (TAT-3080, TAT-3149)
+    Object.assign(
+      properties,
+      this.#buildAttributionProperties(params.trackingData),
+    );
+
+    // Emit an additional partially filled trade event when the fill is partial,
+    // mirroring the close path so the fill's partiality is visible in analytics
+    // rather than hidden behind a status=executed event. Classification is based
+    // on the provider's final submitted size (post precision rounding, USD
+    // recalculation, and $10-minimum retry), not the caller's pre-normalization
+    // params.size — the provider transforms the size before submission and a
+    // complete fill of the normalized size must not look partial. When the
+    // provider did not report a submitted size we do not classify (rather than
+    // guess from params.size). The partial event mirrors the close schema:
+    // order_size = submitted size, amount_filled = filled, remaining = the rest.
+    // Compare and subtract the decimal size strings with arbitrary-precision
+    // math (BigNumber): routing them through parseFloat can introduce
+    // binary-float artifacts that collapse distinct values (misclassifying the
+    // fill) or leave e-17 dust in remaining_amount. Only convert to Number for
+    // the emitted analytics values, after the exact decimal subtraction.
+    const submittedSize =
+      result?.submittedSize === undefined
+        ? undefined
+        : new BigNumber(result.submittedSize);
+    const filledSize =
+      result?.filledSize === undefined
+        ? undefined
+        : new BigNumber(result.filledSize);
+    if (
+      result?.success === true &&
+      submittedSize !== undefined &&
+      filledSize !== undefined &&
+      submittedSize.isFinite() &&
+      filledSize.isFinite() &&
+      filledSize.gt(0) &&
+      filledSize.lt(submittedSize)
+    ) {
+      this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
+        ...properties,
+        [PERPS_EVENT_PROPERTY.STATUS]:
+          PERPS_EVENT_VALUE.STATUS.PARTIALLY_FILLED,
+        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: submittedSize.toNumber(),
+        [PERPS_EVENT_PROPERTY.AMOUNT_FILLED]: filledSize.toNumber(),
+        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: submittedSize
+          .minus(filledSize)
+          .toNumber(),
+      });
     }
 
     this.#deps.metrics.trackPerpsEvent(
@@ -450,6 +557,19 @@ export class TradingService {
           hasSL: Boolean(params.stopLossPrice),
         },
       );
+
+      // Emit submitted event before the provider round-trip (TAT-3134)
+      this.#trackSubmitted(PerpsAnalyticsEvent.TradeTransaction, {
+        [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+        [PERPS_EVENT_PROPERTY.DIRECTION]: params.isBuy
+          ? PERPS_EVENT_VALUE.DIRECTION.LONG
+          : PERPS_EVENT_VALUE.DIRECTION.SHORT,
+        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.orderType,
+        [PERPS_EVENT_PROPERTY.LEVERAGE]: parseFloat(
+          String(params.leverage ?? 1),
+        ),
+        ...this.#buildAttributionProperties(params.trackingData),
+      });
 
       // Observational threshold: when the provider round-trip exceeds
       // PlaceOrderTimeoutMs we tag the trace and emit a breadcrumb, but we
@@ -704,6 +824,18 @@ export class TradingService {
     status: string,
     error?: string,
   ): Record<string, unknown> {
+    // Effective leverage = positionUSD / marginUSD, rounded to 1 decimal place.
+    // Computed from the live position rather than the configured leverage so it's
+    // populated for every close, including TP/SL triggers.
+    const positionUSD = Math.abs(parseFloat(position.positionValue));
+    const marginUSD = parseFloat(position.marginUsed);
+    const effectiveLeverage =
+      Number.isFinite(positionUSD) &&
+      Number.isFinite(marginUSD) &&
+      marginUSD > 0
+        ? Math.round((positionUSD / marginUSD) * 10) / 10
+        : undefined;
+
     const baseProperties = {
       [PERPS_EVENT_PROPERTY.STATUS]: status,
       [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
@@ -761,6 +893,12 @@ export class TradingService {
       ...(params.trackingData?.vipDiscount !== undefined && {
         [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: params.trackingData.vipDiscount,
       }),
+      // Effective leverage on close events
+      ...(effectiveLeverage !== undefined && {
+        [PERPS_EVENT_PROPERTY.LEVERAGE]: effectiveLeverage,
+      }),
+      // Discovery attribution + hl_fee_rate (TAT-3080, TAT-3149)
+      ...this.#buildAttributionProperties(params.trackingData),
     };
 
     // Calculate and add order value in USD (size * price)
@@ -803,6 +941,7 @@ export class TradingService {
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
    * @param options.duration - Optional time duration.
+   * @param options.bulkActionId - Optional batch correlation id (TAT-3150).
    */
   #trackPositionCloseResult(options: {
     position: Position | undefined;
@@ -811,10 +950,41 @@ export class TradingService {
     params: ClosePositionParams;
     context: ServiceContext;
     duration: number;
+    bulkActionId?: string;
   }): void {
-    const { position, result, error, params, duration } = options;
+    const { position, result, error, params, duration, bulkActionId } = options;
+
+    // Bulk action correlation id for batch close events (TAT-3150)
+    const bulkActionProps: PerpsAnalyticsProperties = bulkActionId
+      ? { [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId }
+      : {};
 
     if (!position) {
+      // No local position record, yet closePosition already emitted a
+      // submitted event and the close may still complete at the provider.
+      // Emit a terminal (executed/failed) event so every submitted close has a
+      // matching outcome, even without position-derived metrics.
+      const status =
+        result?.success === true
+          ? PERPS_EVENT_VALUE.STATUS.EXECUTED
+          : PERPS_EVENT_VALUE.STATUS.FAILED;
+      const errorMessage = error?.message ?? result?.error;
+
+      this.#deps.metrics.trackPerpsEvent(
+        PerpsAnalyticsEvent.PositionCloseTransaction,
+        {
+          [PERPS_EVENT_PROPERTY.STATUS]: status,
+          [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+          [PERPS_EVENT_PROPERTY.ORDER_TYPE]:
+            params.orderType ?? PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
+          [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
+          ...(errorMessage && {
+            [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
+          }),
+          ...this.#buildAttributionProperties(params.trackingData),
+          ...bulkActionProps,
+        },
+      );
       return;
     }
 
@@ -856,6 +1026,7 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]:
             metrics.requestedSize - metrics.filledSize,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
+          ...bulkActionProps,
         },
       );
     }
@@ -883,6 +1054,7 @@ export class TradingService {
       {
         ...eventProperties,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
+        ...bulkActionProps,
       },
     );
   }
@@ -1133,19 +1305,29 @@ export class TradingService {
    * @param options.provider - The perps provider instance.
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
+   * @param options.bulkActionId - Optional batch correlation id (TAT-3150).
    * @returns The result of the operation.
    */
   async cancelOrder(options: {
     provider: PerpsProvider;
     params: CancelOrderParams;
     context: ServiceContext;
+    bulkActionId?: string;
   }): Promise<CancelOrderResult> {
-    const { provider, params, context } = options;
+    const { provider, params, context, bulkActionId } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let traceData:
       | { success: boolean; error?: string; orderId?: string }
       | undefined;
+
+    // Shared attribution + bulk correlation props (TAT-3080, TAT-3150)
+    const cancelExtraProps: PerpsAnalyticsProperties = {
+      ...this.#buildAttributionProperties(params.trackingData),
+      ...(bulkActionId && {
+        [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
+      }),
+    };
 
     try {
       // Start trace for the entire operation
@@ -1161,6 +1343,12 @@ export class TradingService {
         data: {
           orderId: params.orderId,
         },
+      });
+
+      // Emit submitted event before the provider round-trip (TAT-3134)
+      this.#trackSubmitted(PerpsAnalyticsEvent.OrderCancelTransaction, {
+        [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+        ...cancelExtraProps,
       });
 
       // Execute order cancellation
@@ -1182,6 +1370,7 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.EXECUTED,
             [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+            ...cancelExtraProps,
           },
         );
 
@@ -1196,6 +1385,7 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
               result.error ?? 'Unknown error',
+            ...cancelExtraProps,
           },
         );
 
@@ -1224,6 +1414,7 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
             error instanceof Error ? error.message : 'Unknown error',
+          ...cancelExtraProps,
         },
       );
 
@@ -1268,6 +1459,8 @@ export class TradingService {
   }): Promise<CancelOrdersResult> {
     const { provider, params, context, withStreamPause } = options;
     const traceId = uuidv4();
+    // Correlation id linking every per-item event to the batch summary (TAT-3150)
+    const bulkActionId = uuidv4();
     const startTime = this.#deps.performance.now();
     let operationResult: CancelOrdersResult | null = null;
     let operationError: Error | null = null;
@@ -1346,6 +1539,7 @@ export class TradingService {
               provider,
               params: { symbol: order.symbol, orderId: order.orderId },
               context,
+              bulkActionId,
             }),
           ),
         );
@@ -1427,6 +1621,7 @@ export class TradingService {
             ? PERPS_EVENT_VALUE.STATUS.EXECUTED
             : PERPS_EVENT_VALUE.STATUS.FAILED,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+        [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
       };
       if (operationError) {
         batchCancelProps[PERPS_EVENT_PROPERTY.ERROR_MESSAGE] =
@@ -1453,6 +1648,7 @@ export class TradingService {
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
    * @param options.reportOrderToDataLake - The report order to data lake value.
+   * @param options.bulkActionId - Optional batch correlation id (TAT-3150).
    * @returns The result of the operation.
    */
   async closePosition(options: {
@@ -1463,8 +1659,10 @@ export class TradingService {
       action: 'open' | 'close';
       symbol: string;
     }) => Promise<{ success: boolean; error?: string }>;
+    bulkActionId?: string;
   }): Promise<OrderResult> {
-    const { provider, params, context, reportOrderToDataLake } = options;
+    const { provider, params, context, reportOrderToDataLake, bulkActionId } =
+      options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let position: Position | undefined;
@@ -1490,6 +1688,17 @@ export class TradingService {
       position = await this.#loadPositionData({
         symbol: params.symbol,
         context,
+      });
+
+      // Emit submitted event before the provider round-trip (TAT-3134)
+      this.#trackSubmitted(PerpsAnalyticsEvent.PositionCloseTransaction, {
+        [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+        [PERPS_EVENT_PROPERTY.ORDER_TYPE]:
+          params.orderType ?? PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
+        ...this.#buildAttributionProperties(params.trackingData),
+        ...(bulkActionId && {
+          [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
+        }),
       });
 
       // Calculate fee discount with measurement
@@ -1543,6 +1752,7 @@ export class TradingService {
         params,
         context,
         duration: completionDuration,
+        bulkActionId,
       });
 
       return result;
@@ -1562,6 +1772,7 @@ export class TradingService {
         params,
         context,
         duration: completionDuration,
+        bulkActionId,
       });
 
       this.#deps.logger.error(
@@ -1610,6 +1821,8 @@ export class TradingService {
   }): Promise<ClosePositionsResult> {
     const { provider, params, context } = options;
     const traceId = uuidv4();
+    // Correlation id linking every per-item event to the batch summary (TAT-3150)
+    const bulkActionId = uuidv4();
     const startTime = this.#deps.performance.now();
     let operationResult: ClosePositionsResult | null = null;
     let operationError: Error | null = null;
@@ -1684,6 +1897,7 @@ export class TradingService {
               params: { symbol: position.symbol },
               context,
               reportOrderToDataLake: () => Promise.resolve({ success: true }), // No-op for batch fallback
+              bulkActionId,
             }),
           ),
         );
@@ -1767,6 +1981,9 @@ export class TradingService {
             ? PERPS_EVENT_VALUE.STATUS.EXECUTED
             : PERPS_EVENT_VALUE.STATUS.FAILED,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+        [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
+        [PERPS_EVENT_PROPERTY.NUMBER_POSITIONS_CLOSED]:
+          operationResult?.successCount ?? 0,
       };
       if (operationError) {
         batchCloseProps[PERPS_EVENT_PROPERTY.ERROR_MESSAGE] =
@@ -1836,6 +2053,13 @@ export class TradingService {
           takeProfitPrice: params.takeProfitPrice ?? '',
           stopLossPrice: params.stopLossPrice ?? '',
         },
+      });
+
+      // Emit submitted event before the provider round-trip (TAT-3134)
+      this.#trackSubmitted(PerpsAnalyticsEvent.RiskManagement, {
+        [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+        [PERPS_EVENT_PROPERTY.SOURCE]: source,
+        ...this.#buildAttributionProperties(params.trackingData),
       });
 
       // Get fee discount from rewards
@@ -1940,6 +2164,8 @@ export class TradingService {
         ...(errorMessage && {
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
         }),
+        // Discovery attribution (TAT-3080)
+        ...this.#buildAttributionProperties(params.trackingData),
       };
 
       // Track event once with all properties
@@ -2019,6 +2245,19 @@ export class TradingService {
         // Invalidate standalone caches so external hooks refresh
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'positions' });
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'accountState' });
+      } else {
+        // Track failure analytics for a non-throwing provider failure so the
+        // terminal Risk Management event is emitted exactly once here (the
+        // thrown path below handles exceptions).
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.RiskManagement, {
+          [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
+          [PERPS_EVENT_PROPERTY.ASSET]: symbol,
+          [PERPS_EVENT_PROPERTY.ACTION]:
+            parseFloat(amount) > 0 ? 'add_margin' : 'remove_margin',
+          [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
+          [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: result.error ?? 'Unknown error',
+        });
       }
 
       this.#deps.tracer.endTrace({
@@ -2098,6 +2337,11 @@ export class TradingService {
 
       const flipSize = positionSize * 2;
 
+      // Direction-specific flip action, shared by the submitted and terminal events
+      const flipAction = isCurrentlyLong
+        ? PERPS_EVENT_VALUE.ACTION.FLIP_LONG_TO_SHORT
+        : PERPS_EVENT_VALUE.ACTION.FLIP_SHORT_TO_LONG;
+
       // Create order params for flip
       // Use 2x position size: 1x to close current position + 1x to open opposite position.
       // Do not pass the position entry price as currentPrice: the provider must fetch
@@ -2109,6 +2353,20 @@ export class TradingService {
         orderType: 'market',
         leverage: position.leverage?.value,
       };
+
+      // Emit submitted event before the provider round-trip, keeping flip
+      // trades aligned with the consolidated placeOrder pipeline.
+      this.#trackSubmitted(PerpsAnalyticsEvent.TradeTransaction, {
+        [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+        [PERPS_EVENT_PROPERTY.DIRECTION]: oppositeDirection
+          ? PERPS_EVENT_VALUE.DIRECTION.LONG
+          : PERPS_EVENT_VALUE.DIRECTION.SHORT,
+        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: 'market',
+        [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
+        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
+        [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
+        ...this.#buildAttributionProperties(trackingData),
+      });
 
       // Place flip order (HyperLiquid handles margin transfer automatically)
       const result = await provider.placeOrder(orderParams);
@@ -2128,10 +2386,6 @@ export class TradingService {
         }
 
         // Track success analytics with direction-specific flip action
-        const flipAction = isCurrentlyLong
-          ? PERPS_EVENT_VALUE.ACTION.FLIP_LONG_TO_SHORT
-          : PERPS_EVENT_VALUE.ACTION.FLIP_SHORT_TO_LONG;
-
         this.#deps.metrics.trackPerpsEvent(
           PerpsAnalyticsEvent.TradeTransaction,
           {
@@ -2146,18 +2400,44 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
             [PERPS_EVENT_PROPERTY.ORDER_VALUE]: positionSize * executedPrice,
+            // MetaMask fee on flip trades (TAT-3146)
+            ...(trackingData?.metamaskFee !== undefined && {
+              [PERPS_EVENT_PROPERTY.METAMASK_FEE]: trackingData.metamaskFee,
+            }),
             ...(trackingData?.vipTier !== undefined && {
               [PERPS_EVENT_PROPERTY.VIP_TIER]: trackingData.vipTier,
             }),
             ...(trackingData?.vipDiscount !== undefined && {
               [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
             }),
+            ...this.#buildAttributionProperties(trackingData),
           },
         );
 
         // Invalidate standalone caches so external hooks refresh
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'positions' });
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'accountState' });
+      } else {
+        // Provider rejected the flip without throwing: emit a terminal failed
+        // event so every submitted flip is paired with executed or failed.
+        this.#deps.metrics.trackPerpsEvent(
+          PerpsAnalyticsEvent.TradeTransaction,
+          {
+            [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
+            [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+            [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
+            [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+            [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
+              result.error ?? 'Unknown error',
+            ...(trackingData?.vipTier !== undefined && {
+              [PERPS_EVENT_PROPERTY.VIP_TIER]: trackingData.vipTier,
+            }),
+            ...(trackingData?.vipDiscount !== undefined && {
+              [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
+            }),
+            ...this.#buildAttributionProperties(trackingData),
+          },
+        );
       }
 
       this.#deps.tracer.endTrace({
@@ -2195,6 +2475,7 @@ export class TradingService {
         ...(trackingData?.vipDiscount !== undefined && {
           [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
         }),
+        ...this.#buildAttributionProperties(trackingData),
       });
 
       this.#deps.tracer.endTrace({

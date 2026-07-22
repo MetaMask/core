@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
+### Added
+
+- Add `PushAnalyticsPayload` type carrying the first-class push notification fields (`notification_id`, `notification_type`, `notification_subtype`, `chain_id`, `deeplink`). ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Add `getNotificationSubtype` helper that derives a normalised `notification_subtype` from an `INotification`, so both clients pull the subtype from one place. ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Add a `notification_subtype` field to the generated platform notification schema (`PlatformNotification`), surfaced via `getNotificationSubtype` so platform notifications report their server-set subtype (e.g. `position_liquidated`) instead of the generic `platform` label. ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Export `toPushAnalyticsPayload` from `@metamask/notification-services-controller/push-services` so web and mobile clients can parse FCM analytics fields from a shared helper. ([#8944](https://github.com/MetaMask/core/pull/8944))
+
+### Changed
+
+- **BREAKING:** The `NotificationServicesPushController:onNewNotifications` and `NotificationServicesPushController:pushNotificationClicked` messenger events now carry `PushAnalyticsPayload` instead of `INotification`. ([#8944](https://github.com/MetaMask/core/pull/8944))
+  - The push payload no longer carries the full notification body; clients construct their analytics events directly from the first-class fields.
+  - The `onReceivedHandler` / `onClickHandler` callbacks passed to `createSubscribeToPushNotifications` now receive a `PushAnalyticsPayload` instead of an `INotification`.
+- On push receive, the controller now re-fetches the notifications list from the API rather than inserting the push payload, since the push payload no longer contains the notification body. ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.0` to `^3.0.1` ([#9458](https://github.com/MetaMask/core/pull/9458))
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+
+### Removed
+
+- **BREAKING:** Remove the nested `data["data"]` / `metadata` FCM payload parsing path; push payloads are now read from the top-level FCM fields written by push-services. ([#8944](https://github.com/MetaMask/core/pull/8944))
+
+### Fixed
+
+- Update `isOnChainRawNotification` to detect on-chain notifications using the v4 `notification_type` discriminator instead of legacy payload field checks, fixing web push notification handling after the v4 API migration ([#9407](https://github.com/MetaMask/core/pull/9407))
+
+## [25.0.0]
+
+### Added
+
+- Export `isOnChainNotification` and `isPlatformNotification` type guards for discriminating v4 API notification shapes ([#9384](https://github.com/MetaMask/core/pull/9384))
+- Export `PlatformNotification` and `OnChainNotification` types derived from the v4 Notification API schema ([#9384](https://github.com/MetaMask/core/pull/9384))
+
+### Changed
+
+- **BREAKING:** Moved Notification API from v3 to v4 ([#9384](https://github.com/MetaMask/core/pull/9384))
+  - API Endpoint Changes: Updated from `/api/v3/notifications` to `/api/v4/notifications` for listing notifications and marking as read
+  - Response Structure: `notification_type` and `notification_subtype` now reflect producer-set database fields instead of fixed enum values
+    - On-chain notifications: `notification_type` is now `"wallet_activity"` (was `"on-chain"`), with `notification_subtype` set to the on-chain kind (e.g. `"metamask_swap_completed"`)
+    - Platform notifications: `notification_type` is now a producer-set value (e.g. `"perps"`, was `"platform"`), with `notification_subtype` set to the platform subtype (e.g. `"position_liquidated"`)
+    - Clients should use the `isOnChainNotification` / `isPlatformNotification` type guards to distinguish on-chain vs platform notifications
+  - Type System:
+    - `UnprocessedRawNotification` now uses `NotificationOutputV4` shapes (`PlatformNotificationV4` | `OnChainNotificationV4`)
+    - `toRawAPINotification()` now normalises v4 notifications, mapping on-chain `notification_subtype` to the `type` field
+    - Regenerated `schema.ts` from the latest Notification API OpenAPI spec, including v4 paths and legacy v1–v3 schemas
+    - `AppPlatform` now includes `"portfolio"` in addition to `"extension"` and `"mobile"`
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [24.3.0]
+
+### Added
+
+- Add `DEFAULT_PRICE_ALERT_PREFERENCES` and initialize `priceAlerts` when building fresh notification preferences via `NotificationServicesController` ([#9316](https://github.com/MetaMask/core/pull/9316))
+  - Re-export `DEFAULT_PRICE_ALERT_PREFERENCES` from `@metamask/authenticated-user-storage`.
+
+### Changed
+
+- Bump `@metamask/authenticated-user-storage` from `^2.1.0` to `^3.0.0` ([#9348](https://github.com/MetaMask/core/pull/9348))
+
 ## [24.2.0]
 
 ### Added
@@ -786,7 +845,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@25.0.0...@metamask/notification-services-controller@26.0.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.3.0...@metamask/notification-services-controller@25.0.0
+[24.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.2.0...@metamask/notification-services-controller@24.3.0
 [24.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.3...@metamask/notification-services-controller@24.2.0
 [24.1.3]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.2...@metamask/notification-services-controller@24.1.3
 [24.1.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.1...@metamask/notification-services-controller@24.1.2

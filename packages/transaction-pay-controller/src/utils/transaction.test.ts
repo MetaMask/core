@@ -17,21 +17,18 @@ import type {
   TransactionPayControllerState,
   TransactionPayRequiredToken,
 } from '../types';
-import { getAssetsUnifyStateFeature } from './feature-flags';
 import { parseRequiredTokens } from './required-tokens';
 import {
   FINALIZED_STATUSES,
   collectTransactionIds,
   getTransaction,
   getTransferredAmountFromTxHash,
-  isPredictWithdrawTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
   updateTransaction,
   waitForTransactionConfirmed,
 } from './transaction';
 
-jest.mock('./feature-flags');
 jest.mock('./required-tokens');
 
 const TRANSACTION_ID_MOCK = '123-456';
@@ -56,9 +53,6 @@ const TRANSCTION_TOKEN_REQUIRED_MOCK = {
 
 describe('Transaction Utils', () => {
   const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
-  const getAssetsUnifyStateFeatureMock = jest.mocked(
-    getAssetsUnifyStateFeature,
-  );
   const {
     messenger,
     getTransactionControllerStateMock,
@@ -72,8 +66,6 @@ describe('Transaction Utils', () => {
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [] as TransactionMeta[],
     } as TransactionControllerState);
-
-    getAssetsUnifyStateFeatureMock.mockReturnValue(false);
   });
 
   describe('getTransaction', () => {
@@ -148,6 +140,103 @@ describe('Transaction Utils', () => {
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('updates state when txParams.to changes', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [TRANSACTION_META_MOCK],
+        } as TransactionControllerState,
+        [],
+      );
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK,
+              txParams: {
+                ...TRANSACTION_META_MOCK.txParams,
+                to: '0xnewrecipient' as Hex,
+              },
+            },
+          ],
+        } as TransactionControllerState,
+        [],
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('updates state when requiredAssets changes', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [TRANSACTION_META_MOCK],
+        } as TransactionControllerState,
+        [],
+      );
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK,
+              requiredAssets: [
+                { address: '0xtoken' as Hex, chainId: '0x1' as Hex },
+              ],
+            },
+          ],
+        } as TransactionControllerState,
+        [],
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not update state when txParams.data, txParams.to, and requiredAssets are unchanged', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [TRANSACTION_META_MOCK],
+        } as TransactionControllerState,
+        [],
+      );
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK,
+              status: TransactionStatus.submitted,
+            },
+          ],
+        } as TransactionControllerState,
+        [],
+      );
+
+      // Only the initial new-transaction event triggers the update
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
 
     it.each(FINALIZED_STATUSES)(
@@ -301,10 +390,9 @@ describe('Transaction Utils', () => {
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
 
-    it('subscribes to AssetsController state changes when unify-state feature is enabled', () => {
+    it('subscribes to AssetsController state changes', () => {
       const updateTransactionDataMock = jest.fn();
 
-      getAssetsUnifyStateFeatureMock.mockReturnValue(true);
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
@@ -321,10 +409,10 @@ describe('Transaction Utils', () => {
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
 
-    it('does not subscribe to per-source events when unify-state feature is enabled', () => {
+    it('subscribes to all per-source events in addition to AssetsController', () => {
       const updateTransactionDataMock = jest.fn();
 
-      getAssetsUnifyStateFeatureMock.mockReturnValue(true);
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
@@ -339,7 +427,7 @@ describe('Transaction Utils', () => {
       isolatedPublish('TokenRatesController:stateChange', {} as never, []);
       isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
 
-      expect(updateTransactionDataMock).not.toHaveBeenCalled();
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
     });
 
     it('skips transactions whose tokens are already populated', () => {
@@ -596,64 +684,6 @@ describe('Transaction Utils', () => {
 
       expect(mockCallback).toHaveBeenCalledTimes(1);
       expect(mockCallback).toHaveBeenCalledWith('tx1');
-    });
-  });
-
-  describe('isPredictWithdrawTransaction', () => {
-    it('returns true when the transaction type is predictWithdraw', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        type: TransactionType.predictWithdraw,
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
-    });
-
-    it('returns true when a nested transaction has type predictWithdraw', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [{ type: TransactionType.predictWithdraw }],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
-    });
-
-    it('returns true when one of multiple nested transactions has type predictWithdraw', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [
-          { type: TransactionType.simpleSend },
-          { type: TransactionType.predictWithdraw },
-        ],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
-    });
-
-    it('returns false when nested transactions have different types', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [{ type: TransactionType.simpleSend }],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
-    });
-
-    it('returns false when nestedTransactions is undefined', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
-    });
-
-    it('returns false when nestedTransactions is empty', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
     });
   });
 });

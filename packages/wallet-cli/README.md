@@ -10,6 +10,53 @@ or
 
 `npm install @metamask/wallet-cli`
 
+## Usage
+
+The CLI drives a long-lived background daemon that holds a `@metamask/wallet` in memory and exposes its messenger over a per-user Unix socket. All commands live under the `mm daemon` and `mm wallet` topics; run `mm --help` (or `mm <topic> <command> --help`) for the full reference.
+
+Start the daemon (flags may also be supplied as the `INFURA_PROJECT_ID`, `MM_WALLET_PASSWORD`, and `MM_WALLET_SRP` environment variables — preferred for secrets):
+
+```sh
+# First run — password required to import the secret recovery phrase:
+mm daemon start --infura-project-id <key> --password <pw> --srp "<phrase>"
+
+# Subsequent runs — password optional. Omit to start with a locked keyring
+# and unlock later with `mm wallet unlock`:
+mm daemon start --infura-project-id <key> --srp "<phrase>"
+```
+
+Unlock the keyring after a password-less start (or after `KeyringController:setLocked`):
+
+```sh
+mm wallet unlock --password <pw>   # or: MM_WALLET_PASSWORD=<pw> mm wallet unlock
+mm wallet unlock                   # prompts interactively (input masked)
+```
+
+Discover what the running wallet can do — `list` prints every messenger action currently dispatchable via `call`. This surface grows as more controllers are wired, so treat it as evolving rather than a stability contract:
+
+```sh
+mm daemon list
+```
+
+Call any messenger action on the running wallet (positional JSON array for arguments, optional `--timeout`):
+
+```sh
+mm daemon call KeyringController:getState
+mm daemon call NetworkController:getState --timeout 10000
+```
+
+For the exact parameters and return shape of a given action, see the TypeDoc/README of the controller that owns it (e.g. [`@metamask/keyring-controller`](https://github.com/MetaMask/core/tree/main/packages/keyring-controller#readme)).
+
+Inspect or tear it down:
+
+```sh
+mm daemon status          # PID + uptime, or why the socket is unreachable
+mm daemon stop            # graceful shutdown (falls back to SIGTERM/SIGKILL)
+mm daemon purge           # stop, then delete all daemon state files (--force to skip the prompt)
+```
+
+State (socket, PID file, log, and the SQLite database) lives in the per-user oclif data directory; override it with `MM_DATA_DIR`.
+
 ## Troubleshooting
 
 ### Rebuilding `better-sqlite3`
@@ -27,6 +74,12 @@ Or invoke `prebuild-install` directly from the monorepo root (where `better-sqli
 ```sh
 cd node_modules/better-sqlite3 && node ../.bin/prebuild-install
 ```
+
+## Testing
+
+Unit tests run with `yarn workspace @metamask/wallet-cli test`.
+
+The subprocess end-to-end suite (in `tests/`) spawns the built `mm` CLI and the native `better-sqlite3` addon as real processes, so it is kept out of the unit run and its coverage gate. Build the workspace dependencies first (`yarn build` from the repo root), then run it with `yarn workspace @metamask/wallet-cli test:e2e`.
 
 ## Contributing
 

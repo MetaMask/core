@@ -1,24 +1,24 @@
 import { SDK } from '@metamask/profile-sync-controller';
 
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import type { AccountWalletEntropyObject } from '../../wallet';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
 import type {
   BackupAndSyncContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-} from '../types';
+} from '../types.js';
 import {
   USER_STORAGE_WALLETS_FEATURE_KEY,
   USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
   USER_STORAGE_GROUPS_FEATURE_KEY,
-} from './constants';
+} from './constants.js';
 import {
   formatWalletForUserStorageUsage,
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
   parseLegacyAccountFromUserStorageResponse,
-} from './format-utils';
+} from './format-utils.js';
 import {
   getWalletFromUserStorage,
   pushWalletToUserStorage,
@@ -27,8 +27,8 @@ import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
   getAllLegacyUserStorageAccounts,
-} from './network-operations';
-import { executeWithRetry } from './network-utils';
+} from './network-operations.js';
+import { executeWithRetry } from './network-utils.js';
 
 jest.mock('./format-utils');
 jest.mock('./network-utils');
@@ -61,11 +61,17 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   let mockContext: BackupAndSyncContext;
   let mockWallet: AccountWalletEntropyObject;
   let mockGroup: AccountGroupMultichainAccountObject;
+  let mockSetRemoteWrite: jest.Mock;
 
   beforeEach(() => {
+    mockSetRemoteWrite = jest.fn();
+
     mockContext = {
       messenger: {
         call: jest.fn(),
+      },
+      mutationTracker: {
+        setRemoteWrite: mockSetRemoteWrite,
       },
     } as unknown as BackupAndSyncContext;
 
@@ -204,6 +210,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         JSON.stringify(formattedWallet),
         'test-entropy-id',
       );
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -436,6 +443,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         JSON.stringify(formattedGroup),
         'test-entropy-id',
       );
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -466,6 +474,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         ],
         'test-entropy-id',
       );
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 

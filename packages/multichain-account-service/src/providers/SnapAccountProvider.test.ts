@@ -21,8 +21,8 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import deepmerge from 'deepmerge';
 
-import { traceFallback } from '../analytics';
-import type { DeepPartial, RootMessenger } from '../tests';
+import { traceFallback } from '../analytics/index.js';
+import type { DeepPartial, RootMessenger } from '../tests/index.js';
 import {
   asKeyringAccount,
   getMultichainAccountServiceMessenger,
@@ -30,20 +30,17 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
   MockAccountBuilder,
-} from '../tests';
-import type { MultichainAccountServiceMessenger } from '../types';
-import { BtcAccountProvider } from './BtcAccountProvider';
-import type {
-  RestrictedSnapKeyring,
-  SnapAccountProviderConfig,
-} from './SnapAccountProvider';
+} from '../tests/index.js';
+import type { MultichainAccountServiceMessenger } from '../types.js';
+import { BtcAccountProvider } from './BtcAccountProvider.js';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 import {
   isSnapAccountProvider,
   SnapAccountProvider,
-} from './SnapAccountProvider';
-import { SolAccountProvider } from './SolAccountProvider';
-import { TrxAccountProvider } from './TrxAccountProvider';
-import { TimeoutError } from './utils';
+} from './SnapAccountProvider.js';
+import { SolAccountProvider } from './SolAccountProvider.js';
+import { TrxAccountProvider } from './TrxAccountProvider.js';
+import { TimeoutError } from './utils.js';
 
 jest.mock('../analytics', () => {
   const actual = jest.requireActual('../analytics');
@@ -65,7 +62,7 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     maxActiveCount: number;
   };
 
-  readonly capabilities: KeyringCapabilities = {
+  capabilities: KeyringCapabilities = {
     scopes: [
       SolScope.Devnet,
       SolScope.Testnet,
@@ -76,6 +73,8 @@ class MockSnapAccountProvider extends SnapAccountProvider {
       deriveIndex: true,
     },
   };
+
+  protected readonly v1DiscoveryScopes = [];
 
   constructor(
     snapId: SnapId,
@@ -105,15 +104,6 @@ class MockSnapAccountProvider extends SnapAccountProvider {
 
   async discoverAccounts(): Promise<Bip44Account<KeyringAccount>[]> {
     return [];
-  }
-
-  protected async createAccountV1(
-    keyring: RestrictedSnapKeyring,
-    options: { entropySource: EntropySourceId; groupIndex: number },
-  ): Promise<KeyringAccount> {
-    // Forward to the mocked keyring (no real purposes apart from implementing
-    // this abstract method)..
-    return await keyring.createAccount(options);
   }
 
   async createAccounts(
@@ -153,7 +143,6 @@ class MockSnapAccountProvider extends SnapAccountProvider {
 const DEFAULT_TEST_CONFIG: SnapAccountProviderConfig = {
   createAccounts: {
     timeoutMs: 5000,
-    batched: false,
   },
   discovery: {
     timeoutMs: 2000,
@@ -168,11 +157,13 @@ const setup = ({
   messenger = getRootMessenger(),
   accounts = [],
   keyring: keyringOverrides = {},
+  capabilities = { scopes: [] },
 }: {
   config?: DeepPartial<SnapAccountProviderConfig>;
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
   keyring?: { type?: string; snapId?: SnapId };
+  capabilities?: KeyringCapabilities;
 } = {}) => {
   const mocks = {
     AccountsController: {
@@ -194,6 +185,7 @@ const setup = ({
     },
     SnapAccountService: {
       ensureReady: jest.fn(),
+      getCapabilities: jest.fn(),
     },
   };
 
@@ -209,6 +201,12 @@ const setup = ({
   );
   // Make the platform ready right away (having a resolved promise is enough).
   mocks.SnapAccountService.ensureReady.mockResolvedValue(undefined);
+
+  messenger.registerActionHandler(
+    'SnapAccountService:getCapabilities',
+    mocks.SnapAccountService.getCapabilities,
+  );
+  mocks.SnapAccountService.getCapabilities.mockResolvedValue(capabilities);
 
   messenger.registerActionHandler(
     'SnapController:handleRequest',
@@ -244,7 +242,6 @@ const setup = ({
   const keyring = {
     type: keyringOverrides.type ?? 'snap',
     snapId: keyringOverrides.snapId ?? TEST_SNAP_ID,
-    createAccount: jest.fn(),
     createAccounts: jest.fn(),
     deleteAccount: jest.fn().mockResolvedValue(undefined),
     lookupByAddress: jest
@@ -576,7 +573,6 @@ describe('SnapAccountProvider', () => {
         },
         createAccounts: {
           timeoutMs: 3000,
-          batched: false,
         },
       };
       const testProvider = new MockSnapAccountProvider(
@@ -609,7 +605,6 @@ describe('SnapAccountProvider', () => {
         },
         createAccounts: {
           timeoutMs: 3000,
-          batched: false,
         },
       };
       const testProvider = new MockSnapAccountProvider(
@@ -977,37 +972,6 @@ describe('SnapAccountProvider', () => {
       expect(consoleErrorSpy).not.toHaveBeenCalled();
       consoleWarnSpy.mockRestore();
       consoleErrorSpy.mockRestore();
-    });
-  });
-
-  describe('withKeyringV2 selector', () => {
-    const mockAccounts = [
-      MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withUuid()
-        .withSnapId(TEST_SNAP_ID)
-        .get(),
-    ].filter(isBip44Account);
-
-    it('rejects when the keyring type is not a Snap keyring', async () => {
-      const { provider } = setup({
-        accounts: mockAccounts,
-        keyring: { type: 'not-a-snap-keyring' },
-      });
-
-      await expect(provider.resyncAccounts(mockAccounts)).rejects.toThrow(
-        'No keyring matches the selector',
-      );
-    });
-
-    it('rejects when the Snap keyring is for a different Snap ID', async () => {
-      const { provider } = setup({
-        accounts: mockAccounts,
-        keyring: { snapId: 'npm:@metamask/other-snap' as SnapId },
-      });
-
-      await expect(provider.resyncAccounts(mockAccounts)).rejects.toThrow(
-        'No keyring matches the selector',
-      );
     });
   });
 

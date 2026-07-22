@@ -2,6 +2,7 @@ import type { NormalizedScopesObject } from '@metamask/chain-agnostic-permission
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
+  getSessionProperties,
   getSessionScopes,
 } from '@metamask/chain-agnostic-permission';
 import type {
@@ -10,6 +11,7 @@ import type {
   MethodHandler,
 } from '@metamask/json-rpc-engine';
 import type {
+  Json,
   JsonRpcParams,
   JsonRpcRequest,
   PendingJsonRpcResponse,
@@ -17,16 +19,21 @@ import type {
 
 import type {
   Caip25Caveat,
+  GetCapabilitiesHook,
   GetCaveatForOriginHook,
   GetNonEvmSupportedMethodsHook,
   SortAccountIdsByLastSelectedHook,
-} from './types';
+} from './types.js';
 
-type WalletGetSessionResult = { sessionScopes: NormalizedScopesObject };
+type WalletGetSessionResult = {
+  sessionScopes: NormalizedScopesObject;
+  sessionProperties: Record<string, Json>;
+};
 
 export type WalletGetSessionHooks = GetCaveatForOriginHook &
   GetNonEvmSupportedMethodsHook &
-  SortAccountIdsByLastSelectedHook;
+  SortAccountIdsByLastSelectedHook &
+  GetCapabilitiesHook;
 
 /**
  * Handler for the `wallet_getSession` RPC method as specified by [CAIP-312](https://chainagnostic.org/CAIPs/caip-312).
@@ -42,6 +49,7 @@ export type WalletGetSessionHooks = GetCaveatForOriginHook &
  * @param hooks.getCaveatForOrigin - Function to retrieve a caveat for the origin.
  * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  * @param hooks.sortAccountIdsByLastSelected - A function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by corresponding last selected account in the wallet.
+ * @param hooks.getCapabilities - A function that returns the capabilities for a given address.
  * @returns Nothing.
  */
 async function handleWalletGetSession(
@@ -62,7 +70,7 @@ async function handleWalletGetSession(
   }
 
   if (!caveat) {
-    response.result = { sessionScopes: {} };
+    response.result = { sessionScopes: {}, sessionProperties: {} };
     return end();
   }
 
@@ -70,6 +78,9 @@ async function handleWalletGetSession(
     sessionScopes: getSessionScopes(caveat.value, {
       getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
       sortAccountIdsByLastSelected: hooks.sortAccountIdsByLastSelected,
+    }),
+    sessionProperties: await getSessionProperties(caveat.value, {
+      getCapabilities: hooks.getCapabilities,
     }),
   };
   return end();
@@ -89,5 +100,6 @@ export const walletGetSessionHandler = {
     getCaveatForOrigin: true,
     getNonEvmSupportedMethods: true,
     sortAccountIdsByLastSelected: true,
+    getCapabilities: true,
   },
 } satisfies WalletGetSessionHandler;

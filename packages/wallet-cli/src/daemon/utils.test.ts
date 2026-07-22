@@ -1,12 +1,16 @@
 import { readFile } from 'node:fs/promises';
 
 import {
+  emptyToUndefined,
+  formatJsonRpcError,
+  isStringArray,
+  makeDaemonConnectionError,
   isErrorWithCode,
   isProcessAlive,
   readPidFile,
   sendSignal,
   waitFor,
-} from './utils';
+} from './utils.js';
 
 jest.mock('node:fs/promises');
 
@@ -31,6 +35,83 @@ describe('isErrorWithCode', () => {
     expect(isErrorWithCode('not an error', 'ENOENT')).toBe(false);
     expect(isErrorWithCode(null, 'ENOENT')).toBe(false);
     expect(isErrorWithCode(undefined, 'ENOENT')).toBe(false);
+  });
+});
+
+describe('makeDaemonConnectionError', () => {
+  it.each(['ENOENT', 'ECONNREFUSED'])(
+    'reports a stopped daemon for %s',
+    (code) => {
+      const error = Object.assign(new Error('boom'), { code });
+      expect(makeDaemonConnectionError(error)).toBe(
+        'Daemon is not running. Start it with `mm daemon start`.',
+      );
+    },
+  );
+
+  it('reports a lost connection for ECONNRESET', () => {
+    const error = Object.assign(new Error('boom'), { code: 'ECONNRESET' });
+    const message = makeDaemonConnectionError(error);
+    expect(message).toContain('Lost the connection to the daemon');
+    expect(message).toContain('mm daemon status');
+  });
+
+  it.each(['EACCES', 'EPERM'])(
+    'reports a permission problem for %s',
+    (code) => {
+      const error = Object.assign(new Error('boom'), { code });
+      expect(makeDaemonConnectionError(error)).toContain('permission denied');
+      expect(makeDaemonConnectionError(error)).toContain('MM_DAEMON_DATA_DIR');
+    },
+  );
+
+  it('surfaces the raw message of an unrecognized Error', () => {
+    expect(makeDaemonConnectionError(new Error('Socket read timed out'))).toBe(
+      'Socket read timed out',
+    );
+  });
+
+  it('stringifies a non-Error throw', () => {
+    expect(makeDaemonConnectionError('kaboom')).toBe('kaboom');
+  });
+});
+
+describe('emptyToUndefined', () => {
+  it('returns undefined for an empty string', () => {
+    expect(emptyToUndefined('')).toBeUndefined();
+  });
+
+  it('returns undefined when the value is already undefined', () => {
+    expect(emptyToUndefined(undefined)).toBeUndefined();
+  });
+
+  it('returns the value unchanged for a non-empty string', () => {
+    expect(emptyToUndefined('pw')).toBe('pw');
+  });
+});
+
+describe('formatJsonRpcError', () => {
+  it('annotates the message with its numeric code', () => {
+    expect(
+      formatJsonRpcError({ code: -32601, message: 'Method not found' }),
+    ).toBe('Method not found (code -32601)');
+  });
+});
+
+describe('isStringArray', () => {
+  it('returns true for an array of strings', () => {
+    expect(isStringArray(['a', 'b'])).toBe(true);
+    expect(isStringArray([])).toBe(true);
+  });
+
+  it('returns false for an array with a non-string element', () => {
+    expect(isStringArray(['a', 42])).toBe(false);
+  });
+
+  it('returns false for non-array values', () => {
+    expect(isStringArray('a')).toBe(false);
+    expect(isStringArray({ 0: 'a' })).toBe(false);
+    expect(isStringArray(null)).toBe(false);
   });
 });
 

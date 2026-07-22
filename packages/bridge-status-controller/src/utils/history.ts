@@ -219,6 +219,7 @@ export const getInitialHistoryItem = (
     originalTransactionId: originalTransactionId ?? bridgeTxMeta?.id, // Keep original for intent transactions
     batchId: bridgeTxMeta?.batchId,
     quote: quoteResponse.quote,
+    quoteId: quoteResponse.quoteId,
     startTime,
     estimatedProcessingTimeInSeconds:
       quoteResponse.estimatedProcessingTimeInSeconds,

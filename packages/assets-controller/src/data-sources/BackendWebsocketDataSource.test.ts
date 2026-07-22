@@ -667,7 +667,7 @@ describe('BackendWebsocketDataSource', () => {
 
     channelCallback(
       createMockNotification({
-        channel,
+        channel: `account-activity.v1.eip155:42161:${MOCK_ADDRESS.toLowerCase()}`,
         subscriptionId: 'stale-server-sub-id',
         data: {
           address: MOCK_ADDRESS,
@@ -1204,11 +1204,7 @@ describe('BackendWebsocketDataSource', () => {
     notificationCallback(notification);
     await new Promise(process.nextTick);
 
-    // No valid updates → response has only updateMode, no assetsBalance
-    expect(assetsUpdateHandler).toHaveBeenCalledWith(
-      { updateMode: 'merge' },
-      expect.objectContaining({ dataTypes: ['balance'] }),
-    );
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
 
     controller.destroy();
   });

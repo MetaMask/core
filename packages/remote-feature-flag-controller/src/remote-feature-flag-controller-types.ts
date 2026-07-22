@@ -57,6 +57,13 @@ export type FeatureFlagScopeValue = {
   thresholdVersion?: ThresholdVersion;
   scope: FeatureFlagScope;
   value: Json;
+  /**
+   * Optional list of MetaMetrics IDs to explicitly target. When the current
+   * user's MetaMetrics ID matches any entry in this list, this threshold group
+   * is selected immediately, bypassing hash-based rollout. Intended for QA and
+   * Product Manager testing only, not general-purpose segmentation.
+   */
+  metaMetricsIds?: string[];
 };
 
 export type ApiDataResponse = FeatureFlags[];

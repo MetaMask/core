@@ -7,8 +7,8 @@ import type {
 } from '@metamask/messenger';
 import nock from 'nock';
 
-import type { SampleGasPricesServiceMessenger } from './sample-gas-prices-service';
-import { SampleGasPricesService } from './sample-gas-prices-service';
+import type { SampleGasPricesServiceMessenger } from './sample-gas-prices-service.js';
+import { SampleGasPricesService } from './sample-gas-prices-service.js';
 
 describe('SampleGasPricesService', () => {
   describe('SampleGasPricesService:fetchGasPrices', () => {

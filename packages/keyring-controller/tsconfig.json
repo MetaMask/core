@@ -8,7 +8,7 @@
       "path": "../base-controller"
     },
     {
-      "path": "../message-manager"
+      "path": "../controller-utils"
     },
     {
       "path": "../messenger"

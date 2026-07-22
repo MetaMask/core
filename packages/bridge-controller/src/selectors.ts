@@ -23,7 +23,6 @@ import type {
   BridgeControllerState,
   ExchangeRate,
   QuoteMetadata,
-  QuoteResponseV1,
   TokenAmountValues,
 } from './types';
 import { RequestStatus, SortOrder } from './types';
@@ -55,6 +54,7 @@ import {
   calcBatchFees,
 } from './utils/quote';
 import { getDefaultSlippagePercentage } from './utils/slippage';
+import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
 /**
  * The controller states that provide exchange rates
@@ -256,8 +256,14 @@ export const selectExchangeRateByAssetId = (
       currencyKey !== undefined && currencyKey !== null
         ? currencyRates?.[currencyKey]
         : undefined;
-    const price = evmTokenExchangeRateForAddress?.price ?? 0;
-    if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
+    const price = evmTokenExchangeRateForAddress?.price;
+    // A missing or zero price is not a usable exchange rate. Returning a "0"
+    // rate here is harmful in two ways: it surfaces a $0 fiat value, and it
+    // makes `selectIsAssetExchangeRateInState` treat the token as already
+    // priced (the non-empty "0" string is truthy), which prevents the
+    // controller from fetching the real rate. Fall through to `{}` instead so
+    // the rate gets fetched from the price API.
+    if (price && nativeCurrencyRate) {
       return {
         exchangeRate: new BigNumber(price)
           .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)

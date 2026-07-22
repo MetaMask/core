@@ -12,14 +12,15 @@ on:
       - ready_for_review
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   is-fork:
     name: Determine whether this PR is from a fork
     if: (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
     outputs:
       is-fork: ${{ steps.is-fork.outputs.is-fork }}
     steps:
@@ -38,6 +39,9 @@ jobs:
     if: needs.is-fork.outputs.is-fork == 'false'
     runs-on: ubuntu-latest
     environment: default-branch
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       is-release: ${{ steps.is-release.outputs.IS_RELEASE }}
       head-sha: ${{ steps.pr-info.outputs.pr-head-sha }}
@@ -58,10 +62,11 @@ jobs:
             >> "$GITHUB_OUTPUT"
 
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          persist-credentials: false
           ref: ${{ steps.pr-info.outputs.pr-head-sha }}
 
       - name: Get merge base
@@ -102,8 +107,6 @@ jobs:
           permissions: |
             contents: write
             pull_requests: write
-      - name: Checkout repository
-        uses: actions/checkout@v6
       - name: React to the comment
         run: |
           gh api \
@@ -136,10 +139,11 @@ jobs:
             pull_requests: write
 
       - name: Check out the base branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.is-release.outputs.merge-base }}
           token: ${{ steps.get-token.outputs.token }}
+          persist-credentials: false
 
       - name: Detach HEAD (to prevent accidental pushes)
         run: git checkout --detach HEAD
@@ -207,11 +211,12 @@ jobs:
           NEW_COMMIT_ID: ${{ steps.commit-updated-changelogs.outputs.new-commit-id }}
           PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
           PR_HEAD_REF: ${{ needs.is-release.outputs.head-ref }}
+          TOKEN: ${{ steps.get-token.outputs.token }}
         run: |
           if [[ -n "$NEW_COMMIT_ID" ]]; then
             git checkout "$PR_HEAD_SHA"
             git cherry-pick "$NEW_COMMIT_ID"
-            git push origin "HEAD:$PR_HEAD_REF"
+            git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:$PR_HEAD_REF"
             echo "changes-pushed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changes-pushed=false" >> "$GITHUB_OUTPUT"

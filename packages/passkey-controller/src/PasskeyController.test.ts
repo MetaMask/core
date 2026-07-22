@@ -1,5 +1,7 @@
 import { Messenger } from '@metamask/messenger';
+import { Mutex } from 'async-mutex';
 
+import { createMockPasskeyControllerMessenger } from '../tests/mocks/passkey-controller-messenger';
 import { CEREMONY_MAX_AGE_MS, WEBAUTHN_TIMEOUT_MS } from './ceremony-manager';
 import {
   PasskeyControllerErrorCode,
@@ -13,8 +15,9 @@ import {
 } from './PasskeyController';
 import type {
   PasskeyControllerMessenger,
+  PasskeyControllerOptions,
   PasskeyControllerState,
-} from './PasskeyController';
+} from './types';
 import type { PasskeyRecord, PrfClientExtensionResults } from './types';
 import * as passkeyCrypto from './utils/crypto';
 import type {
@@ -75,17 +78,38 @@ function getPasskeyMessenger(): PasskeyControllerMessenger {
 }
 
 const TEST_RP_NAME = 'Test RP';
+const DEFAULT_TEST_VAULT_KEY = 'test-vault-key';
+
+type CreateControllerOptions = Partial<PasskeyControllerOptions> & {
+  vaultKey?: string;
+  exportEncryptionKey?: jest.Mock;
+};
 
 function createController(
-  overrides?: Partial<ConstructorParameters<typeof PasskeyController>[0]>,
+  overrides?: CreateControllerOptions,
 ): PasskeyController {
+  const {
+    vaultKey = DEFAULT_TEST_VAULT_KEY,
+    exportEncryptionKey,
+    messenger,
+    ...rest
+  } = overrides ?? {};
+
+  const resolvedMessenger =
+    messenger ??
+    createMockPasskeyControllerMessenger({
+      exportEncryptionKey:
+        exportEncryptionKey ?? jest.fn().mockResolvedValue(vaultKey),
+    }).messenger;
+
   return new PasskeyController({
-    messenger: getPasskeyMessenger(),
+    messenger: resolvedMessenger,
     expectedRPID: TEST_RP_ID,
     rpId: TEST_RP_ID,
     rpName: TEST_RP_NAME,
     expectedOrigin: TEST_ORIGIN,
-    ...overrides,
+    getIsOnboardingCompleted: jest.fn().mockReturnValue(false),
+    ...rest,
   });
 }
 
@@ -176,18 +200,18 @@ async function enrollWithPostRegistrationAuth(
   controller: PasskeyController,
   options: {
     registrationResponse: PasskeyRegistrationResponse;
-    vaultKey: string;
     /** Assertion userHandle when using userHandle wrapping (must match registration `user.id`). */
     userHandle?: string;
     /** PRF (or other) extension results on the post-registration authentication response. */
     authClientExtensionResults?: Record<string, unknown>;
+    password?: string;
   },
 ): Promise<void> {
   const {
     registrationResponse,
-    vaultKey,
     userHandle,
     authClientExtensionResults,
+    password,
   } = options;
   const authOpts = controller.generatePostRegistrationAuthenticationOptions({
     registrationResponse,
@@ -202,7 +226,7 @@ async function enrollWithPostRegistrationAuth(
   await controller.protectVaultKeyWithPasskey({
     registrationResponse,
     authenticationResponse: authResp,
-    vaultKey,
+    password,
   });
 }
 
@@ -232,6 +256,7 @@ describe('PasskeyController', () => {
             expectedRPID: [],
             rpName: TEST_RP_NAME,
             expectedOrigin: TEST_ORIGIN,
+            getIsOnboardingCompleted: jest.fn().mockReturnValue(false),
           }),
       ).not.toThrow();
     });
@@ -255,6 +280,67 @@ describe('PasskeyController', () => {
         state: { passkeyRecord: record },
       });
       expect(controller.state.passkeyRecord).toStrictEqual(record);
+    });
+  });
+
+  describe('messenger', () => {
+    it('delegates allowed KeyringController actions from the restricted messenger', async () => {
+      const { messenger, mocks } = createMockPasskeyControllerMessenger({
+        verifyPassword: jest.fn().mockResolvedValue(undefined),
+        exportEncryptionKey: jest.fn().mockResolvedValue('test-vault-key'),
+        submitEncryptionKey: jest.fn().mockResolvedValue(undefined),
+        changePassword: jest.fn().mockResolvedValue(undefined),
+        exportSeedPhrase: jest.fn().mockResolvedValue(new Uint8Array([1, 2])),
+        exportAccount: jest.fn().mockResolvedValue('0xdeadbeef'),
+      });
+
+      createController({ messenger });
+
+      expect(
+        await messenger.call('KeyringController:verifyPassword', 'password'),
+      ).toBeUndefined();
+      expect(
+        await messenger.call('KeyringController:exportEncryptionKey'),
+      ).toBe('test-vault-key');
+      expect(
+        await messenger.call(
+          'KeyringController:submitEncryptionKey',
+          'vault-key',
+        ),
+      ).toBeUndefined();
+      expect(
+        await messenger.call(
+          'KeyringController:changePassword',
+          'new-password',
+        ),
+      ).toBeUndefined();
+      expect(
+        await messenger.call(
+          'KeyringController:exportSeedPhrase',
+          { encryptionKey: 'vault-key' },
+          'keyring-id',
+        ),
+      ).toStrictEqual(new Uint8Array([1, 2]));
+      expect(
+        await messenger.call(
+          'KeyringController:exportAccount',
+          { encryptionKey: 'vault-key' },
+          '0xabc',
+        ),
+      ).toBe('0xdeadbeef');
+
+      expect(mocks.verifyPassword).toHaveBeenCalledWith('password');
+      expect(mocks.exportEncryptionKey).toHaveBeenCalledTimes(1);
+      expect(mocks.submitEncryptionKey).toHaveBeenCalledWith('vault-key');
+      expect(mocks.changePassword).toHaveBeenCalledWith('new-password');
+      expect(mocks.exportSeedPhrase).toHaveBeenCalledWith(
+        { encryptionKey: 'vault-key' },
+        'keyring-id',
+      );
+      expect(mocks.exportAccount).toHaveBeenCalledWith(
+        { encryptionKey: 'vault-key' },
+        '0xabc',
+      );
     });
   });
 
@@ -352,7 +438,6 @@ describe('PasskeyController', () => {
           undefined,
           regOptions.challenge,
         ),
-        vaultKey: 'vault-key',
         userHandle: regOptions.user.id,
       });
       expect(controller.isPasskeyEnrolled()).toBe(true);
@@ -365,8 +450,8 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
-      const controller = createController();
       const vaultKey = 'no-prf-vault-key';
+      const controller = createController({ vaultKey });
 
       const regOptions = controller.generateRegistrationOptions({
         prfAvailable: false,
@@ -379,7 +464,6 @@ describe('PasskeyController', () => {
           undefined,
           regOptions.challenge,
         ),
-        vaultKey,
         userHandle,
       });
 
@@ -450,7 +534,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         authClientExtensionResults: prfResults(prfFirst, true),
       });
 
@@ -479,7 +562,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'vault-key',
         userHandle: regOpts.user.id,
       });
 
@@ -490,13 +572,119 @@ describe('PasskeyController', () => {
   });
 
   describe('protectVaultKeyWithPasskey', () => {
+    it('throws when onboarding is complete and password is omitted', async () => {
+      const controller = createController({
+        getIsOnboardingCompleted: () => true,
+      });
+
+      await expect(
+        controller.protectVaultKeyWithPasskey({
+          registrationResponse: minimalRegistrationResponse(),
+          authenticationResponse: minimalAuthenticationResponse(),
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.EnrollmentPasswordRequired,
+        message: PasskeyControllerErrorMessage.EnrollmentPasswordRequired,
+      });
+    });
+
+    it('verifies password when onboarding is complete', async () => {
+      const verifyPassword = jest.fn().mockResolvedValue(undefined);
+      const { messenger } = createMockPasskeyControllerMessenger({
+        verifyPassword,
+      });
+      const controller = createController({
+        messenger,
+        getIsOnboardingCompleted: () => true,
+      });
+
+      await expect(
+        controller.protectVaultKeyWithPasskey({
+          registrationResponse: minimalRegistrationResponse(),
+          authenticationResponse: minimalAuthenticationResponse(),
+          password: 'secret',
+        }),
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
+
+      expect(verifyPassword).toHaveBeenCalledWith('secret');
+    });
+
+    it('fetches vault encryption key from KeyringController during enrollment', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const exportEncryptionKey = jest
+        .fn()
+        .mockResolvedValue('keyring-vault-key');
+      const { messenger } = createMockPasskeyControllerMessenger({
+        exportEncryptionKey,
+      });
+      const controller = createController({ messenger });
+      const regOpts = controller.generateRegistrationOptions();
+
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      expect(exportEncryptionKey).toHaveBeenCalledTimes(1);
+      expect(controller.isPasskeyEnrolled()).toBe(true);
+
+      const authOpts = controller.generateAuthenticationOptions();
+      const retrieved = await controller.retrieveVaultKeyWithPasskey(
+        minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          authOpts.challenge,
+        ),
+      );
+      expect(retrieved).toBe('keyring-vault-key');
+    });
+
+    it('verifies password before exporting encryption key when onboarding is complete', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const callOrder: string[] = [];
+      const verifyPassword = jest.fn().mockImplementation(async () => {
+        callOrder.push('verifyPassword');
+      });
+      const exportEncryptionKey = jest.fn().mockImplementation(async () => {
+        callOrder.push('exportEncryptionKey');
+        return 'k';
+      });
+      const { messenger } = createMockPasskeyControllerMessenger({
+        verifyPassword,
+        exportEncryptionKey,
+      });
+      const controller = createController({
+        messenger,
+        getIsOnboardingCompleted: () => true,
+      });
+      const regOpts = controller.generateRegistrationOptions();
+
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+        password: 'secret',
+      });
+
+      expect(callOrder).toStrictEqual([
+        'verifyPassword',
+        'exportEncryptionKey',
+      ]);
+    });
+
     it('throws when there is no active registration ceremony', async () => {
       const controller = createController();
       await expect(
         controller.protectVaultKeyWithPasskey({
           registrationResponse: minimalRegistrationResponse(),
           authenticationResponse: minimalAuthenticationResponse(),
-          vaultKey: 'k',
         }),
       ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
@@ -530,7 +718,6 @@ describe('PasskeyController', () => {
             undefined,
             TEST_CHALLENGE,
           ),
-          vaultKey: 'k',
         }),
       ).rejects.toMatchObject({
         code: PasskeyControllerErrorCode.AlreadyEnrolled,
@@ -560,7 +747,6 @@ describe('PasskeyController', () => {
         controller.protectVaultKeyWithPasskey({
           registrationResponse: regResp,
           authenticationResponse: authResp,
-          vaultKey: 'k',
         }),
       ).rejects.toThrow(
         PasskeyControllerErrorMessage.RegistrationVerificationFailed,
@@ -588,7 +774,6 @@ describe('PasskeyController', () => {
         controller.protectVaultKeyWithPasskey({
           registrationResponse: regResp,
           authenticationResponse: authResp,
-          vaultKey: 'k',
         }),
       ).rejects.toMatchObject({
         code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
@@ -619,7 +804,6 @@ describe('PasskeyController', () => {
         controller.protectVaultKeyWithPasskey({
           registrationResponse: regResp,
           authenticationResponse: authResp,
-          vaultKey: 'k',
         }),
       ).rejects.toMatchObject({
         code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
@@ -633,7 +817,6 @@ describe('PasskeyController', () => {
           authenticationResponse: minimalAuthenticationResponse(
             regOpts.user.id,
           ),
-          vaultKey: 'k',
         }),
       ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
@@ -649,7 +832,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'test-vault-key',
         userHandle: regOpts.user.id,
       });
 
@@ -685,7 +867,6 @@ describe('PasskeyController', () => {
             undefined,
             authOpts.challenge,
           ),
-          vaultKey: 'k',
         }),
       ).rejects.toMatchObject({
         code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
@@ -717,7 +898,6 @@ describe('PasskeyController', () => {
         controller.protectVaultKeyWithPasskey({
           registrationResponse: regResp,
           authenticationResponse: authResp,
-          vaultKey: 'k',
         }),
       ).rejects.toMatchObject({
         code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
@@ -738,7 +918,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'vault-key-prf-path',
         authClientExtensionResults: prfResults(prfFirst, true),
       });
 
@@ -753,8 +932,8 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
-      const controller = createController();
       const vaultKey = 'vault-prf-requested-no-output';
+      const controller = createController({ vaultKey });
 
       const regOptions = controller.generateRegistrationOptions({
         prfAvailable: true,
@@ -773,7 +952,6 @@ describe('PasskeyController', () => {
           },
           regOptions.challenge,
         ),
-        vaultKey,
         userHandle,
       });
 
@@ -816,7 +994,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         userHandle: regOpts.user.id,
       });
 
@@ -837,7 +1014,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         userHandle: regOpts.user.id,
       });
 
@@ -866,7 +1042,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         userHandle: regOpts.user.id,
       });
 
@@ -894,7 +1069,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         userHandle: regOpts.user.id,
       });
 
@@ -930,7 +1104,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'secret',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -977,7 +1150,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'secret',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1022,7 +1194,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'secret',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1047,6 +1218,155 @@ describe('PasskeyController', () => {
     });
   });
 
+  describe('unlockWithPasskey', () => {
+    it('throws when passkey is not enrolled', async () => {
+      setupAuthenticationMocks();
+      const controller = createController();
+      await expect(
+        controller.unlockWithPasskey(minimalAuthenticationResponse('uh')),
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NotEnrolled);
+    });
+
+    it('submits the retrieved vault encryption key to KeyringController', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const vaultKey = 'unlock-vault-key';
+      const submitEncryptionKey = jest.fn().mockResolvedValue(undefined);
+      const { messenger } = createMockPasskeyControllerMessenger({
+        exportEncryptionKey: jest.fn().mockResolvedValue(vaultKey),
+        submitEncryptionKey,
+      });
+      const controller = createController({ messenger, vaultKey });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await controller.unlockWithPasskey(
+        minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          authOpts.challenge,
+        ),
+      );
+
+      expect(submitEncryptionKey).toHaveBeenCalledWith(vaultKey);
+    });
+  });
+
+  describe('exportSeedPhraseWithPasskey', () => {
+    it('throws when passkey is not enrolled', async () => {
+      setupAuthenticationMocks();
+      const controller = createController();
+      await expect(
+        controller.exportSeedPhraseWithPasskey(
+          minimalAuthenticationResponse('uh'),
+        ),
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NotEnrolled);
+    });
+
+    it('exports seed phrase using the retrieved vault encryption key', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const vaultKey = 'export-seed-vault-key';
+      const seedPhrase = new Uint8Array([1, 2, 3]);
+      const exportSeedPhrase = jest.fn().mockResolvedValue(seedPhrase);
+      const { messenger } = createMockPasskeyControllerMessenger({
+        exportEncryptionKey: jest.fn().mockResolvedValue(vaultKey),
+        exportSeedPhrase,
+      });
+      const controller = createController({ messenger, vaultKey });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      const result = await controller.exportSeedPhraseWithPasskey(
+        minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          authOpts.challenge,
+        ),
+        'keyring-id',
+      );
+
+      expect(result).toStrictEqual(seedPhrase);
+      expect(exportSeedPhrase).toHaveBeenCalledWith(
+        { encryptionKey: vaultKey },
+        'keyring-id',
+      );
+    });
+  });
+
+  describe('exportAccountsWithPasskey', () => {
+    it('throws when passkey is not enrolled', async () => {
+      setupAuthenticationMocks();
+      const controller = createController();
+      await expect(
+        controller.exportAccountsWithPasskey(
+          minimalAuthenticationResponse('uh'),
+          ['0xabc'],
+        ),
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NotEnrolled);
+    });
+
+    it('exports private keys for each address using one vault key retrieval', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const vaultKey = 'export-account-vault-key';
+      const exportAccount = jest
+        .fn()
+        .mockResolvedValueOnce('0xprivate1')
+        .mockResolvedValueOnce('0xprivate2');
+      const { messenger } = createMockPasskeyControllerMessenger({
+        exportEncryptionKey: jest.fn().mockResolvedValue(vaultKey),
+        exportAccount,
+      });
+      const controller = createController({ messenger, vaultKey });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      const addresses = ['0xabc', '0xdef'];
+      const result = await controller.exportAccountsWithPasskey(
+        minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          authOpts.challenge,
+        ),
+        addresses,
+      );
+
+      expect(result).toStrictEqual(['0xprivate1', '0xprivate2']);
+      expect(exportAccount).toHaveBeenNthCalledWith(
+        1,
+        { encryptionKey: vaultKey },
+        '0xabc',
+      );
+      expect(exportAccount).toHaveBeenNthCalledWith(
+        2,
+        { encryptionKey: vaultKey },
+        '0xdef',
+      );
+    });
+  });
+
   describe('verifyPasskeyAuthentication', () => {
     it('returns false when passkey is not enrolled', async () => {
       setupAuthenticationMocks();
@@ -1068,7 +1388,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         userHandle: regOpts.user.id,
       });
 
@@ -1089,7 +1408,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         userHandle: regOpts.user.id,
       });
 
@@ -1116,7 +1434,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         userHandle: regOpts.user.id,
       });
       controller.generateAuthenticationOptions();
@@ -1140,9 +1457,9 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
-      const controller = createController();
-      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(7));
       const vaultKey = 'verify-bool-ok';
+      const controller = createController({ vaultKey });
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(7));
 
       const regOpts = controller.generateRegistrationOptions();
       await enrollWithPostRegistrationAuth(controller, {
@@ -1152,7 +1469,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey,
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1176,8 +1492,8 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
-      const controller = createController();
       const vaultKey = 'userhandle-roundtrip-key';
+      const controller = createController({ vaultKey });
 
       const regOpts = controller.generateRegistrationOptions();
 
@@ -1186,7 +1502,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey,
         userHandle: regOpts.user.id,
       });
 
@@ -1223,9 +1538,9 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
-      const controller = createController();
       const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
       const vaultKey = 'prf-roundtrip-key';
+      const controller = createController({ vaultKey });
 
       const regOpts = controller.generateRegistrationOptions();
       await enrollWithPostRegistrationAuth(controller, {
@@ -1235,7 +1550,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey,
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1271,9 +1585,9 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
-      const controller = createController();
-      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
       const beforeKey = 'vault-key-before-password';
+      const controller = createController({ vaultKey: beforeKey });
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
 
       const regOpts = controller.generateRegistrationOptions();
       await enrollWithPostRegistrationAuth(controller, {
@@ -1283,7 +1597,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: beforeKey,
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1329,7 +1642,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'actual-wrapped-key',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1365,7 +1677,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'wrapped-key',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1410,7 +1721,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'wrapped-key',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1446,7 +1756,7 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
-      const controller = createController();
+      const controller = createController({ vaultKey: 'wrapped' });
       const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
 
       const regOpts = controller.generateRegistrationOptions();
@@ -1457,7 +1767,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'wrapped',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1493,7 +1802,7 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
-      const controller = createController();
+      const controller = createController({ vaultKey: 'wrapped' });
       const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
 
       const regOpts = controller.generateRegistrationOptions();
@@ -1504,7 +1813,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'wrapped',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1537,7 +1845,7 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
-      const controller = createController();
+      const controller = createController({ vaultKey: 'wrapped' });
       const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
 
       const regOpts = controller.generateRegistrationOptions();
@@ -1548,7 +1856,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'wrapped',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1571,12 +1878,378 @@ describe('PasskeyController', () => {
     });
   });
 
-  describe('removePasskey', () => {
+  describe('changePasswordWithPasskeyVerification', () => {
+    it('throws when passkey is not enrolled', async () => {
+      setupAuthenticationMocks();
+      const controller = createController();
+      await expect(
+        controller.changePasswordWithPasskeyVerification({
+          newPassword: 'new-password',
+          authenticationResponse: minimalAuthenticationResponse('uh'),
+        }),
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NotEnrolled);
+    });
+
+    it('throws when passkey authentication verification fails', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      mockVerifyAuthenticationResponse.mockResolvedValue({
+        verified: false,
+      });
+      const authOpts = controller.generateAuthenticationOptions();
+
+      await expect(
+        controller.changePasswordWithPasskeyVerification({
+          newPassword: 'new-password',
+          authenticationResponse: minimalAuthenticationResponse(
+            'uh',
+            undefined,
+            authOpts.challenge,
+          ),
+        }),
+      ).rejects.toThrow(
+        PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+      );
+    });
+
+    it('changes password and renews vault key protection by default', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const beforeKey = 'vault-before-password';
+      const afterKey = 'vault-after-password';
+      const changePassword = jest.fn().mockResolvedValue(undefined);
+      const exportEncryptionKey = jest
+        .fn()
+        .mockResolvedValueOnce(beforeKey)
+        .mockResolvedValueOnce(beforeKey)
+        .mockResolvedValueOnce(afterKey);
+      const { messenger } = createMockPasskeyControllerMessenger({
+        changePassword,
+        exportEncryptionKey,
+      });
+      const controller = createController({ messenger, vaultKey: beforeKey });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await controller.changePasswordWithPasskeyVerification({
+        newPassword: 'new-password',
+        authenticationResponse: minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          authOpts.challenge,
+        ),
+      });
+
+      expect(exportEncryptionKey).toHaveBeenCalledTimes(3);
+      expect(changePassword).toHaveBeenCalledWith('new-password');
+      expect(controller.isPasskeyEnrolled()).toBe(true);
+
+      const authOptsAfter = controller.generateAuthenticationOptions();
+      const unwrapped = await controller.retrieveVaultKeyWithPasskey(
+        minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          authOptsAfter.challenge,
+        ),
+      );
+      expect(unwrapped).toBe(afterKey);
+    });
+
+    it('removes passkey when renewVaultKeyProtection is false', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const exportEncryptionKey = jest
+        .fn()
+        .mockResolvedValue(DEFAULT_TEST_VAULT_KEY);
+      const changePassword = jest.fn().mockResolvedValue(undefined);
+      const { messenger } = createMockPasskeyControllerMessenger({
+        changePassword,
+        exportEncryptionKey,
+      });
+      const controller = createController({ messenger });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await controller.changePasswordWithPasskeyVerification({
+        newPassword: 'new-password',
+        authenticationResponse: minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          authOpts.challenge,
+        ),
+        options: { renewVaultKeyProtection: false },
+      });
+
+      expect(changePassword).toHaveBeenCalledWith('new-password');
+      expect(exportEncryptionKey).toHaveBeenCalledTimes(1);
+      expect(controller.isPasskeyEnrolled()).toBe(false);
+    });
+
+    it('removes passkey and throws VaultKeyRenewalFailed when renewal fails', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const beforeKey = 'vault-before-password';
+      const changePassword = jest.fn().mockResolvedValue(undefined);
+      const exportEncryptionKey = jest
+        .fn()
+        .mockResolvedValueOnce(beforeKey)
+        .mockResolvedValueOnce('wrong-before-key')
+        .mockResolvedValueOnce('vault-after-password');
+      const { messenger } = createMockPasskeyControllerMessenger({
+        changePassword,
+        exportEncryptionKey,
+      });
+      const controller = createController({ messenger, vaultKey: beforeKey });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await expect(
+        controller.changePasswordWithPasskeyVerification({
+          newPassword: 'new-password',
+          authenticationResponse: minimalAuthenticationResponse(
+            regOpts.user.id,
+            undefined,
+            authOpts.challenge,
+          ),
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.VaultKeyRenewalFailed,
+        cause: expect.objectContaining({
+          code: PasskeyControllerErrorCode.VaultKeyMismatch,
+        }),
+      });
+
+      expect(controller.isPasskeyEnrolled()).toBe(false);
+    });
+
+    it('wraps Error renewal failures in VaultKeyRenewalFailed', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const beforeKey = 'vault-before-password';
+      const changePassword = jest.fn().mockResolvedValue(undefined);
+      const exportEncryptionKey = jest
+        .fn()
+        .mockResolvedValueOnce(beforeKey)
+        .mockResolvedValueOnce(beforeKey)
+        .mockResolvedValueOnce('vault-after-password');
+      const { messenger } = createMockPasskeyControllerMessenger({
+        changePassword,
+        exportEncryptionKey,
+      });
+      const controller = createController({ messenger, vaultKey: beforeKey });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const encryptSpy = jest
+        .spyOn(passkeyCrypto, 'encryptWithKey')
+        .mockImplementationOnce(() => {
+          throw new Error('renew-error');
+        });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await expect(
+        controller.changePasswordWithPasskeyVerification({
+          newPassword: 'new-password',
+          authenticationResponse: minimalAuthenticationResponse(
+            regOpts.user.id,
+            undefined,
+            authOpts.challenge,
+          ),
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.VaultKeyRenewalFailed,
+        cause: expect.objectContaining({ message: 'renew-error' }),
+      });
+
+      expect(controller.isPasskeyEnrolled()).toBe(false);
+      encryptSpy.mockRestore();
+    });
+
+    it('wraps non-Error renewal failures in VaultKeyRenewalFailed', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const beforeKey = 'vault-before-password';
+      const changePassword = jest.fn().mockResolvedValue(undefined);
+      const exportEncryptionKey = jest
+        .fn()
+        .mockResolvedValueOnce(beforeKey)
+        .mockResolvedValueOnce(beforeKey)
+        .mockRejectedValueOnce('string-fail');
+      const { messenger } = createMockPasskeyControllerMessenger({
+        changePassword,
+        exportEncryptionKey,
+      });
+      const controller = createController({ messenger, vaultKey: beforeKey });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await expect(
+        controller.changePasswordWithPasskeyVerification({
+          newPassword: 'new-password',
+          authenticationResponse: minimalAuthenticationResponse(
+            regOpts.user.id,
+            undefined,
+            authOpts.challenge,
+          ),
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.VaultKeyRenewalFailed,
+        cause: expect.objectContaining({ message: 'string-fail' }),
+      });
+
+      expect(controller.isPasskeyEnrolled()).toBe(false);
+    });
+  });
+
+  describe('removePasskeyWithPasskeyVerification', () => {
+    it('throws when passkey is not enrolled', async () => {
+      setupAuthenticationMocks();
+      const controller = createController();
+      await expect(
+        controller.removePasskeyWithPasskeyVerification(
+          minimalAuthenticationResponse('uh'),
+        ),
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NotEnrolled);
+    });
+
+    it('throws when passkey authentication verification fails', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      mockVerifyAuthenticationResponse.mockResolvedValue({
+        verified: false,
+      });
+      const authOpts = controller.generateAuthenticationOptions();
+
+      await expect(
+        controller.removePasskeyWithPasskeyVerification(
+          minimalAuthenticationResponse('uh', undefined, authOpts.challenge),
+        ),
+      ).rejects.toThrow(
+        PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+      );
+      expect(controller.isPasskeyEnrolled()).toBe(true);
+    });
+
+    it('removes the passkey when authentication verification succeeds', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await controller.removePasskeyWithPasskeyVerification(
+        minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          authOpts.challenge,
+        ),
+      );
+
+      expect(controller.isPasskeyEnrolled()).toBe(false);
+      expect(controller.state.passkeyRecord).toBeNull();
+    });
+  });
+
+  describe('removePasskeyWithPasswordVerification', () => {
+    it('throws when passkey is not enrolled', async () => {
+      const controller = createController();
+      await expect(
+        controller.removePasskeyWithPasswordVerification('secret'),
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NotEnrolled);
+    });
+
+    it('verifies password and removes the passkey', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const verifyPassword = jest.fn().mockResolvedValue(undefined);
+      const { messenger } = createMockPasskeyControllerMessenger({
+        verifyPassword,
+      });
+      const controller = createController({ messenger });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      await controller.removePasskeyWithPasswordVerification('secret');
+
+      expect(verifyPassword).toHaveBeenCalledWith('secret');
+      expect(controller.isPasskeyEnrolled()).toBe(false);
+      expect(controller.state.passkeyRecord).toBeNull();
+    });
+  });
+
+  describe('clearState', () => {
     it('clears in-flight registration ceremonies', async () => {
       setupRegistrationMocks();
       const controller = createController();
       const regOpts = controller.generateRegistrationOptions();
-      controller.removePasskey();
+      controller.clearState();
 
       await expect(
         controller.protectVaultKeyWithPasskey({
@@ -1587,7 +2260,6 @@ describe('PasskeyController', () => {
           authenticationResponse: minimalAuthenticationResponse(
             regOpts.user.id,
           ),
-          vaultKey: 'k',
         }),
       ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
@@ -1602,29 +2274,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'k',
-        userHandle: regOpts.user.id,
-      });
-      expect(controller.isPasskeyEnrolled()).toBe(true);
-
-      controller.removePasskey();
-      expect(controller.isPasskeyEnrolled()).toBe(false);
-      expect(controller.state.passkeyRecord).toBeNull();
-    });
-  });
-
-  describe('clearState', () => {
-    it('clears stored record and resets enrollment', async () => {
-      setupRegistrationMocks();
-      setupAuthenticationMocks();
-      const controller = createController();
-      const regOpts = controller.generateRegistrationOptions();
-      await enrollWithPostRegistrationAuth(controller, {
-        registrationResponse: minimalRegistrationResponse(
-          undefined,
-          regOpts.challenge,
-        ),
-        vaultKey: 'k',
         userHandle: regOpts.user.id,
       });
       expect(controller.isPasskeyEnrolled()).toBe(true);
@@ -1652,7 +2301,6 @@ describe('PasskeyController', () => {
           authenticationResponse: minimalAuthenticationResponse(
             regOpts.user.id,
           ),
-          vaultKey: 'k',
         }),
       ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
@@ -1705,7 +2353,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         userHandle: regOpts.user.id,
       });
 
@@ -1735,7 +2382,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1782,7 +2428,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1845,14 +2490,129 @@ describe('PasskeyController', () => {
     });
   });
 
+  describe('operation mutex', () => {
+    it('serializes concurrent orchestrated operations', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const beforeKey = 'vault-before-password';
+      const afterKey = 'vault-after-password';
+      const callOrder: string[] = [];
+      let releaseExportBefore!: () => void;
+      const exportBeforeHold = new Promise<void>((resolve) => {
+        releaseExportBefore = resolve;
+      });
+      const changePassword = jest.fn().mockImplementation(async () => {
+        callOrder.push('changePassword');
+      });
+      const submitEncryptionKey = jest.fn().mockImplementation(async () => {
+        callOrder.push('submitEncryptionKey');
+      });
+      const exportEncryptionKey = jest.fn().mockImplementation(async () => {
+        const callCount = exportEncryptionKey.mock.calls.length;
+        if (callCount === 2) {
+          callOrder.push('export:before-await');
+          await exportBeforeHold;
+          callOrder.push('export:before-done');
+        }
+        return callCount >= 3 ? afterKey : beforeKey;
+      });
+      const { messenger } = createMockPasskeyControllerMessenger({
+        changePassword,
+        exportEncryptionKey,
+        submitEncryptionKey,
+      });
+      const controller = createController({ messenger, vaultKey: beforeKey });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const changeAuthOpts = controller.generateAuthenticationOptions();
+      const changePromise = controller.changePasswordWithPasskeyVerification({
+        newPassword: 'new-password',
+        authenticationResponse: minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          changeAuthOpts.challenge,
+        ),
+      });
+
+      await Promise.resolve();
+
+      const unlockAuthOpts = controller.generateAuthenticationOptions();
+      const unlockPromise = controller.unlockWithPasskey(
+        minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          unlockAuthOpts.challenge,
+        ),
+      );
+
+      await new Promise<void>((resolve) => {
+        const waitForExportBlock = (): void => {
+          if (callOrder.includes('export:before-await')) {
+            resolve();
+            return;
+          }
+          setImmediate(waitForExportBlock);
+        };
+        waitForExportBlock();
+      });
+      expect(submitEncryptionKey).not.toHaveBeenCalled();
+      expect(callOrder).toStrictEqual(['export:before-await']);
+
+      releaseExportBefore();
+      await Promise.all([changePromise, unlockPromise]);
+
+      expect(callOrder).toStrictEqual([
+        'export:before-await',
+        'export:before-done',
+        'changePassword',
+        'submitEncryptionKey',
+      ]);
+    });
+
+    it('acquires the operation mutex for orchestrated methods', async () => {
+      const runExclusiveSpy = jest.spyOn(Mutex.prototype, 'runExclusive');
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await controller.unlockWithPasskey(
+        minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          authOpts.challenge,
+        ),
+      );
+
+      expect(runExclusiveSpy).toHaveBeenCalled();
+      runExclusiveSpy.mockRestore();
+    });
+  });
+
   describe('concurrent WebAuthn ceremonies', () => {
     it('completes authentication using the first challenge after a second generateAuthenticationOptions', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
-      const controller = createController();
-      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(7));
       const vaultKey = 'multi-auth-ceremony';
+      const controller = createController({ vaultKey });
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(7));
 
       const regOpts = controller.generateRegistrationOptions();
       await enrollWithPostRegistrationAuth(controller, {
@@ -1862,7 +2622,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey,
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1910,9 +2669,9 @@ describe('PasskeyController', () => {
     it('does not overwrite passkey fields updated while authentication verification awaits', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
-      const controller = createController();
-      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(99));
       const vaultKey = 'vault-concurrent-field';
+      const controller = createController({ vaultKey });
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(99));
 
       const regOpts = controller.generateRegistrationOptions();
       await enrollWithPostRegistrationAuth(controller, {
@@ -1922,7 +2681,6 @@ describe('PasskeyController', () => {
           },
           regOpts.challenge,
         ),
-        vaultKey,
         authClientExtensionResults: prfResults(prfFirst),
       });
 
@@ -1985,8 +2743,8 @@ describe('PasskeyController', () => {
     it('completes registration using the first challenge after a second generateRegistrationOptions', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
-      const controller = createController();
       const vaultKey = 'multi-reg-ceremony';
+      const controller = createController({ vaultKey });
 
       const regOpts1 = controller.generateRegistrationOptions();
       controller.generateRegistrationOptions();
@@ -1996,7 +2754,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts1.challenge,
         ),
-        vaultKey,
         userHandle: regOpts1.user.id,
       });
 
@@ -2024,7 +2781,6 @@ describe('PasskeyController', () => {
           authenticationResponse: minimalAuthenticationResponse(
             regOpts.user.id,
           ),
-          vaultKey: 'k',
         }),
       ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
 
@@ -2042,7 +2798,6 @@ describe('PasskeyController', () => {
           undefined,
           regOpts.challenge,
         ),
-        vaultKey: 'k',
         userHandle,
       });
 
@@ -2084,7 +2839,7 @@ describe('PasskeyController', () => {
             authOptsRetry.challenge,
           ),
         ),
-      ).toBe('k');
+      ).toBe(DEFAULT_TEST_VAULT_KEY);
     });
   });
 });

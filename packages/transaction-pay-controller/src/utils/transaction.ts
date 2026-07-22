@@ -1,9 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import {
-  TransactionStatus,
-  TransactionType,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -17,7 +14,6 @@ import type {
   TransactionPayControllerState,
   UpdateTransactionDataCallback,
 } from '../types';
-import { getAssetsUnifyStateFeature } from './feature-flags';
 import { rpcRequest } from './provider';
 import { parseRequiredTokens } from './required-tokens';
 import { getNativeToken } from './token';
@@ -79,7 +75,10 @@ export function subscribeTransactionChanges(
 
         return (
           previousTransaction &&
-          previousTransaction?.txParams.data !== tx.txParams.data
+          (previousTransaction?.txParams.data !== tx.txParams.data ||
+            previousTransaction?.txParams.to !== tx.txParams.to ||
+            JSON.stringify(previousTransaction?.requiredAssets) !==
+              JSON.stringify(tx.requiredAssets))
         );
       });
 
@@ -115,6 +114,14 @@ export function subscribeTransactionChanges(
  * Subscribe to asset state changes and re-parse required tokens for
  * in-flight transactions whose tokens have not yet resolved.
  *
+ * Subscribes to all known asset event sources unconditionally, rather than
+ * choosing a single source based on the unify-state feature flag. The flag
+ * value can change between when this controller is constructed and when it
+ * is read elsewhere (e.g. remote feature flags loading after startup), so
+ * relying on it here to pick a single source risks missing the events that
+ * actually fire. The handler is idempotent, so subscribing to extra sources
+ * that never fire is harmless.
+ *
  * @param messenger - Controller messenger.
  * @param getControllerState - Callback returning the current controller state.
  * @param updateTransactionData - Callback to update transaction data.
@@ -146,14 +153,10 @@ export function subscribeAssetChanges(
       }
     };
 
-  if (getAssetsUnifyStateFeature(messenger)) {
-    messenger.subscribe(
-      'AssetsController:stateChange',
-      buildHandler('AssetsController'),
-    );
-    return;
-  }
-
+  messenger.subscribe(
+    'AssetsController:stateChange',
+    buildHandler('AssetsController'),
+  );
   messenger.subscribe(
     'TokensController:stateChange',
     buildHandler('TokensController'),
@@ -304,27 +307,6 @@ export function collectTransactionIds(
   };
 
   return { end };
-}
-
-/**
- * Check whether a transaction is a Predict withdrawal.
- *
- * Returns `true` when the transaction's own type is `predictWithdraw`, or
- * when any of its nested transactions has that type.
- *
- * @param transaction - Transaction metadata.
- * @returns `true` when the transaction is a Predict withdrawal.
- */
-export function isPredictWithdrawTransaction(
-  transaction: TransactionMeta,
-): boolean {
-  return (
-    transaction.type === TransactionType.predictWithdraw ||
-    (transaction.nestedTransactions?.some(
-      (nt) => nt.type === TransactionType.predictWithdraw,
-    ) ??
-      false)
-  );
 }
 
 /**

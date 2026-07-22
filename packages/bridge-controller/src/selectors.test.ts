@@ -28,7 +28,6 @@ import {
   ChainId,
   BridgeAsset,
   NonEvmFees,
-  QuoteResponseV1,
 } from './types';
 import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge';
 import {
@@ -38,8 +37,9 @@ import {
   formatChainIdToDec,
   formatChainIdToHex,
 } from './utils/caip-formatters';
-import { validateQuoteResponseV1 } from './utils/validators';
-import { BatchSellTransactionType } from './utils/validators';
+import { BatchSellTransactionType } from './validators/batch-sell';
+import type { QuoteResponseV1 } from './validators/quote-response-v1';
+import { validateQuoteResponseV1 } from './validators/quote-response-v1';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
@@ -185,6 +185,41 @@ describe('Bridge Selectors', () => {
       });
     });
 
+    it('should return empty object for an EVM token whose market data price is zero', () => {
+      const result = selectExchangeRateByAssetId(
+        {
+          ...mockExchangeRateSources,
+          marketData: {
+            '0x1': {
+              [MOCK_MUSD_ADDRESS]: {
+                price: 0,
+                currency: 'ETH',
+              },
+            },
+          },
+        } as unknown as BridgeAppState,
+        formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
+      );
+      expect(result).toStrictEqual({});
+    });
+
+    it('should return empty object for an EVM token whose market data has no price', () => {
+      const result = selectExchangeRateByAssetId(
+        {
+          ...mockExchangeRateSources,
+          marketData: {
+            '0x1': {
+              [MOCK_MUSD_ADDRESS]: {
+                currency: 'ETH',
+              },
+            },
+          },
+        } as unknown as BridgeAppState,
+        formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
+      );
+      expect(result).toStrictEqual({});
+    });
+
     it('should not throw when EVM token rate asset ID has a malformed hex address', () => {
       expect(() =>
         selectExchangeRateByAssetId(
@@ -248,6 +283,34 @@ describe('Bridge Selectors', () => {
         selectIsAssetExchangeRateInState(
           mockExchangeRateSources,
           formatAddressToAssetId(ETH_USDT_ADDRESS, '1'),
+        ),
+      ).toBe(false);
+    });
+
+    it('should return false for an EVM token whose only market data price is zero', () => {
+      // A zero-price market data entry must not be mistaken for a known rate,
+      // otherwise the controller skips fetching the token's real price.
+      expect(
+        selectIsAssetExchangeRateInState(
+          {
+            ...mockExchangeRateSources,
+            assetExchangeRates: {},
+            currencyRates: {
+              ETH: {
+                conversionRate: 2468.12,
+                usdConversionRate: 1800,
+              },
+            },
+            marketData: {
+              '0x1': {
+                [MOCK_MUSD_ADDRESS]: {
+                  price: 0,
+                  currency: 'ETH',
+                },
+              },
+            },
+          } as unknown as BridgeAppState,
+          formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
         ),
       ).toBe(false);
     });
@@ -1769,6 +1832,7 @@ describe('Bridge Selectors', () => {
           },
           currencyRates: {
             SOL: {
+              conversionDate: 0,
               conversionRate: 100,
               usdConversionRate: 10000,
             },
@@ -2191,7 +2255,7 @@ describe('Bridge Selectors', () => {
         },
         batchSellTradesLoadingStatus: RequestStatus.FETCHED,
         batchSellTrades: mockBatchSellTrades,
-      });
+      } as unknown as BridgeAppState);
 
       expect(result.totalNetworkFee).toMatchInlineSnapshot(`
         {
@@ -2764,13 +2828,13 @@ describe('Bridge Selectors', () => {
           description: 'Possible fake token',
         },
       ];
-      const state = { tokenWarnings: warnings } as BridgeAppState;
+      const state = { tokenWarnings: warnings } as unknown as BridgeAppState;
 
       expect(selectTokenWarnings(state)).toBe(warnings);
     });
 
     it('should return an empty array when there are no warnings', () => {
-      const state = { tokenWarnings: [] } as BridgeAppState;
+      const state = { tokenWarnings: [] } as unknown as BridgeAppState;
 
       expect(selectTokenWarnings(state)).toStrictEqual([]);
     });

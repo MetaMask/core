@@ -1,6 +1,11 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { DEFAULT_MAX_RETRIES, HttpError } from '@metamask/controller-utils';
+import type {
+  TraceCallback,
+  TraceContext,
+  TraceRequest,
+} from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -13,11 +18,15 @@ import nock, { cleanAll as nockCleanAll } from 'nock';
 
 import {
   LENS_ABI,
+  MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY,
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   MULTICALL3_ADDRESS_BY_CHAIN_ID,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
 } from './constants';
 import {
+  MoneyAccountBalanceFetchError,
+  MoneyAccountBalanceUnavailableError,
+  MoneyAccountBalanceValidationError,
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
   VedaResponseValidationError,
@@ -57,6 +66,11 @@ const MOCK_VAULT_CONFIG = {
   tellerAddress: MOCK_TELLER_ADDRESS,
   lensAddress: MOCK_LENS_ADDRESS,
   chainId: '0xa4b1' as const,
+};
+
+const MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN = {
+  ...MOCK_VAULT_CONFIG,
+  underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
 };
 
 const MOCK_NETWORK_CONFIG = {
@@ -190,6 +204,7 @@ function publishRFFCStateChange(
  * @param args.callInit - Whether to call `service.init()` after construction. Defaults to true.
  * @param args.captureException - Error reporter wired on the root messenger.
  * @param args.options - Partial constructor options for the service.
+ * @param args.mockFetchPositions - Stub for `MoneyAccountApiDataService:fetchPositions`.
  * @returns The constructed service together with messenger instances and mock stubs.
  */
 function createService({
@@ -197,6 +212,7 @@ function createService({
   callInit = true,
   captureException = jest.fn(),
   options = {},
+  mockFetchPositions = jest.fn(),
 }: {
   rffcFlags?: Record<string, Json>;
   callInit?: boolean;
@@ -204,6 +220,7 @@ function createService({
   options?: Partial<
     ConstructorParameters<typeof MoneyAccountBalanceService>[0]
   >;
+  mockFetchPositions?: jest.Mock;
 } = {}): {
   service: MoneyAccountBalanceService;
   rootMessenger: RootMessenger;
@@ -211,6 +228,7 @@ function createService({
   mockGetNetworkConfig: jest.Mock;
   mockGetNetworkClient: jest.Mock;
   mockGetRFFCState: jest.Mock;
+  mockFetchPositions: jest.Mock;
   captureException: jest.Mock;
 } {
   const rootMessenger = createRootMessenger(captureException);
@@ -236,12 +254,17 @@ function createService({
     'RemoteFeatureFlagController:getState',
     mockGetRFFCState,
   );
+  rootMessenger.registerActionHandler(
+    'MoneyAccountApiDataService:fetchPositions',
+    mockFetchPositions,
+  );
 
   rootMessenger.delegate({
     actions: [
       'NetworkController:getNetworkConfigurationByChainId',
       'NetworkController:getNetworkClientById',
       'RemoteFeatureFlagController:getState',
+      'MoneyAccountApiDataService:fetchPositions',
     ],
     // eslint-disable-next-line no-restricted-syntax
     events: ['RemoteFeatureFlagController:stateChange'],
@@ -261,6 +284,7 @@ function createService({
     mockGetNetworkConfig,
     mockGetNetworkClient,
     mockGetRFFCState,
+    mockFetchPositions,
     captureException,
   };
 }
@@ -387,6 +411,55 @@ function mockMoneyAccountBalanceMulticall({
   );
 
   return aggregate3Mock;
+}
+
+function createTraceCallback(): jest.MockedFunction<TraceCallback> {
+  return jest
+    .fn()
+    .mockImplementation(
+      async <ReturnType>(
+        _request: TraceRequest,
+        fn?: (context?: TraceContext) => ReturnType,
+      ): Promise<ReturnType> => {
+        if (!fn) {
+          return undefined as ReturnType;
+        }
+        return await Promise.resolve(fn());
+      },
+    ) as jest.MockedFunction<TraceCallback>;
+}
+
+function expectTraceRequest(
+  traceCallback: jest.MockedFunction<TraceCallback>,
+  {
+    errorName,
+    name,
+    operation,
+    success = true,
+    tokenAddress,
+  }: {
+    errorName?: string;
+    name: string;
+    operation: string;
+    success?: boolean;
+    tokenAddress?: string;
+  },
+): void {
+  const traceRequest = traceCallback.mock.calls.find(
+    ([request]) => request.name === name,
+  )?.[0];
+
+  expect(traceRequest).toStrictEqual({
+    name,
+    startTime: expect.any(Number),
+    data: {
+      chainId: MOCK_VAULT_CONFIG.chainId,
+      ...(errorName ? { errorName } : {}),
+      operation,
+      success,
+      ...(tokenAddress ? { tokenAddress } : {}),
+    },
+  });
 }
 
 // ============================================================
@@ -694,6 +767,283 @@ describe('MoneyAccountBalanceService', () => {
       await expect(service.getVaultApy()).rejects.toThrow(
         VaultConfigNotAvailableError,
       );
+    });
+  });
+
+  // ----------------------------------------------------------
+  // tracing
+  // ----------------------------------------------------------
+
+  describe('tracing', () => {
+    it('traces getMusdBalance ERC-20 balance RPC on cache miss', async () => {
+      mockErc20BalanceOf('5000000');
+      const trace = createTraceCallback();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        options: { trace },
+      });
+
+      await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account ERC20 Balance RPC',
+        operation: 'balanceOf',
+        tokenAddress: MOCK_UNDERLYING_TOKEN_ADDRESS,
+      });
+    });
+
+    it('traces getMoneyAccountBalance Multicall3 RPC on cache miss', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const trace = createTraceCallback();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        options: { trace },
+      });
+
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Balance RPC',
+        operation: 'aggregate3',
+      });
+    });
+
+    it('traces getVmusdBalance ERC-20 balance RPC on cache miss', async () => {
+      mockErc20BalanceOf('3000000');
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account ERC20 Balance RPC',
+        operation: 'balanceOf',
+        tokenAddress: MOCK_VAULT_ADDRESS,
+      });
+    });
+
+    it('traces getExchangeRate Accountant RPC on cache miss', async () => {
+      mockAccountantGetRate('1050000');
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getExchangeRate();
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Exchange Rate RPC',
+        operation: 'getRate',
+      });
+    });
+
+    it('traces getMusdEquivalentValue Lens RPC on cache miss', async () => {
+      mockLensBalanceOfInAssets('1000000');
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS);
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account mUSD Equivalent Value RPC',
+        operation: 'balanceOfInAssets',
+      });
+    });
+
+    it('traces getVaultApy Veda API fetch on cache miss', async () => {
+      nock('https://api.sevenseas.capital')
+        .get(`/performance/arbitrum/${MOCK_VAULT_ADDRESS}`)
+        .reply(200, MOCK_VAULT_APY_RAW_RESPONSE);
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getVaultApy();
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Vault APY API',
+        operation: 'fetchVaultApy',
+      });
+    });
+
+    it('traces fallback underlying token RPC when configured token is absent', async () => {
+      mockAccountantBase();
+      mockErc20BalanceOf('5000000');
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(trace).toHaveBeenCalledTimes(2);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Underlying Token RPC',
+        operation: 'base',
+      });
+      expectTraceRequest(trace, {
+        name: 'Get Money Account ERC20 Balance RPC',
+        operation: 'balanceOf',
+        tokenAddress: MOCK_UNDERLYING_TOKEN_ADDRESS,
+      });
+    });
+
+    it('does not trace a cached query result', async () => {
+      mockAccountantGetRate('1050000');
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getExchangeRate();
+      await service.getExchangeRate();
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Exchange Rate RPC',
+        operation: 'getRate',
+      });
+    });
+
+    it('does not fail or refetch when the trace callback rejects', async () => {
+      const mockGetRate = jest
+        .fn()
+        .mockResolvedValue({ toString: () => '1050000' });
+      MockContract.mockImplementation(
+        () => ({ getRate: mockGetRate }) as unknown as Contract,
+      );
+      const trace = jest
+        .fn()
+        .mockRejectedValue(
+          new Error('trace boom'),
+        ) as jest.MockedFunction<TraceCallback>;
+      const { service } = createService({ options: { trace } });
+
+      expect(await service.getExchangeRate()).toStrictEqual({
+        rate: '1050000',
+      });
+      expect(await service.getExchangeRate()).toStrictEqual({
+        rate: '1050000',
+      });
+
+      expect(mockGetRate).toHaveBeenCalledTimes(1);
+      expect(trace).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not fail when the trace callback returns undefined', async () => {
+      mockAccountantGetRate('1050000');
+      const trace = jest
+        .fn()
+        .mockReturnValue(undefined) as jest.MockedFunction<TraceCallback>;
+      const { service } = createService({ options: { trace } });
+
+      expect(await service.getExchangeRate()).toStrictEqual({
+        rate: '1050000',
+      });
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Exchange Rate RPC',
+        operation: 'getRate',
+      });
+    });
+
+    it('does not fail when the trace callback throws synchronously', async () => {
+      const mockGetRate = jest
+        .fn()
+        .mockResolvedValue({ toString: () => '1050000' });
+      MockContract.mockImplementation(
+        () => ({ getRate: mockGetRate }) as unknown as Contract,
+      );
+      const trace = jest.fn().mockImplementation(() => {
+        throw new Error('trace boom');
+      }) as jest.MockedFunction<TraceCallback>;
+      const { service } = createService({ options: { trace } });
+
+      expect(await service.getExchangeRate()).toStrictEqual({
+        rate: '1050000',
+      });
+      expect(await service.getExchangeRate()).toStrictEqual({
+        rate: '1050000',
+      });
+
+      expect(mockGetRate).toHaveBeenCalledTimes(1);
+      expect(trace).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates aggregate3 rejections after emitting a failed trace', async () => {
+      const aggregate3 = jest
+        .fn()
+        .mockRejectedValue(new Error('execution reverted'));
+      mockMoneyAccountBalanceMulticall({ aggregate3 });
+      const trace = createTraceCallback();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        options: { trace },
+      });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('execution reverted');
+      expectTraceRequest(trace, {
+        errorName: 'Error',
+        name: 'Get Money Account Balance RPC',
+        operation: 'aggregate3',
+        success: false,
+      });
+    });
+
+    it('traces non-Error aggregate3 rejections with the thrown value type', async () => {
+      const aggregate3 = jest.fn().mockRejectedValue('execution reverted');
+      mockMoneyAccountBalanceMulticall({ aggregate3 });
+      const trace = createTraceCallback();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        options: { trace },
+      });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toBe('execution reverted');
+      expectTraceRequest(trace, {
+        errorName: 'string',
+        name: 'Get Money Account Balance RPC',
+        operation: 'aggregate3',
+        success: false,
+      });
+    });
+
+    it('propagates Veda API errors after emitting a failed trace', async () => {
+      nock('https://api.sevenseas.capital')
+        .get(`/performance/arbitrum/${MOCK_VAULT_ADDRESS}`)
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await expect(service.getVaultApy()).rejects.toThrow(
+        new HttpError(500, "Veda performance API failed with status '500'"),
+      );
+      expectTraceRequest(trace, {
+        errorName: 'Error',
+        name: 'Get Money Account Vault APY API',
+        operation: 'fetchVaultApy',
+        success: false,
+      });
     });
   });
 
@@ -1062,15 +1412,6 @@ describe('MoneyAccountBalanceService', () => {
   // ----------------------------------------------------------
 
   describe('getMoneyAccountBalance', () => {
-    /**
-     * Vault config including `underlyingToken`, so balance resolution skips the
-     * on-chain `base()` read.
-     */
-    const VAULT_CONFIG_WITH_UNDERLYING_TOKEN = {
-      ...MOCK_VAULT_CONFIG,
-      underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
-    };
-
     it('returns musdBalance, vmusdValueInMusd, and totalBalance from a single aggregate3 call', async () => {
       const aggregate3 = mockMoneyAccountBalanceMulticall({
         musdBalance: '5000000',
@@ -1078,7 +1419,8 @@ describe('MoneyAccountBalanceService', () => {
       });
       const { service } = createService({
         rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]: VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
         },
       });
 
@@ -1127,7 +1469,8 @@ describe('MoneyAccountBalanceService', () => {
 
       const { service } = createService({
         rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]: VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
         },
       });
 
@@ -1157,7 +1500,8 @@ describe('MoneyAccountBalanceService', () => {
       const aggregate3 = mockMoneyAccountBalanceMulticall();
       const { service } = createService({
         rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]: VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
         },
       });
 
@@ -1224,7 +1568,8 @@ describe('MoneyAccountBalanceService', () => {
       });
       const { rootMessenger } = createService({
         rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]: VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
         },
       });
 
@@ -1247,7 +1592,8 @@ describe('MoneyAccountBalanceService', () => {
       mockMoneyAccountBalanceMulticall({ aggregate3 });
       const { service } = createService({
         rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]: VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
         },
       });
 
@@ -1261,7 +1607,7 @@ describe('MoneyAccountBalanceService', () => {
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
-            ...VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+            ...MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
             chainId: '0x1',
           },
         },
@@ -1270,6 +1616,470 @@ describe('MoneyAccountBalanceService', () => {
       await expect(
         service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('No Multicall3 address configured for chain 0x1');
+    });
+  });
+
+  // ----------------------------------------------------------
+  // fetchBalanceWithFallback
+  // ----------------------------------------------------------
+
+  describe('fetchBalanceWithFallback', () => {
+    const MOCK_API_BALANCE = {
+      musd_balance: '2',
+      vmusd_value_in_musd: '1513527',
+      total_balance: '1513529',
+    };
+
+    const MOCK_API_POSITIONS = {
+      address: MOCK_ACCOUNT_ADDRESS,
+      as_of_block: 88976660,
+      as_of_timestamp: '2026-07-20T10:49:51Z',
+      data_freshness: 'live' as const,
+      indexer_lag_seconds: 3,
+      balance: MOCK_API_BALANCE,
+      positions: [],
+    };
+
+    const apiPrimaryFlags = {
+      [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+      [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api',
+    };
+
+    it('returns RPC balance by default (RPC primary) without using fallback', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = jest.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+        source: 'rpc',
+        usedFallback: false,
+      });
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+
+    it('returns API balance when the flag is set to api', async () => {
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '2',
+        vmusdValueInMusd: '1513527',
+        totalBalance: '1513529',
+        source: 'api',
+        usedFallback: false,
+      });
+      expect(mockFetchPositions).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS);
+    });
+
+    it('falls back to RPC when API balance is null', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = jest.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: null,
+      });
+      const captureException = jest.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
+    });
+
+    it('falls back to RPC when API balance is omitted', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '9',
+        vmusdValueInMusd: '1',
+      });
+      const { balance: _omittedBalance, ...positionsWithoutBalance } =
+        MOCK_API_POSITIONS;
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(positionsWithoutBalance);
+      const captureException = jest.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '9',
+        vmusdValueInMusd: '1',
+        totalBalance: '10',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
+    });
+
+    it('falls back to RPC when the API call fails', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '7',
+        vmusdValueInMusd: '3',
+      });
+      const mockFetchPositions = jest
+        .fn()
+        .mockRejectedValue(new Error('network down'));
+      const captureException = jest.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '7',
+        vmusdValueInMusd: '3',
+        totalBalance: '10',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it('falls back to RPC when API balance fails semantic validation', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '1',
+        vmusdValueInMusd: '2',
+      });
+      const mockFetchPositions = jest.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: {
+          musd_balance: '1',
+          vmusd_value_in_musd: '2',
+          total_balance: '999',
+        },
+      });
+      const captureException = jest.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '1',
+        vmusdValueInMusd: '2',
+        totalBalance: '3',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceValidationError),
+      );
+    });
+
+    it('falls back to RPC when API balance contains a non-integer amount', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5',
+        vmusdValueInMusd: '5',
+      });
+      const mockFetchPositions = jest.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: {
+          musd_balance: '1.5',
+          vmusd_value_in_musd: '2',
+          total_balance: '3.5',
+        },
+      });
+      const captureException = jest.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5',
+        vmusdValueInMusd: '5',
+        totalBalance: '10',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceValidationError),
+      );
+    });
+
+    it('falls back to API when RPC primary fails', async () => {
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+      });
+
+      MockContract.mockImplementation(
+        () =>
+          ({
+            callStatic: {
+              aggregate3: jest
+                .fn()
+                .mockRejectedValue(new Error('execution reverted')),
+            },
+            interface: {
+              encodeFunctionData: jest.fn().mockReturnValue('0x'),
+              decodeFunctionResult: jest.fn(),
+            },
+          }) as unknown as Contract,
+      );
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '2',
+        vmusdValueInMusd: '1513527',
+        totalBalance: '1513529',
+        source: 'api',
+        usedFallback: true,
+      });
+    });
+
+    it('does not fall back when the flag is api-only', async () => {
+      const mockFetchPositions = jest.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: null,
+      });
+      const captureException = jest.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api-only',
+        },
+        mockFetchPositions,
+        captureException,
+      });
+
+      let thrown: unknown;
+      try {
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(MoneyAccountBalanceFetchError);
+      expect((thrown as MoneyAccountBalanceFetchError).causes).toHaveLength(1);
+      expect(
+        (thrown as MoneyAccountBalanceFetchError).causes[0],
+      ).toBeInstanceOf(MoneyAccountBalanceUnavailableError);
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
+    });
+
+    it('does not fall back when the flag is rpc-only', async () => {
+      MockContract.mockImplementation(
+        () =>
+          ({
+            callStatic: {
+              aggregate3: jest
+                .fn()
+                .mockRejectedValue(new Error('execution reverted')),
+            },
+            interface: {
+              encodeFunctionData: jest.fn().mockReturnValue('0x'),
+              decodeFunctionResult: jest.fn(),
+            },
+          }) as unknown as Contract,
+      );
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'rpc-only',
+        },
+        mockFetchPositions,
+      });
+
+      await expect(
+        service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(MoneyAccountBalanceFetchError);
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+
+    it('throws MoneyAccountBalanceFetchError with both causes when primary and fallback fail', async () => {
+      MockContract.mockImplementation(
+        () =>
+          ({
+            callStatic: {
+              aggregate3: jest
+                .fn()
+                .mockRejectedValue(new Error('execution reverted')),
+            },
+            interface: {
+              encodeFunctionData: jest.fn().mockReturnValue('0x'),
+              decodeFunctionResult: jest.fn(),
+            },
+          }) as unknown as Contract,
+      );
+      const mockFetchPositions = jest.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: null,
+      });
+      const captureException = jest.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+        captureException,
+      });
+
+      let thrown: unknown;
+      try {
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(MoneyAccountBalanceFetchError);
+      const { causes } = thrown as MoneyAccountBalanceFetchError;
+      expect(causes).toHaveLength(2);
+      expect(causes[0]).toBeInstanceOf(Error);
+      expect((causes[0] as Error).message).toBe('execution reverted');
+      expect(causes[1]).toBeInstanceOf(MoneyAccountBalanceUnavailableError);
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
+    });
+
+    it('defaults to rpc policy when the source flag is malformed', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = jest.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'not-a-policy',
+        },
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.source).toBe('rpc');
+      expect(result.usedFallback).toBe(false);
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+
+    it('updates the source policy on RemoteFeatureFlagController:stateChange', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
+      const { service, rootMessenger } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api',
+        },
+        mockFetchPositions,
+      });
+
+      publishRFFCStateChange(rootMessenger, {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+          MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'rpc-only',
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.source).toBe('rpc');
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+
+    it('is callable via messenger action', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = jest.fn();
+      const { rootMessenger, service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+      });
+
+      const result = await rootMessenger.call(
+        'MoneyAccountBalanceService:fetchBalanceWithFallback',
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(result.source).toBe('rpc');
+      service.destroy();
     });
   });
 
@@ -1581,6 +2391,31 @@ describe('VaultConfigNotAvailableError', () => {
         'RemoteFeatureFlagController may not have fetched flags yet.',
     );
     expect(error.name).toBe('VaultConfigNotAvailableError');
+  });
+});
+
+describe('MoneyAccountBalanceUnavailableError', () => {
+  it('has the expected name', () => {
+    const error = new MoneyAccountBalanceUnavailableError('missing');
+    expect(error.message).toBe('missing');
+    expect(error.name).toBe('MoneyAccountBalanceUnavailableError');
+  });
+});
+
+describe('MoneyAccountBalanceValidationError', () => {
+  it('has the expected name', () => {
+    const error = new MoneyAccountBalanceValidationError('bad total');
+    expect(error.message).toBe('bad total');
+    expect(error.name).toBe('MoneyAccountBalanceValidationError');
+  });
+});
+
+describe('MoneyAccountBalanceFetchError', () => {
+  it('preserves causes', () => {
+    const causes = [new Error('a'), new Error('b')];
+    const error = new MoneyAccountBalanceFetchError(causes);
+    expect(error.name).toBe('MoneyAccountBalanceFetchError');
+    expect(error.causes).toBe(causes);
   });
 });
 

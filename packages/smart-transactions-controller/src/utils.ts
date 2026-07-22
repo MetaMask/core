@@ -2,9 +2,8 @@ import { arrayify, hexlify } from '@ethersproject/bytes';
 import { keccak256 } from '@ethersproject/keccak256';
 import { parse } from '@ethersproject/transactions';
 import type {
+  TransactionControllerFailTransactionAction,
   TransactionControllerGetTransactionsAction,
-  TransactionControllerUpdateTransactionAction,
-  TransactionMeta,
 } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
@@ -15,12 +14,12 @@ import _ from 'lodash';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import packageJson from '../package.json';
-import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
+import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants.js';
 import type {
   SmartTransaction,
   SmartTransactionsStatus,
   SmartTransactionsNetworkConfig,
-} from './types';
+} from './types.js';
 import {
   APIType,
   SmartTransactionStatuses,
@@ -28,7 +27,7 @@ import {
   SmartTransactionMinedTx,
   cancellationReasonToStatusMap,
   ClientId,
-} from './types';
+} from './types.js';
 
 export function isSmartTransactionPending(smartTransaction: SmartTransaction) {
   return smartTransaction.status === SmartTransactionStatuses.PENDING;
@@ -288,11 +287,11 @@ export const shouldMarkRegularTransactionsAsFailed = ({
 export const markRegularTransactionsAsFailed = ({
   smartTransaction,
   getRegularTransactions,
-  updateTransaction,
+  failTransaction,
 }: {
   smartTransaction: SmartTransaction;
   getRegularTransactions: TransactionControllerGetTransactionsAction['handler'];
-  updateTransaction: TransactionControllerUpdateTransactionAction['handler'];
+  failTransaction: TransactionControllerFailTransactionAction['handler'];
 }) => {
   const { transactionId, status, statusMetadata, txHashes } = smartTransaction;
   const originalTransactionStatus = statusMetadata?.originalTransactionStatus;
@@ -313,18 +312,16 @@ export const markRegularTransactionsAsFailed = ({
     if (tx.status === TransactionStatus.failed) {
       continue; // Already marked as failed.
     }
-    const updatedTransaction: TransactionMeta = {
-      ...tx,
-      status: TransactionStatus.failed,
-      error: {
-        name: 'SmartTransactionFailed',
-        message: errorMessage,
-      },
-    };
 
-    updateTransaction(
-      updatedTransaction,
-      `Smart transaction status: ${status}`,
-    );
+    const error = new Error(errorMessage);
+    error.name = 'SmartTransactionFailed';
+
+    // Fail via the TransactionController's `failTransaction` action rather than
+    // `updateTransaction` so the transaction lifecycle events
+    // (`transactionFailed`, `transactionStatusUpdated`, `transactionFinished`)
+    // are emitted. Downstream subscribers such as the bridge status controller
+    // and metrics rely on these events; a plain state update leaves e.g. bridge
+    // transactions stuck as pending forever.
+    failTransaction(tx.id, error);
   }
 };

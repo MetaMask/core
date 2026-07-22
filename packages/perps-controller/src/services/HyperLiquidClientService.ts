@@ -176,7 +176,7 @@ export class HyperLiquidClientService {
       // Close WebSocket transport to release resources and event listeners
       if (this.#wsTransport) {
         try {
-          await this.#wsTransport.close();
+          this.#wsTransport.close();
         } catch {
           // Ignore cleanup errors
         }
@@ -259,10 +259,7 @@ export class HyperLiquidClientService {
     this.#wsTransport = new WebSocketTransport({
       isTestnet: this.#isTestnet,
       ...HYPERLIQUID_TRANSPORT_CONFIG,
-      reconnect: {
-        ...HYPERLIQUID_TRANSPORT_CONFIG.reconnect,
-        WebSocket: globalThis.WebSocket, // Use React Native's global WebSocket
-      },
+      reconnect: HYPERLIQUID_TRANSPORT_CONFIG.reconnect,
     });
 
     // Listen for WebSocket termination (fired when SDK exhausts all reconnection attempts)
@@ -959,7 +956,7 @@ export class HyperLiquidClientService {
       // Close WebSocket transport only (HTTP is stateless)
       if (this.#wsTransport) {
         try {
-          await this.#wsTransport.close();
+          this.#wsTransport.close();
           this.#deps.debugLogger.log(
             'HyperLiquid: Closed WebSocket transport',
             {
@@ -1181,7 +1178,7 @@ export class HyperLiquidClientService {
       // so createTransports() will create fresh ones
       if (this.#wsTransport) {
         try {
-          await this.#wsTransport.close();
+          this.#wsTransport.close();
         } catch {
           // Ignore errors during close - transport may already be dead
         }

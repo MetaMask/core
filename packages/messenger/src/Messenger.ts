@@ -400,6 +400,21 @@ export class Messenger<
   }
 
   /**
+   * Get the types of all actions that this messenger can call directly.
+   *
+   * This includes actions registered on this messenger as well as actions that
+   * have been delegated to it from another messenger.
+   *
+   * Note that this reflects the registrations on this specific messenger
+   * instance.
+   *
+   * @returns An array of every action type this messenger can call directly.
+   */
+  getRegisteredActionTypes(): string[] {
+    return [...this.#actions.keys()];
+  }
+
+  /**
    * Get the action handler for a given action type.
    *
    * This is a protected method to allow subclasses to override the way action
@@ -414,6 +429,50 @@ export class Messenger<
     actionType: Action['type'],
   ): ActionConstraint['handler'] | undefined {
     return this.#actions.get(actionType);
+  }
+
+  /**
+   * Create a new messenger as a child of this messenger (the "parent").
+   * All actions/events are delegated from the child to the parent, and the specified actions/events are delegated from the parent to the child.
+   *
+   * @param args - Arguments.
+   * @param args.namespace - The child messenger namespace.
+   * @param args.actions - A list of action types to delegate to the child messenger.
+   * @param args.events - A list of event types to delegate to the child messenger.
+   * @returns The child messenger.
+   */
+  buildChild<
+    ChildNamespace extends string,
+    ChildAction extends Action,
+    ChildEvent extends Event,
+  >({
+    namespace,
+    actions,
+    events,
+  }: {
+    namespace: ChildNamespace;
+    actions?: ChildAction['type'][];
+    events?: ChildEvent['type'][];
+  }): Messenger<ChildNamespace, ChildAction, ChildEvent> {
+    const childMessenger = new Messenger<
+      ChildNamespace,
+      ChildAction,
+      ChildEvent,
+      typeof this
+    >({
+      namespace,
+      // @ts-expect-error TypeScript cannot correctly infer this, but should be safe
+      // given `ChildAction extends Action` and `ChildEvent extends Event`.
+      parent: this,
+    });
+
+    this.delegate({
+      messenger: childMessenger,
+      actions,
+      events,
+    });
+
+    return childMessenger;
   }
 
   /**

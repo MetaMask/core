@@ -431,6 +431,9 @@ describe('HyperLiquidSubscriptionService', () => {
         return Promise.resolve(mockSubscription);
       }),
       assetCtxs: jest.fn(() => Promise.resolve(mockSubscription)),
+      fastAssetCtxs: jest.fn((_callback: any) =>
+        Promise.resolve(mockSubscription),
+      ),
       spotState: jest.fn((_params: any, _callback: any) =>
         Promise.resolve(mockSubscription),
       ),
@@ -1593,6 +1596,35 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.allMids).not.toHaveBeenCalled();
     });
 
+    it('restores fastAssetCtxs subscription when price subscribers exist (TAT-3387)', async () => {
+      const callback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(1);
+
+      // Restore subscriptions (simulates reconnection)
+      await service.restoreSubscriptions();
+
+      // Verify fastAssetCtxs subscription was re-established alongside allMids
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(2);
+
+      unsubscribe();
+    });
+
+    it('does not restore fastAssetCtxs subscription when no price subscribers exist', async () => {
+      // No subscriptions created
+
+      await service.restoreSubscriptions();
+
+      expect(mockSubscriptionClient.fastAssetCtxs).not.toHaveBeenCalled();
+    });
+
     // TODO: Refactor to test restoreSubscriptions through public disconnect/reconnect API
 
     it.skip('restores webData3 subscription when user data subscribers exist', async () => {
@@ -1920,7 +1952,7 @@ describe('HyperLiquidSubscriptionService', () => {
       await jest.runAllTimersAsync();
 
       expect(mockSubscriptionClient.l2Book).toHaveBeenCalledWith(
-        { coin: 'BTC', nSigFigs: 5, mantissa: undefined },
+        { coin: 'BTC', nSigFigs: 5, mantissa: undefined, fast: undefined },
         expect.any(Function),
       );
 
@@ -2276,6 +2308,69 @@ describe('HyperLiquidSubscriptionService', () => {
       // Should only have 3 levels on each side
       expect(orderBookData.bids.length).toBe(3);
       expect(orderBookData.asks.length).toBe(3);
+    });
+
+    it('forwards fast: true to the SDK l2Book call', async () => {
+      const mockCallback = jest.fn();
+      mockSubscriptionClient.l2Book.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              coin: 'BTC',
+              levels: [
+                [{ px: '49900', sz: '1.0', n: 1 }],
+                [{ px: '50100', sz: '1.0', n: 1 }],
+              ],
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      service.subscribeToOrderBook({
+        symbol: 'BTC',
+        fast: true,
+        callback: mockCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.l2Book).toHaveBeenCalledWith(
+        expect.objectContaining({ coin: 'BTC', fast: true }),
+        expect.any(Function),
+      );
+    });
+
+    it('does not send fast flag when fast is omitted', async () => {
+      const mockCallback = jest.fn();
+      mockSubscriptionClient.l2Book.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              coin: 'BTC',
+              levels: [
+                [{ px: '49900', sz: '1.0', n: 1 }],
+                [{ px: '50100', sz: '1.0', n: 1 }],
+              ],
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      service.subscribeToOrderBook({
+        symbol: 'BTC',
+        callback: mockCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      const calledWith = mockSubscriptionClient.l2Book.mock.calls[0][0];
+      expect(calledWith.fast).toBeUndefined();
     });
   });
 

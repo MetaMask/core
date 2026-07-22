@@ -135,6 +135,25 @@ export type TransactionControllerUpdateTransactionAction = {
 };
 
 /**
+ * Mark a transaction as failed, transitioning it through the standard failure
+ * path.
+ *
+ * Unlike `updateTransaction`, this emits the transaction lifecycle events
+ * (`transactionFailed`, `transactionStatusUpdated`, `transactionFinished`), so
+ * downstream subscribers such as the bridge status controller and metrics are
+ * notified. Intended for callers that finalize a transaction out-of-band, for
+ * example the smart transactions controller when the relay cancels a smart
+ * transaction that never landed on chain.
+ *
+ * @param transactionId - The ID of the transaction to mark as failed.
+ * @param error - The error describing why the transaction failed.
+ */
+export type TransactionControllerFailTransactionAction = {
+  type: `TransactionController:failTransaction`;
+  handler: TransactionController['failTransaction'];
+};
+
+/**
  * Update the security alert response for a transaction.
  *
  * @param transactionId - ID of the transaction.
@@ -422,6 +441,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerEstimateGasBufferedAction
   | TransactionControllerUpdateTransactionAction
+  | TransactionControllerFailTransactionAction
   | TransactionControllerUpdateSecurityAlertResponseAction
   | TransactionControllerWipeTransactionsAction
   | TransactionControllerConfirmExternalTransactionAction

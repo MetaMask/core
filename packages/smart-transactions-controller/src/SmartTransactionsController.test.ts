@@ -17,30 +17,34 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type {
+  TransactionControllerFailTransactionAction,
   TransactionControllerGetNonceLockAction,
   TransactionControllerGetTransactionsAction,
-  TransactionControllerUpdateTransactionAction,
   TransactionParams,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
 import packageJson from '../package.json';
-import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers';
+import {
+  advanceTime,
+  flushPromises,
+  getFakeProvider,
+} from '../tests/helpers.js';
 import {
   API_BASE_URL,
   SENTINEL_API_BASE_URL_MAP,
   SmartTransactionsTraceName,
-} from './constants';
+} from './constants.js';
 import {
   DEFAULT_INTERVAL,
   SmartTransactionsController,
   getDefaultSmartTransactionsControllerState,
-} from './SmartTransactionsController';
-import type { SmartTransactionsControllerMessenger } from './SmartTransactionsController';
-import type { SmartTransaction, UnsignedTransaction } from './types';
-import { SmartTransactionStatuses, ClientId } from './types';
-import * as utils from './utils';
+} from './SmartTransactionsController.js';
+import type { SmartTransactionsControllerMessenger } from './SmartTransactionsController.js';
+import type { SmartTransaction, UnsignedTransaction } from './types.js';
+import { SmartTransactionStatuses, ClientId } from './types.js';
+import * as utils from './utils.js';
 
 type AllActions = MessengerActions<SmartTransactionsControllerMessenger>;
 
@@ -362,7 +366,7 @@ describe('SmartTransactionsController', () => {
         jest.fn(),
       );
       rootMessenger.registerActionHandler(
-        'TransactionController:updateTransaction',
+        'TransactionController:failTransaction',
         jest.fn(),
       );
       rootMessenger.registerActionHandler(
@@ -391,7 +395,7 @@ describe('SmartTransactionsController', () => {
           'RemoteFeatureFlagController:getState',
           'TransactionController:getNonceLock',
           'TransactionController:getTransactions',
-          'TransactionController:updateTransaction',
+          'TransactionController:failTransaction',
         ],
         events: [
           'NetworkController:stateChange',
@@ -464,7 +468,7 @@ describe('SmartTransactionsController', () => {
         jest.fn(),
       );
       rootMessenger.registerActionHandler(
-        'TransactionController:updateTransaction',
+        'TransactionController:failTransaction',
         jest.fn(),
       );
       rootMessenger.registerActionHandler(
@@ -495,7 +499,7 @@ describe('SmartTransactionsController', () => {
           'RemoteFeatureFlagController:getState',
           'TransactionController:getNonceLock',
           'TransactionController:getTransactions',
-          'TransactionController:updateTransaction',
+          'TransactionController:failTransaction',
         ],
         events: [
           'NetworkController:stateChange',
@@ -564,7 +568,7 @@ describe('SmartTransactionsController', () => {
         jest.fn(),
       );
       rootMessenger.registerActionHandler(
-        'TransactionController:updateTransaction',
+        'TransactionController:failTransaction',
         jest.fn(),
       );
       rootMessenger.registerActionHandler(
@@ -593,7 +597,7 @@ describe('SmartTransactionsController', () => {
           'RemoteFeatureFlagController:getState',
           'TransactionController:getNonceLock',
           'TransactionController:getTransactions',
-          'TransactionController:updateTransaction',
+          'TransactionController:failTransaction',
         ],
         events: [
           'NetworkController:stateChange',
@@ -673,7 +677,7 @@ describe('SmartTransactionsController', () => {
         jest.fn(),
       );
       rootMessenger.registerActionHandler(
-        'TransactionController:updateTransaction',
+        'TransactionController:failTransaction',
         jest.fn(),
       );
       rootMessenger.registerActionHandler(
@@ -698,7 +702,7 @@ describe('SmartTransactionsController', () => {
           'RemoteFeatureFlagController:getState',
           'TransactionController:getNonceLock',
           'TransactionController:getTransactions',
-          'TransactionController:updateTransaction',
+          'TransactionController:failTransaction',
         ],
         events: [
           'NetworkController:stateChange',
@@ -777,7 +781,7 @@ describe('SmartTransactionsController', () => {
         jest.fn(),
       );
       rootMessenger.registerActionHandler(
-        'TransactionController:updateTransaction',
+        'TransactionController:failTransaction',
         jest.fn(),
       );
       rootMessenger.registerActionHandler(
@@ -811,7 +815,7 @@ describe('SmartTransactionsController', () => {
           'RemoteFeatureFlagController:getState',
           'TransactionController:getNonceLock',
           'TransactionController:getTransactions',
-          'TransactionController:updateTransaction',
+          'TransactionController:failTransaction',
         ],
         events: [
           'NetworkController:stateChange',
@@ -1833,8 +1837,8 @@ describe('SmartTransactionsController', () => {
       );
     });
 
-    it('calls updateTransaction when smart transaction is cancelled and returnTxHashAsap is true', async () => {
-      const mockUpdateTransaction = jest.fn();
+    it('fails the regular transaction when smart transaction is cancelled and returnTxHashAsap is true', async () => {
+      const mockFailTransaction = jest.fn();
       const defaultState = getDefaultSmartTransactionsControllerState();
       const pendingStx = createStateAfterPending();
       await withController(
@@ -1860,7 +1864,7 @@ describe('SmartTransactionsController', () => {
               },
             },
           },
-          updateTransaction: mockUpdateTransaction,
+          failTransaction: mockFailTransaction,
           getTransactions: () => [
             {
               id: 'test-tx-id',
@@ -1883,29 +1887,19 @@ describe('SmartTransactionsController', () => {
 
           controller.updateSmartTransaction(smartTransaction);
 
-          expect(mockUpdateTransaction).toHaveBeenCalledWith(
-            {
-              id: 'test-tx-id',
-              status: TransactionStatus.failed,
-              chainId: '0x1',
-              time: 123,
-              txParams: {
-                from: '0x123',
-              },
-              networkClientId: NetworkType.mainnet,
-              error: {
-                message: 'Smart transaction failed with status: cancelled',
-                name: 'SmartTransactionFailed',
-              },
-            },
-            'Smart transaction status: cancelled',
+          expect(mockFailTransaction).toHaveBeenCalledWith(
+            'test-tx-id',
+            expect.objectContaining({
+              name: 'SmartTransactionFailed',
+              message: 'Smart transaction failed with status: cancelled',
+            }),
           );
         },
       );
     });
 
-    it('does not call updateTransaction when smart transaction is cancelled but returnTxHashAsap is false', async () => {
-      const mockUpdateTransaction = jest.fn();
+    it('does not fail the transaction when smart transaction is cancelled but returnTxHashAsap is false', async () => {
+      const mockFailTransaction = jest.fn();
       await withController(
         {
           remoteFeatureFlags: {
@@ -1915,7 +1909,7 @@ describe('SmartTransactionsController', () => {
               },
             },
           },
-          updateTransaction: mockUpdateTransaction,
+          failTransaction: mockFailTransaction,
           getTransactions: () => [
             {
               id: 'test-tx-id',
@@ -1938,13 +1932,13 @@ describe('SmartTransactionsController', () => {
 
           controller.updateSmartTransaction(smartTransaction);
 
-          expect(mockUpdateTransaction).not.toHaveBeenCalled();
+          expect(mockFailTransaction).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('does not call updateTransaction when transaction is not found in regular transactions', async () => {
-      const mockUpdateTransaction = jest.fn();
+    it('does not fail the transaction when transaction is not found in regular transactions', async () => {
+      const mockFailTransaction = jest.fn();
 
       await withController(
         {
@@ -1955,7 +1949,7 @@ describe('SmartTransactionsController', () => {
               },
             },
           },
-          updateTransaction: mockUpdateTransaction,
+          failTransaction: mockFailTransaction,
           getTransactions: () => [],
         },
         async ({ controller }) => {
@@ -1967,13 +1961,13 @@ describe('SmartTransactionsController', () => {
 
           controller.updateSmartTransaction(smartTransaction);
 
-          expect(mockUpdateTransaction).not.toHaveBeenCalled();
+          expect(mockFailTransaction).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('does not call updateTransaction for non-cancelled transactions', async () => {
-      const mockUpdateTransaction = jest.fn();
+    it('does not fail the transaction for non-cancelled transactions', async () => {
+      const mockFailTransaction = jest.fn();
       await withController(
         {
           remoteFeatureFlags: {
@@ -1983,7 +1977,7 @@ describe('SmartTransactionsController', () => {
               },
             },
           },
-          updateTransaction: mockUpdateTransaction,
+          failTransaction: mockFailTransaction,
           getTransactions: () => [
             {
               id: 'test-tx-id',
@@ -2006,7 +2000,7 @@ describe('SmartTransactionsController', () => {
 
           controller.updateSmartTransaction(smartTransaction);
 
-          expect(mockUpdateTransaction).not.toHaveBeenCalled();
+          expect(mockFailTransaction).not.toHaveBeenCalled();
         },
       );
     });
@@ -3184,7 +3178,7 @@ type WithControllerOptions = {
   >;
   getNonceLock?: TransactionControllerGetNonceLockAction['handler'];
   getTransactions?: TransactionControllerGetTransactionsAction['handler'];
-  updateTransaction?: TransactionControllerUpdateTransactionAction['handler'];
+  failTransaction?: TransactionControllerFailTransactionAction['handler'];
   remoteFeatureFlags?: {
     smartTransactionsNetworks?: Record<string, unknown>;
   };
@@ -3215,7 +3209,7 @@ async function withController<ReturnValue>(
       releaseLock: jest.fn(),
     }),
     getTransactions = jest.fn(),
-    updateTransaction = jest.fn(),
+    failTransaction = jest.fn(),
     remoteFeatureFlags = {},
     bearerToken,
   } = rest;
@@ -3294,8 +3288,8 @@ async function withController<ReturnValue>(
     getTransactions,
   );
   rootMessenger.registerActionHandler(
-    'TransactionController:updateTransaction',
-    updateTransaction,
+    'TransactionController:failTransaction',
+    failTransaction,
   );
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
@@ -3327,7 +3321,7 @@ async function withController<ReturnValue>(
       'RemoteFeatureFlagController:getState',
       'TransactionController:getNonceLock',
       'TransactionController:getTransactions',
-      'TransactionController:updateTransaction',
+      'TransactionController:failTransaction',
     ],
     events: [
       'NetworkController:stateChange',

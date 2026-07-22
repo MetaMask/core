@@ -1,8 +1,8 @@
 import { createSelector } from 'reselect';
 
-import type { ConnectivityControllerState } from './ConnectivityController';
-import { CONNECTIVITY_STATUSES } from './types';
-import type { ConnectivityStatus } from './types';
+import type { ConnectivityControllerState } from './ConnectivityController.js';
+import { CONNECTIVITY_STATUSES } from './types.js';
+import type { ConnectivityStatus } from './types.js';
 
 /**
  * Selects the connectivity status from the controller state.

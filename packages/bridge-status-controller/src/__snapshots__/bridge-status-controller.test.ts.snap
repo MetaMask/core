@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`BridgeStatusController constructor rehydrates the tx history state 1`] = `
 {
@@ -114,6 +114,7 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
         },
       ],
     },
+    "quoteId": undefined,
     "slippagePercentage": 0,
     "startTime": 1729964825189,
     "status": {
@@ -370,6 +371,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
         },
       ],
     },
+    "quoteId": undefined,
     "slippagePercentage": 0,
     "startTime": 1729964825189,
     "status": {
@@ -433,6 +435,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when
       "token_security_type_destination": null,
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
+      "transaction_internal_id": "bridgeTxMetaId1",
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,
@@ -584,6 +587,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -899,6 +903,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -1215,6 +1220,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -1235,16 +1241,13 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
     {
       "atomic": true,
       "disable7702": true,
-      "excludeNativeTokenForFee": true,
       "from": "0xaccount1",
-      "gasFeeToken": undefined,
       "isGasFeeIncluded": false,
       "isGasFeeSponsored": false,
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "skipInitialGasEstimate": false,
       "transactions": [
         {
           "assetsFiatValues": {
@@ -1521,6 +1524,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -1836,6 +1840,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -2151,6 +2156,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -2486,6 +2492,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -2776,6 +2783,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -3272,6 +3280,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -3654,7 +3663,23 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
     "destChainId": 42161,
     "destTokenAmount": "990654755978612",
     "feeData": {
+      "metabridge": {
+        "amount": "8750000000000",
+        "asset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+      },
       "txFee": {
+        "amount": "0",
         "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
@@ -3724,6 +3749,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -3758,6 +3784,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -3903,6 +3930,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -3923,16 +3951,13 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
     {
       "atomic": true,
       "disable7702": true,
-      "excludeNativeTokenForFee": true,
       "from": "0xaccount1",
-      "gasFeeToken": undefined,
       "isGasFeeIncluded": false,
       "isGasFeeSponsored": false,
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "skipInitialGasEstimate": false,
       "transactions": [
         {
           "assetsFiatValues": undefined,
@@ -4362,6 +4387,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -4608,6 +4634,19 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
         },
       },
       "txFee": {
+        "amount": "8750000000000",
+        "asset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
         "maxFeePerGas": "1395348",
         "maxPriorityFeePerGas": "1000001",
       },
@@ -4669,6 +4708,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -4758,6 +4798,19 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
         },
       },
       "txFee": {
+        "amount": "8750000000000",
+        "asset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
         "maxFeePerGas": "1395348",
         "maxPriorityFeePerGas": "1000001",
       },
@@ -4819,6 +4872,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -4884,10 +4938,6 @@ exports[`BridgeStatusController submitTx: Solana bridge should handle snap contr
         "method": "signAndSendTransaction",
         "params": {
           "accountId": "solana-account-1",
-          "options": {
-            "destAssetId": "eip155:1/slip44:60",
-            "sourceAssetId": "eip155:1399811149/slip44:501",
-          },
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -4979,10 +5029,6 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
         "method": "signAndSendTransaction",
         "params": {
           "accountId": "solana-account-1",
-          "options": {
-            "destAssetId": "eip155:1/slip44:60",
-            "sourceAssetId": "eip155:1399811149/slip44:501",
-          },
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -5092,7 +5138,6 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
     "steps": [
       {
         "action": "bridge",
-        "destAmount": "0.5",
         "destAsset": {
           "address": "0x...",
           "assetId": "eip155:1/slip44:60",
@@ -5102,12 +5147,6 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
           "symbol": "ETH",
         },
         "destChainId": 1,
-        "protocol": {
-          "displayName": "Test Protocol",
-          "icon": "test-icon",
-          "name": "test-protocol",
-        },
-        "srcAmount": "1000000000",
         "srcAsset": {
           "address": "native",
           "assetId": "eip155:1399811149/slip44:501",
@@ -5120,6 +5159,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -5258,10 +5298,6 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
         "method": "signAndSendTransaction",
         "params": {
           "accountId": "solana-account-1",
-          "options": {
-            "destAssetId": "eip155:1399811149/slip44:501",
-            "sourceAssetId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
-          },
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -5353,10 +5389,6 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
         "method": "signAndSendTransaction",
         "params": {
           "accountId": "solana-account-1",
-          "options": {
-            "destAssetId": "eip155:1399811149/slip44:501",
-            "sourceAssetId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
-          },
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -5505,7 +5537,6 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
     "steps": [
       {
         "action": "bridge",
-        "destAmount": "0.5",
         "destAsset": {
           "address": "0x...",
           "assetId": "eip155:1/slip44:60",
@@ -5515,12 +5546,6 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
           "symbol": "ETH",
         },
         "destChainId": 1,
-        "protocol": {
-          "displayName": "Test Protocol",
-          "icon": "test-icon",
-          "name": "test-protocol",
-        },
-        "srcAmount": "1000000000",
         "srcAsset": {
           "address": "native",
           "assetId": "eip155:1399811149/slip44:501",
@@ -5533,6 +5558,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -5913,7 +5939,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
     "steps": [
       {
         "action": "swap",
-        "destAmount": "500000000",
         "destAsset": {
           "address": "native",
           "assetId": "tron:728126428/slip44:195",
@@ -5923,12 +5948,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
           "symbol": "TRX",
         },
         "destChainId": 728126428,
-        "protocol": {
-          "displayName": "Test Protocol",
-          "icon": "test-icon",
-          "name": "test-protocol",
-        },
-        "srcAmount": "1000000",
         "srcAsset": {
           "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
           "assetId": "tron:728126428/slip44:195",
@@ -5941,6 +5960,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -6133,7 +6153,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
     "steps": [
       {
         "action": "swap",
-        "destAmount": "500000000",
         "destAsset": {
           "address": "native",
           "assetId": "tron:728126428/slip44:195",
@@ -6143,12 +6162,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
           "symbol": "TRX",
         },
         "destChainId": 728126428,
-        "protocol": {
-          "displayName": "Test Protocol",
-          "icon": "test-icon",
-          "name": "test-protocol",
-        },
-        "srcAmount": "1000000",
         "srcAsset": {
           "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
           "assetId": "tron:728126428/slip44:195",
@@ -6161,6 +6174,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -6325,7 +6339,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     {
       "account_hardware_type": null,
       "action_type": "swapbridge-v1",
-      "actual_time_minutes": 833734.9086166667,
+      "actual_time_minutes": 833734.9086333333,
       "allowance_reset_transaction": undefined,
       "approval_transaction": undefined,
       "chain_id_destination": "eip155:42161",
@@ -6352,6 +6366,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "token_security_type_destination": null,
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
+      "transaction_internal_id": "swapTxMetaId1",
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,
@@ -6369,7 +6384,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
   {
     "account_hardware_type": null,
     "action_type": "swapbridge-v1",
-    "actual_time_minutes": 833734.9086166667,
+    "actual_time_minutes": 833734.9086333333,
     "allowance_reset_transaction": undefined,
     "approval_transaction": undefined,
     "chain_id_destination": "eip155:10",
@@ -6419,7 +6434,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
   {
     "account_hardware_type": null,
     "action_type": "swapbridge-v1",
-    "actual_time_minutes": 833734.9086166667,
+    "actual_time_minutes": 833734.9086333333,
     "allowance_reset_transaction": undefined,
     "approval_transaction": undefined,
     "batch_id": "0xBatchIdFailed1",
@@ -6472,7 +6487,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     {
       "account_hardware_type": null,
       "action_type": "swapbridge-v1",
-      "actual_time_minutes": 833734.9086166667,
+      "actual_time_minutes": 833734.9086333333,
       "allowance_reset_transaction": undefined,
       "approval_transaction": "COMPLETE",
       "chain_id_destination": "eip155:10",
@@ -6567,7 +6582,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     {
       "account_hardware_type": null,
       "action_type": "swapbridge-v1",
-      "actual_time_minutes": 833734.9086166667,
+      "actual_time_minutes": 833734.9086333333,
       "allowance_reset_transaction": undefined,
       "approval_transaction": undefined,
       "chain_id_destination": "eip155:42161",
@@ -6612,7 +6627,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
   {
     "account_hardware_type": null,
     "action_type": "swapbridge-v1",
-    "actual_time_minutes": 833734.9086166667,
+    "actual_time_minutes": 833734.9086333333,
     "allowance_reset_transaction": undefined,
     "approval_transaction": "COMPLETE",
     "chain_id_destination": "eip155:10",

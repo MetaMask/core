@@ -8,7 +8,7 @@ import type {
 import type {
   JsonRpcEngineReturnHandler,
   JsonRpcMiddleware,
-} from './JsonRpcEngine';
+} from './JsonRpcEngine.js';
 
 export type AsyncJsonRpcEngineNextCallback = () => Promise<void>;
 

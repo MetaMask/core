@@ -17,6 +17,7 @@ const config: KnipConfig = {
       ignoreUnresolved: ['ts-jest/jest-preset'],
     },
     'packages/perps-controller': {
+      ignoreDependencies: ['@metamask/accounts-controller'],
       // The mobile client provides `core/Engine`; tests mock it via a
       // relative path that doesn't resolve inside this monorepo.
       ignoreUnresolved: [/^\.\.\/\.\.\/\.\.\/core\/Engine$/u],
@@ -31,7 +32,11 @@ const config: KnipConfig = {
     // an entry once you've either fixed the issue or confirmed it's a
     // permanent false positive worth recording.
     'packages/account-tree-controller': {
-      ignoreDependencies: ['@metamask/keyring-internal-api', 'lodash'],
+      ignoreDependencies: [
+        '@metamask/controller-utils',
+        '@metamask/keyring-internal-api',
+        'lodash',
+      ],
     },
     'packages/analytics-data-regulation-controller': {
       ignoreDependencies: ['cockatiel'],
@@ -52,7 +57,12 @@ const config: KnipConfig = {
       ],
     },
     'packages/bridge-status-controller': {
-      ignoreDependencies: ['@metamask/gas-fee-controller', 'lodash', 'nock'],
+      ignoreDependencies: [
+        '@metamask/gas-fee-controller',
+        '@metamask/remote-feature-flag-controller',
+        'lodash',
+        'nock',
+      ],
     },
     'packages/compliance-controller': {
       ignoreDependencies: ['cockatiel'],
@@ -67,7 +77,11 @@ const config: KnipConfig = {
       ignoreDependencies: ['@metamask/keyring-internal-api'],
     },
     'packages/eip-5792-middleware': {
-      ignoreDependencies: ['@metamask/keyring-internal-api'],
+      ignoreDependencies: [
+        '@metamask/accounts-controller',
+        '@metamask/keyring-internal-api',
+        '@metamask/preferences-controller',
+      ],
     },
     'packages/eip-7702-internal-rpc-middleware': {
       ignoreDependencies: ['@metamask/controller-utils'],
@@ -86,6 +100,9 @@ const config: KnipConfig = {
     'packages/java-tron-up': {
       // `sysctl` is an external system binary, not an npm package.
       ignoreBinaries: ['sysctl'],
+    },
+    'packages/keyring-controller': {
+      ignoreDependencies: ['@metamask/controller-utils'],
     },
     'packages/local-node-utils': {
       // `sysctl` is an external system binary, not an npm package.
@@ -119,11 +136,36 @@ const config: KnipConfig = {
     'packages/phishing-controller': {
       ignoreDependencies: ['immer', 'punycode'],
     },
+    'packages/platform-api-docs': {
+      // This package has both a CLI (`src/`) and a Docusaurus site (`site/`).
+      // Scan both so the CLI's deps (e.g. `glob`, `ts-morph`) and the site's
+      // `@docusaurus/*` / `prism-react-renderer` imports in
+      // `docusaurus.config.ts` are seen and neither gets flagged as unused.
+      entry: ['site/docusaurus.config.ts'],
+      project: ['src/**/*.{ts,tsx}', 'site/**/*.{ts,tsx}'],
+      ignoreDependencies: [
+        // Docusaurus runtime and React peers loaded by the framework at build
+        // time; the `docusaurus` binary is invoked via execa, never imported
+        // by source.
+        '@docusaurus/core',
+        '@docusaurus/plugin-content-docs',
+        '@mdx-js/react',
+        'react',
+        'react-dom',
+        // Loaded by docusaurus as a plugin name string (themes[0]); knip
+        // doesn't trace string-referenced plugins.
+        '@easyops-cn/docusaurus-search-local',
+        // Pulled in transitively by `@docusaurus/preset-classic`; pinned here
+        // so the framework's webpack/theme resolution finds a single version.
+        '@docusaurus/theme-common',
+      ],
+    },
     'packages/profile-metrics-controller': {
       ignoreDependencies: ['cockatiel'],
     },
     'packages/profile-sync-controller': {
       ignoreDependencies: [
+        '@metamask/controller-utils',
         '@metamask/keyring-api',
         '@metamask/keyring-internal-api',
         '@metamask/snaps-utils',
@@ -153,7 +195,11 @@ const config: KnipConfig = {
       ignoreDependencies: ['@metamask/controller-utils'],
     },
     'packages/transaction-controller': {
-      ignoreDependencies: ['@ethereumjs/util', 'nock'],
+      ignoreDependencies: [
+        '@ethereumjs/util',
+        '@metamask/keyring-controller',
+        'nock',
+      ],
     },
     'packages/transaction-pay-controller': {
       ignoreDependencies: [
@@ -165,13 +211,19 @@ const config: KnipConfig = {
     'packages/user-operation-controller': {
       ignoreDependencies: ['immer'],
     },
+    'packages/wallet-cli': {
+      // `tsx` is the dev-mode loader: it's referenced only as a `node --import`
+      // argument string (in `daemon-spawn`'s source-entry path and `bin/dev`),
+      // never as a traceable import, so knip can't see it.
+      ignoreDependencies: ['tsx'],
+    },
     'packages/wallet-framework-docs': {
       // Source lives under `site/` instead of `src/`; tell knip to scan it
       // so the type imports of `@docusaurus/*` / `prism-react-renderer` in
       // `docusaurus.config.ts` and `sidebars.ts` are seen and the matching
       // devDeps don't get flagged as unused.
       entry: ['site/docusaurus.config.ts', 'site/sidebars.ts'],
-      project: ['site/**/*.{ts,tsx}'],
+      project: ['content/**/*.{ts,tsx}', 'site/**/*.{ts,tsx}'],
       ignoreDependencies: [
         // Loaded by docusaurus as a plugin name string (themes[0]); knip
         // doesn't trace string-referenced plugins.

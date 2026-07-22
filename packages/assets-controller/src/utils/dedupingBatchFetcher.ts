@@ -106,6 +106,18 @@ export class DedupingBatchFetcher<Key extends string, Value> {
     this.#fetchedAt.clear();
   }
 
+  /**
+   * Clear freshness for specific keys only, forcing the next fetch to
+   * re-request those keys regardless of TTL. Does not affect inflight fetches.
+   *
+   * @param keys - Keys to mark stale.
+   */
+  invalidateKeys(keys: Key[]): void {
+    for (const key of keys) {
+      this.#fetchedAt.delete(key);
+    }
+  }
+
   /** Clear all freshness and inflight state. */
   destroy(): void {
     this.#fetchedAt.clear();

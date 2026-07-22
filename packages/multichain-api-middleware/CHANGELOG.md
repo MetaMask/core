@@ -7,13 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [4.0.1]
+
+### Changed
+
+- Bump `@metamask/chain-agnostic-permission` from `^1.6.2` to `^1.7.0` ([#9399](https://github.com/MetaMask/core/pull/9399))
+  - This aligns the declared dependency range with the version that provides `getSessionProperties`, which this package requires.
+  - This change should have been included in 4.0.0.
+
+## [4.0.0] [DEPRECATED]
+
 ### Added
 
 - Add `MULTICHAIN_API.md`, a reference for the Multichain API: `wallet_createSession` and the other session methods, supported methods per namespace, error codes, and divergences from the current CAIP-25 spec ([#9258](https://github.com/MetaMask/core/pull/9258))
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- **BREAKING:** The `wallet_getSession` and `wallet_createSession` handlers now require a `getCapabilities` hook (`(params: { address: string }) => Promise<Record<Hex, Record<string, Json>>>`) ([#9294](https://github.com/MetaMask/core/pull/9294))
+  - `WalletGetSessionHooks` and `WalletCreateSessionHooks` now include this hook, which must be provided when wiring up the handlers.
+- The `wallet_getSession` and `wallet_createSession` handlers now derive the returned `sessionProperties` via `getSessionProperties`, hydrating the persisted session properties with an `eip155Capabilities` record that maps each permitted EVM account address to its per-chain capabilities resolved from the `getCapabilities` hook ([#9294](https://github.com/MetaMask/core/pull/9294))
+  - `wallet_getSession` now always includes a `sessionProperties` field in its result (an empty object when there is no active session).
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.4` ([#9231](https://github.com/MetaMask/core/pull/9231), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
 
 ## [3.1.5]
 
@@ -261,7 +280,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.0...@metamask/multichain-api-middleware@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.5...@metamask/multichain-api-middleware@4.0.0
 [3.1.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.4...@metamask/multichain-api-middleware@3.1.5
 [3.1.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.3...@metamask/multichain-api-middleware@3.1.4
 [3.1.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.2...@metamask/multichain-api-middleware@3.1.3

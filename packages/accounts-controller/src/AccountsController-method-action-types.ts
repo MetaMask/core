@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AccountsController } from './AccountsController';
+import type { AccountsController } from './AccountsController.js';
 
 /**
  * Returns the internal account object for the given account ID, if it exists.

@@ -1,4 +1,5 @@
 import { defaultAbiCoder, Interface } from '@ethersproject/abi';
+import * as controllerUtils from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import type { Address, BalanceOfRequest, ChainId, Provider } from '../types';
@@ -210,6 +211,52 @@ describe('MulticallClient', () => {
         expect(result).toHaveLength(2);
         expect(result[0].balance).toBe('1000000000');
         expect(result[1].balance).toBe('2000000000');
+      });
+
+      it('encodes balance call data once per account address in a batch', async () => {
+        const encodeSpy = jest.spyOn(controllerUtils, 'encodeFunctionData');
+        const countBalanceOf = (): number =>
+          encodeSpy.mock.calls.filter(([, method]) => method === 'balanceOf')
+            .length;
+        const countGetEthBalance = (): number =>
+          encodeSpy.mock.calls.filter(
+            ([, method]) => method === 'getEthBalance',
+          ).length;
+        const accountA: Address =
+          '0x1111111111111111111111111111111111111111' as Address;
+        const accountB: Address =
+          '0x2222222222222222222222222222222222222222' as Address;
+
+        const requests: BalanceOfRequest[] = [
+          { tokenAddress: TEST_TOKEN_1, accountAddress: accountA },
+          { tokenAddress: TEST_TOKEN_2, accountAddress: accountA },
+          { tokenAddress: TEST_TOKEN_1, accountAddress: accountB },
+          { tokenAddress: ZERO_ADDRESS, accountAddress: accountA },
+        ];
+
+        const mockResponse = buildMockAggregate3Response([
+          { success: true, balance: '1000000000' },
+          { success: true, balance: '2000000000' },
+          { success: true, balance: '3000000000' },
+          { success: true, balance: '1000000000000000000' },
+        ]);
+
+        mockProvider.call.mockResolvedValue(mockResponse);
+
+        const balanceOfBefore = countBalanceOf();
+        const getEthBalanceBefore = countGetEthBalance();
+
+        await client.batchBalanceOf(MAINNET_CHAIN_ID, requests);
+
+        expect(countBalanceOf() - balanceOfBefore).toBe(2);
+        expect(countGetEthBalance() - getEthBalanceBefore).toBe(1);
+
+        await client.batchBalanceOf(MAINNET_CHAIN_ID, requests);
+
+        expect(countBalanceOf() - balanceOfBefore).toBe(2);
+        expect(countGetEthBalance() - getEthBalanceBefore).toBe(1);
+
+        encodeSpy.mockRestore();
       });
 
       it('should fetch native token balance using getEthBalance', async () => {

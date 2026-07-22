@@ -18,6 +18,7 @@ import type {
   UpdateTransactionDataCallback,
 } from '../types';
 import { accountSupports7702 } from './7702';
+import { buildNoOpQuote } from './no-op-quote';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
@@ -86,6 +87,7 @@ export async function updateQuotes(
     isPostQuote,
     isHyperliquidSource,
     isPolymarketDepositWallet,
+    isQuoteRequired,
     paymentOverride,
     paymentToken: originalPaymentToken,
     fiatPayment,
@@ -138,6 +140,8 @@ export async function updateQuotes(
       transaction,
       from,
       requests,
+      paymentToken,
+      isQuoteRequired ?? false,
       supports7702,
       getStrategies,
       messenger,
@@ -150,11 +154,18 @@ export async function updateQuotes(
       return false;
     }
 
+    // No-op quotes mark direct routes. They have no fees or amounts and the
+    // transaction is signed and submitted locally, so totals and transaction
+    // sync must treat them as "no quotes".
+    const executableQuotes = quotes.filter(
+      (quote) => quote.strategy !== TransactionPayStrategy.None,
+    );
+
     const totals = calculateTotals({
       fiatPaymentAmount: fiatPayment?.amountFiat,
       isMaxAmount,
       messenger,
-      quotes: quotes as TransactionPayQuote<unknown>[],
+      quotes: executableQuotes as TransactionPayQuote<unknown>[],
       tokens,
       transaction,
     });
@@ -164,7 +175,7 @@ export async function updateQuotes(
     syncTransaction({
       batchTransactions,
       selectedFiatPayment: fiatPayment?.selectedPaymentMethodId,
-      hasQuotes: quotes.length > 0,
+      hasQuotes: executableQuotes.length > 0,
       isPostQuote,
       messenger: messenger as never,
       paymentToken,
@@ -289,6 +300,14 @@ export async function refreshQuotes(
     const { isLoading, quotes, quotesLastUpdated } = transactionData;
 
     if (isLoading || !quotes?.length) {
+      continue;
+    }
+
+    // No-op quotes mark direct routes and have nothing to refresh. They are
+    // regenerated whenever the transaction data changes.
+    if (
+      quotes.every((quote) => quote.strategy === TransactionPayStrategy.None)
+    ) {
       continue;
     }
 
@@ -589,6 +608,8 @@ async function refreshPaymentTokenBalance({
  * @param transaction - Transaction metadata.
  * @param from - Resolved wallet address (`accountOverride ?? txParams.from`).
  * @param requests - Quote requests.
+ * @param paymentToken - Selected payment token, if any.
+ * @param isQuoteRequired - Whether a quote is always required for the transaction.
  * @param isAccountEIP7702Compatible - Whether the account supports EIP-7702.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
@@ -600,6 +621,8 @@ async function getQuotes(
   transaction: TransactionMeta,
   from: Hex,
   requests: QuoteRequest[],
+  paymentToken: TransactionPaymentToken | undefined,
+  isQuoteRequired: boolean,
   isAccountEIP7702Compatible: boolean,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
@@ -621,9 +644,23 @@ async function getQuotes(
   );
 
   if (!requests?.length && !fiatPaymentMethod) {
+    // A selected payment token with no conversion requests means the route is
+    // direct. Return an explicit no-op quote so clients and the publish hook
+    // can distinguish "no conversion needed" from "quote needed but missing".
+    // Not applicable when a quote is always required, as an empty requests
+    // list then means the source amounts could not be calculated.
+    const noOpQuote =
+      paymentToken && !isQuoteRequired
+        ? buildNoOpQuote(from, paymentToken)
+        : undefined;
+
+    if (noOpQuote) {
+      log('Built no-op quote for direct route', { transactionId });
+    }
+
     return {
       batchTransactions: [],
-      quotes: [],
+      quotes: noOpQuote ? [noOpQuote] : [],
     };
   }
 

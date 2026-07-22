@@ -30,4 +30,9 @@ export const SocialServiceErrorMessage = {
   FETCH_POSITION_BY_ID_FAILED: 'SocialService: Position request failed',
   FETCH_POSITION_BY_ID_INVALID_RESPONSE:
     'SocialService: Position returned invalid response',
+  LEADERBOARD_OPT_OUT_FAILED:
+    'SocialService: Leaderboard opt-out request failed',
+  LEADERBOARD_OPT_IN_FAILED: 'SocialService: Leaderboard opt-in request failed',
+  FETCH_FEED_FAILED: 'SocialService: Feed request failed',
+  FETCH_FEED_INVALID_RESPONSE: 'SocialService: Feed returned invalid response',
 } as const;

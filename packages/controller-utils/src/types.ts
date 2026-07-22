@@ -285,6 +285,12 @@ export type TraceRequest = {
 
   /** Additional tags to include in the trace to filter results. */
   tags?: Record<string, number | string | boolean>;
+
+  /**
+   * Override the start time of the trace, in milliseconds.
+   * Useful to backdate a span when the traced work has already completed.
+   */
+  startTime?: number;
 };
 
 /** Callback that traces the performance of an operation. */

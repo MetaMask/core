@@ -19,20 +19,20 @@ import type {
   SRPInterface,
   UserProfile,
   UserProfileLineage,
-} from '../../sdk';
+} from '../../sdk/index.js';
 import {
   assertMessageStartsWithMetamask,
   AuthType,
   Env,
   JwtBearerAuth,
-} from '../../sdk';
-import type { MetaMetricsAuth } from '../../shared/types/services';
+} from '../../sdk/index.js';
+import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import {
   createSnapPublicKeyRequest,
   createSnapAllPublicKeysRequest,
   createSnapSignMessageRequest,
-} from './auth-snap-requests';
-import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types';
+} from './auth-snap-requests.js';
+import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types.js';
 
 const controllerName = 'AuthenticationController';
 
@@ -111,6 +111,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSessionProfile',
   'refreshCanonicalProfileId',
   'getUserProfileLineage',
+  'getCustomerServiceToken',
   'isSignedIn',
   'requestProfilePairing',
 ] as const;
@@ -567,6 +568,26 @@ export class AuthenticationController extends BaseController<
     const resolvedId =
       entropySourceId ?? (await this.#getPrimaryEntropySourceId());
     return await this.#auth.getUserProfileLineage(resolvedId);
+  }
+
+  /**
+   * Returns a Customer Service specific access token for the specified SRP,
+   * logging in if needed.
+   *
+   * Exchanges the OIDC access token for a short-lived token scoped to the
+   * customer-service audience. Customer Service tooling consumes this token to
+   * identify and authenticate the user.
+   *
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The customer-service access token.
+   */
+  public async getCustomerServiceToken(
+    entropySourceId?: string,
+  ): Promise<string> {
+    this.#assertIsUnlocked('getCustomerServiceToken');
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getCustomerServiceToken(resolvedId);
   }
 
   public isSignedIn(): boolean {

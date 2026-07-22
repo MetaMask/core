@@ -18,6 +18,7 @@
   "metamask/logging-controller": "team-confirmations",
   "metamask/message-manager": "team-confirmations",
   "metamask/name-controller": "team-confirmations",
+  "metamask/sentinel-api-service": "team-confirmations,team-transactions",
   "metamask/signature-controller": "team-confirmations",
   "metamask/transaction-controller": "team-confirmations",
   "metamask/transaction-pay-controller": "team-confirmations",
@@ -26,6 +27,7 @@
   "metamask/eip-7702-internal-rpc-middleware": "team-delegation",
   "metamask/earn-controller": "team-earn",
   "metamask/money-account-balance-service": "team-earn",
+  "metamask/money-account-api-data-service": "team-earn",
   "metamask/notification-services-controller": "team-assets",
   "metamask/compliance-controller": "team-perps",
   "metamask/perps-controller": "team-perps",
@@ -48,6 +50,7 @@
   "metamask/connectivity-controller": "team-core-platform",
   "metamask/geolocation-controller": "team-mobile-platform",
   "metamask/controller-utils": "team-core-platform",
+  "metamask/network-connection-banner-controller": "team-core-platform",
   "metamask/messenger": "team-core-platform",
   "metamask/messenger-cli": "team-core-platform",
   "metamask/sample-controllers": "team-core-platform",
@@ -64,6 +67,7 @@
   "metamask/subscription-controller": "team-shield",
   "metamask/claims-controller": "team-shield",
   "metamask/announcement-controller": "team-core-extension-ux,team-mobile-ux",
+  "metamask/client-utils": "team-core-extension-ux,team-mobile-ux",
   "metamask/core-backend": "team-core-platform,team-assets",
   "metamask/eth-block-tracker": "team-core-platform",
   "metamask/eth-json-rpc-middleware": "team-core-platform,team-confirmations",
@@ -89,5 +93,6 @@
   "metamask/money-account-controller": "team-accounts-framework",
   "metamask/money-account-upgrade-controller": "team-earn",
   "metamask/snap-account-service": "team-accounts-framework",
+  "metamask/platform-api-docs": "team-core-platform",
   "metamask/smart-transactions-controller": "team-transactions"
 }

@@ -108,21 +108,21 @@ export type SocialAIPreference = {
   mutedTraderProfileIds: string[];
 };
 
+export type PriceAlertPreference = {
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+};
+
 /**
  * Notification preferences for the authenticated user.
- *
- * `agenticCli` is optional on this type for the current minor release.
- * {@link AuthenticatedUserStorageService.getNotificationPreferences} always
- * backfills it when absent from stored data. The next major release should
- * make `agenticCli` required on this type.
  */
 export type NotificationPreferences = {
   walletActivity: WalletActivityPreference;
   marketing: MarketingPreference;
   perps: PerpsPreference;
   socialAI: SocialAIPreference;
-  /** Optional until the next major release; always backfilled on read when absent. */
-  agenticCli?: AgenticCliPreference;
+  agenticCli: AgenticCliPreference;
+  priceAlerts: PriceAlertPreference;
 };
 
 // ---------------------------------------------------------------------------
@@ -133,7 +133,7 @@ export type NotificationPreferences = {
 // `./validators` and re-exported here so the public type surface remains in
 // `./types`. Keeping the runtime schema and the static type co-located in
 // one file keeps the two in lock-step.
-export type { AssetsWatchlistBlob } from './validators';
+export type { AssetsWatchlistBlob } from './validators.js';
 
 // ---------------------------------------------------------------------------
 // Shared

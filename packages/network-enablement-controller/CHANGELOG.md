@@ -9,15 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.1` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593))
+
+## [5.6.0]
+
+### Added
+
+- Add `restoreEnabledNetworkMap` on `NetworkEnablementController` to restore a previously snapshotted `enabledNetworkMap` when adding a network without switching the active network filter. Not exposed as a messenger action ([#9480](https://github.com/MetaMask/core/pull/9480))
+
+## [5.5.0]
+
+### Added
+
+- Added Robinhood Chain (`0x1237`) to `POPULAR_NETWORKS` ([#9461](https://github.com/MetaMask/core/pull/9461))
+
+### Changed
+
+- Restore Stellar to the Network Enablement Controller enabled network map by reverting the temporary rollback, as the corresponding Extension issue has already been resolved ([#9385](https://github.com/MetaMask/core/pull/9385))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^69.0.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+
+## [5.4.1]
+
+### Added
+
+- Add Stellar network enablement: default `enabledNetworkMap` entries for Stellar namespace (pubnet on, testnet off), enable Stellar pubnet during popular-network init when it exists in `MultichainNetworkController`, and include Stellar pubnet in `listPopularMultichainNetworks` ([#8832](https://github.com/MetaMask/core/pull/8832))
+
+### Changed
+
 - Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
-- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
-- Bump `@metamask/multichain-network-controller` from `^3.1.4` to `^3.2.0` ([#9264](https://github.com/MetaMask/core/pull/9264))
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.2` ([#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/multichain-network-controller` from `^3.1.4` to `^3.2.1` ([#9264](https://github.com/MetaMask/core/pull/9264), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
 
 ## [5.4.0]
 
 ### Added
 
-- Add Stellar network enablement: default `enabledNetworkMap` entries for Stellar namespace (pubnet on, testnet off), enable Stellar pubnet during popular-network init when it exists in `MultichainNetworkController`, and include Stellar pubnet in `listPopularMultichainNetworks` ([#8832](https://github.com/MetaMask/core/pull/8832))
 - Export `NetworkEnablementControllerStateChangeEvent` type from the package root ([#9084](https://github.com/MetaMask/core/pull/9084))
 
 ### Changed
@@ -329,7 +358,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.6.0...HEAD
+[5.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.5.0...@metamask/network-enablement-controller@5.6.0
+[5.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.1...@metamask/network-enablement-controller@5.5.0
+[5.4.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.0...@metamask/network-enablement-controller@5.4.1
 [5.4.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.3.0...@metamask/network-enablement-controller@5.4.0
 [5.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.2.0...@metamask/network-enablement-controller@5.3.0
 [5.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.1.1...@metamask/network-enablement-controller@5.2.0

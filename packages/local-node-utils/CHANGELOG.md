@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
-- Initial package scaffold ([#9233](https://github.com/MetaMask/core/pull/9233))
-- Shared installer utilities for local node runtime packages ([#9234](https://github.com/MetaMask/core/pull/9234))
+- Initial release ([#9314](https://github.com/MetaMask/core/pull/9314))
   - Cache directory resolution from Yarn config
   - Artifact config helpers, checksum verification, and downloads
   - Archive extraction, executable wrappers, and filesystem helpers
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/local-node-utils@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/local-node-utils@1.0.0

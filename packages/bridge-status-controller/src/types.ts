@@ -36,6 +36,7 @@ import type {
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerTransactionStatusUpdatedEvent,
+  TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
   TransactionType,
@@ -44,7 +45,8 @@ import type { CaipAssetType } from '@metamask/utils';
 
 import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import type { StatusResponseSchema } from './utils/validators';
+import { QuoteStatusState } from './quote-status-manager/constants';
+import { StatusResponseSchema } from './utils/validators';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -150,9 +152,20 @@ export type BridgeHistoryItem = {
    * This is defined when the history item corresponds to the 7702 batch's delegation tx.
    * It contains the list of quoteIds for the BatchSell quotes that are part of the 7702 batch.
    * Each quote can be retrieved from txHistory as `txHistory[quoteId]`.
+   *
+   * On single swaps/bridges this value is an empty array, or absent on history items
+   * persisted before this field was introduced.
    */
   quoteIds?: string[];
   quote: Quote;
+  /**
+   * This is the the quote id used on single swaps/bridges. On batch sell, it is set
+   * as the first item of `quoteIds`.
+   *
+   * This value is absent on history items persisted before this field was introduced.
+   */
+  quoteId?: string;
+  reportedSubmittedTxHash?: string;
   status: StatusResponse;
   startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
@@ -311,8 +324,18 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
 
 export type SourceChainTxMetaId = string;
 
+export type QuoteStatusPersistEntry = {
+  quoteId: string;
+  srcTxHash: string;
+  status: QuoteStatusState;
+  createdAt: number;
+  lastAttemptAt: number;
+  txMetaId?: string;
+};
+
 export type BridgeStatusControllerState = {
   txHistory: Record<SourceChainTxMetaId, BridgeHistoryItem>;
+  quoteUpdateStatusStore: Record<string, QuoteStatusPersistEntry>;
 };
 
 // Actions
@@ -367,7 +390,9 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents = TransactionControllerTransactionStatusUpdatedEvent;
+type AllowedEvents =
+  | TransactionControllerTransactionStatusUpdatedEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 /**
  * The messenger for the BridgeStatusController.

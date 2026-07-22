@@ -45,6 +45,7 @@ export type {
   TransactionControllerSetTransactionActiveAction,
   TransactionControllerApproveTransactionsWithSameNonceAction,
   TransactionControllerEstimateGasFeeAction,
+  TransactionControllerFailTransactionAction,
   TransactionControllerGetLayer1GasFeeAction,
   TransactionControllerClearUnapprovedTransactionsAction,
   TransactionControllerAbortTransactionSigningAction,
@@ -128,11 +129,15 @@ export {
   WalletDevice,
 } from './types';
 export { mergeGasFeeEstimates } from './utils/gas-flow';
-export { decodeAuthorizationSignature } from './utils/eip7702';
+export {
+  decodeAuthorizationSignature,
+  generateEIP7702BatchTransaction,
+} from './utils/eip7702';
 export {
   isEIP1559Transaction,
   normalizeTransactionParams,
 } from './utils/utils';
+export { hasTransactionType } from './utils/transaction-type';
 export { CHAIN_IDS } from './constants';
 export { HARDFORK } from './utils/prepare';
 export { getAccountAddressRelationship } from './api/accounts-api';

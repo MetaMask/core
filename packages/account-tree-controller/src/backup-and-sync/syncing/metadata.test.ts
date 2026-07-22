@@ -1,18 +1,23 @@
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
-import type { BackupAndSyncContext } from '../types';
-import { compareAndSyncMetadata } from './metadata';
+import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
+import type { BackupAndSyncContext } from '../types.js';
+import { compareAndSyncMetadata } from './metadata.js';
 
 describe('BackupAndSync - Syncing - Metadata', () => {
   let mockContext: BackupAndSyncContext;
   let mockApplyLocalUpdate: jest.Mock;
   let mockValidateUserStorageValue: jest.Mock;
+  let mockSetLocalWrite: jest.Mock;
 
   beforeEach(() => {
     mockApplyLocalUpdate = jest.fn();
     mockValidateUserStorageValue = jest.fn().mockReturnValue(true);
+    mockSetLocalWrite = jest.fn();
 
     mockContext = {
       emitAnalyticsEventFn: jest.fn(),
+      mutationTracker: {
+        setLocalWrite: mockSetLocalWrite,
+      },
     } as unknown as BackupAndSyncContext;
   });
 
@@ -33,6 +38,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
       expect(result).toBe(false);
       expect(mockApplyLocalUpdate).not.toHaveBeenCalled();
       expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
+      expect(mockSetLocalWrite).not.toHaveBeenCalled();
     });
 
     it('applies user storage value when it is more recent and valid', async () => {
@@ -50,6 +56,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
 
       expect(result).toBe(false);
       expect(mockApplyLocalUpdate).toHaveBeenCalledWith('new');
+      expect(mockSetLocalWrite).toHaveBeenCalledTimes(1);
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
         action: BackupAndSyncAnalyticsEvent.GroupRenamed,
         profileId: 'test-profile',
@@ -68,6 +75,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
       expect(result).toBe(true);
       expect(mockApplyLocalUpdate).not.toHaveBeenCalled();
       expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
+      expect(mockSetLocalWrite).not.toHaveBeenCalled();
     });
 
     it('returns true when user storage value is invalid', async () => {
@@ -84,6 +92,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
       expect(result).toBe(true);
       expect(mockApplyLocalUpdate).not.toHaveBeenCalled();
       expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
+      expect(mockSetLocalWrite).not.toHaveBeenCalled();
     });
 
     it('applies user storage value when no local metadata exists', async () => {
@@ -97,6 +106,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
 
       expect(result).toBe(false);
       expect(mockApplyLocalUpdate).toHaveBeenCalledWith('remote');
+      expect(mockSetLocalWrite).toHaveBeenCalledTimes(1);
     });
 
     it('does not emit analytics when no analytics config provided', async () => {

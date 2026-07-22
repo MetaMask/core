@@ -1,23 +1,24 @@
 import type { Eip1193Provider } from 'ethers';
 
-import type { MetaMetricsAuth } from '../../shared/types/services';
-import { ValidationError, RateLimitedError } from '../errors';
-import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
+import type { MetaMetricsAuth } from '../../shared/types/services.js';
+import { ValidationError, RateLimitedError } from '../errors.js';
+import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider.js';
 import {
   MESSAGE_SIGNING_SNAP,
   assertMessageStartsWithMetamask,
   connectSnap,
   isSnapConnected,
-} from '../utils/messaging-signing-snap-requests';
-import { validateLoginResponse } from '../utils/validate-login-response';
+} from '../utils/messaging-signing-snap-requests.js';
+import { validateLoginResponse } from '../utils/validate-login-response.js';
 import {
   authenticate,
   authorizeOIDC,
+  getCustomerServiceToken,
   getNonce,
   getUserProfileLineage,
   pairProfiles,
-} from './services';
-import type { PairProfilesResponse } from './services';
+} from './services.js';
+import type { PairProfilesResponse } from './services.js';
 import type {
   AuthConfig,
   AuthSigningOptions,
@@ -27,9 +28,9 @@ import type {
   LoginResponse,
   UserProfile,
   UserProfileLineage,
-} from './types';
-import { computeIdentifierId } from './utils/identifier';
-import * as timeUtils from './utils/time';
+} from './types.js';
+import { computeIdentifierId } from './utils/identifier.js';
+import * as timeUtils from './utils/time.js';
 
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
@@ -163,6 +164,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   ): Promise<UserProfileLineage> {
     const accessToken = await this.getAccessToken(entropySourceId);
     return await getUserProfileLineage(this.#config.env, accessToken);
+  }
+
+  async getCustomerServiceToken(entropySourceId?: string): Promise<string> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    return await getCustomerServiceToken(this.#config.env, accessToken);
   }
 
   async pairSrpProfiles(

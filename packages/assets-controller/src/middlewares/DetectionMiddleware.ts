@@ -1,6 +1,7 @@
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type { AccountId, Caip19AssetId, Middleware } from '../types';
+import { normalizeAssetId } from '../utils';
 
 // ============================================================================
 // CONSTANTS
@@ -49,6 +50,9 @@ export class DetectionMiddleware {
    *    state.assetsBalance and state.assetsInfo (brand-new assets only)
    * 2. Always includes each account's custom assets from state
    * 3. Fills response.detectedAssets with the resulting asset IDs per account
+   * 4. Queues detected assets that lack a price in state on
+   *    request.assetsForPriceUpdate so PriceDataSource fetches them in the same
+   *    pipeline pass (including the background RPC detection path)
    *
    * @returns The middleware function for the assets pipeline.
    */
@@ -62,6 +66,7 @@ export class DetectionMiddleware {
         customAssets: stateCustomAssets,
         assetsBalance: stateAssetsBalance,
         assetsInfo: stateAssetsInfo,
+        assetsPrice: stateAssetsPrice,
       } = state;
 
       const detectedAssets: Record<AccountId, Caip19AssetId[]> = {};
@@ -133,6 +138,28 @@ export class DetectionMiddleware {
 
       if (Object.keys(detectedAssets).length > 0) {
         response.detectedAssets = detectedAssets;
+
+        const prices = stateAssetsPrice as Record<string, unknown>;
+        const missingPriceAssets = new Set<Caip19AssetId>();
+
+        for (const accountAssetIds of Object.values(detectedAssets)) {
+          for (const assetId of accountAssetIds) {
+            const normalizedAssetId = normalizeAssetId(assetId);
+            if (
+              prices[normalizedAssetId] === undefined &&
+              prices[assetId] === undefined
+            ) {
+              missingPriceAssets.add(normalizedAssetId);
+            }
+          }
+        }
+
+        if (missingPriceAssets.size > 0) {
+          request.assetsForPriceUpdate = [
+            ...(request.assetsForPriceUpdate ?? []),
+            ...missingPriceAssets,
+          ];
+        }
       }
 
       return next(ctx);

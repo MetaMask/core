@@ -17,7 +17,8 @@ import type {
   AgenticCliPreference,
   DelegationResponse,
   NotificationPreferences,
-} from './types';
+  PriceAlertPreference,
+} from './types.js';
 
 /**
  * Matches a 0x-prefixed hex string with zero or more hex digits.
@@ -100,19 +101,34 @@ const AgenticCliPreferenceSchema = type({
   pushNotificationsEnabled: boolean(),
 });
 
+const PriceAlertPreferenceSchema = type({
+  inAppNotificationsEnabled: boolean(),
+  pushNotificationsEnabled: boolean(),
+});
+
 const NotificationPreferencesSchema = type({
   walletActivity: WalletActivityPreferenceSchema,
   marketing: MarketingPreferenceSchema,
   perps: PerpsPreferenceSchema,
   socialAI: SocialAIPreferenceSchema,
   agenticCli: AgenticCliPreferenceSchema,
+  priceAlerts: PriceAlertPreferenceSchema,
 });
 
 /**
- * Default Agentic CLI notification preferences applied when coercing legacy
- * notification-preference blobs that omit `agenticCli`.
+ * Default Agentic CLI notification preferences for consumers building a
+ * fresh `NotificationPreferences` object.
  */
 export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
+
+/**
+ * Default price-alert notification preferences for consumers building a
+ * fresh `NotificationPreferences` object.
+ */
+export const DEFAULT_PRICE_ALERT_PREFERENCES: PriceAlertPreference = {
   inAppNotificationsEnabled: true,
   pushNotificationsEnabled: true,
 };

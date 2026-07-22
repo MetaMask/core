@@ -79,6 +79,8 @@ export function createMockAssetControllerMessenger(): {
     events: [
       // AssetsController
       'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:stateChange',
+      'ClientController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
       'PreferencesController:stateChange',
@@ -92,6 +94,8 @@ export function createMockAssetControllerMessenger(): {
       'PermissionController:stateChange',
       // BackendWebsocketDataSource
       'BackendWebSocketService:connectionStateChanged',
+      // AccountActivityService
+      'AccountActivityService:balanceUpdated',
     ],
   });
 

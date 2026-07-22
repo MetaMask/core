@@ -1,21 +1,21 @@
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
 import type {
   BackupAndSyncContext,
   UserStorageSyncedWalletGroup,
-} from '../types';
+} from '../types.js';
 import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
-} from '../user-storage/network-operations';
-import { getLocalGroupsForEntropyWallet } from '../utils';
+} from '../user-storage/network-operations.js';
+import { getLocalGroupsForEntropyWallet } from '../utils/index.js';
 import {
   createLocalGroupsFromUserStorage,
   syncGroupMetadata,
   syncGroupsMetadata,
-} from './group';
-import * as metadataExports from './metadata';
+} from './group.js';
+import * as metadataExports from './metadata.js';
 
 jest.mock('./metadata');
 jest.mock('../user-storage/network-operations');
@@ -47,9 +47,11 @@ describe('BackupAndSync - Syncing - Group', () => {
   let mockContext: BackupAndSyncContext;
   let mockLocalGroup: AccountGroupMultichainAccountObject;
   let mockWallet: AccountWalletEntropyObject;
+  let mockSetLocalWrite: jest.Mock;
 
   beforeEach(() => {
     mockGetLocalGroupsForEntropyWallet.mockReturnValue([]);
+    mockSetLocalWrite = jest.fn();
 
     mockContext = {
       controller: {
@@ -71,6 +73,9 @@ describe('BackupAndSync - Syncing - Group', () => {
         call: jest.fn(),
       },
       emitAnalyticsEventFn: jest.fn(),
+      mutationTracker: {
+        setLocalWrite: mockSetLocalWrite,
+      },
     } as unknown as BackupAndSyncContext;
 
     mockLocalGroup = {
@@ -134,6 +139,7 @@ describe('BackupAndSync - Syncing - Group', () => {
 
       expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
       expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
+      expect(mockSetLocalWrite).not.toHaveBeenCalled();
     });
 
     it('emits analytics events for successful creations', async () => {
@@ -155,6 +161,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         action: BackupAndSyncAnalyticsEvent.GroupAdded,
         profileId: 'test-profile',
       });
+      expect(mockSetLocalWrite).toHaveBeenCalledTimes(1);
     });
 
     it('only emits analytics for newly created groups, not pre-existing ones', async () => {
@@ -192,6 +199,8 @@ describe('BackupAndSync - Syncing - Group', () => {
         action: BackupAndSyncAnalyticsEvent.GroupAdded,
         profileId: 'test-profile',
       });
+      // setLocalWrite(true) should fire once per newly created group (1 and 2).
+      expect(mockSetLocalWrite).toHaveBeenCalledTimes(2);
     });
   });
 

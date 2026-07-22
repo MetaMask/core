@@ -1894,21 +1894,43 @@ describe('RpcDataSource', () => {
   });
 
   describe('transaction events', () => {
-    it('refreshes balance when transaction confirmed', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
+    it('refreshes balance with merge mode when transaction confirmed', async () => {
+      const onAssetsUpdate = jest.fn().mockResolvedValue(undefined);
+      const fetchSpy = jest
+        .spyOn(RpcDataSource.prototype, 'fetch')
+        .mockResolvedValue({
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              'eip155:1/slip44:60': { amount: '2' },
+            },
+          },
+          updateMode: 'merge',
         });
 
-        rootMessenger.publish('TransactionController:transactionConfirmed', {
-          chainId: MOCK_CHAIN_ID_HEX,
-        } as unknown as TransactionMeta);
-        await new Promise(process.nextTick);
-        expect(controller).toBeDefined();
-      });
+      try {
+        await withController(async ({ controller, rootMessenger }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+
+          rootMessenger.publish('TransactionController:transactionConfirmed', {
+            chainId: MOCK_CHAIN_ID_HEX,
+            txParams: { from: MOCK_ADDRESS },
+          } as unknown as TransactionMeta);
+          await new Promise(process.nextTick);
+
+          expect(fetchSpy).toHaveBeenCalled();
+          expect(onAssetsUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({ updateMode: 'merge' }),
+            expect.objectContaining({ dataTypes: ['balance'] }),
+          );
+        });
+      } finally {
+        fetchSpy.mockRestore();
+      }
     });
 
     it('does not refresh when transaction confirmed has no chainId', async () => {

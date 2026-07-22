@@ -4,16 +4,48 @@
     "baseUrl": "./"
   },
   "references": [
-    { "path": "../accounts-controller/tsconfig.json" },
-    { "path": "../approval-controller/tsconfig.json" },
-    { "path": "../base-controller/tsconfig.json" },
-    { "path": "../connectivity-controller/tsconfig.json" },
-    { "path": "../controller-utils/tsconfig.json" },
-    { "path": "../keyring-controller/tsconfig.json" },
-    { "path": "../messenger/tsconfig.json" },
-    { "path": "../network-controller/tsconfig.json" },
-    { "path": "../remote-feature-flag-controller/tsconfig.json" },
-    { "path": "../storage-service/tsconfig.json" }
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../address-book-controller"
+    },
+    {
+      "path": "../approval-controller"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../connectivity-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../passkey-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../seedless-onboarding-controller"
+    },
+    {
+      "path": "../storage-service"
+    },
+    {
+      "path": "../transaction-controller"
+    }
   ],
   "include": ["../../types", "./src"]
 }

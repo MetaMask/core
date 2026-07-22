@@ -647,9 +647,11 @@ export class RpcDataSource extends AbstractDataSource<
       return;
     }
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
-    this.#refreshBalanceForChains([caipChainId]).catch((error) => {
-      log('Failed to refresh balance after transaction confirmed', { error });
-    });
+    this.#refreshBalanceForChains([caipChainId], 'transactionConfirmed').catch(
+      (error) => {
+        log('Failed to refresh balance after transaction confirmed', { error });
+      },
+    );
   }
 
   /**
@@ -657,15 +659,22 @@ export class RpcDataSource extends AbstractDataSource<
    * push updates to the controller.
    *
    * @param chainIds - CAIP-2 chain IDs to refresh.
+   * @param context - Why the refresh was triggered (for logging).
    */
-  async #refreshBalanceForChains(chainIds: ChainId[]): Promise<void> {
+  async #refreshBalanceForChains(
+    chainIds: ChainId[],
+    context: 'transactionConfirmed' | 'polling' = 'polling',
+  ): Promise<void> {
     const chainIdsSet = new Set(chainIds);
     const chainsToFetch = chainIds.filter((chainId) =>
       this.#activeChains.includes(chainId),
     );
+
     if (chainsToFetch.length === 0) {
       return;
     }
+
+    let appliedCount = 0;
 
     for (const subscription of this.#activeSubscriptions.values()) {
       const subscriptionChains = subscription.chains.filter((chainId) =>
@@ -686,22 +695,38 @@ export class RpcDataSource extends AbstractDataSource<
 
       try {
         const response = await this.fetch(request);
-        if (
-          response.assetsBalance &&
-          Object.keys(response.assetsBalance).length > 0
-        ) {
-          subscription.onAssetsUpdate(response)?.catch((error) => {
-            log('Failed to report balance update after transaction', {
-              error,
-            });
-          });
+        const balanceCount = response.assetsBalance
+          ? Object.values(response.assetsBalance).reduce(
+              (sum, accountBalances) =>
+                sum + Object.keys(accountBalances).length,
+              0,
+            )
+          : 0;
+
+        if (balanceCount === 0) {
+          continue;
         }
+
+        const responseWithMode: DataResponse = {
+          ...response,
+          updateMode: response.updateMode ?? 'merge',
+        };
+
+        await subscription.onAssetsUpdate(responseWithMode, request);
+        appliedCount += 1;
       } catch (error) {
         log('Failed to fetch balance after transaction', {
+          context,
           chains: subscriptionChains,
           error,
         });
       }
+    }
+
+    if (appliedCount === 0 && context === 'transactionConfirmed') {
+      log('No RpcDataSource subscription covers chain after transaction', {
+        chainsToFetch,
+      });
     }
   }
 
@@ -713,6 +738,14 @@ export class RpcDataSource extends AbstractDataSource<
     } catch (error) {
       log('Failed to initialize from NetworkController', error);
     }
+  }
+
+  /**
+   * Re-read NetworkController state and refresh Rpc `activeChains` (e.g. when
+   * network availability metadata changes after an EVM network switch).
+   */
+  refreshActiveChainsFromNetworkState(): void {
+    this.#initializeFromNetworkController();
   }
 
   #updateFromNetworkState(networkState: NetworkState): void {
@@ -1138,6 +1171,8 @@ export class RpcDataSource extends AbstractDataSource<
     if (Object.keys(assetsInfo).length > 0) {
       response.assetsInfo = assetsInfo;
     }
+
+    response.updateMode = 'merge';
 
     return response;
   }

@@ -1,14 +1,15 @@
+import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
 
-import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
-import * as initializationModule from './initialization/initialization';
-import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter';
-import { importSecretRecoveryPhrase } from './utilities';
-import { Wallet } from './Wallet';
+import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor.js';
+import * as initializationModule from './initialization/initialization.js';
+import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
+import { importSecretRecoveryPhrase } from './utilities.js';
+import { Wallet } from './Wallet.js';
 
 const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
@@ -262,6 +263,62 @@ describe('Wallet', () => {
     });
   });
 
+  describe('AddressBookController', () => {
+    const ADDRESS = '0x1234567890123456789012345678901234567890';
+
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(messenger.call('AddressBookController:getState')).toStrictEqual(
+        getDefaultAddressBookControllerState(),
+      );
+    });
+
+    it('applies initial state passed through the Wallet constructor', () => {
+      const entry = {
+        address: ADDRESS,
+        name: 'Alice',
+        chainId: '0x1' as const,
+        memo: '',
+        isEns: false,
+      };
+
+      const wallet = new Wallet({
+        state: {
+          AddressBookController: {
+            addressBook: { '0x1': { [ADDRESS]: entry } },
+          },
+        },
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+        },
+      });
+
+      expect(
+        wallet.state.AddressBookController.addressBook['0x1'][ADDRESS],
+      ).toStrictEqual(entry);
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call('AddressBookController:set', ADDRESS, 'Alice');
+
+      expect(messenger.call('AddressBookController:list')).toHaveLength(1);
+    });
+  });
+
   describe('ConnectivityController', () => {
     it('reports online connectivity status', () => {
       const wallet = new Wallet({
@@ -363,6 +420,16 @@ describe('Wallet', () => {
         (await messenger.call('StorageService:getItem', 'TestNamespace', 'foo'))
           .result,
       ).toBe('bar');
+    });
+  });
+
+  describe('TransactionController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call('TransactionController:getState'),
+      ).toStrictEqual(expect.objectContaining({ transactions: [] }));
     });
   });
 

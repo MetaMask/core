@@ -10,6 +10,9 @@ import {
   selectHasPlacedFirstOrder,
   selectMarketFilterPreferences,
   selectOrderBookGrouping,
+  selectRecentlyViewedMarkets,
+  selectProLayoutPreferences,
+  selectPerpsMode,
 } from '../../src/selectors';
 
 describe('PerpsController selectors', () => {
@@ -535,6 +538,165 @@ describe('PerpsController selectors', () => {
       const result = selectOrderBookGrouping(state, 'BTC');
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('selectRecentlyViewedMarkets', () => {
+    const now = Date.now();
+    const withinTtl = now - 60 * 60 * 1000; // 1 hour ago — within 24h TTL
+    const expired = now - 25 * 60 * 60 * 1000; // 25 hours ago — outside 24h TTL
+
+    beforeEach(() => {
+      jest.spyOn(Date, 'now').mockReturnValue(now);
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('returns mainnet symbols when not on testnet, ordered newest-first', () => {
+      const state = {
+        isTestnet: false,
+        recentlyViewedMarkets: {
+          mainnet: [
+            { symbol: 'BTC', viewedAt: withinTtl + 1000 },
+            { symbol: 'ETH', viewedAt: withinTtl },
+          ],
+          testnet: [],
+        },
+      } as unknown as PerpsControllerState;
+
+      expect(selectRecentlyViewedMarkets(state)).toStrictEqual(['BTC', 'ETH']);
+    });
+
+    it('returns testnet symbols when on testnet', () => {
+      const state = {
+        isTestnet: true,
+        recentlyViewedMarkets: {
+          mainnet: [{ symbol: 'BTC', viewedAt: withinTtl }],
+          testnet: [{ symbol: 'SOL', viewedAt: withinTtl }],
+        },
+      } as unknown as PerpsControllerState;
+
+      expect(selectRecentlyViewedMarkets(state)).toStrictEqual(['SOL']);
+    });
+
+    it('filters out entries older than 24 hours', () => {
+      const state = {
+        isTestnet: false,
+        recentlyViewedMarkets: {
+          mainnet: [
+            { symbol: 'BTC', viewedAt: withinTtl },
+            { symbol: 'ETH', viewedAt: expired },
+          ],
+          testnet: [],
+        },
+      } as unknown as PerpsControllerState;
+
+      expect(selectRecentlyViewedMarkets(state)).toStrictEqual(['BTC']);
+    });
+
+    it('returns empty array when all entries are expired', () => {
+      const state = {
+        isTestnet: false,
+        recentlyViewedMarkets: {
+          mainnet: [{ symbol: 'BTC', viewedAt: expired }],
+          testnet: [],
+        },
+      } as unknown as PerpsControllerState;
+
+      expect(selectRecentlyViewedMarkets(state)).toStrictEqual([]);
+    });
+
+    it('returns empty array when recentlyViewedMarkets is undefined', () => {
+      const state = { isTestnet: false } as unknown as PerpsControllerState;
+
+      expect(selectRecentlyViewedMarkets(state)).toStrictEqual([]);
+    });
+
+    it('caps results at 10 items', () => {
+      const entries = Array.from({ length: 15 }, (_, i) => ({
+        symbol: `COIN${i}`,
+        viewedAt: withinTtl + i * 1000,
+      })).reverse(); // newest-first in storage
+
+      const state = {
+        isTestnet: false,
+        recentlyViewedMarkets: { mainnet: entries, testnet: [] },
+      } as unknown as PerpsControllerState;
+
+      const result = selectRecentlyViewedMarkets(state);
+      expect(result).toHaveLength(10);
+    });
+  });
+
+  describe('selectProLayoutPreferences', () => {
+    const defaults = {
+      orderBookExpanded: false,
+      chartExpanded: false,
+      orderBookPosition: 'left',
+      orderFormPosition: 'right',
+    };
+
+    it('returns the pro-mode layout preferences', () => {
+      const proLayoutPreferences = {
+        orderBookExpanded: true,
+        chartExpanded: true,
+        orderBookPosition: 'right' as const,
+        orderFormPosition: 'left' as const,
+      };
+      const state = {
+        proLayoutPreferences,
+      } as unknown as PerpsControllerState;
+
+      expect(selectProLayoutPreferences(state)).toStrictEqual(
+        proLayoutPreferences,
+      );
+    });
+
+    it('merges persisted fields over defaults so missing fields fall back', () => {
+      const state = {
+        proLayoutPreferences: { orderBookExpanded: true },
+      } as unknown as PerpsControllerState;
+
+      expect(selectProLayoutPreferences(state)).toStrictEqual({
+        ...defaults,
+        orderBookExpanded: true,
+      });
+    });
+
+    it('returns defaults when the state slice is missing', () => {
+      const state = {} as unknown as PerpsControllerState;
+
+      expect(selectProLayoutPreferences(state)).toStrictEqual(defaults);
+    });
+
+    it('returns defaults when state is undefined', () => {
+      expect(
+        selectProLayoutPreferences(
+          undefined as unknown as PerpsControllerState,
+        ),
+      ).toStrictEqual(defaults);
+    });
+  });
+
+  describe('selectPerpsMode', () => {
+    it('returns the current mode', () => {
+      const state = { mode: 'pro' } as unknown as PerpsControllerState;
+
+      expect(selectPerpsMode(state)).toBe('pro');
+    });
+
+    it('returns the default mode when the state slice is missing', () => {
+      const state = {} as unknown as PerpsControllerState;
+
+      expect(selectPerpsMode(state)).toBe('lite');
+    });
+
+    it('returns the default mode when state is undefined', () => {
+      expect(
+        selectPerpsMode(undefined as unknown as PerpsControllerState),
+      ).toBe('lite');
     });
   });
 });

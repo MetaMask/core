@@ -71,17 +71,25 @@ export enum PaymentOverride {
 
 export enum TransactionPayStrategy {
   Across = 'across',
-  Bridge = 'bridge',
   Fiat = 'fiat',
+  /**
+   * Internal marker for no-op quotes generated when the controller determines
+   * that no conversion is needed. Not a routable strategy.
+   */
+  None = 'none',
   Relay = 'relay',
   Server = 'server',
-  Test = 'test',
 }
 
-const VALID_STRATEGIES = new Set(Object.values(TransactionPayStrategy));
+const VALID_STRATEGIES = new Set(
+  Object.values(TransactionPayStrategy).filter(
+    (strategy) => strategy !== TransactionPayStrategy.None,
+  ),
+);
 
 /**
- * Checks if a value is a valid transaction pay strategy.
+ * Checks if a value is a valid, routable transaction pay strategy.
+ * The internal no-op marker is not routable.
  *
  * @param strategy - Candidate strategy value.
  * @returns True if the value is a valid strategy.

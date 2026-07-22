@@ -22,19 +22,63 @@ import type {
 } from 'cockatiel';
 
 export {
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
   BrokenCircuitError,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
   CockatielEventEmitter,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
   CircuitState,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
   ConstantBackoff,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
   ExponentialBackoff,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent function from
+   * `@metamask/base-data-service`.
+   */
   handleAll,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent function from
+   * `@metamask/base-data-service`.
+   */
   handleWhen,
 };
 
-export type { CockatielEvent, FailureReason as CockatielFailureReason };
+export type {
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
+  CockatielEvent,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
+  FailureReason as CockatielFailureReason,
+};
 
 /**
  * The options for `createServicePolicy`.
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent type from `@metamask/base-data-service`.
  */
 export type CreateServicePolicyOptions = {
   /**
@@ -78,6 +122,9 @@ export type CreateServicePolicyOptions = {
 
 /**
  * The service policy object.
+ *
+ * @deprecated This is deprecated and will be removed in a future major
+ * version. Please use the equivalent type from `@metamask/base-data-service`.
  */
 export type ServicePolicy = IPolicy & {
   /**
@@ -170,6 +217,9 @@ type AvailabilityStatus =
 /**
  * The maximum number of times that a failing service should be re-run before
  * giving up.
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent variable from `@metamask/base-data-service`.
  */
 export const DEFAULT_MAX_RETRIES = 3;
 
@@ -178,18 +228,27 @@ export const DEFAULT_MAX_RETRIES = 3;
  * pausing further retries. This is set to a value such that if given a
  * service that continually fails, the policy needs to be executed 3 times
  * before further retries are paused.
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent variable from `@metamask/base-data-service`.
  */
 export const DEFAULT_MAX_CONSECUTIVE_FAILURES = (1 + DEFAULT_MAX_RETRIES) * 3;
 
 /**
  * The default length of time (in milliseconds) to temporarily pause retries of
  * the service after enough consecutive failures.
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent variable from `@metamask/base-data-service`.
  */
 export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
 
 /**
  * The default length of time (in milliseconds) that governs when the service is
  * regarded as degraded (affecting when `onDegraded` is called).
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent variable from `@metamask/base-data-service`.
  */
 export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
@@ -277,6 +336,9 @@ function getInternalCircuitState(state: CircuitState): InternalCircuitState {
  *   }
  * }
  * ```
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent function from `@metamask/base-data-service`.
  */
 export function createServicePolicy(
   options: CreateServicePolicyOptions = {},
