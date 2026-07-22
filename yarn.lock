@@ -6460,6 +6460,7 @@ __metadata:
     "@typescript-eslint/eslint-plugin": "npm:^8.48.0"
     "@typescript-eslint/parser": "npm:^8.48.0"
     "@yarnpkg/types": "npm:^4.0.0"
+    bats: "npm:^1.13.0"
     comment-json: "npm:^4.5.1"
     eslint: "npm:^9.39.1"
     eslint-config-prettier: "npm:^9.1.0"
@@ -13004,6 +13005,15 @@ __metadata:
   version: 0.6.1
   resolution: "batch@npm:0.6.1"
   checksum: 10/61f9934c7378a51dce61b915586191078ef7f1c3eca707fdd58b96ff2ff56d9e0af2bdab66b1462301a73c73374239e6542d9821c0af787f3209a23365d07e7f
+  languageName: node
+  linkType: hard
+
+"bats@npm:^1.13.0":
+  version: 1.13.0
+  resolution: "bats@npm:1.13.0"
+  bin:
+    bats: bin/bats
+  checksum: 10/cc120033073f5ed798accfc27d2f45863204d03673d985fdb5d850246df6adf8007be4678511ec206e5a47b46f15801fa612ca7d8e16ccf6afa7a009286c1627
   languageName: node
   linkType: hard
 
