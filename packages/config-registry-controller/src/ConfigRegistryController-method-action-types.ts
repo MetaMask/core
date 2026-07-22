@@ -6,6 +6,17 @@
 import type { ConfigRegistryController } from './ConfigRegistryController.js';
 
 /**
+ * Get the network configuration for a given CAIP-2 chain ID.
+ *
+ * @param caip2ChainId - The CAIP-2 chain ID (e.g., "eip155:1").
+ * @returns The network configuration if found, otherwise undefined.
+ */
+export type ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction = {
+  type: `ConfigRegistryController:getNetworkConfigByCaip2ChainId`;
+  handler: ConfigRegistryController['getNetworkConfigByCaip2ChainId'];
+};
+
+/**
  * Stop all polling.
  */
 export type ConfigRegistryControllerStopPollingAction = {
@@ -22,5 +33,6 @@ export type ConfigRegistryControllerStartPollingAction = {
  * Union of all ConfigRegistryController action types.
  */
 export type ConfigRegistryControllerMethodActions =
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction
   | ConfigRegistryControllerStopPollingAction
   | ConfigRegistryControllerStartPollingAction;
