@@ -172,8 +172,6 @@ const QuoteResponseV1FromV2 = coerce(
       nonEvmFeesInNative,
       l1GasFeesInHexWei,
       quoteId,
-      namespace,
-      chainId,
     } = value;
 
     const quoteV1 = toQuoteV1(quote);
