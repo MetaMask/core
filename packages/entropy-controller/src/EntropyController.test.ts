@@ -6,8 +6,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { EntropyControllerMessenger } from './entropy-controller';
-import { EntropyController } from './entropy-controller';
+import type { EntropyControllerMessenger } from './EntropyController';
+import { EntropyController } from './EntropyController';
 import { toEntropyId } from './utils';
 
 // Stable test secrets
