@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: Change `submitBatchSell` and `submitIntent` quoteResponse parameter from `QuoteResponseV1` to `QuoteResponse` V2 ([#9085](https://github.com/MetaMask/core/pull/9085))
+- Support both `QuoteResponseV1` and `QuoteResponse` quoteResponses in `submitTx`. Controller logic and utils still require V1, but clients can submit quotes in both formats ([#9085](https://github.com/MetaMask/core/pull/9085))
 - Use `gasFee.total` instead of `gasFee.effective` to calculate gas metrics properties ([#9507](https://github.com/MetaMask/core/pull/9507))
 - Update utils to use `mergeQuoteMetadata` and handle optional QuoteMetadata values. ([#9507](https://github.com/MetaMask/core/pull/9507))
 - Bump `@metamask/bridge-controller` from `^77.7.0` to `^78.0.0` ([#9614](https://github.com/MetaMask/core/pull/9614)), ([#9637](https://github.com/MetaMask/core/pull/9637))
@@ -77,8 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING**: Change `submitBatchSell` and `submitIntent` quoteResponse parameter from `QuoteResponse` to `QuoteResponseV2`
-- Support both `QuoteResponse` and `QuoteResponseV2` quoteResponses in `submitTx`
 - Bump `@metamask/bridge-controller` from `^77.3.1` to `^77.3.2` ([#9372](https://github.com/MetaMask/core/pull/9372))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 

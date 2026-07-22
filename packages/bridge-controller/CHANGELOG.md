@@ -11,11 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Define `QuoteResponse` v2 ([#9085](https://github.com/MetaMask/core/pull/9085))
+  - `validateQuoteResponse` validates data
+  - `toQuoteResponseV2` and `toQuoteResponseV1` convert quote responses to required schema when needed
+- Export `BridgeAsset` and `validateBridgeAsset`, used by QuoteResponse v2, and token endpoints ([#9085](https://github.com/MetaMask/core/pull/9085))
 - Return `priceImpact` and `relayerFee` as part of `QuoteMetadata` ([#9507](https://github.com/MetaMask/core/pull/9507))
 
 ### Changed
 
-- **BREAKING:** Store streamed quotes as QuoteResponse v2 in the BridgeController. This affects the batch-sell, unified swap/bridge and quickBuy experiences
+- **BREAKING:** Use QuoteResponse V2 within the BridgeController; this affects the batch-sell, unified swap/bridge and quickBuy experiences ([#9085](https://github.com/MetaMask/core/pull/9085))
+  - convert quotes to QuoteResponse v2 in `fetchBridgeQuoteStream`
+  - store quotes as QuoteResponse v2 in the BridgeController
+  - `QuoteResponse` export now means v2; v1 is still exported as `QuoteResponseV1`
+  - `fetchBridgeQuoteStream` now returns `QuoteResponse` v2
+  - `appendFeesToQuotes` interface now requires a chainId parameter, but still accepts both V1 and V2 quotes
 - **BREAKING:** Make `QuoteMetadata` fields optional and remove unused values
   - Remove falsy (`0` and `null`) fallbacks; missing values are now `undefined`
   - Replace `gasFee.effective`, `gasFee.max`, and `totalMaxNetworkFee` usages with `gasFee.total` and `totalNetworkFee`.
