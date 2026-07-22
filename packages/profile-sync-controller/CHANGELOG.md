@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `authenticationControllerSelectors` for best-effort reads of cached session identity from `AuthenticationController` state
+- Add `authenticationControllerSelectors` for best-effort reads of cached session identity from `AuthenticationController` state ([#9604](https://github.com/MetaMask/core/pull/9604))
   - `selectSrpSessionData` — raw `srpSessionData` map
   - `selectSessionData` — primary (first) SRP session entry
   - `selectCanonicalProfileId` — cached `canonicalProfileId`, treating `''` as missing
