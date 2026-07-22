@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The daemon client (`sendCommand`) now retries a request only on `ECONNREFUSED`, no longer on `ECONNRESET` ([#9511](https://github.com/MetaMask/core/pull/9511))
+  - `ECONNREFUSED` means the connection was never established, so the daemon provably never received the request and re-sending is safe. `ECONNRESET` can drop after the daemon has already received and acted on the request, so blindly re-sending could execute a non-idempotent action (e.g. a transaction broadcast) twice; `ECONNRESET` now surfaces to the caller instead of triggering a retry. This is a prerequisite for shipping any send/sign/transfer command.
 - `--password` / `MM_WALLET_PASSWORD` is now optional on `mm daemon start`; on subsequent runs, omitting it starts the daemon with a locked keyring, and the persisted vault is auto-unlocked when a password is supplied ([#8821](https://github.com/MetaMask/core/pull/8821))
 - The daemon RPC server now validates `params` against each handler's superstruct before dispatch, returning a `-32602 invalidParams` error on mismatch instead of passing raw params to the handler ([#8846](https://github.com/MetaMask/core/pull/8846))
 - Report daemon socket connection errors consistently across `mm daemon call` and `mm daemon list` ([#9339](https://github.com/MetaMask/core/pull/9339))
