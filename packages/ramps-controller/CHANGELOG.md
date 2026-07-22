@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Persist `lastUpdatedAt` on local orders and bump it on every non-sync `addOrder` so last-write-wins prefers fresher local edits over stale remote copies ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Set `isOrderSyncingInProgress` before the remote fetch so overlapping full syncs cannot race merge/upload ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Trim `providerOrderId` in `getInternalOrderCode` to match User Storage key derivation ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Prefer the freshest remote copy when the same order key appears under multiple entropy profiles during order sync ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ## [17.0.0]
 

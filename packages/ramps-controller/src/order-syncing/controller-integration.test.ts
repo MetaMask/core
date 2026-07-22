@@ -193,33 +193,33 @@ describe('order-syncing/controller-integration', () => {
       );
     });
 
-    it('keeps the first remote entry when duplicate storage keys are returned', async () => {
-      const firstRemote = createMockOrder({
+    it('keeps the freshest remote entry when duplicate storage keys are returned', async () => {
+      const olderRemote = createMockOrder({
         providerOrderId: 'dup-key',
         id: '/providers/transak/orders/dup-key',
         fiatAmount: 100,
       });
-      const secondRemote = createMockOrder({
+      const newerRemote = createMockOrder({
         providerOrderId: 'dup-key',
         id: '/providers/transak/orders/dup-key',
         fiatAmount: 999,
       });
-      const firstEntry = JSON.stringify(
+      const olderEntry = JSON.stringify(
         mapRampsOrderToUserStorageEntry({
-          ...firstRemote,
+          ...olderRemote,
           lastUpdatedAt: 1_700_000_000_000,
         }),
       );
-      const secondEntry = JSON.stringify(
+      const newerEntry = JSON.stringify(
         mapRampsOrderToUserStorageEntry({
-          ...secondRemote,
+          ...newerRemote,
           lastUpdatedAt: 1_700_000_000_100,
         }),
       );
 
       const { options, addOrder } = arrangeMocks({
         localOrders: [],
-        remoteEntries: [firstEntry, secondEntry],
+        remoteEntries: [olderEntry, newerEntry],
       });
 
       await syncOrdersWithUserStorage({}, options);
@@ -228,9 +228,81 @@ describe('order-syncing/controller-integration', () => {
       expect(addOrder).toHaveBeenCalledWith(
         expect.objectContaining({
           providerOrderId: 'dup-key',
-          fiatAmount: 100,
+          fiatAmount: 999,
         }),
       );
+    });
+
+    it('keeps an earlier fresher remote entry over a later stale duplicate', async () => {
+      const newerRemote = createMockOrder({
+        providerOrderId: 'dup-key-2',
+        id: '/providers/transak/orders/dup-key-2',
+        fiatAmount: 500,
+      });
+      const olderRemote = createMockOrder({
+        providerOrderId: 'dup-key-2',
+        id: '/providers/transak/orders/dup-key-2',
+        fiatAmount: 50,
+      });
+      const newerEntry = JSON.stringify(
+        mapRampsOrderToUserStorageEntry({
+          ...newerRemote,
+          lastUpdatedAt: 1_700_000_000_200,
+        }),
+      );
+      const olderEntry = JSON.stringify(
+        mapRampsOrderToUserStorageEntry({
+          ...olderRemote,
+          lastUpdatedAt: 1_700_000_000_000,
+        }),
+      );
+
+      const { options, addOrder } = arrangeMocks({
+        localOrders: [],
+        remoteEntries: [newerEntry, olderEntry],
+      });
+
+      await syncOrdersWithUserStorage({}, options);
+
+      expect(addOrder).toHaveBeenCalledTimes(1);
+      expect(addOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerOrderId: 'dup-key-2',
+          fiatAmount: 500,
+        }),
+      );
+    });
+
+    it('prefers a newer remote tombstone over an older live duplicate key', async () => {
+      const liveRemote = createMockOrder({
+        providerOrderId: 'dup-tombstone',
+        id: '/providers/transak/orders/dup-tombstone',
+        fiatAmount: 100,
+      });
+      const tombstoneRemote: SyncRampsOrder = {
+        ...liveRemote,
+        deletedAt: 1_700_000_000_300,
+        lastUpdatedAt: 1_700_000_000_300,
+      };
+      const liveEntry = JSON.stringify(
+        mapRampsOrderToUserStorageEntry({
+          ...liveRemote,
+          lastUpdatedAt: 1_700_000_000_000,
+        }),
+      );
+      const tombstoneEntry = JSON.stringify(
+        mapRampsOrderToUserStorageEntry(tombstoneRemote),
+      );
+
+      const { options, addOrder, removeOrder } = arrangeMocks({
+        localOrders: [liveRemote],
+        remoteEntries: [liveEntry, tombstoneEntry],
+      });
+
+      await syncOrdersWithUserStorage({}, options);
+
+      expect(addOrder).not.toHaveBeenCalled();
+      expect(removeOrder).toHaveBeenCalledWith('dup-tombstone');
     });
 
     it('applies remote soft-deletes locally when the tombstone is newer', async () => {
@@ -581,6 +653,40 @@ describe('order-syncing/controller-integration', () => {
         {},
       );
       expect(addOrder).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips remote entries that cannot derive a storage key', async () => {
+      const remoteOrder = createMockOrder({
+        providerOrderId: 'valid-remote-2',
+        id: '/providers/transak/orders/valid-remote-2',
+      });
+      const { options, addOrder } = arrangeMocks({
+        localOrders: [],
+        remoteEntries: [
+          JSON.stringify({
+            [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
+            o: {
+              ...remoteOrder,
+              id: '/providers/transak/orders/',
+              providerOrderId: '',
+            },
+            lu: Date.now(),
+          }),
+          JSON.stringify(
+            mapRampsOrderToUserStorageEntry({
+              ...remoteOrder,
+              lastUpdatedAt: Date.now(),
+            }),
+          ),
+        ],
+      });
+
+      await syncOrdersWithUserStorage({}, options);
+
+      expect(addOrder).toHaveBeenCalledTimes(1);
+      expect(addOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ providerOrderId: 'valid-remote-2' }),
+      );
     });
 
     it('reports and skips empty storage keys when uploading', async () => {
