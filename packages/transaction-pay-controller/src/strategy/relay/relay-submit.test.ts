@@ -1032,8 +1032,7 @@ describe('Relay Submit Utils', () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
         request.quotes[0].request.atomic = false;
-        request.quotes[0].original.details.currencyOut.minimumAmount =
-          '530000';
+        request.quotes[0].original.details.currencyOut.minimumAmount = '530000';
         submitMoneyAccountVaultDepositMock.mockResolvedValue({
           transactionHash:
             '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex,

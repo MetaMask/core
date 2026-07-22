@@ -646,11 +646,7 @@ async function submitTransactions(
 
   let allParams = normalizedParams;
 
-  if (
-    quote.request.paymentOverride &&
-    isSameChainOverride &&
-    !isNonAtomic
-  ) {
+  if (quote.request.paymentOverride && isSameChainOverride && !isNonAtomic) {
     const { transactionData } = messenger.call(
       'TransactionPayController:getState',
     );
