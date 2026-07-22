@@ -3285,10 +3285,6 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ toprfClient, baseMessenger }) => {
           mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-          const captureExceptionSpy = jest.spyOn(
-            baseMessenger,
-            'captureException',
-          );
 
           const mockSecretDataGet = handleMockSecretDataGet({
             status: 200,
@@ -3313,24 +3309,7 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toMatchObject({
             message:
               SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-            data: {
-              secretTypeCounts: { [SecretType.PrivateKey]: 1 },
-              dataTypeCounts: {
-                [EncAccountDataType.ImportedPrivateKey]: 1,
-              },
-            },
-          });
-
-          expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
-          expect(captureExceptionSpy.mock.calls[0]?.[0]).toMatchObject({
-            message:
-              SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-            context: {
-              secretTypeCounts: { [SecretType.PrivateKey]: 1 },
-              dataTypeCounts: {
-                [EncAccountDataType.ImportedPrivateKey]: 1,
-              },
-            },
+            data: [EncAccountDataType.ImportedPrivateKey],
           });
 
           expect(mockSecretDataGet.isDone()).toBe(true);
@@ -3511,10 +3490,6 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ toprfClient, baseMessenger }) => {
           mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-          const captureExceptionSpy = jest.spyOn(
-            baseMessenger,
-            'captureException',
-          );
 
           // ImportedSrp as first item (no PrimarySrp) - should throw
           const mockSecretDataGet = handleMockSecretDataGet({
@@ -3541,20 +3516,7 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toMatchObject({
             message:
               SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-            data: {
-              secretTypeCounts: { [SecretType.Mnemonic]: 1 },
-              dataTypeCounts: { [EncAccountDataType.ImportedSrp]: 1 },
-            },
-          });
-
-          expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
-          expect(captureExceptionSpy.mock.calls[0]?.[0]).toMatchObject({
-            message:
-              SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-            context: {
-              secretTypeCounts: { [SecretType.Mnemonic]: 1 },
-              dataTypeCounts: { [EncAccountDataType.ImportedSrp]: 1 },
-            },
+            data: [EncAccountDataType.ImportedSrp],
           });
 
           expect(mockSecretDataGet.isDone()).toBe(true);

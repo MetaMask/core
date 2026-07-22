@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `InvalidPrimarySecretDataTypeError` with Sentry-safe type counts when fetched secret metadata does not include a primary mnemonic, and report it via `captureException`. ([#9587](https://github.com/MetaMask/core/pull/9587))
+- Add `InvalidPrimarySecretDataTypeError` with an ordered list of non-sensitive `SecretType` / `EncAccountDataType` values when fetched secret metadata does not include a primary mnemonic ([#9587](https://github.com/MetaMask/core/pull/9587))
 
 ### Changed
 

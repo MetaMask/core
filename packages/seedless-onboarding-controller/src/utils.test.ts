@@ -10,9 +10,8 @@ import {
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
-  createSentryError,
+  getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
-  summarizeSecretMetadataCounts,
 } from './utils';
 
 describe('utils', () => {
@@ -234,8 +233,8 @@ describe('utils', () => {
     });
   });
 
-  describe('summarizeSecretMetadataCounts', () => {
-    it('should count secrets by type and dataType', () => {
+  describe('getInvalidPrimarySecretDataTypeErrorData', () => {
+    it('should return dataType values in secret order', () => {
       const secrets = [
         new SecretMetadata('seed phrase', {
           type: SecretType.Mnemonic,
@@ -251,46 +250,23 @@ describe('utils', () => {
         }),
       ];
 
-      expect(summarizeSecretMetadataCounts(secrets)).toStrictEqual({
-        secretTypeCounts: {
-          [SecretType.Mnemonic]: 1,
-          [SecretType.PrivateKey]: 2,
-        },
-        dataTypeCounts: {
-          [EncAccountDataType.ImportedSrp]: 1,
-          [EncAccountDataType.ImportedPrivateKey]: 2,
-        },
-      });
+      expect(getInvalidPrimarySecretDataTypeErrorData(secrets)).toStrictEqual([
+        EncAccountDataType.ImportedSrp,
+        EncAccountDataType.ImportedPrivateKey,
+        EncAccountDataType.ImportedPrivateKey,
+      ]);
     });
 
-    it('should count items without dataType as unknown', () => {
+    it('should fall back to SecretType when dataType is missing', () => {
       const secrets = [
         new SecretMetadata('seed phrase', {
           type: SecretType.Mnemonic,
         }),
       ];
 
-      expect(summarizeSecretMetadataCounts(secrets)).toStrictEqual({
-        secretTypeCounts: {
-          [SecretType.Mnemonic]: 1,
-        },
-        dataTypeCounts: {
-          unknown: 1,
-        },
-      });
-    });
-  });
-
-  describe('createSentryError', () => {
-    it('wraps an inner error with optional context', () => {
-      const innerError = new Error('inner');
-      const sentryError = createSentryError('outer', innerError, {
-        count: 1,
-      });
-
-      expect(sentryError.message).toBe('outer');
-      expect(sentryError.cause).toBe(innerError);
-      expect(sentryError.context).toStrictEqual({ count: 1 });
+      expect(getInvalidPrimarySecretDataTypeErrorData(secrets)).toStrictEqual([
+        SecretType.Mnemonic,
+      ]);
     });
   });
 });

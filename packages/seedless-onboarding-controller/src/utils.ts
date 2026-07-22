@@ -15,7 +15,6 @@ import type {
   DecodedNodeAuthToken,
   DeserializedVaultData,
   InvalidPrimarySecretDataTypeErrorData,
-  SentryError,
   VaultData,
 } from './types';
 
@@ -178,51 +177,13 @@ export function getSecretTypeFromDataType(
 }
 
 /**
- * Summarize secret metadata items into non-sensitive type counts.
+ * Build non-sensitive type labels for secret metadata items.
  *
- * @param secrets - The secret metadata items to summarize.
- * @returns Counts grouped by secret type and data type.
+ * @param secrets - The secret metadata items in fetch order.
+ * @returns One `SecretType` or `EncAccountDataType` per item.
  */
-export function summarizeSecretMetadataCounts(
+export function getInvalidPrimarySecretDataTypeErrorData(
   secrets: SecretMetadata<string | Uint8Array>[],
 ): InvalidPrimarySecretDataTypeErrorData {
-  const secretTypeCounts: Partial<Record<SecretType, number>> = {};
-  const dataTypeCounts: Partial<
-    Record<EncAccountDataType | 'unknown', number>
-  > = {};
-
-  for (const secret of secrets) {
-    secretTypeCounts[secret.type] = (secretTypeCounts[secret.type] ?? 0) + 1;
-
-    const dataTypeKey = secret.dataType ?? 'unknown';
-    dataTypeCounts[dataTypeKey] = (dataTypeCounts[dataTypeKey] ?? 0) + 1;
-  }
-
-  return { secretTypeCounts, dataTypeCounts };
+  return secrets.map((secret) => secret.dataType ?? secret.type);
 }
-
-/**
- * Creates a Sentry error from an error message, an inner error and a context.
- *
- * NOTE: Sentry defaults to a depth of 3 when extracting non-native attributes.
- * As such, the context depth shouldn't be too deep.
- *
- * @param message - The error message to create a Sentry error from.
- * @param innerError - The inner error to create a Sentry error from.
- * @param context - The context to add to the Sentry error.
- * @returns A Sentry error.
- */
-export const createSentryError = <
-  TContext extends Record<string, unknown> = Record<string, unknown>,
->(
-  message: string,
-  innerError: Error,
-  context?: TContext,
-): SentryError<TContext> => {
-  const error = new Error(message) as SentryError<TContext>;
-  error.cause = innerError;
-  if (context) {
-    error.context = context;
-  }
-  return error;
-};

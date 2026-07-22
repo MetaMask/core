@@ -96,36 +96,14 @@ export type RecoveryErrorData = {
 };
 
 /**
- * Non-sensitive metadata included with `InvalidPrimarySecretDataTypeError`.
- *
- * Only secret and data type counts are included so the error can be reported to
- * Sentry without exposing secret payloads.
+ * Non-sensitive type labels for each secret metadata item, in the same order
+ * as fetched secret data (after sorting). Uses `dataType` when present,
+ * otherwise falls back to `SecretType`.
  */
-export type InvalidPrimarySecretDataTypeErrorData = {
-  /**
-   * Counts grouped by `SecretMetadata.type`.
-   */
-  secretTypeCounts: Partial<Record<SecretType, number>>;
-
-  /**
-   * Counts grouped by `SecretMetadata.dataType`.
-   *
-   * Items without a `dataType` are counted under `unknown`.
-   */
-  dataTypeCounts: Partial<Record<EncAccountDataType | 'unknown', number>>;
-};
-
-/**
- * Augmented `Error` shape produced by `createSentryError`. The runtime value
- * carries a `cause` and (optionally) a structured `context` payload that
- * downstream Sentry tooling can read.
- */
-export type SentryError<
-  TContext extends Record<string, unknown> = Record<string, unknown>,
-> = Error & {
-  cause: Error;
-  context?: TContext;
-};
+export type InvalidPrimarySecretDataTypeErrorData = (
+  | SecretType
+  | EncAccountDataType
+)[];
 
 // State
 export type SeedlessOnboardingControllerState =
