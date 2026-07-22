@@ -288,6 +288,11 @@ export class AccountActivityDataSource extends AbstractDataSource<
    * active (WebSocket provides real-time data); chains reported "down" are
    * released so polling data sources take over. The change is applied directly;
    * coalescing and jitter are handled by `AssetsController`.
+   *
+   * @param options - The status change notification.
+   * @param options.chainIds - The CAIP-2 chain IDs whose status changed.
+   * @param options.status - Whether the chains are `up` or `down`.
+   * @param options.timestamp - Optional timestamp of the status change.
    */
   readonly #onAccountActivityStatusChanged = ({
     chainIds,

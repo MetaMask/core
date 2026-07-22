@@ -99,6 +99,22 @@ const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
 
+/**
+ * Activate asset tracking by marking the UI open and the keyring unlocked,
+ * then flushing the async startup so the controller is in its running state.
+ *
+ * @param messenger - The root messenger used to publish lifecycle events.
+ */
+async function activateTracking(messenger: RootMessenger): Promise<void> {
+  (
+    messenger as unknown as {
+      publish: (topic: string, payload?: unknown) => void;
+    }
+  ).publish('ClientController:stateChange', { isUiOpen: true });
+  messenger.publish('KeyringController:unlock');
+  await flushPromises();
+}
+
 function createMockInternalAccount(
   overrides?: Partial<InternalAccount>,
 ): InternalAccount {
@@ -1613,7 +1629,8 @@ describe('AssetsController', () => {
 
   describe('handleActiveChainsUpdate', () => {
     it('re-subscribes assets when chains are added, debounced and jittered', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
         jest.useFakeTimers();
         const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
         try {
@@ -1640,20 +1657,30 @@ describe('AssetsController', () => {
       });
     });
 
-    it('re-subscribes promptly (no jitter) when a chain removal pre-empts a pending jittered addition', async () => {
-      await withController(async ({ controller }) => {
+    it('lets a shorter-delay re-subscribe pre-empt a pending longer-delay one', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
         jest.useFakeTimers();
-        const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        // First update draws a long jitter, second update draws a short one.
+        const randomSpy = jest
+          .spyOn(Math, 'random')
+          .mockReturnValueOnce(0.9)
+          .mockReturnValueOnce(0.1);
         try {
           const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
           const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
-          // Addition schedules a jittered re-subscribe...
+          // Schedules a long-delay jittered re-subscribe (~4750ms)...
           onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
-          // ...then a removal arrives; it must pre-empt to the prompt window.
+          // ...then a second update with a shorter delay (~750ms) pre-empts it.
           onActiveChainsUpdated('TestDataSource', [], ['eip155:137']);
 
-          jest.advanceTimersByTime(RESUBSCRIBE_DEBOUNCE_MS);
+          // Runs once at the shorter window.
+          jest.advanceTimersByTime(RESUBSCRIBE_DEBOUNCE_MS + 500);
+          expect(subscribeSpy).toHaveBeenCalledTimes(1);
+
+          // The pre-empted longer-delay timer does not fire a second time.
+          jest.advanceTimersByTime(RESUBSCRIBE_JITTER_MS);
           expect(subscribeSpy).toHaveBeenCalledTimes(1);
         } finally {
           randomSpy.mockRestore();
@@ -1663,8 +1690,10 @@ describe('AssetsController', () => {
     });
 
     it('coalesces a burst of active-chain updates into a single re-subscribe', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
         jest.useFakeTimers();
+        const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
         try {
           const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
@@ -1682,9 +1711,14 @@ describe('AssetsController', () => {
             ['eip155:1', 'eip155:137'],
           );
 
-          jest.advanceTimersByTime(RESUBSCRIBE_DEBOUNCE_MS);
+          // Advance past the base debounce plus the jitter window; the burst
+          // collapses into exactly one re-subscribe.
+          jest.advanceTimersByTime(
+            RESUBSCRIBE_DEBOUNCE_MS + RESUBSCRIBE_JITTER_MS,
+          );
           expect(subscribeSpy).toHaveBeenCalledTimes(1);
         } finally {
+          randomSpy.mockRestore();
           jest.useRealTimers();
         }
       });
@@ -1713,18 +1747,27 @@ describe('AssetsController', () => {
       });
     });
 
-    it('re-subscribes assets when chains are removed', async () => {
-      await withController(async ({ controller }) => {
+    it('re-subscribes assets when chains are removed, debounced and jittered', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
         jest.useFakeTimers();
+        const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
         try {
           const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
           const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
           onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
 
+          // Removals are jittered on top of the base debounce, so nothing runs
+          // at the base debounce window.
           jest.advanceTimersByTime(RESUBSCRIBE_DEBOUNCE_MS);
+          expect(subscribeSpy).not.toHaveBeenCalled();
+
+          // Once the jitter window elapses it runs exactly once.
+          jest.advanceTimersByTime(RESUBSCRIBE_JITTER_MS);
           expect(subscribeSpy).toHaveBeenCalledTimes(1);
         } finally {
+          randomSpy.mockRestore();
           jest.useRealTimers();
         }
       });
@@ -1763,6 +1806,68 @@ describe('AssetsController', () => {
           expect(subscribeSpy).not.toHaveBeenCalled();
         },
       );
+    });
+
+    it('does not run a scheduled re-subscribe when the controller is disabled before the timer fires', async () => {
+      let enabled = true;
+
+      await withController(
+        {
+          controllerOptions: { isEnabled: (): boolean => enabled },
+        },
+        async ({ controller, messenger }) => {
+          await activateTracking(messenger);
+          jest.useFakeTimers();
+          const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+          try {
+            const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+            // Scheduled while enabled...
+            const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+            onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
+
+            // ...but the controller is disabled before the timer fires.
+            enabled = false;
+
+            jest.advanceTimersByTime(
+              RESUBSCRIBE_DEBOUNCE_MS + RESUBSCRIBE_JITTER_MS,
+            );
+
+            expect(subscribeSpy).not.toHaveBeenCalled();
+          } finally {
+            randomSpy.mockRestore();
+            jest.useRealTimers();
+          }
+        },
+      );
+    });
+
+    it('does not run a scheduled re-subscribe when the keyring locks before the timer fires', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
+        jest.useFakeTimers();
+        const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+        try {
+          const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+          // The keyring locks (e.g. the app is backgrounded). A data source can
+          // still report chains going "down" as the WebSocket disconnects,
+          // which schedules a coalesced re-subscribe even though tracking has
+          // been torn down.
+          messenger.publish('KeyringController:lock');
+          const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+          onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
+
+          jest.advanceTimersByTime(
+            RESUBSCRIBE_DEBOUNCE_MS + RESUBSCRIBE_JITTER_MS,
+          );
+
+          expect(subscribeSpy).not.toHaveBeenCalled();
+        } finally {
+          randomSpy.mockRestore();
+          jest.useRealTimers();
+        }
+      });
     });
   });
 

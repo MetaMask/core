@@ -795,12 +795,12 @@ const multiChainAssets = await messenger.call(
 
 ### Primary Data Sources (Balance Providers)
 
-| Order | Data Source                | Update Mechanism         | Chains                |
-| ----- | -------------------------- | ------------------------ | --------------------- |
-| 1     | AccountActivityDataSource  | Real-time WebSocket push | API-supported EVM     |
-| 2     | AccountsApiDataSource      | HTTP polling             | API-supported chains  |
-| 3     | SnapDataSource             | Snap keyring events      | Solana, Bitcoin, Tron |
-| 4     | RpcDataSource              | Direct RPC polling       | Any EVM chain         |
+| Order | Data Source               | Update Mechanism         | Chains                |
+| ----- | ------------------------- | ------------------------ | --------------------- |
+| 1     | AccountActivityDataSource | Real-time WebSocket push | API-supported EVM     |
+| 2     | AccountsApiDataSource     | HTTP polling             | API-supported chains  |
+| 3     | SnapDataSource            | Snap keyring events      | Solana, Bitcoin, Tron |
+| 4     | RpcDataSource             | Direct RPC polling       | Any EVM chain         |
 
 **Fallback behavior**: Data sources are processed in registration order. Earlier sources get first pick for chain assignment; later sources handle remaining chains.
 

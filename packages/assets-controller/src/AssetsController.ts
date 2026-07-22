@@ -74,9 +74,9 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './data-sources/AbstractDataSource';
+import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
-import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource';
 import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
@@ -207,13 +207,12 @@ const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 const RESUBSCRIBE_DEBOUNCE_MS = 250;
 
 /**
- * Maximum random jitter (ms) added to the re-subscribe delay when a data source
- * *claims* new chains (e.g. WebSocket `statusChanged: 'up'`). Staggers the
- * resulting WS-subscribe fan-out across clients that all receive the same
- * backend broadcast, avoiding a thundering herd. Only applied to chain
- * *additions*: additions are non-urgent (polling still covers the chain until
- * re-subscribe), whereas removals are re-subscribed promptly so polling fallback
- * resumes without a data gap.
+ * Maximum random jitter (ms) added to the re-subscribe delay whenever a data
+ * source's active chains change (e.g. WebSocket `statusChanged` up/down).
+ * Staggers the resulting WS-subscribe fan-out across clients that all receive
+ * the same backend broadcast, avoiding a thundering herd. Applied to both chain
+ * additions and removals; the earliest scheduled run still wins so a
+ * shorter-delay request pre-empts a pending longer-delay one.
  */
 const RESUBSCRIBE_JITTER_MS = 5000;
 
@@ -935,7 +934,7 @@ export class AssetsController extends BaseController<
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
         this.#getAssetType(assetId),
-      onAssetsUpdate: (response, request) =>
+      onAssetsUpdate: (response, request): Promise<void> =>
         this.handleAssetsUpdate(
           response,
           this.#accountActivityDataSource.getName(),
@@ -1218,7 +1217,6 @@ export class AssetsController extends BaseController<
         this.#onTransactionConfirmed(transactionMeta);
       },
     );
-
   }
 
   #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
@@ -1444,14 +1442,11 @@ export class AssetsController extends BaseController<
     // Coalesce bursts of chain updates into a single re-subscribe so polling
     // data sources are not torn down/re-created (with a redundant immediate
     // fetch) once per event.
-    // A removal is urgent: a data source dropped chains (e.g. WebSocket went
-    // down) and there is a data gap until re-subscribe hands those chains to a
-    // polling source, so run promptly without jitter. A pure addition is
-    // non-urgent (polling still covers the new chains until re-subscribe), so
-    // add jitter to stagger the resulting WS-subscribe fan-out across clients
-    // receiving the same backend broadcast.
+    // Jitter is always applied to stagger the resulting WS-subscribe fan-out
+    // across clients receiving the same backend broadcast, avoiding a
+    // thundering herd for both chain additions and removals.
     if (addedChains.length > 0 || removedChains.length > 0) {
-      this.#scheduleSubscribeAssets({ jitter: removedChains.length === 0 });
+      this.#scheduleSubscribeAssets();
     }
   }
 
@@ -3005,18 +3000,16 @@ export class AssetsController extends BaseController<
    * keep calling `#subscribeAssets()` directly so their re-subscribe is not
    * delayed.
    *
-   * When `jitter` is set, a random delay up to {@link RESUBSCRIBE_JITTER_MS} is
-   * added to stagger the WS-subscribe fan-out across clients (used for chain
-   * additions). A later non-jittered call pre-empts a pending jittered one so an
-   * urgent chain removal is not held back by an addition's jitter window.
-   *
-   * @param options - Scheduling options.
-   * @param options.jitter - Add random jitter to the delay (for chain additions).
+   * A random delay up to {@link RESUBSCRIBE_JITTER_MS} is added on top of the
+   * base debounce to stagger the WS-subscribe fan-out across clients receiving
+   * the same backend broadcast, avoiding a thundering herd. The earliest
+   * scheduled run always wins, so a shorter-delay request pre-empts a pending
+   * longer-delay one while a later request never pushes a sooner pending run out.
    */
-  #scheduleSubscribeAssets({ jitter = false }: { jitter?: boolean } = {}): void {
-    const delay = jitter
-      ? RESUBSCRIBE_DEBOUNCE_MS + Math.floor(Math.random() * RESUBSCRIBE_JITTER_MS)
-      : RESUBSCRIBE_DEBOUNCE_MS;
+  #scheduleSubscribeAssets(): void {
+    const delay =
+      RESUBSCRIBE_DEBOUNCE_MS +
+      Math.floor(Math.random() * RESUBSCRIBE_JITTER_MS);
     const runAt = Date.now() + delay;
 
     if (this.#resubscribeTimer) {
@@ -3034,6 +3027,22 @@ export class AssetsController extends BaseController<
     this.#resubscribeTimer = setTimeout(() => {
       this.#resubscribeTimer = null;
       this.#resubscribeRunAt = 0;
+      // Re-check the run guards at fire time. A re-subscribe can be scheduled
+      // while tracking is allowed but fire after it should have stopped:
+      // #handleActiveChainsUpdate only gates on #isEnabled(), so a data source
+      // reporting chains "down" (e.g. on WebSocket disconnect) after the UI
+      // closed or the keyring locked can still schedule this timer; and
+      // #isEnabled() is an external getter that can flip without routing
+      // through #stop() (which is what cancels the timer). Running
+      // #subscribeAssets() regardless would inappropriately restart polling.
+      if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
+        log('Skipping coalesced re-subscribe: tracking no longer active', {
+          uiOpen: this.#uiOpen,
+          keyringUnlocked: this.#keyringUnlocked,
+          isEnabled: this.#isEnabled(),
+        });
+        return;
+      }
       try {
         this.#subscribeAssets();
       } catch (error) {
@@ -3085,27 +3094,12 @@ export class AssetsController extends BaseController<
       new Set(chainIds),
     );
     const remainingChains = new Set(chainToAccounts.keys());
-    // When basic functionality is on, use all balance data sources; when off, RPC only.
     // When basic functionality is on, use all balance data sources; when off,
     // RPC only.
     const isBasicFunctionality = this.#isBasicFunctionality();
     const balanceDataSources = isBasicFunctionality
       ? this.#allBalanceDataSources
       : [this.#rpcDataSource];
-
-    // AccountActivityDataSource is event-driven and routes `balanceUpdated`
-    // events by resolving the address against the wallet, so it is never
-    // subscribed through the handoff below. Its only role here is to *reserve*
-    // the chains it reports "up" so the polling sources (AccountsApi/RPC) skip
-    // them. It only reserves when basic functionality is on; when off,
-    // `balanceDataSources` is RPC-only. Because these chains are removed from
-    // `remainingChains` upfront, AADS's own iteration in the loop always claims
-    // nothing and no-ops.
-    if (isBasicFunctionality) {
-      for (const chainId of this.#accountActivityDataSource.getActiveChainsSync()) {
-        remainingChains.delete(chainId);
-      }
-    }
 
     let rpcAssignedChains: Set<ChainId> = new Set();
 
