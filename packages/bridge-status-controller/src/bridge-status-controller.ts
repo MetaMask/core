@@ -8,7 +8,6 @@ import {
   BatchSellTradesResponse,
   InputPrimaryDenomination,
 } from '@metamask/bridge-controller';
-import type { DeepPartial } from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
   StatusTypes,
