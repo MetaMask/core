@@ -17,8 +17,8 @@ import type { SentinelApiServiceSimulateTransactionsAction } from '@metamask/sen
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
-  TransactionControllerBeginAtomicBatchUpdateAction,
   TransactionControllerEstimateGasAction,
+  TransactionControllerUpdateTransactionCallbackAction,
   TransactionControllerEstimateGasBatchAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
@@ -71,8 +71,8 @@ export function getMessengerMock({
     TransactionControllerAddTransactionBatchAction['handler']
   > = jest.fn();
 
-  const beginAtomicBatchUpdateMock: jest.MockedFn<
-    TransactionControllerBeginAtomicBatchUpdateAction['handler']
+  const updateTransactionCallbackMock: jest.MockedFn<
+    TransactionControllerUpdateTransactionCallbackAction['handler']
   > = jest.fn();
 
   const findNetworkClientIdByChainIdMock: jest.MockedFn<
@@ -303,8 +303,8 @@ export function getMessengerMock({
   }
 
   messenger.registerActionHandler(
-    'TransactionController:beginAtomicBatchUpdate',
-    beginAtomicBatchUpdateMock,
+    'TransactionController:updateTransactionCallback',
+    updateTransactionCallbackMock,
   );
 
   messenger.registerActionHandler(
@@ -316,7 +316,6 @@ export function getMessengerMock({
 
   return {
     addTransactionMock,
-    beginAtomicBatchUpdateMock,
     getAssetsControllerStateMock,
     addTransactionBatchMock,
     estimateGasMock,
@@ -344,6 +343,7 @@ export function getMessengerMock({
     polymarketSubmitDepositWalletBatchMock,
     publish,
     simulateTransactionsMock,
+    updateTransactionCallbackMock,
     updateTransactionMock,
   };
 }

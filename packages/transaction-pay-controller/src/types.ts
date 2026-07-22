@@ -35,12 +35,10 @@ import type {
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
 import type {
-  AtomicBatchPreparationResult,
   AuthorizationList,
   NestedTransactionUpdate,
   RequiredAsset,
   TransactionControllerAddTransactionBatchAction,
-  TransactionControllerBeginAtomicBatchUpdateAction,
   TransactionControllerEstimateGasAction,
   TransactionControllerEstimateGasBatchAction,
   TransactionControllerUnapprovedTransactionAddedEvent,
@@ -53,6 +51,7 @@ import type {
   TransactionControllerGetStateAction,
   TransactionControllerStateChangeEvent,
   TransactionControllerUpdateTransactionAction,
+  TransactionControllerUpdateTransactionCallbackAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
@@ -84,12 +83,12 @@ export type AllowedActions =
   | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
-  | TransactionControllerBeginAtomicBatchUpdateAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
-  | TransactionControllerUpdateTransactionAction;
+  | TransactionControllerUpdateTransactionAction
+  | TransactionControllerUpdateTransactionCallbackAction;
 
 export type AllowedEvents =
   | AssetsControllerStateChangeEvent
@@ -722,9 +721,6 @@ export type PayStrategyGetQuotesRequest = {
 
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;
-
-  /** Revision-bound local preparation for an explicit amount update. */
-  transactionPreparation?: Promise<AtomicBatchPreparationResult>;
 };
 
 /** Request to submit quotes for a transaction. */
