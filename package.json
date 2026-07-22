@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1135.0.0",
+  "version": "1142.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -49,10 +49,11 @@
     "setup": "yarn install",
     "skills": "metamask-skills sync",
     "skills:postinstall": "metamask-skills postinstall",
-    "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:packages",
+    "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:scripts:shell && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
+    "test:scripts:shell": "node_modules/bats/bin/bats scripts/*.bats",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
@@ -71,13 +72,14 @@
     "@metamask/skills": "^0.1.0",
     "@metamask/utils": "^11.11.0",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^29.5.14",
+    "@types/jest": "^30.0.0",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
     "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
     "@yarnpkg/types": "^4.0.0",
+    "bats": "^1.13.0",
     "comment-json": "^4.5.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^9.1.0",
@@ -90,14 +92,13 @@
     "eslint-plugin-promise": "^7.1.0",
     "execa": "^5.0.0",
     "isomorphic-fetch": "^3.0.0",
-    "jest": "^29.7.0",
-    "jest-silent-reporter": "^0.5.0",
+    "jest": "^30.4.2",
+    "jest-silent-reporter": "^0.6.0",
     "knip": "^6.23.0",
     "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "oxfmt": "^0.44.0",
     "prettier": "^3.3.3",
-    "prettier-2": "npm:prettier@^2.8.8",
     "rimraf": "^5.0.5",
     "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
@@ -128,7 +129,8 @@
       "babel-runtime>core-js": false,
       "eslint-plugin-import-x>unrs-resolver": false,
       "simple-git-hooks": false,
-      "tsx>esbuild": false
+      "tsx>esbuild": false,
+      "jest>@jest/core>jest-resolve>unrs-resolver": false
     }
   }
 }

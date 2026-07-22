@@ -54,9 +54,6 @@ jest.mock('fs/promises', () => {
 
 jest.mock('fs');
 jest.mock('yaml');
-jest.mock('os', () => ({
-  homedir: jest.fn().mockReturnValue('/home/user'),
-}));
 
 jest.mock('./options', () => ({
   ...jest.requireActual('./options'),

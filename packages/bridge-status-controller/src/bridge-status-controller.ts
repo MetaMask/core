@@ -372,7 +372,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       (txMeta.type && isCrossChainTx(txMeta.type)) ||
       hasNestedSwapTransactions(txMeta)
     ) {
-      this.#quoteStatusManager.reportFinalised(txMeta.id, false);
+      this.#quoteStatusManager.reportFinalised(
+        txMeta.id,
+        false,
+        txMeta.chainId,
+      );
     }
 
     this.#trackUnifiedSwapBridgeEvent(
@@ -429,7 +433,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ) {
         this.#reportSubmittedOnce(historyKey, txMeta.hash, txMeta.id);
       }
-      this.#quoteStatusManager.reportFinalised(txMeta.id, true);
+      this.#quoteStatusManager.reportFinalised(txMeta.id, true, txMeta.chainId);
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
         historyKey,
@@ -521,7 +525,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     for (const quoteId of quoteIds) {
-      this.#quoteStatusManager.reportSubmitted(quoteId, srcTxHash, txMetaId);
+      this.#quoteStatusManager.reportSubmitted(
+        quoteId,
+        srcTxHash,
+        txMetaId,
+        historyItem.quote.srcChainId,
+      );
     }
 
     this.update((state) => {
@@ -911,7 +920,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Report finalization as a failure here, this is the only place that
     // permanently ends polling, so it's the correct and non-duplicative point
     // to emit the final status.
-    this.#quoteStatusManager.reportFinalised(bridgeTxMetaId, false);
+    this.#quoteStatusManager.reportFinalised(
+      bridgeTxMetaId,
+      false,
+      this.state.txHistory[bridgeTxMetaId]?.quote.srcChainId,
+    );
     this.#deleteHistoryItem(bridgeTxMetaId);
   };
 
@@ -1071,6 +1084,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#quoteStatusManager.reportFinalised(
           bridgeTxMetaId,
           status.status === StatusTypes.COMPLETE,
+          historyItem.quote.srcChainId,
         );
 
         if (status.status === StatusTypes.COMPLETE) {
@@ -1299,7 +1313,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             break;
 
           case SubmitStep.PublishCompletedEvent:
-            this.#quoteStatusManager.reportFinalised(payload.historyKey, true);
+            this.#quoteStatusManager.reportFinalised(
+              payload.historyKey,
+              true,
+              this.state.txHistory[payload.historyKey]?.quote.srcChainId,
+            );
             this.#trackUnifiedSwapBridgeEvent(
               UnifiedSwapBridgeEventName.Completed,
               payload.historyKey,
