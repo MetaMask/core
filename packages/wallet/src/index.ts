@@ -1,3 +1,4 @@
+export { Env } from '@metamask/claims-controller';
 export { Wallet } from './Wallet.js';
 export { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
 export { importSecretRecoveryPhrase } from './utilities.js';

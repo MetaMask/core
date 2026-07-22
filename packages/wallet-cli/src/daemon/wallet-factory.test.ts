@@ -1,8 +1,8 @@
-import { Env } from '@metamask/claims-controller';
 import { ClientConfigApiService } from '@metamask/remote-feature-flag-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import {
   AlwaysOnlineAdapter,
+  Env,
   importSecretRecoveryPhrase,
   Wallet,
 } from '@metamask/wallet';

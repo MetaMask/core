@@ -6091,7 +6091,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/claims-controller@npm:^0.5.3, @metamask/claims-controller@workspace:^, @metamask/claims-controller@workspace:packages/claims-controller":
+"@metamask/claims-controller@npm:^0.5.3, @metamask/claims-controller@workspace:packages/claims-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/claims-controller@workspace:packages/claims-controller"
   dependencies:
@@ -9101,7 +9101,6 @@ __metadata:
     "@inquirer/password": "npm:^5.1.1"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/claims-controller": "workspace:^"
     "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/scure-bip39": "npm:^2.1.1"

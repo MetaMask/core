@@ -659,7 +659,6 @@ linkStyle default opacity:0.5
   wallet --> storage_service;
   wallet --> transaction_controller;
   wallet_cli --> base_controller;
-  wallet_cli --> claims_controller;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;
   wallet_cli --> wallet;

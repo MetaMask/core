@@ -1,4 +1,3 @@
-import { Env } from '@metamask/claims-controller';
 import {
   ClientConfigApiService,
   ClientType,
@@ -9,6 +8,7 @@ import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import type { Json } from '@metamask/utils';
 import {
   AlwaysOnlineAdapter,
+  Env,
   importSecretRecoveryPhrase,
   Wallet,
 } from '@metamask/wallet';

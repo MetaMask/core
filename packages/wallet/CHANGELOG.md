@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Passing `instanceOptions.claimsService.env` is now required.
   - Passing `instanceOptions.claimsService.fetchFunction` is now required.
   - `ClaimsService` delegates `AuthenticationController:getBearerToken`; hosts must register `AuthenticationController` on the supplied root messenger before authenticated Claims API calls succeed.
+  - Re-exports `Env` from `@metamask/claims-controller` for consumers setting `claimsService.env`.
 - **BREAKING** Wire `SeedlessOnboardingController` and `PasskeyController` into the default wallet initialization ([#9533](https://github.com/MetaMask/core/pull/9533))
 
 ### Changed
