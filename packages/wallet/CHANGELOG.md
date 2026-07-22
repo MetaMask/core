@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
 ### Uncategorized
 
 - chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
@@ -119,7 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.1...@metamask/wallet@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.0...@metamask/wallet@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@6.0.0...@metamask/wallet@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@5.0.0...@metamask/wallet@6.0.0
