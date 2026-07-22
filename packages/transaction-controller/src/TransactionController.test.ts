@@ -4925,6 +4925,50 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('updateTransactionCallback', () => {
+    it('updates multiple properties using a callback and returns the updated transaction', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      const result = controller.updateTransactionCallback(
+        TRANSACTION_META_MOCK.id,
+        (transactionMeta) => {
+          transactionMeta.requiredAssets = [
+            {
+              address: ACCOUNT_2_MOCK,
+              amount: '0x1',
+              standard: 'erc20',
+            },
+          ];
+          transactionMeta.txParams.value = '0x2';
+        },
+      );
+
+      expect(result).toStrictEqual(controller.state.transactions[0]);
+      expect(result.requiredAssets).toStrictEqual([
+        {
+          address: ACCOUNT_2_MOCK,
+          amount: '0x1',
+          standard: 'erc20',
+        },
+      ]);
+      expect(result.txParams.value).toBe('0x2');
+    });
+
+    it('throws if the transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.updateTransactionCallback('missing-id', () => undefined),
+      ).toThrow('Cannot update transaction as ID not found - missing-id');
+    });
+  });
+
   describe('updateTransactionGasFees', () => {
     it('throws if transaction does not exist', async () => {
       const { controller } = setupController();
@@ -8634,6 +8678,29 @@ describe('TransactionController', () => {
         );
 
         expect(controller.state.transactions[0].txParams.value).toBe('0x1');
+      });
+    });
+
+    describe('TransactionController:updateTransactionCallback', () => {
+      it('calls updateTransactionCallback via messenger', () => {
+        const { controller, messenger } = setupController({
+          options: {
+            state: {
+              transactions: [TRANSACTION_META_MOCK],
+            },
+          },
+        });
+
+        const result = messenger.call(
+          'TransactionController:updateTransactionCallback',
+          TRANSACTION_META_MOCK.id,
+          (transactionMeta) => {
+            transactionMeta.txParams.value = '0x1';
+          },
+        );
+
+        expect(result).toStrictEqual(controller.state.transactions[0]);
+        expect(result.txParams.value).toBe('0x1');
       });
     });
 

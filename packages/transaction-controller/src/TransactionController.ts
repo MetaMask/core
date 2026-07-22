@@ -705,6 +705,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateSecurityAlertResponse',
   'updateSelectedGasFeeToken',
   'updateTransaction',
+  'updateTransactionCallback',
   'updateTransactionGasFees',
   'wipeTransactions',
 ] as const;
@@ -1624,6 +1625,20 @@ export class TransactionController extends BaseController<
     }));
 
     log('Transaction updated', { transactionId, note });
+  }
+
+  /**
+   * Updates an existing transaction using a callback.
+   *
+   * @param transactionId - ID of the transaction to update.
+   * @param callback - Function that updates the transaction metadata.
+   * @returns The updated transaction metadata.
+   */
+  updateTransactionCallback(
+    transactionId: string,
+    callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
+  ): Readonly<TransactionMeta> {
+    return this.#updateTransactionInternal({ transactionId }, callback);
   }
 
   /**
