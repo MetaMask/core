@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `TokenDataSource` balance-only metadata heals no longer apply EVM occurrence / non-EVM Blockaid spam filtering (or delete those holdings from `assetsBalance`); filtering still applies to newly `detectedAssets`. Fixes missing `assetsInfo` for already-tracked balances after [#9547](https://github.com/MetaMask/core/pull/9547) ([#9584](https://github.com/MetaMask/core/pull/9584))
+
+## [11.1.0]
+
 ### Added
 
 - `AccountsApiDataSource` now selects the Accounts API balances endpoint version from the `RemoteFeatureFlagController` (`assetsAccountsApiV6` flag, read per fetch off the shared messenger, default v5) so the v6 endpoint is gated consistently across clients (extension, mobile) without each client wiring a getter. The flag is read as a JSON variation shaped `{ value: boolean }` (same shape as `backendWebSocketConnection`). Adds a required `messenger` option and `RemoteFeatureFlagController:getState` to `AccountsApiDataSourceAllowedActions`. Only `category: 'token'` rows from the v6 response are consumed (DeFi positions are ignored) to preserve parity with v5 ([#9344](https://github.com/MetaMask/core/pull/9344))
@@ -24,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TokensApiClient` (used by `RpcDataSource` / `TokenDetector`) now sets the token-list `occurrenceFloor` query param from the same Token API `GET /v1/suggestedOccurrenceFloors` endpoint (cached 1h), replacing the hardcoded Linea/MegaETH/Tempo special cases. Missing chains or failed fetches fall back to 3 ([#9537](https://github.com/MetaMask/core/pull/9537))
 - Bump `@metamask/network-enablement-controller` from `^5.5.0` to `^5.6.0` ([#9520](https://github.com/MetaMask/core/pull/9520))
 - Bump `@metamask/phishing-controller` from `^17.2.1` to `^17.3.0` ([#9532](https://github.com/MetaMask/core/pull/9532))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))
 
 ### Fixed
 
@@ -751,7 +758,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.1.0...HEAD
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.0.0...@metamask/assets-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.2.1...@metamask/assets-controller@11.0.0
 [10.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.2.0...@metamask/assets-controller@10.2.1
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.1.0...@metamask/assets-controller@10.2.0

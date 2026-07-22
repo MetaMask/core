@@ -5,12 +5,12 @@ export type {
   ConnectivityControllerStateChangeEvent,
   ConnectivityControllerEvents,
   ConnectivityControllerMessenger,
-} from './ConnectivityController';
-export type { ConnectivityControllerSetConnectivityStatusAction } from './ConnectivityController-method-action-types';
-export type { ConnectivityAdapter, ConnectivityStatus } from './types';
-export { CONNECTIVITY_STATUSES } from './types';
+} from './ConnectivityController.js';
+export type { ConnectivityControllerSetConnectivityStatusAction } from './ConnectivityController-method-action-types.js';
+export type { ConnectivityAdapter, ConnectivityStatus } from './types.js';
+export { CONNECTIVITY_STATUSES } from './types.js';
 export {
   ConnectivityController,
   getDefaultConnectivityControllerState,
-} from './ConnectivityController';
-export { connectivityControllerSelectors } from './selectors';
+} from './ConnectivityController.js';
+export { connectivityControllerSelectors } from './selectors.js';

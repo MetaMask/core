@@ -1,5 +1,5 @@
-import { canPerformOrderSyncing } from './sync-utils';
-import type { OrderSyncingOptions } from './types';
+import { canPerformOrderSyncing } from './sync-utils.js';
+import type { OrderSyncingOptions } from './types.js';
 
 describe('order-syncing/sync-utils', () => {
   describe('canPerformOrderSyncing', () => {

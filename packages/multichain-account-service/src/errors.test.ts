@@ -3,9 +3,9 @@ import {
   KeyringControllerErrorMessage,
 } from '@metamask/keyring-controller';
 
-import { reportError } from './errors';
-import { logErrorAs } from './logger';
-import { TimeoutError } from './providers/utils';
+import { reportError } from './errors.js';
+import { logErrorAs } from './logger.js';
+import { TimeoutError } from './providers/utils.js';
 
 jest.mock('./logger', () => ({
   logErrorAs: jest.fn(),

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TransakService } from './TransakService';
+import type { TransakService } from './TransakService.js';
 
 export type TransakServiceSetApiKeyAction = {
   type: `TransakService:setApiKey`;

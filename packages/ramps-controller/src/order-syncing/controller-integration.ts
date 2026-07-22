@@ -1,16 +1,16 @@
-import type { RampsOrder } from '../RampsService';
+import type { RampsOrder } from '../RampsService.js';
 import {
   TraceName,
   USER_STORAGE_RAMPS_ORDERS_FEATURE,
   USER_STORAGE_VERSION,
   USER_STORAGE_VERSION_KEY,
-} from './constants';
-import { canPerformOrderSyncing } from './sync-utils';
+} from './constants.js';
+import { canPerformOrderSyncing } from './sync-utils.js';
 import type {
   OrderSyncingOptions,
   SyncRampsOrder,
   UserStorageRampsOrderEntry,
-} from './types';
+} from './types.js';
 import {
   areOrdersEqual,
   createOrderStorageKey,
@@ -19,7 +19,7 @@ import {
   mapUserStorageEntryToRampsOrder,
   stripDeletedAt,
   stripSyncMetadata,
-} from './utils';
+} from './utils.js';
 
 export type SyncOrdersWithUserStorageConfig = {
   onOrderSyncErroneousSituation?: (

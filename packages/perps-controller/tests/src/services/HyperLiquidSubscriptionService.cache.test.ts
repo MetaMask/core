@@ -431,6 +431,9 @@ describe('HyperLiquidSubscriptionService', () => {
         return Promise.resolve(mockSubscription);
       }),
       assetCtxs: jest.fn(() => Promise.resolve(mockSubscription)),
+      fastAssetCtxs: jest.fn((_callback: any) =>
+        Promise.resolve(mockSubscription),
+      ),
       spotState: jest.fn((_params: any, _callback: any) =>
         Promise.resolve(mockSubscription),
       ),
@@ -1591,6 +1594,35 @@ describe('HyperLiquidSubscriptionService', () => {
 
       // Verify allMids was not called
       expect(mockSubscriptionClient.allMids).not.toHaveBeenCalled();
+    });
+
+    it('restores fastAssetCtxs subscription when price subscribers exist (TAT-3387)', async () => {
+      const callback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(1);
+
+      // Restore subscriptions (simulates reconnection)
+      await service.restoreSubscriptions();
+
+      // Verify fastAssetCtxs subscription was re-established alongside allMids
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(2);
+
+      unsubscribe();
+    });
+
+    it('does not restore fastAssetCtxs subscription when no price subscribers exist', async () => {
+      // No subscriptions created
+
+      await service.restoreSubscriptions();
+
+      expect(mockSubscriptionClient.fastAssetCtxs).not.toHaveBeenCalled();
     });
 
     // TODO: Refactor to test restoreSubscriptions through public disconnect/reconnect API

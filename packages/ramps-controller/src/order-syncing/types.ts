@@ -1,11 +1,11 @@
 import type { TraceCallback } from '@metamask/controller-utils';
 
-import type { RampsControllerMessenger } from '../RampsController';
-import type { RampsOrder } from '../RampsService';
+import type { RampsControllerMessenger } from '../RampsController.js';
+import type { RampsOrder } from '../RampsService.js';
 import type {
   USER_STORAGE_VERSION,
   USER_STORAGE_VERSION_KEY,
-} from './constants';
+} from './constants.js';
 
 /**
  * Compact User Storage entry wrapping a full {@link RampsOrder}.

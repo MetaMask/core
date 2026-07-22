@@ -1,18 +1,18 @@
-import { RampsOrderStatus } from '../RampsService';
-import type { RampsOrder } from '../RampsService';
+import { RampsOrderStatus } from '../RampsService.js';
+import type { RampsOrder } from '../RampsService.js';
 import {
   USER_STORAGE_RAMPS_ORDERS_FEATURE,
   USER_STORAGE_VERSION,
   USER_STORAGE_VERSION_KEY,
-} from './constants';
+} from './constants.js';
 import {
   deleteOrderInRemoteStorage,
   orderSyncingTestExports,
   syncOrdersWithUserStorage,
   updateOrderInRemoteStorage,
-} from './controller-integration';
-import type { OrderSyncingOptions, SyncRampsOrder } from './types';
-import { mapRampsOrderToUserStorageEntry } from './utils';
+} from './controller-integration.js';
+import type { OrderSyncingOptions, SyncRampsOrder } from './types.js';
+import { mapRampsOrderToUserStorageEntry } from './utils.js';
 
 function createMockOrder(overrides: Partial<RampsOrder> = {}): RampsOrder {
   return {

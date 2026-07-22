@@ -1,7 +1,7 @@
-import { RampsOrderStatus } from '../RampsService';
-import type { RampsOrder } from '../RampsService';
-import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants';
-import type { SyncRampsOrder, UserStorageRampsOrderEntry } from './types';
+import { RampsOrderStatus } from '../RampsService.js';
+import type { RampsOrder } from '../RampsService.js';
+import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants.js';
+import type { SyncRampsOrder, UserStorageRampsOrderEntry } from './types.js';
 import {
   areOrdersEqual,
   createOrderStorageKey,
@@ -11,7 +11,7 @@ import {
   stripDeletedAt,
   stripPaymentDetailsForRemoteStorage,
   stripSyncMetadata,
-} from './utils';
+} from './utils.js';
 
 function createMockOrder(overrides: Partial<RampsOrder> = {}): RampsOrder {
   return {

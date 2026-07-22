@@ -1,4 +1,4 @@
-import type { OrderSyncingOptions } from './types';
+import type { OrderSyncingOptions } from './types.js';
 
 /**
  * Check if we can perform ramps order syncing.

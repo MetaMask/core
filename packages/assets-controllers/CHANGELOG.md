@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `DeFiPositionsControllerV2`, which fetches DeFi positions from the Accounts API v6 multiaccount balances endpoint and stores them in a client-ready shape under `allDeFiPositionsV2` ([#9503](https://github.com/MetaMask/core/pull/9503))
+  - Export `DeFiPositionsControllerV2` and supporting types
 - Add `isDeprecated` option to `TokenDetectionController` constructor ([#9362](https://github.com/MetaMask/core/pull/9362))
   - When `isDeprecated()` returns `true`, no network requests are sent and entry points bail early at `start`, `detectTokens`, `_executePoll`, `addDetectedTokensViaWs`, and `addDetectedTokensViaPolling`, so no token detection work runs while the controller is disabled.
   - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
@@ -27,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-enablement-controller` from `^5.5.0` to `^5.6.0` ([#9520](https://github.com/MetaMask/core/pull/9520))
 - Bump `@metamask/phishing-controller` from `^17.2.1` to `^17.3.0` ([#9532](https://github.com/MetaMask/core/pull/9532))
 - Modified native asset addresses for Stable (`988`), Rootstock (`30`) and Gnosis (`100`) in `codefi-v2.ts` ([#9386](https://github.com/MetaMask/core/pull/9386))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))
 
 ### Removed
 

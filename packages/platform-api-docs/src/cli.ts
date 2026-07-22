@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import npmWhich from 'npm-which';
 import yargs from 'yargs';
 
-import { generate, resolveRepoUrl } from './generate';
+import { generate, resolveRepoUrl } from './generate.js';
 
 /**
  * Locate the Docusaurus binary in this package's `node_modules/.bin`. Using

@@ -8,9 +8,9 @@ import type {
 } from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountGroupObject, AccountGroupObjectOf } from './group';
-import type { AccountTreeControllerMessenger } from './types';
-import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
+import type { AccountGroupObject, AccountGroupObjectOf } from './group.js';
+import type { AccountTreeControllerMessenger } from './types.js';
+import type { AccountWalletObject, AccountWalletObjectOf } from './wallet.js';
 
 export type RuleResult<
   WalletType extends AccountWalletType,

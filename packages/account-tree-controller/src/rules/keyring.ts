@@ -5,10 +5,10 @@ import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountGroupObjectOf } from '../group';
-import { BaseRule } from '../rule';
-import type { Rule, RuleResult } from '../rule';
-import type { AccountWalletObjectOf } from '../wallet';
+import type { AccountGroupObjectOf } from '../group.js';
+import { BaseRule } from '../rule.js';
+import type { Rule, RuleResult } from '../rule.js';
+import type { AccountWalletObjectOf } from '../wallet.js';
 
 /**
  * Get wallet name from a keyring type.

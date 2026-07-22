@@ -42,9 +42,9 @@ import type { TruncatedSnap } from '@metamask/snaps-utils';
 import type {
   SnapAccountServiceMessenger,
   SnapAccountServiceOptions,
-} from './SnapAccountService';
-import { SnapAccountService } from './SnapAccountService';
-import type { AccountGroupObject } from './types';
+} from './SnapAccountService.js';
+import { SnapAccountService } from './SnapAccountService.js';
+import type { AccountGroupObject } from './types.js';
 
 jest.mock('@metamask/keyring-internal-snap-client/v2');
 

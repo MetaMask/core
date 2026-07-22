@@ -2,16 +2,17 @@
 
 import yargs from 'yargs';
 
-import { checkActionTypesFiles } from './check';
-import { generateAllActionTypesFiles } from './fix';
-import { findSourcesWithExposedMethods } from './parse-source';
-import { Formatter } from './types';
+import { checkActionTypesFiles } from './check.js';
+import { generateAllActionTypesFiles } from './fix.js';
+import { findSourcesWithExposedMethods } from './parse-source.js';
+import { Formatter } from './types.js';
 
 type CommandLineArguments = {
   check: boolean;
   generate: boolean;
   formatter: Formatter;
   sourcePath: string;
+  esm: boolean;
 };
 
 /**
@@ -27,6 +28,7 @@ async function parseCommandLineArguments(
     check,
     generate,
     formatter,
+    esm,
     path: sourcePath,
   } = await yargs(args)
     .command(
@@ -57,6 +59,11 @@ async function parseCommandLineArguments(
       choices: ['oxfmt', 'prettier'],
       default: 'prettier',
     })
+    .option('esm', {
+      type: 'boolean',
+      description: 'Add .js extensions to import paths for ESM compatibility',
+      default: false,
+    })
     .help()
     .check((argv) => {
       if (!argv.check && !argv.generate) {
@@ -70,6 +77,7 @@ async function parseCommandLineArguments(
     generate,
     formatter: formatter as Formatter,
     sourcePath: sourcePath as string,
+    esm,
   };
 }
 
@@ -77,9 +85,8 @@ async function parseCommandLineArguments(
  * Main entry point for the CLI.
  */
 async function main(): Promise<void> {
-  const { generate, sourcePath, formatter } = await parseCommandLineArguments(
-    globalThis.process.argv.slice(2),
-  );
+  const { generate, sourcePath, formatter, esm } =
+    await parseCommandLineArguments(globalThis.process.argv.slice(2));
 
   console.log(
     '🔍 Searching for controllers/services with MESSENGER_EXPOSED_METHODS...',
@@ -99,10 +106,10 @@ async function main(): Promise<void> {
   );
 
   if (generate) {
-    await generateAllActionTypesFiles(sources, formatter);
+    await generateAllActionTypesFiles(sources, formatter, esm);
     console.log('\n🎉 All action types generated successfully!');
   } else {
-    const success = await checkActionTypesFiles(sources, formatter);
+    const success = await checkActionTypesFiles(sources, formatter, esm);
     if (!success) {
       // eslint-disable-next-line no-restricted-globals
       process.exitCode = 1;

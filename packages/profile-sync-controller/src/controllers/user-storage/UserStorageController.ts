@@ -30,21 +30,21 @@ import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
   UserStorageGenericPathWithFeatureOnly,
-} from '../../sdk';
-import { Env, UserStorage } from '../../sdk';
-import type { NativeScrypt } from '../../shared/types/encryption';
-import { EventQueue } from '../../shared/utils/event-queue';
-import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
+} from '../../sdk/index.js';
+import { Env, UserStorage } from '../../sdk/index.js';
+import type { NativeScrypt } from '../../shared/types/encryption.js';
+import { EventQueue } from '../../shared/utils/event-queue.js';
+import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests.js';
 import type {
   AuthenticationControllerGetBearerTokenAction,
   AuthenticationControllerGetSessionProfileAction,
   AuthenticationControllerIsSignedInAction,
   AuthenticationControllerPerformSignInAction,
-} from '../authentication/AuthenticationController-method-action-types';
-import { BACKUPANDSYNC_FEATURES } from './constants';
-import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
-import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
-import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types';
+} from '../authentication/AuthenticationController-method-action-types.js';
+import { BACKUPANDSYNC_FEATURES } from './constants.js';
+import { syncContactsWithUserStorage } from './contact-syncing/controller-integration.js';
+import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions.js';
+import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types.js';
 
 const controllerName = 'UserStorageController';
 

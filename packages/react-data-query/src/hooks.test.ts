@@ -3,7 +3,7 @@ import {
   useInfiniteQuery as useInfiniteQueryTanStack,
 } from '@tanstack/react-query';
 
-import { useInfiniteQuery, useQuery } from './hooks';
+import { useInfiniteQuery, useQuery } from './hooks.js';
 
 jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn(),

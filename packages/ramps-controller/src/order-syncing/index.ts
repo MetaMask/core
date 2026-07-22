@@ -3,13 +3,13 @@ export {
   USER_STORAGE_VERSION,
   USER_STORAGE_VERSION_KEY,
   TraceName,
-} from './constants';
+} from './constants.js';
 export type {
   UserStorageRampsOrderEntry,
   SyncRampsOrder,
   OrderSyncingController,
   OrderSyncingOptions,
-} from './types';
+} from './types.js';
 export {
   createOrderStorageKey,
   isSyncableOrder,
@@ -19,11 +19,11 @@ export {
   stripSyncMetadata,
   stripDeletedAt,
   areOrdersEqual,
-} from './utils';
-export { canPerformOrderSyncing } from './sync-utils';
-export type { SyncOrdersWithUserStorageConfig } from './controller-integration';
+} from './utils.js';
+export { canPerformOrderSyncing } from './sync-utils.js';
+export type { SyncOrdersWithUserStorageConfig } from './controller-integration.js';
 export {
   syncOrdersWithUserStorage,
   updateOrderInRemoteStorage,
   deleteOrderInRemoteStorage,
-} from './controller-integration';
+} from './controller-integration.js';

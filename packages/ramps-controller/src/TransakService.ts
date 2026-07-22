@@ -5,8 +5,8 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
-import { TRANSAK_ERROR_CODES } from './transakErrorCodes';
-import type { TransakServiceMethodActions } from './TransakService-method-action-types';
+import { TRANSAK_ERROR_CODES } from './transakErrorCodes.js';
+import type { TransakServiceMethodActions } from './TransakService-method-action-types.js';
 
 // === TYPES ===
 

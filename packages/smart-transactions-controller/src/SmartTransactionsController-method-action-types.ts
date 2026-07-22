@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SmartTransactionsController } from './SmartTransactionsController';
+import type { SmartTransactionsController } from './SmartTransactionsController.js';
 
 export type SmartTransactionsControllerCheckPollAction = {
   type: `SmartTransactionsController:checkPoll`;

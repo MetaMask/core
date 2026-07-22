@@ -10,20 +10,29 @@ import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags';
+import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
   RampsControllerMessenger,
   RampsControllerState,
   ResourceState,
   UserRegion,
-} from './RampsController';
+} from './RampsController.js';
 import {
   RampsController,
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
-} from './RampsController';
-import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
+} from './RampsController.js';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
+import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetTokensAction,
+  RampsServiceGetProvidersAction,
+  RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
+} from './RampsService-method-action-types.js';
 import type {
   Country,
   TokensResponse,
@@ -35,18 +44,9 @@ import type {
   Quote,
   RampsToken,
   RampsOrder,
-} from './RampsService';
-import { RampsOrderStatus } from './RampsService';
-import type {
-  RampsServiceGetGeolocationAction,
-  RampsServiceGetCountriesAction,
-  RampsServiceGetTokensAction,
-  RampsServiceGetProvidersAction,
-  RampsServiceGetPaymentMethodsAction,
-  RampsServiceGetQuotesAction,
-  RampsServiceGetBuyWidgetUrlAction,
-} from './RampsService-method-action-types';
-import { RequestStatus } from './RequestCache';
+} from './RampsService.js';
+import { RampsOrderStatus } from './RampsService.js';
+import { RequestStatus } from './RequestCache.js';
 import type {
   TransakAccessToken,
   TransakUserDetails,
@@ -62,7 +62,7 @@ import type {
   TransakOrder,
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
-} from './TransakService';
+} from './TransakService.js';
 
 describe('RampsController', () => {
   const circuitBreakerOpenErrorMessage =

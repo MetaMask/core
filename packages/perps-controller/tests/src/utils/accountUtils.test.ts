@@ -239,7 +239,7 @@ describe('spot balance helpers', () => {
     expect(result).toBe(accountState);
   });
 
-  it('excludes USDH-only spot balance from funded-state totals', () => {
+  it('excludes non-USDC-only spot balance from funded-state totals', () => {
     const accountState: AccountState = {
       spendableBalance: '0',
       withdrawableBalance: '0',
@@ -251,7 +251,7 @@ describe('spot balance helpers', () => {
 
     const result = addSpotBalanceToAccountState(accountState, {
       balances: [
-        { coin: 'USDH', total: '75.25' },
+        { coin: 'DAI', total: '75.25' },
         { coin: 'HYPE', total: '999' },
       ],
     } as never);
@@ -259,7 +259,7 @@ describe('spot balance helpers', () => {
     expect(result).toBe(accountState);
   });
 
-  it('adds only the USDC portion when USDC and USDH are both present', () => {
+  it('adds only the USDC portion when USDC and a non-USDC token are both present', () => {
     const accountState: AccountState = {
       spendableBalance: '0',
       withdrawableBalance: '0',
@@ -274,7 +274,7 @@ describe('spot balance helpers', () => {
       {
         balances: [
           { coin: 'USDC', total: '20' },
-          { coin: 'USDH', total: '30' },
+          { coin: 'DAI', total: '30' },
           { coin: 'HYPE', total: '9999' },
         ],
       } as never,
