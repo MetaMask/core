@@ -1,6 +1,6 @@
-import type { LoginResponse } from '../../sdk';
-import type { AuthenticationControllerState } from './AuthenticationController';
-import { authenticationControllerSelectors } from './selectors';
+import type { LoginResponse } from '../../sdk/index.js';
+import type { AuthenticationControllerState } from './AuthenticationController.js';
+import { authenticationControllerSelectors } from './selectors.js';
 
 const createLoginResponse = (
   overrides: Partial<LoginResponse['profile']> = {},

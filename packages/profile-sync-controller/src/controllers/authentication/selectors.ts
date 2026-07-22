@@ -1,5 +1,5 @@
-import type { LoginResponse } from '../../sdk';
-import type { AuthenticationControllerState } from './AuthenticationController';
+import type { LoginResponse } from '../../sdk/index.js';
+import type { AuthenticationControllerState } from './AuthenticationController.js';
 
 /**
  * Selects the raw SRP session map from AuthenticationController state.
@@ -55,7 +55,10 @@ const selectCanonicalProfileId = (
   const canonicalProfileId =
     selectSessionData(state)?.profile?.canonicalProfileId;
   // `''` is used by `#invalidateSrpSession` to mark the session as invalid.
-  return canonicalProfileId ? canonicalProfileId : undefined;
+  if (!canonicalProfileId) {
+    return undefined;
+  }
+  return canonicalProfileId;
 };
 
 /**
