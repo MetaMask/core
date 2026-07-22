@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.1.0` to `^69.2.0` ([#9589](https://github.com/MetaMask/core/pull/9589))
+
 ### Fixed
 
 - `TokenDataSource` balance-only metadata heals no longer apply EVM occurrence / non-EVM Blockaid spam filtering (or delete those holdings from `assetsBalance`); filtering still applies to newly `detectedAssets`. Fixes missing `assetsInfo` for already-tracked balances after [#9547](https://github.com/MetaMask/core/pull/9547) ([#9584](https://github.com/MetaMask/core/pull/9584))
