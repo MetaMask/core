@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [77.8.0]
+
 ### Added
 
 - Add `BRIDGE_UAT_API_BASE_URL` constant so consumers can point the bridge and bridge-status controllers at the UAT environment via `customBridgeApiBaseUrl` ([#9613](https://github.com/MetaMask/core/pull/9613))
@@ -1787,7 +1789,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.8.0...HEAD
+[77.8.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.7.0...@metamask/bridge-controller@77.8.0
 [77.7.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.6.0...@metamask/bridge-controller@77.7.0
 [77.6.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.5.0...@metamask/bridge-controller@77.6.0
 [77.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.4.1...@metamask/bridge-controller@77.5.0
