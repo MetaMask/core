@@ -169,10 +169,7 @@ describe('HyperLiquid Activation', () => {
       // first-send activation, not to this account.
       expect(
         isHyperLiquidAccountActivated(
-          [
-            { time: 100, delta: { type: 'deposit' } },
-            inboundSend('1.0', 200),
-          ],
+          [{ time: 100, delta: { type: 'deposit' } }, inboundSend('1.0', 200)],
           ADDRESS_MOCK,
         ),
       ).toBe(false);
