@@ -171,7 +171,8 @@ const PUBLISH_BATCH_HOOK_PARAMS = {
 };
 
 function mockMessengerNetworkCalls(): void {
-  const messengerCallMock = jest.mocked(MESSENGER_MOCK.call);
+  // eslint-disable-next-line jest/unbound-method
+  const messengerCallMock = MESSENGER_MOCK.call as unknown as jest.Mock;
 
   messengerCallMock.mockImplementation((...args: unknown[]) => {
     const [action] = args as [string];
@@ -455,7 +456,6 @@ describe('Batch Utils', () => {
         getGasFeeEstimates: getGasFeeEstimatesMock,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         getPendingTransactionTracker: getPendingTransactionTrackerMock,
-        getSimulationConfig: jest.fn(),
         getTransaction: getTransactionMock,
         isSimulationEnabled: jest.fn().mockReturnValue(true),
         messenger: MESSENGER_MOCK,
@@ -2359,7 +2359,7 @@ describe('Batch Utils', () => {
         expect(simulateGasBatchMock).toHaveBeenCalledWith({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
-          getSimulationConfig: request.getSimulationConfig,
+          messenger: MESSENGER_MOCK,
           transactions: TRANSACTIONS_BATCH_MOCK,
         });
         expect(getGasFeesMock).toHaveBeenCalledTimes(1);

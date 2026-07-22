@@ -21,7 +21,6 @@ import { parse, v4 } from 'uuid';
 import { GasFeeEstimateLevel, TransactionStatus } from '..';
 import type {
   BatchTransactionParams,
-  GetSimulationConfig,
   PublishBatchHookRequest,
   TransactionController,
   TransactionControllerMessenger,
@@ -47,6 +46,7 @@ import type {
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedResultEntry,
   TransactionBatchMeta,
+  GetSimulationConfig,
 } from '../types';
 import type { TransactionBatchResult, TransactionParams } from '../types';
 import {
@@ -82,7 +82,7 @@ type AddTransactionBatchRequest = {
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
-  getSimulationConfig: GetSimulationConfig;
+  getSimulationConfig?: GetSimulationConfig;
   getTransaction: (id: string) => TransactionMeta;
   isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
@@ -971,6 +971,7 @@ async function prepareApprovalData({
     chainId,
     from,
     getSimulationConfig,
+    messenger,
     transactions: nestedTransactions,
   });
 

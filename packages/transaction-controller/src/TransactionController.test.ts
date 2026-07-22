@@ -83,7 +83,6 @@ import type {
   GasFeeToken,
   GasFeeEstimates,
   SimulationData,
-  GetSimulationConfig,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -625,6 +624,7 @@ describe('TransactionController', () => {
         'NetworkController:getNetworkClientRegistry',
         'NetworkController:getState',
         'RemoteFeatureFlagController:getState',
+      'SentinelApiService:simulateTransactions',
       ],
     });
 
@@ -1421,6 +1421,33 @@ describe('TransactionController', () => {
 
       expect(gas).toBe(expectedEstimatedGas);
       expect(simulationFails).toBe(simulationFailsMock);
+    });
+
+    it('threads the getSimulationConfig constructor option to estimateGas', async () => {
+      const getSimulationConfig = jest.fn().mockResolvedValue({});
+
+      const { controller } = setupController({
+        options: { getSimulationConfig },
+      });
+
+      estimateGasMock.mockResolvedValue({
+        estimatedGas: '0x123',
+        blockGasLimit: '0x1234',
+        simulationFails: undefined,
+        isUpgradeWithData: false,
+      });
+
+      addGasBufferMock.mockReturnValue('0x12345');
+
+      await controller.estimateGasBuffered(
+        { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK },
+        1,
+        NETWORK_CLIENT_ID_MOCK,
+      );
+
+      expect(estimateGasMock).toHaveBeenCalledWith(
+        expect.objectContaining({ getSimulationConfig }),
+      );
     });
   });
 
@@ -2252,11 +2279,8 @@ describe('TransactionController', () => {
 
     describe('updates simulation data', () => {
       it('by default', async () => {
-        getBalanceChangesMock.mockImplementationOnce(async (request) => {
-          await request.getSimulationConfig('https://testurl.com');
-          return {
-            simulationData: SIMULATION_DATA_RESULT_MOCK,
-          };
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
         });
 
         const { controller } = setupController();
@@ -2319,23 +2343,12 @@ describe('TransactionController', () => {
         expect(controller.state.transactions[0].gasUsed).toBe(testGasUsed);
       });
 
-      it('with getSimulationConfig', async () => {
-        getBalanceChangesMock.mockImplementationOnce(async (request) => {
-          await request.getSimulationConfig('https://testurl.com');
-          return {
-            simulationData: SIMULATION_DATA_RESULT_MOCK,
-          };
+      it('forwards the Sentinel API service', async () => {
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
         });
 
-        const getSimulationConfigMock: GetSimulationConfig = jest
-          .fn()
-          .mockResolvedValue({});
-
-        const { controller } = setupController({
-          options: {
-            getSimulationConfig: getSimulationConfigMock,
-          },
-        });
+        const { controller } = setupController();
 
         await controller.addTransaction(
           {
@@ -2352,21 +2365,7 @@ describe('TransactionController', () => {
         expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
         expect(getBalanceChangesMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            getSimulationConfig: expect.any(Function),
           }),
-        );
-
-        expect(getSimulationConfigMock).toHaveBeenCalledTimes(1);
-        expect(getSimulationConfigMock).toHaveBeenCalledWith(
-          'https://testurl.com',
-          {
-            txMeta: expect.objectContaining({
-              txParams: expect.objectContaining({
-                from: ACCOUNT_MOCK,
-                to: ACCOUNT_MOCK,
-              }),
-            }),
-          },
         );
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
@@ -2449,21 +2448,13 @@ describe('TransactionController', () => {
         ]);
       });
 
-      it('with getSimulationConfig', async () => {
+      it('forwards the Sentinel API service', async () => {
         getGasFeeTokensMock.mockResolvedValueOnce({
           gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
           isGasFeeSponsored: false,
         });
 
-        const getSimulationConfigMock: GetSimulationConfig = jest
-          .fn()
-          .mockResolvedValue({});
-
-        const { controller } = setupController({
-          options: {
-            getSimulationConfig: getSimulationConfigMock,
-          },
-        });
+        const { controller } = setupController();
 
         await controller.addTransaction(
           {
@@ -2480,7 +2471,6 @@ describe('TransactionController', () => {
         expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
         expect(getGasFeeTokensMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            getSimulationConfig: getSimulationConfigMock,
           }),
         );
 

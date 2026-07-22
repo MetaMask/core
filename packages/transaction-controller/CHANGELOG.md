@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Export `generateEIP7702BatchTransaction` utility for building an ERC-7821 `execute(mode, calls)` batch transaction from a list of nested transactions ([#9298](https://github.com/MetaMask/core/pull/9298))
 
+### Changed
+
+- **BREAKING:** Delegate all Sentinel simulation requests to the shared `@metamask/sentinel-api-service` data service via the new `SentinelApiService:simulateTransactions` messenger action ([#9476](https://github.com/MetaMask/core/pull/9476))
+  - Consumers must construct a `SentinelApiService` and expose the `SentinelApiService:simulateTransactions` action on the `TransactionController` messenger. The optional `getSimulationConfig` constructor option now returns `{ newUrl?: string }` only (the old `authorization` field is dropped, as authentication headers are handled by the service).
+
 ## [68.3.0]
 
 ### Added

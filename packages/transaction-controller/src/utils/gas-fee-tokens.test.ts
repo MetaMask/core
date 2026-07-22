@@ -3,7 +3,6 @@ import { cloneDeep } from 'lodash';
 
 import type {
   GasFeeToken,
-  GetSimulationConfig,
   TransactionControllerMessenger,
   TransactionMeta,
 } from '..';
@@ -38,11 +37,12 @@ const TRANSACTION_META_MOCK = {
   },
 } as TransactionMeta;
 
+const MESSENGER_MOCK = {} as TransactionControllerMessenger;
+
 const REQUEST_MOCK: GetGasFeeTokensRequest = {
   chainId: CHAIN_ID_MOCK,
   isEIP7702GasFeeTokensEnabled: jest.fn().mockResolvedValue(true),
-  getSimulationConfig: jest.fn(),
-  messenger: {} as TransactionControllerMessenger,
+  messenger: MESSENGER_MOCK,
   publicKeyEIP7702: '0x123',
   transactionMeta: TRANSACTION_META_MOCK,
 };
@@ -264,6 +264,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           suggestFees: expect.objectContaining({
@@ -291,6 +292,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           suggestFees: expect.objectContaining({
@@ -318,6 +320,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           transactions: [
@@ -358,6 +361,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(request);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           transactions: [
@@ -374,22 +378,14 @@ describe('Gas Fee Tokens Utils', () => {
       );
     });
 
-    it('forwards simulation config', async () => {
-      const getSimulationConfigMock: GetSimulationConfig = jest.fn();
-
-      const request = {
-        ...REQUEST_MOCK,
-        getSimulationConfig: getSimulationConfigMock,
-      };
-
-      await getGasFeeTokens(request);
+    it('forwards the messenger to simulateTransactions', async () => {
+      await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         expect.any(String),
-        expect.objectContaining({
-          getSimulationConfig: getSimulationConfigMock,
-        }),
+        expect.any(Object),
       );
     });
   });

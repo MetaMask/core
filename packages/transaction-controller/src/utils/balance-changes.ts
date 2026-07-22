@@ -3,19 +3,19 @@ import { Interface } from '@ethersproject/abi';
 import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
+import type {
+  SentinelSimulationCallTrace,
+  SentinelSimulationLog,
+  SentinelSimulationResponse,
+  SentinelSimulationResponseTransaction,
+  SentinelSimulationTransaction,
+} from '@metamask/sentinel-api-service';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { simulateTransactions } from '../api/simulation-api';
-import type {
-  SimulationResponseLog,
-  SimulationRequestTransaction,
-  SimulationResponse,
-  SimulationResponseCallTrace,
-  SimulationResponseTransaction,
-  SimulationRequest,
-} from '../api/simulation-api';
+import type { SimulationRequest } from '../api/simulation-api';
 import {
   ABI_SIMULATION_ERC20_WRAPPED,
   ABI_SIMULATION_ERC721_LEGACY,
@@ -56,9 +56,9 @@ type ABI = Fragment[];
 export type GetBalanceChangesRequest = {
   blockTime?: number;
   chainId: Hex;
+  getSimulationConfig?: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   networkClientId: NetworkClientId;
-  getSimulationConfig: GetSimulationConfig;
   nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
 };
@@ -106,7 +106,7 @@ const SUPPORTED_TOKEN_ABIS = {
 
 const REVERTED_ERRORS = ['execution reverted', 'insufficient funds for gas'];
 
-type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
+type BalanceTransactionMap = Map<SimulationToken, SentinelSimulationTransaction>;
 
 /**
  * Generate simulation data for a transaction.
@@ -117,7 +117,7 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  * @param request.to - The recipient of the transaction.
  * @param request.value - The value of the transaction.
  * @param request.data - The data of the transaction.
- * @param request.getSimulationConfig - Optional transaction simulation parameters.
+ * @param request.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @returns The simulation data.
  */
 export async function getBalanceChanges(
@@ -204,7 +204,7 @@ export async function getBalanceChanges(
  */
 function getNativeBalanceChange(
   request: GetBalanceChangesRequest,
-  response: SimulationResponse,
+  response: SentinelSimulationResponse,
 ): SimulationBalanceChange | undefined {
   const transactionResponse = response.transactions[0];
 
@@ -236,10 +236,10 @@ function getNativeBalanceChange(
  * @param response - The simulation response.
  * @returns The parsed events.
  */
-function getEvents(response: SimulationResponse): ParsedEvent[] {
+function getEvents(response: SentinelSimulationResponse): ParsedEvent[] {
   /* istanbul ignore next */
   const logs = extractLogs(
-    response.transactions[0]?.callTrace ?? ({} as SimulationResponseCallTrace),
+    response.transactions[0]?.callTrace ?? ({} as SentinelSimulationCallTrace),
   );
 
   log('Extracted logs', logs);
@@ -453,7 +453,7 @@ function getTokenBalanceTransactions(
         tokenId,
       );
 
-      const transaction: SimulationRequestTransaction = {
+      const transaction: SentinelSimulationTransaction = {
         from,
         to: event.contractAddress,
         data,
@@ -546,7 +546,7 @@ function getContractInterface(
 function getAmountFromBalanceTransactionResult(
   from: Hex,
   token: SimulationToken,
-  response: SimulationResponseTransaction,
+  response: SentinelSimulationResponseTransaction,
 ): Hex {
   const contract = getContractInterface(token.standard);
 
@@ -603,7 +603,7 @@ function getBalanceTransactionData(
  * @returns The parsed event log or undefined if it could not be parsed.
  */
 function parseLog(
-  eventLog: SimulationResponseLog,
+  eventLog: SentinelSimulationLog,
   interfaces: Map<SupportedToken, Interface>,
 ):
   | (LogDescription & { abi: ABI; standard: SimulationTokenStandard })
@@ -635,8 +635,8 @@ function parseLog(
  * @returns An array of logs.
  */
 function extractLogs(
-  call: SimulationResponseCallTrace,
-): SimulationResponseLog[] {
+  call: SentinelSimulationCallTrace,
+): SentinelSimulationLog[] {
   /* istanbul ignore next */
   const logs = call.logs ?? [];
 
@@ -655,7 +655,7 @@ function extractLogs(
  * @param call - The root call trace.
  * @returns An array of error messages.
  */
-function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
+function extractCallTraceErrors(call?: SentinelSimulationCallTrace): string[] {
   if (!call) {
     return [];
   }
@@ -680,7 +680,7 @@ function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
  * otherwise `undefined`.
  */
 function extractRootRevert(
-  call?: SimulationResponseCallTrace,
+  call?: SentinelSimulationCallTrace,
 ): Revert | undefined {
   if (!call?.error) {
     return undefined;
@@ -755,15 +755,15 @@ async function baseRequest({
 }: {
   request: GetBalanceChangesRequest;
   params?: Partial<SimulationRequest>;
-  before?: SimulationRequestTransaction[];
-  after?: SimulationRequestTransaction[];
-}): Promise<SimulationResponse> {
+  before?: SentinelSimulationTransaction[];
+  after?: SentinelSimulationTransaction[];
+}): Promise<SentinelSimulationResponse> {
   const {
     blockTime,
     chainId,
+    getSimulationConfig,
     messenger,
     networkClientId,
-    getSimulationConfig,
     txParams,
   } = request;
   const { authorizationList } = txParams;
@@ -774,7 +774,7 @@ async function baseRequest({
     from,
   }));
 
-  const userTransaction: SimulationRequestTransaction = {
+  const userTransaction: SentinelSimulationTransaction = {
     authorizationList: authorizationListFinal,
     data: txParams.data as Hex,
     from: txParams.from as Hex,
@@ -804,7 +804,7 @@ async function baseRequest({
 
   const isInsufficientBalance = currentBalanceBN.lt(requiredBalanceBN);
 
-  return await simulateTransactions(chainId, {
+  return await simulateTransactions(messenger, chainId, {
     ...params,
     getSimulationConfig,
     transactions,
