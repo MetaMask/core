@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BOTTOM_NAV_BAR` to `PERPS_EVENT_VALUE.SOURCE` for bottom navigation bar analytics attribution ([#9551](https://github.com/MetaMask/core/pull/9551))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.1.0` to `^69.2.1` ([#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593))
+- Gate HIP-3 markets to USDC collateral only, following HyperLiquid's USDH sunset (TAT-3304) ([#9530](https://github.com/MetaMask/core/pull/9530))
+  - Market discovery (`getMarkets`) now filters a HIP-3 DEX out entirely when its collateral token positively resolves to something other than USDC, so such a market can never be surfaced to trade, even via an allowlist entry naming the DEX.
+  - `getMarketDataWithPrices` applies the same check before merging each HIP-3 DEX's results (both the initial fetch and the empty-universe retry), and before caching the snapshot used for stale fallbacks, so a non-USDC-collateral HIP-3 DEX can no longer appear in overview data (fresh or stale) while order placement rejects it.
+  - Placing an order on a non-USDC-collateral HIP-3 DEX now fails immediately with a new `UNSUPPORTED_COLLATERAL` error code instead of attempting the previous USDC→USDH auto-swap path.
+  - The collateral check fails closed: it only treats a DEX as USDC-collateral when the collateral token positively resolves to USDC against spot metadata, so missing or stale metadata never lets a non-USDC-collateral DEX through.
+  - Removed the now-unreachable USDH auto-swap machinery this replaces (spot USDH/USDC balance lookups, the USDC→USDH spot swap, and the auto-swap orchestration).
+- Subscribe to HyperLiquid's `fastAssetCtxs` WebSocket feed for mark/mid price updates, replacing `assetCtxs` as the latency-sensitive price source now that HyperLiquid has slowed the public `assetCtxs` feed cadence ([#9530](https://github.com/MetaMask/core/pull/9530))
+  - `assetCtxs` continues to populate funding, open interest, volume, and oracle price data, and no longer writes prices for any symbol `fastAssetCtxs` covers, so a slower `assetCtxs` batch tick can't overwrite a fresher `fastAssetCtxs` price; it remains the price source only for symbols outside `fastAssetCtxs`' coverage (e.g. HIP-3 DEX markets).
+  - `fastAssetCtxs` is a single global subscription (the HyperLiquid SDK exposes no per-DEX variant): the first message is a full snapshot keyed by coin, and later messages contain diffs for only the coins that changed. A coin is only marked as covered by `fastAssetCtxs` (deferring `assetCtxs`) once a usable price has actually been received for it; every coin with a usable price is cached regardless of whether it currently has a subscriber, so a later subscriber gets an immediate baseline, while notifications remain scoped to coins with an active subscriber.
+  - Established alongside the global `allMids` subscription, restored together on WebSocket reconnect, and torn down on `clearAll()`. Subscribe attempts use the same 3-attempt/500ms-backoff retry as `assetCtxs` for transient SDK errors.
+
+### Removed
+
+- **BREAKING:** Remove the `USDH_CONFIG` export, following HyperLiquid's USDH sunset (TAT-3304) ([#9530](https://github.com/MetaMask/core/pull/9530))
+  - This constant configured the now-removed USDC→USDH auto-swap path; consumers importing it should remove the reference, as USDH-collateral HIP-3 DEXs are no longer supported (see the collateral gating change above).
+
+### Fixed
+
+- Scope `#notifyAllPriceSubscribers` to the symbols that actually changed, instead of always fanning out to every price subscriber ([#9530](https://github.com/MetaMask/core/pull/9530))
+  - The `allMids` handler now tracks a per-symbol `changedSymbols` set (replacing the previous all-or-nothing `hasUpdates` boolean) and only notifies subscribers of symbols whose price changed.
+  - The `activeAssetCtx` handler now notifies only the subscribers of the symbol it just updated, instead of re-notifying every subscribed symbol on each tick.
+  - This eliminates redundant reference-equal `PriceUpdate` deliveries to list-view subscribers (e.g. market overview, watchlist) whenever an unrelated symbol's fast-stream price ticks.
+
 ## [9.3.0]
 
 ### Added

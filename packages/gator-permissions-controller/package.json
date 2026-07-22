@@ -65,7 +65,7 @@
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/transaction-controller": "^69.1.0",
+    "@metamask/transaction-controller": "^69.2.1",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
@@ -73,10 +73,10 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^29.5.14",
+    "@types/jest": "^30.0.0",
     "deepmerge": "^4.2.2",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.2.5",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
