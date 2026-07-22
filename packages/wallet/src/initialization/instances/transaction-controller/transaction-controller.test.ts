@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/messenger';
+import { Env } from '@metamask/claims-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { TransactionController } from '@metamask/transaction-controller';
 
@@ -122,6 +123,10 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    claimsService: {
+      env: Env.DEV,
+      fetchFunction: globalThis.fetch,
+    },
   };
 }
 

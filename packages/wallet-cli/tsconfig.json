@@ -8,6 +8,9 @@
       "path": "../base-controller"
     },
     {
+      "path": "../claims-controller"
+    },
+    {
       "path": "../remote-feature-flag-controller"
     },
     {

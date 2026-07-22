@@ -60,6 +60,7 @@
     "@metamask/approval-controller": "^9.0.2",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/browser-passworder": "^6.0.0",
+    "@metamask/claims-controller": "^0.5.3",
     "@metamask/connectivity-controller": "^0.3.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-controller": "^27.1.0",

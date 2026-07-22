@@ -647,6 +647,7 @@ linkStyle default opacity:0.5
   wallet --> address_book_controller;
   wallet --> approval_controller;
   wallet --> base_controller;
+  wallet --> claims_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
   wallet --> keyring_controller;
@@ -658,6 +659,7 @@ linkStyle default opacity:0.5
   wallet --> storage_service;
   wallet --> transaction_controller;
   wallet_cli --> base_controller;
+  wallet_cli --> claims_controller;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;
   wallet_cli --> wallet;

@@ -1,3 +1,4 @@
+import { Env } from '@metamask/claims-controller';
 import { ClientConfigApiService } from '@metamask/remote-feature-flag-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import {
@@ -120,6 +121,10 @@ describe('createWallet', () => {
     );
     expect(instanceOptions.transactionController?.disableSwaps).toBe(true);
     expect(instanceOptions.transactionController?.hooks).toStrictEqual({});
+    expect(instanceOptions.claimsService).toStrictEqual({
+      env: Env.PRD,
+      fetchFunction: globalThis.fetch,
+    });
     expect(ClientConfigApiService).toHaveBeenCalled();
 
     await dispose();
