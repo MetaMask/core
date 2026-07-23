@@ -14,6 +14,9 @@
       "path": "../approval-controller"
     },
     {
+      "path": "../claims-controller"
+    },
+    {
       "path": "../base-controller"
     },
     {

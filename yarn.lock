@@ -6183,7 +6183,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/claims-controller@workspace:packages/claims-controller":
+"@metamask/claims-controller@npm:^0.5.3, @metamask/claims-controller@workspace:packages/claims-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/claims-controller@workspace:packages/claims-controller"
   dependencies:
@@ -9260,6 +9260,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
+    "@metamask/claims-controller": "npm:^0.5.3"
     "@metamask/connectivity-controller": "npm:^0.3.0"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/gas-fee-controller": "npm:^26.2.4"

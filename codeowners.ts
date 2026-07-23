@@ -98,6 +98,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'claims-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'claims-controller',
   },
   'client-controller': {
     teams: [

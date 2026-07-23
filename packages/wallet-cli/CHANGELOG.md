@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Wire the `claimsService` slot in the daemon wallet's instance options (`ClaimsEnv.PRD` and `globalThis.fetch`), so the daemon initializes `ClaimsService` with the wallet's required configuration ([#9588](https://github.com/MetaMask/core/pull/9588))
 - Wire the `transactionController` slot in the daemon wallet's instance options, so the daemon runs the `TransactionController` with an explicit CLI-appropriate configuration (swaps processing disabled, no client hooks) rather than relying on the controller's implicit defaults ([#9509](https://github.com/MetaMask/core/pull/9509))
 - Wire the `gasFeeController` slot in the daemon wallet's instance options, passing `clientId: 'cli'` so the CLI identifies itself to the gas estimation API, now that `@metamask/wallet` requires this option ([#9527](https://github.com/MetaMask/core/pull/9527))
 - Add the `mm wallet unlock` command, which dispatches `KeyringController:submitPassword` over the daemon socket, allowing the keyring to be unlocked after a daemon start with no password or after a `mm daemon call KeyringController:setLocked` ([#8821](https://github.com/MetaMask/core/pull/8821))
