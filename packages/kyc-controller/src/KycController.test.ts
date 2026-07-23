@@ -115,6 +115,20 @@ describe('KycController', () => {
       });
     });
 
+    it('clears a stale active product when re-initialized without one', async () => {
+      await withController(
+        { options: { state: { activeProduct: 'card' } } },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.fetchDisclaimers.mockResolvedValue([]);
+
+          await controller.initialize({ email: 'a@b.co' });
+
+          expect(controller.state.activeProduct).toBeNull();
+        },
+      );
+    });
+
     it('stays on terms when terms exist but no email is available', async () => {
       await withController(
         {

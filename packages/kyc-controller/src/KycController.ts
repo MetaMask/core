@@ -359,16 +359,16 @@ export class KycController extends BaseController<
     email?: string;
     product?: KycProduct;
   }): Promise<void> {
-    if (params?.email || params?.product) {
-      this.update((state) => {
-        if (params.email) {
-          state.email = params.email;
-        }
-        if (params.product) {
-          state.activeProduct = params.product;
-        }
-      });
-    }
+    // `initialize` starts a fresh flow, so `activeProduct` is always reset to
+    // this call's product (or `null`). Otherwise a prior run's product could
+    // linger and cause `#continueAfterAuthentication` to auto-run the check /
+    // sub-flow when the caller intended the manual (product-less) flow.
+    this.update((state) => {
+      if (params?.email) {
+        state.email = params.email;
+      }
+      state.activeProduct = params?.product ?? null;
+    });
 
     // Resolve country for display; non-blocking.
     try {
