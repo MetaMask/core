@@ -1,8 +1,8 @@
-import { TRIGGER_TYPES } from '../../constants/notification-schema';
-import type { Compute } from '../type-utils';
+import { TRIGGER_TYPES } from '../../constants/notification-schema.js';
+import type { Compute } from '../type-utils.js';
 // Types derived from external Notification API schema - naming follows API conventions
 /* eslint-disable @typescript-eslint/naming-convention */
-import type { components } from './schema';
+import type { components } from './schema.js';
 
 export type Data_MetamaskSwapCompleted =
   components['schemas']['Data_MetamaskSwapCompleted'];

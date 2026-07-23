@@ -414,6 +414,7 @@ const config = createConfig([
       'packages/name-controller/**',
       'packages/network-connection-banner-controller/**',
       'packages/network-enablement-controller/**',
+      'packages/notification-services-controller/**',
       'packages/permission-controller/**',
       'packages/permission-log-controller/**',
       'packages/platform-api-docs/**',
