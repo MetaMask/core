@@ -46,10 +46,8 @@ const hasRootChange = checkRootChange(workspaces, changedFiles);
 
 const changed = await computeChangedWorkspaces(
   workspaces,
-  mergeBase,
-  headSha,
-  includeDependencies,
   changedFiles,
+  includeDependencies,
 );
 
 const changedWorkspaces = workspaces.filter(({ name }) => changed.has(name));

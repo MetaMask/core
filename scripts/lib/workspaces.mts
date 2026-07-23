@@ -160,31 +160,26 @@ export function checkRootChange(
  * referenced project's dist output must already exist on disk.
  *
  * @param workspaces - The workspace set to compute against.
- * @param mergeBase - The merge base SHA.
- * @param headRef - The PR branch tip SHA (or "HEAD" as fallback).
+ * @param changedFiles - List of changed files relative to the repo root.
  * @param includeDependencies - Whether to also expand to transitive dependencies.
- * @param changedFiles - Pre-fetched list of changed files; fetched if omitted.
  * @returns The set of workspace names to check.
  */
 export async function computeChangedWorkspaces(
   workspaces: Workspace[],
-  mergeBase: string,
-  headRef: string,
+  changedFiles: string[],
   includeDependencies: boolean,
-  changedFiles?: string[],
 ): Promise<Set<string>> {
-  const files = changedFiles ?? (await getChangedFiles(mergeBase, headRef));
   const { dependants, dependencies } =
     await getWorkspaceDependencies(workspaces);
 
   // If any changed file lives outside all package directories (e.g. root
   // configs, workflow files, scripts), rebuild and test everything.
-  if (checkRootChange(workspaces, files)) {
+  if (checkRootChange(workspaces, changedFiles)) {
     return new Set(workspaces.map(({ name }) => name));
   }
 
   const result = new Set(
-    files.flatMap((file) => {
+    changedFiles.flatMap((file) => {
       const workspace = workspaces.find(({ location }) =>
         file.startsWith(`${location}/`),
       );

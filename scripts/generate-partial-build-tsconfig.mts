@@ -2,6 +2,7 @@ import {
   getAllWorkspaces,
   getTypeScriptWorkspaces,
   computeChangedWorkspaces,
+  getChangedFiles,
 } from './lib/workspaces.mjs';
 
 /**
@@ -31,10 +32,10 @@ async function main(): Promise<void> {
 
   const allWorkspaces = await getAllWorkspaces();
   const typeScriptWorkspaces = await getTypeScriptWorkspaces();
+  const changedFiles = await getChangedFiles(mergeBase, headRef);
   const packagesToBuild = await computeChangedWorkspaces(
     allWorkspaces,
-    mergeBase,
-    headRef,
+    changedFiles,
     true,
   );
 
