@@ -1,4 +1,8 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import {
+  ConfigRegistryControllerGetStateAction,
+  RegistryNetworkConfig,
+} from '@metamask/config-registry-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -28,10 +32,6 @@ import type {
   NativeAssetIdentifiersMap,
 } from './NetworkEnablementController';
 import { Slip44Service } from './services';
-import {
-  ConfigRegistryControllerGetStateAction,
-  RegistryNetworkConfig,
-} from '@metamask/config-registry-controller';
 
 // Known chainId mappings from chainid.network for mocking
 const chainIdToSlip44: Record<number, number> = {
