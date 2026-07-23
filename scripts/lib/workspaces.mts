@@ -12,7 +12,6 @@ const IGNORED_ROOT_FILES = new Set([
   'CLAUDE.md',
   'README.md',
   'teams.json',
-  'yarn.lock',
 ]);
 
 export type Workspace = {
