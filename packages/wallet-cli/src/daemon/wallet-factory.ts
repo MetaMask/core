@@ -86,6 +86,11 @@ function buildInstanceOptions(
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),
     },
+    gasFeeController: {
+      // Identifies the CLI to the gas estimation API via the `X-Client-Id`
+      // header.
+      clientId: 'cli',
+    },
     networkController: {
       infuraProjectId,
     },

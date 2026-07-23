@@ -48,6 +48,11 @@ export type QuoteStatusPersistEntry = {
   txMetaId?: string;
 
   /**
+   * Optional source-chain id of the quote, retained to enrich error reporting.
+   */
+  srcChainId?: string | number;
+
+  /**
    * The lifecycle status most recently accepted (2xx) by the backend, if any.
    *
    * Used to avoid redundantly re-sending a status the backend has already
@@ -133,6 +138,24 @@ export type QuoteStatusUpdateErrorDetails = {
    * Optional error type used to categorize known quote update failures.
    */
   errorType?: QuoteStatusUpdateBackendErrorType;
+
+  /**
+   * Optional transaction metadata id associated with the error, used to
+   * correlate the failure with a specific transaction in error reporting.
+   */
+  txMetaId?: string;
+
+  /**
+   * Optional source-chain transaction hash associated with the error, included
+   * to aid debugging in error reporting.
+   */
+  srcTxHash?: string;
+
+  /**
+   * Optional source-chain id associated with the error, included to aid
+   * debugging in error reporting.
+   */
+  srcChainId?: string | number;
 };
 
 /**
