@@ -665,6 +665,53 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
+  it('subscribe update swallows onAssetsUpdate errors without throwing', async () => {
+    let balanceState: Record<string, Record<string, { amount: string }>> = {};
+    const { controller } = setupController({
+      balanceState: {},
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
+
+    const getAssetsState = jest.fn(() => ({
+      assetsBalance: balanceState,
+      assetsPrice: {},
+      assetsInfo: {},
+      customAssets: {},
+      assetPreferences: {},
+      selectedCurrency: 'usd' as const,
+    }));
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: jest.fn(),
+      getAssetsState,
+    });
+
+    balanceState = {
+      'mock-account-id': {
+        [MOCK_NATIVE_ASSET]: { amount: '0' },
+      },
+    };
+
+    await expect(
+      controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest(),
+        isUpdate: true,
+        onAssetsUpdate: jest
+          .fn()
+          .mockRejectedValue(new Error('handler failed')),
+        getAssetsState,
+      }),
+    ).resolves.toBeUndefined();
+
+    controller.destroy();
+  });
+
   it('subscribe does not report when no prices fetched', async () => {
     const { controller, assetsUpdateHandler, getAssetsState } = setupController(
       {

@@ -2999,9 +2999,7 @@ describe('AssetsController', () => {
         expect.objectContaining({
           forceUpdate: true,
           dataTypes: ['price'],
-          assetsForPriceUpdate: expect.arrayContaining([
-            'eip155:1/slip44:60',
-          ]),
+          assetsForPriceUpdate: expect.arrayContaining(['eip155:1/slip44:60']),
         }),
       );
     });
