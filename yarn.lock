@@ -6295,7 +6295,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/config-registry-controller@workspace:packages/config-registry-controller":
+"@metamask/config-registry-controller@npm:^0.4.1, @metamask/config-registry-controller@workspace:packages/config-registry-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/config-registry-controller@workspace:packages/config-registry-controller"
   dependencies:
@@ -7932,6 +7932,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
+    "@metamask/config-registry-controller": "npm:^0.4.1"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/keyring-api": "npm:^23.5.0"
     "@metamask/messenger": "npm:^2.0.0"
