@@ -4,8 +4,8 @@
 
 import { QueryClient } from '@tanstack/query-core';
 
-import { AccountsApiClient } from './accounts';
-import { authQueryKeys } from './base-client';
+import { AccountsApiClient } from './accounts/index.js';
+import { authQueryKeys } from './base-client.js';
 
 describe('BaseApiClient', () => {
   describe('invalidateAuthToken', () => {

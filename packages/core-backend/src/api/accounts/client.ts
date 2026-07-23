@@ -17,9 +17,14 @@ import type {
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
-import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
-import { getQueryOptionsOverrides } from '../shared-types';
-import type { FetchOptions } from '../shared-types';
+import {
+  BaseApiClient,
+  API_URLS,
+  STALE_TIMES,
+  GC_TIMES,
+} from '../base-client.js';
+import { getQueryOptionsOverrides } from '../shared-types.js';
+import type { FetchOptions } from '../shared-types.js';
 import type {
   V1SupportedNetworksResponse,
   V2SupportedNetworksResponse,
@@ -35,7 +40,7 @@ import type {
   V1AccountRelationshipResult,
   V2NftsResponse,
   V2TokensResponse,
-} from './types';
+} from './types.js';
 
 /**
  * Accounts API Client.

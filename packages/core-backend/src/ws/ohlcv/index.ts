@@ -1,8 +1,8 @@
-export { OHLCVService } from './OHLCVService';
+export { OHLCVService } from './OHLCVService.js';
 export {
   OHLCV_SERVICE_ALLOWED_ACTIONS,
   OHLCV_SERVICE_ALLOWED_EVENTS,
-} from './OHLCVService';
+} from './OHLCVService.js';
 export type {
   OHLCVSystemNotificationData,
   OHLCVServiceOptions,
@@ -14,5 +14,5 @@ export type {
   OHLCVServiceEvents,
   AllowedEvents as OHLCVServiceAllowedEvents,
   OHLCVServiceMessenger,
-} from './OHLCVService';
-export type { OHLCVBar, OHLCVSubscriptionOptions } from './types';
+} from './OHLCVService.js';
+export type { OHLCVBar, OHLCVSubscriptionOptions } from './types.js';

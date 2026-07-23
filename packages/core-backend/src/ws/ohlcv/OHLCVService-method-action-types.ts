@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { OHLCVService } from './OHLCVService';
+import type { OHLCVService } from './OHLCVService.js';
 
 /**
  * Subscribe to an OHLCV channel. If this is the first subscriber for the
