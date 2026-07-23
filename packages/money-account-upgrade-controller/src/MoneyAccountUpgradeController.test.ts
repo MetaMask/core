@@ -12,13 +12,13 @@ import type {
   MoneyAccountUpgradeControllerMessenger,
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeStepError,
-} from '.';
+} from './index.js';
 import {
   MoneyAccountUpgradeController,
   getDefaultMoneyAccountUpgradeControllerState,
   isMoneyAccountUpgradeStepError,
   isTerminalMoneyAccountUpgradeError,
-} from '.';
+} from './index.js';
 
 const MOCK_CHAIN_ID = '0x1' as Hex; // mainnet, supported in delegation-deployments@1.3.0
 const UNSUPPORTED_CHAIN_ID = '0x539' as Hex; // 1337 — local dev, not in registry

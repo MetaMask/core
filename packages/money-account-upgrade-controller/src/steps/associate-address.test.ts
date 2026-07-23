@@ -6,8 +6,8 @@ import type {
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
-import { associateAddressStep } from './associate-address';
+import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
+import { associateAddressStep } from './associate-address.js';
 
 const MOCK_ADDRESS = '0xAbCdEf1234567890AbCdEf1234567890AbCdEf12' as Hex;
 const MOCK_ADDRESS_LOWERCASE = MOCK_ADDRESS.toLowerCase() as Hex;

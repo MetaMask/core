@@ -7,8 +7,8 @@ import type {
 import {
   equalsIgnoreCase,
   makeHasVedaRedeemerCaveat,
-} from './delegation-matchers';
-import type { Step } from './step';
+} from './delegation-matchers.js';
+import type { Step } from './step.js';
 
 type IntentMetadataType = SendIntentParams['metadata']['type'];
 

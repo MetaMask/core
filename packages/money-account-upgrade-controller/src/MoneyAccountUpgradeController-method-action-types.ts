@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController';
+import type { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController.js';
 
 /**
  * Runs each step in the upgrade sequence in order. A step that reports

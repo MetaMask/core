@@ -423,6 +423,7 @@ const config = createConfig([
       'packages/money-account-api-data-service/**',
       'packages/money-account-balance-service/**',
       'packages/money-account-controller/**',
+      'packages/money-account-upgrade-controller/**',
       'packages/multichain-account-service/**',
       'packages/multichain-api-middleware/**',
       'packages/multichain-transactions-controller/**',
