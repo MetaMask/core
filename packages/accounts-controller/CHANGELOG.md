@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
+### Fixed
+
+- Prevent `listMultichainAccounts` from throwing a `TypeError` when an internal account has an undefined `scopes` field ([#41962](https://github.com/MetaMask/metamask-extension/issues/41962))
+
 ## [39.1.1]
 
 ### Changed
