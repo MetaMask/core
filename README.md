@@ -655,6 +655,7 @@ linkStyle default opacity:0.5
   wallet --> passkey_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> seedless_onboarding_controller;
+  wallet --> shield_controller;
   wallet --> storage_service;
   wallet --> transaction_controller;
   wallet_cli --> base_controller;

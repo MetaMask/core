@@ -7,5 +7,6 @@ export { networkController } from './network-controller/network-controller.js';
 export { passkeyController } from './passkey-controller/passkey-controller.js';
 export { remoteFeatureFlagController } from './remote-feature-flag-controller/remote-feature-flag-controller.js';
 export { seedlessOnboardingController } from './seedless-onboarding-controller/seedless-onboarding-controller.js';
+export { shieldController } from './shield-controller/shield-controller.js';
 export { storageService } from './storage-service/storage-service.js';
 export { transactionController } from './transaction-controller/transaction-controller.js';

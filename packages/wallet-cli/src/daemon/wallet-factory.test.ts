@@ -120,6 +120,12 @@ describe('createWallet', () => {
     );
     expect(instanceOptions.transactionController?.disableSwaps).toBe(true);
     expect(instanceOptions.transactionController?.hooks).toStrictEqual({});
+    expect(instanceOptions.shieldController.baseUrl).toBe(
+      'https://rule-engine.metamask.io',
+    );
+    expect(instanceOptions.shieldController.fetchFunction).toBe(
+      globalThis.fetch,
+    );
     expect(ClientConfigApiService).toHaveBeenCalled();
 
     await dispose();

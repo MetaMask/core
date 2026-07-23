@@ -309,6 +309,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'shield-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-controller',
   },
   'signature-controller': {
     teams: ['@MetaMask/confirmations'],

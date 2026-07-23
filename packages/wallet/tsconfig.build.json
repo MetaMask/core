@@ -18,6 +18,7 @@
     { "path": "../passkey-controller/tsconfig.build.json" },
     { "path": "../remote-feature-flag-controller/tsconfig.build.json" },
     { "path": "../seedless-onboarding-controller/tsconfig.build.json" },
+    { "path": "../shield-controller/tsconfig.build.json" },
     { "path": "../storage-service/tsconfig.build.json" },
     { "path": "../transaction-controller/tsconfig.build.json" }
   ],

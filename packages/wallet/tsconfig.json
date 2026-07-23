@@ -41,6 +41,9 @@
       "path": "../seedless-onboarding-controller"
     },
     {
+      "path": "../shield-controller"
+    },
+    {
       "path": "../storage-service"
     },
     {
