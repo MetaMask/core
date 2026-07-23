@@ -16,7 +16,7 @@ import { shieldController } from './shield-controller.js';
 import type { ShieldBackend } from './types.js';
 
 const MOCK_COVERAGE_ID = 'coverage-id-1';
-const SHIELD_BASE_URL = 'https://rule-engine.metamask.io';
+const SHIELD_BASE_URL = 'https://ruleset-engine.api.cx.metamask.io';
 
 type ActionHandler = (...args: unknown[]) => unknown;
 

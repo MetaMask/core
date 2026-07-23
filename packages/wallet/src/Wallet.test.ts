@@ -29,7 +29,7 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
 };
 
 const SHIELD_CONTROLLER_OPTIONS = {
-  baseUrl: 'https://rule-engine.metamask.io',
+  baseUrl: 'https://ruleset-engine.api.cx.metamask.io',
   fetchFunction: jest.fn(),
   backend: {
     checkCoverage: jest.fn(),
