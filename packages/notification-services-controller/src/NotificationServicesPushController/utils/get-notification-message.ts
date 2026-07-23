@@ -1,3 +1,4 @@
+import { TRIGGER_TYPES } from '../../NotificationServicesController/constants/notification-schema.js';
 import type { Types } from '../../NotificationServicesController/index.js';
 
 type PushNotificationMessage = {
@@ -11,17 +12,11 @@ type NotificationWithTemplate = Extract<
   { template: unknown }
 >;
 
-/**
- * Type guard for notifications that carry an API-provided `template` field.
- * In V4 only platform notifications have `template`.
- *
- * @param notification - processed notification.
- * @returns True if the notification has a `template` field.
- */
 function hasTemplate(
   notification: Types.INotification,
 ): notification is NotificationWithTemplate {
-  return 'template' in notification;
+  // TODO: add more notification.type checks for other notifications unless we add template to all of them
+  return notification.type === TRIGGER_TYPES.PLATFORM;
 }
 
 /**
