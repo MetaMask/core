@@ -542,7 +542,7 @@ describe('createWallet', () => {
       const log = jest.fn();
       const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
 
-      const { dispose } = await createWallet({ ...CONFIG, log });
+      const { wallet, dispose } = await createWallet({ ...CONFIG, log });
       await dispose();
 
       expect(log).toHaveBeenCalledWith(
@@ -550,6 +550,7 @@ describe('createWallet', () => {
           'Auto-approval unsubscribe failed during teardown',
         ),
       );
+      expect((wallet.destroy as jest.Mock)).toHaveBeenCalledTimes(1);
       expect(closeSpy).toHaveBeenCalled();
     });
 
@@ -658,6 +659,29 @@ describe('createWallet', () => {
 
       await expect(createWallet(CONFIG)).rejects.toThrow('subscribe failed');
       const realWallet = MockWallet.mock.results[1]?.value as Wallet;
+      expect(realWallet.destroy).toHaveBeenCalledTimes(1);
+      expect(closeSpy).toHaveBeenCalled();
+    });
+
+    it('unsubscribes persistence, destroys the wallet, and closes the store when subscribeToAutoApproval throws', async () => {
+      const persistenceUnsubscribe = jest.fn();
+      jest
+        .spyOn(persistenceModule, 'subscribeToChanges')
+        .mockReturnValue(persistenceUnsubscribe);
+      jest
+        .spyOn(autoApprovalModule, 'subscribeToAutoApproval')
+        .mockImplementation(() => {
+          throw new Error('auto-approval subscribe failed');
+        });
+      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+
+      await expect(createWallet(CONFIG)).rejects.toThrow(
+        'auto-approval subscribe failed',
+      );
+      const realWallet = MockWallet.mock.results[1]?.value as Wallet;
+      // The persistence subscription was installed before the throw, so it
+      // must be torn down even though autoApprovalUnsubscribe was never set.
+      expect(persistenceUnsubscribe).toHaveBeenCalledTimes(1);
       expect(realWallet.destroy).toHaveBeenCalledTimes(1);
       expect(closeSpy).toHaveBeenCalled();
     });

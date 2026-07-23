@@ -4,6 +4,8 @@ import type {
   RootMessenger,
 } from '@metamask/wallet';
 
+import type { Logger } from './types.js';
+
 /**
  * The slice of `ApprovalController` state this module reads. The full
  * state-change payload is the controller's `ApprovalControllerState`; auto
@@ -17,7 +19,9 @@ type PendingApprovalsState = {
 
 /**
  * Handler for `ApprovalController`'s state-change event, narrowed to the slice
- * auto approval reads.
+ * auto approval reads. The `Patch[]` second argument from the raw event is
+ * intentionally absent — auto approval re-accepts on every state change and
+ * does not filter by patch.
  */
 type ApprovalStateChangeHandler = (state: PendingApprovalsState) => void;
 
@@ -63,7 +67,7 @@ type ApprovalStateChangeHandler = (state: PendingApprovalsState) => void;
  */
 export function subscribeToAutoApproval(
   messenger: Readonly<RootMessenger<DefaultActions, DefaultEvents>>,
-  log?: (message: string) => void,
+  log?: Logger,
 ): () => void {
   const logFn =
     log ??
@@ -89,9 +93,10 @@ export function subscribeToAutoApproval(
         .catch((error: unknown) => logFailure(id, error))
         .finally(() => inFlight.delete(id));
     } catch (error) {
-      // A synchronous throw (e.g. the request was resolved between the state
-      // change and this call) never attaches the `finally` above, so clean up
-      // here and keep the throw inside the handler.
+      // Synchronous throw means the Promise chain above was never built
+      // (no .catch/.finally attached), so clean up the in-flight guard here.
+      // The error is intentionally suppressed — a race-condition reject must
+      // not crash the daemon or permanently wedge the subscription.
       inFlight.delete(id);
       logFailure(id, error);
     }
@@ -109,12 +114,18 @@ export function subscribeToAutoApproval(
 /**
  * Subscribe a handler to `ApprovalController:stateChanged`.
  *
- * The wallet's typed event union only declares the deprecated `:stateChange`
- * member, so — as in the persistence layer — this localizes the single cast
- * needed to subscribe to the non-deprecated `:stateChanged` event behind a
+ * `ApprovalControllerEvents` only declares `ApprovalController:stateChange`
+ * (via `ControllerStateChangeEvent`), not the non-deprecated
+ * `ApprovalController:stateChanged` variant that `BaseController` publishes at
+ * runtime. This helper localizes the unavoidable cast — using the same
+ * technique as `subscribeToStateChanged` in the persistence layer — behind a
  * typed {@link ApprovalStateChangeHandler}, keeping the `state` payload
  * compile-checked at the call site instead of erased by a statement-level
  * `@ts-expect-error`.
+ *
+ * TODO: Remove this cast once `ApprovalControllerEvents` includes
+ * `ControllerStateChangedEvent` (`:stateChanged`), matching the union already
+ * exported by `BaseController`.
  *
  * @param messenger - The wallet root messenger.
  * @param handler - The state-change handler to register.
@@ -124,6 +135,7 @@ function subscribeToApprovalStateChanged(
   messenger: Readonly<RootMessenger<DefaultActions, DefaultEvents>>,
   handler: ApprovalStateChangeHandler,
 ): () => void {
+  // TODO: Remove once ApprovalControllerEvents includes ControllerStateChangedEvent.
   const subscriber = messenger as unknown as {
     subscribe: (eventType: string, handler: ApprovalStateChangeHandler) => void;
     unsubscribe: (

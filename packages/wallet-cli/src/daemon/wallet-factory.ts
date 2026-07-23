@@ -359,7 +359,10 @@ function runUnsubscribe(
   try {
     unsubscribe();
   } catch (error) {
-    logFn(`${label} unsubscribe failed during teardown: ${String(error)}`);
+    logFn(
+      `${label} unsubscribe failed during teardown — subscription may remain ` +
+        `live until the process exits: ${String(error)}`,
+    );
   }
 }
 

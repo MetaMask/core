@@ -65,6 +65,9 @@ describe('createWallet (real Wallet, in-memory)', () => {
     }
   });
 
+  // Short timeout: auto-approval must resolve in milliseconds once the wallet
+  // is up. A regression hangs, so fail fast rather than waiting the file-wide
+  // 30 s (set for KDF/SQLite-heavy tests).
   it('auto-accepts a pending approval request instead of hanging', async () => {
     const { wallet, dispose } = await createWallet({
       databasePath: ':memory:',
@@ -94,7 +97,7 @@ describe('createWallet (real Wallet, in-memory)', () => {
     } finally {
       await dispose();
     }
-  });
+  }, 5_000);
 });
 
 describe('createWallet (integration)', () => {

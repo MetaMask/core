@@ -45,12 +45,12 @@ function makeMessenger(): {
 
 /**
  * Drain pending microtasks so the `.catch(...).finally(...)` chain attached to
- * each accept settles before assertions run.
+ * each accept settles before assertions run. Uses `setImmediate` to cross the
+ * I/O callback boundary, which flushes the entire microtask queue regardless
+ * of chain depth.
  */
 async function flushMicrotasks(): Promise<void> {
-  for (let i = 0; i < 5; i++) {
-    await Promise.resolve();
-  }
+  await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
 describe('subscribeToAutoApproval', () => {
