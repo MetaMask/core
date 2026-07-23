@@ -7,7 +7,7 @@ import {
   toCaipAssetType,
 } from '@metamask/utils';
 
-import { nativeTokenAddress } from '../constants';
+import { nativeTokenAddress } from '../constants.js';
 
 export type NativeAssetMetadata = {
   symbol: string;
