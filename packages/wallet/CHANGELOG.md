@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [8.0.0]
-
 ### Added
 
 - **BREAKING:** Wire `ShieldController` into the default wallet initialization ([#9616](https://github.com/MetaMask/core/pull/9616))
@@ -16,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Default backend construction uses `ShieldRemoteBackend` with optional `getAccessToken`, `captureException`, polling, history limits, and `normalizeSignatureRequest`
   - Delegates `AuthenticationController:getBearerToken` plus `TransactionController:stateChange` and `SignatureController:stateChange` on the shared messenger bus
   - Hosts must register `AuthenticationController` and `SignatureController` on the wallet root messenger and explicitly call `ShieldController:start` after wiring
+
+## [8.0.0]
+
+### Added
+
 - **BREAKING:** Wire `GasFeeController` into the default wallet initialization ([#9527](https://github.com/MetaMask/core/pull/9527))
   - Adds a required `instanceOptions.gasFeeController` option whose `clientId` (sent as `X-Client-Id` to the gas API) is required, so every client identifies itself; all other fields are optional and fall back to platform-agnostic defaults.
 - **BREAKING** Wire `SeedlessOnboardingController` and `PasskeyController` into the default wallet initialization ([#9533](https://github.com/MetaMask/core/pull/9533))
