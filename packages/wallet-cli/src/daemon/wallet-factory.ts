@@ -87,6 +87,7 @@ function buildInstanceOptions(
       // The daemon is headless, so there is no UI to open: requests are
       // resolved by the auto-approval subscription (see `subscribeToAutoApproval`)
       // rather than by this hook, which stays a no-op.
+      // TODO: surface approval requests over the daemon transport.
       showApprovalRequest: (): undefined => undefined,
     },
     connectivityController: {
