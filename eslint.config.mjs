@@ -386,6 +386,7 @@ const config = createConfig([
       'packages/analytics-controller/**',
       'packages/analytics-data-regulation-controller/**',
       'packages/announcement-controller/**',
+      'packages/app-metadata-controller/**',
       'packages/approval-controller/**',
       'packages/assets-controller/**',
       'packages/assets-controllers/**',
