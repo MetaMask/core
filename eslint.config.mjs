@@ -412,6 +412,7 @@ const config = createConfig([
       'packages/foundryup/**',
       'packages/gas-fee-controller/**',
       'packages/gator-permissions-controller/**',
+      'packages/geolocation-controller/**',
       'packages/json-rpc-engine/**',
       'packages/json-rpc-middleware-stream/**',
       'packages/logging-controller/**',
