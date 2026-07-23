@@ -2,7 +2,7 @@ import {
   buildRpcServiceEventProperties,
   sanitizeRpcEndpointUrl,
   toAnalyticsTrackingEvent,
-} from './rpc-service-events';
+} from './rpc-service-analytics';
 
 describe('sanitizeRpcEndpointUrl', () => {
   it('returns the host of the URL when the endpoint is public', () => {

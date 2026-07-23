@@ -68,11 +68,11 @@ import type { NetworkControllerMethodActions } from './NetworkController-method-
 import {
   buildRpcServiceEventProperties,
   toAnalyticsTrackingEvent,
-} from './rpc-service-events';
+} from './rpc-service-analytics';
 import type {
   NetworkControllerAnalyticsOptions,
   RpcServiceEventName,
-} from './rpc-service-events';
+} from './rpc-service-analytics';
 import { isConnectionError } from './rpc-service/rpc-service';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
 import { getRpcFailoverMode } from './selectors';

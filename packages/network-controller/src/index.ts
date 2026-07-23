@@ -56,7 +56,7 @@ export { classifyRetryReason } from './create-network-client';
 export type {
   NetworkControllerAnalyticsOptions,
   RpcServiceEventName,
-} from './rpc-service-events';
+} from './rpc-service-analytics';
 export { isConnectionError } from './rpc-service/rpc-service';
 export type {
   NetworkControllerGetEthQueryAction,
