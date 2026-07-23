@@ -16,15 +16,16 @@ import {
  * - `locations`: workspace-relative paths (e.g. `packages/foo`) for the same set
  * - `hasRootChange`: true if any non-ignored root file changed (triggers a full run)
  *
- * Usage: `tsx scripts/get-changed-workspaces.mts <merge-base-sha> [<head-sha>] [options]`
+ * Usage: `tsx scripts/get-changed-workspaces.mts --merge-base <sha> [--head-ref <ref>] [--include-dependencies]`
  */
 const argv = await yargs(hideBin(process.argv))
-  .usage('$0 <merge-base> [head-sha] [options]')
-  .positional('merge-base', {
+  .usage('$0 --merge-base <sha> [--head-ref <ref>] [--include-dependencies]')
+  .option('merge-base', {
     type: 'string',
     describe: 'Merge base SHA',
+    demandOption: true,
   })
-  .positional('head-sha', {
+  .option('head-ref', {
     type: 'string',
     describe: 'PR branch tip SHA (defaults to HEAD)',
   })
@@ -34,14 +35,13 @@ const argv = await yargs(hideBin(process.argv))
     describe:
       'Also expand to transitive dependencies (needed for TypeScript builds)',
   })
-  .demandOption('merge-base', 'merge-base is required')
   .help()
   .parseAsync();
 
-const { mergeBase, headSha = 'HEAD', includeDependencies } = argv;
+const { mergeBase, headRef = 'HEAD', includeDependencies } = argv;
 const workspaces = await getAllWorkspaces();
 
-const changedFiles = await getChangedFiles(mergeBase, headSha);
+const changedFiles = await getChangedFiles(mergeBase, headRef);
 const hasRootChange = checkRootChange(workspaces, changedFiles);
 
 const changed = await computeChangedWorkspaces(

@@ -56,7 +56,7 @@ jobs:
         if: matrix.node-version == '24.x'
         run: |
           if [[ -n "$MERGE_BASE" ]]; then
-            OUTPUT=$(yarn tsx scripts/get-changed-workspaces.mts "$MERGE_BASE" "$HEAD_SHA")
+            OUTPUT=$(yarn tsx scripts/get-changed-workspaces.mts --merge-base "$MERGE_BASE" --head-ref "$HEAD_SHA")
             PACKAGES=$(echo "$OUTPUT" | jq -c '.names')
             if [[ $(echo "$OUTPUT" | jq '.hasRootChange') == "true" ]]; then
               CHANGED_PATHS="full"
