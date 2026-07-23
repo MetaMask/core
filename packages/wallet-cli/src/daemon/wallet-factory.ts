@@ -213,11 +213,7 @@ export async function createWallet({
       logFn,
     );
 
-    // Accept pending approval requests headlessly, so an awaited
-    // `ApprovalController:addRequest` (raised by a transaction or signature
-    // flow) resolves instead of hanging. See `subscribeToAutoApproval` for the
-    // trust model. Installed before `init` so any request raised during
-    // initialization is covered too.
+    // Installed before `init` so any approval raised during initialization is covered.
     autoApprovalUnsubscribe = subscribeToAutoApproval(wallet.messenger, logFn);
 
     // Complete post-construction controller setup before serving requests —
