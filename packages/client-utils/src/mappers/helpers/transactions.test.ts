@@ -265,6 +265,96 @@ describe('transaction helpers', () => {
         } as Parameters<typeof getLocalTransactionFees>[0]),
       ).toBeUndefined();
     });
+
+    it('adds layer1GasFee (L1 + operator) onto the L2 network fee', () => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0x1388',
+            layer1GasFee: '0x5f5e100', // 100_000_000
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x5208',
+              effectiveGasPrice: '0x3b9aca00',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          // 21_000_000_000_000 + 100_000_000
+          amount: '21000100000000',
+          decimals: 18,
+        },
+      ]);
+    });
+
+    it('falls back to receipt L1 + operator fee when layer1GasFee is absent', () => {
+      const gasUsed = BigInt('0xceaf');
+      const operatorFee = gasUsed * BigInt('0x5f5e100') * 100n;
+      const l1Fee = BigInt('0x9173c910a1ac');
+      const l2Amount = BigInt('0xceaf') * BigInt('0xba43cfaa0');
+      const expected = String(l2Amount + l1Fee + operatorFee);
+
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0x1388',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0xceaf',
+              effectiveGasPrice: '0xba43cfaa0',
+              l1Fee: '0x9173c910a1ac',
+              operatorFeeConstant: '0x0',
+              operatorFeeScalar: '0x5f5e100',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0])?.[0]?.amount,
+      ).toBe(expected);
+    });
+
+    it('falls back to receipt l1Fee for Optimism-style receipts', () => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0xa',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x5208',
+              effectiveGasPrice: '0x3b9aca00',
+              l1Fee: '0x5f5e100',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '21000100000000',
+          decimals: 18,
+          symbol: 'ETH',
+          assetId: 'eip155:10/slip44:60',
+        },
+      ]);
+    });
+
+    it('prefers layer1GasFee over receipt fees to avoid double-counting', () => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0x1388',
+            layer1GasFee: '0x5f5e100',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x5208',
+              effectiveGasPrice: '0x3b9aca00',
+              l1Fee: '0xffffffff',
+              operatorFeeScalar: '0x5f5e100',
+              operatorFeeConstant: '0x0',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0])?.[0]?.amount,
+      ).toBe('21000100000000');
+    });
   });
 
   describe('getFees', () => {

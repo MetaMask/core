@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `operatorFeeScalar`, `operatorFeeConstant`, and `tokenRatio` fields to `TransactionReceipt` for OP Stack / Mantle Arsia receipts
+- Export `getOperatorFeeFromReceipt` and `getLayer1FeeFromReceipt` helpers to derive L1 + operator fees from transaction receipts
+
+### Fixed
+
+- Refresh `transactionMeta.layer1GasFee` from the receipt on confirmation so Activity Details include Mantle operator fee (and OP Stack L1 fee) based on inclusion-time values rather than the pre-confirm estimate alone
+
 ## [69.2.1]
 
 ### Changed

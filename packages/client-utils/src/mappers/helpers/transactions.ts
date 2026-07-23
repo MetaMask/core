@@ -28,6 +28,18 @@ export type TransactionGroup = {
 
 const nativeTokenDecimals = 18;
 
+/**
+ * Receipt fields used for L1 / operator fee derivation. Kept local so this
+ * package works before/alongside `@metamask/transaction-controller` typing
+ * the Mantle Arsia receipt fields.
+ */
+type ReceiptFeeFields = {
+  gasUsed?: string;
+  l1Fee?: string;
+  operatorFeeConstant?: string;
+  operatorFeeScalar?: string;
+};
+
 function toNetworkFeeAmount(
   gasUsed: string | number | undefined,
   gasPrice: string | number | undefined,
@@ -40,6 +52,86 @@ function toNetworkFeeAmount(
     return String(BigInt(gasUsed) * BigInt(gasPrice));
   } catch {
     return undefined;
+  }
+}
+
+function parseHexQuantity(value: string | undefined): bigint | undefined {
+  if (value === undefined || value === '' || value === '0x' || value === '0X') {
+    return undefined;
+  }
+
+  try {
+    return BigInt(value);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Derives L1 data fee + operator fee from a receipt (Mantle Arsia /
+ * OP Stack). Mirrors `@metamask/transaction-controller`'s
+ * `getLayer1FeeFromReceipt` so Activity Details stay correct even when
+ * `layer1GasFee` was not refreshed on confirmation.
+ *
+ * @param receipt - Transaction receipt.
+ * @returns Combined fee as a decimal wei string, or undefined.
+ */
+function getReceiptLayer1FeeAmount(
+  receipt: ReceiptFeeFields,
+): string | undefined {
+  const l1Fee = parseHexQuantity(receipt.l1Fee);
+  const gasUsed = parseHexQuantity(receipt.gasUsed);
+  const operatorFeeScalar = parseHexQuantity(receipt.operatorFeeScalar);
+  const operatorFeeConstant = parseHexQuantity(receipt.operatorFeeConstant);
+
+  const operatorFee =
+    gasUsed !== undefined &&
+    operatorFeeScalar !== undefined &&
+    operatorFeeConstant !== undefined
+      ? gasUsed * operatorFeeScalar * 100n + operatorFeeConstant
+      : undefined;
+
+  if (l1Fee === undefined && operatorFee === undefined) {
+    return undefined;
+  }
+
+  return String((l1Fee ?? 0n) + (operatorFee ?? 0n));
+}
+
+/**
+ * Adds L1 / operator fee onto an L2 network fee (decimal wei string).
+ * Prefers `layer1GasFee` from TransactionMeta over a receipt-derived fee
+ * so values are not double-counted.
+ *
+ * @param networkFeeAmount - L2 network fee amount in decimal wei.
+ * @param layer1GasFee - Optional hex wei L1 + operator fee from TransactionMeta.
+ * @param receiptLayer1FeeAmount - Optional decimal wei L1 + operator from receipt.
+ * @returns Combined fee amount in decimal wei, or the original L2 amount on failure.
+ */
+function addLayer1FeeToNetworkFeeAmount(
+  networkFeeAmount: string,
+  layer1GasFee: string | undefined,
+  receiptLayer1FeeAmount: string | undefined,
+): string {
+  const layer1Amount =
+    layer1GasFee === undefined
+      ? receiptLayer1FeeAmount
+      : (() => {
+          try {
+            return String(BigInt(layer1GasFee));
+          } catch {
+            return undefined;
+          }
+        })();
+
+  if (!layer1Amount) {
+    return networkFeeAmount;
+  }
+
+  try {
+    return String(BigInt(networkFeeAmount) + BigInt(layer1Amount));
+  } catch {
+    return networkFeeAmount;
   }
 }
 
@@ -78,19 +170,40 @@ export function getFees(
   return networkFee ? [networkFee] : undefined;
 }
 
+/**
+ * Builds the base network fee (in the chain's native token) for a local
+ * transaction from its receipt (`gasUsed × effectiveGasPrice`), plus any
+ * L1 / operator fee from `layer1GasFee` or receipt fields. Falls back to
+ * `txParams.gasPrice` while pending.
+ *
+ * @param transactionGroup - Transaction group with the primary transaction.
+ * @returns Activity fee list with a single base network fee, or undefined.
+ */
 export function getLocalTransactionFees(
   transactionGroup: Pick<TransactionGroup, 'primaryTransaction'>,
 ): Fee[] | undefined {
   const { primaryTransaction } = transactionGroup;
-  const amount = toNetworkFeeAmount(
+  const l2Amount = toNetworkFeeAmount(
     primaryTransaction.txReceipt?.gasUsed,
     primaryTransaction.txReceipt?.effectiveGasPrice ??
       primaryTransaction.txParams?.gasPrice,
   );
 
-  return amount
-    ? [buildBaseNetworkFee(amount, primaryTransaction.chainId)]
+  if (!l2Amount) {
+    return undefined;
+  }
+
+  const receiptLayer1FeeAmount = primaryTransaction.txReceipt
+    ? getReceiptLayer1FeeAmount(primaryTransaction.txReceipt)
     : undefined;
+
+  const amount = addLayer1FeeToNetworkFeeAmount(
+    l2Amount,
+    primaryTransaction.layer1GasFee,
+    receiptLayer1FeeAmount,
+  );
+
+  return [buildBaseNetworkFee(amount, primaryTransaction.chainId)];
 }
 
 const inProgressTransactionStatuses = [

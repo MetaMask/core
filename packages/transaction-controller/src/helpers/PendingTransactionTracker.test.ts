@@ -767,6 +767,124 @@ describe('PendingTransactionTracker', () => {
           );
         });
 
+        it('sets layer1GasFee from Mantle receipt L1 + operator fee', async () => {
+          const transaction = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            layer1GasFee: '0x1', // stale pre-confirm estimate
+          };
+          const getTransactions = jest
+            .fn()
+            .mockReturnValue(freeze([transaction], true));
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions,
+          });
+
+          const listener = jest.fn();
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
+
+          const mantleReceipt = {
+            ...RECEIPT_MOCK,
+            gasUsed: '0xceaf',
+            l1Fee: '0x9173c910a1ac',
+            operatorFeeConstant: '0x0',
+            operatorFeeScalar: '0x5f5e100',
+            tokenRatio: '0x120c',
+          };
+
+          getTransactionReceiptMock.mockResolvedValueOnce(mantleReceipt);
+          getBlockByHashMock.mockResolvedValueOnce(BLOCK_MOCK);
+
+          await onPoll();
+
+          const operatorFee = BigInt('0xceaf') * BigInt('0x5f5e100') * 100n;
+          const layer1Hex = (BigInt('0x9173c910a1ac') + operatorFee).toString(
+            16,
+          );
+          const expectedLayer1 = `0x${
+            layer1Hex.length % 2 === 0 ? layer1Hex : `0${layer1Hex}`
+          }`;
+
+          expect(listener).toHaveBeenCalledWith(
+            expect.objectContaining({
+              layer1GasFee: expectedLayer1,
+              txReceipt: mantleReceipt,
+            }),
+          );
+        });
+
+        it('sets layer1GasFee from Optimism-style receipt l1Fee only', async () => {
+          const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
+          const getTransactions = jest
+            .fn()
+            .mockReturnValue(freeze([transaction], true));
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions,
+          });
+
+          const listener = jest.fn();
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
+
+          const optimismReceipt = {
+            ...RECEIPT_MOCK,
+            l1Fee: '0x5f5e100',
+          };
+
+          getTransactionReceiptMock.mockResolvedValueOnce(optimismReceipt);
+          getBlockByHashMock.mockResolvedValueOnce(BLOCK_MOCK);
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledWith(
+            expect.objectContaining({
+              layer1GasFee: '0x05f5e100',
+              txReceipt: optimismReceipt,
+            }),
+          );
+        });
+
+        it('leaves layer1GasFee unchanged when receipt has no L1 fee fields', async () => {
+          const transaction = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            layer1GasFee: '0xabc',
+          };
+          const getTransactions = jest
+            .fn()
+            .mockReturnValue(freeze([transaction], true));
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions,
+          });
+
+          const listener = jest.fn();
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
+
+          getTransactionReceiptMock.mockResolvedValueOnce(RECEIPT_MOCK);
+          getBlockByHashMock.mockResolvedValueOnce(BLOCK_MOCK);
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledWith(
+            expect.objectContaining({
+              layer1GasFee: '0xabc',
+              txReceipt: RECEIPT_MOCK,
+            }),
+          );
+        });
+
         it('if isIntentComplete is true', async () => {
           const transaction = {
             ...TRANSACTION_SUBMITTED_MOCK,

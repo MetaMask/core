@@ -138,6 +138,10 @@ export {
   normalizeTransactionParams,
 } from './utils/utils';
 export { hasTransactionType } from './utils/transaction-type';
+export {
+  getLayer1FeeFromReceipt,
+  getOperatorFeeFromReceipt,
+} from './utils/receipt-fees';
 export { CHAIN_IDS } from './constants';
 export { HARDFORK } from './utils/prepare';
 export { getAccountAddressRelationship } from './api/accounts-api';
