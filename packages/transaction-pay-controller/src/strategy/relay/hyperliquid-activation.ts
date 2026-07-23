@@ -1,3 +1,5 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -174,6 +176,29 @@ async function fetchIsAccountActivated(
 }
 
 /**
+ * Effective parent transaction type used to resolve feature flag overrides.
+ *
+ * A batch transaction (e.g. an EIP-7702 batch wrapping a perps withdraw) takes
+ * its type from the first typed nested transaction.
+ *
+ * @param transaction - The parent transaction metadata.
+ * @returns The resolved transaction type, or `undefined`.
+ */
+function getEffectiveTransactionType(
+  transaction?: TransactionMeta,
+): string | undefined {
+  if (transaction?.type !== TransactionType.batch) {
+    return transaction?.type;
+  }
+
+  const nestedType = transaction.nestedTransactions?.find(
+    (tx) => tx.type,
+  )?.type;
+
+  return nestedType ?? transaction.type;
+}
+
+/**
  * Reserve the one-time HyperLiquid activation fee for an unactivated HyperCore
  * source account.
  *
@@ -187,15 +212,15 @@ async function fetchIsAccountActivated(
  *
  * @param request - Normalized quote request.
  * @param messenger - Controller messenger.
- * @param transactionType - Parent transaction type used to resolve the feature
- * flag override.
+ * @param transaction - Parent transaction used to resolve the feature flag
+ * override by its effective type.
  * @param signal - Optional abort signal forwarded to the activation request.
  * @returns The (possibly adjusted) quote request.
  */
 export async function applyHyperliquidActivationFee(
   request: QuoteRequest,
   messenger: TransactionPayControllerMessenger,
-  transactionType?: string,
+  transaction?: TransactionMeta,
   signal?: AbortSignal,
 ): Promise<QuoteRequest> {
   if (!request.isHyperliquidSource) {
@@ -204,7 +229,7 @@ export async function applyHyperliquidActivationFee(
 
   const { enabled, amountUsd } = getHyperliquidActivationFeeConfig(
     messenger,
-    transactionType,
+    getEffectiveTransactionType(transaction),
   );
 
   if (!enabled) {

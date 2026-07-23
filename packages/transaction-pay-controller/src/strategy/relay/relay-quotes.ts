@@ -122,7 +122,7 @@ export async function getRelayQuotes(
           applyHyperliquidActivationFee(
             normalizedRequest,
             request.messenger,
-            request.transaction.type,
+            request.transaction,
             request.signal,
           ),
         ),

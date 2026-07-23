@@ -1,3 +1,5 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import type {
@@ -337,18 +339,54 @@ describe('HyperLiquid Activation', () => {
       expect(result.hyperliquidActivationFeeUsd).toBe('1');
     });
 
-    it('resolves the config for the given transaction type', async () => {
+    it('resolves the config for the transaction type', async () => {
       fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
 
       await applyHyperliquidActivationFee(
         HYPERLIQUID_SOURCE_REQUEST_MOCK,
         MESSENGER_MOCK,
-        'perpsWithdraw',
+        { type: TransactionType.perpsWithdraw } as TransactionMeta,
       );
 
       expect(getConfigMock).toHaveBeenCalledWith(
         MESSENGER_MOCK,
-        'perpsWithdraw',
+        TransactionType.perpsWithdraw,
+      );
+    });
+
+    it('resolves the config for the nested transaction type when batched', async () => {
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
+
+      await applyHyperliquidActivationFee(
+        HYPERLIQUID_SOURCE_REQUEST_MOCK,
+        MESSENGER_MOCK,
+        {
+          type: TransactionType.batch,
+          nestedTransactions: [{}, { type: TransactionType.perpsWithdraw }],
+        } as TransactionMeta,
+      );
+
+      expect(getConfigMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        TransactionType.perpsWithdraw,
+      );
+    });
+
+    it('resolves the config for the batch type when no nested transaction is typed', async () => {
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
+
+      await applyHyperliquidActivationFee(
+        HYPERLIQUID_SOURCE_REQUEST_MOCK,
+        MESSENGER_MOCK,
+        {
+          type: TransactionType.batch,
+          nestedTransactions: [{}],
+        } as TransactionMeta,
+      );
+
+      expect(getConfigMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        TransactionType.batch,
       );
     });
   });
