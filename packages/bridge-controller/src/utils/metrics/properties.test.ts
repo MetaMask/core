@@ -1,10 +1,10 @@
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 
-import type { QuoteMetadata } from '../../types';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
 import { getNativeAssetForChainId } from '../bridge';
 import { formatChainIdToCaip } from '../caip-formatters';
+import type { QuoteMetadata } from '../quote-metadata/types';
 import { MetricsSwapType } from './constants';
 import {
   getAccountHardwareType,
@@ -365,12 +365,9 @@ describe('properties', () => {
     const mockTokenAmount = { amount: '0', valueInCurrency: '0', usd: '0' };
     const mockQuoteMetadata: QuoteMetadata = {
       gasFee: {
-        effective: mockTokenAmount,
         total: mockTokenAmount,
-        max: mockTokenAmount,
       },
       totalNetworkFee: mockTokenAmount,
-      totalMaxNetworkFee: mockTokenAmount,
       toTokenAmount: mockTokenAmount,
       minToTokenAmount: mockTokenAmount,
       adjustedReturn: { valueInCurrency: '0', usd: '0' },
