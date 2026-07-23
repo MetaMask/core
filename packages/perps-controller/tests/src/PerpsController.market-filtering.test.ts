@@ -10,54 +10,26 @@ import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
-} from '../../src/PerpsController';
-import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider';
+} from '../../src/PerpsController.js';
+import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
   PerpsProvider,
   PerpsProviderType,
   PerpsPlatformDependencies,
   PerpsMarketData,
-} from '../../src/types';
-import { MARKET_CATEGORIES, MarketCategory } from '../../src/types';
-import { createMockHyperLiquidProvider } from '../helpers/providerMocks';
+} from '../../src/types/index.js';
+import { MARKET_CATEGORIES, MarketCategory } from '../../src/types/index.js';
+import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
-} from '../helpers/serviceMocks';
+} from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
 jest.mock('@myx-trade/sdk', () => ({
   MyxClient: jest.fn(),
   OrderStatusEnum: { Successful: 9 },
 }));
-
-jest.mock(
-  '../../../core/Engine',
-  () => ({
-    __esModule: true,
-    default: {
-      context: {
-        RewardsController: { getPerpsDiscountForAccount: jest.fn() },
-        NetworkController: {
-          getNetworkClientById: jest.fn().mockReturnValue({
-            configuration: { chainId: '0x1' },
-          }),
-        },
-        AccountTreeController: {
-          getAccountsFromSelectedAccountGroup: jest.fn().mockReturnValue([]),
-        },
-        TransactionController: {
-          estimateGasFee: jest.fn(),
-          estimateGas: jest.fn(),
-        },
-        AccountTrackerController: {
-          state: { accountsByChainId: {} },
-        },
-      },
-    },
-  }),
-  { virtual: true },
-);
 
 jest.mock('../../src/providers/HyperLiquidProvider');
 jest.mock('../../src/providers/MYXProvider');

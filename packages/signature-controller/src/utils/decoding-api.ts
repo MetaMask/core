@@ -1,6 +1,6 @@
-import { EthMethod } from '../types';
-import type { OriginalRequest } from '../types';
-import { normalizeParam } from './normalize';
+import { EthMethod } from '../types.js';
+import type { OriginalRequest } from '../types.js';
+import { normalizeParam } from './normalize.js';
 
 export const DECODING_API_ERRORS = {
   UNSUPPORTED_SIGNATURE: 'UNSUPPORTED_SIGNATURE',

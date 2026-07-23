@@ -19,17 +19,17 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { FakeProvider } from '../../../tests/fake-provider';
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import { FakeProvider } from '../../../tests/fake-provider.js';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
-import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
-import { AccountTrackerController } from './AccountTrackerController';
-import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
-import { getTokenBalancesForMultipleAddresses } from './multicall';
+} from '../../network-controller/tests/helpers.js';
+import type { AccountTrackerControllerMessenger } from './AccountTrackerController.js';
+import { AccountTrackerController } from './AccountTrackerController.js';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher.js';
+import { getTokenBalancesForMultipleAddresses } from './multicall.js';
 
 type AllAccountTrackerControllerActions =
   MessengerActions<AccountTrackerControllerMessenger>;

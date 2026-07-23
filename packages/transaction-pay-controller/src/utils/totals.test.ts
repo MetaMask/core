@@ -1,14 +1,14 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { TransactionPayStrategy } from '..';
-import type { TransactionPayControllerMessenger } from '..';
+import { TransactionPayStrategy } from '../index.js';
+import type { TransactionPayControllerMessenger } from '../index.js';
 import type {
   QuoteRequest,
   TransactionPayQuote,
   TransactionPayRequiredToken,
-} from '../types';
-import { calculateTransactionGasCost } from './gas';
-import { calculateTotals } from './totals';
+} from '../types.js';
+import { calculateTransactionGasCost } from './gas.js';
+import { calculateTotals } from './totals.js';
 
 jest.mock('./gas');
 

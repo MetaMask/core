@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Popular-network classification is now augmented by `ConfigRegistryController` ([#9611](https://github.com/MetaMask/core/pull/9611))
+  - `NetworkEnablementControllerMessenger` now requires the `ConfigRegistryController:getState` action to be available.
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.1` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593))
 
 ## [5.6.0]

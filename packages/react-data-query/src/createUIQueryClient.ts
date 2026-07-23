@@ -8,8 +8,6 @@ import {
   QueryClient,
   InvalidateQueryFilters,
   InvalidateOptions,
-  OmitKeyof,
-  parseFilterArgs,
   QueryKey,
   QueryClientConfig,
 } from '@tanstack/query-core';
@@ -213,14 +211,10 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   // Override invalidateQueries to ensure the data service is invalidated as well.
   const originalInvalidate = client.invalidateQueries.bind(client);
 
-  // This function is defined in this way to have full support for all function overloads.
   client.invalidateQueries = async (
-    arg1?: QueryKey | InvalidateQueryFilters,
-    arg2?: OmitKeyof<InvalidateQueryFilters, 'queryKey'> | InvalidateOptions,
-    arg3?: InvalidateOptions,
+    filters?: InvalidateQueryFilters,
+    options?: InvalidateOptions,
   ): Promise<void> => {
-    const [filters, options] = parseFilterArgs(arg1, arg2, arg3);
-
     const queries = client.getQueryCache().findAll(filters);
 
     const services = [

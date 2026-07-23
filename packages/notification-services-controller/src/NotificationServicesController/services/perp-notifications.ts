@@ -3,7 +3,7 @@ import {
   successfulFetch,
 } from '@metamask/controller-utils';
 
-import type { OrderInput } from '../types';
+import type { OrderInput } from '../types/index.js';
 
 export const PERPS_API = 'https://perps.api.cx.metamask.io';
 export const PERPS_API_CREATE_ORDERS = `${PERPS_API}/api/v1/orders`;

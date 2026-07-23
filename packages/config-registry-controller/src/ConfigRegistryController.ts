@@ -12,7 +12,7 @@ import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
-import { Duration, inMilliseconds, Json } from '@metamask/utils';
+import { CaipChainId, Duration, inMilliseconds, Json } from '@metamask/utils';
 
 import type { ConfigRegistryApiServiceFetchConfigAction } from './config-registry-api-service/config-registry-api-service-method-action-types.js';
 import type { RegistryNetworkConfig } from './config-registry-api-service/types.js';
@@ -37,7 +37,7 @@ export type ConfigRegistryControllerState = {
    * Use selectors (e.g. selectFeaturedNetworks) to filter when needed.
    */
   configs: {
-    networks: Record<string, RegistryNetworkConfig>;
+    networks: Record<CaipChainId, RegistryNetworkConfig>;
   };
   /**
    * Semantic version string of the configuration data from the API.
@@ -216,7 +216,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
    * @returns The network configuration if found, otherwise undefined.
    */
   getNetworkConfigByCaip2ChainId(
-    caip2ChainId: string,
+    caip2ChainId: CaipChainId,
   ): RegistryNetworkConfig | undefined {
     return this.state.configs.networks[caip2ChainId];
   }

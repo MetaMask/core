@@ -22,11 +22,11 @@ import {
   getMYXChainId,
   MYX_TESTNET_CHAIN_ID,
   MYX_MAINNET_CHAIN_ID,
-} from '../constants/myxConfig';
-import type { PerpsControllerMessenger } from '../PerpsController';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import type { PerpsPlatformDependencies } from '../types';
-import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils';
+} from '../constants/myxConfig.js';
+import type { PerpsControllerMessenger } from '../PerpsController.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type { PerpsPlatformDependencies } from '../types/index.js';
+import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
 
 export class MYXWalletService {
   #isTestnet: boolean;

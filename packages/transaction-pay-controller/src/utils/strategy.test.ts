@@ -1,15 +1,15 @@
-import { TransactionPayStrategy } from '../constants';
-import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
-import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
-import { RelayStrategy } from '../strategy/relay/RelayStrategy';
-import { ServerStrategy } from '../strategy/server/ServerStrategy';
-import type { PayStrategyGetQuotesRequest } from '../types';
+import { TransactionPayStrategy } from '../constants.js';
+import { AcrossStrategy } from '../strategy/across/AcrossStrategy.js';
+import { FiatStrategy } from '../strategy/fiat/FiatStrategy.js';
+import { RelayStrategy } from '../strategy/relay/RelayStrategy.js';
+import { ServerStrategy } from '../strategy/server/ServerStrategy.js';
+import type { PayStrategyGetQuotesRequest } from '../types.js';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
   getStrategiesByName,
   getStrategyByName,
-} from './strategy';
+} from './strategy.js';
 
 describe('Strategy Utils', () => {
   describe('getStrategyByName', () => {
@@ -120,7 +120,7 @@ describe('Strategy Utils', () => {
       quotes: [],
     } as never;
 
-    it('uses checkQuoteSupport when available', async () => {
+    it('returns false when checkQuoteSupport returns false', async () => {
       const strategy = {
         checkQuoteSupport: jest.fn().mockReturnValue(false),
         getQuotes: jest.fn(),
@@ -128,7 +128,16 @@ describe('Strategy Utils', () => {
       };
 
       expect(await checkStrategyQuoteSupport(strategy, request)).toBe(false);
-      expect(strategy.checkQuoteSupport).toHaveBeenCalledWith(request);
+    });
+
+    it('returns true when checkQuoteSupport returns true', async () => {
+      const strategy = {
+        checkQuoteSupport: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      expect(await checkStrategyQuoteSupport(strategy, request)).toBe(true);
     });
 
     it('defaults to supported when no post-quote support check is provided', async () => {

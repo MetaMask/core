@@ -7,15 +7,15 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import { formatIconUrlWithProxy } from '../assetsUtil';
-import type { CurrencyRateControllerGetStateAction } from '../CurrencyRateController';
-import type { AbstractTokenPricesService } from '../token-prices-service';
+import { formatIconUrlWithProxy } from '../assetsUtil.js';
+import type { CurrencyRateControllerGetStateAction } from '../CurrencyRateController.js';
+import type { AbstractTokenPricesService } from '../token-prices-service/index.js';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
-} from '../token-service';
-import type { TokenListToken } from '../TokenListController';
-import type { TokenDisplayData } from './types';
+} from '../token-service.js';
+import type { TokenListToken } from '../TokenListController.js';
+import type { TokenDisplayData } from './types.js';
 
 // === GENERAL ===
 

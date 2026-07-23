@@ -1,7 +1,7 @@
 import { SolScope } from '@metamask/keyring-api';
 
-import { keyringTransactionFixtures } from '../../test/fixtures/keyring-transactions';
-import { mapKeyringTransaction } from './keyring-transaction-mapper';
+import { keyringTransactionFixtures } from '../../test/fixtures/keyring-transactions.js';
+import { mapKeyringTransaction } from './keyring-transaction-mapper.js';
 
 describe('mapKeyringTransaction', () => {
   it('maps keyring send transactions with token amount data', () => {

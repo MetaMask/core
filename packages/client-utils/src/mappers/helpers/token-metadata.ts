@@ -2,7 +2,7 @@ import contractMap from '@metamask/contract-metadata';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
-import { formatAddressToAssetId } from './caip';
+import { formatAddressToAssetId } from './caip.js';
 
 export type KnownTokenMetadata = {
   symbol?: string;

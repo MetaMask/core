@@ -2,16 +2,16 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../../logger.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit';
-import { getTransferredAmountFromTxHash } from '../../utils/transaction';
-import { MUSD_MONAD_FIAT_ASSET } from '../fiat/constants';
-import { FALLBACK_HASH } from './constants';
-import type { RelayCompletionOutcome, RelayQuote } from './types';
+} from '../../types.js';
+import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
+import { getTransferredAmountFromTxHash } from '../../utils/transaction.js';
+import { MUSD_MONAD_FIAT_ASSET } from '../fiat/constants.js';
+import { FALLBACK_HASH } from './constants.js';
+import type { RelayCompletionOutcome, RelayQuote } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'relay-post-ma-vault');
 

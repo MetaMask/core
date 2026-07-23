@@ -8,6 +8,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { merge } from 'lodash';
 
 import { flushPromises } from '../../../tests/helpers';
 import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20';
@@ -32,10 +33,14 @@ import {
 import { ChainId, RequestStatus } from './types';
 import type { BridgeControllerMessenger } from './types';
 import * as balanceUtils from './utils/balance';
-import { formatChainIdToDec } from './utils/caip-formatters';
+import {
+  formatChainIdToCaip,
+  formatChainIdToDec,
+} from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import { FeatureId } from './validators/feature-flags';
+import { validateQuoteResponseV1 } from './validators/quote-response-v1';
 import { QuoteStreamCompleteReason } from './validators/quote-stream-complete';
 import { TokenFeatureType } from './validators/token-feature';
 import type { TxData } from './validators/trade';
@@ -377,9 +382,23 @@ describe('BridgeController SSE', function () {
               ...quote,
               quote: {
                 ...quote.quote,
-                srcTokenAddress,
+                srcAsset: {
+                  address: ETH_USDT_ADDRESS,
+                  assetId:
+                    `${formatChainIdToCaip(1)}/erc20:${srcTokenAddress}` as const,
+                  symbol: 'USDT',
+                  name: 'Tether USD',
+                  decimals: 6,
+                  chainId: 1,
+                  iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+                },
                 srcChainId: 1,
                 destChainId: formatChainIdToDec(destChainId),
+                destAsset: {
+                  ...quote.quote.destAsset,
+                  assetId:
+                    `${formatChainIdToCaip(destChainId)}/erc20:${quote.quote.destAsset.address}` as const,
+                },
               },
             }),
           );
@@ -488,16 +507,39 @@ describe('BridgeController SSE', function () {
                 resetApproval,
               },
             ],
-            quotes: mockUSDTQuoteResponse.map((quote) => ({
-              ...quote,
-              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
-              resetApproval: tradeData
-                ? {
-                    ...quote.approval,
-                    data: tradeData,
-                  }
-                : undefined,
-            })),
+            quotes: mockBridgeQuotesErc20Erc20V1
+              .map((quote) =>
+                merge({}, quote, {
+                  quote: {
+                    srcAsset: {
+                      address: ETH_USDT_ADDRESS,
+                      assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}`,
+                      symbol: 'USDT',
+                      name: 'Tether USD',
+                      decimals: 6,
+                      chainId: 1,
+                      iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+                    },
+                    srcChainId: 1,
+                    destAsset: {
+                      ...quote.quote.destAsset,
+                      assetId:
+                        `${formatChainIdToCaip(destChainId)}/erc20:${quote.quote.destAsset.address}` as const,
+                    },
+                    destChainId: formatChainIdToDec(destChainId),
+                  },
+                }),
+              )
+              .map((quote) => ({
+                ...quote,
+                featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
+                resetApproval: tradeData
+                  ? {
+                      ...quote.approval,
+                      data: tradeData,
+                    }
+                  : undefined,
+              })),
             quotesRefreshCount: 1,
             quotesLoadingStatus: 1,
             quotesLastFetched: t1,
@@ -541,11 +583,23 @@ describe('BridgeController SSE', function () {
             ...quote,
             quote: {
               ...quote.quote,
-              srcTokenAddress: ETH_USDT_ADDRESS,
+              srcAsset: {
+                address: ETH_USDT_ADDRESS,
+                assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}` as const,
+                chainId: 1,
+                symbol: 'USDT',
+                name: 'Tether USD',
+                decimals: 6,
+                iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+              },
               srcChainId: 1,
             },
           }),
         );
+        mockUSDTQuoteResponse.forEach((quote) =>
+          validateQuoteResponseV1(quote),
+        );
+
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSource(mockUSDTQuoteResponse);
         });
@@ -647,14 +701,31 @@ describe('BridgeController SSE', function () {
               resetApproval: true,
             },
           ],
-          quotes: mockUSDTQuoteResponse.map((quote) => ({
-            ...quote,
-            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
-            resetApproval: {
-              ...quote.approval,
-              data: '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
-            },
-          })),
+          quotes: mockBridgeQuotesErc20Erc20V1
+            .map((quote) =>
+              merge({}, quote, {
+                quote: {
+                  srcAsset: {
+                    address: ETH_USDT_ADDRESS,
+                    assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}`,
+                    name: 'Tether USD',
+                    decimals: 6,
+                    symbol: 'USDT',
+                    chainId: 1,
+                    iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+                  },
+                  srcChainId: 1,
+                },
+              }),
+            )
+            .map((quote) => ({
+              ...quote,
+              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
+              resetApproval: {
+                ...quote.approval,
+                data: '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
+              },
+            })),
           quotesRefreshCount: 1,
           quotesLoadingStatus: 1,
           quotesLastFetched: t1,

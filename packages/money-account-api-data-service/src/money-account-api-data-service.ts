@@ -20,10 +20,10 @@ import {
   Env,
   MONEY_ACCOUNT_API_URL_MAP,
   RATE_HISTORY_STALE_TIME_MS,
-} from './constants';
-import { MoneyAccountApiResponseValidationError } from './errors';
-import { projectLogger, createModuleLogger } from './logger';
-import type { MoneyAccountApiDataServiceMethodActions } from './money-account-api-data-service-method-action-types';
+} from './constants.js';
+import { MoneyAccountApiResponseValidationError } from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { MoneyAccountApiDataServiceMethodActions } from './money-account-api-data-service-method-action-types.js';
 import type {
   HistoryResponse,
   InterestResponse,
@@ -35,12 +35,12 @@ import {
   InterestResponseStruct,
   PositionResponseStruct,
   RateHistoryResponseStruct,
-} from './structs';
+} from './structs.js';
 import type {
   HistoryOptions,
   InterestOptions,
   RateHistoryOptions,
-} from './types';
+} from './types.js';
 
 // === GENERAL ===
 

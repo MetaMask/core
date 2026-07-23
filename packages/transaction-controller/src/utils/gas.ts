@@ -9,10 +9,10 @@ import type { Hex, Json } from '@metamask/utils';
 import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { simulateTransactions } from '../api/simulation-api';
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionEnvelopeType } from '../types';
+import { simulateTransactions } from '../api/simulation-api.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionEnvelopeType } from '../types.js';
 import type {
   AuthorizationList,
   BatchTransactionParams,
@@ -23,15 +23,18 @@ import type {
   TransactionBatchSingleRequest,
   TransactionMeta,
   TransactionParams,
-} from '../types';
+} from '../types.js';
 import {
   DELEGATION_PREFIX,
   doesAccountSupportEIP7702,
   generateEIP7702BatchTransaction,
-} from './eip7702';
-import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
-import { getChainId, rpcRequest } from './provider';
-import { decodeRevert } from './revert-reason';
+} from './eip7702.js';
+import {
+  getGasEstimateBuffer,
+  getGasEstimateFallback,
+} from './feature-flags.js';
+import { getChainId, rpcRequest } from './provider.js';
+import { decodeRevert } from './revert-reason.js';
 
 export type UpdateGasRequest = {
   isCustomNetwork: boolean;

@@ -6,19 +6,25 @@ import { cloneDeep } from 'lodash';
 import type {
   SimulationResponse,
   SimulationResponseTransaction,
-} from '../api/simulation-api';
-import { simulateTransactions } from '../api/simulation-api';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionEnvelopeType } from '../types';
-import type { TransactionMeta } from '../types';
+} from '../api/simulation-api.js';
+import { simulateTransactions } from '../api/simulation-api.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionEnvelopeType } from '../types.js';
+import type { TransactionMeta } from '../types.js';
 import type {
   AuthorizationList,
   BatchTransactionParams,
   TransactionBatchSingleRequest,
-} from '../types';
-import { DELEGATION_PREFIX, generateEIP7702BatchTransaction } from './eip7702';
-import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
-import type { UpdateGasRequest } from './gas';
+} from '../types.js';
+import {
+  DELEGATION_PREFIX,
+  generateEIP7702BatchTransaction,
+} from './eip7702.js';
+import {
+  getGasEstimateBuffer,
+  getGasEstimateFallback,
+} from './feature-flags.js';
+import type { UpdateGasRequest } from './gas.js';
 import {
   addGasBuffer,
   estimateGas,
@@ -31,8 +37,8 @@ import {
   INTRINSIC_GAS,
   DUMMY_AUTHORIZATION_SIGNATURE,
   simulateGasBatch,
-} from './gas';
-import { rpcRequest } from './provider';
+} from './gas.js';
+import { rpcRequest } from './provider.js';
 
 jest.mock('./provider', () => ({
   ...jest.requireActual('./provider'),

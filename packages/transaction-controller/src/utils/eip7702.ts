@@ -5,20 +5,20 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger, add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { ABI_IERC7821 } from '../constants';
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { ABI_IERC7821 } from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   BatchTransactionParams,
   Authorization,
   AuthorizationList,
   TransactionMeta,
-} from '../types';
+} from '../types.js';
 import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
-} from './feature-flags';
-import { rpcRequest } from './provider';
+} from './feature-flags.js';
+import { rpcRequest } from './provider.js';
 
 export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';

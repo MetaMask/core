@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NotificationServicesPushController } from './NotificationServicesPushController';
+import type { NotificationServicesPushController } from './NotificationServicesPushController.js';
 
 export type NotificationServicesPushControllerSubscribeToPushNotificationsAction =
   {

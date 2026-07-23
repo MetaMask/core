@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [78.0.0]
+
+### Added
+
+- Return `priceImpact` and `relayerFee` as part of `QuoteMetadata` ([#9507](https://github.com/MetaMask/core/pull/9507))
+
+### Changed
+
+- **BREAKING:** Make `QuoteMetadata` fields optional and remove unused values
+  - Remove falsy (`0` and `null`) fallbacks; missing values are now `undefined`
+  - Replace `gasFee.effective`, `gasFee.max`, and `totalMaxNetworkFee` usages with `gasFee.total` and `totalNetworkFee`.
+- Extract quote-metadata calculation into `utils/quote-metadata/` ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Implement `mergeQuoteMetadata` util which appends QuoteMetadata to QuoteResponse ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Bump `@metamask/assets-controller` from `^11.1.1` to `^11.2.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+
+### Fixed
+
+- Remove Arc and Stellar from `DEFAULT_CHAIN_RANKING`. This is a short term fix for a very rare edge case where when launchdarkly is not reachable (API issue or internet down), the network selector relies on a default list defined in the bridge controller to display the list of networks for swap/bridge, we want to remove Arc and Stellar from this list since they have not launched yet. ([#9635](https://github.com/MetaMask/core/pull/9635))
+
 ## [77.8.0]
 
 ### Added
@@ -1789,7 +1809,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.0.0...HEAD
+[78.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.8.0...@metamask/bridge-controller@78.0.0
 [77.8.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.7.0...@metamask/bridge-controller@77.8.0
 [77.7.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.6.0...@metamask/bridge-controller@77.7.0
 [77.6.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.5.0...@metamask/bridge-controller@77.6.0

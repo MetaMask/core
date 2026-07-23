@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Upgrade `@tanstack/query-core` and `@tanstack/react-query` from `^4.43.0` to `^5.62.16` ([#9563](https://github.com/MetaMask/core/pull/9563))
+  - `createUIQueryClient`'s `invalidateQueries` override now matches the TanStack Query v5 signature (`filters`, `options`) instead of the v4 overload style that relied on `parseFilterArgs`.
+  - Consumers must migrate to TanStack Query v5 APIs (for example `gcTime` instead of `cacheTime`, and `initialPageParam` for infinite queries).
 - **BREAKING:** Constrain `createUIQueryClient`'s messenger-like type to match the given data services ([#9475](https://github.com/MetaMask/core/pull/9475))
   - The messenger-like object that `createUIQueryClient` takes must minimally support actions or `:cacheUpdated:${hash}` events which are namespaced by the provided data service names.
   - If you're passing a messenger, it should "just work" as long as your messenger supports the right actions and events.

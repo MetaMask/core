@@ -1,11 +1,11 @@
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { TransactionPayStrategy } from '../constants';
-import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
-import { FIAT_ENABLED_TYPES } from '../strategy/fiat/constants';
-import { getMessengerMock } from '../tests/messenger-mock';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { TransactionPayStrategy } from '../constants.js';
+import type { TransactionPayFiatAsset } from '../strategy/fiat/constants.js';
+import { FIAT_ENABLED_TYPES } from '../strategy/fiat/constants.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
 import {
   DEFAULT_ACROSS_API_BASE,
   DEFAULT_FALLBACK_GAS_ESTIMATE,
@@ -35,6 +35,7 @@ import {
   isChainExcludedFromInfura,
   isEIP7702Chain,
   isRelayExecuteEnabled,
+  isRelayValidationEnabled,
   getFeatureFlags,
   getGasBuffer,
   getHyperliquidActivationFeeConfig,
@@ -43,8 +44,8 @@ import {
   getSlippage,
   getStrategy,
   getStrategyOrder,
-} from './feature-flags';
-import * as featureFlagsModule from './feature-flags';
+} from './feature-flags.js';
+import * as featureFlagsModule from './feature-flags.js';
 
 const GAS_FALLBACK_ESTIMATE_MOCK = 123;
 const GAS_FALLBACK_MAX_MOCK = 456;
@@ -511,6 +512,36 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('isRelayValidationEnabled', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isRelayValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when validationEnabled is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: { relay: { validationEnabled: true } },
+          },
+        },
+      });
+      expect(isRelayValidationEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when validationEnabled is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: { relay: { validationEnabled: false } },
+          },
+        },
+      });
+      expect(isRelayValidationEnabled(messenger)).toBe(false);
     });
   });
 

@@ -13,7 +13,7 @@ import type {
   EstimatedGasFeeTimeBounds,
   unknownString,
   LegacyGasPriceEstimate,
-} from './GasFeeController';
+} from './GasFeeController.js';
 
 const makeClientIdHeader = (clientId: string) => ({ 'X-Client-Id': clientId });
 

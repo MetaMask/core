@@ -2,7 +2,7 @@ import {
   countSignificantFigures,
   hasExceededSignificantFigures,
   roundToSignificantFigures,
-} from '../../../src/utils/significantFigures';
+} from '../../../src/utils/significantFigures.js';
 
 describe('significantFigures utilities', () => {
   describe('countSignificantFigures', () => {

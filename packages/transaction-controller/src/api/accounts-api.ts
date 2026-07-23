@@ -1,8 +1,8 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { FirstTimeInteractionError } from '../errors';
-import { projectLogger } from '../logger';
+import { FirstTimeInteractionError } from '../errors.js';
+import { projectLogger } from '../logger.js';
 
 export type AccountAddressRelationshipResponse = {
   chainId?: number;

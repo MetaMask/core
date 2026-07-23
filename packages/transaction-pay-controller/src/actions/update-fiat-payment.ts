@@ -1,12 +1,12 @@
 import { createModuleLogger } from '@metamask/utils';
 
-import type { TransactionPayControllerMessenger } from '..';
-import { projectLogger } from '../logger';
+import type { TransactionPayControllerMessenger } from '../index.js';
+import { projectLogger } from '../logger.js';
 import type {
   UpdateFiatPaymentRequest,
   UpdateTransactionDataCallback,
-} from '../types';
-import { getTransaction } from '../utils/transaction';
+} from '../types.js';
+import { getTransaction } from '../utils/transaction.js';
 
 const log = createModuleLogger(projectLogger, 'update-fiat-payment');
 

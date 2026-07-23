@@ -1,5 +1,5 @@
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import type { NormalisedAPINotification } from '../types/notification-api/notification-api';
+import { TRIGGER_TYPES } from '../constants/notification-schema.js';
+import type { NormalisedAPINotification } from '../types/notification-api/notification-api.js';
 
 /**
  * Mocking Utility - create a mock Eth sent notification

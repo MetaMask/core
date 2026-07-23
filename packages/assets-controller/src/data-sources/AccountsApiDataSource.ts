@@ -3,15 +3,18 @@ import type {
   V6AccountBalancesEntry,
 } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
-import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type {
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from '@metamask/remote-feature-flag-controller';
 import {
   isCaipChainId,
   KnownCaipNamespace,
   toCaipChainId,
 } from '@metamask/utils';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   ChainId,
   Caip19AssetId,
@@ -20,13 +23,17 @@ import type {
   DataResponse,
   Middleware,
   AssetsControllerStateInternal,
-} from '../types';
-import { fetchWithTimeout, normalizeAssetId } from '../utils';
+} from '../types.js';
+import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
+import {
+  getMigrationStages,
+  shouldSupportChain,
+} from '../utils/snaps-assets-migration.js';
 import type {
   DataSourceState,
   SubscriptionRequest,
-} from './AbstractDataSource';
-import { AbstractDataSource } from './AbstractDataSource';
+} from './AbstractDataSource.js';
+import { AbstractDataSource } from './AbstractDataSource.js';
 
 // ============================================================================
 // CONSTANTS
@@ -44,9 +51,16 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // Allowed actions that AccountsApiDataSource can call. Balances are fetched via
 // ApiPlatformClient directly (no BackendApiClient actions needed); the messenger
-// is only used to read the Accounts API v6 balances feature flag.
+// is used to read the Accounts API v6 balances feature flag and to subscribe to
+// `RemoteFeatureFlagController:stateChange` (see constructor) so migration flag
+// changes refresh the active chains.
 export type AccountsApiDataSourceAllowedActions =
   RemoteFeatureFlagControllerGetStateAction;
+
+// Allowed events that AccountsApiDataSource subscribes to. Migration flag
+// changes trigger a refresh of the chains surfaced as active.
+export type AccountsApiDataSourceAllowedEvents =
+  RemoteFeatureFlagControllerStateChangeEvent;
 
 // ============================================================================
 // STATE
@@ -230,7 +244,40 @@ export class AccountsApiDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#apiClient = options.queryApiClient;
 
+    // The Snaps → AssetsController migration flags gate which migration networks
+    // (Solana, Stellar, Tron) are surfaced as active chains (see
+    // `#shouldSupportChain`). Mirror core-backend's AccountActivityService and
+    // react to remote feature flag changes so newly-enabled chains are picked up
+    // (and disabled ones dropped) without waiting for the periodic refresh.
+    this.#messenger.subscribe(
+      // eslint-disable-next-line no-restricted-syntax
+      'RemoteFeatureFlagController:stateChange',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async () => await this.#handleMigrationFeatureFlagsChanged(),
+      // Only react to changes in the set of migration stages. The messenger
+      // compares selector results with strict equality, so the selector must
+      // return a primitive rather than a fresh object.
+      (state) => getMigrationStages(state.remoteFeatureFlags).join(','),
+    );
+
     this.#initializeActiveChains().catch(console.error);
+  }
+
+  /**
+   * Handle a change to the Snaps → AssetsController migration flags: re-fetch
+   * active chains so newly-enabled migration networks are surfaced (and disabled
+   * ones dropped) without waiting for the periodic refresh. The refresh invokes
+   * `onActiveChainsUpdated` when the set changes, which drives re-subscription.
+   */
+  async #handleMigrationFeatureFlagsChanged(): Promise<void> {
+    try {
+      await this.#refreshActiveChains();
+    } catch (error) {
+      log('Failed to refresh active chains after feature flag change', {
+        error,
+      });
+    }
   }
 
   /**
@@ -323,13 +370,17 @@ export class AccountsApiDataSource extends AbstractDataSource<
   async #fetchActiveChains(): Promise<ChainId[]> {
     const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
 
-    // Use fullSupport networks as active chains
-    return (
-      response.fullSupport
-        .map(decimalToChainId)
-        // TODO Restore solana when there is a fix for how we handle non-evm chains here
-        .filter((chainId) => chainId.startsWith('eip155:'))
+    // Use fullSupport networks as active chains, gated by the Snaps →
+    // AssetsController migration FF: non-migration namespaces (e.g. `eip155`)
+    // are always surfaced, while migration networks (Solana, Stellar, Tron) are
+    // only surfaced once their per-network stage reaches
+    // ReadAssetsControllerWithFallback.
+    const { remoteFeatureFlags } = this.#messenger.call(
+      'RemoteFeatureFlagController:getState',
     );
+    return response.fullSupport
+      .map(decimalToChainId)
+      .filter((chainId) => shouldSupportChain(chainId, remoteFeatureFlags));
   }
 
   // ============================================================================
@@ -376,7 +427,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       }
 
       const fetchOptions = request.forceUpdate
-        ? { staleTime: 0, gcTime: 0 }
+        ? { staleTime: 100, gcTime: 100 }
         : undefined;
 
       // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
@@ -798,12 +849,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   destroy(): void {
-    // Clean up timers
     if (this.#chainsRefreshTimer) {
       clearInterval(this.#chainsRefreshTimer);
     }
 
-    // Clean up subscriptions
     super.destroy();
   }
 }

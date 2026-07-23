@@ -1,4 +1,4 @@
-import type { GetBalancesResponse } from '../types';
+import type { GetBalancesResponse } from '../types.js';
 
 export const MOCK_GET_BALANCES_RESPONSE: GetBalancesResponse = {
   count: 6,

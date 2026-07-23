@@ -44,20 +44,20 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 
-import type { AccountTrackerControllerMethodActions } from './AccountTrackerController-method-action-types';
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import type { AccountTrackerControllerMethodActions } from './AccountTrackerController-method-action-types.js';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController.js';
 import type {
   AssetsContractController,
   StakedBalance,
-} from './AssetsContractController';
-import { shouldIncludeNativeToken } from './constants';
-import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+} from './AssetsContractController.js';
+import { shouldIncludeNativeToken } from './constants.js';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher.js';
 import type {
   BalanceFetcher,
   BalanceFetchResult,
   ProcessedBalance,
-} from './multi-chain-accounts-service/api-balance-fetcher';
-import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
+} from './multi-chain-accounts-service/api-balance-fetcher.js';
+import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher.js';
 
 /**
  * The name of the {@link AccountTrackerController}.

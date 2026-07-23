@@ -54,35 +54,35 @@ import {
 import { produce } from 'immer';
 import { isEqual, union } from 'lodash';
 
-import type { AccountTrackerControllerGetStateAction } from './AccountTrackerController';
 import type {
   AccountTrackerControllerUpdateNativeBalancesAction,
   AccountTrackerControllerUpdateStakedBalancesAction,
-} from './AccountTrackerController-method-action-types';
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+} from './AccountTrackerController-method-action-types.js';
+import type { AccountTrackerControllerGetStateAction } from './AccountTrackerController.js';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController.js';
 import {
   MUSD_ERC20_ADDRESS_LOWER,
   MUSD_TOKEN_DETECTION_CHAIN_IDS,
-} from './constants';
-import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+} from './constants.js';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher.js';
 import type {
   BalanceFetcher,
   ProcessedBalance,
   UnprocessedTokens,
-} from './multi-chain-accounts-service/api-balance-fetcher';
-import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
-import type { TokenBalancesControllerMethodActions } from './TokenBalancesController-method-action-types';
+} from './multi-chain-accounts-service/api-balance-fetcher.js';
+import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher.js';
+import type { TokenBalancesControllerMethodActions } from './TokenBalancesController-method-action-types.js';
 import type {
   TokenDetectionControllerAddDetectedTokensViaPollingAction,
   TokenDetectionControllerAddDetectedTokensViaWsAction,
   TokenDetectionControllerDetectTokensAction,
-} from './TokenDetectionController-method-action-types';
+} from './TokenDetectionController-method-action-types.js';
 import type {
   TokensControllerGetStateAction,
   TokensControllerState,
   TokensControllerStateChangeEvent,
-} from './TokensController';
-import { createBatchedHandler } from './utils/create-batch-handler';
+} from './TokensController.js';
+import { createBatchedHandler } from './utils/create-batch-handler.js';
 
 const MUSD_IMPORT_CHAIN_ID_SET = new Set<Hex>(MUSD_TOKEN_DETECTION_CHAIN_IDS);
 

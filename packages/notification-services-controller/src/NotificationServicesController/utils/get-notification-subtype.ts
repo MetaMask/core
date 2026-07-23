@@ -1,6 +1,6 @@
-import { isOnChainRawNotification } from '../../shared/is-onchain-notification';
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import type { RawNotificationUnion } from '../types/notification/notification';
+import { isOnChainRawNotification } from '../../shared/is-onchain-notification.js';
+import { TRIGGER_TYPES } from '../constants/notification-schema.js';
+import type { RawNotificationUnion } from '../types/notification/notification.js';
 
 /**
  * Derives the normalised `notification_subtype` for a processed in-app

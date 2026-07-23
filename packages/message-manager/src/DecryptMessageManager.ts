@@ -13,9 +13,9 @@ import type {
   MessageManagerState,
   MessageRequest,
   SecurityProviderRequest,
-} from './AbstractMessageManager';
-import { AbstractMessageManager } from './AbstractMessageManager';
-import { normalizeMessageData, validateDecryptedMessageData } from './utils';
+} from './AbstractMessageManager.js';
+import { AbstractMessageManager } from './AbstractMessageManager.js';
+import { normalizeMessageData, validateDecryptedMessageData } from './utils.js';
 
 const managerName = 'DecryptMessageManager';
 

@@ -3,11 +3,7 @@ import type { AccountsControllerState } from '@metamask/accounts-controller';
 
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
 import { ChainId } from '../../types';
-import type {
-  GenericQuoteRequest,
-  QuoteMetadata,
-  QuoteRequest,
-} from '../../types';
+import type { GenericQuoteRequest, QuoteRequest } from '../../types';
 import { FeatureId } from '../../validators/feature-flags';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
 import type { TxData } from '../../validators/trade';
@@ -16,6 +12,7 @@ import {
   formatAddressToAssetId,
   formatChainIdToCaip,
 } from '../caip-formatters';
+import type { QuoteMetadata } from '../quote-metadata/types';
 import { MetricsSwapType } from './constants';
 import type {
   AccountHardwareType,
@@ -173,7 +170,7 @@ export const getQuotesReceivedProperties = (
     quoted_time_minutes: activeQuote?.estimatedProcessingTimeInSeconds
       ? activeQuote.estimatedProcessingTimeInSeconds / 60
       : 0,
-    usd_quoted_gas: Number(activeQuote?.gasFee?.effective?.usd ?? 0),
+    usd_quoted_gas: Number(activeQuote?.gasFee?.total?.usd ?? 0),
     usd_quoted_return: Number(activeQuote?.toTokenAmount?.usd ?? 0),
     usd_balance_source: usdBalanceSource ?? 0,
     best_quote_provider: recommendedQuote

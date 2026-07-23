@@ -3,14 +3,14 @@ export {
   type TokenDetectorConfig,
   type DetectionPollingInput,
   type OnDetectionUpdateCallback,
-} from './TokenDetector';
+} from './TokenDetector.js';
 export {
   BalanceFetcher,
   type BalanceFetcherConfig,
   type BalanceFetcherMessenger,
   type BalancePollingInput,
   type OnBalanceUpdateCallback,
-} from './BalanceFetcher';
+} from './BalanceFetcher.js';
 export {
   StakedBalanceFetcher,
   getSupportedStakingChainIds,
@@ -20,4 +20,4 @@ export {
   type StakedBalancePollingInput,
   type StakedBalanceFetchResult,
   type OnStakedBalanceUpdateCallback,
-} from './StakedBalanceFetcher';
+} from './StakedBalanceFetcher.js';

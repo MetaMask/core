@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { ProviderRouter } from '../../../src/routing/ProviderRouter';
+import { ProviderRouter } from '../../../src/routing/ProviderRouter.js';
 
 describe('ProviderRouter', () => {
   let router: ProviderRouter;

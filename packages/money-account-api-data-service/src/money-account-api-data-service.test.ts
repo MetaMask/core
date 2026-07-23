@@ -7,18 +7,18 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll as nockCleanAll } from 'nock';
 
-import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants';
-import { MoneyAccountApiResponseValidationError } from './errors';
+import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants.js';
+import { MoneyAccountApiResponseValidationError } from './errors.js';
 import type {
   MoneyAccountApiDataServiceMessenger,
   MoneyAccountApiDataServiceTraceCallback,
   MoneyAccountApiDataServiceTraceRequest,
-} from './money-account-api-data-service';
+} from './money-account-api-data-service.js';
 import {
   MoneyAccountApiDataService,
   serviceName,
   TRACES,
-} from './money-account-api-data-service';
+} from './money-account-api-data-service.js';
 
 // ============================================================
 // Fixtures
