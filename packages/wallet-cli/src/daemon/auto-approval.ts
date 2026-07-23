@@ -28,41 +28,19 @@ type ApprovalStateChangeHandler = (state: PendingApprovalsState) => void;
 /**
  * Subscribe the daemon to auto-accept every pending approval request.
  *
- * ## Trust model — the daemon accepts every approval without confirmation
+ * Without this, any `ApprovalController:addRequest` call hangs forever on a
+ * headless daemon. **Everything is approved without a prompt** — trust boundary
+ * is the `0600` same-user socket. A scoped policy is tracked in
+ * {@link https://github.com/MetaMask/core/issues/9513}.
  *
- * A send or signature flow raises an approval via
- * `ApprovalController:addRequest` and **awaits** its resolution. A UI client
- * resolves that request from a human decision; the headless daemon has no UI,
- * so with nothing accepting the request the awaiting call hangs forever. (The
- * injected `showApprovalRequest` hook only signals "a request needs
- * attention" — it does not resolve anything.)
- *
- * This subscribes to `ApprovalController:stateChanged` and immediately accepts
- * every pending request via `ApprovalController:acceptRequest`. The daemon
- * therefore approves **everything** — transactions and signatures included —
- * with no per-request prompt. That is the intended model for a headless
- * daemon: it is driven only by its owner's local CLI over a `0600`, same-user
- * Unix socket (see `startRpcSocketServer`), so the trust boundary is the
- * socket, not a per-request confirmation.
- *
- * This is **not** "safe by default": a scoped/opt-in policy (a config flag, or
- * accepting only specific approval types) is deferred until the user-facing
- * send command exists. Until then, anything that can reach the socket can move
- * funds.
- *
- * `acceptRequest` deletes the request as it resolves, which itself emits
- * another state change; a single flow can also emit several changes in quick
- * succession. The `inFlight` guard makes accepting each id idempotent across
- * those re-entrant/rapid changes — without it the same id would be accepted
- * twice and the second accept would reject because the request is already gone.
- * Both synchronous throws and async rejections from an accept are logged and
- * swallowed, so one bad request can neither crash the daemon nor wedge the
- * subscription.
+ * The `inFlight` guard makes accepting each id idempotent: `acceptRequest`
+ * deletes the request on resolve, which itself re-emits `stateChanged`. Without
+ * it the same id would be accepted twice and the second accept would reject.
+ * Both sync throws and async rejections are logged and swallowed so one bad
+ * request cannot crash the daemon or wedge the subscription.
  *
  * @param messenger - The wallet root messenger.
- * @param log - Optional logger for accept failures. Defaults to `console.error`
- * (which a detached daemon's `stdio: 'ignore'` discards, so a daemon host
- * should supply its own logger).
+ * @param log - Optional logger for accept failures. Defaults to `console.error`.
  * @returns A function that unsubscribes the auto-approval handler.
  */
 export function subscribeToAutoApproval(
