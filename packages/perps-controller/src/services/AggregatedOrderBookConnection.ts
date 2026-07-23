@@ -1,8 +1,8 @@
 import { SubscriptionClient, WebSocketTransport } from '@nktkas/hyperliquid';
 import type { ISubscription } from '@nktkas/hyperliquid';
 
-import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig';
-import type { OrderBookData } from '../types';
+import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig.js';
+import type { OrderBookData } from '../types/index.js';
 
 /**
  * A single L2 book price level as delivered by Hyperliquid's `l2Book`

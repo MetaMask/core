@@ -11,15 +11,14 @@ import {
   GasFeeEstimateType,
 } from '@metamask/transaction-controller';
 
-import Engine from '../../../core/Engine';
 import {
   createMockHyperLiquidProvider,
   createMockPosition,
-} from '../helpers/providerMocks';
+} from '../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
-} from '../helpers/serviceMocks';
+} from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
 jest.mock('@myx-trade/sdk', () => ({
@@ -30,12 +29,12 @@ jest.mock('@myx-trade/sdk', () => ({
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from '../../src/constants/eventNames';
+} from '../../src/constants/eventNames.js';
 import {
   PERPS_CONSTANTS,
   PERPS_DISK_CACHE_MARKETS,
   PERPS_DISK_CACHE_USER_DATA,
-} from '../../src/constants/perpsConfig';
+} from '../../src/constants/perpsConfig.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
@@ -43,10 +42,10 @@ import {
   PerpsMode,
   firstNonEmpty,
   resolveMyxAuthConfig,
-} from '../../src/PerpsController';
-import type { PerpsControllerState } from '../../src/PerpsController';
-import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes';
-import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider';
+} from '../../src/PerpsController.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
+import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
   AccountState,
   GetAvailableDexsParams,
@@ -54,8 +53,8 @@ import type {
   PerpsPlatformDependencies,
   PerpsProviderType,
   SubscribeAccountParams,
-} from '../../src/types';
-import { PerpsAnalyticsEvent } from '../../src/types';
+} from '../../src/types/index.js';
+import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
 jest.mock('../../src/providers/MYXProvider');
@@ -89,59 +88,6 @@ jest.mock(
   () => ({
     getStreamManagerInstance: jest.fn(() => mockStreamManager),
   }),
-  { virtual: true },
-);
-
-// Create persistent mock controllers INSIDE jest.mock factory
-jest.mock(
-  '../../../core/Engine',
-  () => {
-    const mockRewardsController = {
-      getPerpsDiscountForAccount: jest.fn(),
-    };
-
-    const mockNetworkController = {
-      getNetworkClientById: jest.fn().mockReturnValue({
-        configuration: { chainId: '0x1' },
-      }),
-    };
-
-    const mockAccountTreeController = {
-      getAccountsFromSelectedAccountGroup: jest.fn().mockReturnValue([
-        {
-          address: '0x1234567890123456789012345678901234567890',
-          type: 'eip155:eoa',
-        },
-      ]),
-    };
-
-    const mockTransactionController = {
-      estimateGasFee: jest.fn(),
-      estimateGas: jest.fn(),
-    };
-
-    const mockAccountTrackerController = {
-      state: {
-        accountsByChainId: {},
-      },
-    };
-
-    const mockEngineContext = {
-      RewardsController: mockRewardsController,
-      NetworkController: mockNetworkController,
-      AccountTreeController: mockAccountTreeController,
-      TransactionController: mockTransactionController,
-      AccountTrackerController: mockAccountTrackerController,
-    };
-
-    // Return as default export to match the actual Engine import
-    return {
-      __esModule: true,
-      default: {
-        context: mockEngineContext,
-      },
-    };
-  },
   { virtual: true },
 );
 
@@ -570,14 +516,6 @@ describe('PerpsController', () => {
     mockFeatureFlagConfigurationServiceInstance.refreshHip3Config.mockImplementation(
       () => undefined,
     );
-
-    // Reset Engine.context mocks to default state to prevent test interdependence
-    (
-      Engine.context.RewardsController.getPerpsDiscountForAccount as jest.Mock
-    ).mockResolvedValue(null);
-    (
-      Engine.context.NetworkController.getNetworkClientById as jest.Mock
-    ).mockReturnValue({ configuration: { chainId: '0x1' } });
 
     // Create a fresh mock provider for each test
     mockProvider = createMockHyperLiquidProvider();

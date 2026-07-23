@@ -2,7 +2,7 @@
 import {
   stripQuotes,
   parseCommaSeparatedString,
-} from '../../../src/utils/stringParseUtils';
+} from '../../../src/utils/stringParseUtils.js';
 
 describe('stripQuotes', () => {
   it('removes single layer of double quotes', () => {

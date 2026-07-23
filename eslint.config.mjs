@@ -424,6 +424,7 @@ const config = createConfig([
       'packages/notification-services-controller/**',
       'packages/permission-controller/**',
       'packages/permission-log-controller/**',
+      'packages/perps-controller/**',
       'packages/platform-api-docs/**',
       'packages/polling-controller/**',
       'packages/preferences-controller/**',

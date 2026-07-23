@@ -2,9 +2,9 @@ import type {
   GetMarketDataWithPricesParams,
   MarketTypeFilter,
   PerpsMarketData,
-} from '../types';
-import type { CandleData, CandleStick } from '../types/perps-types';
-import { sortMarkets } from './sortMarkets';
+} from '../types/index.js';
+import type { CandleData, CandleStick } from '../types/perps-types.js';
+import { sortMarkets } from './sortMarkets.js';
 
 // ============================================================================
 // Market category classification (pure functions)
