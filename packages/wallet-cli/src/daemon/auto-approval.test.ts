@@ -135,6 +135,10 @@ describe('subscribeToAutoApproval', () => {
         'Failed to auto-accept approval request id-a: Error: accept boom',
       ),
     );
+
+    // Verify .finally() ran so the id is retryable after an async rejection.
+    handler()({ pendingApprovals: { 'id-a': {} } });
+    expect(call).toHaveBeenCalledTimes(2);
   });
 
   it('logs and swallows a synchronous throw from an accept, and can retry the id later', () => {
