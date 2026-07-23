@@ -1,2 +1,2 @@
-export * from './TokenSearchDiscoveryDataController';
-export type * from './types';
+export * from './TokenSearchDiscoveryDataController.js';
+export type * from './types.js';

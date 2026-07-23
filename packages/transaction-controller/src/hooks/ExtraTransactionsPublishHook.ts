@@ -1,15 +1,15 @@
 import { createDeferredPromise, createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { TransactionController } from '..';
-import { projectLogger } from '../logger';
+import type { TransactionController } from '../index.js';
+import { projectLogger } from '../logger.js';
 import type {
   BatchTransactionParams,
   PublishHook,
   PublishHookResult,
   TransactionBatchSingleRequest,
   TransactionMeta,
-} from '../types';
+} from '../types.js';
 
 const log = createModuleLogger(
   projectLogger,

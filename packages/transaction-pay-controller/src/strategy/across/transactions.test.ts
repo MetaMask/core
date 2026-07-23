@@ -1,8 +1,8 @@
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getAcrossOrderedTransactions } from './transactions';
-import type { AcrossSwapApprovalResponse } from './types';
+import { getAcrossOrderedTransactions } from './transactions.js';
+import type { AcrossSwapApprovalResponse } from './types.js';
 
 const QUOTE_MOCK: AcrossSwapApprovalResponse = {
   approvalTxns: [

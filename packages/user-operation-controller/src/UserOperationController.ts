@@ -33,28 +33,28 @@ import EventEmitter from 'events';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
-import { Bundler } from './helpers/Bundler';
-import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker';
-import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount';
-import { projectLogger as log } from './logger';
+import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants.js';
+import { Bundler } from './helpers/Bundler.js';
+import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker.js';
+import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount.js';
+import { projectLogger as log } from './logger.js';
 import type {
   SmartContractAccount,
   UserOperation,
   UserOperationMetadata,
-} from './types';
-import { UserOperationStatus } from './types';
-import type { UserOperationControllerMethodActions } from './UserOperationController-method-action-types';
-import { updateGas } from './utils/gas';
-import { updateGasFees } from './utils/gas-fees';
-import { getTransactionMetadata } from './utils/transaction';
+} from './types.js';
+import { UserOperationStatus } from './types.js';
+import type { UserOperationControllerMethodActions } from './UserOperationController-method-action-types.js';
+import { updateGasFees } from './utils/gas-fees.js';
+import { updateGas } from './utils/gas.js';
+import { getTransactionMetadata } from './utils/transaction.js';
 import {
   validateAddUserOperationOptions,
   validateAddUserOperationRequest,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
-} from './utils/validation';
+} from './utils/validation.js';
 
 const controllerName = 'UserOperationController';
 

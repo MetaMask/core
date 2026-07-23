@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { DeFiPositionsControllerV2 } from './DeFiPositionsControllerV2';
+import type { DeFiPositionsControllerV2 } from './DeFiPositionsControllerV2.js';
 
 /**
  * Fetches DeFi positions for the selected account group. Each account key in

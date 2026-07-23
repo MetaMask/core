@@ -47,7 +47,10 @@ import type {
 } from '@metamask/permission-controller';
 import { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
-import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type {
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from '@metamask/remote-feature-flag-controller';
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerHandleRequestAction,
@@ -70,45 +73,45 @@ import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
 import { isEqual } from 'lodash';
 
-import type { AssetsControllerMethodActions } from './AssetsController-method-action-types';
+import type { AssetsControllerMethodActions } from './AssetsController-method-action-types.js';
 import type {
   AbstractDataSource,
   DataSourceState,
   SubscriptionRequest,
-} from './data-sources/AbstractDataSource';
-import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
-import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
-import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
-import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets';
-import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
-import { PriceDataSource } from './data-sources/PriceDataSource';
-import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
-import { RpcDataSource } from './data-sources/RpcDataSource';
-import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource';
-import { SnapDataSource } from './data-sources/SnapDataSource';
-import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
-import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
+} from './data-sources/AbstractDataSource.js';
+import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
+import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
+import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource.js';
+import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets.js';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
+import { PriceDataSource } from './data-sources/PriceDataSource.js';
+import type { RpcDataSourceConfig } from './data-sources/RpcDataSource.js';
+import { RpcDataSource } from './data-sources/RpcDataSource.js';
+import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource.js';
+import { SnapDataSource } from './data-sources/SnapDataSource.js';
+import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource.js';
+import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource.js';
 import {
   CaipAssetNamespace,
   TokenDataSource,
-} from './data-sources/TokenDataSource';
+} from './data-sources/TokenDataSource.js';
 import {
   CHAINS_WITH_DEFAULT_TRACKED_ASSETS,
   DEFAULT_TRACKED_ASSETS_BY_CHAIN,
   buildDefaultAssetsInfo,
   getDefaultAssetMetadata,
-} from './defaults';
-import { AssetsDataSourceError } from './errors';
-import { projectLogger, createModuleLogger } from './logger';
-import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware';
-import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
+} from './defaults.js';
+import { AssetsDataSourceError } from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware.js';
+import { DetectionMiddleware } from './middlewares/DetectionMiddleware.js';
 import {
   createParallelBalanceMiddleware,
   createParallelMiddleware,
-} from './middlewares/ParallelMiddleware';
-import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware';
-import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata';
-import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata';
+} from './middlewares/ParallelMiddleware.js';
+import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
+import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
+import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata.js';
 import type {
   AccountId,
   AssetPreferences,
@@ -132,7 +135,9 @@ import type {
   Middleware,
   SubscriptionResponse,
   Asset,
-} from './types';
+} from './types.js';
+import { ZERO_ADDRESS } from './utils/constants.js';
+import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement.js';
 import {
   normalizeAmountString,
   normalizeAssetId,
@@ -140,14 +145,12 @@ import {
   formatStateForTransactionPay,
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
-} from './utils';
+} from './utils/index.js';
 import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
-} from './utils';
-import { ZERO_ADDRESS } from './utils/constants';
-import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement';
-import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates';
+} from './utils/index.js';
+import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates.js';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
@@ -356,7 +359,10 @@ type AllowedEvents =
   // BackendWebsocketDataSource
   | BackendWebSocketServiceEvents
   // AccountActivityService (real-time balance updates for unified assets)
-  | AccountActivityServiceBalanceUpdatedEvent;
+  | AccountActivityServiceBalanceUpdatedEvent
+  // AccountsApiDataSource subscribes to react to Snaps → AssetsController
+  // migration flag changes (which gate the chains it surfaces as active)
+  | RemoteFeatureFlagControllerStateChangeEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,

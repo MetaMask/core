@@ -1,11 +1,11 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import type { TransactionPayControllerMessenger } from '../..';
-import type { TransactionPayQuote } from '../../types';
-import { getRelayQuotes } from './relay-quotes';
-import { submitRelayQuotes } from './relay-submit';
-import { RelayStrategy } from './RelayStrategy';
-import type { RelayQuote } from './types';
+import type { TransactionPayControllerMessenger } from '../../index.js';
+import type { TransactionPayQuote } from '../../types.js';
+import { getRelayQuotes } from './relay-quotes.js';
+import { submitRelayQuotes } from './relay-submit.js';
+import { RelayStrategy } from './RelayStrategy.js';
+import type { RelayQuote } from './types.js';
 
 jest.mock('./relay-quotes');
 jest.mock('./relay-submit');

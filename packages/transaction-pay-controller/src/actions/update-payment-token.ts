@@ -1,20 +1,20 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { TransactionPayControllerMessenger } from '..';
-import { projectLogger } from '../logger';
+import type { TransactionPayControllerMessenger } from '../index.js';
+import { projectLogger } from '../logger.js';
 import type {
   TransactionPaymentToken,
   UpdatePaymentTokenRequest,
   UpdateTransactionDataCallback,
-} from '../types';
+} from '../types.js';
 import {
   computeTokenAmounts,
   getTokenBalance,
   getTokenFiatRate,
   getTokenInfo,
-} from '../utils/token';
-import { getTransaction } from '../utils/transaction';
+} from '../utils/token.js';
+import { getTransaction } from '../utils/transaction.js';
 
 const log = createModuleLogger(projectLogger, 'update-payment-token');
 

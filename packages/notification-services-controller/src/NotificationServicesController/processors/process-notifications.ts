@@ -1,20 +1,20 @@
 import {
   TRIGGER_TYPES,
   NOTIFICATION_API_TRIGGER_TYPES_SET,
-} from '../constants/notification-schema';
-import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
-import type { NormalisedAPINotification } from '../types/notification-api/notification-api';
+} from '../constants/notification-schema.js';
+import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement.js';
+import type { NormalisedAPINotification } from '../types/notification-api/notification-api.js';
 import type {
   INotification,
   RawNotificationUnion,
-} from '../types/notification/notification';
-import type { RawSnapNotification } from '../types/snaps';
-import { processAPINotifications } from './process-api-notifications';
+} from '../types/notification/notification.js';
+import type { RawSnapNotification } from '../types/snaps/index.js';
+import { processAPINotifications } from './process-api-notifications.js';
 import {
   isFeatureAnnouncementRead,
   processFeatureAnnouncement,
-} from './process-feature-announcement';
-import { processSnapNotification } from './process-snap-notifications';
+} from './process-feature-announcement.js';
+import { processSnapNotification } from './process-snap-notifications.js';
 
 const isAPINotification = (
   notification: RawNotificationUnion,

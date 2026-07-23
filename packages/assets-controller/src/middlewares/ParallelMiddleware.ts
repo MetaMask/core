@@ -7,7 +7,7 @@ import type {
   DataResponse,
   Middleware,
   AssetsDataSource,
-} from '../types';
+} from '../types.js';
 
 // ============================================================================
 // MERGE HELPER

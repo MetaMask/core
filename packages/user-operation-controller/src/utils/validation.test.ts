@@ -7,18 +7,18 @@ import type {
   PrepareUserOperationResponse,
   SignUserOperationResponse,
   UpdateUserOperationResponse,
-} from '../types';
+} from '../types.js';
 import type {
   AddUserOperationOptions,
   AddUserOperationRequest,
-} from '../UserOperationController';
+} from '../UserOperationController.js';
 import {
   validateAddUserOperationOptions,
   validateAddUserOperationRequest,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
-} from './validation';
+} from './validation.js';
 
 const ADD_USER_OPERATION_REQUEST_MOCK: AddUserOperationRequest = {
   data: '0x1',

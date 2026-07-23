@@ -1,13 +1,13 @@
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../../logger';
-import type { PayStrategyExecuteRequest, QuoteRequest } from '../../types';
-import { getFiatMaxRateDriftPercent } from '../../utils/feature-flags';
-import { getRelayQuotes } from '../relay/relay-quotes';
-import { submitRelayQuotes } from '../relay/relay-submit';
-import type { FiatQuote } from './types';
-import { validateRelayRateDrift } from './utils';
+import { projectLogger } from '../../logger.js';
+import type { PayStrategyExecuteRequest, QuoteRequest } from '../../types.js';
+import { getFiatMaxRateDriftPercent } from '../../utils/feature-flags.js';
+import { getRelayQuotes } from '../relay/relay-quotes.js';
+import { submitRelayQuotes } from '../relay/relay-submit.js';
+import type { FiatQuote } from './types.js';
+import { validateRelayRateDrift } from './utils.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit-simple');
 

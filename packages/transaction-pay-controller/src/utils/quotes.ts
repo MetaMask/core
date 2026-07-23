@@ -4,8 +4,8 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { PaymentOverride, TransactionPayStrategy } from '../constants';
-import { projectLogger } from '../logger';
+import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
+import { projectLogger } from '../logger.js';
 import type {
   QuoteRequest,
   TransactionData,
@@ -16,22 +16,22 @@ import type {
   TransactionPayTotals,
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
-} from '../types';
-import { accountSupports7702 } from './7702';
-import { buildNoOpQuote } from './no-op-quote';
+} from '../types.js';
+import { accountSupports7702 } from './7702.js';
+import { buildNoOpQuote } from './no-op-quote.js';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
   getStrategiesByName,
   getStrategyByName,
-} from './strategy';
+} from './strategy.js';
 import {
   computeTokenAmounts,
   getLiveTokenBalance,
   getTokenFiatRate,
-} from './token';
-import { calculateTotals } from './totals';
-import { getTransaction, updateTransaction } from './transaction';
+} from './token.js';
+import { calculateTotals } from './totals.js';
+import { getTransaction, updateTransaction } from './transaction.js';
 
 const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 

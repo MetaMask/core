@@ -1,1 +1,1 @@
-export type * from './perp-types';
+export type * from './perp-types.js';

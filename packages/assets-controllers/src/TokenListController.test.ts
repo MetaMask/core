@@ -17,20 +17,20 @@ import { StorageGetResult } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
 import nock, { cleanAll } from 'nock';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildInfuraNetworkClientConfiguration,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
-import * as tokenService from './token-service';
+} from '../../network-controller/tests/helpers.js';
+import * as tokenService from './token-service.js';
 import type {
   TokenListMap,
   TokenListState,
   TokenListControllerMessenger,
   DataCache,
-} from './TokenListController';
-import { TokenListController } from './TokenListController';
+} from './TokenListController.js';
+import { TokenListController } from './TokenListController.js';
 
 const namespace = 'TokenListController';
 const timestamp = Date.now();

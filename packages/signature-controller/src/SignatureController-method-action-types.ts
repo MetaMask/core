@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SignatureController } from './SignatureController';
+import type { SignatureController } from './SignatureController.js';
 
 /**
  * Reset the controller state to the initial state.

@@ -6,14 +6,14 @@ import type {
 import { ApprovalType } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
-import { AbstractMessageManager } from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager.js';
 import type {
   AbstractMessage,
   AbstractMessageParams,
   MessageManagerState,
   MessageRequest,
   SecurityProviderRequest,
-} from './AbstractMessageManager';
+} from './AbstractMessageManager.js';
 
 type ConcreteMessage = AbstractMessage & {
   messageParams: ConcreteMessageParams;

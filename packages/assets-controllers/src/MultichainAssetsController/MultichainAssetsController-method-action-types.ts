@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MultichainAssetsController } from './MultichainAssetsController';
+import type { MultichainAssetsController } from './MultichainAssetsController.js';
 
 /**
  * Returns the metadata for the given asset

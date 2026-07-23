@@ -21,12 +21,12 @@ import type {
 } from '@metamask/messenger';
 import { v4 as uuidv4 } from 'uuid';
 
-import { MultichainBalancesController } from '.';
+import { MultichainBalancesController } from './index.js';
 import type {
   MultichainBalancesControllerMessenger,
   MultichainBalancesControllerState,
-} from '.';
-import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController';
+} from './index.js';
+import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController.js';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',

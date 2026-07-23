@@ -12,15 +12,15 @@ import type { CaipAccountAddress, CaipChainId, Hex } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController.js';
 import {
   accountAddressToCaipReference,
   reduceInBatchesSerially,
   SupportedStakedBalanceNetworks,
-} from '../assetsUtil';
-import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
-import { fetchMultiChainBalancesV4 } from './multi-chain-accounts';
-import type { GetBalancesResponse } from './types';
+} from '../assetsUtil.js';
+import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants.js';
+import { fetchMultiChainBalancesV4 } from './multi-chain-accounts.js';
+import type { GetBalancesResponse } from './types.js';
 
 // Maximum number of account addresses that can be sent to the accounts API in a single request
 const ACCOUNTS_API_BATCH_SIZE = 20;

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TokenBalancesController } from './TokenBalancesController';
+import type { TokenBalancesController } from './TokenBalancesController.js';
 
 export type TokenBalancesControllerGetChainPollingConfigAction = {
   type: `TokenBalancesController:getChainPollingConfig`;

@@ -30,22 +30,22 @@ import type { Patch } from 'immer';
 import nock from 'nock';
 import { v1 as uuidV1 } from 'uuid';
 
-import { FakeProvider } from '../../../tests/fake-provider';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import { FakeProvider } from '../../../tests/fake-provider.js';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
-import { ERC20Standard } from './Standards/ERC20Standard';
-import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
-import { TOKEN_END_POINT_API } from './token-service';
-import type { TokenRwaData } from './token-service';
-import type { Token } from './TokenRatesController';
-import { TokensController } from './TokensController';
+} from '../../network-controller/tests/helpers.js';
+import { ERC20Standard } from './Standards/ERC20Standard.js';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard.js';
+import { TOKEN_END_POINT_API } from './token-service.js';
+import type { TokenRwaData } from './token-service.js';
+import type { Token } from './TokenRatesController.js';
+import { TokensController } from './TokensController.js';
 import type {
   TokensControllerMessenger,
   TokensControllerState,
-} from './TokensController';
+} from './TokensController.js';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('uuid', () => ({
@@ -3343,7 +3343,7 @@ describe('TokensController', () => {
                   rwaData: { ticker: 'NEW' },
                 },
               }),
-            } as unknown as import('./TokenListService').TokenListService,
+            } as unknown as import('./TokenListService.js').TokenListService,
           },
         },
         async ({ controller }) => {
@@ -4194,7 +4194,7 @@ async function withController<ReturnValue>(
 
   const tokenListService = {
     fetchTokensByChainId: jest.fn().mockResolvedValue({}),
-  } as unknown as import('./TokenListService').TokenListService;
+  } as unknown as import('./TokenListService.js').TokenListService;
 
   const controller = new TokensController({
     chainId: ChainId.mainnet,

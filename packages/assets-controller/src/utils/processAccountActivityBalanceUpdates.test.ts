@@ -1,7 +1,7 @@
 import type { BalanceUpdate } from '@metamask/core-backend';
 
-import type { Caip19AssetId } from '../types';
-import { processAccountActivityBalanceUpdates } from './processAccountActivityBalanceUpdates';
+import type { Caip19AssetId } from '../types.js';
+import { processAccountActivityBalanceUpdates } from './processAccountActivityBalanceUpdates.js';
 
 describe('processAccountActivityBalanceUpdates', () => {
   it('converts hex postBalance to human-readable amount', () => {

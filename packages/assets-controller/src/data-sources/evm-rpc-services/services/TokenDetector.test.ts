@@ -1,16 +1,16 @@
-import type { MulticallClient } from '../clients';
-import type { TokensApiClient } from '../clients/TokensApiClient';
+import type { MulticallClient } from '../clients/index.js';
+import type { TokensApiClient } from '../clients/TokensApiClient.js';
 import type {
   Address,
   BalanceOfResponse,
   ChainId,
   TokenListEntry,
-} from '../types';
-import { TokenDetector } from './TokenDetector';
+} from '../types/index.js';
+import { TokenDetector } from './TokenDetector.js';
 import type {
   TokenDetectorConfig,
   DetectionPollingInput,
-} from './TokenDetector';
+} from './TokenDetector.js';
 
 // =============================================================================
 // CONSTANTS
