@@ -1,14 +1,35 @@
+import type { Hex } from '@metamask/utils';
+
 import {
-  buildRpcServiceEventProperties,
+  buildRpcServiceDegradedAnalyticsTrackingEvent,
+  buildRpcServiceUnavailableAnalyticsTrackingEvent,
   sanitizeRpcEndpointUrl,
-  toAnalyticsTrackingEvent,
 } from './rpc-service-analytics';
+
+const PUBLIC_URL = 'https://mainnet.infura.io/v3/the-key';
+const isPublic = (): boolean => true;
+
+const UNAVAILABLE_PAYLOAD = {
+  chainId: '0x1' as Hex,
+  endpointUrl: PUBLIC_URL,
+  error: undefined as unknown,
+  networkClientId: 'mainnet',
+  primaryEndpointUrl: PUBLIC_URL,
+};
+
+const DEGRADED_PAYLOAD = {
+  chainId: '0x1' as Hex,
+  endpointUrl: PUBLIC_URL,
+  error: undefined as unknown,
+  networkClientId: 'mainnet',
+  primaryEndpointUrl: PUBLIC_URL,
+  rpcMethodName: 'eth_blockNumber',
+  type: 'slow_success' as const,
+};
 
 describe('sanitizeRpcEndpointUrl', () => {
   it('returns the host of the URL when the endpoint is public', () => {
-    expect(
-      sanitizeRpcEndpointUrl('https://mainnet.infura.io/v3/the-key', true),
-    ).toBe('mainnet.infura.io');
+    expect(sanitizeRpcEndpointUrl(PUBLIC_URL, true)).toBe('mainnet.infura.io');
   });
 
   it('returns "custom" when the endpoint is not public', () => {
@@ -22,212 +43,121 @@ describe('sanitizeRpcEndpointUrl', () => {
   });
 });
 
-describe('buildRpcServiceEventProperties', () => {
-  const isRpcEndpointUrlPublic = (): boolean => true;
-
-  it('builds the base properties from a public endpoint', () => {
-    const properties = buildRpcServiceEventProperties({
-      chainId: '0x1',
-      endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-      error: undefined,
-      isRpcEndpointUrlPublic,
-    });
-
-    expect(properties).toStrictEqual({
-      chain_id_caip: 'eip155:1',
-
-      rpc_domain: 'mainnet.infura.io',
-
-      rpc_endpoint_url: 'mainnet.infura.io',
-    });
-  });
-
-  it('reports the domain as "custom" when the endpoint is not public', () => {
-    const properties = buildRpcServiceEventProperties({
-      chainId: '0x1',
-      endpointUrl: 'https://private.example.com/secret',
-      error: undefined,
-      isRpcEndpointUrlPublic: () => false,
-    });
-
-    expect(properties).toMatchObject({
-      rpc_domain: 'custom',
-
-      rpc_endpoint_url: 'custom',
-    });
-  });
-
-  it('converts the chain ID to a CAIP decimal value', () => {
-    const properties = buildRpcServiceEventProperties({
-      chainId: '0xe708',
-      endpointUrl: 'https://linea.infura.io/v3/the-key',
-      error: undefined,
-      isRpcEndpointUrlPublic,
-    });
-
-    expect(properties).toMatchObject({ chain_id_caip: 'eip155:59144' });
-  });
-
-  it('includes rpc_method_name only when provided', () => {
+describe('buildRpcServiceUnavailableAnalyticsTrackingEvent', () => {
+  it('builds the event with base properties from a public endpoint', () => {
     expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: undefined,
-        isRpcEndpointUrlPublic,
-        rpcMethodName: 'eth_blockNumber',
-      }),
-    ).toMatchObject({ rpc_method_name: 'eth_blockNumber' });
-
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: undefined,
-        isRpcEndpointUrlPublic,
-      }),
-    ).not.toHaveProperty('rpc_method_name');
-  });
-
-  it('includes type only when provided', () => {
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: undefined,
-        isRpcEndpointUrlPublic,
-        type: 'slow_success',
-      }),
-    ).toMatchObject({ type: 'slow_success' });
-
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: undefined,
-        isRpcEndpointUrlPublic,
-      }),
-    ).not.toHaveProperty('type');
-  });
-
-  it('includes retry_reason only when provided', () => {
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: undefined,
-        isRpcEndpointUrlPublic,
-        retryReason: 'connection-error',
-      }),
-    ).toMatchObject({ retry_reason: 'connection-error' });
-
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: undefined,
-        isRpcEndpointUrlPublic,
-      }),
-    ).not.toHaveProperty('retry_reason');
-  });
-
-  it('includes duration_ms only when duration is defined', () => {
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: undefined,
-        isRpcEndpointUrlPublic,
-        duration: 1234,
-      }),
-    ).toMatchObject({ duration_ms: 1234 });
-
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: undefined,
-        isRpcEndpointUrlPublic,
-      }),
-    ).not.toHaveProperty('duration_ms');
-  });
-
-  it('includes trace_id only when defined', () => {
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: undefined,
-        isRpcEndpointUrlPublic,
-        traceId: 'abc-123',
-      }),
-    ).toMatchObject({ trace_id: 'abc-123' });
-
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: undefined,
-        isRpcEndpointUrlPublic,
-      }),
-    ).not.toHaveProperty('trace_id');
-  });
-
-  it('includes http_status when the error carries a JSON-serializable httpStatus', () => {
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: { httpStatus: 503 },
-        isRpcEndpointUrlPublic,
-      }),
-    ).toMatchObject({ http_status: 503 });
-  });
-
-  it('omits http_status when the error has no httpStatus', () => {
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: new Error('boom'),
-        isRpcEndpointUrlPublic,
-      }),
-    ).not.toHaveProperty('http_status');
-  });
-
-  it('omits http_status when the error is not an object', () => {
-    expect(
-      buildRpcServiceEventProperties({
-        chainId: '0x1',
-        endpointUrl: 'https://mainnet.infura.io/v3/the-key',
-        error: 'a string error',
-        isRpcEndpointUrlPublic,
-      }),
-    ).not.toHaveProperty('http_status');
-  });
-});
-
-describe('toAnalyticsTrackingEvent', () => {
-  it('wraps a name and properties into an analytics tracking event', () => {
-    const event = toAnalyticsTrackingEvent('RPC Service Degraded', {
-      chain_id_caip: 'eip155:1',
-    });
-
-    expect(event).toStrictEqual({
-      name: 'RPC Service Degraded',
-
-      properties: { chain_id_caip: 'eip155:1' },
+      buildRpcServiceUnavailableAnalyticsTrackingEvent(
+        UNAVAILABLE_PAYLOAD,
+        isPublic,
+      ),
+    ).toStrictEqual({
+      name: 'RPC Service Unavailable',
+      properties: {
+        chain_id_caip: 'eip155:1',
+        rpc_domain: 'mainnet.infura.io',
+        rpc_endpoint_url: 'mainnet.infura.io',
+      },
       sensitiveProperties: {},
       saveDataRecording: false,
       hasProperties: true,
     });
   });
 
-  it('reports hasProperties as false when there are no properties', () => {
-    expect(
-      toAnalyticsTrackingEvent('RPC Service Unavailable', {}),
-    ).toMatchObject({
-      hasProperties: false,
+  it('reports the domain as "custom" when the endpoint is not public', () => {
+    const event = buildRpcServiceUnavailableAnalyticsTrackingEvent(
+      { ...UNAVAILABLE_PAYLOAD, endpointUrl: 'https://private.example.com/x' },
+      () => false,
+    );
+
+    expect(event.properties).toMatchObject({
+      rpc_domain: 'custom',
+      rpc_endpoint_url: 'custom',
     });
+  });
+
+  it('converts the chain ID to a CAIP decimal value', () => {
+    const event = buildRpcServiceUnavailableAnalyticsTrackingEvent(
+      { ...UNAVAILABLE_PAYLOAD, chainId: '0xe708' },
+      isPublic,
+    );
+
+    expect(event.properties).toMatchObject({ chain_id_caip: 'eip155:59144' });
+  });
+
+  it('includes http_status when the error carries a JSON-serializable httpStatus', () => {
+    const event = buildRpcServiceUnavailableAnalyticsTrackingEvent(
+      { ...UNAVAILABLE_PAYLOAD, error: { httpStatus: 503 } },
+      isPublic,
+    );
+
+    expect(event.properties).toMatchObject({ http_status: 503 });
+  });
+
+  it('omits http_status when the error has no httpStatus', () => {
+    const event = buildRpcServiceUnavailableAnalyticsTrackingEvent(
+      { ...UNAVAILABLE_PAYLOAD, error: new Error('boom') },
+      isPublic,
+    );
+
+    expect(event.properties).not.toHaveProperty('http_status');
+  });
+
+  it('omits http_status when the error is not an object', () => {
+    const event = buildRpcServiceUnavailableAnalyticsTrackingEvent(
+      { ...UNAVAILABLE_PAYLOAD, error: 'a string error' },
+      isPublic,
+    );
+
+    expect(event.properties).not.toHaveProperty('http_status');
+  });
+});
+
+describe('buildRpcServiceDegradedAnalyticsTrackingEvent', () => {
+  it('builds the event with all degraded-specific properties', () => {
+    expect(
+      buildRpcServiceDegradedAnalyticsTrackingEvent(
+        {
+          ...DEGRADED_PAYLOAD,
+          duration: 1234,
+          error: { httpStatus: 503 },
+          retryReason: 'connection-error',
+          traceId: 'trace-1',
+          type: 'retries_exhausted',
+        },
+        isPublic,
+      ),
+    ).toStrictEqual({
+      name: 'RPC Service Degraded',
+      properties: {
+        chain_id_caip: 'eip155:1',
+        rpc_domain: 'mainnet.infura.io',
+        rpc_endpoint_url: 'mainnet.infura.io',
+        rpc_method_name: 'eth_blockNumber',
+        type: 'retries_exhausted',
+        retry_reason: 'connection-error',
+        duration_ms: 1234,
+        trace_id: 'trace-1',
+        http_status: 503,
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  });
+
+  it('omits the optional properties when they are not present', () => {
+    const event = buildRpcServiceDegradedAnalyticsTrackingEvent(
+      DEGRADED_PAYLOAD,
+      isPublic,
+    );
+
+    expect(event.properties).toMatchObject({
+      rpc_method_name: 'eth_blockNumber',
+      type: 'slow_success',
+    });
+    expect(event.properties).not.toHaveProperty('duration_ms');
+    expect(event.properties).not.toHaveProperty('retry_reason');
+    expect(event.properties).not.toHaveProperty('trace_id');
+    expect(event.properties).not.toHaveProperty('http_status');
   });
 });

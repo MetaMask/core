@@ -1,13 +1,26 @@
 import type { AnalyticsTrackingEvent } from '@metamask/analytics-controller';
+import { generateDeterministicRandomNumber } from '@metamask/remote-feature-flag-controller';
 import type { Hex, Json } from '@metamask/utils';
 import {
   hasProperty,
   hexToNumber,
   isObject,
   isValidJson,
+  wrapError,
 } from '@metamask/utils';
 
-import type { DegradedEventType, RetryReason } from './create-network-client';
+import type {
+  NetworkControllerMessenger,
+  NetworkControllerRpcEndpointDegradedEvent,
+  NetworkControllerRpcEndpointUnavailableEvent,
+} from './NetworkController';
+import { isConnectionError } from './rpc-service/rpc-service';
+
+type RpcEndpointUnavailablePayload =
+  NetworkControllerRpcEndpointUnavailableEvent['payload'][0];
+
+type RpcEndpointDegradedPayload =
+  NetworkControllerRpcEndpointDegradedEvent['payload'][0];
 
 /**
  * The names of the analytics events that {@link NetworkController} emits when an
@@ -67,47 +80,47 @@ export function sanitizeRpcEndpointUrl(
 }
 
 /**
- * Builds the properties for an "RPC Service Unavailable" or "RPC Service
- * Degraded" analytics event.
+ * Wraps a name and properties into the shape expected by the
+ * `AnalyticsController:trackEvent` action.
+ *
+ * @param name - The analytics event name.
+ * @param properties - The analytics event properties.
+ * @returns The analytics tracking event.
+ */
+function toAnalyticsTrackingEvent(
+  name: RpcServiceEventName,
+  properties: Record<string, Json>,
+): AnalyticsTrackingEvent {
+  return {
+    name,
+    properties,
+    sensitiveProperties: {},
+    saveDataRecording: false,
+    hasProperties: Object.keys(properties).length > 0,
+  };
+}
+
+/**
+ * Builds the properties common to both RPC service events.
  *
  * @param args - The arguments.
  * @param args.chainId - The chain ID that the endpoint represents.
  * @param args.endpointUrl - The URL of the endpoint.
- * @param args.error - The connection or response error encountered after making
- * a request to the RPC endpoint.
+ * @param args.error - The connection or response error encountered.
  * @param args.isRpcEndpointUrlPublic - Returns whether the endpoint URL is safe
  * to report verbatim.
- * @param args.duration - The policy execution time in milliseconds when the
- * request succeeded but was slow (degraded events only).
- * @param args.retryReason - The category of error that was retried (degraded
- * events only).
- * @param args.rpcMethodName - The JSON-RPC method that was being executed
- * (degraded events only).
- * @param args.traceId - The value of the `X-Trace-Id` response header from the
- * last request attempt (degraded events only).
- * @param args.type - Why the endpoint became degraded (degraded events only).
- * @returns The analytics event properties.
+ * @returns The common analytics event properties.
  */
-export function buildRpcServiceEventProperties({
+function buildCommonRpcServiceEventProperties({
   chainId,
   endpointUrl,
   error,
   isRpcEndpointUrlPublic,
-  duration,
-  retryReason,
-  rpcMethodName,
-  traceId,
-  type,
 }: {
   chainId: Hex;
   endpointUrl: string;
   error: unknown;
   isRpcEndpointUrlPublic: (endpointUrl: string) => boolean;
-  duration?: number;
-  retryReason?: RetryReason;
-  rpcMethodName?: string;
-  traceId?: string;
-  type?: DegradedEventType;
 }): Record<string, Json> {
   const sanitizedUrl = sanitizeRpcEndpointUrl(
     endpointUrl,
@@ -119,11 +132,6 @@ export function buildRpcServiceEventProperties({
     chain_id_caip: `eip155:${hexToNumber(chainId)}`,
     rpc_domain: sanitizedUrl,
     rpc_endpoint_url: sanitizedUrl, // @deprecated - Will be removed in a future release.
-    ...(rpcMethodName ? { rpc_method_name: rpcMethodName } : {}),
-    ...(type ? { type } : {}),
-    ...(retryReason ? { retry_reason: retryReason } : {}),
-    ...(duration === undefined ? {} : { duration_ms: duration }),
-    ...(traceId === undefined ? {} : { trace_id: traceId }),
     ...(isObject(error) &&
     hasProperty(error, 'httpStatus') &&
     isValidJson(error.httpStatus)
@@ -133,22 +141,137 @@ export function buildRpcServiceEventProperties({
 }
 
 /**
- * Wraps an event name and properties into the shape expected by the
- * `AnalyticsController:trackEvent` action.
+ * Builds the "RPC Service Unavailable" analytics tracking event.
  *
- * @param name - The analytics event name.
- * @param properties - The analytics event properties.
+ * @param payload - The `rpcEndpointUnavailable` event payload.
+ * @param isRpcEndpointUrlPublic - Returns whether the endpoint URL is safe to
+ * report verbatim.
  * @returns The analytics tracking event.
  */
-export function toAnalyticsTrackingEvent(
-  name: RpcServiceEventName,
-  properties: Record<string, Json>,
+export function buildRpcServiceUnavailableAnalyticsTrackingEvent(
+  payload: RpcEndpointUnavailablePayload,
+  isRpcEndpointUrlPublic: (endpointUrl: string) => boolean,
 ): AnalyticsTrackingEvent {
-  return {
-    name,
-    properties,
-    sensitiveProperties: {},
-    saveDataRecording: false,
-    hasProperties: Object.keys(properties).length > 0,
-  };
+  return toAnalyticsTrackingEvent(
+    'RPC Service Unavailable',
+    buildCommonRpcServiceEventProperties({
+      chainId: payload.chainId,
+      endpointUrl: payload.endpointUrl,
+      error: payload.error,
+      isRpcEndpointUrlPublic,
+    }),
+  );
+}
+
+/**
+ * Builds the "RPC Service Degraded" analytics tracking event.
+ *
+ * @param payload - The `rpcEndpointDegraded` event payload.
+ * @param isRpcEndpointUrlPublic - Returns whether the endpoint URL is safe to
+ * report verbatim.
+ * @returns The analytics tracking event.
+ */
+export function buildRpcServiceDegradedAnalyticsTrackingEvent(
+  payload: RpcEndpointDegradedPayload,
+  isRpcEndpointUrlPublic: (endpointUrl: string) => boolean,
+): AnalyticsTrackingEvent {
+  const { duration, retryReason, rpcMethodName, traceId, type } = payload;
+
+  // The names of analytics properties have a particular case.
+  return toAnalyticsTrackingEvent('RPC Service Degraded', {
+    ...buildCommonRpcServiceEventProperties({
+      chainId: payload.chainId,
+      endpointUrl: payload.endpointUrl,
+      error: payload.error,
+      isRpcEndpointUrlPublic,
+    }),
+    rpc_method_name: rpcMethodName,
+    type,
+    ...(retryReason ? { retry_reason: retryReason } : {}),
+    ...(duration === undefined ? {} : { duration_ms: duration }),
+    ...(traceId === undefined ? {} : { trace_id: traceId }),
+  });
+}
+
+/**
+ * Delivers an RPC service analytics event via the
+ * `AnalyticsController:trackEvent` action, skipping local connection errors,
+ * users without an analytics ID, and events that fall outside the configured
+ * sample. Failures never propagate to the caller.
+ *
+ * @param messenger - The controller messenger.
+ * @param analyticsOptions - The analytics configuration.
+ * @param error - The error encountered, used to skip local connection errors.
+ * @param buildTrackingEvent - Builds the event to deliver (only called when the
+ * event passes the sampling and analytics-ID checks).
+ */
+function trackRpcServiceEvent(
+  messenger: NetworkControllerMessenger,
+  analyticsOptions: NetworkControllerAnalyticsOptions,
+  error: unknown,
+  buildTrackingEvent: () => AnalyticsTrackingEvent,
+): void {
+  try {
+    if (isConnectionError(error)) {
+      return;
+    }
+
+    const { analyticsId } = messenger.call('AnalyticsController:getState');
+    if (!analyticsId) {
+      return;
+    }
+
+    if (
+      generateDeterministicRandomNumber(analyticsId) >=
+      analyticsOptions.rpcServiceEventsSampleRate
+    ) {
+      return;
+    }
+
+    messenger.call('AnalyticsController:trackEvent', buildTrackingEvent());
+  } catch (caughtError) {
+    messenger.captureException?.(
+      wrapError(caughtError, 'Could not create analytics event'),
+    );
+  }
+}
+
+/**
+ * Emits an "RPC Service Unavailable" analytics event.
+ *
+ * @param messenger - The controller messenger.
+ * @param analyticsOptions - The analytics configuration.
+ * @param payload - The `rpcEndpointUnavailable` event payload.
+ */
+export function trackRpcServiceUnavailable(
+  messenger: NetworkControllerMessenger,
+  analyticsOptions: NetworkControllerAnalyticsOptions,
+  payload: RpcEndpointUnavailablePayload,
+): void {
+  trackRpcServiceEvent(messenger, analyticsOptions, payload.error, () =>
+    buildRpcServiceUnavailableAnalyticsTrackingEvent(
+      payload,
+      analyticsOptions.isRpcEndpointUrlPublic,
+    ),
+  );
+}
+
+/**
+ * Emits an "RPC Service Degraded" analytics event.
+ *
+ * @param messenger - The controller messenger.
+ * @param analyticsOptions - The analytics configuration.
+ * @param payload - The `rpcEndpointDegraded` event payload.
+ */
+export function trackRpcServiceDegraded(
+  messenger: NetworkControllerMessenger,
+  analyticsOptions: NetworkControllerAnalyticsOptions,
+  payload: RpcEndpointDegradedPayload,
+): void {
+  trackRpcServiceEvent(messenger, analyticsOptions, payload.error, () =>
+    buildRpcServiceDegradedAnalyticsTrackingEvent(
+      payload,
+      analyticsOptions.isRpcEndpointUrlPublic,
+    ),
+  );
 }

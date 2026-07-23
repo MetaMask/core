@@ -26,7 +26,6 @@ import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import type { Messenger } from '@metamask/messenger';
 import {
-  generateDeterministicRandomNumber,
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
@@ -37,12 +36,7 @@ import {
 } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
-import {
-  hasProperty,
-  isPlainObject,
-  isStrictHexString,
-  wrapError,
-} from '@metamask/utils';
+import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
@@ -66,14 +60,10 @@ import type { DegradedEventType, RetryReason } from './create-network-client';
 import { projectLogger, createModuleLogger } from './logger';
 import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
 import {
-  buildRpcServiceEventProperties,
-  toAnalyticsTrackingEvent,
+  trackRpcServiceDegraded,
+  trackRpcServiceUnavailable,
 } from './rpc-service-analytics';
-import type {
-  NetworkControllerAnalyticsOptions,
-  RpcServiceEventName,
-} from './rpc-service-analytics';
-import { isConnectionError } from './rpc-service/rpc-service';
+import type { NetworkControllerAnalyticsOptions } from './rpc-service-analytics';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
 import { getRpcFailoverMode } from './selectors';
 import type { RpcFailoverMode } from './selectors';
@@ -1396,39 +1386,15 @@ export class NetworkController extends BaseController<
       },
     );
 
-    this.messenger.subscribe(
-      `${this.name}:rpcEndpointUnavailable`,
-      ({ chainId, endpointUrl, error }) => {
-        this.#trackRpcServiceEvent('RPC Service Unavailable', {
-          chainId,
-          endpointUrl,
-          error,
-        });
-      },
+    this.messenger.subscribe(`${this.name}:rpcEndpointUnavailable`, (payload) =>
+      trackRpcServiceUnavailable(
+        this.messenger,
+        this.#analyticsOptions,
+        payload,
+      ),
     );
-    this.messenger.subscribe(
-      `${this.name}:rpcEndpointDegraded`,
-      ({
-        chainId,
-        duration,
-        endpointUrl,
-        error,
-        retryReason,
-        rpcMethodName,
-        traceId,
-        type,
-      }) => {
-        this.#trackRpcServiceEvent('RPC Service Degraded', {
-          chainId,
-          duration,
-          endpointUrl,
-          error,
-          retryReason,
-          rpcMethodName,
-          traceId,
-          type,
-        });
-      },
+    this.messenger.subscribe(`${this.name}:rpcEndpointDegraded`, (payload) =>
+      trackRpcServiceDegraded(this.messenger, this.#analyticsOptions, payload),
     );
 
     this.messenger.subscribe(
@@ -1439,80 +1405,6 @@ export class NetworkController extends BaseController<
       },
       getRpcFailoverMode,
     );
-  }
-
-  /**
-   * Emits an "RPC Service Unavailable" or "RPC Service Degraded" analytics event
-   * via the `AnalyticsController:trackEvent` action.
-   *
-   * Does nothing when the error indicates a local connectivity issue, when
-   * there is no analytics ID, or when the event falls outside the configured
-   * sample.
-   *
-   * @param name - The analytics event name.
-   * @param payload - The relevant fields from the originating event.
-   * @param payload.chainId - The chain ID that the endpoint represents.
-   * @param payload.endpointUrl - The URL of the endpoint.
-   * @param payload.error - The connection or response error encountered.
-   * @param payload.duration - The policy execution time in milliseconds (degraded only).
-   * @param payload.retryReason - The category of error that was retried (degraded only).
-   * @param payload.rpcMethodName - The JSON-RPC method being executed (degraded only).
-   * @param payload.traceId - The `X-Trace-Id` response header value (degraded only).
-   * @param payload.type - Why the endpoint became degraded (degraded only).
-   */
-  #trackRpcServiceEvent(
-    name: RpcServiceEventName,
-    payload: {
-      chainId: Hex;
-      endpointUrl: string;
-      error: unknown;
-      duration?: number;
-      retryReason?: RetryReason;
-      rpcMethodName?: string;
-      traceId?: string;
-      type?: DegradedEventType;
-    },
-  ): void {
-    try {
-      if (isConnectionError(payload.error)) {
-        return;
-      }
-
-      const { analyticsId } = this.messenger.call(
-        'AnalyticsController:getState',
-      );
-      if (!analyticsId) {
-        return;
-      }
-
-      if (
-        generateDeterministicRandomNumber(analyticsId) >=
-        this.#analyticsOptions.rpcServiceEventsSampleRate
-      ) {
-        return;
-      }
-
-      const properties = buildRpcServiceEventProperties({
-        chainId: payload.chainId,
-        endpointUrl: payload.endpointUrl,
-        error: payload.error,
-        isRpcEndpointUrlPublic: this.#analyticsOptions.isRpcEndpointUrlPublic,
-        duration: payload.duration,
-        retryReason: payload.retryReason,
-        rpcMethodName: payload.rpcMethodName,
-        traceId: payload.traceId,
-        type: payload.type,
-      });
-
-      this.messenger.call(
-        'AnalyticsController:trackEvent',
-        toAnalyticsTrackingEvent(name, properties),
-      );
-    } catch (error) {
-      this.messenger.captureException?.(
-        wrapError(error, 'Could not create analytics event'),
-      );
-    }
   }
 
   /**
