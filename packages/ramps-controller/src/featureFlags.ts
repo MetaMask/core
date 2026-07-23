@@ -23,6 +23,14 @@ export const MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY =
   'moneyHeadlessAllProviders';
 
 /**
+ * Contract version of the object payload. An enabled payload whose
+ * `featureVersion` differs (or is absent) fails closed, so the payload's
+ * meaning can change in a future client without old clients misreading it.
+ * Mirrors the platform pattern used by `assetsUnifyState`.
+ */
+export const HEADLESS_ALL_PROVIDERS_FEATURE_VERSION = '1';
+
+/**
  * Canonical surface keys accepted in the flag payload's `surfaces` map. A
  * surface entry overrides the top-level `providerIds` list for quote requests
  * tagged with that surface.
@@ -87,8 +95,33 @@ function isEnabledPayload(value: Json | undefined): value is {
     typeof value === 'object' &&
     value !== null &&
     !Array.isArray(value) &&
-    value.enabled === true
+    value.enabled === true &&
+    value.featureVersion === HEADLESS_ALL_PROVIDERS_FEATURE_VERSION
   );
+}
+
+/**
+ * The `minimumVersion` carried by an enabled payload, or `undefined` for the
+ * boolean form, a disabled payload, or a malformed field. This package cannot
+ * compare app versions itself; mobile validates the value through its shared
+ * `validatedVersionGatedFeatureFlag` util, and the LaunchDarkly `versions`
+ * wrapper provides the server-side gate.
+ *
+ * @param remoteFeatureFlagState - `RemoteFeatureFlagController` state (or the
+ * relevant subset of it).
+ * @returns The minimum app version the payload declares, or `undefined`.
+ */
+export function getHeadlessAllProvidersMinimumVersion(
+  remoteFeatureFlagState: HeadlessFeatureFlagsLookup | null | undefined,
+): string | undefined {
+  const value = resolveFlagValue(remoteFeatureFlagState);
+  if (!isEnabledPayload(value)) {
+    return undefined;
+  }
+  const { minimumVersion } = value;
+  return typeof minimumVersion === 'string' && minimumVersion.trim() !== ''
+    ? minimumVersion
+    : undefined;
 }
 
 /**

@@ -2,6 +2,8 @@ import type { Json } from '@metamask/utils';
 
 import {
   HEADLESS_ALLOWLIST_SURFACES,
+  HEADLESS_ALL_PROVIDERS_FEATURE_VERSION,
+  getHeadlessAllProvidersMinimumVersion,
   MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
   getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
@@ -79,7 +81,10 @@ describe('isHeadlessAllProvidersEnabled', () => {
     expect(
       isHeadlessAllProvidersEnabled({
         remoteFeatureFlags: {
-          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: { enabled: true },
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
+            enabled: true,
+            featureVersion: '1',
+          },
         },
       }),
     ).toBe(true);
@@ -91,6 +96,7 @@ describe('isHeadlessAllProvidersEnabled', () => {
         remoteFeatureFlags: {
           [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
             enabled: true,
+            featureVersion: '1',
             providerIds: ['/providers/moonpay'],
           },
         },
@@ -103,7 +109,10 @@ describe('isHeadlessAllProvidersEnabled', () => {
       isHeadlessAllProvidersEnabled({
         remoteFeatureFlags: { [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false },
         localOverrides: {
-          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: { enabled: true },
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
+            enabled: true,
+            featureVersion: '1',
+          },
         },
       }),
     ).toBe(true);
@@ -203,6 +212,7 @@ describe('getHeadlessProviderAllowlist', () => {
       getHeadlessProviderAllowlist(
         stateWithFlag({
           enabled: true,
+          featureVersion: '1',
           providerIds: ['/providers/moonpay', 'coinbasepay'],
         }),
       ),
@@ -211,7 +221,9 @@ describe('getHeadlessProviderAllowlist', () => {
 
   it('returns undefined for an enabled payload without providerIds', () => {
     expect(
-      getHeadlessProviderAllowlist(stateWithFlag({ enabled: true })),
+      getHeadlessProviderAllowlist(
+        stateWithFlag({ enabled: true, featureVersion: '1' }),
+      ),
     ).toBeUndefined();
   });
 
@@ -220,6 +232,7 @@ describe('getHeadlessProviderAllowlist', () => {
       getHeadlessProviderAllowlist(
         stateWithFlag({
           enabled: true,
+          featureVersion: '1',
           providerIds: [' /providers/moonpay ', 42, null, '', {}],
         }),
       ),
@@ -242,6 +255,7 @@ describe('getHeadlessProviderAllowlist', () => {
       getHeadlessProviderAllowlist(
         stateWithFlag({
           enabled: true,
+          featureVersion: '1',
           providerIds: ['/providers/moonpay'],
           somethingElse: { nested: true },
         }),
@@ -252,6 +266,7 @@ describe('getHeadlessProviderAllowlist', () => {
   describe('surfaces', () => {
     const payload = {
       enabled: true,
+      featureVersion: '1',
       providerIds: ['/providers/moonpay'],
       surfaces: {
         [HEADLESS_ALLOWLIST_SURFACES.MONEY]: ['/providers/transak'],
@@ -297,6 +312,7 @@ describe('getHeadlessProviderAllowlist', () => {
         getHeadlessProviderAllowlist(
           stateWithFlag({
             enabled: true,
+            featureVersion: '1',
             surfaces: { money: ['/providers/transak'] },
           }),
           'money',
@@ -313,6 +329,7 @@ describe('getHeadlessProviderAllowlist', () => {
         getHeadlessProviderAllowlist(
           stateWithFlag({
             enabled: true,
+            featureVersion: '1',
             providerIds: ['/providers/moonpay'],
             surfaces,
           }),
@@ -328,12 +345,14 @@ describe('getHeadlessProviderAllowlist', () => {
         remoteFeatureFlags: {
           [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
             enabled: true,
+            featureVersion: '1',
             providerIds: ['/providers/moonpay'],
           },
         },
         localOverrides: {
           [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
             enabled: true,
+            featureVersion: '1',
             providerIds: ['/providers/coinbasepay'],
           },
         },
@@ -347,12 +366,101 @@ describe('getHeadlessProviderAllowlist', () => {
         remoteFeatureFlags: {
           [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
             enabled: true,
+            featureVersion: '1',
             providerIds: ['/providers/moonpay'],
           },
         },
         localOverrides: { [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: 'oops' },
       }),
     ).toBeUndefined();
+  });
+});
+
+describe('featureVersion gating', () => {
+  it('exports contract version 1', () => {
+    expect(HEADLESS_ALL_PROVIDERS_FEATURE_VERSION).toBe('1');
+  });
+
+  it('disables an enabled payload without a featureVersion', () => {
+    expect(
+      isHeadlessAllProvidersEnabled({
+        remoteFeatureFlags: {
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: { enabled: true } as Json,
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('disables an enabled payload with a different featureVersion', () => {
+    expect(
+      isHeadlessAllProvidersEnabled({
+        remoteFeatureFlags: {
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
+            enabled: true,
+            featureVersion: '2',
+          } as Json,
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('keeps the boolean true form enabled without a featureVersion', () => {
+    expect(
+      isHeadlessAllProvidersEnabled({
+        remoteFeatureFlags: {
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: true,
+        },
+      }),
+    ).toBe(true);
+  });
+});
+
+describe('getHeadlessAllProvidersMinimumVersion', () => {
+  it('returns the minimumVersion carried by an enabled payload', () => {
+    expect(
+      getHeadlessAllProvidersMinimumVersion({
+        remoteFeatureFlags: {
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
+            enabled: true,
+            featureVersion: '1',
+            minimumVersion: '8.6.0',
+          } as Json,
+        },
+      }),
+    ).toBe('8.6.0');
+  });
+
+  it('returns undefined for the boolean form, disabled payloads, and blank values', () => {
+    expect(
+      getHeadlessAllProvidersMinimumVersion({
+        remoteFeatureFlags: {
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: true,
+        },
+      }),
+    ).toBeUndefined();
+    expect(
+      getHeadlessAllProvidersMinimumVersion({
+        remoteFeatureFlags: {
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
+            enabled: false,
+            featureVersion: '1',
+            minimumVersion: '8.6.0',
+          } as Json,
+        },
+      }),
+    ).toBeUndefined();
+    expect(
+      getHeadlessAllProvidersMinimumVersion({
+        remoteFeatureFlags: {
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
+            enabled: true,
+            featureVersion: '1',
+            minimumVersion: '   ',
+          } as Json,
+        },
+      }),
+    ).toBeUndefined();
+    expect(getHeadlessAllProvidersMinimumVersion(null)).toBeUndefined();
   });
 });
 

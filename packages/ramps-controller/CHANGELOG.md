@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add the pure `getHeadlessProviderAllowlist(remoteFeatureFlagState, surface?)` helper plus the `HEADLESS_ALLOWLIST_SURFACES` constant and `HeadlessAllowlistSurface` type, resolving the provider-id allowlist carried by the `moneyHeadlessAllProviders` flag's object payload (`surfaces[surface]` overrides the top-level `providerIds`; absent, empty, or malformed levels fall through to no restriction) ([#9524](https://github.com/MetaMask/core/pull/9524))
+- Add the `HEADLESS_ALL_PROVIDERS_FEATURE_VERSION` constant (currently `'1'`) and the `getHeadlessAllProvidersMinimumVersion(remoteFeatureFlagState)` helper, exposing the version-gating fields of the `moneyHeadlessAllProviders` payload; an enabled object payload must now carry `featureVersion: '1'` or it resolves to disabled, and `minimumVersion` is surfaced for clients to validate against their app version (the boolean `true` form is unchanged) ([#9524](https://github.com/MetaMask/core/pull/9524))
 - Add an optional `surface` option to `RampsController.getQuotes` (canonical values `money` | `perps` | `predictions`) selecting the per-surface allowlist from the flag payload on the widened all-providers path; it does not affect fetching or caching ([#9524](https://github.com/MetaMask/core/pull/9524))
 
 ### Changed

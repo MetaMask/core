@@ -978,7 +978,10 @@ describe('RampsController', () => {
         async ({ messenger, rootMessenger }) => {
           registerFeatureFlagState(rootMessenger, {
             remoteFeatureFlags: {
-              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: { enabled: true },
+              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
+                enabled: true,
+                featureVersion: '1',
+              },
             },
           });
           let quotedProviders: string[] | undefined;
@@ -1578,6 +1581,7 @@ describe('RampsController', () => {
         remoteFeatureFlags: {
           [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
             enabled: true,
+            featureVersion: '1',
             ...payload,
           } as unknown as Json,
         },
