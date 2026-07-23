@@ -429,6 +429,7 @@ const config = createConfig([
       'packages/platform-api-docs/**',
       'packages/polling-controller/**',
       'packages/preferences-controller/**',
+      'packages/profile-metrics-controller/**',
       'packages/rate-limit-controller/**',
       'packages/profile-sync-controller/**',
       'packages/ramps-controller/**',

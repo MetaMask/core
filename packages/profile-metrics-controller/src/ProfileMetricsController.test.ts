@@ -10,16 +10,16 @@ import type {
 import {
   DEFAULT_INITIAL_DELAY_DURATION,
   ProfileMetricsController,
-} from './ProfileMetricsController';
-import type { ProfileMetricsControllerMessenger } from './ProfileMetricsController';
+} from './ProfileMetricsController.js';
+import type { ProfileMetricsControllerMessenger } from './ProfileMetricsController.js';
 import type {
   AccountOwnershipProof,
   AccountWithScopes,
   ProfileMetricsFetchNoncesRequest,
   ProfileMetricsSubmitMetricsRequest,
-} from './ProfileMetricsService';
-import type { ProofOfOwnershipSignRequest } from './ProofOfOwnershipService';
-import { ProofUnsupportedNamespaceError } from './utils/canonicalize';
+} from './ProfileMetricsService.js';
+import type { ProofOfOwnershipSignRequest } from './ProofOfOwnershipService.js';
+import { ProofUnsupportedNamespaceError } from './utils/canonicalize.js';
 
 /**
  * Creates a mock InternalAccount object for testing purposes.
