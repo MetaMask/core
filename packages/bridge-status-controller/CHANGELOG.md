@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.5.0]
+
 ### Changed
 
 - Use `gasFee.total` instead of `gasFee.effective` to calculate gas metrics properties ([#9507](https://github.com/MetaMask/core/pull/9507))
@@ -1440,7 +1442,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.5.0...HEAD
+[74.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.4.0...@metamask/bridge-status-controller@74.5.0
 [74.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.3.0...@metamask/bridge-status-controller@74.4.0
 [74.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.2.0...@metamask/bridge-status-controller@74.3.0
 [74.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.2...@metamask/bridge-status-controller@74.2.0
