@@ -488,6 +488,7 @@ linkStyle default opacity:0.5
   network_controller --> messenger;
   network_controller --> remote_feature_flag_controller;
   network_enablement_controller --> base_controller;
+  network_enablement_controller --> config_registry_controller;
   network_enablement_controller --> controller_utils;
   network_enablement_controller --> messenger;
   network_enablement_controller --> multichain_network_controller;
