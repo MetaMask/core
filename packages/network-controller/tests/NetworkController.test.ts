@@ -62,6 +62,7 @@ import {
   buildRootMessenger,
   buildUpdateNetworkCustomRpcEndpointFields,
   INFURA_NETWORKS,
+  MOCK_ANALYTICS_OPTIONS,
   TESTNET,
   withController,
 } from './helpers';
@@ -174,6 +175,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {},
             },
             infuraProjectId: 'infura-project-id',
+            analyticsOptions: MOCK_ANALYTICS_OPTIONS,
             getRpcServiceOptions: (): Omit<
               RpcServiceOptions,
               'failoverService' | 'endpointUrl'
@@ -204,6 +206,7 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
+            analyticsOptions: MOCK_ANALYTICS_OPTIONS,
             getRpcServiceOptions: (): Omit<
               RpcServiceOptions,
               'failoverService' | 'endpointUrl'
@@ -241,6 +244,7 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
+            analyticsOptions: MOCK_ANALYTICS_OPTIONS,
             getRpcServiceOptions: (): Omit<
               RpcServiceOptions,
               'failoverService' | 'endpointUrl'
@@ -277,6 +281,7 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
+            analyticsOptions: MOCK_ANALYTICS_OPTIONS,
             getRpcServiceOptions: (): Omit<
               RpcServiceOptions,
               'failoverService' | 'endpointUrl'
@@ -313,6 +318,7 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
+            analyticsOptions: MOCK_ANALYTICS_OPTIONS,
             getRpcServiceOptions: (): Omit<
               RpcServiceOptions,
               'failoverService' | 'endpointUrl'
@@ -359,6 +365,7 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
+            analyticsOptions: MOCK_ANALYTICS_OPTIONS,
             getRpcServiceOptions: (): Omit<
               RpcServiceOptions,
               'failoverService' | 'endpointUrl'
@@ -400,6 +407,7 @@ describe('NetworkController', () => {
           },
         },
         infuraProjectId: 'infura-project-id',
+        analyticsOptions: MOCK_ANALYTICS_OPTIONS,
         getRpcServiceOptions: (): Omit<
           RpcServiceOptions,
           'failoverService' | 'endpointUrl'
@@ -454,6 +462,7 @@ describe('NetworkController', () => {
           },
         },
         infuraProjectId: 'infura-project-id',
+        analyticsOptions: MOCK_ANALYTICS_OPTIONS,
         getRpcServiceOptions: (): Omit<
           RpcServiceOptions,
           'failoverService' | 'endpointUrl'
@@ -494,6 +503,7 @@ describe('NetworkController', () => {
               state: {},
               // @ts-expect-error We are intentionally passing bad input.
               infuraProjectId: invalidProjectId,
+              analyticsOptions: MOCK_ANALYTICS_OPTIONS,
             }),
         ).toThrow('Invalid Infura project ID');
       });

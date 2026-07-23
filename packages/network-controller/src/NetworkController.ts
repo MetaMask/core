@@ -784,14 +784,12 @@ export type NetworkControllerOptions = {
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   /**
-   * Optional configuration that, when provided, makes the controller emit
-   * "RPC Service Unavailable" and "RPC Service Degraded" analytics events via
-   * the `AnalyticsController:trackEvent` action whenever an RPC endpoint becomes
-   * unavailable or degraded. When omitted, no analytics are emitted and the
-   * `AnalyticsController` actions are never called. When provided, the messenger
+   * Configuration that makes the controller emit "RPC Service Unavailable" and
+   * "RPC Service Degraded" analytics events via the `AnalyticsController:trackEvent`
+   * action whenever an RPC endpoint becomes unavailable or degraded. The messenger
    * must allow `AnalyticsController:getState` and `AnalyticsController:trackEvent`.
    */
-  analytics?: NetworkControllerAnalyticsOptions;
+  analyticsOptions: NetworkControllerAnalyticsOptions;
 };
 
 /**
@@ -1292,7 +1290,7 @@ export class NetworkController extends BaseController<
 
   readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
 
-  readonly #analytics: NetworkControllerAnalyticsOptions | undefined;
+  readonly #analyticsOptions: NetworkControllerAnalyticsOptions;
 
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
@@ -1315,7 +1313,7 @@ export class NetworkController extends BaseController<
       log,
       getRpcServiceOptions,
       getBlockTrackerOptions,
-      analytics,
+      analyticsOptions,
     } = options;
     const initialState = {
       ...getDefaultNetworkControllerState(),
@@ -1359,7 +1357,7 @@ export class NetworkController extends BaseController<
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
     this.#getBlockTrackerOptions = getBlockTrackerOptions;
-    this.#analytics = analytics;
+    this.#analyticsOptions = analyticsOptions;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1398,25 +1396,29 @@ export class NetworkController extends BaseController<
       },
     );
 
-    if (this.#analytics) {
-      const analyticsOptions = this.#analytics;
-      this.messenger.subscribe(
-        `${this.name}:rpcEndpointUnavailable`,
-        ({ chainId, endpointUrl, error }) => {
-          this.#trackRpcServiceEvent(
-            analyticsOptions,
-            'RPC Service Unavailable',
-            {
-              chainId,
-              endpointUrl,
-              error,
-            },
-          );
-        },
-      );
-      this.messenger.subscribe(
-        `${this.name}:rpcEndpointDegraded`,
-        ({
+    this.messenger.subscribe(
+      `${this.name}:rpcEndpointUnavailable`,
+      ({ chainId, endpointUrl, error }) => {
+        this.#trackRpcServiceEvent('RPC Service Unavailable', {
+          chainId,
+          endpointUrl,
+          error,
+        });
+      },
+    );
+    this.messenger.subscribe(
+      `${this.name}:rpcEndpointDegraded`,
+      ({
+        chainId,
+        duration,
+        endpointUrl,
+        error,
+        retryReason,
+        rpcMethodName,
+        traceId,
+        type,
+      }) => {
+        this.#trackRpcServiceEvent('RPC Service Degraded', {
           chainId,
           duration,
           endpointUrl,
@@ -1425,20 +1427,9 @@ export class NetworkController extends BaseController<
           rpcMethodName,
           traceId,
           type,
-        }) => {
-          this.#trackRpcServiceEvent(analyticsOptions, 'RPC Service Degraded', {
-            chainId,
-            duration,
-            endpointUrl,
-            error,
-            retryReason,
-            rpcMethodName,
-            traceId,
-            type,
-          });
-        },
-      );
-    }
+        });
+      },
+    );
 
     this.messenger.subscribe(
       // eslint-disable-next-line no-restricted-syntax
@@ -1454,11 +1445,10 @@ export class NetworkController extends BaseController<
    * Emits an "RPC Service Unavailable" or "RPC Service Degraded" analytics event
    * via the `AnalyticsController:trackEvent` action.
    *
-   * Does nothing when analytics are not configured, when the error indicates a
-   * local connectivity issue, when there is no analytics ID, or when the event
-   * falls outside the configured sample.
+   * Does nothing when the error indicates a local connectivity issue, when
+   * there is no analytics ID, or when the event falls outside the configured
+   * sample.
    *
-   * @param analytics - The analytics configuration.
    * @param name - The analytics event name.
    * @param payload - The relevant fields from the originating event.
    * @param payload.chainId - The chain ID that the endpoint represents.
@@ -1471,7 +1461,6 @@ export class NetworkController extends BaseController<
    * @param payload.type - Why the endpoint became degraded (degraded only).
    */
   #trackRpcServiceEvent(
-    analytics: NetworkControllerAnalyticsOptions,
     name: RpcServiceEventName,
     payload: {
       chainId: Hex;
@@ -1498,7 +1487,7 @@ export class NetworkController extends BaseController<
 
       if (
         generateDeterministicRandomNumber(analyticsId) >=
-        analytics.rpcServiceEventsSampleRate
+        this.#analyticsOptions.rpcServiceEventsSampleRate
       ) {
         return;
       }
@@ -1507,7 +1496,7 @@ export class NetworkController extends BaseController<
         chainId: payload.chainId,
         endpointUrl: payload.endpointUrl,
         error: payload.error,
-        isRpcEndpointUrlPublic: analytics.isRpcEndpointUrlPublic,
+        isRpcEndpointUrlPublic: this.#analyticsOptions.isRpcEndpointUrlPublic,
         duration: payload.duration,
         retryReason: payload.retryReason,
         rpcMethodName: payload.rpcMethodName,
