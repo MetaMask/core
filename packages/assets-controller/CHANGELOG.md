@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fetch spot prices immediately on price-subscription updates and after seeding native / default tracked assets so held assets are not left unpriced until the next poll after onboarding ([#9631](https://github.com/MetaMask/core/pull/9631))
+
 ## [11.2.0]
 
 ### Added
@@ -16,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fetch spot prices immediately on price-subscription updates and after seeding native / default tracked assets so held assets are not left unpriced until the next poll after onboarding ([#9631](https://github.com/MetaMask/core/pull/9631))
 - `AccountsApiDataSource` `forceUpdate` balance fetches now use `staleTime`/`gcTime` of `100`ms (previously `0`/`0`) so bursts of near-simultaneous forced refreshes are de-duplicated by TanStack Query into a single Accounts API request instead of one request per trigger ([#9591](https://github.com/MetaMask/core/pull/9591))
 
 ## [11.1.1]
