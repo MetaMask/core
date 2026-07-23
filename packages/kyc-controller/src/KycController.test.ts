@@ -257,6 +257,46 @@ describe('KycController', () => {
       );
     });
 
+    it('clears stale auth tokens when a new session is created', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              sessionToken: 'old-session',
+              accessToken: 'stale-access',
+              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createSession.mockResolvedValue({
+            sessionToken: 'new-session',
+          });
+
+          // Establish an auth-frame client token from a prior authentication.
+          const envelope = envelopeFor(controller, { clientToken: 'old-client' });
+          await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_1' },
+              payload: { status: 'connectionRequired', credentials: envelope },
+            },
+          });
+          expect(controller.buildAuthFrameUrl()).toContain(
+            'clientToken=old-client',
+          );
+
+          // Creating a new session must invalidate the carried-over auth.
+          await controller.acceptTermsAndStartSession();
+
+          expect(controller.state.accessToken).toBeNull();
+          expect(controller.buildAuthFrameUrl()).toBeNull();
+          expect(controller.state.sessionToken).toBe('new-session');
+        },
+      );
+    });
+
     it('reverts to terms when session creation fails', async () => {
       await withController(
         {
@@ -776,6 +816,44 @@ describe('KycController', () => {
             false,
           );
           expect(controller.state.error).toMatch(/KYC check failed/u);
+        },
+      );
+    });
+
+    it('discards a successful result when reset() runs while the check is in flight', async () => {
+      await withController(
+        { options: { state: { accessToken: 'a', geoCountry: 'USA' } } },
+        async ({ controller, handlers }) => {
+          handlers.checkKycRequired.mockImplementation(async () => {
+            // Simulate a reset() landing while the HTTP call is in flight.
+            controller.reset();
+            return { kycRequired: true };
+          });
+
+          const result = await controller.checkKycRequired({ product: 'ramps' });
+
+          expect(result).toBe(false);
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.kycRequiredByProduct.ramps).toBeUndefined();
+          expect(controller.state.lastCheckedAt).toBeNull();
+        },
+      );
+    });
+
+    it('discards an error when reset() runs while the check is in flight', async () => {
+      await withController(
+        { options: { state: { accessToken: 'a', geoCountry: 'USA' } } },
+        async ({ controller, handlers }) => {
+          handlers.checkKycRequired.mockImplementation(async () => {
+            controller.reset();
+            throw new Error('down');
+          });
+
+          const result = await controller.checkKycRequired({ product: 'ramps' });
+
+          expect(result).toBe(false);
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.error).toBeNull();
         },
       );
     });

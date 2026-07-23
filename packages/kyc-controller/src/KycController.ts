@@ -324,6 +324,13 @@ export class KycController extends BaseController<
   #authClientToken: string | null = null;
 
   /**
+   * Monotonic flow generation. Incremented by {@link reset} so in-flight async
+   * work (e.g. the KYC-required check) can detect that it was superseded and
+   * avoid writing stale results onto a reset controller.
+   */
+  #generation = 0;
+
+  /**
    * Constructs a new {@link KycController}.
    *
    * @param options - The constructor options.
@@ -477,10 +484,18 @@ export class KycController extends BaseController<
       return;
     }
 
+    // A new session invalidates any authentication carried over from a prior
+    // session. Clear the stale access token and auth-frame client token so
+    // `buildAuthFrameUrl` cannot return a URL tied to an old client token and
+    // `checkKycRequired` cannot run with an access token from an earlier
+    // authentication. The Check/Auth frames re-populate these for the new
+    // session.
+    this.#authClientToken = null;
     this.update((state) => {
       state.error = null;
       state.phase = 'session';
       state.statusMessage = 'Creating session...';
+      state.accessToken = null;
     });
 
     try {
@@ -763,6 +778,10 @@ export class KycController extends BaseController<
       return false;
     }
 
+    // Capture the flow generation so we can detect a `reset()` that happens
+    // while the HTTP call is in flight and avoid writing stale results.
+    const generation = this.#generation;
+
     this.update((state) => {
       state.phase = 'submit';
       state.statusMessage = 'Checking KYC status...';
@@ -773,6 +792,11 @@ export class KycController extends BaseController<
         'KycService:checkKycRequired',
         { accessToken, country, capabilities: [{ product: params.product }] },
       );
+      // The flow was reset while the check was in flight; discard the result
+      // rather than resurrecting a done/cached state on an idle controller.
+      if (this.#generation !== generation) {
+        return false;
+      }
       this.update((state) => {
         state.kycRequiredByProduct[params.product] = kycRequired;
         state.lastCheckedAt = new Date().toISOString();
@@ -781,6 +805,9 @@ export class KycController extends BaseController<
       });
       return kycRequired;
     } catch (error) {
+      if (this.#generation !== generation) {
+        return false;
+      }
       this.#fail(`KYC check failed: ${String(error)}`);
       return false;
     }
@@ -911,6 +938,8 @@ export class KycController extends BaseController<
    */
   reset(): void {
     this.#authClientToken = null;
+    // Invalidate any in-flight async work started before this reset.
+    this.#generation += 1;
     this.update((state) => {
       state.phase = 'idle';
       state.statusMessage = '';
