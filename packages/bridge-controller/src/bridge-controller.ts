@@ -86,14 +86,14 @@ import type {
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
 import type { CrossChainSwapsEventProperties } from './utils/metrics/types';
+import { appendFeesToQuotes } from './utils/quote-fees';
+import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
+import { sortQuotes } from './utils/sort-quotes';
+import type { FeatureId } from './validators/feature-flags';
 import {
   isValidQuoteRequest,
   isValidBatchSellQuoteRequest,
-  sortQuotes,
-} from './utils/quote';
-import { appendFeesToQuotes } from './utils/quote-fees';
-import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
-import type { FeatureId } from './validators/feature-flags';
+} from './validators/quote-request';
 import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
 const metadata: StateMetadata<BridgeControllerState> = {
@@ -530,7 +530,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     if (this.#getUseAssetsControllerForRates()) {
       return {
         ...this.messenger.call('AssetsController:getExchangeRatesForBridge'),
-        historicalPrices: {},
         ...this.state,
       };
     }

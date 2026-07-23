@@ -4,11 +4,11 @@ import type {
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
+import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service/index.js';
 import type {
   name as ratesControllerName,
   Cryptocurrency,
-} from './RatesController';
+} from './RatesController.js';
 
 /**
  * Represents the conversion rates from one currency to others, including the conversion date.

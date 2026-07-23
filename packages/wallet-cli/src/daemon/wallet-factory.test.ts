@@ -103,6 +103,7 @@ describe('createWallet', () => {
     expect(
       instanceOptions.connectivityController.connectivityAdapter,
     ).toBeInstanceOf(AlwaysOnlineAdapter);
+    expect(instanceOptions.gasFeeController.clientId).toBe('cli');
     expect(instanceOptions.networkController.infuraProjectId).toBe(
       'test-infura-id',
     );

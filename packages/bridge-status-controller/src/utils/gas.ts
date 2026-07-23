@@ -50,7 +50,7 @@ export const calcActualGasUsed = (
     ? {
         amount: actualGasInHexWei.toString(10),
         usd:
-          usdExchangeRate?.multipliedBy(actualGasInDecEth).toString(10) ?? null,
+          usdExchangeRate?.multipliedBy(actualGasInDecEth).toString(10) ?? '0',
       }
     : null;
 };

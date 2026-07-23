@@ -2,14 +2,14 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { noop } from 'lodash';
 
+import { TransactionPayStrategy } from '../constants.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerState,
-} from '..';
-import { TransactionPayStrategy } from '../constants';
-import { projectLogger } from '../logger';
-import type { UpdateTransactionDataCallback } from '../types';
-import { refreshQuotes } from '../utils/quotes';
+} from '../index.js';
+import { projectLogger } from '../logger.js';
+import type { UpdateTransactionDataCallback } from '../types.js';
+import { refreshQuotes } from '../utils/quotes.js';
 
 const CHECK_INTERVAL = 1000; // 1 Second
 

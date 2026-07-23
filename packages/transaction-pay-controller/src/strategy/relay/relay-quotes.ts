@@ -14,7 +14,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { TransactionPayStrategy } from '../..';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -26,8 +25,9 @@ import {
   PERPS_DEPOSIT_TYPES,
   USDC_DECIMALS,
   PaymentOverride,
-} from '../../constants';
-import { projectLogger } from '../../logger';
+} from '../../constants.js';
+import { TransactionPayStrategy } from '../../index.js';
+import { projectLogger } from '../../logger.js';
 import type {
   Amount,
   FiatRates,
@@ -35,8 +35,8 @@ import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { getFiatValueFromUsd } from '../../utils/amounts';
+} from '../../types.js';
+import { getFiatValueFromUsd } from '../../utils/amounts.js';
 import {
   getFeatureFlags,
   getRelayOriginGasOverhead,
@@ -44,32 +44,32 @@ import {
   getStablecoins,
   isEIP7702Chain,
   isRelayExecuteEnabled,
-} from '../../utils/feature-flags';
-import { calculateGasCost } from '../../utils/gas';
+} from '../../utils/feature-flags.js';
 import {
   getGasStationCostInSourceTokenRaw,
   getGasStationEligibility,
-} from '../../utils/gas-station';
-import { estimateQuoteGasLimits } from '../../utils/quote-gas';
-import type { QuoteGasTransaction } from '../../utils/quote-gas';
+} from '../../utils/gas-station.js';
+import { calculateGasCost } from '../../utils/gas.js';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
+import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
   normalizeTokenAddress,
   TokenAddressTarget,
-} from '../../utils/token';
-import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import { applyHyperliquidActivationFee } from './hyperliquid-activation';
-import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
-import { fetchRelayQuote } from './relay-api';
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
+} from '../../utils/token.js';
+import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
+import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
+import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw.js';
+import { fetchRelayQuote } from './relay-api.js';
+import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
 import type {
   RelayQuote,
   RelayQuoteMetamask,
   RelayQuoteRequest,
   RelayTransactionStep,
-} from './types';
+} from './types.js';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 

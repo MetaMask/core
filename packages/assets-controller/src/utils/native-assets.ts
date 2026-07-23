@@ -2,8 +2,8 @@ import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
 import { parseCaipAssetType } from '@metamask/utils';
 
-import type { Caip19AssetId, ChainId } from '../types';
-import { normalizeAssetId } from './normalizeAssetId';
+import type { Caip19AssetId, ChainId } from '../types.js';
+import { normalizeAssetId } from './normalizeAssetId.js';
 
 const CHAINID_NETWORK_URL = 'https://chainid.network/chains.json';
 

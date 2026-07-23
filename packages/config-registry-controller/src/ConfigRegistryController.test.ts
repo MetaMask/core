@@ -927,6 +927,46 @@ describe('ConfigRegistryController', () => {
     });
   });
 
+  describe('getNetworkConfigByCaip2ChainId', () => {
+    it('returns the correct network config for a given CAIP-2 chainId', async () => {
+      const mockNetworkConfig = createMockNetworkConfig({
+        chainId: 'eip155:1',
+        name: 'Ethereum Mainnet',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              configs: {
+                networks: {
+                  'eip155:1': createMockNetworkConfig({
+                    chainId: 'eip155:1',
+                    name: 'Ethereum Mainnet',
+                  }),
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          const networkConfig =
+            controller.getNetworkConfigByCaip2ChainId('eip155:1');
+
+          expect(networkConfig).toStrictEqual(mockNetworkConfig);
+        },
+      );
+    });
+
+    it('returns undefined for a non-existent CAIP-2 chainId', async () => {
+      await withController(async ({ controller }) => {
+        const networkConfig =
+          controller.getNetworkConfigByCaip2ChainId('eip155:9999');
+
+        expect(networkConfig).toBeUndefined();
+      });
+    });
+  });
+
   describe('feature flag', () => {
     it('uses API when feature flag is enabled', async () => {
       await withController(

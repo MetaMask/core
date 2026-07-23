@@ -5,14 +5,14 @@ import type { Hex } from '@metamask/utils';
 import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
-} from '../../types';
-import { getHyperliquidActivationFeeConfig } from '../../utils/feature-flags';
-import { HYPERLIQUID_INFO_URL } from './constants';
-import type { HyperLiquidLedgerUpdate } from './hyperliquid-activation';
+} from '../../types.js';
+import { getHyperliquidActivationFeeConfig } from '../../utils/feature-flags.js';
+import { HYPERLIQUID_INFO_URL } from './constants.js';
+import type { HyperLiquidLedgerUpdate } from './hyperliquid-activation.js';
 import {
   applyHyperliquidActivationFee,
   isHyperLiquidAccountActivated,
-} from './hyperliquid-activation';
+} from './hyperliquid-activation.js';
 
 jest.mock('../../utils/feature-flags', () => ({
   getHyperliquidActivationFeeConfig: jest.fn(),

@@ -14,15 +14,18 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
-import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
-import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
-import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
-import { TokenRwaData } from './token-service';
+import {
+  reduceInBatchesSerially,
+  TOKEN_PRICES_BATCH_SIZE,
+} from './assetsUtil.js';
+import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service.js';
+import { getNativeTokenAddress } from './token-prices-service/codefi-v2.js';
+import { TokenRwaData } from './token-service.js';
 import type {
   TokensControllerGetStateAction,
   TokensControllerStateChangeEvent,
   TokensControllerState,
-} from './TokensController';
+} from './TokensController.js';
 
 /**
  * @type Token

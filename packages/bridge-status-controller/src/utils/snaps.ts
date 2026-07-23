@@ -156,7 +156,7 @@ export const getTxMetaFields = (
     // chainId is now excluded from this function and handled by the caller
     approvalTxId,
     // this is the decimal (non atomic) amount (not USD value) of source token to swap
-    swapTokenValue: quoteResponse.sentAmount.amount,
+    swapTokenValue: quoteResponse?.sentAmount?.amount,
   };
 };
 

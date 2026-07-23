@@ -2,7 +2,7 @@ import type {
   DeFiPositionDetailsSection,
   DeFiPositionsByAccount,
   DeFiProtocolPositionGroup,
-} from './group-defi-positions-v6';
+} from './group-defi-positions-v6.js';
 
 /**
  * Merges details-page sections that share the same `productName`, appending

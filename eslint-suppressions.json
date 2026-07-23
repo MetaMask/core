@@ -646,11 +646,6 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/src/utils/bridge.ts": {
-    "id-denylist": {
-      "count": 1
-    }
-  },
   "packages/bridge-controller/src/utils/feature-flags.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
@@ -681,11 +676,6 @@
       "count": 2
     },
     "id-length": {
-      "count": 2
-    }
-  },
-  "packages/bridge-controller/src/utils/quote.ts": {
-    "no-restricted-syntax": {
       "count": 2
     }
   },
@@ -2003,11 +1993,6 @@
   "packages/seedless-onboarding-controller/src/assertions.ts": {
     "no-restricted-syntax": {
       "count": 10
-    }
-  },
-  "packages/seedless-onboarding-controller/src/errors.ts": {
-    "no-restricted-syntax": {
-      "count": 4
     }
   },
   "packages/seedless-onboarding-controller/tests/mocks/vaultEncryptor.ts": {

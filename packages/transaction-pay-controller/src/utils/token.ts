@@ -10,14 +10,14 @@ import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   SLIP44_COIN_TYPE_BY_CHAIN,
-} from '../constants';
-import type { FiatRates, TransactionPayControllerMessenger } from '../types';
+} from '../constants.js';
+import type { FiatRates, TransactionPayControllerMessenger } from '../types.js';
 import {
   getAssetsUnifyStateFeature,
   getStablecoins,
   isChainExcludedFromInfura,
-} from './feature-flags';
-import { getNetworkClientId, rpcRequest } from './provider';
+} from './feature-flags.js';
+import { getNetworkClientId, rpcRequest } from './provider.js';
 
 /**
  * Check if two tokens are the same (same address and chain).

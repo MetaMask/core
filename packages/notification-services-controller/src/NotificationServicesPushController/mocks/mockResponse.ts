@@ -1,4 +1,4 @@
-import { REGISTRATION_TOKENS_ENDPOINT } from '../services/endpoints';
+import { REGISTRATION_TOKENS_ENDPOINT } from '../services/endpoints.js';
 
 type MockResponse = {
   url: string | RegExp;

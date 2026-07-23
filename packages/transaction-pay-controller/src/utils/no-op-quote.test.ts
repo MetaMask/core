@@ -1,8 +1,8 @@
 import type { Hex } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../constants';
-import type { TransactionPaymentToken } from '../types';
-import { buildNoOpQuote } from './no-op-quote';
+import { TransactionPayStrategy } from '../constants.js';
+import type { TransactionPaymentToken } from '../types.js';
+import { buildNoOpQuote } from './no-op-quote.js';
 
 const FROM_MOCK = '0xabc' as Hex;
 

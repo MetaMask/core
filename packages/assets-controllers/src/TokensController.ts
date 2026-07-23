@@ -45,18 +45,18 @@ import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
-import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
-import { ERC20Standard } from './Standards/ERC20Standard';
-import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
+import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil.js';
+import { ERC20Standard } from './Standards/ERC20Standard.js';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard.js';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
-} from './token-service';
-import type { TokenListMap, TokenListToken } from './TokenListController';
-import type { TokenListService } from './TokenListService';
-import type { Token } from './TokenRatesController';
-import type { TokensControllerMethodActions } from './TokensController-method-action-types';
+} from './token-service.js';
+import type { TokenListMap, TokenListToken } from './TokenListController.js';
+import type { TokenListService } from './TokenListService.js';
+import type { Token } from './TokenRatesController.js';
+import type { TokensControllerMethodActions } from './TokensController-method-action-types.js';
 
 /**
  * @type SuggestedAssetMeta

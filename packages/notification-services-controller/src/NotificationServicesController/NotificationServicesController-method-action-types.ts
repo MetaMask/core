@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NotificationServicesController } from './NotificationServicesController';
+import type { NotificationServicesController } from './NotificationServicesController.js';
 
 export type NotificationServicesControllerInitAction = {
   type: `NotificationServicesController:init`;

@@ -1,5 +1,5 @@
-import { createModuleLogger, projectLogger } from '../logger';
-import type { UserOperation, UserOperationReceipt } from '../types';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { UserOperation, UserOperationReceipt } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'bundler');
 

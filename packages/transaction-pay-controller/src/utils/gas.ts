@@ -7,12 +7,12 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { TransactionPayControllerMessenger } from '..';
-import { createModuleLogger, projectLogger } from '../logger';
-import type { Amount } from '../types';
-import { getFallbackGas, getGasBuffer } from './feature-flags';
-import { getNetworkClientId } from './provider';
-import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token';
+import type { TransactionPayControllerMessenger } from '../index.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { Amount } from '../types.js';
+import { getFallbackGas, getGasBuffer } from './feature-flags.js';
+import { getNetworkClientId } from './provider.js';
+import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token.js';
 
 const log = createModuleLogger(projectLogger, 'gas');
 

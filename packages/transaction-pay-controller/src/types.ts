@@ -57,8 +57,8 @@ import type {
   CONTROLLER_NAME,
   PaymentOverride,
   TransactionPayStrategy,
-} from './constants';
-import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
+} from './constants.js';
+import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction

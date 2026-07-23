@@ -1,4 +1,4 @@
-import type { ChainId } from './core';
+import type { ChainId } from './core.js';
 
 /**
  * Minimal provider interface for RPC calls.

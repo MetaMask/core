@@ -41,7 +41,6 @@ export type {
   ChainConfiguration,
   L1GasFees,
   NonEvmFees,
-  QuoteMetadata,
   GasMultiplierByChainId,
   FeatureFlagResponse,
   BridgeAsset,
@@ -49,7 +48,6 @@ export type {
   BatchSellTradesResponse,
   GaslessProperties,
   SimulatedGasFeeLimits,
-  TokenAmountValues,
   Step,
   RefuelData,
   FeeData,
@@ -67,7 +65,18 @@ export type {
   QuoteStreamCompleteData,
   BridgeControllerGetStateAction,
   BridgeControllerStateChangeEvent,
+  DeepPartial,
 } from './types';
+
+export {
+  type QuoteMetadata,
+  type TokenAmountValues,
+} from './utils/quote-metadata/types';
+export {
+  validateQuoteResponseV1,
+  QuoteResponseSchemaV1,
+} from './validators/quote-response-v1';
+export { mergeQuoteMetadata } from './utils/quote-metadata/merge';
 
 export {
   AssetType,
@@ -105,7 +114,10 @@ export {
   isEvmTxData,
   isStellarTrade,
 } from './validators/trade';
-export type { QuoteResponseV1 as QuoteResponse } from './validators/quote-response-v1';
+export type {
+  QuoteResponseV1 as QuoteResponse,
+  QuoteResponseV1,
+} from './validators/quote-response-v1';
 export type { Quote } from './validators/quote';
 export { FeeType, DiscountType } from './validators/quote';
 export { ActionTypes } from './validators/step';
@@ -115,7 +127,10 @@ export {
 } from './validators/quote-stream-complete';
 export { BatchSellTransactionType } from './validators/batch-sell';
 export { TokenFeatureType } from './validators/token-feature';
-export { BridgeAssetSchema } from './validators/bridge-asset';
+export {
+  BridgeAssetSchema,
+  validateBridgeAsset,
+} from './validators/bridge-asset';
 export { FeatureId } from './validators/feature-flags';
 
 export {
@@ -131,6 +146,7 @@ export {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   METABRIDGE_CHAIN_TO_ADDRESS_MAP,
   BRIDGE_DEV_API_BASE_URL,
+  BRIDGE_UAT_API_BASE_URL,
   BRIDGE_PROD_API_BASE_URL,
 } from './constants/bridge';
 
@@ -172,9 +188,12 @@ export {
 export {
   isValidQuoteRequest,
   isValidBatchSellQuoteRequest,
-  formatEtaInMinutes,
+} from './validators/quote-request';
+
+export {
   calcSlippagePercentage,
-} from './utils/quote';
+  calcQuoteMetadata,
+} from './utils/quote-metadata/calculators';
 
 export { calcLatestSrcBalance } from './utils/balance';
 

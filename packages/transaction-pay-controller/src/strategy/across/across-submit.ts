@@ -15,27 +15,27 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { accountSupports7702 } from '../../utils/7702';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getGasBuffer } from '../../utils/feature-flags';
-import { getNetworkClientId } from '../../utils/provider';
+} from '../../types.js';
+import { accountSupports7702 } from '../../utils/7702.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getGasBuffer } from '../../utils/feature-flags.js';
+import { getNetworkClientId } from '../../utils/provider.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
+} from '../../utils/transaction.js';
 import {
   getAcrossOrderedTransactions,
   getOriginalTransactionGas,
-} from './transactions';
-import type { AcrossQuote } from './types';
+} from './transactions.js';
+import type { AcrossQuote } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 const ACROSS_STATUS_POLL_INTERVAL = 1000;

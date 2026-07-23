@@ -1,7 +1,7 @@
-import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
-import type { INotification } from '../types/notification/notification';
-import { getNotificationSubtype } from '../utils/get-notification-subtype';
-import { shouldAutoExpire } from '../utils/should-auto-expire';
+import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement.js';
+import type { INotification } from '../types/notification/notification.js';
+import { getNotificationSubtype } from '../utils/get-notification-subtype.js';
+import { shouldAutoExpire } from '../utils/should-auto-expire.js';
 
 /**
  * Checks if a feature announcement should be read.

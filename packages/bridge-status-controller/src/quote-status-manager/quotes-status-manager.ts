@@ -148,8 +148,14 @@ export class QuoteStatusManager {
    *
    * @param txMetaId - Transaction metadata id of the finalized quote(s).
    * @param success - Whether the transaction finalized successfully.
+   * @param srcChainId - Optional source-chain id, forwarded to error reporting
+   * to aid debugging when no matching entry is found.
    */
-  reportFinalised(txMetaId: string, success: boolean): void {
+  reportFinalised(
+    txMetaId: string,
+    success: boolean,
+    srcChainId?: string | number,
+  ): void {
     if (!this.#isEnabled?.()) {
       return;
     }
@@ -160,7 +166,7 @@ export class QuoteStatusManager {
       this.#onError?.(
         new QuoteStatusUpdateError(
           'reporting finalization status but entry was not found',
-          { quoteId: '' },
+          { quoteId: '', txMetaId, srcChainId },
         ),
       );
       return;
@@ -211,8 +217,15 @@ export class QuoteStatusManager {
    * @param srcTxHash - Hash of the source-chain transaction for the quote.
    * @param txMetaId - Optional transaction metadata id used to correlate
    * finalization reports.
+   * @param srcChainId - Optional source-chain id of the quote, retained on the
+   * entry to enrich error reporting.
    */
-  reportSubmitted(quoteId: string, srcTxHash: string, txMetaId?: string): void {
+  reportSubmitted(
+    quoteId: string,
+    srcTxHash: string,
+    txMetaId?: string,
+    srcChainId?: string | number,
+  ): void {
     if (!this.#isEnabled?.()) {
       return;
     }
@@ -237,6 +250,7 @@ export class QuoteStatusManager {
       quoteId,
       srcTxHash,
       txMetaId,
+      srcChainId,
       status: new QuoteStatusStateFsm(QuoteStatusState.Submitted),
     });
 
@@ -297,12 +311,12 @@ export class QuoteStatusManager {
       }
 
       if (txMeta.status === TransactionStatus.confirmed) {
-        this.reportFinalised(entry.txMetaId, true);
+        this.reportFinalised(entry.txMetaId, true, entry.srcChainId);
       } else if (
         txMeta.status === TransactionStatus.failed ||
         txMeta.status === TransactionStatus.dropped
       ) {
-        this.reportFinalised(entry.txMetaId, false);
+        this.reportFinalised(entry.txMetaId, false, entry.srcChainId);
       }
     }
   }
@@ -704,7 +718,12 @@ export class QuoteStatusManager {
           this.#onError?.(
             new QuoteStatusUpdateError(
               `reporting finalization status but entry cannot transition from "${entry.status.state}" to "${nextState}"`,
-              { quoteId: entry.quoteId },
+              {
+                quoteId: entry.quoteId,
+                txMetaId: entry.txMetaId,
+                srcTxHash: entry.srcTxHash,
+                srcChainId: entry.srcChainId,
+              },
             ),
           );
         }
@@ -722,6 +741,9 @@ export class QuoteStatusManager {
         {
           quoteId: entry.quoteId,
           errorType: response?.type,
+          txMetaId: entry.txMetaId,
+          srcTxHash: entry.srcTxHash,
+          srcChainId: entry.srcChainId,
         },
       ),
     );

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NetworkEnablementController } from './NetworkEnablementController';
+import type { NetworkEnablementController } from './NetworkEnablementController.js';
 
 /**
  * Enables or disables a network for the user.

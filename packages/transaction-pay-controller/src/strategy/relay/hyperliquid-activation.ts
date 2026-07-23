@@ -4,14 +4,14 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { HYPERCORE_USDC_DECIMALS } from '../../constants';
-import { projectLogger } from '../../logger';
+import { HYPERCORE_USDC_DECIMALS } from '../../constants.js';
+import { projectLogger } from '../../logger.js';
 import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
-} from '../../types';
-import { getHyperliquidActivationFeeConfig } from '../../utils/feature-flags';
-import { HYPERLIQUID_INFO_URL } from './constants';
+} from '../../types.js';
+import { getHyperliquidActivationFeeConfig } from '../../utils/feature-flags.js';
+import { HYPERLIQUID_INFO_URL } from './constants.js';
 
 const log = createModuleLogger(projectLogger, 'hyperliquid-activation');
 

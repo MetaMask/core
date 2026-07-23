@@ -12,42 +12,42 @@ import {
   CHAIN_ID_HYPERCORE,
   PaymentOverride,
   TransactionPayStrategy,
-} from '../../constants';
-import { projectLogger } from '../../logger';
+} from '../../constants.js';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayFees,
   TransactionPayQuote,
-} from '../../types';
-import { getFiatValueFromUsd } from '../../utils/amounts';
+} from '../../types.js';
+import { getFiatValueFromUsd } from '../../utils/amounts.js';
 import {
   getFeatureFlags,
   getSlippage,
   isEIP7702Chain,
-} from '../../utils/feature-flags';
-import { calculateGasCost, getGasFee } from '../../utils/gas';
+} from '../../utils/feature-flags.js';
 import {
   getGasStationCostInSourceTokenRaw,
   getGasStationEligibility,
-} from '../../utils/gas-station';
-import { estimateQuoteGasLimits } from '../../utils/quote-gas';
-import type { QuoteGasTransaction } from '../../utils/quote-gas';
+} from '../../utils/gas-station.js';
+import { calculateGasCost, getGasFee } from '../../utils/gas.js';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
+import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
-} from '../../utils/token';
-import { normalizeServerPerpsRequest } from './perps';
-import { fetchServerQuote } from './server-api';
+} from '../../utils/token.js';
+import { normalizeServerPerpsRequest } from './perps.js';
+import { fetchServerQuote } from './server-api.js';
 import type {
   ServerQuote,
   ServerQuoteRequest,
   ServerQuoteResult,
   ServerTransactionStep,
-} from './types';
-import { ServerTradeType } from './types';
+} from './types.js';
+import { ServerTradeType } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-quotes');
 const TOKEN_TRANSFER_FOUR_BYTE = '0xa9059cbb';
