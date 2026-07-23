@@ -409,6 +409,7 @@ const config = createConfig([
       'packages/delegation-controller/**',
       'packages/earn-controller/**',
       'packages/eip-5792-middleware/**',
+      'packages/eip-7702-internal-rpc-middleware/**',
       'packages/eip1193-permission-middleware/**',
       'packages/ens-controller/**',
       'packages/eth-block-tracker/**',
