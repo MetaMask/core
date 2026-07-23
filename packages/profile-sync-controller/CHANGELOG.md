@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController.isRampsSyncingEnabled` ([#9474](https://github.com/MetaMask/core/pull/9474))
+
+### Changed
+
+- **BREAKING:** `UserStorageControllerState` now includes `isRampsSyncingEnabled`. Consumers that construct full state objects must include this field. ([#9474](https://github.com/MetaMask/core/pull/9474))
+
 ## [28.3.0]
 
 ### Added

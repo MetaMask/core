@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add V2 ramps order syncing with User Storage ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - New `order-syncing/` module stores `RampsOrder` objects (without `paymentDetails`) as per-order User Storage entries under the `rampsOrders` feature
+  - `RampsController.syncOrdersWithUserStorage()` performs bidirectional sync with timestamp-based conflict resolution and soft deletes
+  - `addOrder` / `removeOrder` incrementally push local changes to User Storage when Backup & Sync and `isRampsSyncingEnabled` are on
+  - Messenger action `RampsController:syncOrdersWithUserStorage` for hosts to trigger a full sync on unlock / feature enable
+  - Optional constructor `onOrderSyncErroneousSituation` and `trace` callbacks for host observability
+
+### Changed
+
+- **BREAKING:** `RampsControllerMessenger` now requires `UserStorageController` storage actions and `AuthenticationController:isSignedIn` to be delegated so order syncing can run ([#9474](https://github.com/MetaMask/core/pull/9474))
+
+### Fixed
+
+- Default `isRampsSyncingEnabled` to `true` in `canPerformOrderSyncing` when the field is absent from persisted User Storage state, matching controller default state and UI selectors ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Route incremental `addOrder` / `removeOrder` remote writes through `performBatchSetStorage` so provider order IDs with hyphens or other non-`\w` characters sync correctly; single-entry `performSetStorage` paths are rejected by User Storage's `feature.key` validator ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Re-read live local orders before remote upload so orders added while `isOrderSyncingInProgress` suppresses incremental writes are still uploaded during full sync ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Queue local deletes that occur during full sync and write remote tombstones when sync finishes, so mid-sync deletes are not resurrected ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Coalesce overlapping `syncOrdersWithUserStorage` calls into a follow-up run instead of silently no-oping ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Fall back to trimmed `providerOrderId` when an order `id` has an empty `/orders/` segment, and reject empty storage keys on remote write ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Strip `paymentDetails` from User Storage payloads; keep them in local controller state only ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Preserve remote `createdAt` as `lastUpdatedAt` when importing entries without `lu`, instead of inventing `Date.now()` ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Clear tombstone metadata when uploading active local orders during full sync ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Apply last-write-wins rules to remote soft-deletes so newer local orders can restore over older tombstones ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Surface remote fetch/parse failures via `onOrderSyncErroneousSituation` without attaching raw order JSON ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Honor newer remote tombstones during full sync even when local order content differs ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Trim `providerOrderId` when deriving User Storage keys so syncability checks and storage keys stay aligned ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Clear order polling metadata for stored `providerOrderId` and internal order codes when `removeOrder` is called with either identifier ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Persist `lastUpdatedAt` on local orders and bump it on every non-sync `addOrder` so last-write-wins prefers fresher local edits over stale remote copies ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Set `isOrderSyncingInProgress` before the remote fetch so overlapping full syncs cannot race merge/upload ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Trim `providerOrderId` in `getInternalOrderCode` to match User Storage key derivation ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Prefer the freshest remote copy when the same order key appears under multiple entropy profiles during order sync ([#9474](https://github.com/MetaMask/core/pull/9474))
+
 ## [17.0.0]
 
 ### Added
