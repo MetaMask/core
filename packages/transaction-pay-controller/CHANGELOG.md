@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Validate Relay quotes by simulating their transactions, surfacing failures as a structured `quoteError` on `TransactionData` ([#9143](https://github.com/MetaMask/core/pull/9143))
+  - The messenger must now allow the `SentinelApiService:simulateTransactions` action.
+  - Add `quoteError` (`QuoteErrorInfo`: `{ message, reason, detail? }`) and export `QuoteErrorInfo` and `QuoteErrorReason`.
+  - Add `payStrategies.relay.validationEnabled` extended feature flag (in `confirmations_pay_extended`) as a kill switch; validation is disabled by default.
+
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^11.1.1` to `^11.2.0` ([#9629](https://github.com/MetaMask/core/pull/9629))

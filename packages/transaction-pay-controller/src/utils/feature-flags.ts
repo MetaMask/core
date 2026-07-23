@@ -191,6 +191,7 @@ type FeatureFlagsExtendedRaw = {
   payStrategies?: {
     relay?: {
       gaslessEnabled?: boolean;
+      validationEnabled?: boolean;
     };
     server?: {
       enabled?: boolean;
@@ -628,6 +629,26 @@ export function isRelayExecuteEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.gaslessEnabled ?? false;
+}
+
+/**
+ * Whether Relay quote validation is enabled.
+ *
+ * Acts as an emergency kill switch: when disabled (default), Relay quotes are
+ * surfaced without being simulated/validated.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if Relay quote validation is enabled.
+ */
+export function isRelayValidationEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+  return featureFlags.payStrategies?.relay?.validationEnabled ?? false;
 }
 
 /**

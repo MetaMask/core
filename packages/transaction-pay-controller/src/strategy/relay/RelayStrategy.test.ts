@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
+import { TransactionPayStrategy } from '../../constants.js';
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
@@ -84,7 +85,13 @@ describe('RelayStrategy', () => {
   });
 
   it('delegates getQuotes', async () => {
-    const quote = { strategy: 'relay' } as TransactionPayQuote<RelayQuote>;
+    const quote = {
+      request: {
+        sourceChainId: '0x1' as Hex,
+        sourceTokenAddress: '0xabc' as Hex,
+      },
+      strategy: TransactionPayStrategy.Relay,
+    } as TransactionPayQuote<RelayQuote>;
     getRelayQuotesMock.mockResolvedValue([quote]);
 
     const strategy = new RelayStrategy();

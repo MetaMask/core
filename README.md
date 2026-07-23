@@ -632,6 +632,7 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> network_controller;
   transaction_pay_controller --> ramps_controller;
   transaction_pay_controller --> remote_feature_flag_controller;
+  transaction_pay_controller --> sentinel_api_service;
   transaction_pay_controller --> transaction_controller;
   user_operation_controller --> approval_controller;
   user_operation_controller --> base_controller;

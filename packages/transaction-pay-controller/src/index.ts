@@ -17,6 +17,8 @@ export type {
   TransactionPayControllerOptions,
   TransactionPayControllerState,
   PolymarketCallbacks,
+  QuoteErrorInfo,
+  QuoteErrorReason,
   TransactionPayControllerStateChangeEvent,
   TransactionPaymentToken,
   TransactionPayQuote,
