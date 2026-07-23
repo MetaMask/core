@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
-import { CHAIN_IDS } from './chains';
+import { CHAIN_IDS } from './chains.js';
 
 export const SWAPS_API_V2_BASE_URL = 'https://swap.api.cx.metamask.io';
 

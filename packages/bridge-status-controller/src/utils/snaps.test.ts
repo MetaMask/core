@@ -2,8 +2,8 @@ import { ChainId, mergeQuoteMetadata } from '@metamask/bridge-controller';
 /* eslint-disable consistent-return */
 import { v4 as uuid } from 'uuid';
 
-import { BridgeStatusControllerMessenger } from '../types';
-import { createClientTransactionRequest, handleNonEvmTx } from './snaps';
+import { BridgeStatusControllerMessenger } from '../types.js';
+import { createClientTransactionRequest, handleNonEvmTx } from './snaps.js';
 
 jest.mock('uuid', () => ({
   v4: jest.fn(),

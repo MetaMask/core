@@ -5,8 +5,8 @@ import type { Hex } from '@metamask/utils';
 import type {
   BridgeControllerState,
   FeatureFlagsPlatformConfig,
-} from '../types';
-import { CHAIN_IDS } from './chains';
+} from '../types.js';
+import { CHAIN_IDS } from './chains.js';
 
 export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.MAINNET,

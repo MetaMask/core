@@ -11,8 +11,8 @@ import {
   any,
 } from '@metamask/superstruct';
 
-import { TruthyDigitStringSchema } from './number';
-import { HexString } from './trade';
+import { TruthyDigitStringSchema } from './number.js';
+import { HexString } from './trade.js';
 
 // Allow digit strings for amounts/validTo for flexibility across providers
 const DigitStringOrNumberSchema = union([TruthyDigitStringSchema, number()]);

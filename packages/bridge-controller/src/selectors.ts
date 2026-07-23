@@ -18,30 +18,30 @@ import {
   createStructuredSelector as createStructuredSelector_,
 } from 'reselect';
 
-import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
-import type { BridgeControllerState, ExchangeRate } from './types';
-import { RequestStatus, SortOrder } from './types';
+import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge.js';
+import type { BridgeControllerState, ExchangeRate } from './types.js';
+import { RequestStatus, SortOrder } from './types.js';
 import {
   getNativeAssetForChainId,
   isNativeAddress,
   isNonEvmChainId,
-} from './utils/bridge';
+} from './utils/bridge.js';
 import {
   formatAddressToAssetId,
   formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToHex,
-} from './utils/caip-formatters';
-import { processFeatureFlags } from './utils/feature-flags';
-import { calcBatchFees } from './utils/quote-metadata/calculators';
-import { calcQuoteMetadata } from './utils/quote-metadata/calculators';
-import { mergeQuoteMetadata } from './utils/quote-metadata/merge';
+} from './utils/caip-formatters.js';
+import { processFeatureFlags } from './utils/feature-flags.js';
+import { calcBatchFees } from './utils/quote-metadata/calculators.js';
+import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
+import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 import type {
   QuoteMetadata,
   TokenAmountValues,
-} from './utils/quote-metadata/types';
-import { getDefaultSlippagePercentage } from './utils/slippage';
-import type { QuoteResponseV1 } from './validators/quote-response-v1';
+} from './utils/quote-metadata/types.js';
+import { getDefaultSlippagePercentage } from './utils/slippage.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 
 /**
  * The controller states that provide exchange rates

@@ -1,8 +1,8 @@
 import type { CaipAssetType } from '@metamask/utils';
 
-import { getAssetIdsForToken, toExchangeRates } from './assets';
-import { getNativeAssetForChainId } from './bridge';
-import { formatAddressToAssetId } from './caip-formatters';
+import { getAssetIdsForToken, toExchangeRates } from './assets.js';
+import { getNativeAssetForChainId } from './bridge.js';
+import { formatAddressToAssetId } from './caip-formatters.js';
 
 // Mock the imported functions
 jest.mock('./bridge', () => ({

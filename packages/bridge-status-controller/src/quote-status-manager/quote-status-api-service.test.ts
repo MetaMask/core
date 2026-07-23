@@ -1,18 +1,18 @@
 import { StatusTypes } from '@metamask/bridge-controller';
 
-import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
+import { BridgeClientId, BridgeStatusControllerMessenger } from '../types.js';
 import {
   QuoteStatusUpdateBackendErrorType,
   QuoteStatusBackendStatus,
   QuoteStatusFetchWithRetryOutcomeType,
-} from './constants';
-import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors';
-import { QuoteStatusApiService } from './quote-status-api-service';
+} from './constants.js';
+import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors.js';
+import { QuoteStatusApiService } from './quote-status-api-service.js';
 import type {
   QuoteStatusApiServiceOptions,
   QuoteStatusGetResponse,
-} from './types';
-import * as validators from './validators';
+} from './types.js';
+import * as validators from './validators.js';
 
 const API_BASE_URL = 'https://bridge.api.test';
 
