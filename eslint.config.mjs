@@ -432,6 +432,7 @@ const config = createConfig([
       'packages/money-account-upgrade-controller/**',
       'packages/multichain-account-service/**',
       'packages/multichain-api-middleware/**',
+      'packages/multichain-network-controller/**',
       'packages/multichain-transactions-controller/**',
       'packages/name-controller/**',
       'packages/network-connection-banner-controller/**',
