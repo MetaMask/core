@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.2.0]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Assets packages ([#9580](https://github.com/MetaMask/core/pull/9580))
-
 ### Added
 
 - Add stage-gated ingestion of the Snaps → AssetsController migration networks (Solana, Stellar, Tron) ([#9534](https://github.com/MetaMask/core/pull/9534))
