@@ -2,7 +2,7 @@ import type { Json } from '@metamask/utils';
 import { sha256, bytesToHex } from '@metamask/utils';
 import { validate as uuidValidate, version as uuidVersion } from 'uuid';
 
-import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-types';
+import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-types.js';
 
 /**
  * Converts a UUID string to a BigInt by removing dashes and converting to hexadecimal.
