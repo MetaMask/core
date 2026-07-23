@@ -13,13 +13,12 @@ export {
 } from './AccountsApiDataSource';
 
 export {
-  BackendWebsocketDataSource,
-  createBackendWebsocketDataSource,
-  type BackendWebsocketDataSourceOptions,
-  type BackendWebsocketDataSourceState,
-  type BackendWebsocketDataSourceAllowedActions,
-  type BackendWebsocketDataSourceAllowedEvents,
-} from './BackendWebsocketDataSource';
+  AccountActivityDataSource,
+  createAccountActivityDataSource,
+  type AccountActivityDataSourceOptions,
+  type AccountActivityDataSourceState,
+  type AccountActivityDataSourceAllowedEvents,
+} from './AccountActivityDataSource';
 
 export {
   RpcDataSource,

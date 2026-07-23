@@ -10,7 +10,7 @@ import type {
 
 /**
  * Convert AccountActivityMessage balance updates into a {@link DataResponse}
- * for AssetsController (same shape as BackendWebsocketDataSource).
+ * for AssetsController.
  *
  * @param updates - Balance updates from account-activity websocket payload.
  * @param accountId - Internal account UUID.
