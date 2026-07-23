@@ -569,7 +569,7 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
-  it('subscribe update only updates request without re-subscribing', async () => {
+  it('subscribe update refreshes request and fetches missing prices', async () => {
     const { controller, apiClient, getAssetsState } = setupController({
       balanceState: {
         'mock-account-id': {
@@ -591,6 +591,7 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
+    // Freshness TTL skips re-fetch for the same recently priced asset.
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest({ chainIds: [CHAIN_POLYGON] }),
@@ -600,6 +601,113 @@ describe('PriceDataSource', () => {
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  it('subscribe update fetches newly held assets that have no price yet', async () => {
+    let balanceState: Record<string, Record<string, { amount: string }>> = {};
+    const { controller, apiClient, assetsUpdateHandler } = setupController({
+      balanceState: {},
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+        [MOCK_TOKEN_ASSET]: createMockPriceData(1),
+      },
+    });
+
+    const getAssetsState = jest.fn(() => ({
+      assetsBalance: balanceState,
+      assetsPrice: {},
+      assetsInfo: {},
+      customAssets: {},
+      assetPreferences: {},
+      selectedCurrency: 'usd' as const,
+    }));
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+      getAssetsState,
+    });
+
+    // Initial subscribe had no balances, so no price API call.
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(0);
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
+
+    // Simulate natives/defaults being seeded after the first subscribe.
+    balanceState = {
+      'mock-account-id': {
+        [MOCK_NATIVE_ASSET]: { amount: '0' },
+        [MOCK_TOKEN_ASSET]: { amount: '0' },
+      },
+    };
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: true,
+      onAssetsUpdate: assetsUpdateHandler,
+      getAssetsState,
+    });
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalled();
+    expect(assetsUpdateHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetsPrice: expect.objectContaining({
+          [MOCK_NATIVE_ASSET]: expect.any(Object),
+        }),
+        updateMode: 'merge',
+      }),
+    );
+
+    controller.destroy();
+  });
+
+  it('subscribe update swallows onAssetsUpdate errors without throwing', async () => {
+    let balanceState: Record<string, Record<string, { amount: string }>> = {};
+    const { controller } = setupController({
+      balanceState: {},
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
+
+    const getAssetsState = jest.fn(() => ({
+      assetsBalance: balanceState,
+      assetsPrice: {},
+      assetsInfo: {},
+      customAssets: {},
+      assetPreferences: {},
+      selectedCurrency: 'usd' as const,
+    }));
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: jest.fn(),
+      getAssetsState,
+    });
+
+    balanceState = {
+      'mock-account-id': {
+        [MOCK_NATIVE_ASSET]: { amount: '0' },
+      },
+    };
+
+    expect(
+      await controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest(),
+        isUpdate: true,
+        onAssetsUpdate: jest
+          .fn()
+          .mockRejectedValue(new Error('handler failed')),
+        getAssetsState,
+      }),
+    ).toBeUndefined();
 
     controller.destroy();
   });
