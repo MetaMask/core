@@ -16,23 +16,23 @@ import {
   RPC_METHOD_SIMULATE,
   SentinelEnvironment,
   serviceName,
-} from './constants';
+} from './constants.js';
 import {
   SentinelApiResponseValidationError,
   SentinelChainNotSupportedError,
   SentinelJsonRpcError,
-} from './errors';
-import { SentinelApiService } from './sentinel-api-service';
+} from './errors.js';
+import { SentinelApiService } from './sentinel-api-service.js';
 import {
   SentinelFeature,
   SentinelKind,
   SentinelSmartTransactionStatus,
-} from './types';
+} from './types.js';
 import type {
   SentinelApiServiceMessenger,
   SentinelRelaySubmitRequest,
   SentinelSimulationRequest,
-} from './types';
+} from './types.js';
 
 // ============================================================
 // Fixtures
