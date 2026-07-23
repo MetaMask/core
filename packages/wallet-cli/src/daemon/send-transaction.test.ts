@@ -53,8 +53,13 @@ function defaultHandlers(): Record<string, unknown> {
     'AccountsController:getSelectedAccount': { address: SELECTED },
     'TransactionController:addTransaction': Promise.resolve({
       result: Promise.resolve('0xhash'),
-      transactionMeta: { id: 'tx-1', status: 'submitted' },
+      // The creation snapshot is `unapproved`; the live status below is what
+      // the handler should report.
+      transactionMeta: { id: 'tx-1', status: 'unapproved' },
     }),
+    'TransactionController:getTransactions': [
+      { id: 'tx-1', status: 'submitted' },
+    ],
   };
 }
 
@@ -280,7 +285,7 @@ describe('runSendTransaction', () => {
     );
   });
 
-  it('awaits the broadcast and returns the hash, id, and status', async () => {
+  it('awaits the broadcast and returns the hash, id, and live status', async () => {
     const { messenger } = makeMessenger(defaultHandlers());
 
     const result = await runSendTransaction(messenger, {
@@ -288,11 +293,31 @@ describe('runSendTransaction', () => {
       networkClientId: 'mainnet',
     } as SendTransactionParams);
 
+    // The status comes from the live `getTransactions` re-read, not the
+    // `unapproved` creation snapshot.
     expect(result).toStrictEqual({
       transactionHash: '0xhash',
       transactionId: 'tx-1',
       status: 'submitted',
     });
+  });
+
+  it('falls back to the snapshot status when the tx is no longer in state', async () => {
+    const { messenger } = makeMessenger({
+      ...defaultHandlers(),
+      'TransactionController:addTransaction': Promise.resolve({
+        result: Promise.resolve('0xhash'),
+        transactionMeta: { id: 'tx-1', status: 'submitted' },
+      }),
+      'TransactionController:getTransactions': [],
+    });
+
+    const result = await runSendTransaction(messenger, {
+      to: TO,
+      networkClientId: 'mainnet',
+    } as SendTransactionParams);
+
+    expect(result).toMatchObject({ status: 'submitted' });
   });
 
   it('propagates a broadcast failure', async () => {

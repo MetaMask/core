@@ -7102,7 +7102,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/foundryup@workspace:packages/foundryup":
+"@metamask/foundryup@npm:^1.0.1, @metamask/foundryup@workspace:packages/foundryup":
   version: 0.0.0-use.local
   resolution: "@metamask/foundryup@workspace:packages/foundryup"
   dependencies:
@@ -9195,6 +9195,7 @@ __metadata:
     "@inquirer/password": "npm:^5.1.1"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
+    "@metamask/foundryup": "npm:^1.0.1"
     "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/scure-bip39": "npm:^2.1.1"
@@ -9211,6 +9212,7 @@ __metadata:
     immer: "npm:^9.0.6"
     jest: "npm:^30.4.2"
     jest-environment-node: "npm:^30.4.1"
+    nock: "npm:^13.3.1"
     ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
     typescript: "npm:~5.3.3"
