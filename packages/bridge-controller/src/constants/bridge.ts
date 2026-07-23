@@ -60,7 +60,6 @@ export const DEFAULT_CHAIN_RANKING = [
   { chainId: 'bip122:000000000019d6689c085ae165831e93', name: 'BTC' },
   { chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', name: 'Solana' },
   { chainId: 'tron:728126428', name: 'Tron' },
-  { chainId: 'stellar:pubnet', name: 'Stellar' },
   { chainId: 'eip155:8453', name: 'Base' },
   { chainId: 'eip155:42161', name: 'Arbitrum' },
   { chainId: 'eip155:59144', name: 'Linea' },
@@ -71,7 +70,6 @@ export const DEFAULT_CHAIN_RANKING = [
   { chainId: 'eip155:1329', name: 'Sei' },
   { chainId: 'eip155:999', name: 'HyperEVM' },
   { chainId: 'eip155:4326', name: 'MegaETH' },
-  { chainId: 'eip155:5042', name: 'Arc' },
   { chainId: 'eip155:4663', name: 'Robinhood Chain' },
   { chainId: 'eip155:324', name: 'zkSync' },
 ] as const;
