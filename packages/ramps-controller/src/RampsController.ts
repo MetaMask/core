@@ -1847,6 +1847,9 @@ export class RampsController extends BaseController<
    *   instead of quoting other providers.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
+   * @param options.isFeeExcludedFromFiat - When true, requests fee-on-top
+   *   quoting so provider/network fees are added on top of the requested amount
+   *   rather than deducted from the crypto output. Forwarded to the quotes API.
    * @param options.forceRefresh - Whether to bypass cache.
    * @param options.ttl - Custom TTL for this request.
    * @returns The quotes response containing success, sorted, error, and customActions.
@@ -1864,6 +1867,7 @@ export class RampsController extends BaseController<
     restrictToKnownOrNativeProviders?: boolean;
     redirectUrl?: string;
     action?: RampAction;
+    isFeeExcludedFromFiat?: boolean;
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<QuotesResponse> {
@@ -1994,6 +1998,7 @@ export class RampsController extends BaseController<
       [...providersToUse].sort().join(','),
       effectiveRedirectUrl,
       action,
+      options.isFeeExcludedFromFiat ? 'feeOnTop' : '',
     ]);
 
     const params = {
@@ -2006,6 +2011,7 @@ export class RampsController extends BaseController<
       providers: providersToUse,
       redirectUrl: effectiveRedirectUrl,
       action,
+      isFeeExcludedFromFiat: options.isFeeExcludedFromFiat,
     };
 
     const response = await this.executeRequest(

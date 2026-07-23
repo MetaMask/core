@@ -101,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Request fee-on-top quoting (`isFeeExcludedFromFiat`) when fetching ramps quotes in the fiat strategy, so the on-ramp adds its fees on top of the requested amount instead of deducting them from the crypto output (keeps the funded amount aligned with the target and surfaces itemized provider/network fees) ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Refactor vault deposit utilities into shared `utils/` modules (`chomp`, `ma-vault-deposit`, `relay-post-ma-vault`) to prepare for the Relay Money Account deposit path ([#9303](https://github.com/MetaMask/core/pull/9303))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/ramps-controller` from `^15.0.0` to `^15.1.0` ([#9395](https://github.com/MetaMask/core/pull/9395))

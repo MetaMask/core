@@ -112,6 +112,11 @@ export async function getRampsQuote({
     assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
     autoSelectProvider: true,
     fiat: DEFAULT_FIAT_CURRENCY,
+    // Request fee-on-top quoting so the on-ramp adds its fees on top of the
+    // requested amount instead of deducting them from the crypto output. This
+    // keeps the funded amount aligned with the target and surfaces itemized
+    // provider/network fees in the quote.
+    isFeeExcludedFromFiat: true,
     paymentMethods: [fiatPaymentMethod],
     restrictToKnownOrNativeProviders: true,
     walletAddress,

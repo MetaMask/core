@@ -164,6 +164,7 @@ describe('fiat-direct-musd', () => {
         assetId: MUSD_CAIP_ASSET_ID_MOCK,
         autoSelectProvider: true,
         fiat: DEFAULT_FIAT_CURRENCY,
+        isFeeExcludedFromFiat: true,
         paymentMethods: ['/payments/debit-credit-card'],
         restrictToKnownOrNativeProviders: true,
         walletAddress: MONEY_ACCOUNT_ADDRESS_MOCK,

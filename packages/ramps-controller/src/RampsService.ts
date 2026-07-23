@@ -273,6 +273,14 @@ export type Quote = {
      */
     providerFee?: number | string;
     /**
+     * Partner (MetaMask) fee charged on top of the provider/network fees.
+     *
+     * Mirrors the aggregator's `extraFee` quote field. Kept as the wire name to
+     * avoid confusion with relay-side MetaMask fee buckets in consumers. May be
+     * `0` (or absent) when no partner fee applies, e.g. for mUSD.
+     */
+    extraFee?: number | string;
+    /**
      * Buy URL endpoint that returns the actual provider widget URL.
      *
      * This is a MetaMask-hosted endpoint that, when fetched, returns JSON with the provider's widget URL.
@@ -423,6 +431,13 @@ export type GetQuotesParams = {
    * The ramp action type. Defaults to 'buy'.
    */
   action?: RampAction;
+  /**
+   * When `true`, requests "fee on top" quoting: provider/network fees are
+   * excluded from the input fiat amount and added on top, so the crypto output
+   * matches the requested target amount. Forwarded to the quotes API and mapped
+   * by the provider adapter (e.g. Transak's `isFeeExcludedFromFiat`).
+   */
+  isFeeExcludedFromFiat?: boolean;
 };
 
 /**
@@ -1302,6 +1317,12 @@ export class RampsService {
     // Add redirect URL if specified
     if (params.redirectUrl) {
       url.searchParams.set('redirectUrl', params.redirectUrl);
+    }
+
+    // Request fee-on-top quoting so fees are added on top of the target amount
+    // instead of being deducted from the crypto output.
+    if (params.isFeeExcludedFromFiat) {
+      url.searchParams.set('isFeeExcludedFromFiat', 'true');
     }
 
     const response = await this.#policy.execute(async () => {

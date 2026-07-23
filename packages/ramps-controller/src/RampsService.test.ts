@@ -1927,6 +1927,9 @@ describe('RampsService', () => {
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
             amountOutInFiat: 98,
+            networkFee: 0.5,
+            providerFee: 2,
+            extraFee: 1,
           },
           metadata: {
             reliability: 95,
@@ -1999,8 +2002,69 @@ describe('RampsService', () => {
 
       expect(quotesResponse.success).toHaveLength(2);
       expect(quotesResponse.success[0]?.provider).toBe('/providers/moonpay');
+      expect(quotesResponse.success[0]?.quote.extraFee).toBe(1);
+      expect(quotesResponse.success[0]?.quote.providerFee).toBe(2);
+      expect(quotesResponse.success[0]?.quote.networkFee).toBe(0.5);
       expect(quotesResponse.sorted).toHaveLength(2);
       expect(quotesResponse.error).toHaveLength(0);
+    });
+
+    it('requests fee-on-top quoting when isFeeExcludedFromFiat is set', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+          isFeeExcludedFromFiat: 'true',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+        isFeeExcludedFromFiat: true,
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const quotesResponse = await quotesPromise;
+
+      // nock only matches when the isFeeExcludedFromFiat query param is sent.
+      expect(quotesResponse.success).toHaveLength(2);
+    });
+
+    it('omits the fee-on-top query param when isFeeExcludedFromFiat is not set', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/quotes')
+        .query((query) => query.isFeeExcludedFromFiat === undefined)
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const quotesResponse = await quotesPromise;
+
+      expect(quotesResponse.success).toHaveLength(2);
     });
 
     it('normalizes region and fiat case', async () => {

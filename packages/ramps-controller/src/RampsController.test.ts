@@ -6957,6 +6957,77 @@ describe('RampsController', () => {
       });
     });
 
+    it('forwards isFeeExcludedFromFiat to the service when set', async () => {
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async (params) => {
+            expect(params.isFeeExcludedFromFiat).toBe(true);
+            return mockQuotesResponse;
+          },
+        );
+
+        await rootMessenger.call('RampsController:getQuotes', {
+          region: 'fr',
+          fiat: 'eur',
+          assetId: 'eip155:1/slip44:60',
+          amount: 100,
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          paymentMethods: ['/payments/debit-credit-card'],
+          isFeeExcludedFromFiat: true,
+        });
+      });
+    });
+
+    it('caches separately for fee-on-top vs default quoting', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          let callCount = 0;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => {
+              callCount += 1;
+              return mockQuotesResponse;
+            },
+          );
+
+          await rootMessenger.call('RampsController:getQuotes', {
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          });
+          await rootMessenger.call('RampsController:getQuotes', {
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            isFeeExcludedFromFiat: true,
+          });
+
+          // Different fee-on-top intent must not reuse the cached response.
+          expect(callCount).toBe(2);
+        },
+      );
+    });
+
     it('trims assetId and walletAddress before sending to service', async () => {
       await withController(
         {
