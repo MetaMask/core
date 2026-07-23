@@ -1,5 +1,5 @@
-import { Messenger } from '@metamask/messenger';
 import { Env } from '@metamask/claims-controller';
+import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { TransactionController } from '@metamask/transaction-controller';
 

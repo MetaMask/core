@@ -2,6 +2,7 @@ import {
   ClaimsController,
   getDefaultClaimsControllerState,
 } from '@metamask/claims-controller';
+import { Env } from '@metamask/claims-controller';
 import { Messenger } from '@metamask/messenger';
 
 import { defaultConfigurations } from '../../defaults.js';
@@ -10,8 +11,6 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from '../../defaults.js';
-import { Env } from '@metamask/claims-controller';
-
 import { claimsController } from './claims-controller.js';
 import { claimsService } from './claims-service.js';
 import type { ClaimsServiceInstanceOptions } from './types.js';

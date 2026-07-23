@@ -10,9 +10,9 @@ import { webcrypto } from 'crypto';
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor.js';
 import * as initializationModule from './initialization/initialization.js';
 import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
+import type { WalletOptions } from './types.js';
 import { importSecretRecoveryPhrase } from './utilities.js';
 import { Wallet } from './Wallet.js';
-import type { WalletOptions } from './types.js';
 
 const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
