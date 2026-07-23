@@ -9,6 +9,10 @@ import { getDaemonPaths } from './paths.js';
 import { startRpcSocketServer } from './rpc-socket-server.js';
 import type { RpcSocketServerHandle } from './rpc-socket-server.js';
 import { Password, Srp } from './secrets.js';
+import {
+  runSendTransaction,
+  SendTransactionParamsStruct,
+} from './send-transaction.js';
 import { defineHandler } from './types.js';
 import type {
   DaemonStatusInfo,
@@ -160,6 +164,14 @@ async function main(): Promise<void> {
         literal(null),
         async (): Promise<Json> =>
           constructedWallet.messenger.getRegisteredActionTypes(),
+      ),
+      // Dedicated send handler: `addTransaction` returns a non-serializable
+      // `result` promise, so it cannot travel back over the generic `call`
+      // dispatch. This awaits the broadcast server-side and returns the hash.
+      sendTransaction: defineHandler(
+        SendTransactionParamsStruct,
+        async (params) =>
+          runSendTransaction(constructedWallet.messenger, params),
       ),
     };
 

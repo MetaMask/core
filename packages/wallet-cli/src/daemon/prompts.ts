@@ -16,6 +16,24 @@ export async function confirmPurge(): Promise<boolean> {
 }
 
 /**
+ * Ask the user to confirm broadcasting a transaction. Used by `mm wallet send`
+ * when neither `--yes` nor `--dry-run` was passed. Same dynamic-import +
+ * ESM-interop pattern as {@link confirmPurge}. Defaults to `false` so an
+ * accidental bare Enter never broadcasts.
+ *
+ * @param summary - A human-readable description of the transaction to send
+ * (recipient, amount, network), shown above the prompt.
+ * @returns True if the user confirmed.
+ */
+export async function confirmSend(summary: string): Promise<boolean> {
+  const { default: confirm } = await import('@inquirer/confirm');
+  return confirm({
+    message: `${summary}\nBroadcast this transaction?`,
+    default: false,
+  });
+}
+
+/**
  * Prompt the user for the wallet password, with input masked. Used by
  * `mm wallet unlock` when the user did not pass `--password` or set the
  * `MM_WALLET_PASSWORD` env var. Same dynamic-import + ESM-interop pattern

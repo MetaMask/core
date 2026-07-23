@@ -32,6 +32,16 @@ mm wallet unlock --password <pw>   # or: MM_WALLET_PASSWORD=<pw> mm wallet unloc
 mm wallet unlock                   # prompts interactively (input masked)
 ```
 
+Send a transaction. `--value` is in ether; select the network with `--network-client-id` or `--chain-id`; the sender defaults to the selected account. The command previews the resolved plan and asks for confirmation before broadcasting, then prints the transaction hash:
+
+```sh
+mm wallet send --to 0xRecipient --value 0.01 --chain-id 0x1
+mm wallet send --to 0xRecipient --value 0.01 --network-client-id mainnet --yes   # skip the prompt
+mm wallet send --to 0xContract --data 0xabcdef --value 0 --chain-id 0x1 --dry-run # resolve + validate only
+```
+
+Because the daemon auto-approves (see the security note below), the confirmation prompt — or your explicit `--yes` — is the only boundary before funds move; use `--dry-run` first if unsure. Gas is estimated via `GasFeeController` unless overridden with `--gas` / `--max-fee-per-gas` / `--max-priority-fee-per-gas` / `--gas-price` (each a `0x`-prefixed hex quantity).
+
 Discover what the running wallet can do — `list` prints every messenger action currently dispatchable via `call`. This surface grows as more controllers are wired, so treat it as evolving rather than a stability contract:
 
 ```sh
@@ -57,7 +67,7 @@ mm daemon purge           # stop, then delete all daemon state files (--force to
 
 State (socket, PID file, log, and the SQLite database) lives in the per-user oclif data directory; override it with `MM_DATA_DIR`.
 
-> **Security model — the daemon auto-approves everything.** Because it is headless, the daemon accepts every approval request (transactions and signatures included) with no per-request prompt; otherwise an awaited request would hang forever with no UI to resolve it. The trust boundary is therefore the daemon's `0600`, same-user Unix socket — anything that can reach the socket can move funds. A scoped/opt-in approval policy is planned for when a user-facing send command lands.
+> **Security model — the daemon auto-approves everything.** Because it is headless, the daemon accepts every approval request (transactions and signatures included) with no per-request prompt; otherwise an awaited request would hang forever with no UI to resolve it. The trust boundary is therefore the daemon's `0600`, same-user Unix socket — anything that can reach the socket can move funds. For `mm wallet send` the confirmation prompt (or `--yes`) is the only per-transaction gate; a scoped/opt-in approval policy at the daemon level is still planned.
 
 ## Troubleshooting
 
