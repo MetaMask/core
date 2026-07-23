@@ -1,12 +1,12 @@
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
+import { TRIGGER_TYPES } from '../constants/notification-schema.js';
+import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements.js';
 import {
   createMockNotificationEthReceived,
   createMockPlatformNotification,
-} from '../mocks/mock-raw-notifications';
-import { createMockSnapNotification } from '../mocks/mock-snap-notification';
-import { processNotification } from '../processors/process-notifications';
-import { getNotificationSubtype } from './get-notification-subtype';
+} from '../mocks/mock-raw-notifications.js';
+import { createMockSnapNotification } from '../mocks/mock-snap-notification.js';
+import { processNotification } from '../processors/process-notifications.js';
+import { getNotificationSubtype } from './get-notification-subtype.js';
 
 describe('getNotificationSubtype', () => {
   it('returns the trigger kind for on-chain notifications', () => {

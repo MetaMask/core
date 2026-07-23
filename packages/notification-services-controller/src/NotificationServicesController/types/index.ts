@@ -1,5 +1,5 @@
-export type * from './feature-announcement';
-export type * from './notification-api';
-export type * from './notification';
-export type * from './snaps/snaps';
-export type * from './perps';
+export type * from './feature-announcement/index.js';
+export type * from './notification-api/index.js';
+export type * from './notification/index.js';
+export type * from './snaps/snaps.js';
+export type * from './perps/index.js';
