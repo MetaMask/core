@@ -9,6 +9,7 @@ import type { Json } from '@metamask/utils';
 import {
   AlwaysOnlineAdapter,
   importSecretRecoveryPhrase,
+  SubscriptionEnv,
   Wallet,
 } from '@metamask/wallet';
 import type { WalletOptions } from '@metamask/wallet';
@@ -65,6 +66,9 @@ export type CreateWalletResult = {
  * - `transactionController` — swaps processing disabled and no client hooks;
  *   see the slot's inline comment for why the daemon relies on the
  *   controller's defaults for everything else.
+ * - `subscriptionController` — production subscription API environment and
+ *   platform `fetch`; authenticated calls require host `AuthenticationController`
+ *   wiring on the wallet root messenger (not configured in the CLI).
  *
  * The optional `keyringController` slot is intentionally omitted so the
  * controller's built-in defaults (e.g. the PBKDF2 encryptor) apply.
@@ -107,6 +111,10 @@ function buildInstanceOptions(
     },
     storageService: {
       storage: new InMemoryStorageAdapter(),
+    },
+    subscriptionController: {
+      env: SubscriptionEnv.PRD,
+      fetchFunction: globalThis.fetch,
     },
     transactionController: {
       // The CLI exposes no swaps surface, so skip the swaps-specific

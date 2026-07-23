@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
+import { Env } from '@metamask/subscription-controller';
 import { TransactionController } from '@metamask/transaction-controller';
 
 import type { WalletOptions } from '../../../types.js';
@@ -125,6 +126,10 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    subscriptionController: {
+      env: Env.DEV,
+      fetchFunction: globalThis.fetch,
+    },
   };
 }
 

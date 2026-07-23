@@ -156,6 +156,7 @@
 /packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/seedless-onboarding-controller/    @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/storage-service/                   @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/subscription-controller/           @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/transaction-controller/            @MetaMask/confirmations
 
 ## Package Release related

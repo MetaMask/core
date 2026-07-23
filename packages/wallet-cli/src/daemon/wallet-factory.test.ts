@@ -3,6 +3,7 @@ import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import {
   AlwaysOnlineAdapter,
   importSecretRecoveryPhrase,
+  SubscriptionEnv,
   Wallet,
 } from '@metamask/wallet';
 import { rmSync } from 'node:fs';
@@ -119,6 +120,10 @@ describe('createWallet', () => {
     expect(instanceOptions.storageService.storage).toBeInstanceOf(
       InMemoryStorageAdapter,
     );
+    expect(instanceOptions.subscriptionController).toStrictEqual({
+      env: SubscriptionEnv.PRD,
+      fetchFunction: globalThis.fetch,
+    });
     expect(instanceOptions.transactionController?.disableSwaps).toBe(true);
     expect(instanceOptions.transactionController?.hooks).toStrictEqual({});
     expect(ClientConfigApiService).toHaveBeenCalled();

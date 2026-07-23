@@ -9,4 +9,5 @@ export { passkeyController } from './passkey-controller/passkey-controller.js';
 export { remoteFeatureFlagController } from './remote-feature-flag-controller/remote-feature-flag-controller.js';
 export { seedlessOnboardingController } from './seedless-onboarding-controller/seedless-onboarding-controller.js';
 export { storageService } from './storage-service/storage-service.js';
+export { subscriptionController } from './subscription-controller/subscription-controller.js';
 export { transactionController } from './transaction-controller/transaction-controller.js';
