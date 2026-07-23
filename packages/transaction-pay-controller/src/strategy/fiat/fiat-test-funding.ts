@@ -11,25 +11,25 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { NATIVE_TOKEN_ADDRESS } from '../../constants';
-import { projectLogger } from '../../logger';
+import { NATIVE_TOKEN_ADDRESS } from '../../constants.js';
+import { projectLogger } from '../../logger.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayFiatOptions,
   TransactionPayQuote,
-} from '../../types';
-import { getNetworkClientId } from '../../utils/provider';
+} from '../../types.js';
+import { getNetworkClientId } from '../../utils/provider.js';
 import {
   buildCaipAssetType,
   getLiveTokenBalance,
   getNativeToken,
   getTokenInfo,
-} from '../../utils/token';
-import { waitForTransactionConfirmed } from '../../utils/transaction';
-import { isDirectMusdMoneyAccountQuote } from './fiat-direct-musd';
-import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment } from './utils';
-import { getRawSourceAmountFromOrderCryptoAmount } from './utils';
+} from '../../utils/token.js';
+import { waitForTransactionConfirmed } from '../../utils/transaction.js';
+import { isDirectMusdMoneyAccountQuote } from './fiat-direct-musd.js';
+import type { FiatQuote } from './types.js';
+import { deriveFiatAssetForFiatPayment } from './utils.js';
+import { getRawSourceAmountFromOrderCryptoAmount } from './utils.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-test-funding');
 const TOKEN_TRANSFER_INTERFACE = new Interface([

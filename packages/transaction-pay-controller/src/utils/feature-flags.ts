@@ -8,24 +8,24 @@ import {
   isTransactionPayStrategy,
   STABLECOINS,
   TransactionPayStrategy,
-} from '../constants';
-import { projectLogger } from '../logger';
-import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
+} from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionPayFiatAsset } from '../strategy/fiat/constants.js';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
   FIAT_ENABLED_TYPES,
-} from '../strategy/fiat/constants';
+} from '../strategy/fiat/constants.js';
 import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
-} from '../strategy/relay/constants';
+} from '../strategy/relay/constants.js';
 import {
   SERVER_POLLING_INTERVAL,
   SERVER_URL_BASE,
-} from '../strategy/server/constants';
-import type { TransactionPayControllerMessenger } from '../types';
+} from '../strategy/server/constants.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
 

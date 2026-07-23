@@ -1,28 +1,28 @@
 /* eslint-disable no-new */
 import type { Hex } from '@metamask/utils';
 
-import { flushPromises } from '../../../../tests/helpers';
-import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { flushPromises } from '../../../../tests/helpers.js';
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionEnvelopeType,
   TransactionStatus,
   UserFeeLevel,
-} from '../types';
+} from '../types.js';
 import type {
   GasFeeFlowResponse,
   Layer1GasFeeFlow,
   TransactionBatchMeta,
-} from '../types';
-import type { GasFeeFlow, GasFeeEstimates, TransactionMeta } from '../types';
-import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
+} from '../types.js';
+import type { GasFeeFlow, GasFeeEstimates, TransactionMeta } from '../types.js';
+import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow.js';
 import {
   GasFeePoller,
   updateTransactionGasProperties,
   updateTransactionGasEstimates,
-} from './GasFeePoller';
+} from './GasFeePoller.js';
 
 jest.mock('../utils/feature-flags');
 jest.mock('../utils/layer1-gas-fee-flow', () => ({

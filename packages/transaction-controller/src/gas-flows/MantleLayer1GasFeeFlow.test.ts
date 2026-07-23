@@ -6,13 +6,13 @@ import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { CHAIN_IDS } from '../constants';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionStatus } from '../types';
-import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types';
-import { rpcRequest } from '../utils/provider';
-import { bnFromHex, padHexToEvenLength } from '../utils/utils';
-import { MantleLayer1GasFeeFlow } from './MantleLayer1GasFeeFlow';
+import { CHAIN_IDS } from '../constants.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionStatus } from '../types.js';
+import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types.js';
+import { rpcRequest } from '../utils/provider.js';
+import { bnFromHex, padHexToEvenLength } from '../utils/utils.js';
+import { MantleLayer1GasFeeFlow } from './MantleLayer1GasFeeFlow.js';
 
 jest.mock('../utils/provider');
 

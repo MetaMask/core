@@ -10,8 +10,8 @@ import {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import type { TransactionPayControllerMessenger } from '../types';
+import { projectLogger } from '../logger.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'provider');
 

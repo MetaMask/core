@@ -12,9 +12,9 @@ import type {
   MessageManagerState,
   MessageRequest,
   SecurityProviderRequest,
-} from './AbstractMessageManager';
-import { AbstractMessageManager } from './AbstractMessageManager';
-import { validateEncryptionPublicKeyMessageData } from './utils';
+} from './AbstractMessageManager.js';
+import { AbstractMessageManager } from './AbstractMessageManager.js';
+import { validateEncryptionPublicKeyMessageData } from './utils.js';
 
 const managerName = 'EncryptionPublicKeyManager';
 

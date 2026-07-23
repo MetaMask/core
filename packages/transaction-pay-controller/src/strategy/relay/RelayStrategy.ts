@@ -3,11 +3,11 @@ import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getRelayQuotes } from './relay-quotes';
-import { submitRelayQuotes } from './relay-submit';
-import type { RelayQuote } from './types';
+} from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getRelayQuotes } from './relay-quotes.js';
+import { submitRelayQuotes } from './relay-submit.js';
+import type { RelayQuote } from './types.js';
 
 export class RelayStrategy implements PayStrategy<RelayQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {

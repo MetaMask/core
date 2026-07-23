@@ -7,7 +7,7 @@ import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
+import { projectLogger } from '../logger.js';
 import type {
   FeeMarketGasFeeEstimateForLevel,
   FeeMarketGasFeeEstimates,
@@ -17,9 +17,9 @@ import type {
   GasFeeFlowResponse,
   GasPriceGasFeeEstimates,
   LegacyGasFeeEstimates,
-} from '../types';
-import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
-import { gweiDecimalToWeiHex } from '../utils/gas-fees';
+} from '../types.js';
+import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types.js';
+import { gweiDecimalToWeiHex } from '../utils/gas-fees.js';
 
 const log = createModuleLogger(projectLogger, 'default-gas-fee-flow');
 

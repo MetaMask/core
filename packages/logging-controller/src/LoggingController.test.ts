@@ -7,10 +7,10 @@ import type {
 } from '@metamask/messenger';
 import * as uuid from 'uuid';
 
-import type { LoggingControllerMessenger } from './LoggingController';
-import { LoggingController } from './LoggingController';
-import { LogType } from './logTypes';
-import { SigningMethod, SigningStage } from './logTypes/EthSignLog';
+import type { LoggingControllerMessenger } from './LoggingController.js';
+import { LoggingController } from './LoggingController.js';
+import { SigningMethod, SigningStage } from './logTypes/EthSignLog.js';
+import { LogType } from './logTypes/index.js';
 
 jest.mock('uuid', () => {
   return {

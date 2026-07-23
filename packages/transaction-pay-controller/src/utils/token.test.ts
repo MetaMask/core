@@ -7,13 +7,13 @@ import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   POLYGON_USDCE_ADDRESS,
-} from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
+} from '../constants.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,
@@ -26,7 +26,7 @@ import {
   getLiveTokenBalance,
   normalizeTokenAddress,
   TokenAddressTarget,
-} from './token';
+} from './token.js';
 
 const TOKEN_ADDRESS_MOCK = '0x559B65722aD62AD6DAC4Fa5a1c6B23A2e8ce57Ec' as Hex;
 const TOKEN_ADDRESS_2_MOCK = '0x123456789abcdef1234567890abcdef12345678' as Hex;
