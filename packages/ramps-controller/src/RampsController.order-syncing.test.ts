@@ -266,6 +266,67 @@ describe('RampsController order syncing', () => {
     expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(2);
   });
 
+  it('handles sync requests that arrive after worker checks flag but before completion', async () => {
+    const { controller, performGetStorageAllFeatureEntries } =
+      setupControllerWithOrderSyncingMocks();
+
+    let resolveLateRequest: (() => void) | undefined;
+    const lateRequestQueued = new Promise<void>((resolve) => {
+      resolveLateRequest = resolve;
+    });
+
+    let firstSyncNearCompletion = false;
+    performGetStorageAllFeatureEntries.mockImplementation(async () => {
+      if (firstSyncNearCompletion) {
+        return [];
+      }
+      firstSyncNearCompletion = true;
+      await lateRequestQueued;
+      return [];
+    });
+
+    const firstSync = controller.syncOrdersWithUserStorage();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const lateSync = controller.syncOrdersWithUserStorage();
+    resolveLateRequest?.();
+
+    await Promise.all([firstSync, lateSync]);
+
+    expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(2);
+  });
+
+  it('recursively calls syncOrdersWithUserStorage when flag is still set after waiting', async () => {
+    const { controller, performGetStorageAllFeatureEntries } =
+      setupControllerWithOrderSyncingMocks();
+
+    let unblockFirst: (() => void) | undefined;
+    const firstBlocked = new Promise<void>((resolve) => {
+      unblockFirst = resolve;
+    });
+
+    let callCount = 0;
+    performGetStorageAllFeatureEntries.mockImplementation(async () => {
+      callCount += 1;
+      if (callCount === 1) {
+        await firstBlocked;
+      }
+      return [];
+    });
+
+    const firstSync = controller.syncOrdersWithUserStorage();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+
+    const secondSync = controller.syncOrdersWithUserStorage();
+
+    unblockFirst?.();
+    await Promise.all([firstSync, secondSync]);
+
+    expect(callCount).toBe(2);
+  });
+
   it('preserves createdAt as lastUpdatedAt when syncing remotes without lu', () => {
     const { controller } = setupControllerWithOrderSyncingMocks();
 

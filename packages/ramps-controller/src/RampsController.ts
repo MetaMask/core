@@ -2528,12 +2528,19 @@ export class RampsController extends BaseController<
    *
    * Overlapping calls are coalesced: concurrent callers await the in-flight
    * sync and a single follow-up run drains any queue flag set while it ran.
+   *
+   * @returns A promise that resolves when the sync completes.
    */
   async syncOrdersWithUserStorage(): Promise<void> {
     this.#orderSyncQueued = true;
 
     if (this.#orderSyncPromise) {
       await this.#orderSyncPromise;
+      // Check if another sync was queued while we were waiting
+      /* istanbul ignore next: Race condition where flag is set after worker exits but before await completes */
+      if (this.#orderSyncQueued) {
+        await this.syncOrdersWithUserStorage();
+      }
       return;
     }
 

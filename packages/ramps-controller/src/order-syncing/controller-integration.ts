@@ -48,19 +48,6 @@ function getOrderTimestamp(order: RampsOrder | SyncRampsOrder): number {
 }
 
 /**
- * Returns the conflict-resolution timestamp for a remote entry when the same
- * order key appears under multiple entropy profiles.
- *
- * Soft-deletes use `deletedAt`; live entries use {@link getOrderTimestamp}.
- *
- * @param order - A remote ramps order that may include sync metadata.
- * @returns The timestamp used to pick the freshest remote copy.
- */
-function getRemoteConflictTimestamp(order: SyncRampsOrder): number {
-  return order.deletedAt ?? getOrderTimestamp(order);
-}
-
-/**
  * Builds the local/remote merge plan from the current local snapshot and remote
  * entries.
  *
@@ -248,7 +235,8 @@ export async function syncOrdersWithUserStorage(
           )
           .map((localOrder) => ({
             ...stripSyncMetadata(localOrder),
-            lastUpdatedAt: (localOrder as SyncRampsOrder).lastUpdatedAt ?? now,
+            lastUpdatedAt:
+              (localOrder as SyncRampsOrder).lastUpdatedAt ?? now,
           })),
         ...pendingDeletes.map((order) => ({
           ...stripSyncMetadata(order),
@@ -339,9 +327,6 @@ async function getRemoteOrders(
       return [];
     }
 
-    // Multi-SRP can return the same order key from more than one entropy
-    // profile. Keep the freshest copy so secondary-profile updates are not
-    // discarded just because an older primary-profile entry was parsed first.
     const ordersByKey = new Map<string, SyncRampsOrder>();
 
     for (const orderJson of remoteOrdersJsonArray) {
@@ -366,16 +351,17 @@ async function getRemoteOrders(
         }
         const mapped = mapUserStorageEntryToRampsOrder(entry);
         const key = createOrderStorageKey(mapped);
-        if (!key) {
-          continue;
-        }
-        const existing = ordersByKey.get(key);
-        if (
-          !existing ||
-          getRemoteConflictTimestamp(mapped) >
-            getRemoteConflictTimestamp(existing)
-        ) {
-          ordersByKey.set(key, mapped);
+        if (key) {
+          const existing = ordersByKey.get(key);
+          if (existing) {
+            const existingTimestamp = getOrderTimestamp(existing);
+            const mappedTimestamp = getOrderTimestamp(mapped);
+            if (mappedTimestamp > existingTimestamp) {
+              ordersByKey.set(key, mapped);
+            }
+          } else {
+            ordersByKey.set(key, mapped);
+          }
         }
       } catch (error) {
         // Do not attach raw order JSON — it can include wallet/PII fields.
@@ -389,7 +375,7 @@ async function getRemoteOrders(
       }
     }
 
-    return Array.from(ordersByKey.values());
+    return [...ordersByKey.values()];
   } catch (error) {
     onOrderSyncErroneousSituation?.('Failed to fetch remote ramps orders', {
       error,
@@ -537,6 +523,5 @@ export const orderSyncingTestExports = {
   computeMergePlan,
   reconcileOrdersForRemoteUpload,
   getOrderTimestamp,
-  getRemoteConflictTimestamp,
   saveOrdersToUserStorage,
 };
