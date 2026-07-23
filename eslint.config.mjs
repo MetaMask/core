@@ -400,6 +400,7 @@ const config = createConfig([
       'packages/json-rpc-middleware-stream/**',
       'packages/messenger/**',
       'packages/messenger-cli/**',
+      'packages/money-account-api-data-service/**',
       'packages/money-account-controller/**',
       'packages/multichain-account-service/**',
       'packages/multichain-api-middleware/**',
