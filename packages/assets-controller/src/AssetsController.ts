@@ -47,7 +47,10 @@ import type {
 } from '@metamask/permission-controller';
 import { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
-import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type {
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from '@metamask/remote-feature-flag-controller';
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerHandleRequestAction,
@@ -356,7 +359,10 @@ type AllowedEvents =
   // BackendWebsocketDataSource
   | BackendWebSocketServiceEvents
   // AccountActivityService (real-time balance updates for unified assets)
-  | AccountActivityServiceBalanceUpdatedEvent;
+  | AccountActivityServiceBalanceUpdatedEvent
+  // AccountsApiDataSource subscribes to react to Snaps → AssetsController
+  // migration flag changes (which gate the chains it surfaces as active)
+  | RemoteFeatureFlagControllerStateChangeEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
