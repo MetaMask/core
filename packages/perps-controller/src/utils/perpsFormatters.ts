@@ -12,7 +12,7 @@ import {
   DECIMAL_PRECISION_CONFIG,
   FUNDING_RATE_CONFIG,
   PERPS_CONSTANTS,
-} from '../constants/perpsConfig';
+} from '../constants/perpsConfig.js';
 
 // Module-level Intl.NumberFormat cache (keyed by serialized options).
 const _fmtCache = new Map<string, Intl.NumberFormat>();

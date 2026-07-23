@@ -8,7 +8,7 @@
  * - Cache latest updates per provider per symbol for aggregation
  */
 
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type {
   PerpsProviderType,
   PerpsProvider,
@@ -23,8 +23,8 @@ import type {
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
   SubscribeAccountParams,
-} from '../types';
-import { ensureError } from '../utils/errorUtils';
+} from '../types/index.js';
+import { ensureError } from '../utils/errorUtils.js';
 
 /**
  * Options for constructing SubscriptionMultiplexer

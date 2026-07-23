@@ -52,12 +52,12 @@ jest.mock(
 
 import type { CaipAccountId } from '@metamask/utils';
 
-import { MYXWalletService } from '../../../src/services/MYXWalletService';
+import { MYXWalletService } from '../../../src/services/MYXWalletService.js';
 import {
   createMockInfrastructure,
   createMockEvmAccount,
   createMockMessenger,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 describe('MYXWalletService', () => {
   let service: MYXWalletService;

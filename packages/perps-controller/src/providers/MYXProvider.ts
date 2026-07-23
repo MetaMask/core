@@ -14,17 +14,17 @@
 import type { CaipAccountId } from '@metamask/utils';
 import type { KlineResolution } from '@myx-trade/sdk';
 
-import { calculateCandleCount } from '../constants/chartConfig';
+import { calculateCandleCount } from '../constants/chartConfig.js';
 import {
   MYX_MAX_LEVERAGE,
   MYX_FEE_RATE,
   MYX_PROTOCOL_FEE_RATE,
-} from '../constants/myxConfig';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
-import type { PerpsControllerMessenger } from '../PerpsController';
-import { MYXClientService } from '../services/MYXClientService';
-import { MYXWalletService } from '../services/MYXWalletService';
-import { WebSocketConnectionState } from '../types';
+} from '../constants/myxConfig.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import type { PerpsControllerMessenger } from '../PerpsController.js';
+import { MYXClientService } from '../services/MYXClientService.js';
+import { MYXWalletService } from '../services/MYXWalletService.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
   AssetRoute,
@@ -83,16 +83,16 @@ import type {
   WithdrawResult,
   RawLedgerUpdate,
   PerpsReadOptions,
-} from '../types';
-import { MYXOrderStatusEnum } from '../types/myx-types';
+} from '../types/index.js';
+import { MYXOrderStatusEnum } from '../types/myx-types.js';
 import type {
   MYXAuthConfig,
   MYXKlineDataResponse,
   MYXPoolSymbol,
   MYXTicker,
-} from '../types/myx-types';
-import type { CandleData } from '../types/perps-types';
-import { ensureError } from '../utils/errorUtils';
+} from '../types/myx-types.js';
+import type { CandleData } from '../types/perps-types.js';
+import { ensureError } from '../utils/errorUtils.js';
 import {
   adaptMarketFromMYX,
   adaptMarketDataFromMYX,
@@ -108,7 +108,7 @@ import {
   filterMYXExclusiveMarkets,
   buildPoolSymbolMap,
   toMYXKlineResolution,
-} from '../utils/myxAdapter';
+} from '../utils/myxAdapter.js';
 
 // ============================================================================
 // Constants

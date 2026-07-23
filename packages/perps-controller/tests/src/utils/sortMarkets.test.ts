@@ -1,6 +1,6 @@
-import { MARKET_SORTING_CONFIG } from '../../../src/constants/perpsConfig';
-import type { PerpsMarketData } from '../../../src/types';
-import { parseVolume, sortMarkets } from '../../../src/utils/sortMarkets';
+import { MARKET_SORTING_CONFIG } from '../../../src/constants/perpsConfig.js';
+import type { PerpsMarketData } from '../../../src/types/index.js';
+import { parseVolume, sortMarkets } from '../../../src/utils/sortMarkets.js';
 
 const market = (overrides: Partial<PerpsMarketData>): PerpsMarketData =>
   ({

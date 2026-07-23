@@ -1,7 +1,7 @@
-import { PERPS_EVENT_VALUE } from '../../../src/constants/eventNames';
-import type { ServiceContext } from '../../../src/services/ServiceContext';
-import { TradingService } from '../../../src/services/TradingService';
-import { PerpsAnalyticsEvent } from '../../../src/types';
+import { PERPS_EVENT_VALUE } from '../../../src/constants/eventNames.js';
+import type { ServiceContext } from '../../../src/services/ServiceContext.js';
+import { TradingService } from '../../../src/services/TradingService.js';
+import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 import type {
   PerpsProvider,
   OrderParams,
@@ -15,14 +15,14 @@ import type {
   Order,
   UpdatePositionTPSLParams,
   PerpsPlatformDependencies,
-} from '../../../src/types';
+} from '../../../src/types/index.js';
 /* eslint-disable */
-import { createMockHyperLiquidProvider } from '../../helpers/providerMocks';
+import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
 import {
   createMockServiceContext,
   createMockPerpsControllerState,
   createMockInfrastructure,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
 

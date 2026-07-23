@@ -1,4 +1,4 @@
-import { DECIMAL_PRECISION_CONFIG } from '../constants/perpsConfig';
+import { DECIMAL_PRECISION_CONFIG } from '../constants/perpsConfig.js';
 
 /**
  * Count significant figures in a price string.

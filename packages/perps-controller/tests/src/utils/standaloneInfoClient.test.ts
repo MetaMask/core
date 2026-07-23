@@ -1,12 +1,12 @@
 /* eslint-disable */
 import { HttpTransport, InfoClient } from '@nktkas/hyperliquid';
 
-import type { ClearinghouseStateResponse } from '../../../src/types/hyperliquid-types';
+import type { ClearinghouseStateResponse } from '../../../src/types/hyperliquid-types.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
   queryStandaloneOpenOrders,
-} from '../../../src/utils/standaloneInfoClient';
+} from '../../../src/utils/standaloneInfoClient.js';
 
 // Mock instances — must use 'mock' prefix for Jest hoisting
 const mockHttpTransportInstance = { url: 'http://mock' };
