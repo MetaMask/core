@@ -104,8 +104,14 @@ describe('createUIQueryClient', () => {
   });
 
   it('proxies requests to the messenger adapter', async () => {
+    const { service } = createClients();
     const messengerAdapter = {
-      call: jest.fn(),
+      call: jest.fn((actionType, assets) => {
+        if (actionType === getAssetsQueryKey[0]) {
+          return service.getAssets(assets);
+        }
+        throw new Error(`Unknown action: ${actionType}`);
+      }),
       subscribe: jest.fn(),
       unsubscribe: jest.fn(),
     };
@@ -116,6 +122,7 @@ describe('createUIQueryClient', () => {
     });
 
     expect(messengerAdapter.call).toHaveBeenCalledWith(...getAssetsQueryKey);
+    service.destroy();
   });
 
   it('fetches using observers', async () => {
