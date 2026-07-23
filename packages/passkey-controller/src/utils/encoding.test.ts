@@ -1,4 +1,4 @@
-import { bytesToBase64URL, base64URLToBytes } from './encoding';
+import { bytesToBase64URL, base64URLToBytes } from './encoding.js';
 
 describe('encoding', () => {
   describe('bytesToBase64URL', () => {
