@@ -831,7 +831,8 @@ export class NetworkEnablementController extends BaseController<
   #getPopularEvmChainIds(): Hex[] {
     return [
       ...new Set<Hex>([
-        ...POPULAR_NETWORKS,
+        // `toHex` is used to normalize chain IDs from the bundled POPULAR_NETWORKS.
+        ...POPULAR_NETWORKS.map((chainId) => toHex(chainId)),
         ...this.#getRegistryPopularEvmChainIds(),
       ]),
     ];
