@@ -384,6 +384,7 @@ const config = createConfig([
       'packages/authenticated-user-storage/**',
       'packages/base-controller/**',
       'packages/base-data-service/**',
+      'packages/bridge-controller/**',
       'packages/build-utils/**',
       'packages/chain-agnostic-permission/**',
       'packages/composable-controller/**',

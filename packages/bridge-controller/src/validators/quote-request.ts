@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax */
-import type { GenericQuoteRequest } from '../types';
-import { isNonEvmChainId } from '../utils/bridge';
+import type { GenericQuoteRequest } from '../types.js';
+import { isNonEvmChainId } from '../utils/bridge.js';
 
 export const isValidQuoteRequest = (
   partialRequest: Partial<GenericQuoteRequest>,
