@@ -14,14 +14,14 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { POPULAR_NETWORKS } from './constants';
-import { NetworkEnablementController } from './NetworkEnablementController';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { POPULAR_NETWORKS } from './constants.js';
+import { NetworkEnablementController } from './NetworkEnablementController.js';
 import type {
   NetworkEnablementControllerMessenger,
   NativeAssetIdentifiersMap,
-} from './NetworkEnablementController';
-import { Slip44Service } from './services';
+} from './NetworkEnablementController.js';
+import { Slip44Service } from './services/index.js';
 
 // Known chainId mappings from chainid.network for mocking
 const chainIdToSlip44: Record<number, number> = {

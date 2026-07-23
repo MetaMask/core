@@ -10,19 +10,22 @@ import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
 import { TokenRwaData } from 'src/token-service';
 
-import { shouldIncludeNativeToken } from '../constants';
-import type { CurrencyRateState } from '../CurrencyRateController';
-import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
-import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
-import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
-import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
-import type { TokenBalancesControllerState } from '../TokenBalancesController';
-import type { Token, TokenRatesControllerState } from '../TokenRatesController';
-import type { TokensControllerState } from '../TokensController';
+import { shouldIncludeNativeToken } from '../constants.js';
+import type { CurrencyRateState } from '../CurrencyRateController.js';
+import type { MultichainAssetsControllerState } from '../MultichainAssetsController/index.js';
+import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController/index.js';
+import type { MultichainBalancesControllerState } from '../MultichainBalancesController/index.js';
+import { getNativeTokenAddress } from '../token-prices-service/codefi-v2.js';
+import type { TokenBalancesControllerState } from '../TokenBalancesController.js';
+import type {
+  Token,
+  TokenRatesControllerState,
+} from '../TokenRatesController.js';
+import type { TokensControllerState } from '../TokensController.js';
 import {
   parseBalanceWithDecimals,
   stringifyBalanceWithDecimals,
-} from './stringify-balance';
+} from './stringify-balance.js';
 
 // Asset Tron Filters
 export const TRON_RESOURCE = {

@@ -10,7 +10,7 @@ import {
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 
-import { getFormattedIpfsUrl } from '../../../assetsUtil';
+import { getFormattedIpfsUrl } from '../../../assetsUtil.js';
 
 export class ERC721Standard {
   private readonly provider: Web3Provider;

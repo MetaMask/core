@@ -1,9 +1,9 @@
-import type { AssetsControllerStateInternal, Caip19AssetId } from '../types';
-import type { CurrentAssetsState } from './healAssetsInfoMetadata';
+import type { AssetsControllerStateInternal, Caip19AssetId } from '../types.js';
+import type { CurrentAssetsState } from './healAssetsInfoMetadata.js';
 import {
   healAssetsInfoMetadata,
   tempHealAssetsInfoMetadata,
-} from './healAssetsInfoMetadata';
+} from './healAssetsInfoMetadata.js';
 
 const ACCOUNT_ID = 'account-uuid-1';
 const ACCOUNT_ADDRESS = '0x1111111111111111111111111111111111111111';

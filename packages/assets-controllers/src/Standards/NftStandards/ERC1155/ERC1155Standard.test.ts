@@ -2,7 +2,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import nock from 'nock';
 
-import { ERC1155Standard } from './ERC1155Standard';
+import { ERC1155Standard } from './ERC1155Standard.js';
 
 const MAINNET_PROVIDER_HTTP = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',

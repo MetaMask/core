@@ -1,4 +1,4 @@
-import type { GetSupportedNetworksResponse } from '../types';
+import type { GetSupportedNetworksResponse } from '../types.js';
 
 export const MOCK_GET_SUPPORTED_NETWORKS_RESPONSE: GetSupportedNetworksResponse =
   {

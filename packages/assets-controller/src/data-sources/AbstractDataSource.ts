@@ -3,7 +3,7 @@ import type {
   DataRequest,
   DataResponse,
   AssetsControllerStateInternal,
-} from '../types';
+} from '../types.js';
 
 // ============================================================================
 // DATA SOURCE BASE TYPES

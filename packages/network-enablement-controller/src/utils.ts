@@ -8,8 +8,8 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
-import { POPULAR_NETWORKS } from './constants';
-import type { NetworkEnablementControllerState } from './NetworkEnablementController';
+import { POPULAR_NETWORKS } from './constants.js';
+import type { NetworkEnablementControllerState } from './NetworkEnablementController.js';
 
 /**
  * Represents the parsed keys derived from a chain ID.

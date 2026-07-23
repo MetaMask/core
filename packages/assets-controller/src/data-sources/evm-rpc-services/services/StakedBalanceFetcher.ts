@@ -2,13 +2,13 @@ import { Interface } from '@ethersproject/abi';
 import { Web3Provider } from '@ethersproject/providers';
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 
-import type { Address, AccountId, ChainId } from '../types';
+import type { Address, AccountId, ChainId } from '../types/index.js';
 import {
   getStakingContractAddress,
   getSupportedStakingChainIds,
   isStakingContractAssetId,
   weiToHumanReadable,
-} from '../utils';
+} from '../utils/index.js';
 
 export {
   getStakingContractAddress,

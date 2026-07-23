@@ -1,7 +1,7 @@
-import { projectLogger, createModuleLogger } from '../logger';
-import { forDataTypes } from '../types';
-import type { AccountId, Caip19AssetId, Middleware } from '../types';
-import { normalizeAssetId } from '../utils';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import { forDataTypes } from '../types.js';
+import type { AccountId, Caip19AssetId, Middleware } from '../types.js';
+import { normalizeAssetId } from '../utils/index.js';
 
 // ============================================================================
 // CONSTANTS

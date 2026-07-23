@@ -19,13 +19,13 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
-import { DEFI_SUPPORTED_NETWORKS } from './build-defi-balances-query';
-import type { DeFiPositionsControllerV2Messenger } from './DeFiPositionsControllerV2';
+import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks.js';
+import { DEFI_SUPPORTED_NETWORKS } from './build-defi-balances-query.js';
+import type { DeFiPositionsControllerV2Messenger } from './DeFiPositionsControllerV2.js';
 import {
   DeFiPositionsControllerV2,
   getDefaultDeFiPositionsControllerV2State,
-} from './DeFiPositionsControllerV2';
+} from './DeFiPositionsControllerV2.js';
 
 const EVM_ADDRESS = '0x0000000000000000000000000000000000000001';
 const SOLANA_ADDRESS = 'So11111111111111111111111111111111111111112';

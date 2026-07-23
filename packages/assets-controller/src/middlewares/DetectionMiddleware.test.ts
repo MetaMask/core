@@ -6,9 +6,9 @@ import type {
   DataRequest,
   Caip19AssetId,
   AssetsControllerStateInternal,
-} from '../types';
-import { normalizeAssetId } from '../utils';
-import { DetectionMiddleware } from './DetectionMiddleware';
+} from '../types.js';
+import { normalizeAssetId } from '../utils/index.js';
+import { DetectionMiddleware } from './DetectionMiddleware.js';
 
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const MOCK_ACCOUNT_ID = 'mock-account-id';

@@ -2,8 +2,8 @@
 export {
   AssetsController,
   getDefaultAssetsControllerState,
-} from './AssetsController';
-export { AssetsDataSourceError } from './errors';
+} from './AssetsController.js';
+export { AssetsDataSourceError } from './errors.js';
 export {
   DEFAULT_TRACKED_ASSETS_BY_CHAIN,
   CHAINS_WITH_DEFAULT_TRACKED_ASSETS,
@@ -11,8 +11,8 @@ export {
   buildDefaultAssetsInfo,
   getDefaultTrackedAssetsForChain,
   getDefaultAssetMetadata,
-} from './defaults';
-export type { PendingTokenMetadata } from './AssetsController';
+} from './defaults.js';
+export type { PendingTokenMetadata } from './AssetsController.js';
 
 // Snaps → AssetsController assets migration
 export {
@@ -23,8 +23,8 @@ export {
   isMigrationStageActive,
   isSnapsAssetsMigrationNamespace,
   parseSnapsAssetsMigrationStage,
-} from './utils/snaps-assets-migration';
-export type { SnapsAssetsMigrationNamespace } from './utils/snaps-assets-migration';
+} from './utils/snaps-assets-migration.js';
+export type { SnapsAssetsMigrationNamespace } from './utils/snaps-assets-migration.js';
 
 // State and messenger types
 export type {
@@ -38,7 +38,7 @@ export type {
   AssetsControllerPriceChangedEvent,
   AssetsControllerAssetsDetectedEvent,
   AssetsControllerEvents,
-} from './AssetsController';
+} from './AssetsController.js';
 export type {
   AssetsControllerGetAssetsAction,
   AssetsControllerGetAssetsBalanceAction,
@@ -53,7 +53,7 @@ export type {
   AssetsControllerGetExchangeRatesForBridgeAction,
   AssetsControllerGetStateForTransactionPayAction,
   AssetsControllerSetSelectedCurrencyAction,
-} from './AssetsController-method-action-types';
+} from './AssetsController-method-action-types.js';
 
 // Core types
 export type {
@@ -107,42 +107,45 @@ export type {
   PriceChangeEvent,
   MetadataChangeEvent,
   AssetsDetectedEvent,
-} from './types';
+} from './types.js';
 
 // Data sources - base class and types
-export { AbstractDataSource } from './data-sources';
+export { AbstractDataSource } from './data-sources/index.js';
 
-export type { DataSourceState, SubscriptionRequest } from './data-sources';
+export type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './data-sources/index.js';
 
 // Data sources - AccountsApi
-export { AccountsApiDataSource } from './data-sources';
+export { AccountsApiDataSource } from './data-sources/index.js';
 
 export type {
   AccountsApiDataSourceConfig,
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceState,
-} from './data-sources';
+} from './data-sources/index.js';
 
 // Data sources - BackendWebsocket
 export {
   BackendWebsocketDataSource,
   createBackendWebsocketDataSource,
-} from './data-sources';
+} from './data-sources/index.js';
 
 export type {
   BackendWebsocketDataSourceOptions,
   BackendWebsocketDataSourceState,
-} from './data-sources';
+} from './data-sources/index.js';
 
 // Data sources - RPC
-export { RpcDataSource, createRpcDataSource } from './data-sources';
+export { RpcDataSource, createRpcDataSource } from './data-sources/index.js';
 
 export type {
   RpcDataSourceConfig,
   RpcDataSourceOptions,
   RpcDataSourceState,
   ChainStatus,
-} from './data-sources';
+} from './data-sources/index.js';
 
 // Data sources - Unified Snap Data Source (dynamically discovers keyring snaps)
 export {
@@ -154,39 +157,39 @@ export {
   // Utility functions
   getChainIdsCaveat,
   extractChainFromAssetId,
-} from './data-sources';
+} from './data-sources/index.js';
 
 export type {
   SnapDataSourceState,
   SnapDataSourceOptions,
-} from './data-sources';
+} from './data-sources/index.js';
 
 // Enrichment data sources
-export { TokenDataSource, PriceDataSource } from './data-sources';
+export { TokenDataSource, PriceDataSource } from './data-sources/index.js';
 
 export type {
   TokenDataSourceOptions,
   PriceDataSourceConfig,
   PriceDataSourceOptions,
-} from './data-sources';
+} from './data-sources/index.js';
 
 // Middlewares
 export {
   CustomAssetGraduationMiddleware,
   DetectionMiddleware,
   RpcFallbackMiddleware,
-} from './middlewares';
+} from './middlewares/index.js';
 export type {
   CustomAssetGraduationMiddlewareOptions,
   RpcFallbackMiddlewareOptions,
-} from './middlewares';
+} from './middlewares/index.js';
 
 // Utilities
 export {
   normalizeAssetId,
   formatExchangeRatesForBridge,
   formatStateForTransactionPay,
-} from './utils';
+} from './utils/index.js';
 export type {
   AccountForLegacyFormat,
   BridgeExchangeRatesFormat,
@@ -194,7 +197,7 @@ export type {
   FormatStateForTransactionPayParams,
   LegacyToken,
   TransactionPayLegacyFormat,
-} from './utils';
+} from './utils/index.js';
 
 // Selectors
 export {
@@ -203,7 +206,7 @@ export {
   getAggregatedBalanceForAccount,
   getGroupIdForAccount,
   getInternalAccountsForGroup,
-} from './selectors/balance';
+} from './selectors/balance.js';
 
 export type {
   AccountGroupBalance,
@@ -215,4 +218,4 @@ export type {
   BalanceChangeResult,
   EnabledNetworkMap,
   WalletBalance,
-} from './selectors/balance';
+} from './selectors/balance.js';
