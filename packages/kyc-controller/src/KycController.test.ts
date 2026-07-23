@@ -596,6 +596,10 @@ describe('KycController', () => {
         },
         async ({ controller, handlers, launcher }) => {
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
           const envelope = envelopeFor(controller, { accessToken: 'access-2' });
 
           await controller.handleFrameMessage({
@@ -836,12 +840,34 @@ describe('KycController', () => {
 
     it('defaults locale and debug when no params are given', async () => {
       await withController(async ({ controller, launcher }) => {
+        launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+          onStatusChange?.('InProgress', 'Completed');
+          return { ok: true };
+        });
+
         await controller.startSumSub();
 
         expect(launcher.launch).toHaveBeenCalledWith(
           expect.objectContaining({ locale: 'en', debug: false }),
         );
         expect(controller.state.sumsub.status).toBe('complete');
+      });
+    });
+
+    it('marks failed when launch resolves without a Completed status', async () => {
+      await withController(async ({ controller, launcher }) => {
+        launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+          // The applicant abandons the flow: the SDK reports progress but never
+          // a Completed status, yet `launch` still resolves.
+          onStatusChange?.('idle', 'InProgress');
+          return { ok: false };
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({ ok: false });
+        expect(controller.state.sumsub.status).toBe('failed');
+        expect(controller.state.sumsub.result).toStrictEqual({ ok: false });
       });
     });
 

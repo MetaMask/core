@@ -32,6 +32,11 @@ const CHANNEL_RESET = 'ch_reset';
 // must be replaced with real UKYC-issued material before production use.
 const MOCK_JWT_TOKEN = 'mock-jwt-token';
 
+// The SumSub SDK status that signals the applicant finished the flow
+// successfully. Any other resolution (abandonment, failure, or a non-success
+// outcome) must not be recorded as `complete`.
+const SUMSUB_COMPLETED_STATUS = 'Completed';
+
 // === STATE ===
 
 /**
@@ -855,6 +860,11 @@ export class KycController extends BaseController<
         state.sumsub.applicantAccessToken = applicantAccessToken;
       });
 
+      // Track whether the SDK ever reported a successful completion. A resolved
+      // `launch` alone does not imply success — the applicant may have
+      // abandoned the flow or the SDK may have reported a non-success outcome.
+      let reachedCompletion = false;
+
       const result = await this.#sumsubLauncher.launch({
         applicantAccessToken,
         onTokenExpiration: async () => {
@@ -865,17 +875,23 @@ export class KycController extends BaseController<
           return refreshed.applicantAccessToken;
         },
         onStatusChange: (_prev, next) => {
+          if (next === SUMSUB_COMPLETED_STATUS) {
+            reachedCompletion = true;
+          }
           this.update((state) => {
             state.sumsub.status =
-              next === 'Completed' ? 'complete' : 'inProgress';
+              next === SUMSUB_COMPLETED_STATUS ? 'complete' : 'inProgress';
           });
         },
         locale: params?.locale ?? 'en',
         debug: params?.debug ?? false,
       });
 
+      // Only record `complete` when the SDK actually reported completion;
+      // otherwise treat the resolved-but-unfinished flow as `failed` so
+      // consumers and UI do not mistake it for a finished verification.
       this.update((state) => {
-        state.sumsub.status = 'complete';
+        state.sumsub.status = reachedCompletion ? 'complete' : 'failed';
         state.sumsub.result = result as Json;
       });
       return result;
