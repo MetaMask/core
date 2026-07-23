@@ -908,4 +908,51 @@ describe('daemon-entry', () => {
       expect(error).toBeUndefined();
     });
   });
+
+  describe('sendTransaction handler', () => {
+    it('runs a send through the wallet messenger and returns the hash', async () => {
+      const result = createMockWallet();
+      const mockCall = result.wallet.messenger.call as jest.Mock;
+      mockCall.mockImplementation((action: string) => {
+        if (action === 'TransactionController:addTransaction') {
+          return {
+            result: Promise.resolve('0xhash'),
+            transactionMeta: { id: 'tx-1', status: 'unapproved' },
+          };
+        }
+        if (action === 'TransactionController:getTransactions') {
+          return [{ id: 'tx-1', status: 'submitted' }];
+        }
+        return undefined;
+      });
+      mockCreateWallet.mockResolvedValue(result);
+      mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+      await importDaemonEntry();
+
+      const { handlers } = mockStartRpcSocketServer.mock.calls[0][0];
+      const sendResult = await handlers.sendTransaction.run({
+        to: '0x1111111111111111111111111111111111111111',
+        from: '0x2222222222222222222222222222222222222222',
+        networkClientId: 'mainnet',
+      });
+
+      expect(mockCall).toHaveBeenCalledWith(
+        'TransactionController:addTransaction',
+        expect.objectContaining({
+          from: '0x2222222222222222222222222222222222222222',
+          to: '0x1111111111111111111111111111111111111111',
+        }),
+        expect.objectContaining({
+          networkClientId: 'mainnet',
+          isInternal: true,
+        }),
+      );
+      expect(sendResult).toStrictEqual({
+        transactionHash: '0xhash',
+        transactionId: 'tx-1',
+        status: 'submitted',
+      });
+    });
+  });
 });

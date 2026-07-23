@@ -253,6 +253,9 @@ jobs:
     name: Test wallet-cli daemon e2e (${{ matrix.node-version }})
     runs-on: ubuntu-latest
     needs: prepare
+    permissions:
+      contents: read
+      pull-requests: read
     strategy:
       matrix:
         node-version: [20.x, 22.x, 24.x]
@@ -265,7 +268,45 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Build wallet-cli and its dependencies
         run: yarn workspaces foreach --topological-dev --recursive --from '@metamask/wallet-cli' run build
+      # The real-chain send e2e (`wallet-send.e2e.test.ts`) needs `anvil`
+      # (Foundry). It is skip-if-absent, so only pay the Foundry download when
+      # wallet-cli actually changed; on other PRs the test skips itself.
+      - name: Detect whether wallet-cli changed
+        id: wallet-cli-changed
+        uses: actions/github-script@v8
+        with:
+          script: |
+            try {
+              if (context.eventName !== 'pull_request') {
+                core.setOutput('changed', 'true');
+                return;
+              }
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                per_page: 100,
+              });
+              const changed = files.some((file) =>
+                file.filename.startsWith('packages/wallet-cli/'),
+              );
+              core.setOutput('changed', String(changed));
+            } catch (error) {
+              // Never let detection break CI: fall back to running the suite.
+              core.warning(
+                `wallet-cli change detection failed; running anyway: ${error}`,
+              );
+              core.setOutput('changed', 'true');
+            }
+      - name: Install anvil for the real-chain e2e
+        if: steps.wallet-cli-changed.outputs.changed == 'true'
+        run: yarn workspace @metamask/wallet-cli run test:e2e:install-anvil
+      # When wallet-cli changed we installed anvil, so require the real-chain
+      # suite to actually find and run it — otherwise a broken install would
+      # let the flagship send test pass as a silent green no-op.
       - run: yarn workspace @metamask/wallet-cli run test:e2e
+        env:
+          MM_E2E_REQUIRE_ANVIL: ${{ steps.wallet-cli-changed.outputs.changed }}
       - name: Require clean working directory
         shell: bash
         run: |
