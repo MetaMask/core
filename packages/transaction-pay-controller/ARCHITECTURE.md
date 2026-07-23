@@ -14,7 +14,7 @@ The tokens required by a transaction are automatically identified from various s
 - Gas Fees
   - A required native token is generated from the gas limit and gas fee parameters, including estimates from the `GasFeeController`.
 
-See [required-tokens.ts](/packages/transaction-pay-controller/src/utils/required-tokens.ts).
+See [required-tokens.ts](./src/utils/required-tokens.ts).
 
 ## Payment Token
 

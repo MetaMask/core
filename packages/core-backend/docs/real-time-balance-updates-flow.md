@@ -246,8 +246,8 @@ When balance updates include previously unknown tokens:
 
 ## References
 
-- [`TokenBalancesController.ts`](../packages/assets-controllers/src/TokenBalancesController.ts) - Main controller implementation
-- [`AccountActivityService.ts`](../packages/core-backend/src/AccountActivityService.ts) - Account activity monitoring
-- [`BackendWebSocketService.ts`](../packages/core-backend/src/BackendWebSocketService.ts) - WebSocket connection management
-- [`types.ts`](../packages/core-backend/src/types.ts) - Type definitions
-- [Core Backend README](../packages/core-backend/README.md) - Package overview
+- [`TokenBalancesController.ts`](../../assets-controllers/src/TokenBalancesController.ts) - Main controller implementation
+- [`AccountActivityService.ts`](../src/ws/AccountActivityService.ts) - Account activity monitoring
+- [`BackendWebSocketService.ts`](../src/ws/BackendWebSocketService.ts) - WebSocket connection management
+- [`types.ts`](../src/types.ts) - Type definitions
+- [Core Backend README](../README.md) - Package overview
