@@ -4,18 +4,18 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-} from '../types';
+} from '../types.js';
 import {
   getByteLength,
   getTermsByEnforcer,
   MAX_PERIOD_DURATION,
   splitHex,
   ZERO_32_BYTES,
-} from '../utils';
-import { erc20PayeeRule } from './erc20PayeeRule';
-import { expiryRule } from './expiryRule';
-import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
-import { redeemerRule } from './redeemerRule';
+} from '../utils.js';
+import { erc20PayeeRule } from './erc20PayeeRule.js';
+import { expiryRule } from './expiryRule.js';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder.js';
+import { redeemerRule } from './redeemerRule.js';
 
 /**
  * Builds the configuration for the erc20-token-periodic permission decoder.

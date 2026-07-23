@@ -10,14 +10,14 @@ import {
   findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
-} from './decodePermission';
-import { createPermissionDecodersForContracts } from './decoders';
+} from './decodePermission.js';
+import { createPermissionDecodersForContracts } from './decoders/index.js';
 import type {
   DecodedPermission,
   DeployedContractsByName,
   PermissionDecoder,
-} from './types';
-import { getChecksumEnforcersByChainId } from './utils';
+} from './types.js';
+import { getChecksumEnforcersByChainId } from './utils.js';
 
 // These tests use the live deployments table for version 1.3.0 to
 // construct deterministic caveat address sets for a known chain.
