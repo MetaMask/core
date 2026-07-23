@@ -664,6 +664,7 @@ linkStyle default opacity:0.5
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;
   wallet_cli --> wallet;
+  wallet_cli --> foundryup;
 ```
 
 <!-- end dependency graph -->
