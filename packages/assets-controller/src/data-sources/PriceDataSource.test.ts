@@ -697,8 +697,8 @@ describe('PriceDataSource', () => {
       },
     };
 
-    await expect(
-      controller.subscribe({
+    expect(
+      await controller.subscribe({
         subscriptionId: 'sub-1',
         request: createDataRequest(),
         isUpdate: true,
@@ -707,7 +707,7 @@ describe('PriceDataSource', () => {
           .mockRejectedValue(new Error('handler failed')),
         getAssetsState,
       }),
-    ).resolves.toBeUndefined();
+    ).toBeUndefined();
 
     controller.destroy();
   });
