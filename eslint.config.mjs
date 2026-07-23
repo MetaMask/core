@@ -394,6 +394,7 @@ const config = createConfig([
       'packages/config-registry-controller/**',
       'packages/connectivity-controller/**',
       'packages/controller-utils/**',
+      'packages/delegation-controller/**',
       'packages/earn-controller/**',
       'packages/eip-5792-middleware/**',
       'packages/eip1193-permission-middleware/**',
