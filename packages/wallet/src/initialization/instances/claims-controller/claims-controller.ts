@@ -1,7 +1,5 @@
-import {
-  ClaimsController,
-  type ClaimsControllerMessenger,
-} from '@metamask/claims-controller';
+import { ClaimsController } from '@metamask/claims-controller';
+import type { ClaimsControllerMessenger } from '@metamask/claims-controller';
 import { Messenger } from '@metamask/messenger';
 
 import type { InitializationConfiguration } from '../../types.js';
