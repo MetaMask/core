@@ -20,6 +20,9 @@
       "path": "../connectivity-controller"
     },
     {
+      "path": "../entropy-controller"
+    },
+    {
       "path": "../controller-utils"
     },
     {

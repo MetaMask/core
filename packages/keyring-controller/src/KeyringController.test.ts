@@ -42,11 +42,9 @@ import { buildMockTransaction } from '../tests/mocks/mockTransaction';
 import { KeyringControllerErrorMessage } from './constants';
 import { KeyringControllerError } from './errors';
 import type {
-  KeyringControllerEvents,
   KeyringControllerMessenger,
   KeyringControllerState,
   KeyringControllerOptions,
-  KeyringControllerActions,
   KeyringMetadata,
   SerializedKeyring,
   KeyringSelector,
@@ -6155,7 +6153,16 @@ function stubKeyringClassWithAccount(
  * @returns The root messenger.
  */
 function buildRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const messenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  messenger.registerActionHandler(
+    'EntropyController:addEntropy',
+    jest.fn(),
+  );
+  messenger.registerActionHandler(
+    'EntropyController:removeEntropy',
+    jest.fn(),
+  );
+  return messenger;
 }
 
 /**
@@ -6167,18 +6174,23 @@ function buildRootMessenger(): RootMessenger {
  */
 function buildKeyringControllerMessenger(
   messenger = buildRootMessenger(),
-): Messenger<
-  'KeyringController',
-  KeyringControllerActions,
-  KeyringControllerEvents,
-  typeof messenger
-> {
-  return new Messenger<
+): KeyringControllerMessenger {
+  const kcMessenger = new Messenger<
     'KeyringController',
-    KeyringControllerActions,
-    KeyringControllerEvents,
+    AllKeyringControllerActions,
+    AllKeyringControllerEvents,
     typeof messenger
   >({ namespace: 'KeyringController', parent: messenger });
+
+  messenger.delegate({
+    messenger: kcMessenger,
+    actions: [
+      'EntropyController:addEntropy',
+      'EntropyController:removeEntropy',
+    ],
+  });
+
+  return kcMessenger as KeyringControllerMessenger;
 }
 
 /**

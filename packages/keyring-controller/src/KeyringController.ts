@@ -15,10 +15,8 @@ import type {
   EthUserOperationPatch,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import type {
-  Keyring as KeyringV2,
-  KeyringType,
-} from '@metamask/keyring-api/v2';
+import { KeyringType } from '@metamask/keyring-api/v2';
+import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Keyring, KeyringClass } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
@@ -35,6 +33,13 @@ import {
   isValidJson,
   remove0x,
 } from '@metamask/utils';
+import { toEntropyId } from '@metamask/entropy-controller';
+import type {
+  Bip44MnemonicEntropy,
+  EntropyControllerAddEntropyAction,
+  EntropyControllerRemoveEntropyAction,
+  EntropyId,
+} from '@metamask/entropy-controller';
 import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
@@ -198,7 +203,9 @@ export type KeyringControllerEvents =
 
 export type KeyringControllerMessenger = Messenger<
   typeof name,
-  KeyringControllerActions,
+  | KeyringControllerActions
+  | EntropyControllerAddEntropyAction
+  | EntropyControllerRemoveEntropyAction,
   KeyringControllerEvents
 >;
 
@@ -767,6 +774,40 @@ function normalize(address: string): string | undefined {
 }
 
 /**
+ * Returns `true` and narrows `keyringV2` to `HdKeyringV2 & { mnemonic: Uint8Array }` when
+ * the entry is a loaded HD keyring with accessible mnemonic bytes.
+ *
+ * @param keyring - The v1 keyring instance.
+ * @param keyringV2 - The optional v2 keyring instance.
+ * @returns `true` if the entry is an HD keyring v2 with an accessible mnemonic.
+ */
+function isHdKeyringV2(
+  keyring: EthKeyring,
+  keyringV2: KeyringV2 | undefined,
+): keyringV2 is HdKeyringV2 & { mnemonic: Uint8Array } {
+  return (
+    keyring.type === KeyringTypes.hd &&
+    keyringV2?.type === KeyringType.Hd &&
+    Boolean(keyringV2.mnemonic)
+  );
+}
+
+/**
+ * Computes the `EntropyId` for a BIP-44 mnemonic entropy source.
+ *
+ * Thin wrapper around {@link toEntropyId} that encodes the `'bip44'` category
+ * and `'mnemonic'` implementation so call sites don't repeat them.
+ *
+ * @param mnemonic - The raw mnemonic bytes.
+ * @returns The stable `EntropyId` for this mnemonic.
+ */
+async function toBip44MnemonicEntropyId(
+  mnemonic: Uint8Array,
+): Promise<EntropyId> {
+  return toEntropyId('bip44', 'mnemonic', mnemonic);
+}
+
+/**
  * Controller responsible for establishing and managing user identity.
  *
  * This class is a wrapper around the `eth-keyring-controller` package. The
@@ -1026,9 +1067,14 @@ export class KeyringController<
   ): Promise<KeyringMetadata> {
     this.#assertIsUnlocked();
 
-    return this.#getKeyringMetadata(
-      await this.#persistOrRollback(async () => this.#newKeyring(type, opts)),
+    const keyring = await this.#persistOrRollback(async () =>
+      this.#newKeyring(type, opts),
     );
+    const entry = this.#keyrings.find((ke) => ke.keyring === keyring);
+    if (entry) {
+      await this.#registerEntropySource(entry);
+    }
+    return this.#getKeyringMetadata(keyring);
   }
 
   /**
@@ -1338,7 +1384,10 @@ export class KeyringController<
     args: any[],
   ): Promise<string> {
     this.#assertIsUnlocked();
-    return this.#persistOrRollback(async () => {
+
+    let capturedKeyring: EthKeyring | undefined;
+
+    const result = await this.#persistOrRollback(async () => {
       let privateKey;
       switch (strategy) {
         case AccountImportStrategy.privateKey: {
@@ -1389,9 +1438,19 @@ export class KeyringController<
       const newKeyring = await this.#newKeyring(KeyringTypes.simple, [
         privateKey,
       ]);
+      capturedKeyring = newKeyring;
       const accounts = await newKeyring.getAccounts();
       return accounts[0];
     });
+
+    if (capturedKeyring) {
+      const entry = this.#keyrings.find((ke) => ke.keyring === capturedKeyring);
+      if (entry) {
+        await this.#registerEntropySource(entry);
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -1403,6 +1462,8 @@ export class KeyringController<
    */
   async removeAccount(address: string): Promise<void> {
     this.#assertIsUnlocked();
+
+    let removedEntropy: EntropyId | undefined;
 
     await this.#persistOrRollback(async () => {
       const keyringIndex = await this.#findKeyringIndexForAccount(address);
@@ -1442,12 +1503,18 @@ export class KeyringController<
       await keyring.removeAccount(address as Hex);
 
       if (shouldRemoveKeyring) {
+        if (isHdKeyringV2(keyring, keyringV2)) {
+          removedEntropy = await toBip44MnemonicEntropyId(keyringV2.mnemonic);
+        }
         this.#keyrings.splice(keyringIndex, 1);
         await this.#destroyKeyring(keyring, keyringV2);
       }
     });
 
     this.messenger.publish(`${name}:accountRemoved`, address);
+    if (removedEntropy) {
+      this.messenger.call('EntropyController:removeEntropy', removedEntropy);
+    }
   }
 
   /**
@@ -1775,6 +1842,10 @@ export class KeyringController<
       // since the controller is already unlocked.
       console.error('Failed to update vault during login:', error);
     }
+
+    for (const entry of this.#keyrings) {
+      await this.#registerEntropySource(entry);
+    }
   }
 
   /**
@@ -1824,6 +1895,10 @@ export class KeyringController<
       // We don't want to throw an error if the upgrade fails
       // since the controller is already unlocked.
       console.error('Failed to update vault during login:', error);
+    }
+
+    for (const entry of this.#keyrings) {
+      await this.#registerEntropySource(entry);
     }
   }
 
@@ -2206,10 +2281,11 @@ export class KeyringController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    return this.#persistOrRollback(async () => {
-      // Track created and removed keyrings during the operation execution.
-      const createdEntries = new Set<KeyringEntry>();
-      const removedEntries = new Set<KeyringEntry>();
+    const createdEntries = new Set<KeyringEntry>();
+    const removedEntries = new Set<KeyringEntry>();
+    const removedEntropies: EntropyId[] = [];
+
+    const result = await this.#persistOrRollback(async () => {
 
       // Copy of the current keyrings that is mutated during the operation execution.
       const restrictedEntries = [...this.#keyrings];
@@ -2269,13 +2345,19 @@ export class KeyringController<
         );
       };
 
-      let result: CallbackResult;
+      let callbackResult: CallbackResult;
       try {
-        result = await operation(restrictedController);
+        callbackResult = await operation(restrictedController);
       } catch (error) {
         await destroyKeyrings(createdEntries);
 
         throw error;
+      }
+
+      for (const { keyring, keyringV2 } of removedEntries) {
+        if (isHdKeyringV2(keyring, keyringV2)) {
+          removedEntropies.push(await toBip44MnemonicEntropyId(keyringV2.mnemonic));
+        }
       }
 
       await destroyKeyrings(removedEntries);
@@ -2292,14 +2374,23 @@ export class KeyringController<
         // still have references to them.
         ...removedEntries,
       ]) {
-        this.#assertNoUnsafeDirectKeyringAccess(result, keyring);
+        this.#assertNoUnsafeDirectKeyringAccess(callbackResult, keyring);
         if (keyringV2) {
-          this.#assertNoUnsafeDirectKeyringAccess(result, keyringV2);
+          this.#assertNoUnsafeDirectKeyringAccess(callbackResult, keyringV2);
         }
       }
 
-      return result;
+      return callbackResult;
     });
+
+    for (const entry of createdEntries) {
+      await this.#registerEntropySource(entry);
+    }
+    for (const entropyId of removedEntropies) {
+      this.messenger.call('EntropyController:removeEntropy', entropyId);
+    }
+
+    return result;
   }
 
   /**
@@ -2313,6 +2404,33 @@ export class KeyringController<
 
     const keyring = (await this.getKeyringForAccount(account)) as EthKeyring;
     return keyring.type;
+  }
+
+  /**
+   * Registers an HD keyring's entropy source with `EntropyController`.
+   *
+   * Called after each successful persist. Non-HD keyrings are skipped.
+   * If `EntropyController` is not wired into the consumer's messenger, the
+   * call throws and the error propagates.
+   *
+   * @param entry - The keyring entry to register.
+   */
+  async #registerEntropySource(entry: KeyringEntry): Promise<void> {
+    const { keyring, keyringV2 } = entry;
+
+    if (!isHdKeyringV2(keyring, keyringV2)) {
+      return;
+    }
+
+    const entropy: Bip44MnemonicEntropy = {
+      type: 'bip44:mnemonic',
+      id: await toBip44MnemonicEntropyId(keyringV2.mnemonic),
+    };
+
+    this.messenger.call('EntropyController:addEntropy', entropy);
+
+    // TODO: set keyringV2.entropySource = entropy.id once @metamask/eth-hd-keyring/v2
+    // exposes a setter or constructor option.
   }
 
   /**

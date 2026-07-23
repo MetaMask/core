@@ -8,14 +8,11 @@
       "path": "../base-controller"
     },
     {
-      "path": "../controller-utils"
-    },
-    {
-      "path": "../entropy-controller"
+      "path": "../keyring-controller"
     },
     {
       "path": "../messenger"
     }
   ],
-  "include": ["../../types", "./src", "./tests"]
+  "include": ["../../types", "./src"]
 }
