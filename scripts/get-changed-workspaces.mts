@@ -44,11 +44,12 @@ const workspaces = await getAllWorkspaces();
 const changedFiles = await getChangedFiles(mergeBase, headRef);
 const hasRootChange = checkRootChange(workspaces, changedFiles);
 
-const changed = await computeChangedWorkspaces(
+const changed = await computeChangedWorkspaces({
   workspaces,
   changedFiles,
   includeDependencies,
-);
+  mergeBase,
+});
 
 const changedWorkspaces = workspaces.filter(({ name }) => changed.has(name));
 

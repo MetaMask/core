@@ -33,11 +33,13 @@ async function main(): Promise<void> {
   const allWorkspaces = await getAllWorkspaces();
   const typeScriptWorkspaces = await getTypeScriptWorkspaces();
   const changedFiles = await getChangedFiles(mergeBase, headRef);
-  const packagesToBuild = await computeChangedWorkspaces(
-    allWorkspaces,
+
+  const packagesToBuild = await computeChangedWorkspaces({
+    workspaces: allWorkspaces,
     changedFiles,
-    true,
-  );
+    includeDependencies: true,
+    mergeBase,
+  });
 
   const references = typeScriptWorkspaces
     .filter(({ name }) => packagesToBuild.has(name))
