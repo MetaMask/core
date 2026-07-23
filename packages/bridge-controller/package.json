@@ -64,7 +64,7 @@
     "@metamask/assets-controllers": "^110.0.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
-    "@metamask/gas-fee-controller": "^26.2.4",
+    "@metamask/gas-fee-controller": "^26.3.0",
     "@metamask/keyring-api": "^23.5.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
