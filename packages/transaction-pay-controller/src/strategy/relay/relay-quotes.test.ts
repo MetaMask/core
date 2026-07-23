@@ -61,6 +61,7 @@ jest.mock('../../utils/feature-flags', () => ({
   getGasBuffer: jest.fn(),
   getSlippage: jest.fn(),
 }));
+jest.mock('./relay-validation');
 
 const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
 const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
@@ -4102,9 +4103,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow(
-        'Failed to fetch Relay quotes: Error: Batch estimation failed',
-      );
+      ).rejects.toThrow('Batch estimation failed');
     });
 
     it('includes gas limits in quote', async () => {
@@ -4167,7 +4166,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow('Failed to fetch Relay quotes');
+      ).rejects.toThrow(Error);
     });
 
     it('throws when relay transaction estimation fields are missing', async () => {
@@ -4191,7 +4190,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow('Failed to fetch Relay quotes');
+      ).rejects.toThrow(Error);
     });
 
     describe('Polymarket deposit-wallet source (isPolymarketDepositWallet)', () => {

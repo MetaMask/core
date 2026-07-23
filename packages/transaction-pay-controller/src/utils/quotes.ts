@@ -8,6 +8,7 @@ import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type {
   QuoteRequest,
+  QuoteErrorInfo,
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
@@ -32,6 +33,7 @@ import {
 } from './token.js';
 import { calculateTotals } from './totals.js';
 import { getTransaction, updateTransaction } from './transaction.js';
+import { isQuoteError } from './validation.js';
 
 const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
@@ -103,6 +105,7 @@ export async function updateQuotes(
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
+    data.quoteError = undefined;
   });
 
   try {
@@ -136,7 +139,7 @@ export async function updateQuotes(
 
     const supports7702 = accountSupports7702(messenger, from);
 
-    const { batchTransactions, quotes } = await getQuotes(
+    const { batchTransactions, error, quotes } = await getQuotes(
       transaction,
       from,
       requests,
@@ -185,6 +188,7 @@ export async function updateQuotes(
 
     updateTransactionData(transactionId, (data) => {
       data.quotes = quotes as never;
+      data.quoteError = quotes.length ? undefined : error;
       data.quotesLastUpdated = Date.now();
       data.totals = totals;
     });
@@ -630,6 +634,7 @@ async function getQuotes(
   signal?: AbortSignal,
 ): Promise<{
   batchTransactions: BatchTransaction[];
+  error?: QuoteErrorInfo;
   quotes: TransactionPayQuote<Json>[];
 }> {
   const { id: transactionId } = transaction;
@@ -674,6 +679,8 @@ async function getQuotes(
     transaction,
   };
 
+  let error: QuoteErrorInfo | undefined;
+
   for (const { name, strategy } of strategies) {
     try {
       const support = await checkStrategySupport(strategy, request);
@@ -695,14 +702,14 @@ async function getQuotes(
         continue;
       }
 
-      const quoteSupport = await checkStrategyQuoteSupport(strategy, {
+      const isQuoteSupported = await checkStrategyQuoteSupport(strategy, {
         messenger,
         quotes,
         signal,
         transaction,
       });
 
-      if (!quoteSupport) {
+      if (!isQuoteSupported) {
         log('Strategy does not support quotes', {
           strategy: name,
           transactionId,
@@ -726,13 +733,17 @@ async function getQuotes(
         batchTransactions,
         quotes,
       };
-    } catch (error) {
+    } catch (caughtError) {
       if (signal?.aborted) {
-        throw error;
+        throw caughtError;
       }
 
+      error ??= isQuoteError(caughtError)
+        ? caughtError.info
+        : { message: (caughtError as Error).message, reason: 'no-quotes' };
+
       log('Strategy failed, trying next', {
-        error,
+        error: caughtError,
         strategy: name,
         transactionId,
       });
@@ -744,6 +755,7 @@ async function getQuotes(
 
   return {
     batchTransactions: [],
+    error,
     quotes: [],
   };
 }
