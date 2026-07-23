@@ -209,4 +209,5 @@ export type {
   TransakServiceGetOrderAction,
   TransakServiceRequestOttAction,
   TransakServiceGeneratePaymentWidgetUrlAction,
+  TransakServiceCreateWidgetUrlAction,
 } from './TransakService-method-action-types.js';

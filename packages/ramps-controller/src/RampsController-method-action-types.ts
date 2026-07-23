@@ -525,6 +525,21 @@ export type RampsControllerTransakGeneratePaymentWidgetUrlAction = {
 };
 
 /**
+ * Creates a Transak payment widget URL via the ramps API proxy, which
+ * injects the partner API key server-side. Replaces the OTT flow
+ * ({@link transakRequestOtt} + {@link transakGeneratePaymentWidgetUrl}).
+ *
+ * @param quote - The buy quote to pre-fill in the widget.
+ * @param walletAddress - The destination wallet address.
+ * @param extraParams - Optional additional widget parameters (e.g. theming).
+ * @returns The single-use widget URL.
+ */
+export type RampsControllerTransakCreateWidgetUrlAction = {
+  type: `RampsController:transakCreateWidgetUrl`;
+  handler: RampsController['transakCreateWidgetUrl'];
+};
+
+/**
  * Submits the user's purpose of usage form for KYC compliance.
  *
  * @param purpose - Array of purpose strings selected by the user.
@@ -666,6 +681,7 @@ export type RampsControllerMethodActions =
   | RampsControllerTransakGetUserLimitsAction
   | RampsControllerTransakRequestOttAction
   | RampsControllerTransakGeneratePaymentWidgetUrlAction
+  | RampsControllerTransakCreateWidgetUrlAction
   | RampsControllerTransakSubmitPurposeOfUsageFormAction
   | RampsControllerTransakPatchUserAction
   | RampsControllerTransakSubmitSsnDetailsAction

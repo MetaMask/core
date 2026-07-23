@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `TransakService.createWidgetUrl` and `RampsController.transakCreateWidgetUrl`, which create the Transak payment widget URL through the ramps API proxy (`POST /providers/{providerId}/widget-url`) so the partner API key never leaves the backend. Requires the host to delegate `AuthenticationController:getBearerToken` to the `TransakService` messenger.
+- Add a `rampsApiBaseUrlOverride` constructor option to `TransakService` (same semantics as `RampsService`'s `baseUrlOverride`) that overrides the ramps API base URL for local development; it applies to the orders and widget-url proxy requests only.
+
+### Deprecated
+
+- Deprecate `TransakService.requestOtt` and `TransakService.generatePaymentWidgetUrl` in favor of `createWidgetUrl`; the OTT flow requires the partner API key on the client.
+
 ## [17.0.0]
 
 ### Added
