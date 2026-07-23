@@ -5857,7 +5857,7 @@ __metadata:
     "@types/is-odd": "npm:^3"
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"
-    is-odd: "npm:^3.0.0"
+    is-odd: "npm:^3.0.1"
     jest: "npm:^30.4.2"
     ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
@@ -19159,11 +19159,11 @@ __metadata:
   linkType: hard
 
 "is-odd@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "is-odd@npm:3.0.0"
+  version: 3.0.1
+  resolution: "is-odd@npm:3.0.1"
   dependencies:
     is-number: "npm:^6.0.0"
-  checksum: 10/1b0614ce1d6af841a5c04980cb8f9a44594444e448b35b5afd05c0aed5ce297e131f898412c42cdbe2e9b24551488e3f5d12a5917395ca42e2a0bc5518893642
+  checksum: 10/c9d35c336c0c0ada0bfaf1f4564f354a222c4ffb9c3b42fac353767c9b8f0af844d3ddf16fbf7b12d6ecf57ee4d2fbeb9e456e8c9d68a78bb44e91bb43fdfd56
   languageName: node
   linkType: hard
 
