@@ -4507,7 +4507,15 @@ describe('Relay Quotes Utils', () => {
       successfulFetchMock
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ delta: { type: 'withdraw' } }],
+          json: async () => [
+            {
+              delta: {
+                type: 'send',
+                user: FROM_MOCK,
+                destination: '0x6b9e773128f453f5c2c60935ee2de2cbc5390a24',
+              },
+            },
+          ],
         } as never)
         .mockResolvedValueOnce({
           ok: true,
