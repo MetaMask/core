@@ -14,12 +14,12 @@ import {
   TxData,
 } from '@metamask/bridge-controller';
 
-import { submitBatchSellHandler } from './batch-sell-strategy';
-import { submitBatchHandler } from './batch-strategy';
-import { submitEvmHandler as defaultSubmitHandler } from './evm-strategy';
-import { submitIntentHandler } from './intent-strategy';
-import { submitNonEvmHandler } from './non-evm-strategy';
-import type { SubmitStrategyParams, SubmitStepResult } from './types';
+import { submitBatchSellHandler } from './batch-sell-strategy.js';
+import { submitBatchHandler } from './batch-strategy.js';
+import { submitEvmHandler as defaultSubmitHandler } from './evm-strategy.js';
+import { submitIntentHandler } from './intent-strategy.js';
+import { submitNonEvmHandler } from './non-evm-strategy.js';
+import type { SubmitStrategyParams, SubmitStepResult } from './types.js';
 
 const validateParams = <
   TxDataType extends

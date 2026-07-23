@@ -385,6 +385,7 @@ const config = createConfig([
       'packages/base-controller/**',
       'packages/base-data-service/**',
       'packages/bridge-controller/**',
+      'packages/bridge-status-controller/**',
       'packages/build-utils/**',
       'packages/chain-agnostic-permission/**',
       'packages/composable-controller/**',

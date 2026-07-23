@@ -5,7 +5,7 @@ import {
   RequiredEventContextFromClient,
 } from '@metamask/bridge-controller';
 
-import { BridgeStatusControllerMessenger } from '../types';
+import { BridgeStatusControllerMessenger } from '../types.js';
 
 export const stopPollingForQuotes = (
   messenger: BridgeStatusControllerMessenger,
