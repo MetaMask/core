@@ -34,22 +34,21 @@ const argv = await yargs(hideBin(process.argv))
     describe:
       'Also expand to transitive dependencies (needed for TypeScript builds)',
   })
-  .demandCommand(1, 'merge-base is required')
+  .demandOption('merge-base', 'merge-base is required')
   .help()
   .parseAsync();
 
-const mergeBase = argv._[0] as string;
-const headRef = (argv._[1] as string | undefined) ?? 'HEAD';
+const { mergeBase, headSha = 'HEAD', includeDependencies } = argv;
 const workspaces = await getAllWorkspaces();
 
-const changedFiles = await getChangedFiles(mergeBase, headRef);
+const changedFiles = await getChangedFiles(mergeBase, headSha);
 const hasRootChange = checkRootChange(workspaces, changedFiles);
 
 const changed = await computeChangedWorkspaces(
   workspaces,
   mergeBase,
-  headRef,
-  argv['include-dependencies'],
+  headSha,
+  includeDependencies,
   changedFiles,
 );
 
