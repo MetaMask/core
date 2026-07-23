@@ -16,6 +16,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import {
   ApprovalType,
   ORIGIN_METAMASK,
@@ -64,7 +65,7 @@ import {
   JsonRpcError,
 } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { add0x } from '@metamask/utils';
+import { add0x, hexToNumber } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
@@ -435,6 +436,7 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetStateAction
   | ApprovalControllerAddRequestAction
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction
   | GasFeeControllerFetchGasFeeEstimatesAction
   | KeyringControllerGetStateAction
   | KeyringControllerSignEip7702AuthorizationAction
@@ -3959,7 +3961,13 @@ export class TransactionController extends BaseController<
   #getLayer1GasFeeFlows(): Layer1GasFeeFlow[] {
     return [
       new MantleLayer1GasFeeFlow(),
-      new OptimismLayer1GasFeeFlow(),
+      new OptimismLayer1GasFeeFlow({
+        getRegistryGasStrategyForChain: (chainId: Hex) =>
+          this.messenger.call(
+            'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+            `eip155:${hexToNumber(chainId)}`,
+          )?.config.gasEstimationStrategy,
+      }),
       new ScrollLayer1GasFeeFlow(),
     ];
   }

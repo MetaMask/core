@@ -39,6 +39,14 @@ export class OptimismLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
     transactionMeta: TransactionMeta;
     messenger: TransactionControllerMessenger;
   }): Promise<boolean> {
+    const registryGasStrategy = this.getRegistryGasStrategyForChain?.(
+      transactionMeta.chainId,
+    );
+
+    if (registryGasStrategy?.type === 'l1Oracle') {
+      return true;
+    }
+
     const chainIdAsNumber = hexToNumber(transactionMeta.chainId);
 
     const supportedChains = await this.#fetchOptimismSupportedChains();

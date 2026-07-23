@@ -7,8 +7,11 @@ import {
   optional,
   string,
   type,
+  union,
+  object,
+  literal,
 } from '@metamask/superstruct';
-import { CaipChainIdStruct } from '@metamask/utils';
+import { CaipChainIdStruct, StrictHexStruct } from '@metamask/utils';
 
 const AssetSchema = type({
   assetId: string(),
@@ -41,6 +44,13 @@ const BlockExplorerUrlsSchema = type({
   fallbacks: array(string()),
 });
 
+const GasEstimationStrategySchema = union([
+  object({
+    type: literal('l1Oracle'),
+    l1OracleAddress: optional(StrictHexStruct),
+  }),
+]);
+
 const ChainConfigSchema = type({
   isActive: boolean(),
   isTestnet: boolean(),
@@ -49,6 +59,7 @@ const ChainConfigSchema = type({
   isDeprecated: boolean(),
   isDeletable: boolean(),
   priority: number(),
+  gasEstimationStrategy: optional(GasEstimationStrategySchema),
 });
 
 /**
@@ -77,6 +88,8 @@ export const RegistryConfigApiResponseSchema = type({
     chains: array(RegistryNetworkConfigSchema),
   }),
 });
+
+export type GasEstimationStrategy = Infer<typeof GasEstimationStrategySchema>;
 
 export type RegistryNetworkConfig = Infer<typeof RegistryNetworkConfigSchema>;
 
