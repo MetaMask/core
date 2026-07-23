@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9569](https://github.com/MetaMask/core/pull/9569))
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
 
 ## [8.0.0]
 

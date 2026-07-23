@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extract quote-metadata calculation into `utils/quote-metadata/` ([#9507](https://github.com/MetaMask/core/pull/9507))
 - Implement `mergeQuoteMetadata` util which appends QuoteMetadata to QuoteResponse ([#9507](https://github.com/MetaMask/core/pull/9507))
 - Bump `@metamask/assets-controller` from `^11.1.1` to `^11.2.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
 
 ## [77.8.0]
 
