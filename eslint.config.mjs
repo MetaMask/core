@@ -398,6 +398,7 @@ const config = createConfig([
       'packages/build-utils/**',
       'packages/chain-agnostic-permission/**',
       'packages/chomp-api-service/**',
+      'packages/client-controller/**',
       'packages/client-utils/**',
       'packages/compliance-controller/**',
       'packages/composable-controller/**',

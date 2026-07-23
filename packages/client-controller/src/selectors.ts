@@ -1,4 +1,4 @@
-import type { ClientControllerState } from './ClientController';
+import type { ClientControllerState } from './ClientController.js';
 
 /**
  * Selects whether the UI is currently open.
