@@ -434,6 +434,7 @@ const config = createConfig([
       'packages/profile-sync-controller/**',
       'packages/ramps-controller/**',
       'packages/react-data-query/**',
+      'packages/remote-feature-flag-controller/**',
       'packages/sample-controllers/**',
       'packages/selected-network-controller/**',
       'packages/signature-controller/**',
