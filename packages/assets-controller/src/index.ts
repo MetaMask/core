@@ -159,15 +159,8 @@ export type {
 } from './data-sources';
 
 // Middlewares
-export {
-  CustomAssetGraduationMiddleware,
-  DetectionMiddleware,
-  RpcFallbackMiddleware,
-} from './middlewares';
-export type {
-  CustomAssetGraduationMiddlewareOptions,
-  RpcFallbackMiddlewareOptions,
-} from './middlewares';
+export { DetectionMiddleware, RpcFallbackMiddleware } from './middlewares';
+export type { RpcFallbackMiddlewareOptions } from './middlewares';
 
 // Utilities
 export {

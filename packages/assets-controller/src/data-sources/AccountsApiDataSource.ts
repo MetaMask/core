@@ -7,6 +7,7 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import {
   isCaipChainId,
   KnownCaipNamespace,
+  parseCaipAssetType,
   toCaipChainId,
 } from '@metamask/utils';
 
@@ -379,11 +380,34 @@ export class AccountsApiDataSource extends AbstractDataSource<
         ? { staleTime: 0, gcTime: 0 }
         : undefined;
 
+      // User-pinned custom assets ("display no matter what") on the chains
+      // being fetched. Sent to the v6 endpoint as `includeAssetIds` so the
+      // backend returns them even at a zero balance (see APIPLAT-2499).
+      const includeAssetIds = this.#getIncludeAssetIds(request, chainsToFetch);
+
+      // User-hidden assets on the chains being fetched. Sent to the v6 endpoint
+      // as `excludeAssetIds` so they are dropped from the response even when
+      // detected or carrying a non-zero balance. A pinned asset always wins
+      // over a hidden one (adding a custom asset unhides it), so any overlap
+      // with `includeAssetIds` is removed here defensively.
+      const excludeAssetIds = this.#getExcludeAssetIds(
+        request,
+        chainsToFetch,
+        includeAssetIds,
+      );
+
       // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
       // read here (not cached) so a runtime toggle can revert v6 -> v5.
-      const { unprocessedNetworks, assetsBalance } = this.#isBalanceV6Enabled()
-        ? await this.#fetchV6Balances(accountIds, fetchOptions, request)
-        : await this.#fetchV5Balances(accountIds, fetchOptions, request);
+      const { unprocessedNetworks, unprocessedIncludeAssetIds, assetsBalance } =
+        this.#isBalanceV6Enabled()
+          ? await this.#fetchV6Balances(
+              accountIds,
+              fetchOptions,
+              request,
+              includeAssetIds,
+              excludeAssetIds,
+            )
+          : await this.#fetchV5Balances(accountIds, fetchOptions, request);
 
       // Handle unprocessed networks - these will be passed to next middleware
       if (unprocessedNetworks.length > 0) {
@@ -395,6 +419,28 @@ export class AccountsApiDataSource extends AbstractDataSource<
         for (const chainId of unprocessedChainIds) {
           response.errors[chainId] = 'Unprocessed by Accounts API';
         }
+      }
+
+      // Pinned assets the backend could not resolve (RPC down, contract does
+      // not exist, no `balanceOf`, etc.). Surface them on the asset-axis signal
+      // (`unprocessedCustomAssets`) — NOT `errors` — because the chain itself
+      // succeeded. The RPC fallback fetches just these specific assets without
+      // re-fetching the whole chain, and a fabricated zero balance is avoided.
+      const validUnprocessedAssetIds = unprocessedIncludeAssetIds.filter(
+        (assetId) => {
+          try {
+            parseCaipAssetType(assetId);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      );
+      if (validUnprocessedAssetIds.length > 0) {
+        response.unprocessedCustomAssets = [
+          ...(response.unprocessedCustomAssets ?? []),
+          ...(validUnprocessedAssetIds as Caip19AssetId[]),
+        ];
       }
 
       response.assetsBalance = assetsBalance;
@@ -427,6 +473,89 @@ export class AccountsApiDataSource extends AbstractDataSource<
   }
 
   /**
+   * Collect the user-pinned custom assets that should be sent to the v6
+   * endpoint as `includeAssetIds`. Only EVM (`eip155:`) assets on chains that
+   * are actually being fetched are included; malformed IDs are skipped.
+   *
+   * @param request - The original data request (carries `customAssets`).
+   * @param chainsToFetch - Chains supported and being requested this fetch.
+   * @returns Deduplicated CAIP-19 asset IDs to pin, or `undefined` when none.
+   */
+  #getIncludeAssetIds(
+    request: DataRequest,
+    chainsToFetch: ChainId[],
+  ): Caip19AssetId[] | undefined {
+    if (!request.customAssets || request.customAssets.length === 0) {
+      return undefined;
+    }
+
+    const chainsToFetchSet = new Set<ChainId>(chainsToFetch);
+    const includeAssetIds = new Set<Caip19AssetId>();
+
+    for (const assetId of request.customAssets) {
+      let chainId: ChainId;
+      try {
+        chainId = parseCaipAssetType(assetId).chainId;
+      } catch {
+        continue;
+      }
+      if (
+        chainId.startsWith(`${KnownCaipNamespace.Eip155}:`) &&
+        chainsToFetchSet.has(chainId)
+      ) {
+        includeAssetIds.add(assetId);
+      }
+    }
+
+    return includeAssetIds.size > 0 ? [...includeAssetIds] : undefined;
+  }
+
+  /**
+   * Collect the user-hidden assets that should be sent to the v6 endpoint as
+   * `excludeAssetIds`. Only EVM (`eip155:`) assets on chains that are actually
+   * being fetched are included; malformed IDs are skipped. Any asset that is
+   * also pinned (`includeAssetIds`) is left out so a pin always wins.
+   *
+   * @param request - The original data request (carries `excludeAssetIds`).
+   * @param chainsToFetch - Chains supported and being requested this fetch.
+   * @param includeAssetIds - Pinned asset IDs that must not be excluded.
+   * @returns Deduplicated CAIP-19 asset IDs to exclude, or `undefined` when none.
+   */
+  #getExcludeAssetIds(
+    request: DataRequest,
+    chainsToFetch: ChainId[],
+    includeAssetIds: Caip19AssetId[] | undefined,
+  ): Caip19AssetId[] | undefined {
+    if (!request.excludeAssetIds || request.excludeAssetIds.length === 0) {
+      return undefined;
+    }
+
+    const chainsToFetchSet = new Set<ChainId>(chainsToFetch);
+    const includeSet = new Set<Caip19AssetId>(includeAssetIds ?? []);
+    const excludeAssetIds = new Set<Caip19AssetId>();
+
+    for (const assetId of request.excludeAssetIds) {
+      if (includeSet.has(assetId)) {
+        continue;
+      }
+      let chainId: ChainId;
+      try {
+        chainId = parseCaipAssetType(assetId).chainId;
+      } catch {
+        continue;
+      }
+      if (
+        chainId.startsWith(`${KnownCaipNamespace.Eip155}:`) &&
+        chainsToFetchSet.has(chainId)
+      ) {
+        excludeAssetIds.add(assetId);
+      }
+    }
+
+    return excludeAssetIds.size > 0 ? [...excludeAssetIds] : undefined;
+  }
+
+  /**
    * Fetch balances from the legacy v5 endpoint and process them.
    *
    * @param accountIds - CAIP-10 account IDs to fetch balances for.
@@ -440,6 +569,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
     request: DataRequest,
   ): Promise<{
     unprocessedNetworks: string[];
+    unprocessedIncludeAssetIds: string[];
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
   }> {
     const apiResponse = await fetchWithTimeout(
@@ -459,6 +589,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     return {
       unprocessedNetworks: apiResponse.unprocessedNetworks,
+      // v5 has no `includeAssetIds` support.
+      unprocessedIncludeAssetIds: [],
       assetsBalance,
     };
   }
@@ -469,21 +601,37 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * @param accountIds - CAIP-10 account IDs to fetch balances for.
    * @param fetchOptions - Cache/fetch options (e.g. force update settings).
    * @param request - The original data request containing accounts to map.
-   * @returns Unprocessed networks and processed asset balances by account.
+   * @param includeAssetIds - User-pinned CAIP-19 asset IDs the backend must
+   * always return (even at zero balance).
+   * @param excludeAssetIds - User-hidden CAIP-19 asset IDs the backend must
+   * drop from the response (even at a non-zero balance).
+   * @returns Unprocessed networks, unprocessed pinned assets, and processed
+   * asset balances by account.
    */
   async #fetchV6Balances(
     accountIds: string[],
     fetchOptions: { staleTime: number; gcTime: number } | undefined,
     request: DataRequest,
+    includeAssetIds: Caip19AssetId[] | undefined,
+    excludeAssetIds: Caip19AssetId[] | undefined,
   ): Promise<{
     unprocessedNetworks: string[];
+    unprocessedIncludeAssetIds: string[];
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
   }> {
+    const params =
+      includeAssetIds || excludeAssetIds
+        ? {
+            ...(includeAssetIds && { includeAssetIds }),
+            ...(excludeAssetIds && { excludeAssetIds }),
+          }
+        : undefined;
+
     const apiResponse = await fetchWithTimeout(
       () =>
         this.#apiClient.accounts.fetchV6MultiAccountBalances(
           accountIds,
-          undefined,
+          params,
           fetchOptions,
         ),
       this.#fetchTimeoutMs,
@@ -496,6 +644,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     return {
       unprocessedNetworks: apiResponse.unprocessedNetworks,
+      unprocessedIncludeAssetIds: apiResponse.unprocessedIncludeAssetIds,
       assetsBalance,
     };
   }
@@ -676,6 +825,18 @@ export class AccountsApiDataSource extends AbstractDataSource<
               ...accountBalances,
             };
           }
+        }
+
+        // Forward the asset-axis signal so the RPC fallback can recover pinned
+        // assets the backend could not resolve, without re-fetching the chain.
+        if (
+          response.unprocessedCustomAssets &&
+          response.unprocessedCustomAssets.length > 0
+        ) {
+          context.response.unprocessedCustomAssets = [
+            ...(context.response.unprocessedCustomAssets ?? []),
+            ...response.unprocessedCustomAssets,
+          ];
         }
 
         // Determine successfully handled chains (exclude unprocessed/error chains)

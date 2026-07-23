@@ -53,6 +53,14 @@ export function mergeDataResponses(responses: DataResponse[]): DataResponse {
         ...response.errors,
       };
     }
+    if (response.unprocessedCustomAssets && response.unprocessedCustomAssets.length > 0) {
+      merged.unprocessedCustomAssets = [
+        ...new Set([
+          ...(merged.unprocessedCustomAssets ?? []),
+          ...response.unprocessedCustomAssets,
+        ]),
+      ];
+    }
     if (response.detectedAssets) {
       merged.detectedAssets = {
         ...(merged.detectedAssets ?? {}),

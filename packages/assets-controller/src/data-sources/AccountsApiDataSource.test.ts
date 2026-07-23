@@ -66,6 +66,7 @@ function createMockApiClient(
   balances: V5BalanceItem[] = [],
   unprocessedNetworks: string[] = [],
   v6Accounts: V6AccountBalancesEntry[] = [],
+  unprocessedIncludeAssetIds: string[] = [],
 ): MockApiClient {
   return {
     accounts: {
@@ -80,7 +81,7 @@ function createMockApiClient(
       fetchV6MultiAccountBalances: jest.fn().mockResolvedValue({
         accounts: v6Accounts,
         unprocessedNetworks,
-        unprocessedIncludeAssetIds: [],
+        unprocessedIncludeAssetIds,
       }),
     },
   };
@@ -141,6 +142,7 @@ async function setupController(
     supportedChains?: number[];
     balances?: V5BalanceItem[];
     unprocessedNetworks?: string[];
+    unprocessedIncludeAssetIds?: string[];
     fetchTimeoutMs?: number;
     v6Accounts?: V6AccountBalancesEntry[];
     remoteFeatureFlags?: Record<string, unknown>;
@@ -150,6 +152,7 @@ async function setupController(
     supportedChains = [1, 137],
     balances = [],
     unprocessedNetworks = [],
+    unprocessedIncludeAssetIds = [],
     fetchTimeoutMs,
     v6Accounts = [],
     remoteFeatureFlags,
@@ -197,6 +200,7 @@ async function setupController(
     balances,
     unprocessedNetworks,
     v6Accounts,
+    unprocessedIncludeAssetIds,
   );
 
   const controller = new AccountsApiDataSource({
@@ -638,7 +642,7 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('does not pass includeAssetIds to v6 even when custom assets are present', async () => {
+    it('passes EVM custom assets on requested chains to v6 as includeAssetIds', async () => {
       const { controller, apiClient } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
       });
@@ -654,7 +658,236 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
+        { includeAssetIds: [customToken] },
         undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('omits custom assets that are not on a requested chain from includeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      // Custom asset on Polygon while only Mainnet is being fetched.
+      const polygonToken =
+        'eip155:137/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({
+          chainIds: [CHAIN_MAINNET],
+          customAssets: [polygonToken],
+        }),
+      );
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith([`eip155:1:${MOCK_ADDRESS}`], undefined, undefined);
+
+      controller.destroy();
+    });
+
+    it('surfaces unprocessed include asset ids on the asset axis (unprocessedCustomAssets) without flagging the chain as errored', async () => {
+      const customToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        unprocessedIncludeAssetIds: [customToken],
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({ customAssets: [customToken] }),
+      );
+
+      // The chain itself succeeded — only the specific pinned asset is
+      // outstanding, so it goes on the asset axis, not `errors`.
+      expect(response.errors?.[CHAIN_MAINNET]).toBeUndefined();
+      expect(response.unprocessedCustomAssets).toStrictEqual([customToken]);
+
+      controller.destroy();
+    });
+
+    it('omits unparseable unprocessed include asset ids from unprocessedCustomAssets', async () => {
+      const customToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        unprocessedIncludeAssetIds: [
+          customToken,
+          'not-a-caip-asset' as Caip19AssetId,
+        ],
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({ customAssets: [customToken] }),
+      );
+
+      expect(response.unprocessedCustomAssets).toStrictEqual([customToken]);
+
+      controller.destroy();
+    });
+
+    it('skips non-EVM and malformed custom assets when building includeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      const solanaToken =
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
+      const malformed = 'not-a-caip-asset' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({ customAssets: [solanaToken, malformed] }),
+      );
+
+      // No EVM custom asset on a requested chain -> includeAssetIds omitted.
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith([`eip155:1:${MOCK_ADDRESS}`], undefined, undefined);
+
+      controller.destroy();
+    });
+
+    it('ignores malformed unprocessed include asset ids', async () => {
+      const customToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        unprocessedIncludeAssetIds: ['not-a-caip-asset'],
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({ customAssets: [customToken] }),
+      );
+
+      // The malformed unprocessed id cannot be parsed, so it is dropped from
+      // both axes (no error, no asset-axis entry).
+      expect(response.errors).toBeUndefined();
+      expect(response.unprocessedCustomAssets).toBeUndefined();
+
+      controller.destroy();
+    });
+
+    it('passes EVM hidden assets on requested chains to v6 as excludeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      const hiddenToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({ excludeAssetIds: [hiddenToken] }),
+      );
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        { excludeAssetIds: [hiddenToken] },
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('omits hidden assets that are not on a requested chain from excludeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      // Hidden asset on Polygon while only Mainnet is being fetched.
+      const polygonToken =
+        'eip155:137/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({
+          chainIds: [CHAIN_MAINNET],
+          excludeAssetIds: [polygonToken],
+        }),
+      );
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith([`eip155:1:${MOCK_ADDRESS}`], undefined, undefined);
+
+      controller.destroy();
+    });
+
+    it('skips non-EVM and malformed hidden assets when building excludeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      const solanaToken =
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
+      const malformed = 'not-a-caip-asset' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({ excludeAssetIds: [solanaToken, malformed] }),
+      );
+
+      // No EVM hidden asset on a requested chain -> excludeAssetIds omitted.
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith([`eip155:1:${MOCK_ADDRESS}`], undefined, undefined);
+
+      controller.destroy();
+    });
+
+    it('lets a pinned asset win when it also appears in the hidden list', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      const token =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({
+          customAssets: [token],
+          excludeAssetIds: [token],
+        }),
+      );
+
+      // The asset is pinned, so it is included and never excluded.
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        { includeAssetIds: [token] },
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('sends both includeAssetIds and excludeAssetIds when pins and hidden assets differ', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      const pinned =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const hidden =
+        'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({
+          customAssets: [pinned],
+          excludeAssetIds: [hidden],
+        }),
+      );
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        { includeAssetIds: [pinned], excludeAssetIds: [hidden] },
         undefined,
       );
 

@@ -1419,20 +1419,11 @@ export class RpcDataSource extends AbstractDataSource<
           chainId: hexChainId,
           accountId,
           accountAddress: address as Address,
-          ...(request.customAssetsOnly === true
-            ? { customAssetsOnly: true }
-            : {}),
         };
         const balanceToken = this.#balanceFetcher.startPolling(balanceInput);
         balancePollingTokens.push(balanceToken);
 
-        // Token detection is only relevant for "regular" subscriptions —
-        // a customAssetsOnly subscription should never run detection.
-        if (
-          request.customAssetsOnly !== true &&
-          this.#tokenDetectionEnabled() &&
-          this.#useExternalService()
-        ) {
+        if (this.#tokenDetectionEnabled() && this.#useExternalService()) {
           const detectionInput: DetectionPollingInput = {
             chainId: hexChainId,
             accountId,

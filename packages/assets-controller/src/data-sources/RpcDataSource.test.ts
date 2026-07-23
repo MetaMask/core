@@ -881,6 +881,7 @@ describe('RpcDataSource', () => {
 
       fetchSpy.mockRestore();
     });
+
   });
 
   describe('detectTokens', () => {

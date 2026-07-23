@@ -339,12 +339,11 @@ export type DataRequest = {
   /** Specific CAIP-19 asset IDs */
   customAssets?: Caip19AssetId[];
   /**
-   * When true, the data source should poll only the user's `customAssets`
-   * for the requested chains and skip refreshing the regular tracked
-   * balances. Used by the AssetsController to issue a supplemental RPC
-   * subscription on chains that another data source is already covering.
+   * User-hidden CAIP-19 asset IDs (from `assetPreferences`). Sent to the
+   * Accounts API v6 endpoint as `excludeAssetIds` so hidden assets are removed
+   * from the response even when detected or carrying a non-zero balance.
    */
-  customAssetsOnly?: boolean;
+  excludeAssetIds?: Caip19AssetId[];
   /** Force fresh fetch, bypass cache */
   forceUpdate?: boolean;
   /** Hint for polling interval (ms) - used by data sources that implement polling */
@@ -363,8 +362,16 @@ export type DataResponse = {
   assetsPrice?: Record<Caip19AssetId, AssetPrice>;
   /** Balance data per account */
   assetsBalance?: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
-  /** Errors encountered, keyed by chain ID */
+  /** Errors encountered, keyed by chain ID (chain-axis fallback + telemetry) */
   errors?: Record<ChainId, string>;
+  /**
+   * Explicitly requested asset IDs the source could not resolve (asset-axis
+   * fallback). Distinct from `errors`: the chain itself succeeded, but these
+   * specific pinned assets (e.g. AccountsApi `unprocessedIncludeAssetIds`) still
+   * need to be fetched by a downstream source (RPC) without re-fetching the
+   * whole chain.
+   */
+  unprocessedCustomAssets?: Caip19AssetId[];
   /** Detected assets (assets that do not have metadata) */
   detectedAssets?: Record<AccountId, Caip19AssetId[]>;
   /**

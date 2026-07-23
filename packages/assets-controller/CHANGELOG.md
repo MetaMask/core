@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `AccountsApiDataSource` now forwards user-pinned custom assets to the Accounts API v6 balances endpoint as `includeAssetIds`, so the backend returns those assets even at a zero balance. Pinned EVM assets the backend could not resolve are reported back as `unprocessedIncludeAssetIds` and surfaced on the new asset-axis signal `DataResponse.unprocessedCustomAssets` (the chain itself is no longer marked as errored) ([#9600](https://github.com/MetaMask/core/pull/9600))
+- The data-source protocol now separates chain-level and asset-level fallback. `DataResponse` gains `unprocessedCustomAssets` (specific requested asset IDs a source could not resolve, distinct from chain-level `errors`). `RpcFallbackMiddleware` recovers `unprocessedCustomAssets` by issuing an RPC request scoped to just those assets (passed as `customAssets`), instead of re-fetching every pin on the chain ([#9600](https://github.com/MetaMask/core/pull/9600))
+- `AssetsController.getAssets` (force-update) no longer runs `RpcFallbackMiddleware` on the fast path. Chains an upstream source leaves outstanding are now recovered by RPC in the background slow pipeline instead: `#getSlowPipelineChainIds` includes both errored chains (e.g. `unprocessedNetworks`) and the chains of any `unprocessedCustomAssets` (pinned assets the backend could not resolve), so RPC fetches them off the fast path ([#9600](https://github.com/MetaMask/core/pull/9600))
+- `AssetsController` subscription/poll balance updates now run the RPC fallback before enrichment (when basic functionality is on), so anything an upstream source leaves outstanding is fetched from RPC during polling: errored chains (e.g. `unprocessedNetworks`) via a full-chain fetch, and pinned assets the backend could not resolve (`unprocessedCustomAssets`) via an asset-scoped fetch. (The poll path has no slow pipeline, so it uses `RpcFallbackMiddleware` directly.) ([#9600](https://github.com/MetaMask/core/pull/9600))
+- `AccountsApiDataSource` now forwards user-hidden assets (from `assetPreferences`) to the Accounts API v6 balances endpoint as `excludeAssetIds`, so the backend drops them from the response even when detected or carrying a non-zero balance. A pinned asset always wins over a hidden one, so any overlap with `includeAssetIds` is dropped from `excludeAssetIds` ([#9600](https://github.com/MetaMask/core/pull/9600))
+
+### Removed
+
+- **BREAKING:** Remove `CustomAssetGraduationMiddleware` (and `CustomAssetGraduationMiddlewareOptions`) from the public API. User-pinned custom assets are now treated as "display no matter what" and are no longer auto-removed when a balance is detected ([#9600](https://github.com/MetaMask/core/pull/9600))
+- **BREAKING:** Remove the `customAssetsOnly` field from `DataRequest`. The dedicated RPC "custom assets only" supplemental subscription is removed now that the v6 endpoint returns pinned custom assets directly ([#9600](https://github.com/MetaMask/core/pull/9600))
+
 ## [11.1.1]
 
 ### Changed
