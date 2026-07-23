@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement `mergeQuoteMetadata` util which appends QuoteMetadata to QuoteResponse ([#9507](https://github.com/MetaMask/core/pull/9507))
 - Bump `@metamask/assets-controller` from `^11.1.1` to `^11.2.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
 - Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+- Remove Stellar and Arc from `DEFAULT_CHAIN_RANKING` ([#9633](https://github.com/MetaMask/core/pull/9633))  
 
 ## [77.8.0]
 
