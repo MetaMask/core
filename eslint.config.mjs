@@ -441,6 +441,7 @@ const config = createConfig([
       'packages/smart-transactions-controller/**',
       'packages/snap-account-service/**',
       'packages/social-controllers/**',
+      'packages/storage-service/**',
       'packages/transaction-controller/**',
       'packages/transaction-pay-controller/**',
       'packages/user-operation-controller/**',

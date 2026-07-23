@@ -1,7 +1,7 @@
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { StorageServiceMethodActions } from './StorageService-method-action-types';
+import type { StorageServiceMethodActions } from './StorageService-method-action-types.js';
 
 /**
  * Initial data structure for populating InMemoryStorageAdapter.
