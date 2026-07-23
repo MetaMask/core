@@ -421,6 +421,7 @@ const config = createConfig([
       'packages/geolocation-controller/**',
       'packages/json-rpc-engine/**',
       'packages/json-rpc-middleware-stream/**',
+      'packages/keyring-controller/**',
       'packages/logging-controller/**',
       'packages/message-manager/**',
       'packages/messenger/**',

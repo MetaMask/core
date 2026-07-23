@@ -43,15 +43,15 @@ import { cloneDeep } from 'lodash';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
-import { KeyringControllerErrorMessage } from './constants';
-import { KeyringControllerError } from './errors';
-import type { KeyringControllerMethodActions } from './KeyringController-method-action-types';
+import { KeyringControllerErrorMessage } from './constants.js';
+import { KeyringControllerError } from './errors.js';
+import type { KeyringControllerMethodActions } from './KeyringController-method-action-types.js';
 import type {
   Eip7702AuthorizationParams,
   Credentials,
   PersonalMessageParams,
   TypedMessageParams,
-} from './types';
+} from './types.js';
 
 const name = 'KeyringController';
 
