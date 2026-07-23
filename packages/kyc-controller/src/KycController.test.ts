@@ -961,6 +961,49 @@ describe('KycController', () => {
         expect(controller.state.sumsub.status).toBe('failed');
       });
     });
+
+    it('aborts without launching the SDK when reset() runs while in flight', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        // Simulate a reset() landing while the UKYC session is being created.
+        handlers.createUkycSession.mockImplementation(async () => {
+          controller.reset();
+          return {
+            sessionId: 'sid',
+            wrappingPublicKey: 'wpk',
+            idosSessionId: 'idos',
+          };
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({});
+        expect(launcher.launch).not.toHaveBeenCalled();
+        // The interrupted step must not write stale sub-flow state.
+        expect(controller.state.sumsub.status).toBe('idle');
+        expect(controller.state.sumsub.sessionId).toBeNull();
+        expect(controller.state.phase).toBe('idle');
+      });
+    });
+
+    it('suppresses status and terminal writes when reset() runs during the SDK launch', async () => {
+      await withController(async ({ controller, launcher }) => {
+        launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+          // First status arrives on the active flow, then a reset() lands and
+          // a later status + the resolved result must not resurrect state.
+          onStatusChange?.('idle', 'InProgress');
+          controller.reset();
+          onStatusChange?.('InProgress', 'Completed');
+          return { ok: true };
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({ ok: true });
+        expect(controller.state.sumsub.status).toBe('idle');
+        expect(controller.state.sumsub.result).toBeNull();
+        expect(controller.state.phase).toBe('idle');
+      });
+    });
   });
 
   describe('reset', () => {

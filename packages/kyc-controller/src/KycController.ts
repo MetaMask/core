@@ -847,6 +847,11 @@ export class KycController extends BaseController<
       throw new Error(error);
     }
 
+    // Capture the flow generation so each async step can detect a `reset()`
+    // that lands mid-flight and avoid writing stale sub-flow state (or, worse,
+    // presenting the SDK) on a controller that is now idle.
+    const generation = this.#generation;
+
     try {
       this.update((state) => {
         state.sumsub.status = 'creatingSession';
@@ -872,7 +877,7 @@ export class KycController extends BaseController<
         jwtToken,
       };
 
-      this.update((state) => {
+      this.#updateIfCurrent(generation, (state) => {
         state.sumsub.status = 'fetchingToken';
         state.sumsub.sessionId = sessionId;
       });
@@ -881,6 +886,12 @@ export class KycController extends BaseController<
         'KycService:submitWrappedKey',
         exchange,
       );
+
+      // A reset() landed while the session/token was being prepared; abort
+      // before presenting the SDK rather than launching on an idle controller.
+      if (this.#generation !== generation) {
+        return {};
+      }
 
       this.update((state) => {
         state.sumsub.status = 'launching';
@@ -905,7 +916,7 @@ export class KycController extends BaseController<
           if (next === SUMSUB_COMPLETED_STATUS) {
             reachedCompletion = true;
           }
-          this.update((state) => {
+          this.#updateIfCurrent(generation, (state) => {
             state.sumsub.status =
               next === SUMSUB_COMPLETED_STATUS ? 'complete' : 'inProgress';
           });
@@ -917,14 +928,14 @@ export class KycController extends BaseController<
       // Only record `complete` when the SDK actually reported completion;
       // otherwise treat the resolved-but-unfinished flow as `failed` so
       // consumers and UI do not mistake it for a finished verification.
-      this.update((state) => {
+      this.#updateIfCurrent(generation, (state) => {
         state.sumsub.status = reachedCompletion ? 'complete' : 'failed';
         state.sumsub.result = result as Json;
       });
       return result;
     } catch (error) {
       const result = { error: String(error) };
-      this.update((state) => {
+      this.#updateIfCurrent(generation, (state) => {
         state.sumsub.status = 'failed';
         state.sumsub.result = result;
       });
@@ -957,6 +968,27 @@ export class KycController extends BaseController<
         applicantAccessToken: null,
       };
     });
+  }
+
+  /**
+   * Applies a state update only when the flow has not been reset since
+   * `generation` was captured. Prevents an in-flight async step from writing
+   * stale results onto a controller that a concurrent {@link reset} has
+   * returned to idle.
+   *
+   * @param generation - The flow generation captured before the async work.
+   * @param updater - The state mutation to apply when still current.
+   * @returns `true` if the update was applied, `false` if it was superseded.
+   */
+  #updateIfCurrent(
+    generation: number,
+    updater: (state: KycControllerState) => void,
+  ): boolean {
+    if (this.#generation !== generation) {
+      return false;
+    }
+    this.update(updater);
+    return true;
   }
 
   /**
