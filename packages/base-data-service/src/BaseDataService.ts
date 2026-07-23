@@ -229,6 +229,8 @@ export class BaseDataService<
             event.type as CacheUpdatedType,
             event.query.queryHash,
           );
+
+          this.#debouncedPersist?.();
         }
       });
 

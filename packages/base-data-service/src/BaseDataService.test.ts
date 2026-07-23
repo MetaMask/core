@@ -235,7 +235,7 @@ describe('BaseDataService', () => {
     await service.getAssets(MOCK_ASSETS);
 
     // Wait for GC
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    jest.runAllTimers();
 
     const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
 
