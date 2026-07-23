@@ -157,7 +157,7 @@ async function setupController(
     unprocessedNetworks = [],
     fetchTimeoutMs,
     v6Accounts = [],
-    remoteFeatureFlags,
+    remoteFeatureFlags = {},
   } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -174,23 +174,18 @@ async function setupController(
     parent: rootMessenger,
   });
 
-  if (remoteFeatureFlags !== undefined) {
-    (
-      rootMessenger as unknown as {
-        registerActionHandler: (a: string, h: () => unknown) => void;
-      }
-    ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
-      remoteFeatureFlags,
-      cacheTimestamp: 0,
-    }));
-  }
+  (
+    rootMessenger as unknown as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
+    remoteFeatureFlags,
+    cacheTimestamp: 0,
+  }));
 
   rootMessenger.delegate({
     messenger: controllerMessenger,
-    actions:
-      remoteFeatureFlags === undefined
-        ? []
-        : ['RemoteFeatureFlagController:getState'],
+    actions: ['RemoteFeatureFlagController:getState'],
     // eslint-disable-next-line no-restricted-syntax
     events: ['RemoteFeatureFlagController:stateChange'],
   });
@@ -976,9 +971,18 @@ describe('AccountsApiDataSource', () => {
         parent: rootMessenger,
       });
 
+      (
+        rootMessenger as unknown as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
+        remoteFeatureFlags: {},
+        cacheTimestamp: 0,
+      }));
+
       rootMessenger.delegate({
         messenger: controllerMessenger,
-        actions: [],
+        actions: ['RemoteFeatureFlagController:getState'],
         events: [],
       });
 

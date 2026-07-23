@@ -4,7 +4,6 @@ import type {
 } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
 import type {
-  FeatureFlags,
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
@@ -310,22 +309,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
     }
   }
 
-  /**
-   * Read the remote feature flags from the RemoteFeatureFlagController, or
-   * `undefined` when the controller is unavailable (fail-safe: migration
-   * networks then resolve to `Off` and are excluded).
-   *
-   * @returns The remote feature flags, or `undefined` when unavailable.
-   */
-  #getRemoteFeatureFlags(): FeatureFlags | undefined {
-    try {
-      return this.#messenger.call('RemoteFeatureFlagController:getState')
-        .remoteFeatureFlags;
-    } catch {
-      return undefined;
-    }
-  }
-
   // ============================================================================
   // INITIALIZATION
   // ============================================================================
@@ -392,7 +375,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
     // are always surfaced, while migration networks (Solana, Stellar, Tron) are
     // only surfaced once their per-network stage reaches
     // ReadAssetsControllerWithFallback.
-    const remoteFeatureFlags = this.#getRemoteFeatureFlags();
+    const { remoteFeatureFlags } = this.#messenger.call(
+      'RemoteFeatureFlagController:getState',
+    );
     return response.fullSupport
       .map(decimalToChainId)
       .filter((chainId) => shouldSupportChain(chainId, remoteFeatureFlags));

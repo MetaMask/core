@@ -35,9 +35,6 @@
       "path": "../preferences-controller"
     },
     {
-      "path": "../remote-feature-flag-controller"
-    },
-    {
       "path": "../accounts-controller"
     },
     {

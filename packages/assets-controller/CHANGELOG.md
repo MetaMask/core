@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add stage-gated ingestion of the Snaps → AssetsController migration networks (Solana, Stellar, Tron) ([#9534](https://github.com/MetaMask/core/pull/9534))
+  - `AssetsController` and `AccountsApiDataSource` now resolve a per-network migration stage from `RemoteFeatureFlagController` state (via `RemoteFeatureFlagController:getState`) using the `networkAssetsSnapsMigrationSolana`, `networkAssetsSnapsMigrationStellar`, and `networkAssetsSnapsMigrationTron` flags. Migration networks are only ingested and surfaced as active chains from `SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback` onward, and left to the Snap when the stage is `Off` (the fail-safe when the flag is missing). Non-migration namespaces (e.g. `eip155`) are never gated.
+
 ### Fixed
 
 - `AccountsApiDataSource` `forceUpdate` balance fetches now use `staleTime`/`gcTime` of `100`ms (previously `0`/`0`) so bursts of near-simultaneous forced refreshes are de-duplicated by TanStack Query into a single Accounts API request instead of one request per trigger ([#9591](https://github.com/MetaMask/core/pull/9591))
@@ -29,8 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `AccountsApiDataSource` now selects the Accounts API balances endpoint version from the `RemoteFeatureFlagController` (`assetsAccountsApiV6` flag, read per fetch off the shared messenger, default v5) so the v6 endpoint is gated consistently across clients (extension, mobile) without each client wiring a getter. The flag is read as a JSON variation shaped `{ value: boolean }` (same shape as `backendWebSocketConnection`). Adds a required `messenger` option and `RemoteFeatureFlagController:getState` to `AccountsApiDataSourceAllowedActions`. Only `category: 'token'` rows from the v6 response are consumed (DeFi positions are ignored) to preserve parity with v5 ([#9344](https://github.com/MetaMask/core/pull/9344))
 - Add `getAsset(accountId, assetId)` method and `AssetsController:getAsset` messenger action that returns the combined `Asset` (balance, metadata, price) for a single account/asset pair from controller state, or `undefined` when a complete renderable asset is not available ([#9521](https://github.com/MetaMask/core/pull/9521))
-- Add stage-gated ingestion of the Snaps → AssetsController migration networks (Solana, Stellar, Tron) ([#9534](https://github.com/MetaMask/core/pull/9534))
-  - `AssetsController` and `AccountsApiDataSource` now resolve a per-network migration stage from `RemoteFeatureFlagController` state (via `RemoteFeatureFlagController:getState`) using the `networkAssetsSnapsMigrationSolana`, `networkAssetsSnapsMigrationStellar`, and `networkAssetsSnapsMigrationTron` flags. Migration networks are only ingested and surfaced as active chains from `SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback` onward, and left to the Snap when the stage is `Off` (the fail-safe when the flag is missing). Non-migration namespaces (e.g. `eip155`) are never gated.
 
 ### Changed
 
@@ -42,7 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `#getNativeAssetMap` returns a stable empty object when uncached so memoized formatters are not busted by `?? {}` identity churn
 - `TokenDataSource` EVM spam filtering now uses per-chain floors from Token API `GET /v1/suggestedOccurrenceFloors` (`queryApiClient.token.fetchV1SuggestedOccurrenceFloors`) instead of a hardcoded minimum of 3 occurrences. Chains missing from the response (or a failed floors fetch) still fall back to 3 ([#9537](https://github.com/MetaMask/core/pull/9537))
 - `TokensApiClient` (used by `RpcDataSource` / `TokenDetector`) now sets the token-list `occurrenceFloor` query param from the same Token API `GET /v1/suggestedOccurrenceFloors` endpoint (cached 1h), replacing the hardcoded Linea/MegaETH/Tempo special cases. Missing chains or failed fetches fall back to 3 ([#9537](https://github.com/MetaMask/core/pull/9537))
-- Add `@metamask/remote-feature-flag-controller` as a dependency ([#9534](https://github.com/MetaMask/core/pull/9534))
 - Bump `@metamask/network-enablement-controller` from `^5.5.0` to `^5.6.0` ([#9520](https://github.com/MetaMask/core/pull/9520))
 - Bump `@metamask/phishing-controller` from `^17.2.1` to `^17.3.0` ([#9532](https://github.com/MetaMask/core/pull/9532))
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))

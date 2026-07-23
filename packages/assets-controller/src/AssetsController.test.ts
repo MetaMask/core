@@ -163,7 +163,7 @@ async function withController<ReturnValue>(
       state = {},
       isBasicFunctionality = (): boolean => true,
       clientControllerState,
-      remoteFeatureFlags,
+      remoteFeatureFlags = {},
       queryApiClient = createMockQueryApiClient(),
       controllerOptions = {},
     },
@@ -238,16 +238,14 @@ async function withController<ReturnValue>(
     );
   }
 
-  if (remoteFeatureFlags !== undefined) {
-    (
-      messenger as {
-        registerActionHandler: (a: string, h: () => unknown) => void;
-      }
-    ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
-      remoteFeatureFlags,
-      cacheTimestamp: 0,
-    }));
-  }
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
+    remoteFeatureFlags,
+    cacheTimestamp: 0,
+  }));
 
   const controller = new AssetsController({
     messenger: messenger as unknown as AssetsControllerMessenger,

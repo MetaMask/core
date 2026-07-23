@@ -40,9 +40,6 @@
       "path": "../preferences-controller/tsconfig.build.json"
     },
     {
-      "path": "../remote-feature-flag-controller/tsconfig.build.json"
-    },
-    {
       "path": "../accounts-controller/tsconfig.build.json"
     },
     {
