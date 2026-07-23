@@ -96,14 +96,10 @@ describe('subscribeToAutoApproval', () => {
     const { messenger, call, handler } = makeMessenger();
     subscribeToAutoApproval(messenger);
 
-    // Two state changes listing the same id before the first accept settles:
-    // the second is skipped so the request is not accepted twice.
     handler()({ pendingApprovals: { 'id-a': {} } });
     handler()({ pendingApprovals: { 'id-a': {} } });
     expect(call).toHaveBeenCalledTimes(1);
 
-    // Once the accept settles the id leaves the in-flight set, so a later state
-    // change is free to accept again.
     await flushMicrotasks();
     handler()({ pendingApprovals: { 'id-a': {} } });
     expect(call).toHaveBeenCalledTimes(2);
@@ -112,9 +108,6 @@ describe('subscribeToAutoApproval', () => {
   it('does not re-accept ids surfaced by the re-entrant state change that accepting itself triggers', () => {
     const { messenger, call, handler } = makeMessenger();
     subscribeToAutoApproval(messenger);
-    // Accepting `id-a` deletes it, which synchronously re-fires the state
-    // change; here the re-entrant change still lists both ids. Each must be
-    // accepted exactly once.
     call.mockImplementation((_action: string, id: string) => {
       if (id === 'id-a') {
         handler()({ pendingApprovals: { 'id-a': {}, 'id-b': {} } });
@@ -159,8 +152,6 @@ describe('subscribeToAutoApproval', () => {
       ),
     );
 
-    // The failed id was cleared from the in-flight set, so a subsequent state
-    // change accepts it again rather than skipping it forever.
     handler()({ pendingApprovals: { 'id-a': {} } });
     expect(call).toHaveBeenCalledTimes(2);
   });

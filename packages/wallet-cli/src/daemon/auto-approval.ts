@@ -135,7 +135,6 @@ function subscribeToApprovalStateChanged(
   messenger: Readonly<RootMessenger<DefaultActions, DefaultEvents>>,
   handler: ApprovalStateChangeHandler,
 ): () => void {
-  // TODO: Remove once ApprovalControllerEvents includes ControllerStateChangedEvent.
   const subscriber = messenger as unknown as {
     subscribe: (eventType: string, handler: ApprovalStateChangeHandler) => void;
     unsubscribe: (

@@ -78,11 +78,8 @@ describe('createWallet (real Wallet, in-memory)', () => {
     });
 
     try {
-      // `addRequest` awaits acceptance; on a headless daemon with no UI it would
-      // hang forever, so the auto-approval subscription must resolve it.
-      // `shouldShowRequest: false` keeps the no-op `showApprovalRequest` out of
-      // the picture — resolution comes purely from the state-change accept path.
-      // If auto-approval regressed, this would time out rather than resolve.
+      // `shouldShowRequest: false` bypasses the no-op `showApprovalRequest` hook —
+      // acceptance must come purely from the auto-approval subscription.
       const accepted = await wallet.messenger.call(
         'ApprovalController:addRequest',
         { origin: 'https://example.com', type: 'test:approval' },
@@ -90,7 +87,6 @@ describe('createWallet (real Wallet, in-memory)', () => {
       );
       expect(accepted).toBeUndefined();
 
-      // Accepting deletes the request, so nothing is left pending.
       expect(
         wallet.messenger.call('ApprovalController:getState').pendingApprovals,
       ).toStrictEqual({});
