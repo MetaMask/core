@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [8.0.0]
-
 ### Added
 
 - **BREAKING:** Wire `ClaimsService` and `ClaimsController` into the default wallet initialization ([#9588](https://github.com/MetaMask/core/pull/9588))
@@ -16,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Passing `instanceOptions.claimsService.fetchFunction` is now required.
   - `ClaimsService` delegates `AuthenticationController:getBearerToken`; hosts must register `AuthenticationController` on the supplied root messenger before authenticated Claims API calls succeed.
   - Re-exports `Env` from `@metamask/claims-controller` as `ClaimsEnv` for `instanceOptions.claimsService.env`.
+
+## [8.0.0]
+
+### Added
+
 - **BREAKING:** Wire `GasFeeController` into the default wallet initialization ([#9527](https://github.com/MetaMask/core/pull/9527))
   - Adds a required `instanceOptions.gasFeeController` option whose `clientId` (sent as `X-Client-Id` to the gas API) is required, so every client identifies itself; all other fields are optional and fall back to platform-agnostic defaults.
 - **BREAKING** Wire `SeedlessOnboardingController` and `PasskeyController` into the default wallet initialization ([#9533](https://github.com/MetaMask/core/pull/9533))
