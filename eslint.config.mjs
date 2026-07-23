@@ -403,6 +403,7 @@ const config = createConfig([
       'packages/eth-json-rpc-middleware/**',
       'packages/eth-json-rpc-provider/**',
       'packages/gas-fee-controller/**',
+      'packages/gator-permissions-controller/**',
       'packages/json-rpc-engine/**',
       'packages/json-rpc-middleware-stream/**',
       'packages/logging-controller/**',

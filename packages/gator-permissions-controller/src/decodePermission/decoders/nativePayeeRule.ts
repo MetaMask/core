@@ -1,8 +1,8 @@
 import { decodeAllowedTargetsTerms } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 
-import { EXECUTION_PERMISSION_PAYEE_RULE_TYPE } from '../../constants';
-import type { RuleDecoder } from '../types';
+import { EXECUTION_PERMISSION_PAYEE_RULE_TYPE } from '../../constants.js';
+import type { RuleDecoder } from '../types.js';
 
 /**
  * Rule decoder for native-token style payees, where the payee address(es) are
