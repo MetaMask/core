@@ -25,9 +25,12 @@ export type KycVendor = 'moonpay';
  * - `session` — creating the vendor session.
  * - `check` — running the invisible connection-check frame.
  * - `auth` — running the visible authentication (OTP) frame.
- * - `form` — authenticated; ready to submit the identity check.
+ * - `form` — authenticated. When the flow is scoped to a product, the
+ *   KYC-required check runs automatically from here; otherwise the consumer
+ *   drives it manually via `checkKycRequired`.
  * - `submit` — submitting the KYC-required check.
- * - `done` — flow complete; see `kycRequiredByProduct` / `sumsub`.
+ * - `done` — flow complete; see `kycRequiredByProduct` / `sumsub`. When KYC is
+ *   required, the document-verification sub-flow is launched automatically.
  * - `error` — flow halted; see `error`.
  */
 export type KycPhase =

@@ -68,6 +68,15 @@ export type KycControllerState = {
   /** Vendor customer id, used for the SumSub hand-off. */
   moonpayCustomerId: string | null;
 
+  /**
+   * The product the current flow is running for. Captured at `initialize`
+   * (or `acceptTermsAndStartSession`) and used to automatically run the
+   * KYC-required check once authentication completes. `null` outside a
+   * product-scoped flow (in which case the flow stops at `form` and the
+   * consumer drives the check manually).
+   */
+  activeProduct: KycProduct | null;
+
   /** Cached "is KYC required" result per product (persisted). */
   kycRequiredByProduct: Partial<Record<KycProduct, boolean>>;
   /** ISO-8601 timestamp of the last KYC-required check (persisted). */
@@ -155,6 +164,12 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: false,
   },
+  activeProduct: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: false,
+    usedInUi: true,
+  },
   kycRequiredByProduct: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -194,6 +209,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     sessionToken: null,
     accessToken: null,
     moonpayCustomerId: null,
+    activeProduct: null,
     kycRequiredByProduct: {},
     lastCheckedAt: null,
     sumsub: {
@@ -333,11 +349,24 @@ export class KycController extends BaseController<
    *
    * @param params - Optional parameters.
    * @param params.email - The account email to associate with the session.
+   * @param params.product - The consuming feature the flow runs for. When
+   * provided, the controller automatically runs the KYC-required check once
+   * authentication completes (and chains into document verification when KYC
+   * is required). When omitted, the flow stops at `form` and the consumer must
+   * call `checkKycRequired` manually.
    */
-  async initialize(params?: { email?: string }): Promise<void> {
-    if (params?.email) {
+  async initialize(params?: {
+    email?: string;
+    product?: KycProduct;
+  }): Promise<void> {
+    if (params?.email || params?.product) {
       this.update((state) => {
-        state.email = params.email as string;
+        if (params.email) {
+          state.email = params.email;
+        }
+        if (params.product) {
+          state.activeProduct = params.product;
+        }
       });
     }
 
@@ -404,8 +433,14 @@ export class KycController extends BaseController<
    *
    * @param params - Optional parameters.
    * @param params.email - The account email to associate with the session.
+   * @param params.product - The consuming feature the flow runs for. See
+   * {@link initialize} for how the product drives the automatic post
+   * authentication continuation.
    */
-  async acceptTermsAndStartSession(params?: { email?: string }): Promise<void> {
+  async acceptTermsAndStartSession(params?: {
+    email?: string;
+    product?: KycProduct;
+  }): Promise<void> {
     const termsAcceptedAt = new Date().toISOString();
     const disclaimerIds = this.state.disclaimers.map(
       (disclaimer) => disclaimer.id,
@@ -413,6 +448,9 @@ export class KycController extends BaseController<
     this.update((state) => {
       if (params?.email) {
         state.email = params.email;
+      }
+      if (params?.product) {
+        state.activeProduct = params.product;
       }
       state.termsAcceptedAt = termsAcceptedAt;
       state.acceptedDisclaimerIds = disclaimerIds;
@@ -534,12 +572,12 @@ export class KycController extends BaseController<
     }
 
     if (channelId === CHANNEL_CHECK) {
-      this.#handleCheckOutcome(status, accessToken, clientToken);
+      await this.#handleCheckOutcome(status, accessToken, clientToken);
       return {};
     }
 
     if (channelId === CHANNEL_AUTH) {
-      this.#handleAuthOutcome(status, accessToken);
+      await this.#handleAuthOutcome(status, accessToken);
       return {};
     }
 
@@ -553,17 +591,18 @@ export class KycController extends BaseController<
    * @param accessToken - The decrypted access token, if any.
    * @param clientToken - The decrypted client token, if any.
    */
-  #handleCheckOutcome(
+  async #handleCheckOutcome(
     status: NonNullable<FrameMessage['payload']>['status'],
     accessToken?: string,
     clientToken?: string,
-  ): void {
+  ): Promise<void> {
     if (status === 'active' && accessToken) {
       this.update((state) => {
         state.accessToken = accessToken;
         state.phase = 'form';
         state.statusMessage = 'Already authenticated. Review to submit.';
       });
+      await this.#continueAfterAuthentication();
       return;
     }
     if (status === 'connectionRequired' && clientToken) {
@@ -587,16 +626,17 @@ export class KycController extends BaseController<
    * @param status - The frame status.
    * @param accessToken - The decrypted access token, if any.
    */
-  #handleAuthOutcome(
+  async #handleAuthOutcome(
     status: NonNullable<FrameMessage['payload']>['status'],
     accessToken?: string,
-  ): void {
+  ): Promise<void> {
     if (status === 'active' && accessToken) {
       this.update((state) => {
         state.accessToken = accessToken;
         state.phase = 'form';
         state.statusMessage = 'Authenticated. Review to submit.';
       });
+      await this.#continueAfterAuthentication();
       return;
     }
     if (status === 'termsAcceptanceRequired') {
@@ -604,6 +644,38 @@ export class KycController extends BaseController<
       return;
     }
     this.#fail(`Auth frame returned status: ${status}`);
+  }
+
+  /**
+   * Continues the flow once authentication has completed (phase `form`).
+   *
+   * When the flow is scoped to a product (see {@link initialize}), the
+   * KYC-required check runs automatically, and — when KYC is required — the
+   * document-verification sub-flow is launched. When no product is set, this is
+   * a no-op and the flow stays at `form` for the consumer to drive manually.
+   *
+   * Errors are already recorded on state by `checkKycRequired` (`error`
+   * phase) and `startSumSub` (`sumsub.status = 'failed'`); this method swallows
+   * them so it can be awaited safely from the frame-message handler.
+   */
+  async #continueAfterAuthentication(): Promise<void> {
+    const product = this.state.activeProduct;
+    if (!product) {
+      return;
+    }
+
+    const kycRequired = await this.checkKycRequired({ product });
+    if (!kycRequired) {
+      return;
+    }
+
+    try {
+      await this.startSumSub();
+    } catch {
+      // `startSumSub` already records `sumsub.status = 'failed'`; swallow the
+      // rethrown error (e.g. SDK unavailable) so the awaited continuation
+      // resolves cleanly rather than surfacing as an unhandled rejection.
+    }
   }
 
   /**
@@ -832,6 +904,7 @@ export class KycController extends BaseController<
       state.sessionToken = null;
       state.accessToken = null;
       state.moonpayCustomerId = null;
+      state.activeProduct = null;
       state.sumsub = {
         status: 'idle',
         result: null,

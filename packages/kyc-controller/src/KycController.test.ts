@@ -104,6 +104,17 @@ describe('KycController', () => {
       });
     });
 
+    it('captures the active product for the automatic post-auth continuation', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.fetchDisclaimers.mockResolvedValue([]);
+
+        await controller.initialize({ product: 'card' });
+
+        expect(controller.state.activeProduct).toBe('card');
+      });
+    });
+
     it('stays on terms when terms exist but no email is available', async () => {
       await withController(
         {
@@ -188,10 +199,14 @@ describe('KycController', () => {
         async ({ controller, handlers }) => {
           handlers.createSession.mockResolvedValue({ sessionToken: 'sess' });
 
-          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            product: 'ramps',
+          });
 
           expect(controller.state.acceptedDisclaimerIds).toStrictEqual(['1']);
           expect(controller.state.termsAcceptedAt).not.toBeNull();
+          expect(controller.state.activeProduct).toBe('ramps');
           expect(controller.state.phase).toBe('check');
         },
       );
@@ -467,6 +482,152 @@ describe('KycController', () => {
     });
   });
 
+  describe('automatic post-authentication continuation', () => {
+    it('stays at form and does not run the check when no product is set', async () => {
+      await withController(
+        { options: { state: { sessionToken: 'tok', geoCountry: 'USA' } } },
+        async ({ controller, handlers }) => {
+          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+
+          await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_1' },
+              payload: { status: 'active', credentials: envelope },
+            },
+          });
+
+          expect(controller.state.phase).toBe('form');
+          expect(handlers.checkKycRequired).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('auto-runs the KYC check on reaching form and stops at done when KYC is not required', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionToken: 'tok',
+              activeProduct: 'ramps',
+              geoCountry: 'USA',
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          handlers.checkKycRequired.mockResolvedValue({ kycRequired: false });
+          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+
+          await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_1' },
+              payload: { status: 'active', credentials: envelope },
+            },
+          });
+
+          expect(handlers.checkKycRequired).toHaveBeenCalledWith({
+            accessToken: 'access-1',
+            country: 'USA',
+            capabilities: [{ product: 'ramps' }],
+          });
+          expect(controller.state.kycRequiredByProduct.ramps).toBe(false);
+          expect(controller.state.phase).toBe('done');
+          expect(launcher.launch).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('auto-chains into document verification when KYC is required (via the auth frame)', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionToken: 'tok',
+              activeProduct: 'card',
+              geoCountry: 'FRA',
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
+          const envelope = envelopeFor(controller, { accessToken: 'access-2' });
+
+          await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_2' },
+              payload: { status: 'active', credentials: envelope },
+            },
+          });
+
+          expect(controller.state.kycRequiredByProduct.card).toBe(true);
+          expect(launcher.launch).toHaveBeenCalledTimes(1);
+          expect(controller.state.sumsub.status).toBe('complete');
+        },
+      );
+    });
+
+    it('records a failed sub-flow without throwing when verification is required but the SDK is unavailable', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionToken: 'tok',
+              activeProduct: 'ramps',
+              geoCountry: 'USA',
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
+          launcher.isAvailable.mockReturnValue(false);
+          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+
+          const result = await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_1' },
+              payload: { status: 'active', credentials: envelope },
+            },
+          });
+
+          expect(result).toStrictEqual({});
+          expect(controller.state.sumsub.status).toBe('failed');
+        },
+      );
+    });
+
+    it('does not launch verification when the auto-run check fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionToken: 'tok',
+              activeProduct: 'ramps',
+              geoCountry: 'USA',
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          handlers.checkKycRequired.mockRejectedValue(new Error('down'));
+          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+
+          await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_1' },
+              payload: { status: 'active', credentials: envelope },
+            },
+          });
+
+          expect(controller.state.phase).toBe('error');
+          expect(launcher.launch).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
   describe('frame URL builders', () => {
     it('returns null for the check frame without a session', async () => {
       await withController(({ controller }) => {
@@ -662,6 +823,7 @@ describe('KycController', () => {
               phase: 'form',
               sessionToken: 'tok',
               accessToken: 'a',
+              activeProduct: 'ramps',
               termsAcceptedAt: 't',
               acceptedDisclaimerIds: ['1'],
               kycRequiredByProduct: { ramps: true },
@@ -673,6 +835,7 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('idle');
           expect(controller.state.sessionToken).toBeNull();
           expect(controller.state.accessToken).toBeNull();
+          expect(controller.state.activeProduct).toBeNull();
           expect(controller.state.termsAcceptedAt).toBe('t');
           expect(controller.state.kycRequiredByProduct.ramps).toBe(true);
         },

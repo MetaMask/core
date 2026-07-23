@@ -11,6 +11,11 @@ import type { KycController } from './KycController';
  *
  * @param params - Optional parameters.
  * @param params.email - The account email to associate with the session.
+ * @param params.product - The consuming feature the flow runs for. When
+ * provided, the controller automatically runs the KYC-required check once
+ * authentication completes (and chains into document verification when KYC
+ * is required). When omitted, the flow stops at `form` and the consumer must
+ * call `checkKycRequired` manually.
  */
 export type KycControllerInitializeAction = {
   type: `KycController:initialize`;
@@ -34,6 +39,9 @@ export type KycControllerLoadDisclaimersAction = {
  *
  * @param params - Optional parameters.
  * @param params.email - The account email to associate with the session.
+ * @param params.product - The consuming feature the flow runs for. See
+ * {@link initialize} for how the product drives the automatic post
+ * authentication continuation.
  */
 export type KycControllerAcceptTermsAndStartSessionAction = {
   type: `KycController:acceptTermsAndStartSession`;
