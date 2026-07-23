@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `TransakService.createWidgetUrl` and `RampsController.transakCreateWidgetUrl`, which create the Transak payment widget URL through the ramps API proxy (`POST /providers/{providerId}/widget-url`) so the partner API key never leaves the backend. Requires the host to delegate `AuthenticationController:getBearerToken` to the `TransakService` messenger.
-- Add a `rampsApiBaseUrlOverride` constructor option to `TransakService` (same semantics as `RampsService`'s `baseUrlOverride`) that overrides the ramps API base URL for local development; it applies to the orders and widget-url proxy requests only.
+- Add `TransakService.createWidgetUrl` and `RampsController.transakCreateWidgetUrl`, which create the Transak payment widget URL through the ramps API proxy (`POST /providers/{providerId}/widget-url`) so the partner API key never leaves the backend. Requires the host to delegate `AuthenticationController:getBearerToken` to the `TransakService` messenger. ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add a `rampsApiBaseUrlOverride` constructor option to `TransakService` (same semantics as `RampsService`'s `baseUrlOverride`) that overrides the ramps API base URL for local development; it applies to the orders and widget-url proxy requests only. ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add a `referrerDomain` constructor option to `TransakService` that identifies the client to Transak in `widgetParams` (defaults to `metamask.io`). ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add `TransakEnvironment.Development`, which routes ramps API requests to `https://on-ramp.dev-api.cx.metamask.io` while direct Transak API calls use the staging gateway. ([#9632](https://github.com/MetaMask/core/pull/9632))
 
 ### Deprecated
 
-- Deprecate `TransakService.requestOtt` and `TransakService.generatePaymentWidgetUrl` in favor of `createWidgetUrl`; the OTT flow requires the partner API key on the client.
+- Deprecate `TransakService.requestOtt` and `TransakService.generatePaymentWidgetUrl` in favor of `createWidgetUrl`; the OTT flow requires the partner API key on the client. ([#9632](https://github.com/MetaMask/core/pull/9632))
 
 ## [17.0.0]
 
