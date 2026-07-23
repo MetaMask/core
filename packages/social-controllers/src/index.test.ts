@@ -1,4 +1,4 @@
-import { SocialController, SocialService, socialServiceName } from '.';
+import { SocialController, SocialService, socialServiceName } from './index.js';
 
 describe('social-controllers exports', () => {
   it('exports SocialController class', () => {

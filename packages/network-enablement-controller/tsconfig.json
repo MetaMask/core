@@ -6,6 +6,7 @@
   },
   "references": [
     { "path": "../base-controller" },
+    { "path": "../config-registry-controller" },
     { "path": "../network-controller" },
     { "path": "../multichain-network-controller" },
     { "path": "../controller-utils" },

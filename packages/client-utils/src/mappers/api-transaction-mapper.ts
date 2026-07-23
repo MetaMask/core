@@ -10,15 +10,15 @@ import type {
   Status,
   TokenAmount,
   ValueTransfer,
-} from '../types';
+} from '../types.js';
 import {
   nativeTokenAddress,
   supplyMethodIds,
   swapsWrappedTokensAddresses,
   withdrawMethodIds,
   wrapMethodIds,
-} from './constants';
-import { formatAddressToAssetId, getNativeAsset } from './helpers/caip';
+} from './constants.js';
+import { formatAddressToAssetId, getNativeAsset } from './helpers/caip.js';
 import {
   getFees,
   getNftPaymentTransfer,
@@ -26,7 +26,7 @@ import {
   getTokenMetadataFromKnownToken,
   parseValueTransfers,
   withFallbackTokenAssetId,
-} from './helpers/transactions';
+} from './helpers/transactions.js';
 
 /**
  * Maps an indexed API transaction into the shared activity item shape.

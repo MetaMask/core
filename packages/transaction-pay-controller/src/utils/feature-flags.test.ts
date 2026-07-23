@@ -35,6 +35,7 @@ import {
   isChainExcludedFromInfura,
   isEIP7702Chain,
   isRelayExecuteEnabled,
+  isRelayValidationEnabled,
   getFeatureFlags,
   getGasBuffer,
   getHyperliquidActivationFeeConfig,
@@ -511,6 +512,36 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('isRelayValidationEnabled', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isRelayValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when validationEnabled is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: { relay: { validationEnabled: true } },
+          },
+        },
+      });
+      expect(isRelayValidationEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when validationEnabled is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: { relay: { validationEnabled: false } },
+          },
+        },
+      });
+      expect(isRelayValidationEnabled(messenger)).toBe(false);
     });
   });
 

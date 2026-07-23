@@ -22,7 +22,7 @@ import {
   type as structType,
 } from '@metamask/superstruct';
 
-import { serviceName, SocialServiceErrorMessage } from './social-constants';
+import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
   FeedResponse,
   FetchFeedOptions,
@@ -41,9 +41,9 @@ import type {
   TraderProfileResponse,
   UnfollowOptions,
   UnfollowResponse,
-} from './social-types';
-import { TradeStruct } from './social-types';
-import type { SocialServiceMethodActions } from './SocialService-method-action-types';
+} from './social-types.js';
+import { TradeStruct } from './social-types.js';
+import type { SocialServiceMethodActions } from './SocialService-method-action-types.js';
 
 // ---------------------------------------------------------------------------
 // Superstruct validation schemas

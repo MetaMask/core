@@ -1,13 +1,13 @@
 import log from 'loglevel';
 
-import { toRawAPINotification } from '../../shared/to-raw-notification';
+import { toRawAPINotification } from '../../shared/to-raw-notification.js';
 import type {
   NormalisedAPINotification,
   Schema,
   UnprocessedRawNotification,
-} from '../types/notification-api';
-import { makeApiCall } from '../utils/utils';
-import { notificationsConfigCache } from './notification-config-cache';
+} from '../types/notification-api/index.js';
+import { makeApiCall } from '../utils/utils.js';
+import { notificationsConfigCache } from './notification-config-cache.js';
 
 export type ENV = 'prd' | 'uat' | 'dev';
 
