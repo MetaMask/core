@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SubscriptionController } from './SubscriptionController';
+import type { SubscriptionController } from './SubscriptionController.js';
 
 /**
  * Gets the pricing information from the subscription service.
