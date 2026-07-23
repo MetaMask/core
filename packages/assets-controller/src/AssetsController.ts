@@ -3418,6 +3418,10 @@ export class AssetsController extends BaseController<
   // ============================================================================
 
   async #handleAccountGroupChanged(): Promise<void> {
+    const gutoStart = Date.now();
+    console.log(
+      '[GUTO PERFORMANCE LOG] AssetsController.#handleAccountGroupChanged START',
+    );
     const accounts = this.#getSelectedAccounts();
 
     log('Account group changed', {
@@ -3427,13 +3431,27 @@ export class AssetsController extends BaseController<
 
     this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
 
+    const gutoMutexStart = Date.now();
     const releaseLock = await this.#accountRefreshMutex.acquire();
+    console.log(
+      `[GUTO PERFORMANCE LOG] AssetsController accountRefreshMutex wait took ${
+        Date.now() - gutoMutexStart
+      }ms`,
+    );
     try {
       if (accounts.length > 0) {
+        const gutoGetAssetsStart = Date.now();
         await this.getAssets(accounts, {
           chainIds: [...this.#enabledChains],
           forceUpdate: true,
         });
+        console.log(
+          `[GUTO PERFORMANCE LOG] AssetsController.getAssets (accounts=${
+            accounts.length
+          }, chains=${this.#enabledChains.size}) took ${
+            Date.now() - gutoGetAssetsStart
+          }ms`,
+        );
       }
 
       this.#ensureNativeBalancesDefaultZero();
@@ -3444,6 +3462,11 @@ export class AssetsController extends BaseController<
     } finally {
       releaseLock();
     }
+    console.log(
+      `[GUTO PERFORMANCE LOG] AssetsController.#handleAccountGroupChanged END (total) took ${
+        Date.now() - gutoStart
+      }ms`,
+    );
   }
 
   async #handleEnabledNetworksChanged(

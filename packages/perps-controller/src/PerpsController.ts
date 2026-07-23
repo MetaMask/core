@@ -3307,6 +3307,10 @@ export class PerpsController extends BaseController<
 
     // Watch for selected account changes and selected account group changes.
     const accountChangeHandler = (): void => {
+      const gutoStart = Date.now();
+      console.log(
+        '[GUTO PERFORMANCE LOG] PerpsController accountChangeHandler START',
+      );
       const evmAccount = getSelectedEvmAccountFromMessenger(this.messenger);
       const currentAddress = evmAccount?.address ?? null;
 
@@ -3333,11 +3337,24 @@ export class PerpsController extends BaseController<
           });
         // Only preload if the new account is an EVM account
         if (currentAddress) {
-          this.#performUserDataPreload().catch(() => {
-            /* fire-and-forget */
-          });
+          this.#performUserDataPreload()
+            .then(() =>
+              console.log(
+                `[GUTO PERFORMANCE LOG] PerpsController.#performUserDataPreload resolved in ${
+                  Date.now() - gutoStart
+                }ms`,
+              ),
+            )
+            .catch(() => {
+              /* fire-and-forget */
+            });
         }
       }
+      console.log(
+        `[GUTO PERFORMANCE LOG] PerpsController accountChangeHandler END (sync) took ${
+          Date.now() - gutoStart
+        }ms hasStaleEntries=${hasStaleEntries}`,
+      );
     };
     this.messenger.subscribe(
       'AccountsController:selectedAccountChange',

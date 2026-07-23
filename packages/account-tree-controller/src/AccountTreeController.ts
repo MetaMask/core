@@ -1308,6 +1308,12 @@ export class AccountTreeController extends BaseController<
       throw new Error('No accounts found in group');
     }
 
+    const gutoSetGroupStart = Date.now();
+    console.log(
+      '[GUTO PERFORMANCE LOG] AccountTreeController.#setSelectedAccountGroup START',
+    );
+
+    const gutoUpdateStart = Date.now();
     this.update((state) => {
       // Update our selected account group first.
       state.selectedAccountGroup = groupId;
@@ -1329,25 +1335,48 @@ export class AccountTreeController extends BaseController<
         ].metadata.lastSelected = now;
       }
     });
+    console.log(
+      `[GUTO PERFORMANCE LOG] AccountTreeController state.update (sync) took ${
+        Date.now() - gutoUpdateStart
+      }ms`,
+    );
 
     log(`Selected group is now: [${this.state.selectedAccountGroup}]`);
 
+    const gutoPublishStart = Date.now();
     this.messenger.publish(
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
       previousSelectedAccountGroup,
     );
+    console.log(
+      `[GUTO PERFORMANCE LOG] AccountTreeController publish selectedAccountGroupChange (sync subscriber fan-out) took ${
+        Date.now() - gutoPublishStart
+      }ms`,
+    );
 
     if (forwardSelectedAccount) {
       // Update AccountsController - this will trigger selectedAccountChange event,
       // but our handler is idempotent so it won't cause infinite loop
+      const gutoSetAccountStart = Date.now();
       this.messenger.call(
         'AccountsController:setSelectedAccount',
         accountToSelect,
       );
+      console.log(
+        `[GUTO PERFORMANCE LOG] AccountTreeController AccountsController:setSelectedAccount (sync selectedAccountChange fan-out) took ${
+          Date.now() - gutoSetAccountStart
+        }ms`,
+      );
 
       log(`Selected account is now: ${accountToSelect}`);
     }
+
+    console.log(
+      `[GUTO PERFORMANCE LOG] AccountTreeController.#setSelectedAccountGroup END (total, sync) took ${
+        Date.now() - gutoSetGroupStart
+      }ms`,
+    );
   }
 
   /**

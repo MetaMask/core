@@ -329,11 +329,24 @@ export class SnapAccountService {
    * @param groupId - The ID of the newly selected account group.
    */
   #handleSelectedAccountGroupChange(groupId: AccountGroupId | ''): void {
-    // eslint-disable-next-line no-void
-    void this.#forwardSelectedAccounts(
+    const gutoStart = Date.now();
+    console.log(
+      '[GUTO PERFORMANCE LOG] SnapAccountService.#handleSelectedAccountGroupChange START',
+    );
+    this.#forwardSelectedAccounts(
       groupId,
       this.#getAccountGroup(groupId)?.accounts,
-    );
+    )
+      .then(() =>
+        console.log(
+          `[GUTO PERFORMANCE LOG] SnapAccountService.#forwardSelectedAccounts resolved in ${
+            Date.now() - gutoStart
+          }ms`,
+        ),
+      )
+      .catch(() => {
+        /* fire-and-forget */
+      });
   }
 
   /**
@@ -540,7 +553,7 @@ export class SnapAccountService {
           ({ keyringV2 }) =>
             keyringV2 &&
             isSnapKeyring(keyringV2) &&
-            keyringV2.snapId === snapId,
+            (keyringV2 as SnapKeyring).snapId === snapId,
         );
 
         if (!hasKeyring) {
@@ -577,7 +590,7 @@ export class SnapAccountService {
       action,
       {
         filter: (keyring): keyring is SnapKeyring =>
-          isSnapKeyring(keyring) && keyring.snapId === snapId,
+          isSnapKeyring(keyring) && (keyring as SnapKeyring).snapId === snapId,
       },
       async ({ keyring }) => operation(keyring as SnapKeyring),
     ) as Result;

@@ -193,6 +193,10 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
       async () => {
+        const gutoStart = Date.now();
+        console.log(
+          '[GUTO PERFORMANCE LOG] DeFiPositionsController selectedAccountGroupChange handler START',
+        );
         const selectedAddress = this.#getSelectedEvmAdress();
 
         if (!selectedAddress) {
@@ -200,6 +204,11 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
         }
 
         await this.#updateAccountPositions(selectedAddress);
+        console.log(
+          `[GUTO PERFORMANCE LOG] DeFiPositionsController.#updateAccountPositions resolved in ${
+            Date.now() - gutoStart
+          }ms`,
+        );
       },
     );
 
