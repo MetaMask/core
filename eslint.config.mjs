@@ -432,6 +432,7 @@ const config = createConfig([
       'packages/permission-controller/**',
       'packages/permission-log-controller/**',
       'packages/perps-controller/**',
+      'packages/phishing-controller/**',
       'packages/platform-api-docs/**',
       'packages/polling-controller/**',
       'packages/preferences-controller/**',

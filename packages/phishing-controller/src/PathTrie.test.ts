@@ -5,8 +5,8 @@ import {
   insertToTrie,
   isTerminal,
   matchedPathPrefix,
-} from './PathTrie';
-import type { PathTrie } from './PathTrie';
+} from './PathTrie.js';
+import type { PathTrie } from './PathTrie.js';
 
 const emptyPathTrie: PathTrie = {};
 
