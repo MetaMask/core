@@ -17,11 +17,7 @@ import type {
 } from '@metamask/network-controller';
 import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
-import {
-  isCaipChainId,
-  KnownCaipNamespace,
-  parseCaipChainId,
-} from '@metamask/utils';
+import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
 import type { NetworkEnablementControllerMethodActions } from './NetworkEnablementController-method-action-types';
