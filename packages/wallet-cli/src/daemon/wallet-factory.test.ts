@@ -108,6 +108,15 @@ describe('createWallet', () => {
       'test-infura-id',
     );
     expect(
+      instanceOptions.networkController.analyticsOptions.isRpcEndpointUrlPublic(
+        'https://example.test',
+      ),
+    ).toBe(false);
+    expect(
+      instanceOptions.networkController.analyticsOptions
+        .rpcServiceEventsSampleRate,
+    ).toBe(0);
+    expect(
       instanceOptions.remoteFeatureFlagController.clientConfigApiService,
     ).toBeInstanceOf(ClientConfigApiService);
     expect(

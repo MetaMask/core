@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Wire analytics into the default `NetworkController` initialization ([#9270](https://github.com/MetaMask/core/pull/9270))
+  - Adds a required `instanceOptions.networkController.analyticsOptions` option (`isRpcEndpointUrlPublic` and `rpcServiceEventsSampleRate`) that the controller uses to emit `RPC Service Unavailable` and `RPC Service Degraded` events.
+  - Delegates `AnalyticsController:getState` and `AnalyticsController:trackEvent` to the network controller messenger, so the root messenger must provide those actions.
+
 ## [8.0.0]
 
 ### Added

@@ -90,6 +90,12 @@ function buildInstanceOptions(
     },
     networkController: {
       infuraProjectId,
+      // The CLI does not report analytics, so no endpoint is treated as public
+      // and no events are sampled.
+      analyticsOptions: {
+        isRpcEndpointUrlPublic: (): boolean => false,
+        rpcServiceEventsSampleRate: 0,
+      },
     },
     remoteFeatureFlagController: {
       clientConfigApiService: new ClientConfigApiService({
