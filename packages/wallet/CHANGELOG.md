@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Wire `ShieldController` into the default wallet initialization ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - Adds required `shieldController` slot to `instanceOptions` with `baseUrl` and `fetchFunction` (or an injected `backend` override)
+  - Default backend construction uses `ShieldRemoteBackend` with optional `getAccessToken`, `captureException`, polling, history limits, and `normalizeSignatureRequest`
+  - Delegates `AuthenticationController:getBearerToken` plus `TransactionController:stateChange` and `SignatureController:stateChange` on the shared messenger bus
+  - Hosts must register `AuthenticationController` and `SignatureController` on the wallet root messenger and explicitly call `ShieldController:start` after wiring
+
 ## [8.0.0]
 
 ### Added

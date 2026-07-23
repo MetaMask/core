@@ -1,6 +1,10 @@
 import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
+import {
+  getDefaultShieldControllerState,
+  ShieldController,
+} from '@metamask/shield-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
@@ -8,6 +12,7 @@ import { webcrypto } from 'crypto';
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor.js';
 import * as initializationModule from './initialization/initialization.js';
 import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
+import type { WalletOptions } from './types.js';
 import { importSecretRecoveryPhrase } from './utilities.js';
 import { Wallet } from './Wallet.js';
 
@@ -23,23 +28,39 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
   },
 };
 
+const SHIELD_CONTROLLER_OPTIONS = {
+  baseUrl: 'https://ruleset-engine.api.cx.metamask.io',
+  fetchFunction: jest.fn(),
+  backend: {
+    checkCoverage: jest.fn(),
+    checkSignatureCoverage: jest.fn(),
+    logSignature: jest.fn(),
+    logTransaction: jest.fn(),
+  },
+};
+
+function getInstanceOptions(): WalletOptions['instanceOptions'] {
+  return {
+    connectivityController: {
+      connectivityAdapter: new AlwaysOnlineAdapter(),
+    },
+    gasFeeController: {
+      clientId: 'test',
+    },
+    networkController: {
+      infuraProjectId: 'fake-infura-project-id',
+    },
+    storageService: {
+      storage: new InMemoryStorageAdapter(),
+    },
+    remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    shieldController: SHIELD_CONTROLLER_OPTIONS,
+  };
+}
+
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
-    instanceOptions: {
-      connectivityController: {
-        connectivityAdapter: new AlwaysOnlineAdapter(),
-      },
-      gasFeeController: {
-        clientId: 'test',
-      },
-      networkController: {
-        infuraProjectId: 'fake-infura-project-id',
-      },
-      storageService: {
-        storage: new InMemoryStorageAdapter(),
-      },
-      remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-    },
+    instanceOptions: getInstanceOptions(),
   });
 
   await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_SRP);
@@ -89,22 +110,10 @@ describe('Wallet', () => {
   it('supports passing instance options', async () => {
     const wallet = new Wallet({
       instanceOptions: {
-        connectivityController: {
-          connectivityAdapter: new AlwaysOnlineAdapter(),
-        },
-        gasFeeController: {
-          clientId: 'test',
-        },
+        ...getInstanceOptions(),
         keyringController: {
           encryptor: new MockEncryptor(),
         },
-        networkController: {
-          infuraProjectId: 'fake-infura-project-id',
-        },
-        storageService: {
-          storage: new InMemoryStorageAdapter(),
-        },
-        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
       },
     });
 
@@ -143,21 +152,7 @@ describe('Wallet', () => {
           init: (): DummyService => new DummyService(),
         },
       ],
-      instanceOptions: {
-        connectivityController: {
-          connectivityAdapter: new AlwaysOnlineAdapter(),
-        },
-        gasFeeController: {
-          clientId: 'test',
-        },
-        networkController: {
-          infuraProjectId: 'fake-infura-project-id',
-        },
-        storageService: {
-          storage: new InMemoryStorageAdapter(),
-        },
-        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-      },
+      instanceOptions: getInstanceOptions(),
     });
     const { state } = wallet;
 
@@ -189,21 +184,7 @@ describe('Wallet', () => {
     });
 
     const wallet = new Wallet({
-      instanceOptions: {
-        connectivityController: {
-          connectivityAdapter: new AlwaysOnlineAdapter(),
-        },
-        gasFeeController: {
-          clientId: 'test',
-        },
-        networkController: {
-          infuraProjectId: 'fake-infura-project-id',
-        },
-        storageService: {
-          storage: new InMemoryStorageAdapter(),
-        },
-        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-      },
+      instanceOptions: getInstanceOptions(),
     });
 
     expect(wallet.controllerMetadata).toStrictEqual({
@@ -302,21 +283,7 @@ describe('Wallet', () => {
             addressBook: { '0x1': { [ADDRESS]: entry } },
           },
         },
-        instanceOptions: {
-          connectivityController: {
-            connectivityAdapter: new AlwaysOnlineAdapter(),
-          },
-          gasFeeController: {
-            clientId: 'test',
-          },
-          networkController: {
-            infuraProjectId: 'fake-infura-project-id',
-          },
-          storageService: {
-            storage: new InMemoryStorageAdapter(),
-          },
-          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-        },
+        instanceOptions: getInstanceOptions(),
       });
 
       expect(
@@ -337,21 +304,7 @@ describe('Wallet', () => {
   describe('ConnectivityController', () => {
     it('reports online connectivity status', () => {
       const wallet = new Wallet({
-        instanceOptions: {
-          connectivityController: {
-            connectivityAdapter: new AlwaysOnlineAdapter(),
-          },
-          gasFeeController: {
-            clientId: 'test',
-          },
-          networkController: {
-            infuraProjectId: 'fake-infura-project-id',
-          },
-          storageService: {
-            storage: new InMemoryStorageAdapter(),
-          },
-          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-        },
+        instanceOptions: getInstanceOptions(),
       });
 
       expect(wallet.state.ConnectivityController.connectivityStatus).toBe(
@@ -380,21 +333,7 @@ describe('Wallet', () => {
             vault,
           },
         },
-        instanceOptions: {
-          connectivityController: {
-            connectivityAdapter: new AlwaysOnlineAdapter(),
-          },
-          gasFeeController: {
-            clientId: 'test',
-          },
-          networkController: {
-            infuraProjectId: 'fake-infura-project-id',
-          },
-          storageService: {
-            storage: new InMemoryStorageAdapter(),
-          },
-          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-        },
+        instanceOptions: getInstanceOptions(),
       });
 
       await wallet.messenger.call(
@@ -454,6 +393,19 @@ describe('Wallet', () => {
     });
   });
 
+  describe('ShieldController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('ShieldController')).toBeInstanceOf(
+        ShieldController,
+      );
+      expect(wallet.messenger.call('ShieldController:getState')).toStrictEqual(
+        getDefaultShieldControllerState(),
+      );
+    });
+  });
+
   describe('RemoteFeatureFlagController', () => {
     it('is wired and exposes its state on the wallet messenger', async () => {
       const wallet = await setupWallet();
@@ -472,17 +424,8 @@ describe('Wallet', () => {
     it('routes injected instanceOptions through to the controller', async () => {
       const wallet = new Wallet({
         instanceOptions: {
-          connectivityController: {
-            connectivityAdapter: new AlwaysOnlineAdapter(),
-          },
-          gasFeeController: {
-            clientId: 'test',
-          },
-          networkController: {
-            infuraProjectId: 'fake-infura-project-id',
-          },
+          ...getInstanceOptions(),
           keyringController: { encryptor: new MockEncryptor() },
-          storageService: { storage: new InMemoryStorageAdapter() },
           remoteFeatureFlagController: {
             clientConfigApiService: {
               fetchRemoteFeatureFlags: async (): Promise<{

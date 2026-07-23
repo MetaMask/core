@@ -125,6 +125,16 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    shieldController: {
+      baseUrl: 'https://ruleset-engine.api.cx.metamask.io',
+      fetchFunction: jest.fn(),
+      backend: {
+        checkCoverage: jest.fn(),
+        checkSignatureCoverage: jest.fn(),
+        logSignature: jest.fn(),
+        logTransaction: jest.fn(),
+      },
+    },
   };
 }
 

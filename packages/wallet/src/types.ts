@@ -13,6 +13,7 @@ import type { NetworkControllerInstanceOptions } from './initialization/instance
 import type { PasskeyControllerInstanceOptions } from './initialization/instances/passkey-controller/types.js';
 import type { RemoteFeatureFlagControllerInstanceOptions } from './initialization/instances/remote-feature-flag-controller/types.js';
 import type { SeedlessOnboardingControllerInstanceOptions } from './initialization/instances/seedless-onboarding-controller/types.js';
+import type { ShieldControllerInstanceOptions } from './initialization/instances/shield-controller/types.js';
 import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types.js';
 import type { TransactionControllerInstanceOptions } from './initialization/instances/transaction-controller/types.js';
 import type { InitializationConfiguration } from './initialization/types.js';
@@ -38,4 +39,5 @@ export type InstanceSpecificOptions = {
   transactionController?: TransactionControllerInstanceOptions;
   passkeyController?: PasskeyControllerInstanceOptions;
   seedlessOnboardingController?: SeedlessOnboardingControllerInstanceOptions;
+  shieldController: ShieldControllerInstanceOptions;
 };
