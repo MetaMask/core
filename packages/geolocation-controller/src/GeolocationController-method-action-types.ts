@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { GeolocationController } from './GeolocationController';
+import type { GeolocationController } from './GeolocationController.js';
 
 /**
  * Returns the geolocation code. Delegates to the

@@ -5,8 +5,8 @@ export type {
   AppMetadataControllerMessenger,
   AppMetadataControllerState,
   AppMetadataControllerStateChangeEvent,
-} from './AppMetadataController';
+} from './AppMetadataController.js';
 export {
   getDefaultAppMetadataControllerState,
   AppMetadataController,
-} from './AppMetadataController';
+} from './AppMetadataController.js';
