@@ -457,6 +457,7 @@ const config = createConfig([
       'packages/seedless-onboarding-controller/**',
       'packages/selected-network-controller/**',
       'packages/sentinel-api-service/**',
+      'packages/shield-controller/**',
       'packages/signature-controller/**',
       'packages/smart-transactions-controller/**',
       'packages/snap-account-service/**',

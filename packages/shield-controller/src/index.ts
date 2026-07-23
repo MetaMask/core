@@ -3,7 +3,7 @@ export type {
   LogSignatureRequest,
   LogTransactionRequest,
   NormalizeSignatureRequestFn,
-} from './types';
+} from './types.js';
 export type {
   ShieldControllerActions,
   ShieldControllerEvents,
@@ -12,16 +12,16 @@ export type {
   ShieldControllerGetStateAction,
   ShieldControllerCoverageResultReceivedEvent,
   ShieldControllerStateChangeEvent,
-} from './ShieldController';
+} from './ShieldController.js';
 export type {
   ShieldControllerStartAction,
   ShieldControllerStopAction,
   ShieldControllerClearStateAction,
   ShieldControllerCheckCoverageAction,
   ShieldControllerCheckSignatureCoverageAction,
-} from './ShieldController-method-action-types';
+} from './ShieldController-method-action-types.js';
 export {
   ShieldController,
   getDefaultShieldControllerState,
-} from './ShieldController';
-export { ShieldRemoteBackend, parseSignatureRequestMethod } from './backend';
+} from './ShieldController.js';
+export { ShieldRemoteBackend, parseSignatureRequestMethod } from './backend.js';
