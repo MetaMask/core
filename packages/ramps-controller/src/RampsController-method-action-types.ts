@@ -216,6 +216,13 @@ export type RampsControllerSetSelectedPaymentMethodAction = {
  * passed `providers` list is filtered to those supporting the region and
  * asset. If nothing qualifies, `getQuotes` returns an empty response
  * instead of quoting other providers.
+ * @param options.surface - Optional consumer surface key for the
+ * `moneyHeadlessAllProviders` flag payload's `surfaces` map (canonical
+ * values: `money` | `perps` | `predictions`). Selects that surface's
+ * provider allowlist over the payload's top-level `providerIds`. Only
+ * consulted on the widened all-providers path; has no effect on fetching
+ * or caching, and a surface absent from the payload falls back to the
+ * top-level list.
  * @param options.redirectUrl - Optional redirect URL after order completion.
  * @param options.action - The ramp action type. Defaults to 'buy'.
  * @param options.forceRefresh - Whether to bypass cache.

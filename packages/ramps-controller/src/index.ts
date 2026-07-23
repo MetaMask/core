@@ -140,9 +140,16 @@ export {
 export { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
 export type { RequestSelectorResult } from './selectors.js';
 export { createRequestSelector } from './selectors.js';
-export type { HeadlessFeatureFlagsLookup } from './featureFlags.js';
+export type {
+  HeadlessAllowlistSurface,
+  HeadlessFeatureFlagsLookup,
+} from './featureFlags.js';
 export {
+  HEADLESS_ALLOWLIST_SURFACES,
+  HEADLESS_ALL_PROVIDERS_FEATURE_VERSION,
   MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
+  getHeadlessAllProvidersMinimumVersion,
+  getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
 } from './featureFlags.js';
 export {
