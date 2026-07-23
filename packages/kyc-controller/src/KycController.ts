@@ -403,11 +403,11 @@ export class KycController extends BaseController<
    */
   async loadDisclaimers(params?: { country?: string }): Promise<void> {
     try {
-      const cachedCountry = params?.country ?? this.state.geoCountry;
       const country =
-        cachedCountry ??
+        params?.country ??
+        this.state.geoCountry ??
         (await this.messenger.call('KycService:getGeoCountry'));
-      if (!cachedCountry) {
+      if (country !== this.state.geoCountry) {
         this.update((state) => {
           state.geoCountry = country;
         });

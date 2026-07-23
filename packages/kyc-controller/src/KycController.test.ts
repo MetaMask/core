@@ -147,6 +147,37 @@ describe('KycController', () => {
       });
     });
 
+    it('caches the provided country override in geoCountry', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.fetchDisclaimers.mockResolvedValue([]);
+
+        await controller.loadDisclaimers({ country: 'USA' });
+
+        expect(controller.state.geoCountry).toBe('USA');
+      });
+    });
+
+    it('lets a later checkKycRequired reuse the overridden country without an override', async () => {
+      await withController(
+        { options: { state: { accessToken: 'a' } } },
+        async ({ controller, handlers }) => {
+          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
+
+          await controller.loadDisclaimers({ country: 'USA' });
+          await controller.checkKycRequired({ product: 'ramps' });
+
+          expect(handlers.getGeoCountry).not.toHaveBeenCalled();
+          expect(handlers.checkKycRequired).toHaveBeenCalledWith({
+            accessToken: 'a',
+            country: 'USA',
+            capabilities: [{ product: 'ramps' }],
+          });
+          expect(controller.state.error).toBeNull();
+        },
+      );
+    });
+
     it('uses the cached geoCountry when no country is provided', async () => {
       await withController(
         { options: { state: { geoCountry: 'USA' } } },
