@@ -17,7 +17,7 @@ import {
  *
  * Usage: `tsx scripts/generate-partial-build-tsconfig.mts <merge-base-sha> [<head-sha>]`
  */
-async function main() {
+async function main(): Promise<void> {
   const mergeBase = process.argv[2];
   if (!mergeBase) {
     console.error(
