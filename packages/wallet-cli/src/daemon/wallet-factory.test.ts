@@ -550,7 +550,7 @@ describe('createWallet', () => {
           'Auto-approval unsubscribe failed during teardown',
         ),
       );
-      expect((wallet.destroy as jest.Mock)).toHaveBeenCalledTimes(1);
+      expect(wallet.destroy as jest.Mock).toHaveBeenCalledTimes(1);
       expect(closeSpy).toHaveBeenCalled();
     });
 
