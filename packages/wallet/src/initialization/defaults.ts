@@ -1,4 +1,8 @@
 import type {
+  AnalyticsControllerGetStateAction,
+  AnalyticsControllerTrackEventAction,
+} from '@metamask/analytics-controller';
+import type {
   ActionConstraint,
   EventConstraint,
   Messenger,
@@ -55,7 +59,18 @@ export type DefaultInstances = {
   >]: ExtractInstance<DefaultConfigs[Key]>;
 };
 
-export type DefaultActions = MessengerActions<AllDefaultMessengers>;
+/**
+ * `NetworkController` calls `AnalyticsController:getState` and
+ * `AnalyticsController:trackEvent` to emit RPC service analytics. `Wallet` does
+ * not own an `AnalyticsController`, so these are declared explicitly here: any
+ * consumer that constructs a `Wallet` must register handlers for them on the
+ * root messenger (a consumer that does not use analytics can register handlers
+ * that do nothing).
+ */
+export type DefaultActions =
+  | MessengerActions<AllDefaultMessengers>
+  | AnalyticsControllerGetStateAction
+  | AnalyticsControllerTrackEventAction;
 
 export type DefaultEvents = MessengerEvents<AllDefaultMessengers>;
 

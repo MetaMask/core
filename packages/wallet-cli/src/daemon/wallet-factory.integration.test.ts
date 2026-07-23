@@ -60,6 +60,22 @@ describe('createWallet (real Wallet, in-memory)', () => {
 
       const { keyrings } = wallet.messenger.call('KeyringController:getState');
       expect(keyrings[0]?.accounts[0]).toMatch(/^0x[0-9a-fA-F]{40}$/u);
+
+      // The daemon registers stub `AnalyticsController` handlers (it does not
+      // report analytics); `getState` returns an empty analytics ID and
+      // `trackEvent` does nothing.
+      expect(
+        wallet.messenger.call('AnalyticsController:getState').analyticsId,
+      ).toBe('');
+      expect(
+        wallet.messenger.call('AnalyticsController:trackEvent', {
+          name: 'test',
+          properties: {},
+          sensitiveProperties: {},
+          saveDataRecording: false,
+          hasProperties: false,
+        }),
+      ).toBeUndefined();
     } finally {
       await dispose();
     }

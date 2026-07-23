@@ -9192,8 +9192,10 @@ __metadata:
   dependencies:
     "@inquirer/confirm": "npm:^6.0.11"
     "@inquirer/password": "npm:^5.1.1"
+    "@metamask/analytics-controller": "npm:^1.2.1"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
+    "@metamask/messenger": "npm:^2.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/scure-bip39": "npm:^2.1.1"
@@ -9257,6 +9259,7 @@ __metadata:
   dependencies:
     "@metamask/accounts-controller": "npm:^39.0.5"
     "@metamask/address-book-controller": "npm:^7.1.2"
+    "@metamask/analytics-controller": "npm:^1.2.1"
     "@metamask/approval-controller": "npm:^9.0.2"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
