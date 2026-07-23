@@ -1,14 +1,14 @@
 export {
   ClaimsController,
   getDefaultClaimsControllerState,
-} from './ClaimsController';
+} from './ClaimsController.js';
 
 export type {
   ClaimsControllerGetStateAction,
   ClaimsControllerActions,
   ClaimsControllerStateChangeEvent,
   ClaimsControllerMessenger,
-} from './ClaimsController';
+} from './ClaimsController.js';
 
 export type {
   ClaimsControllerFetchClaimsConfigurationsAction,
@@ -20,7 +20,7 @@ export type {
   ClaimsControllerDeleteClaimDraftAction,
   ClaimsControllerDeleteAllClaimDraftsAction,
   ClaimsControllerClearStateAction,
-} from './ClaimsController-method-action-types';
+} from './ClaimsController-method-action-types.js';
 
 export type {
   Claim,
@@ -30,9 +30,9 @@ export type {
   CreateClaimRequest,
   SubmitClaimConfig,
   ClaimDraft,
-} from './types';
+} from './types.js';
 
-export { ClaimsService } from './ClaimsService';
+export { ClaimsService } from './ClaimsService.js';
 
 export type {
   ClaimsServiceFetchClaimsConfigurationsAction,
@@ -43,7 +43,7 @@ export type {
   ClaimsServiceGenerateMessageForClaimSignatureAction,
   ClaimsServiceActions,
   ClaimsServiceMessenger,
-} from './ClaimsService';
+} from './ClaimsService.js';
 
 export {
   ClaimStatusEnum,
@@ -52,4 +52,4 @@ export {
   DEFAULT_CLAIMS_CONFIGURATIONS,
   ClaimsServiceErrorMessages,
   CLAIMS_API_URL_MAP,
-} from './constants';
+} from './constants.js';

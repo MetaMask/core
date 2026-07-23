@@ -1,17 +1,17 @@
-import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger';
-import { ClaimsService } from './ClaimsService';
+import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger.js';
+import { ClaimsService } from './ClaimsService.js';
 import {
   CLAIMS_API_URL_MAP,
   ClaimsServiceErrorMessages,
   ClaimStatusEnum,
   Env,
-} from './constants';
+} from './constants.js';
 import type {
   Claim,
   ClaimsConfigurationsResponse,
   GenerateSignatureMessageResponse,
-} from './types';
-import { createSentryError } from './utils';
+} from './types.js';
+import { createSentryError } from './utils.js';
 
 const mockAuthenticationControllerGetBearerToken = jest.fn();
 const mockFetchFunction = jest.fn();
