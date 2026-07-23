@@ -395,6 +395,7 @@ const config = createConfig([
       'packages/base-data-service/**',
       'packages/build-utils/**',
       'packages/chain-agnostic-permission/**',
+      'packages/chomp-api-service/**',
       'packages/client-utils/**',
       'packages/compliance-controller/**',
       'packages/composable-controller/**',

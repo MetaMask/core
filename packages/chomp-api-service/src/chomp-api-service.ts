@@ -29,7 +29,7 @@ import {
 } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
-import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types';
+import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types.js';
 import type {
   AssociateAddressParams,
   AssociateAddressResponse,
@@ -45,7 +45,7 @@ import type {
   ServiceDetailsResponse,
   VerifyDelegationParams,
   VerifyDelegationResponse,
-} from './types';
+} from './types.js';
 
 // === GENERAL ===
 
