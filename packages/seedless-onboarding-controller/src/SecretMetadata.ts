@@ -10,9 +10,9 @@ import {
 import {
   SeedlessOnboardingControllerErrorMessage,
   SecretType,
-} from './constants';
-import type { SecretDataType } from './types';
-import { getSecretTypeFromDataType } from './utils';
+} from './constants.js';
+import type { SecretDataType } from './types.js';
+import { getSecretTypeFromDataType } from './utils.js';
 
 type ISecretMetadata<DataType extends SecretDataType = Uint8Array> = {
   data: DataType;

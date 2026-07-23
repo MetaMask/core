@@ -454,6 +454,7 @@ const config = createConfig([
       'packages/react-data-query/**',
       'packages/remote-feature-flag-controller/**',
       'packages/sample-controllers/**',
+      'packages/seedless-onboarding-controller/**',
       'packages/selected-network-controller/**',
       'packages/sentinel-api-service/**',
       'packages/signature-controller/**',
