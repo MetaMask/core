@@ -675,9 +675,6 @@ describe('Bridge Selectors', () => {
                     priceImpact: {
                       usd: '8.9',
                     },
-                    cost: {
-                      usd: '999',
-                    },
                   }),
                 },
               },
@@ -701,7 +698,6 @@ describe('Bridge Selectors', () => {
         bridgeFeesPerGas: {
           estimatedBaseFeeInDecGwei: '0',
           feePerGasInDecGwei: '.1',
-          maxFeePerGasInDecGwei: '.2',
         },
         destTokenExchangeRate: { exchangeRate: '200', usdExchangeRate: '1' },
         nativeExchangeRate: { exchangeRate: '1980', usdExchangeRate: '10' },
@@ -715,7 +711,7 @@ describe('Bridge Selectors', () => {
       expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
 
       expect(
-        result.recommendedQuote?.quote.priceData?.cost?.valueInCurrency,
+        result.recommendedQuote?.quote.priceData?.priceImpact?.valueInCurrency,
       ).toBe('1758.014454');
       expect(
         result.recommendedQuote?.quote.feeData?.relayer?.[0]?.amount,
@@ -820,7 +816,7 @@ describe('Bridge Selectors', () => {
         mergeQuoteMetadata(expectedQuoteV2, expectedQuoteMetadata),
       );
       expect(
-        result.sortedQuotes[0].quote.priceData?.cost?.valueInCurrency,
+        result.sortedQuotes[0].quote.priceData?.priceImpact?.valueInCurrency,
       ).toBeUndefined();
       expect(result.recommendedQuote?.quote.dest.amount).toBe(
         '2100000000000000000',
@@ -899,7 +895,7 @@ describe('Bridge Selectors', () => {
       const expectedQuoteV2 = quotesWithPriceImpact[1];
 
       expect(
-        result.sortedQuotes[0].quote.priceData?.cost?.valueInCurrency,
+        result.sortedQuotes[0].quote.priceData?.priceImpact?.valueInCurrency,
       ).toBeUndefined();
       expect(result.recommendedQuote).toStrictEqual(
         mergeQuoteMetadata(expectedQuoteV2, expectedQuoteMetadata),
@@ -1433,7 +1429,6 @@ describe('Bridge Selectors', () => {
           bridgeFeesPerGas: {
             estimatedBaseFeeInDecGwei: '0',
             feePerGasInDecGwei: '.1',
-            maxFeePerGasInDecGwei: '.2',
           },
           destTokenExchangeRate: {
             exchangeRate: '551.98',
@@ -1788,7 +1783,7 @@ describe('Bridge Selectors', () => {
               ],
             },
             priceData: {
-              cost: {
+              priceImpact: {
                 usd: '999',
                 valueInCurrency: '999',
               },

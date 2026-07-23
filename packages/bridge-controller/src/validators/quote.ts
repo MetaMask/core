@@ -152,12 +152,6 @@ export const QuoteSchemaV2 = intersection([
             valueInCurrency: optional(FloatStringSchema),
           }),
         ),
-        cost: optional(
-          type({
-            usd: optional(nullable(FloatStringSchema)),
-            valueInCurrency: optional(nullable(FloatStringSchema)),
-          }),
-        ),
         adjustedReturn: optional(
           type({
             usd: nullable(optional(FloatStringSchema)),

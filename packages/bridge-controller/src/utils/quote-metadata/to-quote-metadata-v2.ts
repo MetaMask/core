@@ -105,12 +105,9 @@ export const toQuoteMetadataV2 = (
       },
       priceData: {
         priceImpact: {
-          valueInCurrency: priceImpact?.valueInCurrency,
-          usd: priceImpact?.usd,
-        },
-        cost: {
-          valueInCurrency: cost?.valueInCurrency,
-          usd: cost?.usd,
+          valueInCurrency:
+            cost?.valueInCurrency ?? priceImpact?.valueInCurrency,
+          usd: cost?.usd ?? priceImpact?.usd,
         },
         adjustedReturn: {
           valueInCurrency: adjustedReturn?.valueInCurrency,

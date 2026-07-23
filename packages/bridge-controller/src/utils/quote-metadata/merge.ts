@@ -12,41 +12,30 @@ import type { QuoteMetadata } from './types';
  * Merges legacy {@link QuoteMetadata} values into the {@link QuoteResponse}
  *
  * @param quoteResponse - The {@link QuoteResponse} or {@link QuoteResponseV1} to merge the metadata into
- * @param quoteMetadata - The {@link QuoteMetadata} values to merge
+ * @param legacyQuoteMetadata - The {@link QuoteMetadata} values to merge
  * @returns The {@link QuoteResponse} with the metadata merged in
  */
 export function mergeQuoteMetadata<
   QuoteType extends QuoteResponse | QuoteResponseV1 = QuoteResponse,
 >(
   quoteResponse: QuoteType,
-  quoteMetadata: QuoteMetadata,
+  legacyQuoteMetadata: QuoteMetadata,
 ): QuoteType & QuoteMetadata {
   if (is(quoteResponse, QuoteResponseSchemaV1)) {
-    return merge({}, quoteResponse, quoteMetadata);
+    return merge({}, quoteResponse, legacyQuoteMetadata);
   }
 
-  const quoteMetadataV2 = toQuoteMetadataV2(quoteMetadata, quoteResponse);
+  const legacyQuoteMetadatV2 = toQuoteMetadataV2(
+    legacyQuoteMetadata,
+    quoteResponse,
+  );
   const normalizedAmountsV2 = toNormalizedAmounts(quoteResponse);
-  /*
-   * Phase 1 of migration uses calcQuoteMetadata's results
-   */
+  // Phase 1 of migration uses calcQuoteMetadata's results
   return merge(
     {},
     quoteResponse,
     normalizedAmountsV2,
-    quoteMetadataV2,
-    quoteMetadata,
+    legacyQuoteMetadatV2,
+    legacyQuoteMetadata, // return for client testing
   );
-
-  // TODO Phase 1.5 of migration uses calcQuoteMetadata's results as fallback
-  // return merge(
-  //   {},
-  //   quoteMetadataV2,
-  //   quoteResponse,
-  //   normalizedAmountsV2,
-  //   quoteMetadata,
-  // );
-
-  // TODO Phase 2 of migration only uses metadata from the API response
-  // return merge({}, quoteResponse, normalizedAmountsV2);
 }

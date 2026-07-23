@@ -380,13 +380,13 @@ const selectSortedBridgeQuotes = createBridgeSelector(
       default:
         if (
           quotesWithMetadata.every(
-            (quote) => quote.quote.priceData?.cost?.valueInCurrency,
+            (quote) => quote.quote.priceData?.priceImpact?.valueInCurrency,
           )
         ) {
           return orderBy(
             quotesWithMetadata,
             ({ quote: { priceData } }) =>
-              Number(priceData?.cost?.valueInCurrency),
+              Number(priceData?.priceImpact?.valueInCurrency),
             'asc',
           );
         }
