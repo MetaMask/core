@@ -650,6 +650,7 @@ linkStyle default opacity:0.5
   wallet --> base_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
+  wallet --> gas_fee_controller;
   wallet --> keyring_controller;
   wallet --> messenger;
   wallet --> network_controller;

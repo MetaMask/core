@@ -45,6 +45,7 @@ export type {
   SeedlessOnboardingControllerState,
   ToprfKeyDeriver,
   RecoveryErrorData,
+  InvalidPrimarySecretDataTypeErrorData,
 } from './types';
 export {
   Web3AuthNetwork,
@@ -54,6 +55,10 @@ export {
   SecretType,
 } from './constants';
 export { SecretMetadata } from './SecretMetadata';
-export { RecoveryError, SeedlessOnboardingError } from './errors';
+export {
+  InvalidPrimarySecretDataTypeError,
+  RecoveryError,
+  SeedlessOnboardingError,
+} from './errors';
 
 export { EncAccountDataType } from '@metamask/toprf-secure-backup';

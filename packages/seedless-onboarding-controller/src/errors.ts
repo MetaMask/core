@@ -2,7 +2,12 @@ import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 import type { RateLimitErrorData } from '@metamask/toprf-secure-backup';
 
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
-import type { RecoveryErrorData } from './types';
+import type { SecretMetadata } from './SecretMetadata';
+import type {
+  InvalidPrimarySecretDataTypeErrorData,
+  RecoveryErrorData,
+} from './types';
+import { getInvalidPrimarySecretDataTypeErrorData } from './utils';
 
 /**
  * Get the error message from the TOPRF error code.
@@ -40,26 +45,31 @@ export function getErrorMessageFromTOPRFErrorCode(
 function getRateLimitErrorData(
   error: TOPRFError,
 ): RateLimitErrorData | undefined {
+  const rateLimitDetails = error.meta?.rateLimitDetails;
   if (
     error.meta && // error metadata must be present
     error.code === TOPRFErrorCode.RateLimitExceeded &&
-    typeof error.meta.rateLimitDetails === 'object' &&
-    error.meta.rateLimitDetails !== null &&
-    'remainingTime' in error.meta.rateLimitDetails &&
-    typeof error.meta.rateLimitDetails.remainingTime === 'number' &&
-    'message' in error.meta.rateLimitDetails &&
-    typeof error.meta.rateLimitDetails.message === 'string' &&
-    'lockTime' in error.meta.rateLimitDetails &&
-    typeof error.meta.rateLimitDetails.lockTime === 'number' &&
-    'guessCount' in error.meta.rateLimitDetails &&
-    typeof error.meta.rateLimitDetails.guessCount === 'number'
+    typeof rateLimitDetails === 'object' &&
+    rateLimitDetails !== null
   ) {
-    return {
-      remainingTime: error.meta.rateLimitDetails.remainingTime,
-      message: error.meta.rateLimitDetails.message,
-      lockTime: error.meta.rateLimitDetails.lockTime,
-      guessCount: error.meta.rateLimitDetails.guessCount,
-    };
+    const details = rateLimitDetails as Record<string, unknown>;
+    if (
+      Object.prototype.hasOwnProperty.call(details, 'remainingTime') &&
+      typeof details.remainingTime === 'number' &&
+      Object.prototype.hasOwnProperty.call(details, 'message') &&
+      typeof details.message === 'string' &&
+      Object.prototype.hasOwnProperty.call(details, 'lockTime') &&
+      typeof details.lockTime === 'number' &&
+      Object.prototype.hasOwnProperty.call(details, 'guessCount') &&
+      typeof details.guessCount === 'number'
+    ) {
+      return {
+        remainingTime: details.remainingTime,
+        message: details.message,
+        lockTime: details.lockTime,
+        guessCount: details.guessCount,
+      };
+    }
   }
   return undefined;
 }
@@ -133,6 +143,39 @@ export class RecoveryError extends Error {
       SeedlessOnboardingControllerErrorMessage.LoginFailedError,
     );
     return new RecoveryError(errorMessage, recoveryErrorData);
+  }
+}
+
+/**
+ * Error thrown when fetched secret metadata does not include a primary mnemonic.
+ */
+export class InvalidPrimarySecretDataTypeError extends Error {
+  /**
+   * Non-sensitive type label for each secret metadata item, in fetch order.
+   */
+  data: InvalidPrimarySecretDataTypeErrorData;
+
+  constructor(data: InvalidPrimarySecretDataTypeErrorData) {
+    super(
+      SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+    );
+    this.name =
+      'SeedlessOnboardingController - InvalidPrimarySecretDataTypeError';
+    this.data = data;
+  }
+
+  /**
+   * Create an error from secret metadata items.
+   *
+   * @param secrets - The secret metadata items that failed validation.
+   * @returns A new `InvalidPrimarySecretDataTypeError`.
+   */
+  static fromSecretMetadata(
+    secrets: SecretMetadata<string | Uint8Array>[],
+  ): InvalidPrimarySecretDataTypeError {
+    return new InvalidPrimarySecretDataTypeError(
+      getInvalidPrimarySecretDataTypeErrorData(secrets),
+    );
   }
 }
 

@@ -18,6 +18,7 @@ import {
   getQuotesReceivedProperties,
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,
+  mergeQuoteMetadata,
 } from '@metamask/bridge-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -310,32 +311,49 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     id: txMetaId,
     hash: srcTxHash === 'undefined' ? undefined : srcTxHash,
   } as TransactionMeta,
-  quoteResponse: {
-    quote: getMockQuote({ srcChainId, destChainId }),
-    trade: {
-      chainId: srcChainId,
-      to: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
-      from: account as Hex,
-      value: '0x038d7ea4c68000',
-      data: '0x3ce33bff0000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000d6c6966694164617074657256320000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c0000000000000000000000000e397c4883ec89ed4fc9d258f00c689708b2799c9000000000000000000000000e397c4883ec89ed4fc9d258f00c689708b2799c9000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038589602234000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000007f544a44c0000000000000000000000000056ca675c3633cc16bd6849e2b431d4e8de5e23bf000000000000000000000000000000000000000000000000000000000000006c5a39b10a4f4f0747826140d2c5fe6ef47965741f6f7a4734bf784bf3ae3f24520000000a000222266cc2dca0671d2a17ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd00dfeeddeadbeef8932eb23bad9bddb5cf81426f78279a53c6c3b7100000000000000000000000000000000000000009ce3c510b3f58edc8d53ae708056e30926f62d0b42d5c9b61c391bb4e8a2c1917f8ed995169ffad0d79af2590303e83c57e15a9e0b248679849556c2e03a1c811b',
-      gasLimit: 282915,
+  quoteResponse: mergeQuoteMetadata(
+    {
+      quote: getMockQuote({ srcChainId, destChainId }),
+      trade: {
+        chainId: srcChainId,
+        to: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
+        from: account as Hex,
+        value: '0x038d7ea4c68000',
+        data: '0x3ce33bff0000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000d6c6966694164617074657256320000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c0000000000000000000000000e397c4883ec89ed4fc9d258f00c689708b2799c9000000000000000000000000e397c4883ec89ed4fc9d258f00c689708b2799c9000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038589602234000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000007f544a44c0000000000000000000000000056ca675c3633cc16bd6849e2b431d4e8de5e23bf000000000000000000000000000000000000000000000000000000000000006c5a39b10a4f4f0747826140d2c5fe6ef47965741f6f7a4734bf784bf3ae3f24520000000a000222266cc2dca0671d2a17ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd00dfeeddeadbeef8932eb23bad9bddb5cf81426f78279a53c6c3b7100000000000000000000000000000000000000009ce3c510b3f58edc8d53ae708056e30926f62d0b42d5c9b61c391bb4e8a2c1917f8ed995169ffad0d79af2590303e83c57e15a9e0b248679849556c2e03a1c811b',
+        gasLimit: 282915,
+      },
+      approval: undefined,
+      estimatedProcessingTimeInSeconds: 15,
     },
-    approval: null as never,
-    estimatedProcessingTimeInSeconds: 15,
-    sentAmount: { amount: '1.234', valueInCurrency: null, usd: null },
-    toTokenAmount: { amount: '1.234', valueInCurrency: null, usd: null },
-    minToTokenAmount: { amount: '1.17', valueInCurrency: null, usd: null },
-    totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
-    totalMaxNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
-    gasFee: {
-      effective: { amount: '.00055', valueInCurrency: null, usd: '2.5778' },
-      total: { amount: '1.234', valueInCurrency: null, usd: null },
-      max: { amount: '1.234', valueInCurrency: null, usd: null },
+    {
+      sentAmount: {
+        amount: '1.234',
+        valueInCurrency: undefined,
+        usd: undefined,
+      },
+      toTokenAmount: {
+        amount: '1.234',
+        valueInCurrency: undefined,
+        usd: undefined,
+      },
+      minToTokenAmount: {
+        amount: '1.17',
+        valueInCurrency: undefined,
+        usd: undefined,
+      },
+      totalNetworkFee: {
+        amount: '1.234',
+        valueInCurrency: undefined,
+        usd: undefined,
+      },
+      gasFee: {
+        total: { amount: '1.234', valueInCurrency: undefined, usd: '2.5778' },
+      },
+      adjustedReturn: { valueInCurrency: undefined, usd: undefined },
+      swapRate: '1.234',
+      cost: { valueInCurrency: undefined, usd: undefined },
     },
-    adjustedReturn: { valueInCurrency: null, usd: null },
-    swapRate: '1.234',
-    cost: { valueInCurrency: null, usd: null },
-  },
+  ),
   accountAddress: account,
   startTime: 1729964825189,
   slippagePercentage: 0,
@@ -433,7 +451,7 @@ const MockTxHistory = {
       pricingData: {
         amountSent: '1.234',
         amountSentInUsd: undefined,
-        quotedGasAmount: '.00055',
+        quotedGasAmount: '1.234',
         quotedGasInUsd: '2.5778',
         quotedReturnInUsd: undefined,
       },
@@ -553,7 +571,7 @@ const MockTxHistory = {
       pricingData: {
         amountSent: '1.234',
         amountSentInUsd: undefined,
-        quotedGasAmount: '.00055',
+        quotedGasAmount: '1.234',
         quotedGasInUsd: '2.5778',
         quotedReturnInUsd: undefined,
       },
@@ -2173,7 +2191,7 @@ describe('BridgeStatusController', () => {
   });
 
   describe('submitTx: Solana bridge', () => {
-    const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+    const mockQuote: QuoteResponse<string> = {
       quote: {
         requestId: '123',
         srcChainId: ChainId.SOLANA,
@@ -2239,6 +2257,8 @@ describe('BridgeStatusController', () => {
       estimatedProcessingTimeInSeconds: 300,
       trade:
         'AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=',
+    };
+    const mockQuoteResponse = mergeQuoteMetadata(mockQuote, {
       sentAmount: {
         amount: '1',
         valueInCurrency: '100',
@@ -2259,15 +2279,8 @@ describe('BridgeStatusController', () => {
         valueInCurrency: '10',
         usd: '10',
       },
-      totalMaxNetworkFee: {
-        amount: '0.15',
-        valueInCurrency: '15',
-        usd: '15',
-      },
       gasFee: {
-        effective: { amount: '0.05', valueInCurrency: '5', usd: '5' },
         total: { amount: '0.05', valueInCurrency: '5', usd: '5' },
-        max: { amount: '0', valueInCurrency: null, usd: null },
       },
       adjustedReturn: {
         valueInCurrency: '985',
@@ -2278,7 +2291,7 @@ describe('BridgeStatusController', () => {
         usd: '15',
       },
       swapRate: '0.5',
-    };
+    });
 
     const mockSolanaAccount = {
       id: 'solana-account-1',
@@ -2497,15 +2510,8 @@ describe('BridgeStatusController', () => {
         valueInCurrency: '10',
         usd: '10',
       },
-      totalMaxNetworkFee: {
-        amount: '0.15',
-        valueInCurrency: '15',
-        usd: '15',
-      },
       gasFee: {
-        effective: { amount: '0.05', valueInCurrency: '5', usd: '5' },
         total: { amount: '0.05', valueInCurrency: '5', usd: '5' },
-        max: { amount: '0', valueInCurrency: null, usd: null },
       },
       adjustedReturn: {
         valueInCurrency: '985',
@@ -2758,15 +2764,8 @@ describe('BridgeStatusController', () => {
         valueInCurrency: '0.01',
         usd: '0.01',
       },
-      totalMaxNetworkFee: {
-        amount: '0.015',
-        valueInCurrency: '0.015',
-        usd: '0.015',
-      },
       gasFee: {
-        effective: { amount: '0.005', valueInCurrency: '0.005', usd: '0.005' },
         total: { amount: '0.005', valueInCurrency: '0.005', usd: '0.005' },
-        max: { amount: '0', valueInCurrency: null, usd: null },
       },
       adjustedReturn: {
         valueInCurrency: '499.99',
@@ -2900,8 +2899,7 @@ describe('BridgeStatusController', () => {
   });
 
   describe('submitTx: EVM bridge', () => {
-    const mockEvmQuoteResponse = {
-      ...getMockQuote(),
+    const mockEvmQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
       quote: {
         ...getMockQuote(),
         srcChainId: 42161, // Arbitrum
@@ -2919,20 +2917,17 @@ describe('BridgeStatusController', () => {
         valueInCurrency: '2.85',
         usd: '0.127',
       },
-      totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
-      totalMaxNetworkFee: {
-        amount: '1.234',
-        valueInCurrency: null,
-        usd: null,
+      totalNetworkFee: {
+        amount: '.00055',
+        valueInCurrency: undefined,
+        usd: '2.5778',
       },
       gasFee: {
-        effective: { amount: '.00055', valueInCurrency: null, usd: '2.5778' },
-        total: { amount: '1.234', valueInCurrency: null, usd: null },
-        max: { amount: '1.234', valueInCurrency: null, usd: null },
+        total: { amount: '.00055', valueInCurrency: undefined, usd: '2.5778' },
       },
-      adjustedReturn: { valueInCurrency: null, usd: null },
+      adjustedReturn: { valueInCurrency: undefined, usd: undefined },
       swapRate: '1.234',
-      cost: { valueInCurrency: null, usd: null },
+      cost: { valueInCurrency: undefined, usd: undefined },
       trade: {
         from: '0xaccount1',
         to: '0xbridgeContract',
@@ -3161,16 +3156,21 @@ describe('BridgeStatusController', () => {
           startPollingForBridgeTxStatusSpy,
         }) => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+          const quoteResponseV2 = mergeQuoteMetadata(
+            quoteWithoutApproval,
+            quoteWithoutApproval,
+          );
+          const quotesReceivedContext = getQuotesReceivedProperties(
+            quoteResponseV2,
+            ['low_return'],
+            true,
+          );
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
             (quoteWithoutApproval.trade as TxData).from,
             quoteWithoutApproval,
             true,
-            getQuotesReceivedProperties(
-              quoteWithoutApproval,
-              ['low_return'],
-              true,
-            ),
+            quotesReceivedContext,
           );
           controller.stopAllPolling();
 
@@ -3493,7 +3493,7 @@ describe('BridgeStatusController', () => {
             quote: { ...mockEvmQuoteResponse.quote, srcChainId: 59144 },
             trade: {
               ...(mockEvmQuoteResponse.trade as TxData),
-              gasLimit: undefined as never,
+              gasLimit: null,
             },
           };
 
@@ -3540,7 +3540,7 @@ describe('BridgeStatusController', () => {
             quote: { ...mockEvmQuoteResponse.quote, srcChainId: 8453 },
             trade: {
               ...(mockEvmQuoteResponse.trade as TxData),
-              gasLimit: undefined as never,
+              gasLimit: null,
             },
           };
 
@@ -3902,20 +3902,17 @@ describe('BridgeStatusController', () => {
         valueInCurrency: '2.85',
         usd: '0.127',
       },
-      totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
-      totalMaxNetworkFee: {
+      totalNetworkFee: {
         amount: '1.234',
-        valueInCurrency: null,
-        usd: null,
+        valueInCurrency: undefined,
+        usd: undefined,
       },
       gasFee: {
-        effective: { amount: '.00055', valueInCurrency: null, usd: '2.5778' },
-        total: { amount: '1.234', valueInCurrency: null, usd: null },
-        max: { amount: '1.234', valueInCurrency: null, usd: null },
+        total: { amount: '1.234', valueInCurrency: undefined, usd: '2.5778' },
       },
-      adjustedReturn: { valueInCurrency: null, usd: null },
+      adjustedReturn: { valueInCurrency: undefined, usd: undefined },
       swapRate: '1.234',
-      cost: { valueInCurrency: null, usd: null },
+      cost: { valueInCurrency: undefined, usd: undefined },
       trade: {
         from: '0xaccount1',
         to: '0xbridgeContract',
@@ -3932,7 +3929,7 @@ describe('BridgeStatusController', () => {
         chainId: 42161,
         gasLimit: 21000,
       },
-    } as QuoteResponse & QuoteMetadata;
+    } as const;
 
     const mockEvmTxMeta = {
       id: 'test-tx-id',
@@ -4128,7 +4125,7 @@ describe('BridgeStatusController', () => {
                 feeData: {
                   ...mockEvmQuoteResponse.quote.feeData,
                   txFee: {
-                    amount: '0',
+                    amount: '100',
                     asset: getNativeAssetForChainId(42161),
                     maxFeePerGas: '123',
                     maxPriorityFeePerGas: '123',
@@ -4212,7 +4209,7 @@ describe('BridgeStatusController', () => {
                 feeData: {
                   ...mockEvmQuoteResponse.quote.feeData,
                   txFee: {
-                    amount: '0',
+                    amount: '100',
                     asset: {
                       address: '0x0000000000000000000000000000000000000032',
                       symbol: 'WETH',
@@ -4376,7 +4373,7 @@ describe('BridgeStatusController', () => {
       );
     });
 
-    it('should use quote txFee when gasIncluded is true and STX is off (undefined gasLimit)', async () => {
+    it('should use quote txFee when gasIncluded is true and STX is off (null gasLimit)', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       // Setup for single tx path - no gas estimation needed since gasIncluded=true
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
@@ -4411,8 +4408,7 @@ describe('BridgeStatusController', () => {
                 feeData: {
                   ...quoteWithoutApproval.quote.feeData,
                   txFee: {
-                    amount:
-                      quoteWithoutApproval.quote.feeData.metabridge.amount,
+                    amount: '100',
                     asset: quoteWithoutApproval.quote.feeData.metabridge.asset,
                     maxFeePerGas: '1395348', // Decimal string from quote
                     maxPriorityFeePerGas: '1000001',
@@ -4421,7 +4417,7 @@ describe('BridgeStatusController', () => {
               },
               trade: {
                 ...(quoteWithoutApproval.trade as TxData),
-                gasLimit: undefined as never,
+                gasLimit: null,
               },
               sentAmount: {
                 amount: null as never,
@@ -4652,6 +4648,12 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [
+          { ...mockApprovalTxMeta, batchId: 'batchId1' },
+          { ...mockEvmTxMeta, batchId: 'batchId1' },
+        ],
       });
       mockMessengerCall.mockReturnValueOnce({
         transactions: [
@@ -6635,24 +6637,21 @@ describe('BridgeStatusController', () => {
           valueInCurrency: '2.85',
           usd: '0.127',
         },
-        totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
-        totalMaxNetworkFee: {
+        totalNetworkFee: {
           amount: '1.234',
-          valueInCurrency: null,
-          usd: null,
+          valueInCurrency: undefined,
+          usd: undefined,
         },
         gasFee: {
-          effective: {
-            amount: '.00055',
-            valueInCurrency: null,
-            usd: '2.5778',
+          total: {
+            amount: '1.234',
+            valueInCurrency: undefined,
+            usd: undefined,
           },
-          total: { amount: '1.234', valueInCurrency: null, usd: null },
-          max: { amount: '1.234', valueInCurrency: null, usd: null },
         },
-        adjustedReturn: { valueInCurrency: null, usd: null },
+        adjustedReturn: { valueInCurrency: undefined, usd: undefined },
         swapRate: '1.234',
-        cost: { valueInCurrency: null, usd: null },
+        cost: { valueInCurrency: undefined, usd: undefined },
         trade: {
           from: '0xaccount1',
           to: '0xbridgeContract',
@@ -6661,7 +6660,7 @@ describe('BridgeStatusController', () => {
           chainId: 42161,
           gasLimit: 21000,
         },
-      } as unknown as QuoteResponse & QuoteMetadata;
+      };
 
       const mockTradeTxMeta = {
         id: EVM_TX_META_ID,

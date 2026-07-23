@@ -92,6 +92,8 @@ export const QuoteSchema = intersection([
     }),
     bridgeId: string(),
     bridges: array(string()),
+    // TODO require this after v2 migration
+    aggregator: optional(string()),
     steps: array(StepSchema),
     refuel: optional(RefuelDataSchema),
     priceData: optional(
@@ -106,6 +108,7 @@ export const QuoteSchema = intersection([
     walletAddress: optional(string()),
     destWalletAddress: optional(string()),
     slippage: optional(number()),
+    // TODO require this after v2 migration
     protocols: optional(array(string())),
   }),
 ]);
