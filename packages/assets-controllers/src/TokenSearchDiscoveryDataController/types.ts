@@ -1,7 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
-import type { EvmAssetWithMarketData } from '../token-prices-service/abstract-token-prices-service';
-import type { Token } from '../TokenRatesController';
+import type { EvmAssetWithMarketData } from '../token-prices-service/abstract-token-prices-service.js';
+import type { Token } from '../TokenRatesController.js';
 
 export type NotFoundTokenDisplayData = {
   found: false;

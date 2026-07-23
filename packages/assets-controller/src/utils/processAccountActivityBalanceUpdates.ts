@@ -6,7 +6,7 @@ import type {
   AssetMetadata,
   Caip19AssetId,
   DataResponse,
-} from '../types';
+} from '../types.js';
 
 /**
  * Convert AccountActivityMessage balance updates into a {@link DataResponse}

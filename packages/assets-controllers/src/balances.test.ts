@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
 
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController.js';
 import {
   calculateBalanceForAllWallets,
   calculateBalanceChangeForAllWallets,
   calculateBalanceChangeForAccountGroup,
-} from './balances';
-import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
+} from './balances.js';
+import { getNativeTokenAddress } from './token-prices-service/codefi-v2.js';
 
 const createBaseMockState = (userCurrency = 'USD') => ({
   AccountTreeController: {

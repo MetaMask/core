@@ -7,10 +7,10 @@ import type {
   Context,
   Caip19AssetId,
   AssetsControllerStateInternal,
-} from '../types';
-import { normalizeAssetId } from '../utils';
-import type { PriceDataSourceOptions } from './PriceDataSource';
-import { PriceDataSource } from './PriceDataSource';
+} from '../types.js';
+import { normalizeAssetId } from '../utils/index.js';
+import type { PriceDataSourceOptions } from './PriceDataSource.js';
+import { PriceDataSource } from './PriceDataSource.js';
 
 jest.useFakeTimers();
 

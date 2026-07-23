@@ -5,9 +5,9 @@ import type {
   FeeMarketEIP1559Values,
   GasPriceValue,
   TransactionParams,
-} from '../types';
-import { TransactionStatus } from '../types';
-import * as util from './utils';
+} from '../types.js';
+import { TransactionStatus } from '../types.js';
+import * as util from './utils.js';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';

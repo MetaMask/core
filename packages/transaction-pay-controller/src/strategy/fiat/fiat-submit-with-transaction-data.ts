@@ -2,18 +2,18 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { projectLogger } from '../../logger';
-import type { PayStrategyExecuteRequest, QuoteRequest } from '../../types';
+import { projectLogger } from '../../logger.js';
+import type { PayStrategyExecuteRequest, QuoteRequest } from '../../types.js';
 import {
   getFiatFeeReserveMultiplier,
   getFiatMaxRateDriftPercent,
-} from '../../utils/feature-flags';
-import { getTransaction, updateTransaction } from '../../utils/transaction';
-import { getRelayQuotes } from '../relay/relay-quotes';
-import { submitRelayQuotes } from '../relay/relay-submit';
-import type { RelayQuote } from '../relay/types';
-import type { FiatQuote } from './types';
-import { validateRelayRateDrift } from './utils';
+} from '../../utils/feature-flags.js';
+import { getTransaction, updateTransaction } from '../../utils/transaction.js';
+import { getRelayQuotes } from '../relay/relay-quotes.js';
+import { submitRelayQuotes } from '../relay/relay-submit.js';
+import type { RelayQuote } from '../relay/types.js';
+import type { FiatQuote } from './types.js';
+import { validateRelayRateDrift } from './utils.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit-calldata');
 

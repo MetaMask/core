@@ -11,7 +11,10 @@ import {
 import { abiERC1155 } from '@metamask/metamask-eth-abis';
 import type * as BN from 'bn.js';
 
-import { getFormattedIpfsUrl, ethersBigNumberToBN } from '../../../assetsUtil';
+import {
+  getFormattedIpfsUrl,
+  ethersBigNumberToBN,
+} from '../../../assetsUtil.js';
 
 export class ERC1155Standard {
   private readonly provider: Web3Provider;

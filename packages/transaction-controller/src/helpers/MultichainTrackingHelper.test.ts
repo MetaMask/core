@@ -7,12 +7,12 @@ import type {
 import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 
-import { jestAdvanceTime } from '../../../../tests/helpers';
+import { jestAdvanceTime } from '../../../../tests/helpers.js';
 import {
   MultichainTrackingHelper,
   MultichainTrackingHelperOptions,
-} from './MultichainTrackingHelper';
-import type { PendingTransactionTracker } from './PendingTransactionTracker';
+} from './MultichainTrackingHelper.js';
+import type { PendingTransactionTracker } from './PendingTransactionTracker.js';
 
 jest.mock(
   '@metamask/eth-query',

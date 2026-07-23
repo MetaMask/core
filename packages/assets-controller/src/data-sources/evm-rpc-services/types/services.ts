@@ -1,5 +1,5 @@
-import type { Asset, AssetBalance } from './assets';
-import type { AccountId, Address, CaipAssetType, ChainId } from './core';
+import type { Asset, AssetBalance } from './assets.js';
+import type { AccountId, Address, CaipAssetType, ChainId } from './core.js';
 
 /**
  * Token detection result.

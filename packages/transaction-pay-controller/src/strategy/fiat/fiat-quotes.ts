@@ -3,32 +3,35 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { NATIVE_TOKEN_ADDRESS, TransactionPayStrategy } from '../../constants';
-import { projectLogger } from '../../logger';
+import {
+  NATIVE_TOKEN_ADDRESS,
+  TransactionPayStrategy,
+} from '../../constants.js';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionFiatPayment,
   TransactionPayRequiredToken,
   TransactionPayQuote,
-} from '../../types';
-import { getDirectMoneyMusdEnabled } from '../../utils/feature-flags';
+} from '../../types.js';
+import { getDirectMoneyMusdEnabled } from '../../utils/feature-flags.js';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,
   getTokenFiatRate,
   getTokenInfo,
-} from '../../utils/token';
-import { getRelayQuotes } from '../relay/relay-quotes';
-import type { RelayQuote } from '../relay/types';
-import type { TransactionPayFiatAsset } from './constants';
-import { getDirectMusdFiatQuote } from './fiat-direct-musd';
-import type { FiatQuote } from './types';
+} from '../../utils/token.js';
+import { getRelayQuotes } from '../relay/relay-quotes.js';
+import type { RelayQuote } from '../relay/types.js';
+import type { TransactionPayFiatAsset } from './constants.js';
+import { getDirectMusdFiatQuote } from './fiat-direct-musd.js';
+import type { FiatQuote } from './types.js';
 import {
   deriveFiatAssetForFiatPayment,
   getRampsQuote,
   isMoneyAccountDepositTransaction,
-} from './utils';
+} from './utils.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-strategy');
 

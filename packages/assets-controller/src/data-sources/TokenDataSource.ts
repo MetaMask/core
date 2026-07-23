@@ -8,20 +8,20 @@ import { TokenScanResultType } from '@metamask/phishing-controller';
 import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
-import { forDataTypes } from '../types';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import { forDataTypes } from '../types.js';
 import type {
   Caip19AssetId,
   AssetMetadata,
   Middleware,
   FungibleAssetMetadata,
-} from '../types';
-import { fetchWithTimeout } from '../utils';
+} from '../types.js';
+import { fetchWithTimeout } from '../utils/index.js';
 import {
   isStakingContractAssetId,
   reduceInBatchesSerially,
-} from './evm-rpc-services';
+} from './evm-rpc-services/index.js';
 
 // ============================================================================
 // CONSTANTS

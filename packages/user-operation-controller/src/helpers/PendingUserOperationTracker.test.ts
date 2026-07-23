@@ -1,11 +1,11 @@
 import { query } from '@metamask/controller-utils';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 
-import type { UserOperationMetadata, UserOperationReceipt } from '../types';
-import { UserOperationStatus } from '../types';
-import type { UserOperationControllerMessenger } from '../UserOperationController';
-import * as BundlerHelper from './Bundler';
-import { PendingUserOperationTracker } from './PendingUserOperationTracker';
+import type { UserOperationMetadata, UserOperationReceipt } from '../types.js';
+import { UserOperationStatus } from '../types.js';
+import type { UserOperationControllerMessenger } from '../UserOperationController.js';
+import * as BundlerHelper from './Bundler.js';
+import { PendingUserOperationTracker } from './PendingUserOperationTracker.js';
 
 const CHAIN_ID_MOCK = '0x5';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';

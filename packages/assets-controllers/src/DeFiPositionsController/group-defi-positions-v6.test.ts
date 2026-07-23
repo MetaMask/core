@@ -1,7 +1,7 @@
 import type { V6BalancesResponse } from '@metamask/core-backend';
 import type { CaipAssetType } from '@metamask/utils';
 
-import { groupDeFiPositionsV6 } from './group-defi-positions-v6';
+import { groupDeFiPositionsV6 } from './group-defi-positions-v6.js';
 
 const AAVE_METADATA = {
   protocolId: 'aave-v3',

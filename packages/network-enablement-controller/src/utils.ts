@@ -8,7 +8,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
-import type { NetworkEnablementControllerState } from './NetworkEnablementController';
+import type { NetworkEnablementControllerState } from './NetworkEnablementController.js';
 
 /**
  * Represents the parsed keys derived from a chain ID.

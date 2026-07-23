@@ -6,7 +6,7 @@ import { bytesToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import type { AuthorizationList, TransactionParams } from '../types';
+import type { AuthorizationList, TransactionParams } from '../types.js';
 
 export const HARDFORK = Hardfork.Prague;
 

@@ -25,7 +25,7 @@ export type {
   TransactionPayTotals,
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
-} from './types';
+} from './types.js';
 export type {
   TransactionPayControllerGetAmountDataAction,
   TransactionPayControllerGetDelegationTransactionAction,
@@ -36,7 +36,7 @@ export type {
   TransactionPayControllerSetTransactionConfigAction,
   TransactionPayControllerUpdatePaymentTokenAction,
   TransactionPayControllerUpdateFiatPaymentAction,
-} from './TransactionPayController-method-action-types';
-export { PaymentOverride, TransactionPayStrategy } from './constants';
-export { TransactionPayController } from './TransactionPayController';
-export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook';
+} from './TransactionPayController-method-action-types.js';
+export { PaymentOverride, TransactionPayStrategy } from './constants.js';
+export { TransactionPayController } from './TransactionPayController.js';
+export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook.js';
