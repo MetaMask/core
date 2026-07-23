@@ -2987,10 +2987,22 @@ describe('AssetsController', () => {
       );
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      expect(getAssetsSpy).toHaveBeenCalledTimes(1);
-      expect(getAssetsSpy).toHaveBeenCalledWith(
+      expect(getAssetsSpy).toHaveBeenCalledTimes(2);
+      expect(getAssetsSpy).toHaveBeenNthCalledWith(
+        1,
         [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
         expect.objectContaining({ forceUpdate: true }),
+      );
+      expect(getAssetsSpy).toHaveBeenNthCalledWith(
+        2,
+        [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+        expect.objectContaining({
+          forceUpdate: true,
+          dataTypes: ['price'],
+          assetsForPriceUpdate: expect.arrayContaining([
+            'eip155:1/slip44:60',
+          ]),
+        }),
       );
     });
   });
