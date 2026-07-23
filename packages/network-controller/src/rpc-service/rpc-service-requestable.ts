@@ -12,7 +12,7 @@ import type {
   ExtendCockatielEventData,
   ExtractCockatielEventData,
   FetchOptions,
-} from './shared';
+} from './shared.js';
 
 /**
  * The interface for a service class responsible for making a request to a
