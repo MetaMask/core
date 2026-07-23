@@ -301,7 +301,12 @@ jobs:
       - name: Install anvil for the real-chain e2e
         if: steps.wallet-cli-changed.outputs.changed == 'true'
         run: yarn workspace @metamask/wallet-cli run test:e2e:install-anvil
+      # When wallet-cli changed we installed anvil, so require the real-chain
+      # suite to actually find and run it — otherwise a broken install would
+      # let the flagship send test pass as a silent green no-op.
       - run: yarn workspace @metamask/wallet-cli run test:e2e
+        env:
+          MM_E2E_REQUIRE_ANVIL: ${{ steps.wallet-cli-changed.outputs.changed }}
       - name: Require clean working directory
         shell: bash
         run: |

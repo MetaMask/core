@@ -27,8 +27,10 @@ import { isProcessAlive, readPidFile } from '../src/daemon/utils.js';
 // SKIPPED (see `resolveAnvilPath`) rather than failed, so it runs locally and
 // in the wallet-cli CI job (which installs Foundry) but never blocks a machine
 // without Foundry. Install it with Foundry's `foundryup`, or in this repo:
-//   yarn workspace @metamask/wallet-cli exec node ../foundryup/dist/cli.mjs
-// See `tests/README.md`.
+//   yarn workspace @metamask/wallet-cli run test:e2e:install-anvil
+// Set `MM_E2E_REQUIRE_ANVIL=true` to turn the skip into a hard failure — CI
+// does this whenever it installed anvil, so a broken install surfaces loudly
+// instead of passing as a green no-op. See `tests/README.md`.
 
 // The canonical BIP-39 test mnemonic. anvil derives the same accounts from it.
 const TEST_SRP = 'test test test test test test test test test test test junk';
@@ -136,8 +138,9 @@ async function expectSuccessfulRun(
 }
 
 /**
- * Make a JSON-RPC call directly to the anvil node over `node:http` (jest's
- * `node` test environment does not expose a global `fetch`).
+ * Make a JSON-RPC call directly to the anvil node over `node:http` (the shared
+ * `tests/setup.ts` deletes `globalThis.fetch` so nock/undici can intercept, so
+ * `fetch` is not available here).
  *
  * @param port - The anvil port.
  * @param method - The JSON-RPC method.
@@ -267,12 +270,27 @@ const anvilSpawnable =
   ANVIL_PATH !== undefined &&
   (ANVIL_PATH === 'anvil' || existsSync(ANVIL_PATH));
 
+// CI sets this whenever it installed anvil (i.e. wallet-cli changed), so an
+// install that silently produced no usable binary fails the suite loudly
+// rather than letting the whole real-chain test skip itself green.
+const anvilRequired = process.env.MM_E2E_REQUIRE_ANVIL === 'true';
+
 describe('mm wallet send (real chain e2e)', () => {
   jest.setTimeout(STEP_TIMEOUT_MS);
 
   let dataDir: string;
   let anvil: ChildProcess | undefined;
   let port: number;
+
+  beforeAll(() => {
+    if (anvilRequired && !anvilSpawnable) {
+      throw new Error(
+        'MM_E2E_REQUIRE_ANVIL is set but the anvil binary was not found. ' +
+          'The real-chain send e2e cannot run; check the Foundry install ' +
+          '(see tests/README.md).',
+      );
+    }
+  });
 
   beforeEach(async () => {
     if (!anvilSpawnable) {

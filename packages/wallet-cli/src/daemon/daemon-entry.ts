@@ -165,9 +165,8 @@ async function main(): Promise<void> {
         async (): Promise<Json> =>
           constructedWallet.messenger.getRegisteredActionTypes(),
       ),
-      // Dedicated send handler: `addTransaction` returns a non-serializable
-      // `result` promise, so it cannot travel back over the generic `call`
-      // dispatch. This awaits the broadcast server-side and returns the hash.
+      // Dedicated send handler; see `runSendTransaction` for why the generic
+      // `call` dispatch cannot carry a broadcast result.
       sendTransaction: defineHandler(
         SendTransactionParamsStruct,
         async (params) =>

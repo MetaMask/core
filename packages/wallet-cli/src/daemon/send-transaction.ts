@@ -1,6 +1,8 @@
 import {
   boolean,
   define,
+  literal,
+  nonempty,
   object,
   optional,
   refine,
@@ -25,8 +27,8 @@ const INTERNAL_ORIGIN = 'metamask';
 
 /**
  * Struct for a `0x`-prefixed 20-byte hex address. `isValidHexAddress` accepts
- * any-case addresses (checksum optional), which is what a CLI user is most
- * likely to paste.
+ * an all-lowercase address or a valid EIP-55 checksummed one, so a plain
+ * lowercase paste works while a mistyped mixed-case address is rejected.
  */
 const AddressStruct = define<Hex>('Address', (value) =>
   typeof value === 'string' && isValidHexAddress(value as Hex)
@@ -54,7 +56,7 @@ export const SendTransactionParamsStruct = refine(
     maxFeePerGas: optional(StrictHexStruct),
     maxPriorityFeePerGas: optional(StrictHexStruct),
     gasPrice: optional(StrictHexStruct),
-    networkClientId: optional(string()),
+    networkClientId: optional(nonempty(string())),
     chainId: optional(StrictHexStruct),
     dryRun: optional(boolean()),
   }),
@@ -74,25 +76,36 @@ export type SendTransactionParams = Infer<typeof SendTransactionParamsStruct>;
 
 /**
  * The resolved plan a `dryRun` returns: the network client and sender the
- * daemon would use, without adding or broadcasting anything.
+ * daemon would use, without adding or broadcasting anything. Exported as a
+ * struct so the CLI can validate the payload it reads back over JSON-RPC
+ * (which erases types on the wire) rather than trusting its shape.
  */
-export type SendTransactionDryRunResult = {
-  dryRun: true;
-  from: Hex;
-  to: Hex;
-  value: Hex;
-  networkClientId: string;
-};
+export const SendTransactionDryRunResultStruct = object({
+  dryRun: literal(true),
+  from: StrictHexStruct,
+  to: StrictHexStruct,
+  value: StrictHexStruct,
+  networkClientId: string(),
+});
 
 /**
  * The outcome of a broadcast send: the on-chain hash plus the id/status the
- * daemon tracks the transaction under.
+ * daemon tracks the transaction under. Exported as a struct for the same
+ * client-side validation reason as {@link SendTransactionDryRunResultStruct}.
  */
-export type SendTransactionBroadcastResult = {
-  transactionHash: string;
-  transactionId: string;
-  status: string;
-};
+export const SendTransactionBroadcastResultStruct = object({
+  transactionHash: string(),
+  transactionId: string(),
+  status: string(),
+});
+
+export type SendTransactionDryRunResult = Infer<
+  typeof SendTransactionDryRunResultStruct
+>;
+
+export type SendTransactionBroadcastResult = Infer<
+  typeof SendTransactionBroadcastResultStruct
+>;
 
 export type SendTransactionResult =
   | SendTransactionDryRunResult
@@ -175,14 +188,14 @@ export async function runSendTransaction(
     { networkClientId, origin: INTERNAL_ORIGIN, isInternal: true },
   );
 
-  // Awaiting the broadcast server-side is the whole point of this handler: the
-  // `result` promise cannot be serialized back to the CLI, so the daemon
-  // resolves it and returns the hash instead.
+  // `result` resolves only once the transaction is signed and broadcast (see
+  // the function JSDoc); awaiting it here is what this handler exists for.
   const transactionHash = await result;
 
-  // `transactionMeta` is the snapshot from creation, when the status is still
-  // `unapproved`; re-read the live record so the reported status reflects the
-  // post-broadcast state (e.g. `submitted`).
+  // Re-read the live record for the current status: `transactionMeta` is the
+  // creation snapshot (still `unapproved`). If the record is already gone,
+  // fall back to `submitted` — reaching this point means `result` resolved, so
+  // the transaction was broadcast, never merely `unapproved`.
   const [current] = messenger.call('TransactionController:getTransactions', {
     searchCriteria: { id: transactionMeta.id },
   });
@@ -190,6 +203,6 @@ export async function runSendTransaction(
   return {
     transactionHash,
     transactionId: transactionMeta.id,
-    status: current?.status ?? transactionMeta.status,
+    status: current?.status ?? 'submitted',
   };
 }

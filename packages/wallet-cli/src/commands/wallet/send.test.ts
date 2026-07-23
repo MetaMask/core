@@ -48,6 +48,12 @@ describe('parseEtherToWeiHex', () => {
     ['0.01', '0x2386f26fc10000'],
     ['0.1', '0x16345785d8a0000'],
     ['123.456', '0x6b14bd1e6eea00000'],
+    // Exactly 18 fractional digits is the accepted boundary (19 is rejected).
+    ['0.123456789012345678', '0x1b69b4ba630f34e'],
+    // Leading zeros are accepted and parsed by value.
+    ['007', '0x6124fee993bc0000'],
+    ['00.5', '0x6f05b59d3b20000'],
+    ['01', '0xde0b6b3a7640000'],
   ])('converts %s ether to %s wei', (input, expected) => {
     expect(parseEtherToWeiHex(input)).toBe(expected);
   });
@@ -135,12 +141,16 @@ describe('wallet send', () => {
         }),
       }),
     );
-    // ...the second is the real broadcast, without dryRun.
+    // ...the second is the real broadcast, without dryRun. It pins the
+    // sender/network the preview resolved rather than re-sending --chain-id.
     const secondParams = mockSendCommand.mock.calls[1]?.[0]?.params as Record<
       string,
       unknown
     >;
     expect(secondParams.dryRun).toBeUndefined();
+    expect(secondParams.networkClientId).toBe('mainnet');
+    expect(secondParams.from).toBe(FROM);
+    expect(secondParams.chainId).toBeUndefined();
     expect(mockConfirmSend).toHaveBeenCalledTimes(1);
     expect(stdout).toContain('Transaction broadcast.');
     expect(stdout).toContain('0xhash');
@@ -208,7 +218,37 @@ describe('wallet send', () => {
       }),
     );
     expect(mockConfirmSend).not.toHaveBeenCalled();
-    expect(stdout).toContain('0xhash');
+    expect(stdout).toContain('Hash:   0xhash');
+    expect(stdout).toContain('Id:     tx-1');
+    expect(stdout).toContain('Status: submitted');
+  });
+
+  it('shows data and gas overrides in the preview', async () => {
+    queueResults(DRY_RUN_RESULT);
+
+    const { stdout } = await runCommand(WalletSend, [
+      '--to',
+      TO,
+      '--chain-id',
+      '0x1',
+      '--data',
+      '0xabcdef',
+      '--gas',
+      '0x5208',
+      '--max-fee-per-gas',
+      '0x2',
+      '--max-priority-fee-per-gas',
+      '0x1',
+      '--gas-price',
+      '0x3',
+      '--dry-run',
+    ]);
+
+    expect(stdout).toContain('Data:    0xabcdef');
+    expect(stdout).toContain('gas=0x5208');
+    expect(stdout).toContain('maxFeePerGas=0x2');
+    expect(stdout).toContain('maxPriorityFeePerGas=0x1');
+    expect(stdout).toContain('gasPrice=0x3');
   });
 
   it('previews and stops with --dry-run', async () => {
@@ -274,10 +314,12 @@ describe('wallet send', () => {
     );
   });
 
-  it('prints (unknown) for fields missing from the result payload', async () => {
+  it('errors loudly when the broadcast result is missing fields', async () => {
+    // Missing transactionId/status: the daemon's result contract drifted. On a
+    // fund-moving send this must fail loudly, not print a half-blank success.
     queueResults({ transactionHash: '0xhash' });
 
-    const { stdout } = await runCommand(WalletSend, [
+    const { error } = await runCommand(WalletSend, [
       '--to',
       TO,
       '--network-client-id',
@@ -285,9 +327,64 @@ describe('wallet send', () => {
       '--yes',
     ]);
 
-    expect(stdout).toContain('Hash:   0xhash');
-    expect(stdout).toContain('Id:     (unknown)');
-    expect(stdout).toContain('Status: (unknown)');
+    expect(error?.message).toContain('unexpected send');
+  });
+
+  it('errors when the dry-run result is malformed', async () => {
+    // Missing networkClientId: fails dry-run result validation.
+    queueResults({ dryRun: true, from: FROM, to: TO, value: '0x1' });
+
+    const { error } = await runCommand(WalletSend, [
+      '--to',
+      TO,
+      '--chain-id',
+      '0x1',
+      '--dry-run',
+    ]);
+
+    expect(error?.message).toContain('unexpected dry-run');
+  });
+
+  it('warns of a possible in-flight send when the broadcast times out', async () => {
+    mockSendCommand.mockRejectedValue(new Error('Socket read timed out'));
+
+    const { error } = await runCommand(WalletSend, [
+      '--to',
+      TO,
+      '--network-client-id',
+      'mainnet',
+      '--yes',
+    ]);
+
+    expect(error?.message).toContain('still be broadcasting');
+    expect(error?.message).toContain('twice');
+  });
+
+  it('reports a preview timeout as a plain connection error', async () => {
+    mockSendCommand.mockRejectedValue(new Error('Socket read timed out'));
+
+    const { error } = await runCommand(WalletSend, [
+      '--to',
+      TO,
+      '--chain-id',
+      '0x1',
+    ]);
+
+    expect(error?.message).toContain('timed out');
+    expect(error?.message).not.toContain('twice');
+    expect(mockConfirmSend).not.toHaveBeenCalled();
+  });
+
+  it('treats an empty --network-client-id as absent', async () => {
+    const { error } = await runCommand(WalletSend, [
+      '--to',
+      TO,
+      '--network-client-id',
+      '',
+    ]);
+
+    expect(error?.message).toContain('exactly one');
+    expect(mockSendCommand).not.toHaveBeenCalled();
   });
 
   it('surfaces a JSON-RPC failure from the daemon', async () => {

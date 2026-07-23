@@ -1,3 +1,5 @@
+import { is } from '@metamask/superstruct';
+import type { Struct } from '@metamask/superstruct';
 import { bigIntToHex, isJsonRpcFailure, toWei } from '@metamask/utils';
 import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
 import { Command, Flags } from '@oclif/core';
@@ -5,6 +7,11 @@ import { Command, Flags } from '@oclif/core';
 import { sendCommand } from '../../daemon/daemon-client.js';
 import { getDaemonPaths } from '../../daemon/paths.js';
 import { confirmSend } from '../../daemon/prompts.js';
+import {
+  SendTransactionBroadcastResultStruct,
+  SendTransactionDryRunResultStruct,
+} from '../../daemon/send-transaction.js';
+import type { SendTransactionDryRunResult } from '../../daemon/send-transaction.js';
 import {
   emptyToUndefined,
   formatJsonRpcError,
@@ -14,17 +21,38 @@ import {
 const ETHER_DECIMALS = 18;
 
 /**
+ * Fallback response timeout (ms) for the broadcast call. Broadcasting waits for
+ * signing and `eth_sendRawTransaction` server-side, which can far outlast the
+ * 30s default used for cheap RPCs; too short a timeout would make a slow but
+ * successful send look like a failure and tempt a duplicate re-send.
+ * `--timeout` overrides it.
+ */
+const BROADCAST_TIMEOUT_MS = 120_000;
+
+/**
+ * The transaction fields shown in the confirmation preview that the daemon
+ * does not echo back (they are the raw `--data` / gas overrides the user
+ * passed, so the CLI supplies them for display).
+ */
+type PlanExtras = {
+  data?: string | undefined;
+  gas?: string | undefined;
+  maxFeePerGas?: string | undefined;
+  maxPriorityFeePerGas?: string | undefined;
+  gasPrice?: string | undefined;
+};
+
+/**
  * Convert a decimal ether amount to a `0x`-prefixed wei quantity.
  *
- * The fixed-point conversion is delegated to `@metamask/utils`' `toWei` — the
- * shared, audited implementation (a bigint-based reimplementation of
- * `@metamask/ethjs-unit`) — rather than re-deriving the wei math here. The
- * daemon's `sendTransaction` boundary expects canonical hex wei; this is where
- * the human-friendly `--value` (ether) is turned into it.
+ * The fixed-point conversion is delegated to `@metamask/utils`' `toWei` rather
+ * than re-deriving the wei math here. The daemon's `sendTransaction` boundary
+ * expects canonical hex wei; this is where the human-friendly `--value` (ether)
+ * is turned into it.
  *
- * `toWei` itself accepts negatives and scientific notation and throws opaque
- * messages, so the input is guarded up front for a clear error and a strictly
- * non-negative value.
+ * `toWei` silently accepts negatives and throws opaque messages on other
+ * malformed input, so the value is guarded up front for a clear error and a
+ * strictly non-negative amount.
  *
  * @param amount - A non-negative decimal ether amount (e.g. `"0.1"`, `"1"`).
  * @returns The equivalent wei as a `0x`-prefixed hex string.
@@ -51,9 +79,9 @@ export function parseEtherToWeiHex(amount: string): Hex {
 export default class WalletSend extends Command {
   static override description =
     'Send a transaction through the daemon-hosted TransactionController. ' +
-    'Resolves gas via GasFeeController estimates unless overridden, signs, ' +
-    'broadcasts, and prints the resulting transaction hash. The daemon ' +
-    'auto-approves, so the confirmation boundary is this command.';
+    'Estimates gas automatically unless overridden, signs, broadcasts, and ' +
+    'prints the resulting transaction hash. The daemon auto-approves, so the ' +
+    'confirmation boundary is this command.';
 
   static override examples = [
     '<%= config.bin %> wallet send --to 0xRecipient --value 0.01 --chain-id 0x1',
@@ -130,11 +158,12 @@ export default class WalletSend extends Command {
       this.error((error as Error).message);
     }
 
-    const params: Record<string, Json> = {
+    // Everything except the network selector. The selector is added per call:
+    // a confirmed broadcast pins the `networkClientId` the preview resolved
+    // rather than re-sending `--chain-id` and re-resolving it.
+    const baseParams: Record<string, Json> = {
       to: flags.to,
       value,
-      ...(networkClientId === undefined ? {} : { networkClientId }),
-      ...(chainId === undefined ? {} : { chainId }),
       ...(flags.from ? { from: flags.from } : {}),
       ...(flags.data ? { data: flags.data } : {}),
       ...(flags.gas ? { gas: flags.gas } : {}),
@@ -146,34 +175,55 @@ export default class WalletSend extends Command {
         : {}),
       ...(flags['gas-price'] ? { gasPrice: flags['gas-price'] } : {}),
     };
+    // Exactly one selector is defined (guarded above); guard each spread by its
+    // own `undefined` check so the object never carries an `undefined` value.
+    const params: Record<string, Json> = {
+      ...baseParams,
+      ...(networkClientId === undefined ? {} : { networkClientId }),
+      ...(chainId === undefined ? {} : { chainId }),
+    };
+    const planExtras: PlanExtras = {
+      data: flags.data,
+      gas: flags.gas,
+      maxFeePerGas: flags['max-fee-per-gas'],
+      maxPriorityFeePerGas: flags['max-priority-fee-per-gas'],
+      gasPrice: flags['gas-price'],
+    };
 
     const { socketPath } = getDaemonPaths(this.config.dataDir);
     const timeoutMs = flags.timeout;
 
-    // A `dryRun` resolves the network client and sender and validates params
-    // server-side without broadcasting. `--dry-run` stops after previewing;
-    // an interactive run previews first so the confirmation shows the resolved
-    // sender/network. `--yes` skips both and broadcasts directly.
+    // A `dryRun` resolves the sender and network client server-side without
+    // broadcasting. `--dry-run` stops after previewing; an interactive run
+    // previews first so the confirmation shows (and then pins) the resolved
+    // sender/network; `--yes` skips straight to the broadcast.
     if (flags['dry-run']) {
-      const preview = await this.#dispatchSend(
+      const preview = await this.#dispatchSend({
         socketPath,
-        { ...params, dryRun: true },
+        params: { ...params, dryRun: true },
         timeoutMs,
-      );
-      this.log(formatPlan(preview, flags.value));
+        struct: SendTransactionDryRunResultStruct,
+        broadcast: false,
+      });
+      this.log(formatPlan(preview, flags.value, planExtras));
       return;
     }
 
+    let resolved: SendTransactionDryRunResult | undefined;
     if (!flags.yes) {
-      const preview = await this.#dispatchSend(
+      const preview = await this.#dispatchSend({
         socketPath,
-        { ...params, dryRun: true },
+        params: { ...params, dryRun: true },
         timeoutMs,
-      );
+        struct: SendTransactionDryRunResultStruct,
+        broadcast: false,
+      });
 
       let confirmed: boolean;
       try {
-        confirmed = await confirmSend(formatPlan(preview, flags.value));
+        confirmed = await confirmSend(
+          formatPlan(preview, flags.value, planExtras),
+        );
       } catch (error) {
         // Ctrl+C at the prompt (@inquirer/core's ExitPromptError) is a clean
         // abort, not a failure; anything else should surface.
@@ -187,29 +237,58 @@ export default class WalletSend extends Command {
         this.log('Aborted.');
         return;
       }
+      resolved = preview;
     }
 
-    const result = await this.#dispatchSend(socketPath, params, timeoutMs);
+    // Broadcast the exact sender/network the user reviewed (when they confirmed
+    // a preview), so what is signed matches what was shown. `--yes` skips the
+    // preview, so there it re-resolves server-side from `params`.
+    const broadcastParams: Record<string, Json> = resolved
+      ? {
+          ...baseParams,
+          from: resolved.from,
+          networkClientId: resolved.networkClientId,
+        }
+      : params;
+
+    const result = await this.#dispatchSend({
+      socketPath,
+      params: broadcastParams,
+      timeoutMs: timeoutMs ?? BROADCAST_TIMEOUT_MS,
+      struct: SendTransactionBroadcastResultStruct,
+      broadcast: true,
+    });
     this.log('Transaction broadcast.');
-    this.log(`Hash:   ${stringField(result, 'transactionHash')}`);
-    this.log(`Id:     ${stringField(result, 'transactionId')}`);
-    this.log(`Status: ${stringField(result, 'status')}`);
+    this.log(`Hash:   ${result.transactionHash}`);
+    this.log(`Id:     ${result.transactionId}`);
+    this.log(`Status: ${result.status}`);
   }
 
   /**
-   * Send a `sendTransaction` RPC to the daemon and return its result payload,
-   * translating connection errors and JSON-RPC failures into command errors.
+   * Send a `sendTransaction` RPC to the daemon and return its validated result,
+   * translating connection errors, broadcast timeouts, JSON-RPC failures, and
+   * unexpected payloads into command errors.
    *
-   * @param socketPath - The daemon Unix socket path.
-   * @param params - The `sendTransaction` params (with or without `dryRun`).
-   * @param timeoutMs - Optional response timeout in milliseconds.
-   * @returns The JSON-RPC `result` as a record.
+   * @param options - Dispatch options.
+   * @param options.socketPath - The daemon Unix socket path.
+   * @param options.params - The `sendTransaction` params (with or without
+   * `dryRun`).
+   * @param options.timeoutMs - Optional response timeout in milliseconds.
+   * @param options.struct - Struct the `result` payload must satisfy; the
+   * return type is inferred from it.
+   * @param options.broadcast - Whether this is the real (fund-moving) broadcast.
+   * When true, a read timeout is reported with guidance that the send may
+   * already be in flight, so the user does not blindly re-send.
+   * @returns The validated `result` payload.
    */
-  async #dispatchSend(
-    socketPath: string,
-    params: JsonRpcParams,
-    timeoutMs: number | undefined,
-  ): Promise<Record<string, Json>> {
+  async #dispatchSend<Value>(options: {
+    socketPath: string;
+    params: JsonRpcParams;
+    timeoutMs: number | undefined;
+    struct: Struct<Value>;
+    broadcast: boolean;
+  }): Promise<Value> {
+    const { socketPath, params, timeoutMs, struct, broadcast } = options;
     let response;
     try {
       response = await sendCommand({
@@ -219,6 +298,9 @@ export default class WalletSend extends Command {
         ...(timeoutMs === undefined ? {} : { timeoutMs }),
       });
     } catch (error) {
+      if (broadcast && isReadTimeout(error)) {
+        this.error(broadcastTimeoutMessage());
+      }
       this.error(makeDaemonConnectionError(error));
     }
 
@@ -226,21 +308,43 @@ export default class WalletSend extends Command {
       this.error(formatJsonRpcError(response.error));
     }
 
-    return response.result as Record<string, Json>;
+    const { result } = response;
+    if (!is(result, struct)) {
+      this.error(
+        `The daemon returned an unexpected ${broadcast ? 'send' : 'dry-run'} ` +
+          'result. It may be running an incompatible version.',
+      );
+    }
+    return result;
   }
 }
 
 /**
- * Read a string field off a JSON-RPC result record, tolerating a missing or
- * non-string value so output never crashes on an unexpected payload shape.
+ * Whether an error is the daemon-client socket read timeout. It carries no
+ * errno code, so its message is the only signal.
  *
- * @param result - The JSON-RPC result record.
- * @param key - The field to read.
- * @returns The field as a string, or `'(unknown)'` if absent/non-string.
+ * @param error - The caught value.
+ * @returns True if it is the read timeout.
  */
-function stringField(result: Record<string, Json>, key: string): string {
-  const value = result[key];
-  return typeof value === 'string' ? value : '(unknown)';
+function isReadTimeout(error: unknown): boolean {
+  return error instanceof Error && error.message === 'Socket read timed out';
+}
+
+/**
+ * The message shown when the broadcast call times out. A send is not
+ * idempotent, and the daemon may still be broadcasting after the client gives
+ * up waiting, so this warns against a blind re-run rather than reading as a
+ * plain connection failure.
+ *
+ * @returns The user-facing guidance.
+ */
+function broadcastTimeoutMessage(): string {
+  return (
+    'The daemon did not respond in time, but your transaction may still be ' +
+    'broadcasting. Do NOT re-run this command — you could send it twice. ' +
+    'Check `mm daemon status`, the daemon log, or your account on-chain to ' +
+    'confirm, then use --timeout to wait longer if needed.'
+  );
 }
 
 /**
@@ -249,14 +353,35 @@ function stringField(result: Record<string, Json>, key: string): string {
  * @param plan - The dry-run result returned by the daemon.
  * @param etherAmount - The original `--value` (ether), shown alongside the
  * resolved wei so the user sees the human amount they typed.
+ * @param extras - The `--data` / gas overrides the daemon does not echo back,
+ * shown so the user confirms exactly what will be sent.
  * @returns A multi-line summary of the transaction to be sent.
  */
-function formatPlan(plan: Record<string, Json>, etherAmount: string): string {
-  return [
+function formatPlan(
+  plan: SendTransactionDryRunResult,
+  etherAmount: string,
+  extras: PlanExtras,
+): string {
+  const lines = [
     'About to send:',
-    `  To:      ${stringField(plan, 'to')}`,
-    `  From:    ${stringField(plan, 'from')}`,
-    `  Value:   ${etherAmount} ETH (${stringField(plan, 'value')} wei)`,
-    `  Network: ${stringField(plan, 'networkClientId')}`,
-  ].join('\n');
+    `  To:      ${plan.to}`,
+    `  From:    ${plan.from}`,
+    `  Value:   ${etherAmount} ETH (${plan.value} wei)`,
+    `  Network: ${plan.networkClientId}`,
+  ];
+  if (extras.data) {
+    lines.push(`  Data:    ${extras.data}`);
+  }
+  const gasParts = [
+    extras.gas ? `gas=${extras.gas}` : undefined,
+    extras.maxFeePerGas ? `maxFeePerGas=${extras.maxFeePerGas}` : undefined,
+    extras.maxPriorityFeePerGas
+      ? `maxPriorityFeePerGas=${extras.maxPriorityFeePerGas}`
+      : undefined,
+    extras.gasPrice ? `gasPrice=${extras.gasPrice}` : undefined,
+  ].filter((part): part is string => part !== undefined);
+  if (gasParts.length > 0) {
+    lines.push(`  Gas:     ${gasParts.join(', ')}`);
+  }
+  return lines.join('\n');
 }
