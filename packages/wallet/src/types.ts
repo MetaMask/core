@@ -11,6 +11,7 @@ import type {
   ClaimsServiceInstanceOptions,
 } from './initialization/instances/claims-controller/types.js';
 import type { ConnectivityControllerInstanceOptions } from './initialization/instances/connectivity-controller/types.js';
+import type { GasFeeControllerInstanceOptions } from './initialization/instances/gas-fee-controller/types.js';
 import type { KeyringControllerInstanceOptions } from './initialization/instances/keyring-controller/types.js';
 import type { NetworkControllerInstanceOptions } from './initialization/instances/network-controller/types.js';
 import type { PasskeyControllerInstanceOptions } from './initialization/instances/passkey-controller/types.js';
@@ -35,6 +36,7 @@ export type InstanceSpecificOptions = {
   claimsService: ClaimsServiceInstanceOptions;
   claimsController?: ClaimsControllerInstanceOptions;
   connectivityController: ConnectivityControllerInstanceOptions;
+  gasFeeController: GasFeeControllerInstanceOptions;
   keyringController?: KeyringControllerInstanceOptions;
   networkController: NetworkControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;

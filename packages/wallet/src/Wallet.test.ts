@@ -31,6 +31,9 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),
     },
+    gasFeeController: {
+      clientId: 'test',
+    },
     networkController: {
       infuraProjectId: 'fake-infura-project-id',
     },

@@ -26,6 +26,9 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../gas-fee-controller"
+    },
+    {
       "path": "../keyring-controller"
     },
     {

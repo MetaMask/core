@@ -4,6 +4,7 @@ export { approvalController } from './approval-controller/approval-controller.js
 export { claimsController } from './claims-controller/claims-controller.js';
 export { claimsService } from './claims-controller/claims-service.js';
 export { connectivityController } from './connectivity-controller/connectivity-controller.js';
+export { gasFeeController } from './gas-fee-controller/gas-fee-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
 export { networkController } from './network-controller/network-controller.js';
 export { passkeyController } from './passkey-controller/passkey-controller.js';
