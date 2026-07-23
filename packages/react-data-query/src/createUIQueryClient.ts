@@ -1,13 +1,7 @@
 import type {
-  DataServiceActions,
   DataServiceGranularCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedPayload,
 } from '@metamask/base-data-service';
-import type {
-  ActionConstraint,
-  EventConstraint,
-  Messenger,
-} from '@metamask/messenger';
 import { assert } from '@metamask/utils';
 import {
   hydrate,
@@ -65,47 +59,6 @@ type MessengerAdapter<DataServiceName extends string> = {
 };
 
 /**
- * Constraints a messenger such that it must minimally support a subset of
- * capabilities that the given data services provide. Specifically, it must at
- * least allow all data service actions to be called, and it must at least allow
- * the `:cacheUpdated:${hash}` event to be subscribed to.
- */
-// Notes on the implementation:
-//
-// - The messenger type parameter is deliberately *not* constrained (e.g. to
-//   `Messenger<string, ActionConstraint, EventConstraint, any>`); instead we
-//   `infer` the action and event unions directly. This differs from
-//   `BaseController`, which does constrain its `ControllerMessenger` type
-//   parameter to `Messenger<...>`. The reason for the difference is what each
-//   receives:
-//   - `BaseController` is always given an instance of Messenger, and expects an
-//     instance of Messenger in its type parameters, so it can make a direct
-//     comparison.
-//   - `createUIQueryClient`, on the other hand, is given a root messenger, which
-//     in Mobile is a *subclass* of `Messenger` (called
-//     `ExtendedRootMessenger`). A subclass is a different class, so TypeScript
-//     falls back to a structural comparison that includes `Messenger`'s private
-//     fields (and because some private fields are functions or contain
-//     functions, it attempts to compare action handlers or event subscriptions (e.g.
-//     `#subscriptionDelegationTargets`), and fails due to contravariance.
-//     Inferring the unions instead of constraining the type sidesteps this
-//     private-field check.
-type SupportsDataServices<MessengerInstance, DataServiceName extends string> =
-  MessengerInstance extends Messenger<
-    string,
-    infer Action extends ActionConstraint,
-    infer Event extends EventConstraint,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    any
-  >
-    ? DataServiceActions<DataServiceName>['type'] extends Action['type']
-      ? DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'] extends Event['type']
-        ? MessengerInstance
-        : never
-      : never
-    : never;
-
-/**
  * Create a QueryClient that queries and subscribes to data services using a
  * messenger adapter. This is a messenger-like object that carries some
  * constraints:
@@ -113,44 +66,15 @@ type SupportsDataServices<MessengerInstance, DataServiceName extends string> =
  * 1. The messenger must support the `call`, `subscribe` and
  *    `unsubscribe` methods.
  * 2. All action handler arguments and event payloads must be JSON-compatible.
- * 3. The messenger must minimally support capabilities that belong to the
+ * 3. The messenger must minimally support actions that are scoped to the
  *    designated data services and must minimally support the
- *    `:cacheUpdated:${hash}` event of the the designated data services.
+ *    `:cacheUpdated:${hash}` event scoped to the designated data services.
  *
  * @param dataServices - A list of data services.
  * @param messenger - A messenger adapter.
  * @param config - Optional query client configuration options.
  * @returns The QueryClient.
  */
-export function createUIQueryClient<DataServiceNames extends readonly string[]>(
-  dataServices: DataServiceNames,
-  messenger: MessengerAdapter<DataServiceNames[number]>,
-  config?: QueryClientConfig,
-): QueryClient;
-
-/**
- * Create a QueryClient that queries and subscribes to data services using a
- * messenger. This messenger carries some constraints:
- *
- * 1. All action handler arguments and event payloads must be JSON-compatible.
- * 2. The messenger must minimally support capabilities that belong to the
- *    designated data services and must minimally support the
- *    `:cacheUpdated:${hash}` event of the the designated data services.
- *
- * @param dataServices - A list of data services.
- * @param messenger - A messenger.
- * @param config - Optional query client configuration options.
- * @returns The QueryClient.
- */
-export function createUIQueryClient<
-  DataServiceNames extends readonly string[],
-  MessengerInstance,
->(
-  dataServices: DataServiceNames,
-  messenger: SupportsDataServices<MessengerInstance, DataServiceNames[number]>,
-  config?: QueryClientConfig,
-): QueryClient;
-
 export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   dataServices: DataServiceNames,
   messenger: MessengerAdapter<DataServiceNames[number]>,
