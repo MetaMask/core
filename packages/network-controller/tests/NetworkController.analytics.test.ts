@@ -224,6 +224,11 @@ describe('NetworkController analytics', () => {
       );
     }).not.toThrow();
 
-    expect(captureExceptionSpy).toHaveBeenCalledWith(trackError);
+    expect(captureExceptionSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Could not create analytics event',
+        cause: trackError,
+      }),
+    );
   });
 });

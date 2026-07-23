@@ -37,7 +37,12 @@ import {
 } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
-import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
+import {
+  hasProperty,
+  isPlainObject,
+  isStrictHexString,
+  wrapError,
+} from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
@@ -1515,7 +1520,9 @@ export class NetworkController extends BaseController<
         toAnalyticsTrackingEvent(name, properties),
       );
     } catch (error) {
-      this.messenger.captureException?.(error as Error);
+      this.messenger.captureException?.(
+        wrapError(error, 'Could not create analytics event'),
+      );
     }
   }
 
