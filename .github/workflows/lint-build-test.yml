@@ -367,7 +367,7 @@ jobs:
   test-wallet-cli-e2e:
     name: Test wallet-cli daemon e2e (${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    if: needs.prepare.outputs.package-names == '[]' || contains(fromJson(needs.prepare.outputs.package-names), '@metamask/wallet-cli')
+    if: contains(fromJson(needs.prepare.outputs.package-names), '@metamask/wallet-cli')
     needs: prepare
     strategy:
       matrix:
