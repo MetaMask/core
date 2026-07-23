@@ -240,6 +240,8 @@ export {
   selectBridgeFeatureFlags,
   selectMinimumBalanceForRentExemptionInSOL,
   selectTokenWarnings,
+  selectMetadataV2,
+  selectUsdToFiatExchangeRate,
 } from './selectors';
 
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';

@@ -20,6 +20,7 @@ import type { QuoteResponse } from '../../validators/quote-response';
 import { isNativeAddress } from '../bridge';
 import { calcTokenAmount } from '../number-formatters';
 import type { QuoteMetadata, TokenAmountValues } from './types';
+import { FeeType, toQuoteResponseV1, toQuoteResponseV2 } from '../..';
 
 export const calcNonEvmTotalNetworkFee = (
   bridgeQuote: QuoteResponse & NonEvmFees,
@@ -421,6 +422,7 @@ export const calcQuoteMetadata = (
     nativeExchangeRate = {},
   } = options;
 
+  // const quote = toQuoteResponseV2(toQuoteResponseV1(baseQuote));
   const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
   const toTokenAmount = calcToAmount(
     quote.quote.dest.amount,
@@ -507,3 +509,47 @@ export const calcQuoteMetadata = (
     }),
   };
 };
+
+// TODO Phase 1.5 of migration uses calcQuoteMetadata's results as fallback
+export const calcQuoteMetadataV2 = (
+  quote: QuoteResponse,
+  usdToFiatExchangeRate: BigNumber,
+): DeepPartial<QuoteResponse> => {
+  // Calculate fiat based on usd value
+  return {
+    quote: {
+      src: {
+        valueInCurrency: usdToFiatExchangeRate
+          .times(quote.quote.src.usd ?? '0')
+          .toFixed(),
+      },
+      dest: {
+        valueInCurrency: usdToFiatExchangeRate
+          .times(quote.quote.dest.usd ?? '0')
+          .toFixed(),
+        minAmountValueInCurrency: usdToFiatExchangeRate
+          .times(quote.quote.dest.minAmountUsd ?? '0')
+          .toFixed(),
+      },
+      feeData: Object.fromEntries(
+        Object.values(FeeType).map((feeType) => [
+          feeType,
+          quote.quote.feeData[feeType]?.map((fee) => ({
+            valueInCurrency: usdToFiatExchangeRate
+              .times(fee.usd ?? '0')
+              .toFixed(),
+          })),
+        ]),
+      ),
+      priceData: {
+        priceImpact: {
+          valueInCurrency: usdToFiatExchangeRate
+            .times(quote.quote.priceData?.priceImpact?.usd ?? '0')
+            .toFixed(),
+        },
+      },
+    },
+  };
+};
+
+// TODO Phase 2 of migration only uses metadata from the API response
