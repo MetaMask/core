@@ -57,3 +57,7 @@ packages/*/*.tsbuildinfo
 # Docusaurus
 **/.docusaurus
 packages/wallet-framework-docs/site/build
+
+# Foundry (anvil) binaries cached by @metamask/foundryup for the wallet-cli
+# real-chain e2e (enableGlobalCache is off, so the cache lands in-repo).
+.metamask/

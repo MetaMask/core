@@ -180,9 +180,16 @@ export async function runSendTransaction(
   // resolves it and returns the hash instead.
   const transactionHash = await result;
 
+  // `transactionMeta` is the snapshot from creation, when the status is still
+  // `unapproved`; re-read the live record so the reported status reflects the
+  // post-broadcast state (e.g. `submitted`).
+  const [current] = messenger.call('TransactionController:getTransactions', {
+    searchCriteria: { id: transactionMeta.id },
+  });
+
   return {
     transactionHash,
     transactionId: transactionMeta.id,
-    status: transactionMeta.status,
+    status: current?.status ?? transactionMeta.status,
   };
 }

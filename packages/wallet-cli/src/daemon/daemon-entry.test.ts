@@ -913,9 +913,17 @@ describe('daemon-entry', () => {
     it('runs a send through the wallet messenger and returns the hash', async () => {
       const result = createMockWallet();
       const mockCall = result.wallet.messenger.call as jest.Mock;
-      mockCall.mockReturnValue({
-        result: Promise.resolve('0xhash'),
-        transactionMeta: { id: 'tx-1', status: 'submitted' },
+      mockCall.mockImplementation((action: string) => {
+        if (action === 'TransactionController:addTransaction') {
+          return {
+            result: Promise.resolve('0xhash'),
+            transactionMeta: { id: 'tx-1', status: 'unapproved' },
+          };
+        }
+        if (action === 'TransactionController:getTransactions') {
+          return [{ id: 'tx-1', status: 'submitted' }];
+        }
+        return undefined;
       });
       mockCreateWallet.mockResolvedValue(result);
       mockStartRpcSocketServer.mockResolvedValue(createMockHandle());

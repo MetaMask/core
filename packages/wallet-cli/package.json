@@ -41,6 +41,7 @@
     "test": "yarn test:prepare && NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:e2e": "yarn test:prepare && NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.e2e.js",
+    "test:e2e:install-anvil": "mm-foundryup",
     "test:prepare": "./scripts/install-binaries.sh",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
@@ -62,12 +63,14 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/foundryup": "^1.0.1",
     "@ts-bridge/cli": "^0.6.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^30.0.0",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "jest-environment-node": "^30.4.1",
+    "nock": "^13.3.1",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typescript": "~5.3.3"
