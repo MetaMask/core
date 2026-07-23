@@ -409,6 +409,32 @@ describe('DetectionMiddleware', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
+  it('queues assetsForPriceUpdate for known balance assets that still lack a price', async () => {
+    const { middleware } = setupController();
+    // Asset already has metadata (known / seeded) but no price yet.
+    const context = createMiddlewareContext(
+      {
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_NATIVE_ASSET]: { amount: '0' },
+            },
+          },
+        },
+      },
+      [MOCK_NATIVE_ASSET],
+    );
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(context.response.detectedAssets).toBeUndefined();
+    expect(context.request.assetsForPriceUpdate).toStrictEqual([
+      normalizeAssetId(MOCK_NATIVE_ASSET),
+    ]);
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
   it('retrieves middleware from instance', async () => {
     const { middleware } = setupController();
     const middlewareFn = middleware.assetsMiddleware;
