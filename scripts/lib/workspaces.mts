@@ -118,7 +118,7 @@ export async function getWorkspaceDependencies(
     })) {
       if (dependants[dependency] !== undefined) {
         const dependencyWorkspace = workspaces.find(
-          (item) => item.name === pkg.name,
+          (item) => item.name === dependency,
         );
 
         if (dependencyWorkspace) {
