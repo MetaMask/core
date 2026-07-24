@@ -47,9 +47,12 @@ export type AccountWalletPrivateKeyPayload = {
   groups: AccountWalletPrivateKeyGroupEntry[];
 };
 
+
+export type AccountTreeWalletEntry = AccountWalletMnemonicPayload | AccountWalletPrivateKeyPayload;
+
 export type AccountTreePayload = {
   version: typeof ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION;
-  wallets: Array<AccountWalletMnemonicPayload | AccountWalletPrivateKeyPayload>;
+  wallets: AccountTreeWalletEntry[];
 };
 
 /** Wallet entry type available in {@link AccountTreeSnapshot.filter} predicates. */

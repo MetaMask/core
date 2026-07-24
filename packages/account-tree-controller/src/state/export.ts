@@ -1,4 +1,5 @@
 import { AccountWalletType } from '@metamask/account-api';
+import { encodeMnemonic } from '@metamask/keyring-sdk';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type {
@@ -6,34 +7,168 @@ import type {
   AccountTreeControllerState,
 } from '../types.js';
 import type {
-  AccountGroupPayloadId,
+  AccountTreeWalletEntry,
   AccountWalletMnemonicGroupEntry,
   AccountWalletMnemonicPayload,
-  AccountWalletPayloadId,
   AccountWalletPrivateKeyGroupEntry,
   AccountWalletPrivateKeyPayload,
   ExportStateOptions,
 } from './payload.js';
 import { IdMap } from './id-map.js';
 import { AccountTreeSnapshot } from './snapshot.js';
+import { AccountWalletEntropyObject, AccountWalletKeyringObject, AccountWalletObject } from '../wallet.js';
+import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
+import { PrivateKeyExportedAccount } from '@metamask/keyring-api/v2';
 
 export type ExportContext = {
   getState: () => AccountTreeControllerState;
   messenger: AccountTreeControllerMessenger;
 };
 
-// Minimal structural interface — avoids adding @metamask/eth-hd-keyring as a dep.
-type HdKeyringLike = {
-  mnemonic: Uint8Array | null | undefined;
-};
+function isMnemonicWalletObject(wallet: AccountWalletObject): wallet is AccountWalletEntropyObject {
+  return wallet.type === AccountWalletType.Entropy;
+}
 
-// Minimal structural interface for keyring v2 exportAccount.
-type KeyringWithExport = {
-  exportAccount(
-    accountId: string,
-    options: { type: string; encoding: string },
-  ): Promise<{ privateKey: string; encoding: string }>;
-};
+async function exportMnemonicWalletObject(context: ExportContext, walletObj: AccountWalletEntropyObject, includeSecrets: boolean, idMap: IdMap): Promise<AccountWalletMnemonicPayload> {
+  const result = await context.messenger.call(
+    'KeyringController:withKeyringV2Unsafe',
+    // The local wallet entropy ID is the keyring ID.
+    { id: walletObj.metadata.entropy.id },
+    async ({ keyring }) => {
+      const hdKeyring = keyring as HdKeyring;
+      const includeMnemonic = includeSecrets && hdKeyring.mnemonic !== null && hdKeyring.mnemonic !== undefined;
+
+      return {
+        // Compute the stable entropy source ID from the keyring's mnemonic (BIP-39 seed).
+        entropySourceId: await hdKeyring.toEntropySourceId(),
+        // No need to include the mnemonic here if we're not exporting secrets.
+        mnemonic: includeMnemonic ? encodeMnemonic(hdKeyring.mnemonic) : undefined,
+      };
+    },
+  );
+  const { entropySourceId, mnemonic } = result as {
+    entropySourceId: string;
+    mnemonic?: number[];
+  };
+
+  // We use the stable entropy source ID as the payload wallet ID, rather than the local wallet ID, to
+  // ensure that the exported snapshot is stable across different installations and sessions.
+  const wallet: AccountWalletMnemonicPayload = {
+    type: 'mnemonic',
+    id: `wallet:${entropySourceId}`,
+    metadata: { name: walletObj.metadata.name },
+    groups: [],
+  };
+
+  idMap.add(walletObj.id, wallet.id);
+
+  for (const groupObj of Object.values(walletObj.groups)) {
+    const { groupIndex } = groupObj.metadata.entropy;
+
+    const group: AccountWalletMnemonicGroupEntry = {
+      id: `${wallet.id}/${groupIndex}`,
+      groupIndex,
+      metadata: {
+        name: groupObj.metadata.name,
+        pinned: groupObj.metadata.pinned,
+        hidden: groupObj.metadata.hidden,
+      },
+    };
+
+    idMap.add(groupObj.id, group.id);
+
+    wallet.groups.push(group);
+  }
+
+  // This should never happen, but we check just in case.
+  if (includeSecrets) {
+    if (mnemonic === undefined) {
+      throw new Error(`Failed to export mnemonic for wallet ${wallet.id}`);
+    }
+
+    wallet.value = String(mnemonic); // FIXME: This should be a string, but the encodeMnemonic function returns a number array. We need to fix this in the keyring-sdk.
+  }
+
+  return wallet;
+}
+
+function isPrivateKeyWalletObject(wallet: AccountWalletObject): wallet is AccountWalletKeyringObject {
+  return wallet.type === AccountWalletType.Keyring &&
+    wallet.metadata.keyring.type === KeyringTypes.simple;
+}
+
+async function exportPrivateKeyWalletObject(context: ExportContext, walletObj: AccountWalletKeyringObject, includeSecrets: boolean, idMap: IdMap): Promise<AccountWalletPrivateKeyPayload> {
+  // We use a singleton wallet ID for private keys.
+  const wallet: AccountWalletPrivateKeyPayload = {
+    type: 'private-key',
+    id: `wallet:private-key`,
+    metadata: { name: walletObj.metadata.name },
+    groups: [],
+  };
+
+  idMap.add(walletObj.id, wallet.id);
+
+  for (const groupObj of Object.values(walletObj.groups)) {
+    const accountId = groupObj.accounts[0];
+    if (!accountId) {
+      continue;
+    }
+    const account = context.messenger.call(
+      'AccountsController:getAccount',
+      accountId,
+    );
+    if (!account) {
+      continue;
+    }
+
+    const { address } = account;
+
+    let exported: PrivateKeyExportedAccount | undefined;
+    if (includeSecrets) {
+      const result = await context.messenger.call(
+        'KeyringController:withKeyringV2',
+        { address },
+        async ({ keyring }) => {
+          if (!keyring.exportAccount) {
+            throw new Error(`Keyring for account ${accountId} does not support exportAccount`);
+          }
+
+          return keyring.exportAccount(accountId, {
+            type: 'private-key',
+            encoding: 'hexadecimal',
+          });
+        },
+      );
+
+      exported = result as PrivateKeyExportedAccount;
+    }
+
+    const group: AccountWalletPrivateKeyGroupEntry = {
+      id: `${wallet.id}/${address}`,
+      metadata: {
+        name: groupObj.metadata.name,
+        pinned: groupObj.metadata.pinned,
+        hidden: groupObj.metadata.hidden,
+      },
+    };
+
+    if (includeSecrets) {
+      if (!exported) {
+        throw new Error(`Failed to export private key for account ${accountId}`);
+      }
+      group.value = {
+        privateKey: exported.privateKey,
+        encoding: exported.encoding,
+      };
+    }
+
+    idMap.add(groupObj.id, group.id);
+
+    wallet.groups.push(group);
+  }
+
+  return wallet;
+}
 
 /**
  * Builds an {@link AccountTreeSnapshot} from the current controller state.
@@ -55,148 +190,28 @@ export async function exportState(
   context: ExportContext,
   options: ExportStateOptions = {},
 ): Promise<AccountTreeSnapshot> {
-  const { includeSecrets = false } = options;
   const state = context.getState();
 
+  const includeSecrets = options.includeSecrets ?? false;
   const { isUnlocked } = context.messenger.call('KeyringController:getState');
-  const shouldIncludeSecrets = includeSecrets && isUnlocked;
+  if (includeSecrets && !isUnlocked) {
+    throw new Error(
+      'Cannot include secrets in export when vault is locked',
+    );
+  }
 
   const idMap = new IdMap();
-
-  const entries: Array<AccountWalletMnemonicPayload | AccountWalletPrivateKeyPayload> =
-    [];
-
-  // Singleton private-key payload wallet — all simple-keyring groups are merged here.
-  let privateKeyWallet: AccountWalletPrivateKeyPayload | undefined;
-
-  for (const wallet of Object.values(state.accountTree.wallets)) {
-    if (wallet.type === AccountWalletType.Entropy) {
-      const entropySourceId = wallet.metadata.entropy.id;
-      const walletPayloadId: AccountWalletPayloadId = `wallet:${entropySourceId}`;
-
-      idMap.add(wallet.id, walletPayloadId);
-
-      const groups: AccountWalletMnemonicGroupEntry[] = [];
-      for (const group of Object.values(wallet.groups)) {
-        const { groupIndex } = group.metadata.entropy;
-        const groupPayloadId: AccountGroupPayloadId = `${walletPayloadId}/${groupIndex}`;
-
-        idMap.add(group.id, groupPayloadId);
-
-        const groupMeta = state.accountGroupsMetadata[group.id];
-        groups.push({
-          id: groupPayloadId,
-          groupIndex,
-          metadata: {
-            name: groupMeta?.name?.value ?? group.metadata.name,
-            pinned: groupMeta?.pinned?.value ?? group.metadata.pinned,
-            hidden: groupMeta?.hidden?.value ?? group.metadata.hidden,
-          },
-        });
-      }
-
-      const walletMeta = state.accountWalletsMetadata[wallet.id];
-      let mnemonicValue: string | undefined;
-
-      if (shouldIncludeSecrets) {
-        try {
-          const mnemonicBytes = await context.messenger.call(
-            'KeyringController:withKeyringV2Unsafe',
-            { id: entropySourceId },
-            async ({ keyring }: { keyring: unknown }) => {
-              const hd = keyring as HdKeyringLike;
-              return hd.mnemonic ?? undefined;
-            },
-          );
-          if (mnemonicBytes) {
-            mnemonicValue = new TextDecoder().decode(mnemonicBytes);
-          }
-        } catch {
-          // Vault locked or keyring not found — omit secret.
-        }
-      }
-
-      entries.push({
-        id: walletPayloadId,
-        type: 'mnemonic',
-        ...(mnemonicValue !== undefined && { value: mnemonicValue }),
-        metadata: { name: walletMeta?.name?.value ?? wallet.metadata.name },
-        groups,
-      });
+  const entries: AccountTreeWalletEntry[] = [];
+  for (const walletObj of Object.values(state.accountTree.wallets)) {
+    if (isMnemonicWalletObject(walletObj)) {
+      entries.push(await exportMnemonicWalletObject(context, walletObj, includeSecrets, idMap));
     } else if (
-      wallet.type === AccountWalletType.Keyring &&
-      wallet.metadata.keyring.type === KeyringTypes.simple
+      isPrivateKeyWalletObject(walletObj)
     ) {
-      const walletPayloadId: AccountWalletPayloadId = 'wallet:private-key';
-
-      if (!privateKeyWallet) {
-        const walletMeta = state.accountWalletsMetadata[wallet.id];
-        privateKeyWallet = {
-          id: walletPayloadId,
-          type: 'private-key',
-          metadata: { name: walletMeta?.name?.value ?? wallet.metadata.name },
-          groups: [],
-        };
-        entries.push(privateKeyWallet);
-      }
-
-      // Track this local wallet ID → singleton payload wallet ID (first wallet wins for reverse).
-      if (!idMap.getPayloadId(wallet.id)) {
-        idMap.add(wallet.id, walletPayloadId);
-      }
-
-      for (const group of Object.values(wallet.groups)) {
-        const accountId = group.accounts[0];
-        const account = context.messenger.call(
-          'AccountsController:getAccount',
-          accountId,
-        );
-        if (!account) {
-          continue;
-        }
-
-        const { address } = account;
-        const groupPayloadId: AccountGroupPayloadId = `wallet:private-key/${address}`;
-
-        idMap.add(group.id, groupPayloadId);
-
-        const groupMeta = state.accountGroupsMetadata[group.id];
-        let privateKeyValue: AccountWalletPrivateKeyGroupEntry['value'];
-
-        if (shouldIncludeSecrets) {
-          try {
-            const exported = await context.messenger.call(
-              'KeyringController:withKeyringV2',
-              { address },
-              async ({ keyring }: { keyring: unknown }) => {
-                const k = keyring as KeyringWithExport;
-                return k.exportAccount(accountId, {
-                  type: 'private-key',
-                  encoding: 'hexadecimal',
-                });
-              },
-            );
-            privateKeyValue = {
-              privateKey: exported.privateKey,
-              encoding: exported.encoding as 'hexadecimal' | 'base58' | 'base32',
-            };
-          } catch {
-            // Key not accessible — omit secret.
-          }
-        }
-
-        privateKeyWallet.groups.push({
-          id: groupPayloadId,
-          ...(privateKeyValue !== undefined && { value: privateKeyValue }),
-          metadata: {
-            name: groupMeta?.name?.value ?? group.metadata.name,
-            pinned: groupMeta?.pinned?.value ?? group.metadata.pinned,
-            hidden: groupMeta?.hidden?.value ?? group.metadata.hidden,
-          },
-        });
-      }
+      entries.push(await exportPrivateKeyWalletObject(context, walletObj, includeSecrets, idMap));
+    } else {
+      // AccountWalletType.Snap and hardware keyrings: skipped for now.
     }
-    // AccountWalletType.Snap and hardware keyrings: skipped in v1.
   }
 
   return new AccountTreeSnapshot(entries, idMap);
