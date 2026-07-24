@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Balance aggregation selectors (`getAggregatedBalanceForAccount`, `getAggregatedBalanceForAccountIds`, `calculateBalanceForAllWallets`, `calculateBalanceChangeForAccountGroup`) no longer rescale balances whose amount is greater than or equal to `10^decimals`. Amounts in `assetsBalance` state are always human-readable, so the removed raw-vs-human magnitude heuristic corrupted legitimately large balances (e.g. 54.06B tokens with 9 decimals were divided by `10^9`), excluding them from aggregated fiat totals ([#9653](https://github.com/MetaMask/core/pull/9653))
+
 ## [11.2.1]
 
 ### Fixed
@@ -34,7 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Balance aggregation selectors (`getAggregatedBalanceForAccount`, `getAggregatedBalanceForAccountIds`, `calculateBalanceForAllWallets`, `calculateBalanceChangeForAccountGroup`) no longer rescale balances whose amount is greater than or equal to `10^decimals`. Amounts in `assetsBalance` state are always human-readable, so the removed raw-vs-human magnitude heuristic corrupted legitimately large balances (e.g. 54.06B tokens with 9 decimals were divided by `10^9`), excluding them from aggregated fiat totals
 - `TokenDataSource` balance-only metadata heals no longer apply EVM occurrence / non-EVM Blockaid spam filtering (or delete those holdings from `assetsBalance`); filtering still applies to newly `detectedAssets`. Fixes missing `assetsInfo` for already-tracked balances after [#9547](https://github.com/MetaMask/core/pull/9547) ([#9584](https://github.com/MetaMask/core/pull/9584))
 
 ## [11.1.0]
