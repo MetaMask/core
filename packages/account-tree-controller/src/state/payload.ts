@@ -79,7 +79,7 @@ const MIGRATORS: Record<number, Migrator> = {
  * @returns A fully migrated `AccountTreePayload`.
  * @throws If `raw` is not a valid payload or `version > CURRENT_VERSION`.
  */
-export function validateAndMigrate(raw: unknown): AccountTreePayload {
+export function migrate(raw: unknown): AccountTreePayload {
   if (typeof raw !== 'object' || raw === null) {
     throw new Error('Invalid AccountTreePayload: expected an object');
   }

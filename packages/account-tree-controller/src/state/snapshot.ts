@@ -6,7 +6,7 @@ import type {
 } from './payload.js';
 import {
   ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
-  validateAndMigrate,
+  migrate,
 } from './payload.js';
 import { IdMap } from './id-map.js';
 
@@ -112,7 +112,7 @@ export class AccountTreeSnapshot {
    * @throws If `raw` is not a valid payload or its version exceeds the current version.
    */
   static deserialize(raw: unknown): AccountTreeSnapshot {
-    const payload = validateAndMigrate(raw);
+    const payload = migrate(raw);
     return new AccountTreeSnapshot(payload.wallets, null);
   }
 }
