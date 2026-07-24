@@ -11,13 +11,13 @@ import {
   PhishingController,
   SECURITY_ALERTS_BASE_URL,
   TOKEN_BULK_SCANNING_ENDPOINT,
-} from './PhishingController';
+} from './PhishingController.js';
 import type {
   PhishingControllerMessenger,
   PhishingControllerOptions,
-} from './PhishingController';
-import { TokenScanResultType } from './types';
-import type { BulkTokenScanRequest, TokenScanApiResponse } from './types';
+} from './PhishingController.js';
+import { TokenScanResultType } from './types.js';
+import type { BulkTokenScanRequest, TokenScanApiResponse } from './types.js';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

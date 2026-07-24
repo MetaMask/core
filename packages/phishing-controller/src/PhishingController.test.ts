@@ -25,27 +25,30 @@ import {
   SECURITY_ALERTS_BASE_URL,
   ADDRESS_SCAN_ENDPOINT,
   APPROVALS_ENDPOINT,
-} from './PhishingController';
+} from './PhishingController.js';
 import type {
   PhishingControllerOptions,
   BulkPhishingDetectionScanResponse,
   PhishingControllerMessenger,
-} from './PhishingController';
+} from './PhishingController.js';
 import {
   createMockStateChangePayload,
   createMockTransaction,
   formatHostnameToUrl,
   TEST_ADDRESSES,
-} from './tests/utils';
-import type { PhishingDetectionScanResult, AddressScanResult } from './types';
+} from './tests/utils.js';
+import type {
+  PhishingDetectionScanResult,
+  AddressScanResult,
+} from './types.js';
 import {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
   ApprovalResultType,
   ApprovalFeatureType,
-} from './types';
-import { getHostnameFromUrl } from './utils';
+} from './types.js';
+import { getHostnameFromUrl } from './utils.js';
 
 const controllerName = 'PhishingController';
 
