@@ -9,7 +9,7 @@ export type {
 export type {
   ConfigRegistryControllerStartPollingAction,
   ConfigRegistryControllerStopPollingAction,
-  ConfigRegistryControllerMethodActions,
+  ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
 } from './ConfigRegistryController-method-action-types.js';
 export {
   ConfigRegistryController,
@@ -21,6 +21,7 @@ export type {
   FetchConfigResult,
   RegistryNetworkConfig,
   RegistryConfigApiResponse,
+  GasEstimationStrategy,
 } from './config-registry-api-service/types.js';
 export type {
   ConfigRegistryApiServiceOptions,
@@ -28,10 +29,7 @@ export type {
   ConfigRegistryApiServiceEvents,
   ConfigRegistryApiServiceMessenger,
 } from './config-registry-api-service/config-registry-api-service.js';
-export type {
-  ConfigRegistryApiServiceFetchConfigAction,
-  ConfigRegistryApiServiceMethodActions,
-} from './config-registry-api-service/config-registry-api-service-method-action-types.js';
+export type { ConfigRegistryApiServiceFetchConfigAction } from './config-registry-api-service/config-registry-api-service-method-action-types.js';
 export type { NetworkFilterOptions } from './config-registry-api-service/filters.js';
 export { ConfigRegistryApiService } from './config-registry-api-service/config-registry-api-service.js';
 export { filterNetworks } from './config-registry-api-service/filters.js';
