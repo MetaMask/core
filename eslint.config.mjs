@@ -447,6 +447,7 @@ const config = createConfig([
       'packages/remote-feature-flag-controller/**',
       'packages/sample-controllers/**',
       'packages/selected-network-controller/**',
+      'packages/sentinel-api-service/**',
       'packages/signature-controller/**',
       'packages/smart-transactions-controller/**',
       'packages/snap-account-service/**',

@@ -8,8 +8,8 @@ import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
-import type { SentinelEnvironment, serviceName } from './constants';
-import type { SentinelApiServiceMethodActions } from './sentinel-api-service-method-action-types';
+import type { SentinelEnvironment, serviceName } from './constants.js';
+import type { SentinelApiServiceMethodActions } from './sentinel-api-service-method-action-types.js';
 
 /**
  * Invalidates cached queries for {@link SentinelApiService}.
