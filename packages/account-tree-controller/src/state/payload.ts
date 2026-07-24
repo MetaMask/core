@@ -1,6 +1,37 @@
 export type AccountWalletPayloadId = `wallet:${string}`;
 export type AccountGroupPayloadId = `wallet:${string}/${string}`;
 
+/**
+ * Parsed payload group ID.
+ */
+export type ParsedPayloadGroupId = {
+  walletId: AccountWalletPayloadId;
+  subId: string;
+};
+
+const PAYLOAD_GROUP_ID_REGEX =
+  /^(?<walletId>wallet:[^/]+)\/(?<subId>.+)$/u;
+
+/**
+ * Parses a payload group ID into its wallet ID and group sub-ID components.
+ *
+ * @param groupId - The payload group ID to parse.
+ * @returns The parsed wallet ID and group sub-ID.
+ * @throws If the group ID format is invalid.
+ */
+export function parsePayloadGroupId(
+  groupId: AccountGroupPayloadId,
+): ParsedPayloadGroupId {
+  const match = PAYLOAD_GROUP_ID_REGEX.exec(groupId);
+  if (!match?.groups) {
+    throw new Error(`Invalid payload group ID: "${groupId}"`);
+  }
+  return {
+    walletId: match.groups.walletId as AccountWalletPayloadId,
+    subId: match.groups.subId,
+  };
+}
+
 export const ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION = 1 as const;
 
 export type AccountWalletPayloadMetadata = { name: string };
@@ -59,6 +90,10 @@ export type AccountTreePayload = {
 export type AccountTreeSnapshotEntry =
   | AccountWalletMnemonicPayload
   | AccountWalletPrivateKeyPayload;
+
+export function toWalletPayloadId(entropySourceId: string): AccountWalletPayloadId {
+  return `wallet:${entropySourceId}`;
+}
 
 export type ExportStateOptions = {
   /** When `true`, secrets (mnemonic / private keys) are included. Requires the vault to be unlocked. */

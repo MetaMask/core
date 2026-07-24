@@ -1,6 +1,4 @@
-import { AccountWalletType } from '@metamask/account-api';
 import { encodeMnemonic } from '@metamask/keyring-sdk';
-import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type {
   AccountTreeControllerMessenger,
@@ -16,18 +14,26 @@ import type {
 } from './payload.js';
 import { IdMap } from './id-map.js';
 import { AccountTreeSnapshot } from './snapshot.js';
-import { AccountWalletEntropyObject, AccountWalletKeyringObject, AccountWalletObject } from '../wallet.js';
+import type { AccountWalletObject } from '../wallet.js';
+import { AccountWalletEntropyObject, AccountWalletKeyringObject } from '../wallet.js';
+import { AccountWalletType } from '@metamask/account-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import { PrivateKeyExportedAccount } from '@metamask/keyring-api/v2';
+
+export function isMnemonicWalletObject(wallet: AccountWalletObject): wallet is AccountWalletEntropyObject {
+  return wallet.type === AccountWalletType.Entropy;
+}
+
+export function isPrivateKeyWalletObject(wallet: AccountWalletObject): wallet is AccountWalletKeyringObject {
+  return wallet.type === AccountWalletType.Keyring &&
+    wallet.metadata.keyring.type === KeyringTypes.simple;
+}
 
 export type ExportContext = {
   getState: () => AccountTreeControllerState;
   messenger: AccountTreeControllerMessenger;
 };
-
-function isMnemonicWalletObject(wallet: AccountWalletObject): wallet is AccountWalletEntropyObject {
-  return wallet.type === AccountWalletType.Entropy;
-}
 
 async function exportMnemonicWalletObject(context: ExportContext, walletObj: AccountWalletEntropyObject, includeSecrets: boolean, idMap: IdMap): Promise<AccountWalletMnemonicPayload> {
   const result = await context.messenger.call(
@@ -86,15 +92,10 @@ async function exportMnemonicWalletObject(context: ExportContext, walletObj: Acc
       throw new Error(`Failed to export mnemonic for wallet ${wallet.id}`);
     }
 
-    wallet.value = String(mnemonic); // FIXME: This should be a string, but the encodeMnemonic function returns a number array. We need to fix this in the keyring-sdk.
+    wallet.value = JSON.stringify(mnemonic); // FIXME: This should be a string, but the encodeMnemonic function returns a number array. We need to fix this in the keyring-sdk.
   }
 
   return wallet;
-}
-
-function isPrivateKeyWalletObject(wallet: AccountWalletObject): wallet is AccountWalletKeyringObject {
-  return wallet.type === AccountWalletType.Keyring &&
-    wallet.metadata.keyring.type === KeyringTypes.simple;
 }
 
 async function exportPrivateKeyWalletObject(context: ExportContext, walletObj: AccountWalletKeyringObject, includeSecrets: boolean, idMap: IdMap): Promise<AccountWalletPrivateKeyPayload> {

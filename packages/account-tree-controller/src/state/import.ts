@@ -1,6 +1,7 @@
-import { AccountWalletType } from '@metamask/account-api';
+import { AccountWalletType, toAccountGroupId, toAccountWalletId, toMultichainAccountGroupId } from '@metamask/account-api';
+import { isMnemonicWalletObject } from './export.js';
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
-import { AccountImportStrategy } from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type {
   AccountTreeControllerMessenger,
@@ -10,8 +11,15 @@ import type { AccountWalletEntropyObject } from '../wallet.js';
 import type {
   AccountTreePayload,
   AccountWalletMnemonicGroupEntry,
+  AccountWalletMnemonicPayload,
+  AccountWalletPayloadId,
   AccountWalletPrivateKeyGroupEntry,
 } from './payload.js';
+import { parsePayloadGroupId, toWalletPayloadId } from './payload.js';
+import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
+import { KeyringType } from '@metamask/keyring-api/v2';
+import { KeyringAccount } from '@metamask/keyring-api';
+import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 
 export type ImportContext = {
   getState: () => AccountTreeControllerState;
@@ -23,38 +31,60 @@ export type ImportContext = {
   setGroupHidden: (groupId: AccountGroupId, hidden: boolean) => void;
 };
 
-/**
- * Finds the local entropy wallet with the given `entropySourceId` in the
- * current state, or returns `undefined` if absent.
- */
-function findLocalEntropyWallet(
-  state: AccountTreeControllerState,
-  entropySourceId: string,
-): AccountWalletEntropyObject | undefined {
-  return Object.values(state.accountTree.wallets).find(
-    (w): w is AccountWalletEntropyObject =>
-      w.type === AccountWalletType.Entropy &&
-      w.metadata.entropy.id === entropySourceId,
-  );
+async function findLocalWalletMnemonicFromPayloadId(
+  context: ImportContext,
+  payloadWalletId: AccountWalletPayloadId,
+): Promise<AccountWalletEntropyObject | undefined> {
+  const wallets = Object.values(context.getState().accountTree.wallets);
+
+  for (const wallet of wallets) {
+    if (isMnemonicWalletObject(wallet)) {
+
+    const result = await context.messenger.call(
+      'KeyringController:withKeyringV2Unsafe',
+      { id: wallet.metadata.entropy.id },
+      async ({ keyring }) => {
+        const hdKeyring = keyring as HdKeyring;
+
+        return toWalletPayloadId(await hdKeyring.toEntropySourceId());
+      },
+    );
+
+    const localPayloadId = result as AccountWalletPayloadId;
+    if (localPayloadId === payloadWalletId) {
+      return wallet;
+    }
+    }
+  }
+
+  return undefined;
 }
 
-/**
- * Finds the local group in `wallet` whose `groupIndex` matches `payloadGroupIndex`.
- */
-function findLocalGroupByIndex(
-  wallet: AccountWalletEntropyObject,
-  payloadGroupIndex: number,
-): { id: AccountGroupId } | undefined {
-  return Object.values(wallet.groups).find(
-    (g) => g.metadata.entropy.groupIndex === payloadGroupIndex,
-  );
+function findLocalWalletMnemonicFromId(context: ImportContext, id: AccountWalletId) {
+    const localWallets = context.getState().accountTree.wallets;
+
+    if (!localWallets[id]) {
+      throw new Error(
+        `Failed to import mnemonic wallet: wallet not found after creation`,
+      );
+    }
+    if (!isMnemonicWalletObject(localWallets[id])) {
+      throw new Error(
+        `Failed to import mnemonic wallet: wallet is not of type 'mnemonic'`,
+      );
+    }
+    return localWallets[id];
 }
 
 /**
  * Applies name / pinned / hidden metadata for a single mnemonic group entry,
  * if the local group exists.
+ *
+ * @param context
+ * @param localGroupId
+ * @param payloadGroupMetadata
  */
-function applyGroupMetadata(
+function setGroupMetadata(
   context: ImportContext,
   localGroupId: AccountGroupId,
   payloadGroupMetadata: AccountWalletMnemonicGroupEntry['metadata'],
@@ -66,21 +96,21 @@ function applyGroupMetadata(
 
 /**
  * Imports a mnemonic wallet entry from the payload.
+ *
+ * @param context
+ * @param payloadWallet
+ * @param payloadWallet.id
+ * @param payloadWallet.value
+ * @param payloadWallet.metadata
+ * @param payloadWallet.metadata.name
+ * @param payloadWallet.groups
  */
 async function importMnemonicWallet(
   context: ImportContext,
-  payloadWallet: {
-    id: string;
-    value?: string;
-    metadata: { name: string };
-    groups: AccountWalletMnemonicGroupEntry[];
-  },
+  payloadWallet: AccountWalletMnemonicPayload,
 ): Promise<void> {
-  // Strip the `wallet:` prefix to get the EntropySourceId
-  // e.g. "wallet:entropy:mnemonic:<uuid>" → "entropy:mnemonic:<uuid>"
-  const entropySourceId = payloadWallet.id.slice('wallet:'.length);
-
-  let localWallet = findLocalEntropyWallet(context.getState(), entropySourceId);
+  // Find the local wallet with the same entropy source ID if it exists.
+  let localWallet = await findLocalWalletMnemonicFromPayloadId(context, payloadWallet.id);
 
   if (!localWallet) {
     if (!payloadWallet.value) {
@@ -89,49 +119,64 @@ async function importMnemonicWallet(
     }
 
     // Import the mnemonic as a new HD wallet.
-    const mnemonicBytes = new TextEncoder().encode(payloadWallet.value);
-    await context.messenger.call(
+    const mnemonic = JSON.parse(payloadWallet.value);
+    const { id } = await context.messenger.call(
       'MultichainAccountService:createMultichainAccountWallet',
-      { type: 'import', mnemonic: mnemonicBytes },
+      { type: 'import', mnemonic },
     );
 
     // Event handlers fire synchronously, so the wallet is in the tree now.
-    localWallet = findLocalEntropyWallet(context.getState(), entropySourceId);
-    if (!localWallet) {
-      return;
-    }
+    localWallet = findLocalWalletMnemonicFromId(context, id);
   }
 
-  const localWalletId = localWallet.id;
-  context.setWalletName(localWalletId, payloadWallet.metadata.name);
+  context.setWalletName(localWallet.id, payloadWallet.metadata.name);
+
+  // Compute range of group indices in the payload to import.
+  let rangeIndex: number | undefined;
+  const ranges: [number, number][] = [];
+  for (const payloadGroup of payloadWallet.groups) {
+    const localGroupId = toMultichainAccountGroupId(localWallet.id, payloadGroup.groupIndex);
+
+    if (localWallet.groups[localGroupId]) {
+      if (rangeIndex !== undefined) {
+        ranges.push([rangeIndex, payloadGroup.groupIndex - 1]);
+        rangeIndex = undefined;
+      }
+
+      continue;
+    }
+
+    rangeIndex ??= payloadGroup.groupIndex;
+  }
+  for (const range of ranges) {
+    await context.messenger.call(
+      'MultichainAccountService:createMultichainAccountGroups',
+      {
+        entropySource: localWallet.metadata.entropy.id,
+        fromGroupIndex: range[0],
+        toGroupIndex: range[1],
+      },
+    );
+  }
+
+  // Re-read wallet after groups creation.
+  localWallet = findLocalWalletMnemonicFromId(
+    context,
+    localWallet.id,
+  );
 
   for (const payloadGroup of payloadWallet.groups) {
-    let localGroup = findLocalGroupByIndex(localWallet, payloadGroup.groupIndex);
+    const localGroupId = toMultichainAccountGroupId(localWallet.id, payloadGroup.groupIndex);
 
-    if (!localGroup) {
-      await context.messenger.call(
-        'MultichainAccountService:createMultichainAccountGroup',
-        { entropySource: entropySourceId, groupIndex: payloadGroup.groupIndex },
-      );
-
-      // Re-read wallet after group creation.
-      const updatedWallet = findLocalEntropyWallet(
-        context.getState(),
-        entropySourceId,
-      );
-      localGroup = updatedWallet
-        ? findLocalGroupByIndex(updatedWallet, payloadGroup.groupIndex)
-        : undefined;
-    }
-
-    if (localGroup) {
-      applyGroupMetadata(context, localGroup.id, payloadGroup.metadata);
-    }
+    setGroupMetadata(context, localGroupId, payloadGroup.metadata);
   }
 }
 
 /**
  * Imports a private-key wallet entry from the payload.
+ *
+ * @param context
+ * @param payloadGroups
  */
 async function importPrivateKeyWallet(
   context: ImportContext,
@@ -139,52 +184,55 @@ async function importPrivateKeyWallet(
 ): Promise<void> {
   for (const payloadGroup of payloadGroups) {
     // Payload group ID format: "wallet:private-key/<address>"
-    const address = payloadGroup.id.slice('wallet:private-key/'.length);
+    const payloadAccountAddress = parsePayloadGroupId(payloadGroup.id).subId;
+    const payloadAccountId = getUUIDFromAddressOfNormalAccount(payloadAccountAddress);
 
-    const accounts = context.messenger.call(
-      'AccountsController:listMultichainAccounts',
-    );
-    let account = accounts.find(
-      (a) => a.address.toLowerCase() === address.toLowerCase(),
-    );
+    const localWalletId = toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.simple);
+    const localGroupId = toAccountGroupId(localWalletId, payloadAccountAddress);
 
-    if (!account) {
-      if (!payloadGroup.value || payloadGroup.value.encoding !== 'hexadecimal') {
+    let localWallets = context.getState().accountTree.wallets;
+    let localWallet = localWallets[localWalletId];
+    let localGroup = localWallet?.groups[localGroupId];
+
+    // EVM accounts have deterministic IDs, so we can re-use this to find the local group if it exists.
+    const hasAccount = localGroup.accounts.some((id) => id === payloadAccountId);
+
+    // If it doesn't exist, we need to import the private key.
+    if (!hasAccount) {
+      if (!payloadGroup.value) {
         // No importable secret — skip this account.
         continue;
       }
 
-      await context.messenger.call(
-        'KeyringController:importAccountWithStrategy',
-        AccountImportStrategy.privateKey,
-        [payloadGroup.value.privateKey],
+      const { privateKey, encoding } = payloadGroup.value;
+      const result = await context.messenger.call(
+        'KeyringController:withKeyringV2',
+        { type: KeyringType.PrivateKey },
+        async ({ keyring }) => {
+          await keyring.createAccounts({
+            type: 'private-key:import',
+            privateKey,
+            encoding,
+          });
+        },
       );
 
-      // Re-query accounts after import.
-      const updatedAccounts = context.messenger.call(
-        'AccountsController:listMultichainAccounts',
-      );
-      account = updatedAccounts.find(
-        (a) => a.address.toLowerCase() === address.toLowerCase(),
-      );
-    }
-
-    if (!account) {
-      continue;
+      // There should only be 1 account in the keyring after import.
+      const [account] = result as KeyringAccount[];
+      if (!account) {
+        throw new Error('Failed to import private key for account');
+      }
     }
 
     // Find the local group that contains this account.
-    const localGroup = Object.values(context.getState().accountTree.wallets)
-      .flatMap((w) => Object.values(w.groups))
-      .find((g) => g.accounts.includes(account.id));
-
+    localWallets = context.getState().accountTree.wallets;
+    localWallet = localWallets[localWalletId];
+    localGroup = localWallet?.groups[localGroupId];
     if (!localGroup) {
       continue;
     }
 
-    context.setGroupName(localGroup.id, payloadGroup.metadata.name);
-    context.setGroupPinned(localGroup.id, payloadGroup.metadata.pinned);
-    context.setGroupHidden(localGroup.id, payloadGroup.metadata.hidden);
+    setGroupMetadata(context, localGroup.id, payloadGroup.metadata);
   }
 }
 
@@ -209,7 +257,8 @@ export async function importState(
       await importMnemonicWallet(context, wallet);
     } else if (wallet.type === 'private-key') {
       await importPrivateKeyWallet(context, wallet.groups);
+    } else {
+      // Unknown types: skip silently (forward-compat).
     }
-    // Unknown types: skip silently (forward-compat).
   }
 }
