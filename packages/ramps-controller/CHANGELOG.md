@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.2.0]
 
-### Uncategorized
-
-- fix(ramps-controller): correct stale CHANGELOG entries and JSDoc from #9524
-
 ### Added
 
 - Add the pure `getHeadlessProviderAllowlist(remoteFeatureFlagState)` helper resolving the provider-id allowlist carried by the `moneyHeadlessAllProviders` flag's object payload; empty or malformed `providerIds` resolve to `undefined` (no restriction), unknown keys and non-string entries are ignored ([#9524](https://github.com/MetaMask/core/pull/9524))
