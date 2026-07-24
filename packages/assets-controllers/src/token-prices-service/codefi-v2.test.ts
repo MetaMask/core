@@ -1760,6 +1760,12 @@ describe('CodefiTokenPricesServiceV2', () => {
   });
 
   describe('validateChainIdSupported', () => {
+    it('returns true for DeFi Oracle Meta Mainnet', () => {
+      expect(
+        new CodefiTokenPricesServiceV2().validateChainIdSupported('0x8a'),
+      ).toBe(true);
+    });
+
     it.each(SUPPORTED_CHAIN_IDS)(
       'returns true if the given chain ID is %s',
       (chainId) => {

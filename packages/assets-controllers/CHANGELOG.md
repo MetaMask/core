@@ -66,6 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [109.3.1]
 
+### Added
+
+- Add DeFi Oracle Meta Mainnet support (`138`/`0x8a`) to `SPOT_PRICES_SUPPORT_INFO` for native ETH spot-price fallback ([#9118](https://github.com/MetaMask/core/pull/9118))
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
