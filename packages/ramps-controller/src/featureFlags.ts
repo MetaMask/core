@@ -8,10 +8,9 @@ import type { Json } from '@metamask/utils';
  * - The literal boolean `true` widens the headless fiat quote path to every
  *   provider class (native, in-app WebView aggregator, and external-browser /
  *   custom-action) with no provider restriction.
- * - An object payload `{ enabled: true, providerIds?: string[], surfaces?:
- *   Record<string, string[]> }` widens the same way, and additionally
- *   restricts the widened quote pick to the listed provider ids (see
- *   {@link getHeadlessProviderAllowlist}).
+ * - An object payload `{ enabled: true, featureVersion: "1", providerIds?: string[] }`
+ *   widens the same way, and additionally restricts the widened quote pick to
+ *   the listed provider ids (see {@link getHeadlessProviderAllowlist}).
  *
  * `false`, a missing flag, or any other value keeps the native-only default.
  * Clients that only understand the boolean form coerce the object payload to
