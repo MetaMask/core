@@ -41,8 +41,8 @@ import type {
   NetworkControllerOptions,
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController.js';
-import type { NetworkControllerAnalyticsOptions } from '../src/rpc-service-analytics.js';
 import { RpcEndpointType } from '../src/NetworkController.js';
+import type { NetworkControllerAnalyticsOptions } from '../src/rpc-service-analytics.js';
 import { RpcServiceOptions } from '../src/rpc-service/rpc-service.js';
 import type { RpcFailoverMode } from '../src/selectors.js';
 import type {
