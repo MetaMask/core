@@ -1,6 +1,6 @@
 import { disableNetConnect, enableNetConnect } from 'nock';
 import type { ChildProcess } from 'node:child_process';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { request } from 'node:http';
@@ -68,9 +68,15 @@ function resolveAnvilPath(): string | undefined {
   if (existsSync(local)) {
     return local;
   }
-  // Fall back to PATH; if it is not there either, the spawn check below fails
-  // and the suite is skipped.
-  return 'anvil';
+  // Fall back to `anvil` on `PATH`, but only if it is actually runnable there.
+  // A bare command name always "exists" as a string, so probe it with
+  // `--version`: a missing binary makes `spawnSync` set `error` (ENOENT), and we
+  // return `undefined` so the suite skips instead of trying to spawn nothing.
+  const onPath = spawnSync('anvil', ['--version'], {
+    stdio: 'ignore',
+    timeout: 10_000,
+  });
+  return onPath.error === undefined ? 'anvil' : undefined;
 }
 
 const ANVIL_PATH = resolveAnvilPath();
@@ -266,9 +272,10 @@ async function cleanupDaemon(dataDir: string): Promise<void> {
   await rm(dataDir, { recursive: true, force: true });
 }
 
-const anvilSpawnable =
-  ANVIL_PATH !== undefined &&
-  (ANVIL_PATH === 'anvil' || existsSync(ANVIL_PATH));
+// `resolveAnvilPath` only returns a value once it has confirmed the binary is
+// usable (via `existsSync` for a concrete path, or a `--version` probe for the
+// bare `PATH` fallback), so a defined path means anvil can be spawned.
+const anvilSpawnable = ANVIL_PATH !== undefined;
 
 // CI sets this whenever it installed anvil (i.e. wallet-cli changed), so an
 // install that silently produced no usable binary fails the suite loudly
