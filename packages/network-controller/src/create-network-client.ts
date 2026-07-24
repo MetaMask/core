@@ -34,23 +34,23 @@ import type { Logger } from 'loglevel';
 import type {
   NetworkClientId,
   NetworkControllerMessenger,
-} from './NetworkController';
-import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
+} from './NetworkController.js';
+import { RpcServiceChain } from './rpc-service/rpc-service-chain.js';
+import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
 import {
   isConnectionError,
   isConnectionResetError,
   isJsonParseError,
   isHttpServerError,
   isTimeoutError,
-} from './rpc-service/rpc-service';
-import { RpcServiceChain } from './rpc-service/rpc-service-chain';
-import type { RpcFailoverMode } from './selectors';
+} from './rpc-service/rpc-service.js';
+import type { RpcFailoverMode } from './selectors.js';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
   Provider,
-} from './types';
-import { NetworkClientType } from './types';
+} from './types.js';
+import { NetworkClientType } from './types.js';
 
 const SECOND = 1000;
 

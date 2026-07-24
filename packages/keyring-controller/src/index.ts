@@ -1,4 +1,4 @@
-export * from './KeyringController';
+export * from './KeyringController.js';
 export type {
   KeyringControllerAddNewAccountAction,
   KeyringControllerCreateNewVaultAndRestoreAction,
@@ -35,7 +35,7 @@ export type {
   KeyringControllerExportEncryptionKeyAction,
   KeyringControllerSubmitPasswordAction,
   KeyringControllerGetAccountKeyringTypeAction,
-} from './KeyringController-method-action-types';
-export type * from './types';
-export * from './errors';
-export { KeyringControllerErrorMessage } from './constants';
+} from './KeyringController-method-action-types.js';
+export type * from './types.js';
+export * from './errors.js';
+export { KeyringControllerErrorMessage } from './constants.js';

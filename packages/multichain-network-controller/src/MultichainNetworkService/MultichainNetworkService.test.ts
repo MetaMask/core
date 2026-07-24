@@ -6,9 +6,9 @@ import {
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
   MULTICHAIN_ACCOUNTS_CLIENT_ID,
   MULTICHAIN_ACCOUNTS_BASE_URL,
-} from '../api/accounts-api';
-import type { ActiveNetworksResponse } from '../api/accounts-api';
-import { MultichainNetworkService } from './MultichainNetworkService';
+} from '../api/accounts-api.js';
+import type { ActiveNetworksResponse } from '../api/accounts-api.js';
+import { MultichainNetworkService } from './MultichainNetworkService.js';
 
 describe('MultichainNetworkService', () => {
   beforeEach(() => {

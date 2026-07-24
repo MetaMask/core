@@ -21,8 +21,8 @@ import {
   toActiveNetworksByAddress,
   buildActiveNetworksUrl,
   MULTICHAIN_ACCOUNTS_BASE_URL,
-} from './accounts-api';
-import type { ActiveNetworksResponse } from './accounts-api';
+} from './accounts-api.js';
+import type { ActiveNetworksResponse } from './accounts-api.js';
 
 const MOCK_ADDRESSES = {
   evm: '0x1234567890123456789012345678901234567890',

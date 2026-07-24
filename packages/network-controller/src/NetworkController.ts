@@ -50,31 +50,34 @@ import {
   DEPRECATED_NETWORKS,
   INFURA_BLOCKED_KEY,
   NetworkStatus,
-} from './constants';
+} from './constants.js';
 import type {
   AutoManagedNetworkClient,
   ProxyWithAccessibleTarget,
-} from './create-auto-managed-network-client';
-import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
-import type { DegradedEventType, RetryReason } from './create-network-client';
-import { projectLogger, createModuleLogger } from './logger';
-import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
+} from './create-auto-managed-network-client.js';
+import { createAutoManagedNetworkClient } from './create-auto-managed-network-client.js';
+import type {
+  DegradedEventType,
+  RetryReason,
+} from './create-network-client.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { NetworkControllerMethodActions } from './NetworkController-method-action-types.js';
 import {
   trackRpcServiceDegraded,
   trackRpcServiceUnavailable,
-} from './rpc-service-analytics';
-import type { NetworkControllerAnalyticsOptions } from './rpc-service-analytics';
-import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
-import { getRpcFailoverMode } from './selectors';
-import type { RpcFailoverMode } from './selectors';
-import { NetworkClientType } from './types';
+} from './rpc-service-analytics.js';
+import type { NetworkControllerAnalyticsOptions } from './rpc-service-analytics.js';
+import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
+import { getRpcFailoverMode } from './selectors.js';
+import type { RpcFailoverMode } from './selectors.js';
+import { NetworkClientType } from './types.js';
 import type {
   BlockTracker,
   Provider,
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
-} from './types';
+} from './types.js';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
 

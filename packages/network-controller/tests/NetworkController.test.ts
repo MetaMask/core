@@ -18,14 +18,14 @@ import { when, resetAllWhenMocks, WhenMock } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import type { FakeProviderStub } from '../../../tests/fake-provider';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { NetworkStatus } from '../src/constants';
-import * as createAutoManagedNetworkClientModule from '../src/create-auto-managed-network-client';
-import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client';
-import type { NetworkClient } from '../src/create-network-client';
-import { createNetworkClient } from '../src/create-network-client';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
+import type { FakeProviderStub } from '../../../tests/fake-provider.js';
+import { FakeProvider } from '../../../tests/fake-provider.js';
+import { NetworkStatus } from '../src/constants.js';
+import * as createAutoManagedNetworkClientModule from '../src/create-auto-managed-network-client.js';
+import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
+import type { NetworkClient } from '../src/create-network-client.js';
+import { createNetworkClient } from '../src/create-network-client.js';
 import type {
   AutoManagedBuiltInNetworkClientRegistry,
   AutoManagedCustomNetworkClientRegistry,
@@ -35,7 +35,7 @@ import type {
   NetworkControllerEvents,
   NetworkControllerStateChangeEvent,
   NetworkState,
-} from '../src/NetworkController';
+} from '../src/NetworkController.js';
 import {
   getAvailableNetworkClientIds,
   getDefaultNetworkControllerState,
@@ -44,10 +44,10 @@ import {
   RpcEndpointType,
   selectAvailableNetworkClientIds,
   selectNetworkConfigurations,
-} from '../src/NetworkController';
-import type { RpcServiceOptions } from '../src/rpc-service/rpc-service';
-import type { NetworkClientConfiguration, Provider } from '../src/types';
-import { NetworkClientType } from '../src/types';
+} from '../src/NetworkController.js';
+import type { RpcServiceOptions } from '../src/rpc-service/rpc-service.js';
+import type { NetworkClientConfiguration, Provider } from '../src/types.js';
+import { NetworkClientType } from '../src/types.js';
 import {
   buildAddNetworkCustomRpcEndpointFields,
   buildAddNetworkFields,
@@ -65,8 +65,8 @@ import {
   MOCK_ANALYTICS_OPTIONS,
   TESTNET,
   withController,
-} from './helpers';
-import type { RootMessenger } from './helpers';
+} from './helpers.js';
+import type { RootMessenger } from './helpers.js';
 
 jest.mock('../src/create-network-client');
 

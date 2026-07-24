@@ -10,15 +10,15 @@ import type {
 } from '@metamask/utils';
 import { IDisposable } from 'cockatiel';
 
-import { projectLogger, createModuleLogger } from '../logger';
-import { RpcService } from './rpc-service';
-import type { RpcServiceOptions } from './rpc-service';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import { RpcService } from './rpc-service.js';
+import type { RpcServiceOptions } from './rpc-service.js';
 import type {
   CockatielEventToEventListenerWithData,
   ExcludeCockatielEventData,
   ExtractCockatielEventData,
   FetchOptions,
-} from './shared';
+} from './shared.js';
 
 const log = createModuleLogger(projectLogger, 'RpcServiceChain');
 

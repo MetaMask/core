@@ -14,13 +14,18 @@ import type {
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
-import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
-import { getQueryOptionsOverrides } from '../shared-types';
+import {
+  BaseApiClient,
+  API_URLS,
+  STALE_TIMES,
+  GC_TIMES,
+} from '../base-client.js';
+import { getQueryOptionsOverrides } from '../shared-types.js';
 import type {
   FetchOptions,
   MarketDataDetails,
   SupportedCurrency,
-} from '../shared-types';
+} from '../shared-types.js';
 import type {
   CoinGeckoSpotPrice,
   V1ExchangeRatesResponse,
@@ -28,7 +33,7 @@ import type {
   V1HistoricalPricesResponse,
   V3SpotPricesResponse,
   V3HistoricalPricesResponse,
-} from './types';
+} from './types.js';
 
 /**
  * Prices API Client.

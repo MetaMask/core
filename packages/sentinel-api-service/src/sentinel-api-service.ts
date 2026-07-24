@@ -14,19 +14,19 @@ import {
   RPC_METHOD_SEND_RELAY,
   RPC_METHOD_SIMULATE,
   serviceName,
-} from './constants';
+} from './constants.js';
 import {
   SentinelApiResponseValidationError,
   SentinelChainNotSupportedError,
   SentinelJsonRpcError,
-} from './errors';
-import { projectLogger, createModuleLogger } from './logger';
+} from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
 import {
   SentinelSmartTransactionResponseStruct,
   SentinelNetworkRegistryStruct,
   SentinelRelaySubmitResponseStruct,
   SentinelSimulationResponseStruct,
-} from './structs';
+} from './structs.js';
 import type {
   SentinelApiServiceMessenger,
   SentinelApiServiceOptions,
@@ -38,7 +38,7 @@ import type {
   SentinelSimulationResponse,
   SentinelSmartTransactionRequest,
   SentinelSmartTransactionResponse,
-} from './types';
+} from './types.js';
 
 const log = createModuleLogger(projectLogger, serviceName);
 

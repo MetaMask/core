@@ -9,8 +9,8 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import { getErrorMessage } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
-import { projectLogger, createModuleLogger } from '../logger';
-import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types.js';
 
 const SERVICE_NAME = 'BackendWebSocketService' as const;
 

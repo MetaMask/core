@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MultichainNetworkController } from './MultichainNetworkController';
+import type { MultichainNetworkController } from './MultichainNetworkController.js';
 
 /**
  * Sets the active network.

@@ -24,12 +24,12 @@ import {
   HttpError,
   shouldRetry,
   calculateRetryDelay,
-} from '.';
+} from './index.js';
 import {
   mockFetch,
   createMockResponse,
   setupTestEnvironment,
-} from './test-utils';
+} from './test-utils.js';
 
 describe('ApiPlatformClient', () => {
   let client: ApiPlatformClient;

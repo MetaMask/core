@@ -12,7 +12,7 @@ import {
   toMultichainNetworkConfiguration,
   toMultichainNetworkConfigurationsByChainId,
   isKnownCaipNamespace,
-} from './utils';
+} from './utils.js';
 
 describe('utils', () => {
   describe('getChainIdForNonEvm', () => {

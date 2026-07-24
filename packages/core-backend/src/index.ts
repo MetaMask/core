@@ -9,7 +9,7 @@ export {
   getCloseReason,
   WebSocketState,
   WebSocketEventType,
-} from './ws/BackendWebSocketService';
+} from './ws/BackendWebSocketService.js';
 
 export type {
   BackendWebSocketServiceOptions,
@@ -24,7 +24,7 @@ export type {
   BackendWebSocketServiceConnectionStateChangedEvent,
   BackendWebSocketServiceEvents,
   BackendWebSocketServiceMessenger,
-} from './ws/BackendWebSocketService';
+} from './ws/BackendWebSocketService.js';
 
 // ============================================================================
 // ACCOUNT ACTIVITY SERVICE
@@ -34,7 +34,7 @@ export {
   AccountActivityService,
   ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
   ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
-} from './ws/AccountActivityService';
+} from './ws/AccountActivityService.js';
 
 export type {
   SystemNotificationData,
@@ -49,7 +49,7 @@ export type {
   AccountActivityServiceEvents,
   AllowedEvents as AccountActivityServiceAllowedEvents,
   AccountActivityServiceMessenger,
-} from './ws/AccountActivityService';
+} from './ws/AccountActivityService.js';
 
 // ============================================================================
 // SHARED TYPES
@@ -62,7 +62,7 @@ export type {
   Transfer,
   BalanceUpdate,
   AccountActivityMessage,
-} from './types';
+} from './types.js';
 
 // ============================================================================
 // API PLATFORM CLIENT SERVICE
@@ -71,14 +71,14 @@ export type {
 export {
   ApiPlatformClientService,
   apiPlatformClientServiceName,
-} from './ApiPlatformClientService';
+} from './ApiPlatformClientService.js';
 
 export type {
   ApiPlatformClientServiceOptions,
   ApiPlatformClientServiceActions,
   ApiPlatformClientServiceEvents,
   ApiPlatformClientServiceMessenger,
-} from './ApiPlatformClientService';
+} from './ApiPlatformClientService.js';
 
 // ============================================================================
 // OHLCV SERVICE
@@ -88,7 +88,7 @@ export {
   OHLCVService,
   OHLCV_SERVICE_ALLOWED_ACTIONS,
   OHLCV_SERVICE_ALLOWED_EVENTS,
-} from './ws/ohlcv';
+} from './ws/ohlcv/index.js';
 
 export type {
   OHLCVBar,
@@ -103,7 +103,7 @@ export type {
   OHLCVServiceEvents,
   OHLCVServiceAllowedEvents,
   OHLCVServiceMessenger,
-} from './ws/ohlcv';
+} from './ws/ohlcv/index.js';
 
 // ============================================================================
 // API PLATFORM CLIENT
@@ -128,7 +128,7 @@ export {
   shouldRetry,
   // Errors
   HttpError,
-} from './api';
+} from './api/index.js';
 
 // ============================================================================
 // API PLATFORM CLIENT TYPES
@@ -189,4 +189,4 @@ export type {
   V1TokenSupportedNetworksResponse,
   V2TokenSupportedNetworksResponse,
   V3AssetResponse,
-} from './api';
+} from './api/index.js';
