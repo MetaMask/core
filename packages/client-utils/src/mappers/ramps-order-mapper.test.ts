@@ -77,6 +77,24 @@ describe('mapRampsOrder', () => {
     });
   });
 
+  it('maps an uppercase BUY orderType (the real V2 API shape) to a rampBuy activity item', () => {
+    const item = mapRampsOrder({ ...baseOrder, orderType: 'BUY' });
+
+    expect(item).toMatchObject({
+      type: 'rampBuy',
+      data: { token: { direction: 'in' } },
+    });
+  });
+
+  it('maps an uppercase SELL orderType (the real V2 API shape) to a rampSell activity item', () => {
+    const item = mapRampsOrder({ ...baseOrder, orderType: 'SELL' });
+
+    expect(item).toMatchObject({
+      type: 'rampSell',
+      data: { token: { direction: 'out' } },
+    });
+  });
+
   it('maps an empty txHash to an undefined hash while keeping the provider order id', () => {
     const item = mapRampsOrder({ ...baseOrder, txHash: '', status: 'PENDING' });
 

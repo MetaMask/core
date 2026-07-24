@@ -65,8 +65,10 @@ function mapStatus(status: RampsOrderStatusLike): Status {
  * @returns The normalized activity item.
  */
 export function mapRampsOrder(order: RampsOrderLike): ActivityItem {
-  const direction: TokenAmount['direction'] =
-    order.orderType === 'buy' ? 'in' : 'out';
+  // The V2 API returns `orderType` uppercased (e.g. `'BUY'`); normalize since
+  // some call sites (e.g. locally-created stub orders) use lowercase.
+  const isBuy = order.orderType.toUpperCase() === 'BUY';
+  const direction: TokenAmount['direction'] = isBuy ? 'in' : 'out';
 
   const token: TokenAmount | undefined = order.cryptoCurrency
     ? {
@@ -97,7 +99,7 @@ export function mapRampsOrder(order: RampsOrderLike): ActivityItem {
   const chainId = formatChainIdToCaip(order.network.chainId) as CaipChainId;
 
   return {
-    type: order.orderType === 'buy' ? 'rampBuy' : 'rampSell',
+    type: isBuy ? 'rampBuy' : 'rampSell',
     chainId,
     status: mapStatus(order.status),
     timestamp: order.createdAt,
