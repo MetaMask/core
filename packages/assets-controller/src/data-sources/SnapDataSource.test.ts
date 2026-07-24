@@ -249,6 +249,7 @@ function setupController(
   const controllerOptions: SnapDataSourceOptions = {
     messenger: controllerMessenger as unknown as AssetsControllerMessenger,
     onActiveChainsUpdated: activeChainsUpdateHandler,
+    onAssetsUpdate: assetsUpdateHandler,
   };
 
   const controller = new SnapDataSource(controllerOptions);
@@ -707,14 +708,42 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
+    const subscriptionOnAssetsUpdate = jest.fn();
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
-      onAssetsUpdate: assetsUpdateHandler,
+      onAssetsUpdate: subscriptionOnAssetsUpdate,
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalled();
+
+    cleanup();
+  });
+
+  it('subscribe reports fetched balances via the constructor onAssetsUpdate, not the per-subscription callback', async () => {
+    const { controller, assetsUpdateHandler, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+      accountAssets: [MOCK_SOL_ASSET],
+      balances: {
+        [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+      },
+    });
+    await new Promise(process.nextTick);
+    assetsUpdateHandler.mockClear();
+
+    const subscriptionOnAssetsUpdate = jest.fn();
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: subscriptionOnAssetsUpdate,
+    });
+
+    expect(assetsUpdateHandler).toHaveBeenCalled();
+    expect(subscriptionOnAssetsUpdate).not.toHaveBeenCalled();
 
     cleanup();
   });
@@ -747,11 +776,12 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
+    const subscriptionOnAssetsUpdate = jest.fn();
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
-      onAssetsUpdate: assetsUpdateHandler,
+      onAssetsUpdate: subscriptionOnAssetsUpdate,
     });
 
     assetsUpdateHandler.mockClear();
@@ -762,12 +792,13 @@ describe('SnapDataSource', () => {
         chainIds: [SOLANA_MAINNET, BITCOIN_MAINNET],
       }),
       isUpdate: true,
-      onAssetsUpdate: assetsUpdateHandler,
+      onAssetsUpdate: subscriptionOnAssetsUpdate,
     });
 
     await new Promise(process.nextTick);
 
     expect(assetsUpdateHandler).toHaveBeenCalled();
+    expect(subscriptionOnAssetsUpdate).not.toHaveBeenCalled();
 
     cleanup();
   });
@@ -940,6 +971,7 @@ describe('SnapDataSource', () => {
     const instance = createSnapDataSource({
       messenger: controllerMessenger as unknown as AssetsControllerMessenger,
       onActiveChainsUpdated: jest.fn(),
+      onAssetsUpdate: jest.fn(),
     });
 
     await new Promise(process.nextTick);
