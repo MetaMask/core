@@ -47,6 +47,7 @@ export type AccountBalancesUpdatedEventPayload = {
       [assetId: string]: {
         amount: string;
         unit: string;
+        metadata?: Record<string, Json>;
       };
     };
   };
@@ -292,6 +293,7 @@ export class SnapDataSource extends AbstractDataSource<
           accountAssets ??= {};
           accountAssets[assetId as Caip19AssetId] = {
             amount: balance.amount,
+            ...(balance.metadata ? { metadata: balance.metadata } : {}),
           };
         }
       }
@@ -483,7 +485,7 @@ export class SnapDataSource extends AbstractDataSource<
         }
 
         // Step 2: Get balances for those specific assets
-        const balances: Record<CaipAssetType, Balance> =
+        const balances: Record<CaipAssetType, Balance & { metadata?: Json }> =
           await client.getAccountBalances(
             accountId,
             accountAssets as CaipAssetType[],
@@ -497,6 +499,7 @@ export class SnapDataSource extends AbstractDataSource<
             if (accountBalances) {
               (accountBalances as Record<string, unknown>)[assetId] = {
                 amount: balance.amount,
+                ...(balance.metadata ? { metadata: balance.metadata } : {}),
               };
             }
           }
