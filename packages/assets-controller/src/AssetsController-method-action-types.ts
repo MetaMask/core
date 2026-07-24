@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AssetsController } from './AssetsController';
+import type { AssetsController } from './AssetsController.js';
 
 export type AssetsControllerGetAssetsAction = {
   type: `AssetsController:getAssets`;
@@ -18,6 +18,29 @@ export type AssetsControllerGetAssetsBalanceAction = {
 export type AssetsControllerGetAssetMetadataAction = {
   type: `AssetsController:getAssetMetadata`;
   handler: AssetsController['getAssetMetadata'];
+};
+
+/**
+ * Get a single combined asset (balance + metadata + price + computed
+ * `fiatValue`) for an account directly from controller state.
+ *
+ * Reuses the same state-composition and filtering logic as `getAssets`
+ * (balance and metadata are required, a missing price falls back to
+ * `{ price: 0, lastUpdated: 0 }` with `fiatValue: 0`, and hidden or
+ * otherwise filtered assets are excluded) so the returned shape never
+ * drifts from `getAssets`. Reads from current state only and does not
+ * trigger a data-source refresh.
+ *
+ * @param accountId - The account ID (`InternalAccount.id`, not an address).
+ * @param assetId - The CAIP-19 asset ID including chain scope
+ * (e.g. `eip155:1/erc20:0x...`).
+ * @returns The combined `Asset`, or `undefined` when no complete
+ * renderable asset (balance + metadata) exists for the account/asset pair.
+ * @throws If `accountId` is empty or `assetId` is not a valid CAIP-19 asset ID.
+ */
+export type AssetsControllerGetAssetAction = {
+  type: `AssetsController:getAsset`;
+  handler: AssetsController['getAsset'];
 };
 
 export type AssetsControllerGetAssetsPriceAction = {
@@ -116,12 +139,23 @@ export type AssetsControllerUnhideAssetAction = {
 };
 
 /**
+ * Set the current currency.
+ *
+ * @param selectedCurrency - The ISO 4217 currency code to set.
+ */
+export type AssetsControllerSetSelectedCurrencyAction = {
+  type: `AssetsController:setSelectedCurrency`;
+  handler: AssetsController['setSelectedCurrency'];
+};
+
+/**
  * Union of all AssetsController action types.
  */
 export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsAction
   | AssetsControllerGetAssetsBalanceAction
   | AssetsControllerGetAssetMetadataAction
+  | AssetsControllerGetAssetAction
   | AssetsControllerGetAssetsPriceAction
   | AssetsControllerGetExchangeRatesForBridgeAction
   | AssetsControllerGetStateForTransactionPayAction
@@ -129,4 +163,5 @@ export type AssetsControllerMethodActions =
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction
   | AssetsControllerHideAssetAction
-  | AssetsControllerUnhideAssetAction;
+  | AssetsControllerUnhideAssetAction
+  | AssetsControllerSetSelectedCurrencyAction;

@@ -1,18 +1,9 @@
-export type {
-  DelegationControllerSignDelegationAction,
-  DelegationControllerStoreAction,
-  DelegationControllerListAction,
-  DelegationControllerRetrieveAction,
-  DelegationControllerChainAction,
-  DelegationControllerDeleteAction,
-} from './DelegationController-method-action-types';
+export type { DelegationControllerSignDelegationAction } from './DelegationController-method-action-types.js';
 export type {
   DelegationControllerGetStateAction,
   DelegationControllerActions,
   DelegationControllerEvents,
   DelegationControllerMessenger,
-  DelegationEntry,
-  DelegationFilter,
-} from './types';
+} from './types.js';
 
-export { DelegationController } from './DelegationController';
+export { DelegationController } from './DelegationController.js';

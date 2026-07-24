@@ -4,16 +4,16 @@ import {
 } from '@metamask/signature-controller';
 
 import {
-  makeInitCoverageCheckBody,
-  parseSignatureRequestMethod,
-  ShieldRemoteBackend,
-} from './backend';
-import { SignTypedDataVersion } from './constants';
-import {
   generateMockSignatureRequest,
   generateMockTxMeta,
   getRandomCoverageResult,
-} from '../tests/utils';
+} from '../tests/utils.js';
+import {
+  makeInitCoverageCheckBody,
+  parseSignatureRequestMethod,
+  ShieldRemoteBackend,
+} from './backend.js';
+import { SignTypedDataVersion } from './constants.js';
 
 const mockCaptureException = jest.fn();
 

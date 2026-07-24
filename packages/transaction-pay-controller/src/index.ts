@@ -1,14 +1,24 @@
 export type {
+  GetAmountDataCallback,
+  GetAmountDataRequest,
+  GetAmountDataResponse,
+  GetPaymentOverrideDataRequest,
+  GetPaymentOverrideDataResponse,
   TransactionConfig,
   TransactionConfigCallback,
+  TransactionData,
   TransactionFiatPayment,
   TransactionFiatPaymentCallback,
+  TransactionPayFiatOptions,
   TransactionPayControllerActions,
   TransactionPayControllerEvents,
   TransactionPayControllerGetStateAction,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
+  PolymarketCallbacks,
+  QuoteErrorInfo,
+  QuoteErrorReason,
   TransactionPayControllerStateChangeEvent,
   TransactionPaymentToken,
   TransactionPayQuote,
@@ -17,15 +27,18 @@ export type {
   TransactionPayTotals,
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
-} from './types';
+} from './types.js';
 export type {
+  TransactionPayControllerGetAmountDataAction,
   TransactionPayControllerGetDelegationTransactionAction,
+  TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetStrategyAction,
+  TransactionPayControllerPolymarketGetDepositWalletAddressAction,
+  TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
   TransactionPayControllerSetTransactionConfigAction,
   TransactionPayControllerUpdatePaymentTokenAction,
   TransactionPayControllerUpdateFiatPaymentAction,
-} from './TransactionPayController-method-action-types';
-export { TransactionPayStrategy } from './constants';
-export { TransactionPayController } from './TransactionPayController';
-export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook';
-export type { TransactionPayBridgeQuote } from './strategy/bridge/types';
+} from './TransactionPayController-method-action-types.js';
+export { PaymentOverride, TransactionPayStrategy } from './constants.js';
+export { TransactionPayController } from './TransactionPayController.js';
+export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook.js';

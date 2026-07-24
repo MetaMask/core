@@ -25,11 +25,11 @@ import type {
   Domain,
   NetworkProxy,
   SelectedNetworkControllerMessenger,
-} from '../src/SelectedNetworkController';
+} from '../src/SelectedNetworkController.js';
 import {
   METAMASK_DOMAIN,
   SelectedNetworkController,
-} from '../src/SelectedNetworkController';
+} from '../src/SelectedNetworkController.js';
 
 const controllerName = 'SelectedNetworkController';
 

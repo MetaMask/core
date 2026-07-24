@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SocialController } from './SocialController';
+import type { SocialController } from './SocialController.js';
 
 /**
  * Fetches the leaderboard and persists the entries to state.
@@ -17,10 +17,11 @@ export type SocialControllerUpdateLeaderboardAction = {
 };
 
 /**
- * Follows one or more traders and updates the following list in state.
+ * Follows one or more traders on behalf of the current user and updates
+ * the following list in state. The caller is identified server-side from
+ * the JWT attached by the SocialService.
  *
  * @param options - Options bag.
- * @param options.addressOrUid - Wallet address or Clicker profile ID of the current user.
  * @param options.targets - Addresses or profile IDs to follow.
  * @returns The follow response with confirmed follows.
  */
@@ -30,10 +31,11 @@ export type SocialControllerFollowTraderAction = {
 };
 
 /**
- * Unfollows one or more traders and updates the following list in state.
+ * Unfollows one or more traders on behalf of the current user and updates
+ * the following list in state. The caller is identified server-side from
+ * the JWT attached by the SocialService.
  *
  * @param options - Options bag.
- * @param options.addressOrUid - Wallet address or Clicker profile ID of the current user.
  * @param options.targets - Addresses or profile IDs to unfollow.
  * @returns The unfollow response with confirmed unfollows.
  */
@@ -44,15 +46,30 @@ export type SocialControllerUnfollowTraderAction = {
 
 /**
  * Fetches the list of traders the current user follows and replaces
- * the following addresses in state.
+ * the following addresses in state. The caller is identified server-side
+ * from the JWT attached by the SocialService.
  *
- * @param options - Options bag.
- * @param options.addressOrUid - Wallet address or Clicker profile ID of the current user.
  * @returns The following response.
  */
 export type SocialControllerUpdateFollowingAction = {
   type: `SocialController:updateFollowing`;
   handler: SocialController['updateFollowing'];
+};
+
+/**
+ * Opts the current user out of the PnL leaderboard.
+ */
+export type SocialControllerOptOutOfLeaderboardAction = {
+  type: `SocialController:optOutOfLeaderboard`;
+  handler: SocialController['optOutOfLeaderboard'];
+};
+
+/**
+ * Opts the current user back into the PnL leaderboard.
+ */
+export type SocialControllerOptInToLeaderboardAction = {
+  type: `SocialController:optInToLeaderboard`;
+  handler: SocialController['optInToLeaderboard'];
 };
 
 /**
@@ -62,4 +79,6 @@ export type SocialControllerMethodActions =
   | SocialControllerUpdateLeaderboardAction
   | SocialControllerFollowTraderAction
   | SocialControllerUnfollowTraderAction
-  | SocialControllerUpdateFollowingAction;
+  | SocialControllerUpdateFollowingAction
+  | SocialControllerOptOutOfLeaderboardAction
+  | SocialControllerOptInToLeaderboardAction;

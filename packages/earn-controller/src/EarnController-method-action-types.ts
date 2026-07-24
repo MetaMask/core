@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { EarnController } from './EarnController';
+import type { EarnController } from './EarnController.js';
 
 /**
  * Refreshes the pooled stakes data for the current account.
@@ -114,19 +114,6 @@ export type EarnControllerRefreshLendingMarketsAction = {
 export type EarnControllerRefreshLendingPositionsAction = {
   type: `EarnController:refreshLendingPositions`;
   handler: EarnController['refreshLendingPositions'];
-};
-
-/**
- * Refreshes the lending eligibility status for the current account.
- * Updates the eligibility status in the controller state based on the location and address blocklist for compliance.
- *
- * @param options - Optional arguments
- * @param [options.address] - The address to refresh lending eligibility for (optional).
- * @returns A promise that resolves when the eligibility status has been updated
- */
-export type EarnControllerRefreshLendingEligibilityAction = {
-  type: `EarnController:refreshLendingEligibility`;
-  handler: EarnController['refreshLendingEligibility'];
 };
 
 /**
@@ -302,7 +289,6 @@ export type EarnControllerMethodActions =
   | EarnControllerRefreshPooledStakingDataAction
   | EarnControllerRefreshLendingMarketsAction
   | EarnControllerRefreshLendingPositionsAction
-  | EarnControllerRefreshLendingEligibilityAction
   | EarnControllerRefreshLendingDataAction
   | EarnControllerRefreshTronStakingApyAction
   | EarnControllerGetTronStakingApyAction

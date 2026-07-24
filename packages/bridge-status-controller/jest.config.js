@@ -16,6 +16,14 @@ module.exports = merge(baseConfig, {
 
   coverageProvider: 'v8',
 
+  coveragePathIgnorePatterns: [
+    ...baseConfig.coveragePathIgnorePatterns,
+    '.*/strategy/types\\.ts$',
+    '.*/quote-status-manager/types\\.ts$',
+    '.*/index\\.ts',
+    '.*-method-action-types\\.ts',
+  ],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     './src/bridge-status-controller.ts': {

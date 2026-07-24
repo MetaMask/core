@@ -2,6 +2,7 @@ import base, { createConfig } from '@metamask/eslint-config';
 import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
+import node from 'eslint-plugin-n';
 
 const NODE_LTS_VERSION = 22;
 
@@ -73,17 +74,28 @@ const config = createConfig([
   ...base,
   {
     ignores: [
+      '**/.docusaurus',
+      '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
-      '**/coverage/**',
-      'merged-packages/**',
+      '.platform-api-docs/**',
+      '.skills-cache/**',
       '.yarn/**',
+      'merged-packages/**',
+      'packages/wallet-framework-docs/site/build/**',
       'scripts/create-package/package-template/**',
     ],
   },
   {
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
+    },
+  },
+  {
+    rules: {
+      // Handled by Oxfmt.
+      'prettier/prettier': 'off',
+      'import-x/order': 'off',
     },
   },
   {
@@ -103,11 +115,13 @@ const config = createConfig([
     files: [
       '**/*.{js,cjs,mjs}',
       '**/*.test.{js,ts}',
+      '**/docusaurus.config.ts',
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
-      'scripts/*.ts',
-      'scripts/create-package/**/*.ts',
+      'scripts/**/*.{ts,mts}',
+      'packages/platform-api-docs/**/*.ts',
     ],
+    ignores: ['scripts/create-package/package-template/**/*.ts'],
     extends: [nodejs],
   },
   {
@@ -118,7 +132,7 @@ const config = createConfig([
     },
   },
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.mts'],
     extends: [typescript],
     languageOptions: {
       parserOptions: {
@@ -200,7 +214,7 @@ const config = createConfig([
     },
   },
   {
-    files: ['scripts/*.ts'],
+    files: ['scripts/*.ts', 'packages/platform-api-docs/src/cli.ts'],
     rules: {
       // Scripts may be self-executable and thus have hashbangs.
       'n/hashbang': 'off',
@@ -288,15 +302,34 @@ const config = createConfig([
     },
   },
   {
-    files: ['packages/messenger/src/generate-action-types/**/*.{js,ts}'],
+    files: ['packages/messenger-cli/src/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
     },
   },
   {
-    files: ['packages/messenger-cli/src/**/*.{js,ts}'],
+    files: ['packages/wallet-cli/src/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/wallet-cli/src/**/*.test.{js,ts}',
+      'packages/wallet-cli/tests/**/*.{js,ts}',
+      'packages/platform-api-docs/**/*.{js,ts}',
+    ],
+    rules: {
+      'jest/unbound-method': 'off',
+      'n/no-process-env': 'off',
+      'n/no-sync': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-cli/bin/**/*.mjs'],
+    rules: {
+      'import-x/no-unresolved': 'off',
     },
   },
   {
@@ -334,6 +367,134 @@ const config = createConfig([
       // for types that don't follow TSDoc properly.
       // See https://github.com/gajus/eslint-plugin-jsdoc/issues/1054
       'jsdoc/check-tag-names': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-framework-docs/site/docusaurus.config.ts'],
+    rules: {
+      'n/no-process-env': 'off',
+    },
+  },
+  {
+    // For now, we specify an array of packages here. Once all packages are
+    // updated, we can remove this.
+    files: [
+      'packages/account-tree-controller/**',
+      'packages/accounts-controller/**',
+      'packages/address-book-controller/**',
+      'packages/ai-controllers/**',
+      'packages/analytics-controller/**',
+      'packages/analytics-data-regulation-controller/**',
+      'packages/announcement-controller/**',
+      'packages/app-metadata-controller/**',
+      'packages/approval-controller/**',
+      'packages/assets-controller/**',
+      'packages/assets-controllers/**',
+      'packages/authenticated-user-storage/**',
+      'packages/base-controller/**',
+      'packages/base-data-service/**',
+      'packages/bridge-controller/**',
+      'packages/bridge-status-controller/**',
+      'packages/build-utils/**',
+      'packages/chain-agnostic-permission/**',
+      'packages/chomp-api-service/**',
+      'packages/claims-controller/**',
+      'packages/client-controller/**',
+      'packages/client-utils/**',
+      'packages/compliance-controller/**',
+      'packages/composable-controller/**',
+      'packages/config-registry-controller/**',
+      'packages/connectivity-controller/**',
+      'packages/controller-utils/**',
+      'packages/core-backend/**',
+      'packages/delegation-controller/**',
+      'packages/earn-controller/**',
+      'packages/eip-5792-middleware/**',
+      'packages/eip-7702-internal-rpc-middleware/**',
+      'packages/eip1193-permission-middleware/**',
+      'packages/ens-controller/**',
+      'packages/eth-block-tracker/**',
+      'packages/eth-json-rpc-middleware/**',
+      'packages/eth-json-rpc-provider/**',
+      'packages/foundryup/**',
+      'packages/gas-fee-controller/**',
+      'packages/gator-permissions-controller/**',
+      'packages/geolocation-controller/**',
+      'packages/json-rpc-engine/**',
+      'packages/json-rpc-middleware-stream/**',
+      'packages/keyring-controller/**',
+      'packages/logging-controller/**',
+      'packages/message-manager/**',
+      'packages/messenger/**',
+      'packages/messenger-cli/**',
+      'packages/money-account-api-data-service/**',
+      'packages/money-account-balance-service/**',
+      'packages/money-account-controller/**',
+      'packages/money-account-upgrade-controller/**',
+      'packages/multichain-account-service/**',
+      'packages/multichain-api-middleware/**',
+      'packages/multichain-network-controller/**',
+      'packages/multichain-transactions-controller/**',
+      'packages/name-controller/**',
+      'packages/network-connection-banner-controller/**',
+      'packages/network-controller/**',
+      'packages/network-enablement-controller/**',
+      'packages/notification-services-controller/**',
+      'packages/passkey-controller/**',
+      'packages/permission-controller/**',
+      'packages/permission-log-controller/**',
+      'packages/perps-controller/**',
+      'packages/phishing-controller/**',
+      'packages/platform-api-docs/**',
+      'packages/polling-controller/**',
+      'packages/preferences-controller/**',
+      'packages/profile-metrics-controller/**',
+      'packages/rate-limit-controller/**',
+      'packages/profile-sync-controller/**',
+      'packages/ramps-controller/**',
+      'packages/react-data-query/**',
+      'packages/remote-feature-flag-controller/**',
+      'packages/sample-controllers/**',
+      'packages/seedless-onboarding-controller/**',
+      'packages/selected-network-controller/**',
+      'packages/sentinel-api-service/**',
+      'packages/shield-controller/**',
+      'packages/signature-controller/**',
+      'packages/smart-transactions-controller/**',
+      'packages/snap-account-service/**',
+      'packages/social-controllers/**',
+      'packages/storage-service/**',
+      'packages/subscription-controller/**',
+      'packages/transaction-controller/**',
+      'packages/transaction-pay-controller/**',
+      'packages/user-operation-controller/**',
+      'packages/wallet/**',
+      'packages/wallet-cli/**',
+      'packages/wallet-framework-docs/**',
+    ],
+
+    // `import-x/extensions` doesn't support using ".js" for TypeScript
+    // files(?), so we load the `n` plugin and use
+    // `n/file-extension-in-import` instead.
+    plugins: { n: node },
+
+    rules: {
+      'n/file-extension-in-import': ['error', 'always'],
+      'import-x/extensions': [
+        'error',
+        {
+          js: 'ignorePackages',
+          ts: 'never',
+          tsx: 'never',
+          json: 'always',
+        },
+      ],
+      'import-x/no-useless-path-segments': [
+        'error',
+        {
+          noUselessIndex: false,
+        },
+      ],
     },
   },
 ]);

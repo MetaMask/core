@@ -4,14 +4,14 @@ import {
   KnownSessionProperties,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-} from './constants';
+} from './constants.js';
 import {
   isSupportedAccount,
   isSupportedMethod,
   isSupportedNotification,
   isSupportedScopeString,
   isSupportedSessionProperty,
-} from './supported';
+} from './supported.js';
 
 describe('Scope Support', () => {
   describe('isSupportedNotification', () => {
@@ -495,6 +495,9 @@ describe('Scope Support', () => {
 
   describe('isSupportedSessionProperty', () => {
     it('returns true for the session property', () => {
+      expect(
+        isSupportedSessionProperty(KnownSessionProperties.Eip1193Compatible),
+      ).toBe(true);
       expect(
         isSupportedSessionProperty(
           KnownSessionProperties.SolanaAccountChangedNotifications,

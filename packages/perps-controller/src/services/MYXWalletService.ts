@@ -22,11 +22,11 @@ import {
   getMYXChainId,
   MYX_TESTNET_CHAIN_ID,
   MYX_MAINNET_CHAIN_ID,
-} from '../constants/myxConfig';
-import type { PerpsControllerMessenger } from '../PerpsController';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import type { PerpsPlatformDependencies } from '../types';
-import { getSelectedEvmAccount } from '../utils/accountUtils';
+} from '../constants/myxConfig.js';
+import type { PerpsControllerMessenger } from '../PerpsController.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type { PerpsPlatformDependencies } from '../types/index.js';
+import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
 
 export class MYXWalletService {
   #isTestnet: boolean;
@@ -83,21 +83,15 @@ export class MYXWalletService {
     ) => Promise<string>;
     provider: null;
   } {
-    const evmAccount = getSelectedEvmAccount(
-      this.#messenger.call(
-        'AccountTreeController:getAccountsFromSelectedAccountGroup',
-      ),
-    );
+    const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
     if (!evmAccount?.address) {
       throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
     }
 
     return {
       getAddress: async (): Promise<string> => {
-        const currentAccount = getSelectedEvmAccount(
-          this.#messenger.call(
-            'AccountTreeController:getAccountsFromSelectedAccountGroup',
-          ),
+        const currentAccount = getSelectedEvmAccountFromMessenger(
+          this.#messenger,
         );
         if (!currentAccount?.address) {
           throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
@@ -109,10 +103,8 @@ export class MYXWalletService {
         types: Record<string, { name: string; type: string }[]>,
         value: Record<string, unknown>,
       ): Promise<string> => {
-        const currentAccount = getSelectedEvmAccount(
-          this.#messenger.call(
-            'AccountTreeController:getAccountsFromSelectedAccountGroup',
-          ),
+        const currentAccount = getSelectedEvmAccountFromMessenger(
+          this.#messenger,
         );
         if (!currentAccount?.address) {
           throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
@@ -160,11 +152,7 @@ export class MYXWalletService {
       message: Record<string, unknown>;
     }) => Promise<string>;
   } {
-    const evmAccount = getSelectedEvmAccount(
-      this.#messenger.call(
-        'AccountTreeController:getAccountsFromSelectedAccountGroup',
-      ),
-    );
+    const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
     if (!evmAccount?.address) {
       throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
     }
@@ -174,10 +162,8 @@ export class MYXWalletService {
       account: { address: evmAccount.address },
       chain: { id: chainId },
       signTypedData: async (args): Promise<string> => {
-        const currentAccount = getSelectedEvmAccount(
-          this.#messenger.call(
-            'AccountTreeController:getAccountsFromSelectedAccountGroup',
-          ),
+        const currentAccount = getSelectedEvmAccountFromMessenger(
+          this.#messenger,
         );
         if (!currentAccount?.address) {
           throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
@@ -207,11 +193,7 @@ export class MYXWalletService {
   }
 
   public getUserAddress(): Hex {
-    const evmAccount = getSelectedEvmAccount(
-      this.#messenger.call(
-        'AccountTreeController:getAccountsFromSelectedAccountGroup',
-      ),
-    );
+    const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
     if (!evmAccount?.address) {
       throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
     }
@@ -223,11 +205,7 @@ export class MYXWalletService {
   }
 
   public async getCurrentAccountId(): Promise<CaipAccountId> {
-    const evmAccount = getSelectedEvmAccount(
-      this.#messenger.call(
-        'AccountTreeController:getAccountsFromSelectedAccountGroup',
-      ),
-    );
+    const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
     if (!evmAccount?.address) {
       throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
     }

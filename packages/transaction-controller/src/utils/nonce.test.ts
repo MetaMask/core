@@ -3,9 +3,12 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 
-import { getAndFormatTransactionsForNonceTracker, getNextNonce } from './nonce';
-import type { TransactionMeta } from '../types';
-import { TransactionStatus } from '../types';
+import type { TransactionMeta } from '../types.js';
+import { TransactionStatus } from '../types.js';
+import {
+  getAndFormatTransactionsForNonceTracker,
+  getNextNonce,
+} from './nonce.js';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   chainId: '0x1',

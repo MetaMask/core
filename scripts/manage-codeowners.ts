@@ -1,0 +1,8 @@
+#!/usr/bin/env yarn tsx
+
+import { main } from './manage-codeowners/main';
+
+main().catch(function (error) {
+  console.error(error);
+  process.exitCode = 1;
+});

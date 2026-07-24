@@ -1,4 +1,4 @@
-export * from './GasFeeController';
+export * from './GasFeeController.js';
 export type {
   GasFeeControllerResetPollingAction,
   GasFeeControllerFetchGasFeeEstimatesAction,
@@ -6,4 +6,6 @@ export type {
   GasFeeControllerDisconnectPollerAction,
   GasFeeControllerStopPollingAction,
   GasFeeControllerGetTimeEstimateAction,
-} from './GasFeeController-method-action-types';
+  GasFeeControllerEnableNonRPCGasFeeApisAction,
+  GasFeeControllerDisableNonRPCGasFeeApisAction,
+} from './GasFeeController-method-action-types.js';

@@ -8,7 +8,7 @@ export type {
   SubscriptionControllerStateChangeEvent,
   AllowedActions,
   AllowedEvents,
-} from './SubscriptionController';
+} from './SubscriptionController.js';
 export type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
@@ -32,11 +32,12 @@ export type {
   SubscriptionControllerGetTokenMinimumBalanceAmountAction,
   SubscriptionControllerClearStateAction,
   SubscriptionControllerTriggerAccessTokenRefreshAction,
-} from './SubscriptionController-method-action-types';
+  SubscriptionControllerStopAllPollingAction,
+} from './SubscriptionController-method-action-types.js';
 export {
   SubscriptionController,
   getDefaultSubscriptionControllerState,
-} from './SubscriptionController';
+} from './SubscriptionController.js';
 export type {
   SubscriptionApiError,
   Subscription,
@@ -83,7 +84,7 @@ export type {
   AssignCohortRequest,
   GetSubscriptionsEligibilitiesRequest,
   ModalType,
-} from './types';
+} from './types.js';
 export {
   CANCEL_TYPES,
   CRYPTO_PAYMENT_METHOD_ERRORS,
@@ -95,12 +96,12 @@ export {
   COHORT_NAMES,
   BALANCE_CATEGORIES,
   MODAL_TYPE,
-} from './types';
-export { SubscriptionServiceError } from './errors';
+} from './types.js';
+export { SubscriptionServiceError } from './errors.js';
 export {
   Env,
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
-} from './constants';
-export type { SubscriptionServiceConfig } from './SubscriptionService';
-export { SubscriptionService } from './SubscriptionService';
+} from './constants.js';
+export type { SubscriptionServiceConfig } from './SubscriptionService.js';
+export { SubscriptionService } from './SubscriptionService.js';

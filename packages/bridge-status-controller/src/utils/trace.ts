@@ -5,11 +5,11 @@ import {
   QuoteResponse,
 } from '@metamask/bridge-controller';
 
-import { TraceName } from '../constants';
+import { TraceName } from '../constants.js';
 
 export const getTraceParams = (
   quoteResponse: QuoteResponse,
-  isStxEnabledOnClient: boolean,
+  isStxEnabled: boolean,
 ) => {
   return {
     name: isCrossChain(
@@ -20,14 +20,14 @@ export const getTraceParams = (
       : TraceName.SwapTransactionCompleted,
     data: {
       srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-      stxEnabled: isStxEnabledOnClient,
+      stxEnabled: isStxEnabled,
     },
   };
 };
 
 export const getApprovalTraceParams = (
   quoteResponse: QuoteResponse,
-  isStxEnabledOnClient: boolean,
+  isStxEnabled: boolean,
 ) => {
   return {
     name: isCrossChain(
@@ -38,7 +38,7 @@ export const getApprovalTraceParams = (
       : TraceName.SwapTransactionApprovalCompleted,
     data: {
       srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-      stxEnabled: isStxEnabledOnClient,
+      stxEnabled: isStxEnabled,
     },
   };
 };

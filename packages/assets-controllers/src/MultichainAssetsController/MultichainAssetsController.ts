@@ -4,7 +4,6 @@ import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
-import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -29,6 +28,7 @@ import type {
   PhishingControllerBulkScanTokensAction,
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerHandleRequestAction,
@@ -41,8 +41,8 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';
 
-import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types';
-import { getChainIdsCaveat } from './utils';
+import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types.js';
+import { getChainIdsCaveat } from './utils.js';
 
 const controllerName = 'MultichainAssetsController';
 
@@ -183,9 +183,26 @@ const MESSENGER_EXPOSED_METHODS = [
   'addAssets',
 ] as const;
 
-// TODO: make this controller extends StaticIntervalPollingController and update all assetsMetadata once a day.
+/** Phishing API allows at most this many token addresses per bulk scan request. */
+const BLOCKAID_BULK_TOKEN_SCAN_BATCH_SIZE = 100;
 
-export class MultichainAssetsController extends BaseController<
+/**
+ * Default interval for re-scanning stored SPL (`token:`) assets with Blockaid.
+ * Once per day limits API load while still catching tokens reclassified after add.
+ */
+const DEFAULT_BLOCKAID_TOKEN_RESCAN_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+type ChainTokenEntry = { asset: CaipAssetType; address: string };
+
+type BulkTokenScanBatchOutcome =
+  | {
+      status: 'fulfilled';
+      response: BulkTokenScanResponse;
+      entries: ChainTokenEntry[];
+    }
+  | { status: 'rejected'; entries: ChainTokenEntry[] };
+
+export class MultichainAssetsController extends StaticIntervalPollingController<null>()<
   typeof controllerName,
   MultichainAssetsControllerState,
   MultichainAssetsControllerMessenger
@@ -195,12 +212,19 @@ export class MultichainAssetsController extends BaseController<
 
   readonly #controllerOperationMutex = new Mutex();
 
+  readonly #isDeprecated: () => boolean;
+
   constructor({
     messenger,
     state = {},
+    blockaidTokenRescanInterval = DEFAULT_BLOCKAID_TOKEN_RESCAN_INTERVAL_MS,
+    isDeprecated = (): boolean => false,
   }: {
     messenger: MultichainAssetsControllerMessenger;
     state?: Partial<MultichainAssetsControllerState>;
+    /** Blockaid re-scan interval (ms); default daily. `0` disables. */
+    blockaidTokenRescanInterval?: number;
+    isDeprecated?: () => boolean;
   }) {
     super({
       messenger,
@@ -213,33 +237,120 @@ export class MultichainAssetsController extends BaseController<
     });
 
     this.#snaps = {};
+    this.#isDeprecated = isDeprecated;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    } else if (blockaidTokenRescanInterval > 0) {
+      this.setIntervalLength(blockaidTokenRescanInterval);
+      this.startPolling(null);
+    }
 
     this.messenger.subscribe(
       'AccountsController:accountAdded',
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (account) => await this.#handleOnAccountAddedEvent(account),
     );
     this.messenger.subscribe(
       'AccountsController:accountRemoved',
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (account) => await this.#handleOnAccountRemovedEvent(account),
     );
     this.messenger.subscribe(
       'AccountsController:accountAssetListUpdated',
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
     );
 
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 
+  /**
+   * Clears all persisted `accountsAssets`, `assetsMetadata`, and
+   * `allIgnoredAssets` so that no stale asset data remains in state.
+   */
+  #enforceDisabledState(): void {
+    if (
+      Object.keys(this.state.accountsAssets).length === 0 &&
+      Object.keys(this.state.assetsMetadata).length === 0 &&
+      Object.keys(this.state.allIgnoredAssets).length === 0
+    ) {
+      return;
+    }
+    this.update((state) => {
+      state.accountsAssets = {};
+      state.assetsMetadata = {};
+      state.allIgnoredAssets = {};
+    });
+  }
+
+  async _executePoll(_input: null): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+    await this.#withControllerLock(async () => {
+      const assetsByAccount: Record<
+        string,
+        { added: CaipAssetType[]; removed: CaipAssetType[] }
+      > = {};
+
+      for (const [accountId, assets] of Object.entries(
+        this.state.accountsAssets,
+      )) {
+        const splTokens = assets.filter((asset) => {
+          if (!isCaipAssetType(asset)) {
+            return false;
+          }
+          try {
+            return parseCaipAssetType(asset).assetNamespace === 'token';
+          } catch {
+            return false;
+          }
+        });
+
+        if (splTokens.length === 0) {
+          continue;
+        }
+
+        const malicious = await this.#findMaliciousTokensAmong(splTokens);
+        if (malicious.length > 0) {
+          this.ignoreAssets(malicious, accountId);
+          assetsByAccount[accountId] = {
+            added: [],
+            removed: malicious,
+          };
+        }
+      }
+
+      if (Object.keys(assetsByAccount).length > 0) {
+        this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
+          assets: assetsByAccount,
+        });
+      }
+    });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   async #handleAccountAssetListUpdatedEvent(
     event: AccountAssetListUpdatedEventPayload,
   ) {
-    return this.#withControllerLock(async () =>
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+    await this.#withControllerLock(async () =>
       this.#handleAccountAssetListUpdated(event),
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   async #handleOnAccountAddedEvent(account: InternalAccount) {
-    return this.#withControllerLock(async () =>
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+    await this.#withControllerLock(async () =>
       this.#handleOnAccountAdded(account),
     );
   }
@@ -261,6 +372,10 @@ export class MultichainAssetsController extends BaseController<
    * @param accountId - The account ID to ignore assets for.
    */
   ignoreAssets(assetsToIgnore: CaipAssetType[], accountId: string): void {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     this.update((state) => {
       if (state.accountsAssets[accountId]) {
         state.accountsAssets[accountId] = state.accountsAssets[
@@ -292,6 +407,11 @@ export class MultichainAssetsController extends BaseController<
     assetIds: CaipAssetType[],
     accountId: string,
   ): Promise<CaipAssetType[]> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return [];
+    }
+
     if (assetIds.length === 0) {
       return this.state.accountsAssets[accountId] || [];
     }
@@ -371,6 +491,7 @@ export class MultichainAssetsController extends BaseController<
    *
    * @param event - The list of assets to update
    */
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   async #handleAccountAssetListUpdated(
     event: AccountAssetListUpdatedEventPayload,
   ) {
@@ -394,10 +515,9 @@ export class MultichainAssetsController extends BaseController<
             !this.#isAssetIgnored(asset, accountId),
         );
 
-        // Filter out tokens flagged by Blockaid as non-benign
-        const filteredToBeAddedAssets = await this.#filterBlockaidSpamTokens(
-          preFilteredToBeAddedAssets,
-        );
+        // Filter out tokens that cannot be verified or are flagged malicious
+        const filteredToBeAddedAssets =
+          await this.#filterBlockaidSpamTokensOnAdd(preFilteredToBeAddedAssets);
 
         // In case accountsAndAssetsToUpdate event is fired with "removed" assets that don't exist, we don't want to remove them
         const filteredToBeRemovedAssets = removed.filter(
@@ -482,7 +602,13 @@ export class MultichainAssetsController extends BaseController<
         account.id,
         account.metadata.snap.id,
       );
-      const assets = await this.#filterBlockaidSpamTokens(allAssets);
+      const caipAssets = allAssets.filter(isCaipAssetType);
+      const filteredCaip =
+        await this.#filterBlockaidSpamTokensOnAdd(caipAssets);
+      const filteredCaipSet = new Set(filteredCaip);
+      const assets = allAssets.filter(
+        (asset) => !isCaipAssetType(asset) || filteredCaipSet.has(asset),
+      );
       await this.#refreshAssetsMetadata(assets);
       this.update((state) => {
         state.accountsAssets[account.id] = assets;
@@ -504,6 +630,10 @@ export class MultichainAssetsController extends BaseController<
    * @param accountId - The new account id being removed.
    */
   async #handleOnAccountRemovedEvent(accountId: string): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     this.update((state) => {
       if (state.accountsAssets[accountId]) {
         delete state.accountsAssets[accountId];
@@ -521,6 +651,7 @@ export class MultichainAssetsController extends BaseController<
    *
    * @param assets - The assets to refresh
    */
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   async #refreshAssetsMetadata(assets: CaipAssetType[]) {
     this.#assertControllerMutexIsLocked();
 
@@ -548,6 +679,7 @@ export class MultichainAssetsController extends BaseController<
    *
    * @param assets - The assets to update
    */
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   async #updateAssetsMetadata(assets: CaipAssetType[]) {
     // Creates a mapping of scope to their respective assets list.
     const assetsByScope: Record<CaipChainId, CaipAssetType[]> = {};
@@ -681,29 +813,20 @@ export class MultichainAssetsController extends BaseController<
   }
 
   /**
-   * Filters out tokens flagged as malicious by Blockaid via the
-   * `PhishingController:bulkScanTokens` messenger action. Only tokens with
-   * an `assetNamespace` of "token" are scanned (native assets like slip44 are
-   * passed through unfiltered). If the scan fails, all tokens are kept
-   * (fail open).
+   * Groups `token:` CAIP assets by chain namespace for bulk scan.
    *
-   * @param assets - The CAIP asset type list to filter.
-   * @returns The filtered list with malicious tokens removed.
+   * @param assets - CAIP assets to inspect.
+   * @returns Map of chain namespace to token entries.
    */
-  async #filterBlockaidSpamTokens(
+  #groupTokenAssetsByChain(
     assets: CaipAssetType[],
-  ): Promise<CaipAssetType[]> {
-    // Group scannable token assets by chain namespace
-    const tokensByChain: Record<
-      string,
-      { asset: CaipAssetType; address: string }[]
-    > = {};
+  ): Record<string, ChainTokenEntry[]> {
+    const tokensByChain: Record<string, ChainTokenEntry[]> = {};
 
     for (const asset of assets) {
       const { assetNamespace, assetReference, chain } =
         parseCaipAssetType(asset);
 
-      // Only scan fungible token assets (e.g. SPL tokens), skip native (slip44)
       if (assetNamespace === 'token') {
         const chainName = chain.namespace;
         if (!tokensByChain[chainName]) {
@@ -713,58 +836,125 @@ export class MultichainAssetsController extends BaseController<
       }
     }
 
-    // If there are no token assets to scan, return as-is
-    if (Object.keys(tokensByChain).length === 0) {
-      return assets;
+    return tokensByChain;
+  }
+
+  async #runBatchedBulkTokenScans(
+    chainName: string,
+    tokenEntries: ChainTokenEntry[],
+  ): Promise<BulkTokenScanBatchOutcome[]> {
+    const batches: ChainTokenEntry[][] = [];
+    for (
+      let i = 0;
+      i < tokenEntries.length;
+      i += BLOCKAID_BULK_TOKEN_SCAN_BATCH_SIZE
+    ) {
+      batches.push(
+        tokenEntries.slice(i, i + BLOCKAID_BULK_TOKEN_SCAN_BATCH_SIZE),
+      );
     }
 
-    // Build a set of assets to reject (non-benign tokens)
+    const batchResults = await Promise.allSettled(
+      batches.map((batch) =>
+        this.messenger.call('PhishingController:bulkScanTokens', {
+          chainId: chainName,
+          tokens: batch.map((entry) => entry.address),
+        }),
+      ),
+    );
+
+    return batches.map((entries, index) => {
+      const result = batchResults[index];
+      if (result.status === 'fulfilled') {
+        return {
+          status: 'fulfilled' as const,
+          response: result.value,
+          entries,
+        };
+      }
+      return { status: 'rejected' as const, entries };
+    });
+  }
+
+  /**
+   * Fail-open Blockaid filter for newly detected `token:` assets (native/other namespaces unchanged).
+   *
+   * @param assets - CAIP assets to filter.
+   * @returns Filtered list, original order preserved.
+   */
+  async #filterBlockaidSpamTokensOnAdd(
+    assets: CaipAssetType[],
+  ): Promise<CaipAssetType[]> {
+    const tokensByChain = this.#groupTokenAssetsByChain(assets);
+
+    if (Object.keys(tokensByChain).length === 0) {
+      return [...assets];
+    }
+
     const rejectedAssets = new Set<CaipAssetType>();
 
-    // PhishingController:bulkScanTokens rejects requests with more than
-    // 100 tokens (returning {}). Batch addresses into chunks to stay within
-    // the limit.
-    const BATCH_SIZE = 100;
-
     for (const [chainName, tokenEntries] of Object.entries(tokensByChain)) {
-      const addresses = tokenEntries.map((entry) => entry.address);
-
-      // Create batches of BATCH_SIZE
-      const batches: string[][] = [];
-      for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
-        batches.push(addresses.slice(i, i + BATCH_SIZE));
-      }
-
-      // Scan all batches in parallel. Using Promise.allSettled so that a
-      // single batch failure doesn't discard results from successful batches
-      // (fail open at the batch level, not the chain level).
-      const batchResults = await Promise.allSettled(
-        batches.map((batch) =>
-          this.messenger.call('PhishingController:bulkScanTokens', {
-            chainId: chainName,
-            tokens: batch,
-          }),
-        ),
+      const batchOutcomes = await this.#runBatchedBulkTokenScans(
+        chainName,
+        tokenEntries,
       );
 
-      // Merge results from fulfilled batches (rejected batches fail open)
-      const scanResponse: BulkTokenScanResponse = {};
-      for (const result of batchResults) {
-        if (result.status === 'fulfilled') {
-          Object.assign(scanResponse, result.value);
+      for (const outcome of batchOutcomes) {
+        if (outcome.status === 'rejected') {
+          // Fail-open: if API fails, allow all tokens in this batch through
+          continue;
         }
-      }
-
-      for (const entry of tokenEntries) {
-        const result = scanResponse[entry.address];
-        if (result?.result_type === TokenScanResultType.Malicious) {
-          rejectedAssets.add(entry.asset);
+        for (const entry of outcome.entries) {
+          const scanned = outcome.response[entry.address];
+          // Reject only if we have a definitive malicious result
+          if (
+            scanned?.result_type &&
+            scanned.result_type === TokenScanResultType.Malicious
+          ) {
+            rejectedAssets.add(entry.asset);
+          }
         }
       }
     }
 
-    // Filter while preserving original order
     return assets.filter((asset) => !rejectedAssets.has(asset));
+  }
+
+  /**
+   * SPL `token:` assets in state that Blockaid marks malicious (failed batches skipped).
+   *
+   * @param assets - CAIP `token:` assets to scan.
+   * @returns Subset marked malicious.
+   */
+  async #findMaliciousTokensAmong(
+    assets: CaipAssetType[],
+  ): Promise<CaipAssetType[]> {
+    const tokensByChain = this.#groupTokenAssetsByChain(assets);
+
+    const maliciousAssets: CaipAssetType[] = [];
+
+    for (const [chainName, tokenEntries] of Object.entries(tokensByChain)) {
+      const batchOutcomes = await this.#runBatchedBulkTokenScans(
+        chainName,
+        tokenEntries,
+      );
+
+      for (const outcome of batchOutcomes) {
+        if (outcome.status === 'rejected') {
+          continue;
+        }
+        for (const entry of outcome.entries) {
+          if (
+            outcome.response[entry.address]?.result_type ===
+            TokenScanResultType.Malicious
+          ) {
+            maliciousAssets.push(entry.asset);
+          }
+        }
+      }
+    }
+
+    return maliciousAssets;
   }
 
   /**
@@ -804,6 +994,7 @@ export class MultichainAssetsController extends BaseController<
    *
    * @throws If the controller mutex is not locked.
    */
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   #assertControllerMutexIsLocked() {
     if (!this.#controllerOperationMutex.isLocked()) {
       throw new Error(

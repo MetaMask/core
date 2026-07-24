@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SocialService } from './SocialService';
+import type { SocialService } from './SocialService.js';
 
 /**
  * Fetches the leaderboard of top traders.
@@ -83,12 +83,49 @@ export type SocialServiceFetchFollowersAction = {
 };
 
 /**
- * Fetches the list of traders a user is following.
+ * Fetches a single position by its unique ID.
  *
- * Calls `GET ${baseUrl}/users/${addressOrUid}/following`.
+ * Calls `GET ${baseUrl}/traders/position/${positionId}`.
  *
  * @param options - Options bag.
- * @param options.addressOrUid - Wallet address or Clicker profile ID.
+ * @param options.positionId - Unique position ID (UUID).
+ * @returns The position.
+ */
+export type SocialServiceFetchPositionByIdAction = {
+  type: `SocialService:fetchPositionById`;
+  handler: SocialService['fetchPositionById'];
+};
+
+/**
+ * Fetches a page of the trader-activity feed.
+ *
+ * Calls `GET ${baseUrl}/feed`. For the `following` scope the current user is
+ * identified server-side from the JWT sub claim carried in the Authorization
+ * header; the `leaderboard` scope is generic and shared by all users.
+ *
+ * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+ * from a prior response back as `olderThan` to load older items, and
+ * `pagination.newerCursor` as `newerThan` to fetch newer items.
+ *
+ * @param options - Options bag.
+ * @param options.scope - `following` (default) or `leaderboard`.
+ * @param options.chains - Filter by one or more chains.
+ * @param options.limit - Number of results per page.
+ * @param options.olderThan - Cursor for older items (scroll down).
+ * @param options.newerThan - Cursor for newer items (refresh).
+ * @returns The feed response with items and pagination cursors.
+ */
+export type SocialServiceFetchFeedAction = {
+  type: `SocialService:fetchFeed`;
+  handler: SocialService['fetchFeed'];
+};
+
+/**
+ * Fetches the list of traders the current user is following.
+ *
+ * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
  * @returns The following response.
  */
 export type SocialServiceFetchFollowingAction = {
@@ -97,12 +134,12 @@ export type SocialServiceFetchFollowingAction = {
 };
 
 /**
- * Follows one or more traders.
+ * Follows one or more traders on behalf of the current user.
  *
- * Calls `PUT ${baseUrl}/users/${addressOrUid}/follows`.
+ * Calls `PUT ${baseUrl}/users/me/follows`. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
  *
  * @param options - Options bag.
- * @param options.addressOrUid - Wallet address or Clicker profile ID of the user.
  * @param options.targets - Array of wallet addresses or profile IDs to follow.
  * @returns The follow response with confirmed follows.
  */
@@ -112,20 +149,36 @@ export type SocialServiceFollowAction = {
 };
 
 /**
- * Unfollows one or more traders.
+ * Unfollows one or more traders on behalf of the current user.
  *
- * Calls `DELETE ${baseUrl}/users/${addressOrUid}/follows?targets=...`.
- * Targets are sent as query params because Fastify does not parse
- * request bodies on DELETE requests per RFC 9110.
+ * Calls `DELETE ${baseUrl}/users/me/follows?targets=...`. Targets are sent
+ * as query params because Fastify does not parse request bodies on DELETE
+ * requests per RFC 9110. The caller is identified server-side from the JWT
+ * sub claim carried in the Authorization header.
  *
  * @param options - Options bag.
- * @param options.addressOrUid - Wallet address or Clicker profile ID of the user.
  * @param options.targets - Array of wallet addresses or profile IDs to unfollow.
  * @returns The unfollow response with confirmed unfollows.
  */
 export type SocialServiceUnfollowAction = {
   type: `SocialService:unfollow`;
   handler: SocialService['unfollow'];
+};
+
+/**
+ * Opts the current user out of the PnL leaderboard.
+ */
+export type SocialServiceOptOutOfLeaderboardAction = {
+  type: `SocialService:optOutOfLeaderboard`;
+  handler: SocialService['optOutOfLeaderboard'];
+};
+
+/**
+ * Opts the current user back into the PnL leaderboard.
+ */
+export type SocialServiceOptInToLeaderboardAction = {
+  type: `SocialService:optInToLeaderboard`;
+  handler: SocialService['optInToLeaderboard'];
 };
 
 /**
@@ -137,6 +190,10 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchOpenPositionsAction
   | SocialServiceFetchClosedPositionsAction
   | SocialServiceFetchFollowersAction
+  | SocialServiceFetchPositionByIdAction
+  | SocialServiceFetchFeedAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFollowAction
-  | SocialServiceUnfollowAction;
+  | SocialServiceUnfollowAction
+  | SocialServiceOptOutOfLeaderboardAction
+  | SocialServiceOptInToLeaderboardAction;

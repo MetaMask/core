@@ -1,15 +1,16 @@
 import type { Hex } from '@metamask/utils';
 
-import { getRelayQuotes } from './relay-quotes';
-import { submitRelayQuotes } from './relay-submit';
-import { RelayStrategy } from './RelayStrategy';
-import type { RelayQuote } from './types';
+import { TransactionPayStrategy } from '../../constants.js';
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
+} from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getRelayQuotes } from './relay-quotes.js';
+import { submitRelayQuotes } from './relay-submit.js';
+import { RelayStrategy } from './RelayStrategy.js';
+import type { RelayQuote } from './types.js';
 
 jest.mock('./relay-quotes');
 jest.mock('./relay-submit');
@@ -84,7 +85,13 @@ describe('RelayStrategy', () => {
   });
 
   it('delegates getQuotes', async () => {
-    const quote = { strategy: 'relay' } as TransactionPayQuote<RelayQuote>;
+    const quote = {
+      request: {
+        sourceChainId: '0x1' as Hex,
+        sourceTokenAddress: '0xabc' as Hex,
+      },
+      strategy: TransactionPayStrategy.Relay,
+    } as TransactionPayQuote<RelayQuote>;
     getRelayQuotesMock.mockResolvedValue([quote]);
 
     const strategy = new RelayStrategy();
@@ -107,5 +114,44 @@ describe('RelayStrategy', () => {
       transactionHash: '0xhash',
     });
     expect(submitRelayQuotesMock).toHaveBeenCalledWith(executeRequest);
+  });
+
+  it('propagates execute errors without replacing the Error object', async () => {
+    const executeRequest = {
+      messenger,
+      quotes: [],
+      transaction: request.transaction,
+      isSmartTransaction: jest.fn(),
+    } as PayStrategyExecuteRequest<RelayQuote>;
+    const error = new Error('Insufficient liquidity');
+
+    submitRelayQuotesMock.mockRejectedValue(error);
+
+    const strategy = new RelayStrategy();
+    const thrown = await strategy
+      .execute(executeRequest)
+      .catch((caught) => caught);
+
+    expect(thrown).toBe(error);
+    expect(thrown.message).toBe('Insufficient liquidity');
+  });
+
+  it('propagates Relay-prefixed execute errors from submitRelayQuotes', async () => {
+    const executeRequest = {
+      messenger,
+      quotes: [],
+      transaction: request.transaction,
+      isSmartTransaction: jest.fn(),
+    } as PayStrategyExecuteRequest<RelayQuote>;
+
+    submitRelayQuotesMock.mockRejectedValue(
+      new Error('Relay: Execute: 422 - Insufficient liquidity'),
+    );
+
+    const strategy = new RelayStrategy();
+
+    await expect(strategy.execute(executeRequest)).rejects.toThrow(
+      'Relay: Execute: 422 - Insufficient liquidity',
+    );
   });
 });

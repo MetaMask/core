@@ -1,13 +1,13 @@
 import { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import * as util from './utils';
 import type {
   FeeMarketEIP1559Values,
   GasPriceValue,
   TransactionParams,
-} from '../types';
-import { TransactionStatus } from '../types';
+} from '../types.js';
+import { TransactionStatus } from '../types.js';
+import * as util from './utils.js';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';

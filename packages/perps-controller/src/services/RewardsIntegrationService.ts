@@ -1,9 +1,13 @@
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
-import type { PerpsPlatformDependencies } from '../types';
-import type { PerpsControllerMessengerBase } from '../types/messenger';
-import { getSelectedEvmAccount } from '../utils/accountUtils';
-import { ensureError } from '../utils/errorUtils';
-import { formatAccountToCaipAccountId } from '../utils/rewardsUtils';
+import {
+  BASIS_POINTS_DIVISOR,
+  BUILDER_FEE_CONFIG,
+} from '../constants/hyperLiquidConfig.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import type { PerpsPlatformDependencies } from '../types/index.js';
+import type { PerpsControllerMessengerBase } from '../types/messenger.js';
+import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
+import { ensureError } from '../utils/errorUtils.js';
+import { formatAccountToCaipAccountId } from '../utils/rewardsUtils.js';
 
 /**
  * RewardsIntegrationService
@@ -59,11 +63,7 @@ export class RewardsIntegrationService {
    */
   async calculateUserFeeDiscount(): Promise<number | undefined> {
     try {
-      const evmAccount = getSelectedEvmAccount(
-        this.#messenger.call(
-          'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        ),
-      );
+      const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
       if (!evmAccount) {
         this.#deps.debugLogger.log(
@@ -118,9 +118,23 @@ export class RewardsIntegrationService {
         return undefined;
       }
 
-      // Use rewards via DI (no RewardsController in Core yet)
-      const discountBips =
-        await this.#deps.rewards.getPerpsDiscountForAccount(caipAccountId);
+      // Use rewards via DI (no RewardsController in Core yet).
+      // The rewards controller needs the perps MetaMask builder base fee in
+      // bips to convert an absolute VIP fee into a discount fraction.
+      const discountBips = await this.#deps.rewards.getPerpsDiscountForAccount(
+        caipAccountId,
+        BUILDER_FEE_CONFIG.MaxFeeDecimal * BASIS_POINTS_DIVISOR,
+      );
+
+      // null = subscription state not hydrated yet; surface as undefined so
+      // callers don't treat it as a definitive "no discount" answer.
+      if (discountBips === null) {
+        this.#deps.debugLogger.log(
+          'RewardsIntegrationService: Fee discount unavailable (subscription state not hydrated)',
+          { address: evmAccount.address, caipAccountId },
+        );
+        return undefined;
+      }
 
       this.#deps.debugLogger.log(
         'RewardsIntegrationService: Fee discount calculated',

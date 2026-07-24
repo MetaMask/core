@@ -6,6 +6,11 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
+import type {
+  DefaultEncryptionResult,
+  EncryptionResultConstraint,
+  Encryptor,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticateResult,
@@ -37,8 +42,8 @@ import {
   assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidPassword,
   assertIsValidVaultData,
-} from './assertions';
-import type { AuthConnection } from './constants';
+} from './assertions.js';
+import type { AuthConnection } from './constants.js';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
@@ -46,35 +51,35 @@ import {
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   Web3AuthNetwork,
-} from './constants';
+} from './constants.js';
 import {
+  InvalidPrimarySecretDataTypeError,
   PasswordSyncError,
   RecoveryError,
   SeedlessOnboardingError,
-} from './errors';
-import { projectLogger, createModuleLogger } from './logger';
-import { SecretMetadata } from './SecretMetadata';
-import type { SeedlessOnboardingControllerMethodActions } from './SeedlessOnboardingController-method-action-types';
+} from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import { SecretMetadata } from './SecretMetadata.js';
+import type { SeedlessOnboardingControllerMethodActions } from './SeedlessOnboardingController-method-action-types.js';
 import type {
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
-  VaultEncryptor,
   RefreshJWTToken,
   RevokeRefreshToken,
   RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
   ToprfKeyDeriver,
-} from './types';
+} from './types.js';
 import {
   compareAndGetLatestToken,
   decodeJWTToken,
   decodeNodeAuthToken,
   deserializeVaultData,
   serializeVaultData,
-} from './utils';
+} from './utils.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
 
@@ -105,6 +110,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkNodeAuthTokenExpired',
   'checkMetadataAccessTokenExpired',
   'checkAccessTokenExpired',
+  'runMigrations',
 ] as const;
 
 // Actions
@@ -148,6 +154,9 @@ export type SeedlessOnboardingControllerMessenger = Messenger<
 export type SeedlessOnboardingControllerOptions<
   EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationParams> =
+    DefaultEncryptionResult<SupportedKeyDerivationParams>,
 > = {
   messenger: SeedlessOnboardingControllerMessenger;
 
@@ -161,7 +170,11 @@ export type SeedlessOnboardingControllerOptions<
    *
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
-  encryptor: VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams>;
+  encryptor: Encryptor<
+    EncryptionKey,
+    SupportedKeyDerivationParams,
+    EncryptionResult
+  >;
 
   /**
    * A function to get a new jwt token using refresh token.
@@ -377,14 +390,18 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
 export class SeedlessOnboardingController<
   EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationOptions = encryptionUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationOptions> =
+    DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerMessenger
 > {
-  readonly #vaultEncryptor: VaultEncryptor<
+  readonly #vaultEncryptor: Encryptor<
     EncryptionKey,
-    SupportedKeyDerivationOptions
+    SupportedKeyDerivationOptions,
+    EncryptionResult
   >;
 
   readonly #controllerOperationMutex = new Mutex();
@@ -451,7 +468,8 @@ export class SeedlessOnboardingController<
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<
     EncryptionKey,
-    SupportedKeyDerivationOptions
+    SupportedKeyDerivationOptions,
+    EncryptionResult
   >) {
     super({
       name: controllerName,
@@ -1626,24 +1644,22 @@ export class SeedlessOnboardingController<
         }),
       );
 
-      // Sort: PrimarySrp first, then by createdAt/timestamp (oldest first)
+      // Sort: PrimarySrp first, then by client timestamp (oldest first)
       results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
 
-      // Validate the first item is the primary SRP
-      const firstItem = results[0];
-      const isDataTypePrimary =
-        firstItem.dataType === undefined ||
-        firstItem.dataType === null ||
-        firstItem.dataType === EncAccountDataType.PrimarySrp;
-      const isMnemonic = SecretMetadata.matchesType(
-        firstItem,
-        SecretType.Mnemonic,
+      const primaryIndex = results.findIndex(
+        (result) =>
+          SecretMetadata.matchesType(result, SecretType.Mnemonic) &&
+          (result.dataType === undefined ||
+            result.dataType === null ||
+            result.dataType === EncAccountDataType.PrimarySrp),
       );
-
-      if (!isDataTypePrimary || !isMnemonic) {
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-        );
+      if (primaryIndex === -1) {
+        throw InvalidPrimarySecretDataTypeError.fromSecretMetadata(results);
+      }
+      if (primaryIndex !== 0) {
+        const [primary] = results.splice(primaryIndex, 1);
+        results.unshift(primary);
       }
       return results;
     }
@@ -1700,6 +1716,20 @@ export class SeedlessOnboardingController<
       oldAuthKeyPair: authKeyPair,
       newKeyShareIndex: globalKeyIndex,
       newPassword,
+      transformDataItems: (items) =>
+        items
+          .sort((a, b) =>
+            SecretMetadata.compare(
+              SecretMetadata.fromRawMetadata(a.data, { dataType: a.dataType }),
+              SecretMetadata.fromRawMetadata(b.data, { dataType: b.dataType }),
+              'asc',
+            ),
+          )
+          .map(({ data, dataType, version }) => ({
+            data,
+            dataType,
+            version: dataType === undefined ? 'v1' : version,
+          })),
     });
     return result;
   }

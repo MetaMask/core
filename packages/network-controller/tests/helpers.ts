@@ -17,11 +17,12 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import type { FakeProviderStub } from '../../../tests/fake-provider';
-import { buildTestObject } from '../../../tests/helpers';
-import { NetworkController } from '../src';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
+import { FakeProvider } from '../../../tests/fake-provider.js';
+import type { FakeProviderStub } from '../../../tests/fake-provider.js';
+import { buildTestObject } from '../../../tests/helpers.js';
+import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
+import { NetworkController } from '../src/index.js';
 import type {
   BuiltInNetworkClientId,
   CustomNetworkClientId,
@@ -29,8 +30,7 @@ import type {
   NetworkClientConfiguration,
   NetworkClientId,
   NetworkConfiguration,
-} from '../src';
-import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client';
+} from '../src/index.js';
 import type {
   AddNetworkCustomRpcEndpointFields,
   AddNetworkFields,
@@ -39,14 +39,15 @@ import type {
   NetworkControllerMessenger,
   NetworkControllerOptions,
   UpdateNetworkCustomRpcEndpointFields,
-} from '../src/NetworkController';
-import { RpcEndpointType } from '../src/NetworkController';
-import { RpcServiceOptions } from '../src/rpc-service/rpc-service';
+} from '../src/NetworkController.js';
+import { RpcEndpointType } from '../src/NetworkController.js';
+import { RpcServiceOptions } from '../src/rpc-service/rpc-service.js';
+import type { RpcFailoverMode } from '../src/selectors.js';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
-} from '../src/types';
-import { NetworkClientType } from '../src/types';
+} from '../src/types.js';
+import { NetworkClientType } from '../src/types.js';
 
 export type AllNetworkControllerActions =
   MessengerActions<NetworkControllerMessenger>;
@@ -89,12 +90,15 @@ export const TESTNET = {
  * @param options - Optional configuration.
  * @param options.connectivityStatus - The connectivity status to return by default.
  * If not provided, defaults to Online.
+ * @param options.rpcFailoverMode - The RPC failover mode to return, defaults to `disabled`.
  * @returns The messenger.
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
+  rpcFailoverMode = 'disabled',
 }: {
   connectivityStatus?: ConnectivityStatus;
+  rpcFailoverMode?: RpcFailoverMode;
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
@@ -106,6 +110,16 @@ export function buildRootMessenger({
     'ConnectivityController:getState',
     () => ({
       connectivityStatus,
+    }),
+  );
+
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags: {
+        corePlatformRpcFailoverMode: rpcFailoverMode,
+      },
+      cacheTimestamp: 0,
     }),
   );
 
@@ -133,7 +147,12 @@ export function buildNetworkControllerMessenger(
 
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
-    actions: ['ConnectivityController:getState'],
+    actions: [
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+    ],
+    // eslint-disable-next-line no-restricted-syntax
+    events: ['RemoteFeatureFlagController:stateChange'],
   });
 
   return networkControllerMessenger;
@@ -612,7 +631,10 @@ type WithControllerCallback<ReturnValue> = ({
   networkControllerMessenger: NetworkControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
-type WithControllerOptions = Partial<NetworkControllerOptions>;
+type WithControllerOptions = Partial<NetworkControllerOptions> & {
+  rpcFailoverMode?: RpcFailoverMode;
+  initializeController?: boolean;
+};
 
 type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
@@ -632,7 +654,14 @@ export async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const messenger = buildRootMessenger();
+  const {
+    rpcFailoverMode,
+    initializeController = true,
+    ...controllerOptions
+  } = rest;
+  const messenger = buildRootMessenger({
+    rpcFailoverMode,
+  });
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
   const controller = new NetworkController({
     messenger: networkControllerMessenger,
@@ -645,12 +674,17 @@ export async function withController<ReturnValue>(
       btoa,
       isOffline: (): boolean => false,
     }),
-    ...rest,
+    ...controllerOptions,
   });
+
+  if (initializeController) {
+    controller.init();
+  }
+
   try {
     return await fn({ controller, messenger, networkControllerMessenger });
   } finally {
     const { blockTracker } = controller.getProviderAndBlockTracker();
-    await blockTracker?.destroy();
+    await blockTracker?.__target__?.destroy();
   }
 }

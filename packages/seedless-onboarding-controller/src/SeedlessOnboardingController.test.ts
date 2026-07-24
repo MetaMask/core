@@ -17,6 +17,10 @@ import {
   encryptWithKey as encryptWithKeyBrowserPassworder,
 } from '@metamask/browser-passworder';
 import {
+  DefaultEncryptionResult,
+  Encryptor,
+} from '@metamask/keyring-controller';
+import {
   EncAccountDataType,
   TOPRFError,
   TOPRFErrorCode,
@@ -42,45 +46,42 @@ import { managedNonce } from '@noble/ciphers/webcrypto';
 import { Mutex } from 'async-mutex';
 import type { webcrypto } from 'node:crypto';
 
+import type {
+  MockKeyringControllerMessenger,
+  RootMessenger,
+} from '../tests/__fixtures__/mockMessenger.js';
+import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger.js';
+import {
+  handleMockSecretDataGet,
+  handleMockSecretDataAdd,
+  handleMockCommitment,
+  handleMockAuthenticate,
+} from '../tests/__fixtures__/topfClient.js';
+import {
+  createMockSecretDataGetResponse,
+  MULTIPLE_MOCK_SECRET_METADATA,
+} from '../tests/mocks/toprf.js';
+import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor.js';
+import { createMockJWTToken } from '../tests/mocks/utils.js';
+import MockVaultEncryptor from '../tests/mocks/vaultEncryptor.js';
 import {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
-} from './constants';
-import { PasswordSyncError, RecoveryError } from './errors';
-import { SecretMetadata } from './SecretMetadata';
+} from './constants.js';
+import { PasswordSyncError, RecoveryError } from './errors.js';
+import { SecretMetadata } from './SecretMetadata.js';
+import {
+  SeedlessOnboardingController,
+  getInitialSeedlessOnboardingControllerStateWithDefaults,
+} from './SeedlessOnboardingController.js';
 import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
-} from './SeedlessOnboardingController';
-import {
-  getInitialSeedlessOnboardingControllerStateWithDefaults,
-  SeedlessOnboardingController,
-} from './SeedlessOnboardingController';
-import type {
-  SeedlessOnboardingControllerState,
-  VaultEncryptor,
-} from './types';
-import type {
-  MockKeyringControllerMessenger,
-  RootMessenger,
-} from '../tests/__fixtures__/mockMessenger';
-import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
-import {
-  handleMockSecretDataGet,
-  handleMockSecretDataAdd,
-  handleMockCommitment,
-  handleMockAuthenticate,
-} from '../tests/__fixtures__/topfClient';
-import {
-  createMockSecretDataGetResponse,
-  MULTIPLE_MOCK_SECRET_METADATA,
-} from '../tests/mocks/toprf';
-import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
-import { createMockJWTToken } from '../tests/mocks/utils';
-import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
+} from './SeedlessOnboardingController.js';
+import type { SeedlessOnboardingControllerState } from './types.js';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -132,9 +133,14 @@ type WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions> =
   }: {
     controller: SeedlessOnboardingController<
       EKey,
-      SupportedKeyDerivationOptions
+      SupportedKeyDerivationOptions,
+      DefaultEncryptionResult<SupportedKeyDerivationOptions>
     >;
-    encryptor: VaultEncryptor<EKey, SupportedKeyDerivationOptions>;
+    encryptor: Encryptor<
+      EKey,
+      SupportedKeyDerivationOptions,
+      DefaultEncryptionResult<SupportedKeyDerivationOptions>
+    >;
     initialState: SeedlessOnboardingControllerState;
     messenger: SeedlessOnboardingControllerMessenger;
     baseMessenger: RootMessenger;
@@ -146,7 +152,11 @@ type WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions> =
   }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions<EKey, SupportedKeyDerivationParams> = Partial<
-  SeedlessOnboardingControllerOptions<EKey, SupportedKeyDerivationParams>
+  SeedlessOnboardingControllerOptions<
+    EKey,
+    SupportedKeyDerivationParams,
+    DefaultEncryptionResult<SupportedKeyDerivationParams>
+  >
 >;
 
 type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
@@ -163,9 +173,10 @@ type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
  *
  * @returns The default vault encryptor for the Seedless Onboarding Controller.
  */
-function getDefaultSeedlessOnboardingVaultEncryptor(): VaultEncryptor<
+function getDefaultSeedlessOnboardingVaultEncryptor(): Encryptor<
   EncryptionKey | webcrypto.CryptoKey,
-  KeyDerivationOptions
+  KeyDerivationOptions,
+  DefaultEncryptionResult<KeyDerivationOptions>
 > {
   return {
     encrypt,
@@ -3295,9 +3306,11 @@ describe('SeedlessOnboardingController', () => {
               'SeedlessOnboardingController:fetchAllSecretData',
               MOCK_PASSWORD,
             ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-          );
+          ).rejects.toMatchObject({
+            message:
+              SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+            data: [EncAccountDataType.ImportedPrivateKey],
+          });
 
           expect(mockSecretDataGet.isDone()).toBe(true);
         },
@@ -3421,6 +3434,53 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should promote the primary SRP to first when a legacy non-mnemonic sorts ahead of it (clock skew)', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          // Private key has older timestamp and sorts before the primary SRP
+          // (simulates clock skew on a legacy account with no dataType tags)
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [
+                {
+                  data: MOCK_PRIVATE_KEY,
+                  timestamp: 100,
+                  type: SecretType.PrivateKey,
+                  itemId: 'pk-id',
+                  // No dataType (legacy)
+                },
+                {
+                  data: MOCK_SEED_PHRASE,
+                  timestamp: 200,
+                  type: SecretType.Mnemonic,
+                  itemId: 'primary-srp-id',
+                  // No dataType (legacy)
+                },
+              ],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
+          expect(secretData).toHaveLength(2);
+          // Primary SRP promoted to first despite private key having older timestamp
+          expect(secretData[0].type).toBe(SecretType.Mnemonic);
+          expect(secretData[0].data).toStrictEqual(MOCK_SEED_PHRASE);
+          expect(secretData[1].type).toBe(SecretType.PrivateKey);
+        },
+      );
+    });
+
     it('should throw an error if the first item has non-primary dataType', async () => {
       await withController(
         {
@@ -3453,9 +3513,11 @@ describe('SeedlessOnboardingController', () => {
               'SeedlessOnboardingController:fetchAllSecretData',
               MOCK_PASSWORD,
             ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-          );
+          ).rejects.toMatchObject({
+            message:
+              SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+            data: [EncAccountDataType.ImportedSrp],
+          });
 
           expect(mockSecretDataGet.isDone()).toBe(true);
         },
@@ -4185,6 +4247,118 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should pass transformDataItems to changeEncKey that sorts secret data', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+
+          const changeEncKeySpy = jest.spyOn(toprfClient, 'changeEncKey');
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:changePassword',
+            NEW_MOCK_PASSWORD,
+            MOCK_PASSWORD,
+          );
+
+          expect(changeEncKeySpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              transformDataItems: expect.any(Function),
+            }),
+          );
+
+          const { transformDataItems } = changeEncKeySpy.mock.calls[0][0];
+          expect(transformDataItems).toBeDefined();
+
+          const importedSrp2 = stringToBytes('imported-seed-phrase-2');
+          const importedSrp3 = stringToBytes('imported-seed-phrase-3');
+
+          const unsortedItems = [
+            {
+              data: new SecretMetadata(importedSrp3, {
+                dataType: EncAccountDataType.ImportedSrp,
+                timestamp: 30,
+              }).toBytes(),
+              dataType: EncAccountDataType.ImportedSrp,
+              version: 'v2' as const,
+              createdAt: '00000003-0000-1000-8000-000000000003',
+              itemId: 'srp-3',
+            },
+            {
+              data: new SecretMetadata(MOCK_SEED_PHRASE, {
+                dataType: EncAccountDataType.PrimarySrp,
+                timestamp: 10,
+              }).toBytes(),
+              dataType: EncAccountDataType.PrimarySrp,
+              version: 'v2' as const,
+              createdAt: '00000001-0000-1000-8000-000000000001',
+              itemId: 'srp-1',
+            },
+            {
+              data: new SecretMetadata(importedSrp2, {
+                dataType: EncAccountDataType.ImportedSrp,
+                timestamp: 20,
+              }).toBytes(),
+              dataType: EncAccountDataType.ImportedSrp,
+              version: 'v2' as const,
+              createdAt: '00000002-0000-1000-8000-000000000002',
+              itemId: 'srp-2',
+            },
+          ];
+
+          const transformed = transformDataItems?.(unsortedItems);
+
+          const parseSecretData = (raw: Uint8Array): Uint8Array =>
+            SecretMetadata.fromRawMetadata<Uint8Array>(raw, {}).data;
+
+          expect(transformed).toHaveLength(3);
+          expect(transformed?.[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+          expect(
+            parseSecretData(transformed?.[0].data as Uint8Array),
+          ).toStrictEqual(MOCK_SEED_PHRASE);
+          expect(
+            parseSecretData(transformed?.[1].data as Uint8Array),
+          ).toStrictEqual(importedSrp2);
+          expect(
+            parseSecretData(transformed?.[2].data as Uint8Array),
+          ).toStrictEqual(importedSrp3);
+          expect(transformed?.[0].version).toBe('v2');
+
+          const legacyItem = {
+            data: new SecretMetadata(MOCK_SEED_PHRASE, {
+              type: SecretType.Mnemonic,
+              timestamp: 10,
+            }).toBytes(),
+            dataType: undefined,
+            version: 'v2' as const,
+            itemId: 'legacy-srp',
+          };
+
+          const [legacyTransformed] = transformDataItems?.([legacyItem]) ?? [];
+          expect(legacyTransformed?.version).toBe('v1');
+        },
+      );
+    });
+
     it('should call recoverEncKey when keyIndex is missing', async () => {
       await withController(
         {
@@ -4565,34 +4739,6 @@ describe('SeedlessOnboardingController', () => {
         expect(SecretMetadata.compare(earlier, later, 'desc')).toBeGreaterThan(
           0,
         );
-      });
-
-      it('should sort legacy items (null createdAt) before items with createdAt in asc order', () => {
-        const legacyItem = new SecretMetadata(MOCK_SEED_PHRASE, {
-          timestamp: 2000,
-          dataType: EncAccountDataType.ImportedSrp,
-          // no createdAt (legacy)
-        });
-        const newItem = new SecretMetadata(MOCK_SEED_PHRASE, {
-          timestamp: 1000,
-          dataType: EncAccountDataType.ImportedSrp,
-          createdAt: '00000001-0000-1000-8000-000000000001',
-        });
-
-        expect(SecretMetadata.compare(legacyItem, newItem, 'asc')).toBeLessThan(
-          0,
-        );
-        expect(
-          SecretMetadata.compare(newItem, legacyItem, 'asc'),
-        ).toBeGreaterThan(0);
-        // In desc order, legacy item comes after new item
-        expect(
-          SecretMetadata.compare(legacyItem, newItem, 'desc'),
-        ).toBeGreaterThan(0);
-        // In desc order, new item comes before legacy item
-        expect(
-          SecretMetadata.compare(newItem, legacyItem, 'desc'),
-        ).toBeLessThan(0);
       });
 
       it('should fall back to timestamp when both have null createdAt', () => {

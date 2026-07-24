@@ -1,8 +1,11 @@
-import type { Encryptor } from '@metamask/keyring-controller';
-import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
+import type {
+  EncAccountDataType,
+  KeyPair,
+  NodeAuthTokens,
+} from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type { AuthConnection, SecretType } from './constants';
+import type { AuthConnection, SecretType } from './constants.js';
 
 /**
  * The backup state of the secret data.
@@ -92,6 +95,16 @@ export type RecoveryErrorData = {
   numberOfAttempts: number;
 };
 
+/**
+ * Non-sensitive type labels for each secret metadata item, in the same order
+ * as fetched secret data (after sorting). Uses `dataType` when present,
+ * otherwise falls back to `SecretType`.
+ */
+export type InvalidPrimarySecretDataTypeErrorData = (
+  | SecretType
+  | EncAccountDataType
+)[];
+
 // State
 export type SeedlessOnboardingControllerState =
   Partial<AuthenticatedUserDetails> &
@@ -178,12 +191,6 @@ export type SeedlessOnboardingControllerState =
        */
       migrationVersion: number;
     };
-
-/**
- * Encryptor interface for encrypting and decrypting seedless onboarding vault.
- */
-export type VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams> =
-  Encryptor<EncryptionKey, SupportedKeyDerivationParams>;
 
 /**
  * Additional key deriver for the TOPRF client.

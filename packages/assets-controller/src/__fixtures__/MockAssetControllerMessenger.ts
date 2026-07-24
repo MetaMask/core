@@ -17,8 +17,8 @@ import {
 import {
   AssetsControllerMessenger,
   getDefaultAssetsControllerState,
-} from '../AssetsController';
-import { STAKING_INTERFACE } from '../data-sources/evm-rpc-services/services/StakedBalanceFetcher';
+} from '../AssetsController.js';
+import { STAKING_INTERFACE } from '../data-sources/evm-rpc-services/services/StakedBalanceFetcher.js';
 
 // Test escape hatch for mocking areas that do not need explicit types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,13 +79,14 @@ export function createMockAssetControllerMessenger(): {
     events: [
       // AssetsController
       'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:stateChange',
+      'ClientController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
       'PreferencesController:stateChange',
       // RpcDataSource, StakedBalanceDataSource
       'NetworkController:stateChange',
       'TransactionController:transactionConfirmed',
-      'TransactionController:incomingTransactionsReceived',
       // StakedBalanceDataSource
       'NetworkEnablementController:stateChange',
       // SnapDataSource
@@ -93,6 +94,8 @@ export function createMockAssetControllerMessenger(): {
       'PermissionController:stateChange',
       // BackendWebsocketDataSource
       'BackendWebSocketService:connectionStateChanged',
+      // AccountActivityService
+      'AccountActivityService:balanceUpdated',
     ],
   });
 

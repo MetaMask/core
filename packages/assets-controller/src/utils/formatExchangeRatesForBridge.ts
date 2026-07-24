@@ -5,11 +5,18 @@ import {
   MarketDataDetails,
   MultichainAssetsRatesControllerState,
   TokenRatesControllerState,
+  getNativeTokenAddress,
 } from '@metamask/assets-controllers';
 import { Hex, KnownCaipNamespace, numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
+import { isEqual } from 'lodash';
 
-import type { AssetPrice, FungibleAssetPrice, Caip19AssetId } from '../types';
+import type {
+  AssetMetadata,
+  AssetPrice,
+  FungibleAssetPrice,
+  Caip19AssetId,
+} from '../types.js';
 
 /**
  * Exchange rates in the format expected by the bridge controller:
@@ -23,29 +30,78 @@ export type BridgeExchangeRatesFormat = {
   currentCurrency: string;
 };
 
+/** Parameters accepted by {@link formatExchangeRatesForBridge}. */
+export type FormatExchangeRatesForBridgeParams = {
+  assetsInfo: Record<string, AssetMetadata>;
+  assetsPrice: Record<string, AssetPrice>;
+  selectedCurrency: string;
+  nativeAssetIdentifiers: Record<string, string>;
+  networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
+};
+
+let lastCall: {
+  params: FormatExchangeRatesForBridgeParams;
+  result: BridgeExchangeRatesFormat;
+} | null = null;
+
 /**
  * Converts AssetsController state (assetsPrice, selectedCurrency) into the
  * same format the bridge expects from MultichainAssetsRatesController,
  * CurrencyRateController, and TokenRatesController so the bridge can use
  * a single action when useAssetsControllerForRates is true.
  *
+ * Memoized on input identity for BaseController state slices (`===`) and
+ * lodash `isEqual` for rebuilt maps (`nativeAssetIdentifiers`). Bridge quote
+ * / rate paths call this repeatedly while assets state is unchanged; recomputing
+ * runs keccak256 (`toChecksumAddress`) and CAIP parsing per priced asset.
+ *
  * @param params - Conversion parameters.
- * @param params.assetsPrice - Map of CAIP-19 asset ID to price data (must include both `price` and `usdPrice`).
- * @param params.selectedCurrency - ISO 4217 currency code (e.g. 'usd').
- * @param params.nativeAssetIdentifiers - Optional map of CAIP-2 chain ID to native asset ID (e.g. from NetworkEnablementController state). When provided, used for EVM native lookups.
- * @param params.networkConfigurationsByChainId - Optional map of Hex chain ID to network config (e.g. from NetworkController state). Used to resolve native currency symbol via `nativeCurrency`; keys are Hex (e.g. '0x1').
  * @returns Bridge-compatible conversionRates, currencyRates, marketData, currentCurrency.
  */
-export function formatExchangeRatesForBridge(params: {
-  assetsPrice: Record<string, AssetPrice>;
-  selectedCurrency: string;
-  nativeAssetIdentifiers?: Record<string, string>;
-  networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
-}): BridgeExchangeRatesFormat {
+export function formatExchangeRatesForBridge(
+  params: FormatExchangeRatesForBridgeParams,
+): BridgeExchangeRatesFormat {
+  if (
+    lastCall?.params.assetsInfo === params.assetsInfo &&
+    lastCall.params.assetsPrice === params.assetsPrice &&
+    lastCall.params.selectedCurrency === params.selectedCurrency &&
+    lastCall.params.networkConfigurationsByChainId ===
+      params.networkConfigurationsByChainId &&
+    isEqual(
+      lastCall.params.nativeAssetIdentifiers,
+      params.nativeAssetIdentifiers,
+    )
+  ) {
+    return lastCall.result;
+  }
+
+  const result = computeExchangeRatesForBridge(params);
+  lastCall = { params, result };
+  return result;
+}
+
+/**
+ * Clears the {@link formatExchangeRatesForBridge} memoize cache. Exported for tests.
+ */
+export function clearFormatExchangeRatesForBridgeCacheForTesting(): void {
+  lastCall = null;
+}
+
+/**
+ * Performs the actual exchange-rate conversion for
+ * {@link formatExchangeRatesForBridge}.
+ *
+ * @param params - Conversion parameters.
+ * @returns Bridge-compatible rates.
+ */
+function computeExchangeRatesForBridge(
+  params: FormatExchangeRatesForBridgeParams,
+): BridgeExchangeRatesFormat {
   const {
+    assetsInfo,
     assetsPrice,
     selectedCurrency,
-    nativeAssetIdentifiers = {},
+    nativeAssetIdentifiers,
     networkConfigurationsByChainId = {},
   } = params;
   const conversionRates: MultichainAssetsRatesControllerState['conversionRates'] =
@@ -83,15 +139,16 @@ export function formatExchangeRatesForBridge(params: {
     const expirationTime = lastUpdatedInSeconds + expirationOffsetInSeconds;
 
     try {
+      const isNative = assetsInfo[assetId]?.type === 'native';
       const parsed = parseCaipAssetType(assetId as Caip19AssetId);
       const chainIdParsed = parseCaipChainId(parsed.chainId);
 
       if (chainIdParsed.namespace === KnownCaipNamespace.Eip155) {
         const chainIdHex = numberToHex(parseInt(chainIdParsed.reference, 10));
 
-        const nativeAssetId = nativeAssetIdentifiers[parsed.chainId] as
-          | Caip19AssetId
-          | undefined;
+        const nativeAssetId = (
+          isNative ? assetId : nativeAssetIdentifiers[parsed.chainId]
+        ) as Caip19AssetId | undefined;
 
         const nativeCurrencySymbol =
           networkConfigurationsByChainId[chainIdHex]?.nativeCurrency;
@@ -110,12 +167,12 @@ export function formatExchangeRatesForBridge(params: {
 
         let tokenAddress: Hex | undefined;
         if (parsed.assetNamespace === 'erc20') {
-          tokenAddress = toChecksumAddress(String(parsed.assetReference));
-        } else if (parsed.assetNamespace === 'slip44') {
-          tokenAddress = '0x0000000000000000000000000000000000000000';
+          tokenAddress = toChecksumAddress(parsed.assetReference);
+        } else if (isNative) {
+          tokenAddress = toChecksumAddress(getNativeTokenAddress(chainIdHex));
         }
 
-        if (tokenAddress && nativeAssetId) {
+        if (tokenAddress) {
           const priceInNative =
             nativeAssetUsdPrice > 0 ? usdPrice / nativeAssetUsdPrice : usdPrice;
           if (!marketData[chainIdHex]) {
@@ -131,7 +188,7 @@ export function formatExchangeRatesForBridge(params: {
           } as MarketDataDetails;
         }
 
-        if (parsed.assetNamespace === 'slip44' && nativeAssetId) {
+        if (isNative) {
           currencyRates[nativeCurrencySymbol] = {
             conversionDate: lastUpdatedInSeconds,
             conversionRate: price,

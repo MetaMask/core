@@ -1,10 +1,8 @@
-import type { Quote, QuotesResponse } from '@metamask/ramps-controller';
+import type { Quote } from '@metamask/ramps-controller';
 
-import type { RelayQuote } from '../relay/types';
+import type { RelayQuote } from '../relay/types.js';
 
 export type FiatQuote = {
   rampsQuote: Quote;
-  relayQuote: RelayQuote;
+  relayQuote?: RelayQuote;
 };
-
-export type FiatQuotesResponse = QuotesResponse;

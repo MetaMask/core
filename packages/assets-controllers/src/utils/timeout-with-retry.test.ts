@@ -1,5 +1,5 @@
-import { timeoutWithRetry } from './timeout-with-retry';
-import { flushPromises } from '../../../../tests/helpers';
+import { flushPromises } from '../../../../tests/helpers.js';
+import { timeoutWithRetry } from './timeout-with-retry.js';
 
 describe('timeoutWithRetry', () => {
   const timeout = 1000;

@@ -1,4 +1,4 @@
-import type { ContactSyncingOptions } from './types';
+import type { ContactSyncingOptions } from './types.js';
 
 /**
  * Check if we can perform contact syncing

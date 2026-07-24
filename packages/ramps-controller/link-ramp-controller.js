@@ -47,7 +47,7 @@ try {
   execSync('yarn build', {
     cwd: rampsControllerPath,
     stdio: 'inherit',
-    env: { ...process.env, FORCE_COLOR: '1' }
+    env: { ...process.env, FORCE_COLOR: '1' },
   });
   console.log('✅ ramps-controller built successfully!');
 } catch (error) {
@@ -123,4 +123,6 @@ for (const entryName of INCLUDED_ENTRIES) {
 
 console.log('✅ Successfully linked ramps-controller to MetaMask mobile app!');
 console.log(`📁 Copied to: ${rampsControllerDestPath}`);
-console.log('🔄 Re-run this script when you make changes to automatically rebuild and relink.');
+console.log(
+  '🔄 Re-run this script when you make changes to automatically rebuild and relink.',
+);

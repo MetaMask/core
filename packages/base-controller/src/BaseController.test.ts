@@ -11,8 +11,8 @@ import type {
   ControllerStateChangeEvent,
   ControllerStateChangedEvent,
   StatePropertyMetadata,
-} from './BaseController';
-import { BaseController, deriveStateFromMetadata } from './BaseController';
+} from './BaseController.js';
+import { BaseController, deriveStateFromMetadata } from './BaseController.js';
 
 export const countControllerName = 'CountController';
 

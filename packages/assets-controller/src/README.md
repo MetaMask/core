@@ -653,7 +653,7 @@ type Caip19AssetId = string;
 // - Native ETH: "eip155:1/slip44:60"
 // - USDC on Ethereum: "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
 // - SOL: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501"
-// - SPL Token: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/spl:EPjFWdd5..."
+// - SPL Token: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5..."
 
 // CAIP-2 chain identifier
 type ChainId = string;

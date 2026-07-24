@@ -1,5 +1,5 @@
-import { validateLoginResponse } from './validate-login-response';
-import type { LoginResponse } from '../authentication';
+import type { LoginResponse } from '../authentication.js';
+import { validateLoginResponse } from './validate-login-response.js';
 
 /**
  * Creates a minimal JWT string with the given payload claims.
@@ -20,7 +20,12 @@ function createValidLoginResponse(
   }),
 ): LoginResponse {
   return {
-    profile: { identifierId: '', metaMetricsId: '', profileId: '' },
+    profile: {
+      identifierId: '',
+      metaMetricsId: '',
+      profileId: '',
+      canonicalProfileId: '',
+    },
     token: { accessToken, expiresIn: 3600, obtainedAt: Date.now() },
   };
 }

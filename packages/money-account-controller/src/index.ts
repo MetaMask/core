@@ -1,10 +1,10 @@
-export type { MoneyAccount } from './types';
-export { isMoneyKeyring } from './utils';
+export type { MoneyAccount } from './types.js';
+export { isMoneyKeyring } from './utils.js';
 export {
   MoneyAccountController,
   controllerName,
   getDefaultMoneyAccountControllerState,
-} from './MoneyAccountController';
+} from './MoneyAccountController.js';
 export type {
   MoneyAccountControllerState,
   MoneyAccountControllerGetStateAction,
@@ -12,9 +12,10 @@ export type {
   MoneyAccountControllerStateChangeEvent,
   MoneyAccountControllerEvents,
   MoneyAccountControllerMessenger,
-} from './MoneyAccountController';
+} from './MoneyAccountController.js';
 export type {
   MoneyAccountControllerClearStateAction,
   MoneyAccountControllerCreateMoneyAccountAction,
   MoneyAccountControllerGetMoneyAccountAction,
-} from './MoneyAccountController-method-action-types';
+  MoneyAccountControllerInitAction,
+} from './MoneyAccountController-method-action-types.js';

@@ -5,8 +5,8 @@ import { UserFeeLevel } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { cloneDeep } from 'lodash';
 
-import type { UpdateGasFeesRequest } from './gas-fees';
-import { updateGasFees } from './gas-fees';
+import type { UpdateGasFeesRequest } from './gas-fees.js';
+import { updateGasFees } from './gas-fees.js';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

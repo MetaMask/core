@@ -7,9 +7,12 @@ import { BaseDataService } from '@metamask/base-data-service';
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import {
   array,
+  assign,
   boolean,
+  enums,
   is,
   nullable,
   number,
@@ -19,11 +22,13 @@ import {
   type as structType,
 } from '@metamask/superstruct';
 
-import { serviceName, SocialServiceErrorMessage } from './social-constants';
+import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
+  FeedResponse,
+  FetchFeedOptions,
   FetchFollowersOptions,
-  FetchFollowingOptions,
   FetchLeaderboardOptions,
+  FetchPositionByIdOptions,
   FetchPositionsOptions,
   FetchTraderProfileOptions,
   FollowersResponse,
@@ -31,12 +36,14 @@ import type {
   FollowOptions,
   FollowResponse,
   LeaderboardResponse,
+  Position,
   PositionsResponse,
   TraderProfileResponse,
   UnfollowOptions,
   UnfollowResponse,
-} from './social-types';
-import type { SocialServiceMethodActions } from './SocialService-method-action-types';
+} from './social-types.js';
+import { TradeStruct } from './social-types.js';
+import type { SocialServiceMethodActions } from './SocialService-method-action-types.js';
 
 // ---------------------------------------------------------------------------
 // Superstruct validation schemas
@@ -56,15 +63,8 @@ const ProfileSummaryStruct = structType({
   imageUrl: optional(nullable(string())),
 });
 
-const TradeStruct = structType({
-  direction: string(),
-  tokenAmount: number(),
-  usdCost: number(),
-  timestamp: number(),
-  transactionHash: string(),
-});
-
 const PositionStruct = structType({
+  positionId: string(),
   tokenSymbol: string(),
   tokenName: string(),
   tokenAddress: string(),
@@ -76,9 +76,13 @@ const PositionStruct = structType({
   costBasis: number(),
   trades: array(TradeStruct),
   lastTradeAt: number(),
+  tokenImageUrl: optional(nullable(string())),
   currentValueUSD: optional(nullable(number())),
   pnlValueUsd: optional(nullable(number())),
   pnlPercent: optional(nullable(number())),
+  perpPositionType: optional(nullable(enums(['long', 'short']))),
+  perpLeverage: optional(nullable(number())),
+  positionAmountWithLeverage: optional(nullable(number())),
 });
 
 const PaginationStruct = structType({
@@ -126,12 +130,16 @@ const TraderStatsStruct = structType({
   winRate7d: optional(nullable(number())),
   roiPercent7d: optional(nullable(number())),
   tradeCount7d: optional(nullable(number())),
+  medianHoldMinutes: optional(nullable(number())),
 });
 
 const PerChainBreakdownStruct = structType({
   perChainPnl: record(string(), number()),
   perChainRoi: record(string(), nullable(number())),
   perChainVolume: record(string(), number()),
+  perChainPnl7d: optional(record(string(), number())),
+  perChainRoi7d: optional(record(string(), nullable(number()))),
+  perChainVolume7d: optional(record(string(), number())),
 });
 
 const TraderProfileResponseStruct = structType({
@@ -147,6 +155,27 @@ const PositionsResponseStruct = structType({
   positions: array(PositionStruct),
   pagination: PaginationStruct,
   computedAt: optional(nullable(string())),
+});
+
+// A feed item is a position plus the trader who made the trade (`actor`) and
+// the item's creation timestamp. Reuses PositionStruct so the trade/position
+// fields stay in lockstep with the positions endpoints.
+const FeedItemStruct = assign(
+  PositionStruct,
+  structType({
+    actor: ProfileSummaryStruct,
+    timestamp: number(),
+  }),
+);
+
+const FeedPaginationStruct = structType({
+  olderCursor: nullable(string()),
+  newerCursor: nullable(string()),
+});
+
+const FeedResponseStruct = structType({
+  items: array(FeedItemStruct),
+  pagination: FeedPaginationStruct,
 });
 
 const FollowersResponseStruct = structType({
@@ -178,8 +207,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchClosedPositions',
   'fetchFollowers',
   'fetchFollowing',
+  'fetchPositionById',
+  'fetchFeed',
   'follow',
   'unfollow',
+  'optOutOfLeaderboard',
+  'optInToLeaderboard',
 ] as const;
 
 export type SocialServiceActions =
@@ -190,10 +223,15 @@ export type SocialServiceEvents =
   | DataServiceCacheUpdatedEvent<typeof serviceName>
   | DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
 
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
+
+type AllowedEvents = never;
+
 export type SocialServiceMessenger = Messenger<
   typeof serviceName,
-  SocialServiceActions,
-  SocialServiceEvents
+  SocialServiceActions | AllowedActions,
+  SocialServiceEvents | AllowedEvents
 >;
 
 // ---------------------------------------------------------------------------
@@ -248,6 +286,19 @@ export class SocialService extends BaseDataService<
   }
 
   /**
+   * Returns an Authorization header with a JWT bearer token obtained from the
+   * AuthenticationController.
+   *
+   * @returns A headers object containing the Authorization header.
+   */
+  async #getAuthHeaders(): Promise<Record<string, string>> {
+    const token = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  /**
    * Fetches the leaderboard of top traders.
    *
    * Calls `GET ${baseUrl}/leaderboard`.
@@ -275,7 +326,10 @@ export class SocialService extends BaseDataService<
           url.searchParams.append('limit', String(limit));
         }
 
-        const response = await fetch(url.toString());
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_LEADERBOARD_FAILED,
@@ -311,7 +365,8 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:fetchTraderProfile`, addressOrId],
       queryFn: async () => {
         const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/profile`;
-        const response = await fetch(url);
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_TRADER_PROFILE_FAILED,
@@ -385,7 +440,8 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:fetchFollowers`, addressOrId],
       queryFn: async () => {
         const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/followers`;
-        const response = await fetch(url);
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED,
@@ -404,25 +460,123 @@ export class SocialService extends BaseDataService<
   }
 
   /**
-   * Fetches the list of traders a user is following.
+   * Fetches a single position by its unique ID.
    *
-   * Calls `GET ${baseUrl}/users/${addressOrUid}/following`.
+   * Calls `GET ${baseUrl}/traders/position/${positionId}`.
    *
    * @param options - Options bag.
-   * @param options.addressOrUid - Wallet address or Clicker profile ID.
-   * @returns The following response.
+   * @param options.positionId - Unique position ID (UUID).
+   * @returns The position.
    */
-  async fetchFollowing(
-    options: FetchFollowingOptions,
-  ): Promise<FollowingResponse> {
-    const { addressOrUid } = options;
+  async fetchPositionById(
+    options: FetchPositionByIdOptions,
+  ): Promise<Position> {
+    const { positionId } = options;
 
-    const followingResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchFollowing`, addressOrUid],
+    const positionResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchPositionById`, positionId],
+      queryFn: async () => {
+        const url = `${this.#v1Url}/traders/position/${encodeURIComponent(positionId)}`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_POSITION_BY_ID_FAILED,
+        );
+        const positionData = await response.json();
+        if (!is(positionData, PositionStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
+          );
+        }
+        return positionData as Position;
+      },
+    });
+
+    return positionResponse;
+  }
+
+  /**
+   * Fetches a page of the trader-activity feed.
+   *
+   * Calls `GET ${baseUrl}/feed`. For the `following` scope the current user is
+   * identified server-side from the JWT sub claim carried in the Authorization
+   * header; the `leaderboard` scope is generic and shared by all users.
+   *
+   * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+   * from a prior response back as `olderThan` to load older items, and
+   * `pagination.newerCursor` as `newerThan` to fetch newer items.
+   *
+   * @param options - Options bag.
+   * @param options.scope - `following` (default) or `leaderboard`.
+   * @param options.chains - Filter by one or more chains.
+   * @param options.limit - Number of results per page.
+   * @param options.olderThan - Cursor for older items (scroll down).
+   * @param options.newerThan - Cursor for newer items (refresh).
+   * @returns The feed response with items and pagination cursors.
+   */
+  async fetchFeed(options?: FetchFeedOptions): Promise<FeedResponse> {
+    const feedResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchFeed`, options ?? null],
       staleTime: 0,
       queryFn: async () => {
-        const url = `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/following`;
-        const response = await fetch(url);
+        const { scope, chains, limit, olderThan, newerThan } = options ?? {};
+        const url = new URL(`${this.#v1Url}/feed`);
+        if (scope) {
+          url.searchParams.append('scope', scope);
+        }
+        if (chains) {
+          for (const chain of chains) {
+            url.searchParams.append('chains', chain);
+          }
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
+        if (olderThan) {
+          url.searchParams.append('olderThan', olderThan);
+        }
+        if (newerThan) {
+          url.searchParams.append('newerThan', newerThan);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_FEED_FAILED,
+        );
+        const feedData = await response.json();
+        if (!is(feedData, FeedResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+          );
+        }
+        return feedData as FeedResponse;
+      },
+    });
+
+    return feedResponse;
+  }
+
+  /**
+   * Fetches the list of traders the current user is following.
+   *
+   * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
+   *
+   * @returns The following response.
+   */
+  async fetchFollowing(): Promise<FollowingResponse> {
+    const followingResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchFollowing`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/users/me/following`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED,
@@ -441,26 +595,27 @@ export class SocialService extends BaseDataService<
   }
 
   /**
-   * Follows one or more traders.
+   * Follows one or more traders on behalf of the current user.
    *
-   * Calls `PUT ${baseUrl}/users/${addressOrUid}/follows`.
+   * Calls `PUT ${baseUrl}/users/me/follows`. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
    *
    * @param options - Options bag.
-   * @param options.addressOrUid - Wallet address or Clicker profile ID of the user.
    * @param options.targets - Array of wallet addresses or profile IDs to follow.
    * @returns The follow response with confirmed follows.
    */
   async follow(options: FollowOptions): Promise<FollowResponse> {
-    const { addressOrUid, targets } = options;
+    const { targets } = options;
 
     const followResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:follow`, addressOrUid, targets],
+      queryKey: [`${this.name}:follow`, targets],
       staleTime: 0,
       queryFn: async () => {
-        const url = `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/follows`;
+        const url = `${this.#v1Url}/users/me/follows`;
+        const authHeaders = await this.#getAuthHeaders();
         const response = await fetch(url, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
           body: JSON.stringify({ targets }),
         });
         SocialService.#throwIfNotOk(
@@ -479,31 +634,33 @@ export class SocialService extends BaseDataService<
   }
 
   /**
-   * Unfollows one or more traders.
+   * Unfollows one or more traders on behalf of the current user.
    *
-   * Calls `DELETE ${baseUrl}/users/${addressOrUid}/follows?targets=...`.
-   * Targets are sent as query params because Fastify does not parse
-   * request bodies on DELETE requests per RFC 9110.
+   * Calls `DELETE ${baseUrl}/users/me/follows?targets=...`. Targets are sent
+   * as query params because Fastify does not parse request bodies on DELETE
+   * requests per RFC 9110. The caller is identified server-side from the JWT
+   * sub claim carried in the Authorization header.
    *
    * @param options - Options bag.
-   * @param options.addressOrUid - Wallet address or Clicker profile ID of the user.
    * @param options.targets - Array of wallet addresses or profile IDs to unfollow.
    * @returns The unfollow response with confirmed unfollows.
    */
   async unfollow(options: UnfollowOptions): Promise<UnfollowResponse> {
-    const { addressOrUid, targets } = options;
+    const { targets } = options;
 
     const unfollowResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:unfollow`, addressOrUid, targets],
+      queryKey: [`${this.name}:unfollow`, targets],
       staleTime: 0,
       queryFn: async () => {
-        const url = new URL(
-          `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/follows`,
-        );
+        const url = new URL(`${this.#v1Url}/users/me/follows`);
         for (const target of targets) {
           url.searchParams.append('targets', target);
         }
-        const response = await fetch(url.toString(), { method: 'DELETE' });
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          method: 'DELETE',
+          headers: authHeaders,
+        });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.UNFOLLOW_FAILED,
@@ -517,6 +674,52 @@ export class SocialService extends BaseDataService<
     });
 
     return unfollowResponse;
+  }
+
+  /**
+   * Opts the current user out of the PnL leaderboard.
+   */
+  async optOutOfLeaderboard(): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:optOutOfLeaderboard`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/leaderboard/opt-out`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.LEADERBOARD_OPT_OUT_FAILED,
+        );
+        return null;
+      },
+    });
+  }
+
+  /**
+   * Opts the current user back into the PnL leaderboard.
+   */
+  async optInToLeaderboard(): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:optInToLeaderboard`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/leaderboard/opt-in`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.LEADERBOARD_OPT_IN_FAILED,
+        );
+        return null;
+      },
+    });
   }
 
   /**
@@ -553,8 +756,9 @@ export class SocialService extends BaseDataService<
         page ?? null,
       ],
       queryFn: async () => {
+        const baseUrl = status === 'open' ? this.#v2Url : this.#v1Url;
         const url = new URL(
-          `${this.#v2Url}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
+          `${baseUrl}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
         );
         if (chain) {
           url.searchParams.append('chain', chain);
@@ -570,7 +774,10 @@ export class SocialService extends BaseDataService<
           url.searchParams.append('page', String(page));
         }
 
-        const response = await fetch(url.toString());
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
         SocialService.#throwIfNotOk(response, failedMessage);
         const positionsData = await response.json();
         if (!is(positionsData, PositionsResponseStruct)) {

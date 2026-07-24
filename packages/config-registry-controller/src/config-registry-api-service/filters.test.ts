@@ -1,6 +1,6 @@
-import { filterNetworks } from './filters';
-import type { RegistryNetworkConfig } from './types';
-import { createMockNetworkConfig } from '../../tests/helpers';
+import { createMockNetworkConfig } from '../../tests/helpers.js';
+import { filterNetworks } from './filters.js';
+import type { RegistryNetworkConfig } from './types.js';
 
 describe('filters', () => {
   describe('filterNetworks', () => {

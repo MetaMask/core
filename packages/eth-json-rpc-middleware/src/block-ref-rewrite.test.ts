@@ -2,11 +2,11 @@ import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { createBlockRefRewriteMiddleware } from './block-ref-rewrite';
 import {
   createFinalMiddlewareWithDefaultResult,
   createRequest,
-} from '../test/util/helpers';
+} from '../test/util/helpers.js';
+import { createBlockRefRewriteMiddleware } from './block-ref-rewrite.js';
 
 const createMockBlockTracker = (): PollingBlockTracker => {
   return {

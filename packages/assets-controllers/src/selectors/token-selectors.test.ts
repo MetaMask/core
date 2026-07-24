@@ -10,16 +10,16 @@ import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state';
-import { selectAssetsBySelectedAccountGroup } from './token-selectors';
-import type { AccountGroupMultichainAccountObject } from '../../../account-tree-controller/src/group';
-import type { CurrencyRateState } from '../CurrencyRateController';
-import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
-import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
-import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
-import type { TokenBalancesControllerState } from '../TokenBalancesController';
-import type { TokenRatesControllerState } from '../TokenRatesController';
-import type { TokensControllerState } from '../TokensController';
+import type { AccountGroupMultichainAccountObject } from '../../../account-tree-controller/src/group.js';
+import type { CurrencyRateState } from '../CurrencyRateController.js';
+import type { MultichainAssetsControllerState } from '../MultichainAssetsController/index.js';
+import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController/index.js';
+import type { MultichainBalancesControllerState } from '../MultichainBalancesController/index.js';
+import type { TokenBalancesControllerState } from '../TokenBalancesController.js';
+import type { TokenRatesControllerState } from '../TokenRatesController.js';
+import type { TokensControllerState } from '../TokensController.js';
+import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state.js';
+import { selectAssetsBySelectedAccountGroup } from './token-selectors.js';
 
 const mockTokensControllerState: TokensControllerState = {
   allTokens: {
@@ -873,6 +873,18 @@ describe('token-selectors', () => {
 
     it('returns all assets for the selected account group', () => {
       const result = selectAssetsBySelectedAccountGroup(mockedMergedState);
+
+      expect(result).toStrictEqual(expectedMockResult);
+    });
+
+    it('skips accounts referenced in accountTree but missing from internalAccounts', () => {
+      const state = cloneDeep(mockedMergedState);
+
+      state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'].groups[
+        'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0'
+      ].accounts.push('non-existent-account-id');
+
+      const result = selectAssetsBySelectedAccountGroup(state);
 
       expect(result).toStrictEqual(expectedMockResult);
     });

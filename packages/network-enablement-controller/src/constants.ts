@@ -15,4 +15,6 @@ export const POPULAR_NETWORKS: readonly Hex[] = [
   '0x3e7', // HyperEVM (999)
   '0x8f', // Monad (143)
   '0x10e6', // MegaETH (4326)
+  '0x13b2', // Arc (5042)
+  '0x1237', // Robinhood (4663)
 ];

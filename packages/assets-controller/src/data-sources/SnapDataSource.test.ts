@@ -7,12 +7,14 @@ import type {
   SubjectPermissions,
 } from '@metamask/permission-controller';
 
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import type { ChainId, DataRequest, Context, Caip19AssetId } from '../types.js';
 import type {
   SnapDataSourceOptions,
   AccountBalancesUpdatedEventPayload,
   SnapDataSourceAllowedActions,
   SnapDataSourceAllowedEvents,
-} from './SnapDataSource';
+} from './SnapDataSource.js';
 import {
   SnapDataSource,
   createSnapDataSource,
@@ -20,9 +22,7 @@ import {
   getChainIdsCaveat,
   KEYRING_PERMISSION,
   ASSETS_PERMISSION,
-} from './SnapDataSource';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type { ChainId, DataRequest, Context, Caip19AssetId } from '../types';
+} from './SnapDataSource.js';
 
 // Test chain IDs
 const SOLANA_MAINNET = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;
@@ -435,7 +435,7 @@ describe('SnapDataSource', () => {
     expect(response).toStrictEqual({
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'full',
+      updateMode: 'merge',
     });
 
     cleanup();
@@ -470,7 +470,7 @@ describe('SnapDataSource', () => {
     expect(response).toStrictEqual({
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'full',
+      updateMode: 'merge',
     });
 
     cleanup();

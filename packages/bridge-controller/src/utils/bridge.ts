@@ -1,35 +1,36 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { isCaipChainId, isStrictHexString } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import {
-  formatChainIdToCaip,
-  formatChainIdToDec,
-  formatChainIdToHex,
-} from './caip-formatters';
-import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
-} from '../constants/bridge';
-import { CHAIN_IDS } from '../constants/chains';
-import { SWAPS_CONTRACT_ADDRESSES } from '../constants/swaps';
+} from '../constants/bridge.js';
+import { CHAIN_IDS } from '../constants/chains.js';
+import { SWAPS_CONTRACT_ADDRESSES } from '../constants/swaps.js';
 import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
   SYMBOL_TO_SLIP44_MAP,
-} from '../constants/tokens';
-import type { SupportedSwapsNativeCurrencySymbols } from '../constants/tokens';
+} from '../constants/tokens.js';
+import type { SupportedSwapsNativeCurrencySymbols } from '../constants/tokens.js';
 import type {
   BridgeAsset,
   BridgeControllerState,
   GenericQuoteRequest,
-  QuoteResponse,
-  TxData,
-} from '../types';
-import { ChainId } from '../types';
+} from '../types.js';
+import { ChainId } from '../types.js';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
+import type { TxData } from '../validators/trade.js';
+import {
+  formatChainIdToCaip,
+  formatChainIdToDec,
+  formatChainIdToHex,
+} from './caip-formatters.js';
 
 /**
  * Checks whether the transaction is a cross-chain transaction by comparing the source and destination chainIds
@@ -126,7 +127,7 @@ export const getEthUsdtResetData = (
     '0',
   ]);
 
-  return data;
+  return data as Hex;
 };
 
 export const isEthUsdt = (
@@ -141,7 +142,10 @@ export const sumHexes = (...hexStrings: string[]): Hex => {
     return '0x0';
   }
 
-  const sum = hexStrings.reduce((acc, hex) => acc + BigInt(hex), BigInt(0));
+  const sum = hexStrings.reduce(
+    (acc, hexString) => acc + BigInt(hexString),
+    BigInt(0),
+  );
   return `0x${sum.toString(16)}`;
 };
 
@@ -231,8 +235,26 @@ export const isTronChainId = (chainId: Hex | number | CaipChainId | string) => {
 };
 
 /**
+ * Checks whether the chainId matches Stellar pubnet or testnet (CAIP-2).
+ *
+ * @param chainId - The chainId to check
+ * @returns Whether the chainId is Stellar
+ */
+export const isStellarChainId = (
+  chainId: Hex | number | CaipChainId | string,
+): boolean => {
+  if (isCaipChainId(chainId)) {
+    return (
+      chainId === XlmScope.Pubnet.toString() ||
+      chainId === XlmScope.Testnet.toString()
+    );
+  }
+  return chainId.toString() === ChainId.STELLAR.toString();
+};
+
+/**
  * Checks if a chain ID represents a non-EVM blockchain supported by swaps
- * Currently supports Solana, Bitcoin and Tron
+ * Currently supports Solana, Bitcoin, Tron, and Stellar
  *
  * @param chainId - The chain ID to check
  * @returns True if the chain is a supported non-EVM chain, false otherwise
@@ -243,12 +265,13 @@ export const isNonEvmChainId = (
   return (
     isSolanaChainId(chainId) ||
     isBitcoinChainId(chainId) ||
-    isTronChainId(chainId)
+    isTronChainId(chainId) ||
+    isStellarChainId(chainId)
   );
 };
 
 export const isEvmQuoteResponse = (
-  quoteResponse: QuoteResponse,
-): quoteResponse is QuoteResponse<TxData, TxData> => {
+  quoteResponse: QuoteResponseV1,
+): quoteResponse is QuoteResponseV1<TxData, TxData> => {
   return !isNonEvmChainId(quoteResponse.quote.srcChainId);
 };

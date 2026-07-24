@@ -1,4 +1,4 @@
-import { createSHA256Hash } from './encryption';
+import { createSHA256Hash } from './encryption/index.js';
 
 /**
  * The User Storage Endpoint requires a feature name and a namespace key.

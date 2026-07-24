@@ -4,7 +4,7 @@ import {
   ChainId,
   BuiltInNetworkName,
   BlockExplorerUrl,
-} from './types';
+} from './types.js';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
@@ -176,6 +176,34 @@ export const BUILT_IN_NETWORKS = {
     ticker: NetworksTicker['sei-mainnet'],
     rpcPrefs: {
       blockExplorerUrl: BlockExplorerUrl['sei-mainnet'],
+    },
+  },
+  [NetworkType['monad-mainnet']]: {
+    chainId: ChainId['monad-mainnet'],
+    ticker: NetworksTicker['monad-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['monad-mainnet'],
+    },
+  },
+  [NetworkType['zksync-mainnet']]: {
+    chainId: ChainId['zksync-mainnet'],
+    ticker: NetworksTicker['zksync-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['zksync-mainnet'],
+    },
+  },
+  [NetworkType['megaeth-mainnet']]: {
+    chainId: ChainId['megaeth-mainnet'],
+    ticker: NetworksTicker['megaeth-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-mainnet'],
+    },
+  },
+  [NetworkType['avalanche-mainnet']]: {
+    chainId: ChainId['avalanche-mainnet'],
+    ticker: NetworksTicker['avalanche-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['avalanche-mainnet'],
     },
   },
   [NetworkType.rpc]: {

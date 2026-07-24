@@ -1,4 +1,4 @@
-import { timeout } from './timeout';
+import { timeout } from './timeout.js';
 
 describe('timeout', () => {
   describe('with real timers', () => {

@@ -6,7 +6,7 @@ import type {
 import { CreateAccountOptions } from '@metamask/keyring-api';
 
 // Explicit import to avoid circular dependency between `analytics` and `providers`.
-import type { Bip44AccountProvider } from '../providers/BaseBip44AccountProvider';
+import type { Bip44AccountProvider } from '../providers/BaseBip44AccountProvider.js';
 
 /**
  * Fallback function for tracing.
@@ -75,7 +75,6 @@ export function toCreateAccountsV2DataTraces(
 export enum TraceName {
   SnapDiscoverAccounts = 'Snap Discover Accounts',
   EvmDiscoverAccounts = 'EVM Discover Accounts',
-  ProviderCreateAccountV1 = 'Provider Create Account (v1)',
   ProviderCreateAccounts = 'Provider Create Accounts (v2 - batched)',
   WalletAlignment = 'Wallet Alignment',
   WalletCreateMultichainAccountGroup = 'Wallet Create Multichain Account Group',

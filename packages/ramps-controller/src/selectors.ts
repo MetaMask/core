@@ -1,6 +1,7 @@
-import type { RampsControllerState } from './RampsController';
-import type { RequestState } from './RequestCache';
-import { RequestStatus, createCacheKey } from './RequestCache';
+import type { RampsControllerState } from './RampsController.js';
+import type { RampsErrorCode } from './rampsErrorCodes.js';
+import type { RequestState } from './RequestCache.js';
+import { RequestStatus, createCacheKey } from './RequestCache.js';
 
 /**
  * Result shape returned by request selectors.
@@ -16,6 +17,8 @@ export type RequestSelectorResult<TData> = {
   isFetching: boolean;
   /** Error message if the request failed, or null if successful or not yet attempted. */
   error: string | null;
+  /** Stable error key for client-side localization, if available. */
+  errorKey?: RampsErrorCode | null;
 };
 
 /**
@@ -93,11 +96,17 @@ export function createRequestSelector<TRootState, TData>(
     }
 
     lastRequest = request;
-    lastResult = {
+    const nextResult: RequestSelectorResult<TData> = {
       data: (request?.data as TData) ?? null,
       isFetching: request?.status === RequestStatus.LOADING,
       error: request?.error ?? null,
     };
+
+    if (request?.errorKey) {
+      nextResult.errorKey = request.errorKey;
+    }
+
+    lastResult = nextResult;
 
     return lastResult;
   };

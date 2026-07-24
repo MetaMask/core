@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../base-data-service"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../messenger"
+    }
+  ],
+  "include": ["../../types", "./content", "./site"]
+}

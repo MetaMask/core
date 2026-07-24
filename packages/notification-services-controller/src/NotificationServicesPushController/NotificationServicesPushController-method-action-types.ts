@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NotificationServicesPushController } from './NotificationServicesPushController';
+import type { NotificationServicesPushController } from './NotificationServicesPushController.js';
 
 export type NotificationServicesPushControllerSubscribeToPushNotificationsAction =
   {
@@ -33,6 +33,19 @@ export type NotificationServicesPushControllerEnablePushNotificationsAction = {
 export type NotificationServicesPushControllerDisablePushNotificationsAction = {
   type: `NotificationServicesPushController:disablePushNotifications`;
   handler: NotificationServicesPushController['disablePushNotifications'];
+};
+
+/**
+ * Adds backend push notification links for the given addresses using the current FCM token.
+ * This is used when accounts are added after push notifications have already been enabled,
+ * so backend can link the existing device token to the newly added addresses.
+ *
+ * @param addresses - Addresses that should be linked to push notifications.
+ * @returns Whether the add request succeeded.
+ */
+export type NotificationServicesPushControllerAddPushNotificationLinksAction = {
+  type: `NotificationServicesPushController:addPushNotificationLinks`;
+  handler: NotificationServicesPushController['addPushNotificationLinks'];
 };
 
 /**
@@ -70,5 +83,6 @@ export type NotificationServicesPushControllerMethodActions =
   | NotificationServicesPushControllerSubscribeToPushNotificationsAction
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction
+  | NotificationServicesPushControllerAddPushNotificationLinksAction
   | NotificationServicesPushControllerDeletePushNotificationLinksAction
   | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction;

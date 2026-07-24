@@ -4,11 +4,11 @@ import type { Web3Provider } from '@ethersproject/providers';
 import type {
   StakedBalanceFetcherConfig,
   StakedBalancePollingInput,
-} from './StakedBalanceFetcher';
+} from './StakedBalanceFetcher.js';
 import {
   StakedBalanceFetcher,
   isStakingContractAssetId,
-} from './StakedBalanceFetcher';
+} from './StakedBalanceFetcher.js';
 
 const TEST_ADDRESS = '0x9bed78535d6a03a955f1504aadba974d9a29e292';
 const MAINNET_CHAIN_ID = '0x1';

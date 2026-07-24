@@ -1,6 +1,9 @@
-import { logErrorAs } from './logger';
-import { isTimeoutError } from './providers/utils';
-import { createSentryError } from './utils';
+import { logErrorAs } from './logger.js';
+import {
+  isKeyringControllerLockedError,
+  isTimeoutError,
+} from './providers/utils.js';
+import { createSentryError } from './utils.js';
 
 /**
  * Reports an error by logging it and optionally capturing it in Sentry.
@@ -20,7 +23,7 @@ export function reportError(
   error: unknown,
   context?: Record<string, unknown>,
 ): void {
-  if (isTimeoutError(error)) {
+  if (isTimeoutError(error) || isKeyringControllerLockedError(error)) {
     logErrorAs('warn', message, error);
     console.warn(message, error);
   } else {

@@ -1,4 +1,3 @@
-import { processAPINotifications } from './process-api-notifications';
 import {
   createMockNotificationEthSent,
   createMockNotificationEthReceived,
@@ -16,7 +15,8 @@ import {
   createMockNotificationLidoWithdrawalCompleted,
   createMockNotificationLidoReadyToBeWithdrawn,
   createMockPlatformNotification,
-} from '../mocks/mock-raw-notifications';
+} from '../mocks/mock-raw-notifications.js';
+import { processAPINotifications } from './process-api-notifications.js';
 
 const rawNotifications = [
   createMockNotificationEthSent(),

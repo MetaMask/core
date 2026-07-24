@@ -1,12 +1,15 @@
 import { SiweMessage } from 'siwe';
 
+import { ValidationError } from '../errors.js';
+import { validateLoginResponse } from '../utils/validate-login-response.js';
 import {
   SIWE_LOGIN_URL,
   authenticate,
   authorizeOIDC,
+  getCustomerServiceToken,
   getNonce,
   getUserProfileLineage,
-} from './services';
+} from './services.js';
 import type {
   AuthConfig,
   AuthStorageOptions,
@@ -15,9 +18,7 @@ import type {
   LoginResponse,
   UserProfile,
   UserProfileLineage,
-} from './types';
-import { ValidationError } from '../errors';
-import { validateLoginResponse } from '../utils/validate-login-response';
+} from './types.js';
 
 type JwtBearerAuth_SIWE_Options = {
   storage: AuthStorageOptions;
@@ -73,6 +74,11 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
   async getUserProfileLineage(): Promise<UserProfileLineage> {
     const accessToken = await this.getAccessToken();
     return await getUserProfileLineage(this.#config.env, accessToken);
+  }
+
+  async getCustomerServiceToken(): Promise<string> {
+    const accessToken = await this.getAccessToken();
+    return await getCustomerServiceToken(this.#config.env, accessToken);
   }
 
   async signMessage(message: string): Promise<string> {

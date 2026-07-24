@@ -3,22 +3,22 @@
 import { TransactionType } from '@metamask/transaction-controller';
 import { cloneDeep } from 'lodash';
 
+import type {
+  PrepareUserOperationResponse,
+  SignUserOperationResponse,
+  UpdateUserOperationResponse,
+} from '../types.js';
+import type {
+  AddUserOperationOptions,
+  AddUserOperationRequest,
+} from '../UserOperationController.js';
 import {
   validateAddUserOperationOptions,
   validateAddUserOperationRequest,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
-} from './validation';
-import type {
-  PrepareUserOperationResponse,
-  SignUserOperationResponse,
-  UpdateUserOperationResponse,
-} from '../types';
-import type {
-  AddUserOperationOptions,
-  AddUserOperationRequest,
-} from '../UserOperationController';
+} from './validation.js';
 
 const ADD_USER_OPERATION_REQUEST_MOCK: AddUserOperationRequest = {
   data: '0x1',

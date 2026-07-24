@@ -1,2 +1,3 @@
-export type * from './firebase';
-export type * from './push-service-interface';
+export type * from './firebase.js';
+export type * from './push-analytics.js';
+export type * from './push-service-interface.js';

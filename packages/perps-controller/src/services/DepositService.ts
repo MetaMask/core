@@ -2,16 +2,16 @@ import { toHex } from '@metamask/controller-utils';
 import { parseCaipAssetId } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { DEPOSIT_CONFIG } from '../constants/hyperLiquidConfig';
+import { DEPOSIT_CONFIG } from '../constants/hyperLiquidConfig.js';
 import type {
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsTransactionParams,
-} from '../types';
-import type { PerpsControllerMessengerBase } from '../types/messenger';
-import { getSelectedEvmAccount } from '../utils/accountUtils';
-import { generateDepositId } from '../utils/idUtils';
-import { generateERC20TransferData } from '../utils/transferData';
+} from '../types/index.js';
+import type { PerpsControllerMessengerBase } from '../types/messenger.js';
+import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
+import { generateDepositId } from '../utils/idUtils.js';
+import { generateERC20TransferData } from '../utils/transferData.js';
 
 // Temporary to avoid estimation failures due to insufficient balance
 const DEPOSIT_GAS_LIMIT = toHex(DEPOSIT_CONFIG.EstimatedGasLimit);
@@ -76,12 +76,8 @@ export class DepositService {
       '0x0',
     );
 
-    // Get EVM account from selected account group via messenger
-    const evmAccount = getSelectedEvmAccount(
-      this.#messenger.call(
-        'AccountTreeController:getAccountsFromSelectedAccountGroup',
-      ),
-    );
+    // Get EVM account from selected account, falling back to the selected account group.
+    const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
     if (!evmAccount) {
       throw new Error(
         'No EVM-compatible account found in selected account group',

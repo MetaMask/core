@@ -1,4 +1,4 @@
-export type { AutoManagedNetworkClient } from './create-auto-managed-network-client';
+export type { AutoManagedNetworkClient } from './create-auto-managed-network-client.js';
 export type {
   Block,
   NetworkMetadata,
@@ -10,8 +10,10 @@ export type {
   NetworkState,
   BlockTrackerProxy,
   ProviderProxy,
+  AddNetworkCustomRpcEndpointFields,
   AddNetworkFields,
   UpdateNetworkFields,
+  InfuraRpcEndpoint,
   NetworkControllerStateChangeEvent,
   NetworkControllerNetworkWillChangeEvent,
   NetworkControllerNetworkDidChangeEvent,
@@ -21,7 +23,6 @@ export type {
   NetworkControllerNetworkRemovedEvent,
   NetworkControllerEvents,
   NetworkControllerGetStateAction,
-  NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerActions,
   NetworkControllerMessenger,
   NetworkControllerOptions,
@@ -31,28 +32,31 @@ export type {
   NetworkControllerRpcEndpointDegradedEvent,
   NetworkControllerRpcEndpointChainAvailableEvent,
   NetworkControllerRpcEndpointRetriedEvent,
-} from './NetworkController';
+} from './NetworkController.js';
 export {
   getDefaultNetworkControllerState,
   selectAvailableNetworkClientIds,
   knownKeysOf,
   NetworkController,
   RpcEndpointType,
-} from './NetworkController';
-export * from './constants';
-export type { BlockTracker, Provider } from './types';
+} from './NetworkController.js';
+export * from './constants.js';
+export type { BlockTracker, Provider } from './types.js';
 export type {
   NetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   CustomNetworkClientConfiguration,
-} from './types';
-export { NetworkClientType } from './types';
-export type { NetworkClient } from './create-network-client';
-export type { AbstractRpcService } from './rpc-service/abstract-rpc-service';
-export type { RpcServiceRequestable } from './rpc-service/rpc-service-requestable';
-export type { DegradedEventType, RetryReason } from './create-network-client';
-export { classifyRetryReason } from './create-network-client';
-export { isConnectionError } from './rpc-service/rpc-service';
+} from './types.js';
+export { NetworkClientType } from './types.js';
+export type { NetworkClient } from './create-network-client.js';
+export type { AbstractRpcService } from './rpc-service/abstract-rpc-service.js';
+export type { RpcServiceRequestable } from './rpc-service/rpc-service-requestable.js';
+export type {
+  DegradedEventType,
+  RetryReason,
+} from './create-network-client.js';
+export { classifyRetryReason } from './create-network-client.js';
+export { isConnectionError } from './rpc-service/rpc-service.js';
 export type {
   NetworkControllerGetEthQueryAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -67,15 +71,12 @@ export type {
   NetworkControllerAddNetworkAction,
   NetworkControllerRemoveNetworkAction,
   NetworkControllerUpdateNetworkAction,
-  NetworkControllerEnableRpcFailoverAction,
-  NetworkControllerDisableRpcFailoverAction,
   NetworkControllerGetProviderAndBlockTrackerAction,
   NetworkControllerGetNetworkClientRegistryAction,
-  NetworkControllerInitializeProviderAction,
   NetworkControllerLookupNetworkAction,
   NetworkControllerLookupNetworkByClientIdAction,
   NetworkControllerGet1559CompatibilityWithNetworkClientIdAction,
   NetworkControllerResetConnectionAction,
   NetworkControllerRollbackToPreviousProviderAction,
   NetworkControllerLoadBackupAction,
-} from './NetworkController-method-action-types';
+} from './NetworkController-method-action-types.js';

@@ -98,34 +98,38 @@ class FooController {
           path.join(directoryPath, 'FooController-method-action-types.ts'),
           'utf8',
         );
-        expect(content).toBe(`/**
- * This file is auto generated.
- * Do not edit manually.
- */
+        expect(content).toMatchInlineSnapshot(`
+          "/**
+           * This file is auto generated.
+           * Do not edit manually.
+           */
 
-import type { FooController } from './FooController';
+          import type { FooController } from './FooController';
 
-/**
- * Gets the current state.
- */
-export type FooControllerGetStateAction = {
-  type: \`FooController:getState\`;
-  handler: FooController['getState'];
-};
+          /**
+           * Gets the current state.
+           */
+          export type FooControllerGetStateAction = {
+            type: \`FooController:getState\`;
+            handler: FooController['getState'];
+          };
 
-/**
- * Resets the controller.
- */
-export type FooControllerResetAction = {
-  type: \`FooController:reset\`;
-  handler: FooController['reset'];
-};
+          /**
+           * Resets the controller.
+           */
+          export type FooControllerResetAction = {
+            type: \`FooController:reset\`;
+            handler: FooController['reset'];
+          };
 
-/**
- * Union of all FooController action types.
- */
-export type FooControllerMethodActions = FooControllerGetStateAction | FooControllerResetAction;
-`);
+          /**
+           * Union of all FooController action types.
+           */
+          export type FooControllerMethodActions =
+            | FooControllerGetStateAction
+            | FooControllerResetAction;
+          "
+        `);
       });
     });
 
@@ -164,28 +168,30 @@ class DataService {
           path.join(directoryPath, 'DataService-method-action-types.ts'),
           'utf8',
         );
-        expect(content).toBe(`/**
- * This file is auto generated.
- * Do not edit manually.
- */
+        expect(content).toMatchInlineSnapshot(`
+          "/**
+           * This file is auto generated.
+           * Do not edit manually.
+           */
 
-import type { DataService } from './DataService';
+          import type { DataService } from './DataService';
 
-/**
- * Fetches items from the API.
- *
- * @returns The items.
- */
-export type DataServiceFetchItemsAction = {
-  type: \`DataService:fetchItems\`;
-  handler: DataService['fetchItems'];
-};
+          /**
+           * Fetches items from the API.
+           *
+           * @returns The items.
+           */
+          export type DataServiceFetchItemsAction = {
+            type: \`DataService:fetchItems\`;
+            handler: DataService['fetchItems'];
+          };
 
-/**
- * Union of all DataService action types.
- */
-export type DataServiceMethodActions = DataServiceFetchItemsAction;
-`);
+          /**
+           * Union of all DataService action types.
+           */
+          export type DataServiceMethodActions = DataServiceFetchItemsAction;
+          "
+        `);
       });
     });
 
@@ -219,33 +225,38 @@ class BarController {
           path.join(directoryPath, 'BarController-method-action-types.ts'),
           'utf8',
         );
-        expect(content).toBe(`/**
- * This file is auto generated.
- * Do not edit manually.
- */
+        expect(content).toMatchInlineSnapshot(`
+          "/**
+           * This file is auto generated.
+           * Do not edit manually.
+           */
 
-import type { BarController } from './BarController';
+          import type { BarController } from './BarController';
 
-export type BarControllerEnableAction = {
-  type: \`BarController:enable\`;
-  handler: BarController['enable'];
-};
+          export type BarControllerEnableAction = {
+            type: \`BarController:enable\`;
+            handler: BarController['enable'];
+          };
 
-export type BarControllerDisableAction = {
-  type: \`BarController:disable\`;
-  handler: BarController['disable'];
-};
+          export type BarControllerDisableAction = {
+            type: \`BarController:disable\`;
+            handler: BarController['disable'];
+          };
 
-export type BarControllerIsEnabledAction = {
-  type: \`BarController:isEnabled\`;
-  handler: BarController['isEnabled'];
-};
+          export type BarControllerIsEnabledAction = {
+            type: \`BarController:isEnabled\`;
+            handler: BarController['isEnabled'];
+          };
 
-/**
- * Union of all BarController action types.
- */
-export type BarControllerMethodActions = BarControllerEnableAction | BarControllerDisableAction | BarControllerIsEnabledAction;
-`);
+          /**
+           * Union of all BarController action types.
+           */
+          export type BarControllerMethodActions =
+            | BarControllerEnableAction
+            | BarControllerDisableAction
+            | BarControllerIsEnabledAction;
+          "
+        `);
       });
     });
 
@@ -285,29 +296,31 @@ class AuthService {
           path.join(directoryPath, 'AuthService-method-action-types.ts'),
           'utf8',
         );
-        expect(content).toBe(`/**
- * This file is auto generated.
- * Do not edit manually.
- */
+        expect(content).toMatchInlineSnapshot(`
+          "/**
+           * This file is auto generated.
+           * Do not edit manually.
+           */
 
-import type { AuthService } from './AuthService';
+          import type { AuthService } from './AuthService';
 
-/**
- * Authenticates the user.
- *
- * @param token - The auth token.
- * @returns Whether authentication succeeded.
- */
-export type AuthServiceAuthenticateAction = {
-  type: \`AuthService:authenticate\`;
-  handler: AuthService['authenticate'];
-};
+          /**
+           * Authenticates the user.
+           *
+           * @param token - The auth token.
+           * @returns Whether authentication succeeded.
+           */
+          export type AuthServiceAuthenticateAction = {
+            type: \`AuthService:authenticate\`;
+            handler: AuthService['authenticate'];
+          };
 
-/**
- * Union of all AuthService action types.
- */
-export type AuthServiceMethodActions = AuthServiceAuthenticateAction;
-`);
+          /**
+           * Union of all AuthService action types.
+           */
+          export type AuthServiceMethodActions = AuthServiceAuthenticateAction;
+          "
+        `);
       });
     });
 
@@ -413,6 +426,86 @@ class NestedController {
 
         const generatedFiles = await listGeneratedFiles(directoryPath);
         expect(generatedFiles).toStrictEqual([]);
+      });
+    });
+  });
+
+  describe('--esm', () => {
+    it('adds .js extension to import paths in generated files', async () => {
+      expect.assertions(3);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'FooController.ts'),
+          `
+const MESSENGER_EXPOSED_METHODS = ['doSomething'] as const;
+
+class FooController {
+  doSomething() {
+    return true;
+  }
+}
+`,
+          'utf8',
+        );
+
+        const result = await runCLI(['--generate', '--esm', directoryPath]);
+        expect(result.exitCode).toBe(0);
+
+        const generatedFiles = await listGeneratedFiles(directoryPath);
+        expect(generatedFiles).toStrictEqual([
+          'FooController-method-action-types.ts',
+        ]);
+
+        const content = await fs.promises.readFile(
+          path.join(directoryPath, 'FooController-method-action-types.ts'),
+          'utf8',
+        );
+        expect(content).toMatchInlineSnapshot(`
+          "/**
+           * This file is auto generated.
+           * Do not edit manually.
+           */
+
+          import type { FooController } from './FooController.js';
+
+          export type FooControllerDoSomethingAction = {
+            type: \`FooController:doSomething\`;
+            handler: FooController['doSomething'];
+          };
+
+          /**
+           * Union of all FooController action types.
+           */
+          export type FooControllerMethodActions = FooControllerDoSomethingAction;
+          "
+        `);
+      });
+    });
+
+    it('--check passes for files generated with --esm', async () => {
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'FooController.ts'),
+          `
+const MESSENGER_EXPOSED_METHODS = ['doSomething'] as const;
+
+class FooController {
+  doSomething() {
+    return true;
+  }
+}
+`,
+          'utf8',
+        );
+
+        await runCLI(['--generate', '--esm', directoryPath]);
+        const result = await runCLI(['--check', '--esm', directoryPath]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.all).toContain('up to date');
       });
     });
   });

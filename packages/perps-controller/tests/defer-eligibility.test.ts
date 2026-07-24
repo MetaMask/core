@@ -5,9 +5,9 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { PerpsController } from '../src/PerpsController';
-import type { PerpsControllerMessenger } from '../src/PerpsController';
-import type { PerpsPlatformDependencies } from '../src/types';
+import { PerpsController } from '../src/PerpsController.js';
+import type { PerpsControllerMessenger } from '../src/PerpsController.js';
+import type { PerpsPlatformDependencies } from '../src/types/index.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
 jest.mock('@myx-trade/sdk', () => ({}));
@@ -58,6 +58,12 @@ function buildMockInfrastructure(): PerpsPlatformDependencies {
     cacheInvalidator: {
       invalidate: jest.fn(),
     } as unknown as PerpsPlatformDependencies['cacheInvalidator'],
+    diskCache: {
+      getItem: jest.fn().mockResolvedValue(null),
+      getItemSync: jest.fn().mockReturnValue(null),
+      setItem: jest.fn().mockResolvedValue(undefined),
+      removeItem: jest.fn().mockResolvedValue(undefined),
+    },
     rewards: { getPerpsDiscountForAccount: jest.fn().mockResolvedValue(0) },
   };
 }

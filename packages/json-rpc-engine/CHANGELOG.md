@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [10.5.0]
+
+### Added
+
+- Export `assertExpectedHooks` utility ([#8747](https://github.com/MetaMask/core/pull/8747))
+
+## [10.4.0]
+
+### Added
+
+- Add legacy `createOriginMiddleware` utility ([#8734](https://github.com/MetaMask/core/pull/8734))
+
+## [10.3.0]
+
+### Added
+
+- Add `createOriginMiddleware` utility to `v2` ([#8522](https://github.com/MetaMask/core/pull/8522))
+- Add `createMethodMiddleware` utility to `v2` ([#8506](https://github.com/MetaMask/core/pull/8506), [#8583](https://github.com/MetaMask/core/pull/8583))
+  - This utility allows JSON-RPC method implementations to use both the hooks pattern and the messenger.
+- Add legacy `createMethodMiddleware` ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - Consolidates bespoke `makeMethodMiddlewareMaker` implementations from the MetaMask extension and mobile clients.
+  - Handlers may now declare `actionNames` and receive a delegated messenger as the sixth argument to `implementation`, mirroring the v2 `createMethodMiddleware`.
+  - Deprecated in favor of the v2 `createMethodMiddleware`.
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+
 ## [10.2.4]
 
 ### Fixed
@@ -102,7 +135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -282,7 +315,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.5.0...HEAD
+[10.5.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.4.0...@metamask/json-rpc-engine@10.5.0
+[10.4.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.3.0...@metamask/json-rpc-engine@10.4.0
+[10.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.4...@metamask/json-rpc-engine@10.3.0
 [10.2.4]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.3...@metamask/json-rpc-engine@10.2.4
 [10.2.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.2...@metamask/json-rpc-engine@10.2.3
 [10.2.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.1...@metamask/json-rpc-engine@10.2.2

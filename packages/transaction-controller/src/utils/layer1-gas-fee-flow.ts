@@ -1,10 +1,9 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { getProvider } from './provider';
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { Layer1GasFeeFlow, TransactionMeta } from '../types';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { Layer1GasFeeFlow, TransactionMeta } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'layer-1-gas-fee-flow');
 
@@ -96,13 +95,8 @@ export async function getTransactionLayer1GasFee({
   );
 
   try {
-    const provider = getProvider({
-      messenger,
-      networkClientId: transactionMeta.networkClientId,
-    });
-
     const { layer1Fee } = await layer1GasFeeFlow.getLayer1Fee({
-      provider,
+      messenger,
       transactionMeta,
     });
     return layer1Fee;

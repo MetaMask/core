@@ -1,7 +1,7 @@
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { EthKeyring } from '@metamask/keyring-utils';
 
-import { isMoneyKeyring } from './utils';
+import { isMoneyKeyring } from './utils.js';
 
 describe('isMoneyKeyring', () => {
   it('returns true for a Money Keyring', () => {

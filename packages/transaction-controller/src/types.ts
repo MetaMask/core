@@ -3,11 +3,11 @@
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
-import type { TransactionControllerMessenger } from './TransactionController';
+import type { TransactionControllerMessenger } from './TransactionController.js';
 
 /**
  * Given a record, ensures that each property matches the `Json` type.
@@ -325,6 +325,9 @@ export type TransactionMeta = {
    */
   origin?: string;
 
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /**
    * The original dapp proposed token approval amount before edit by user.
    */
@@ -415,6 +418,9 @@ export type TransactionMeta = {
    * The number of times that the transaction submit has been retried.
    */
   retryCount?: number;
+
+  /** Decoded revert information from each lifecycle source. */
+  revert?: RevertData;
 
   /**
    * The transaction's 's' value as a hex string.
@@ -574,11 +580,6 @@ export type TransactionMeta = {
     error: string;
     message: string;
   };
-
-  /**
-   * The method used to submit the transaction to the network.
-   */
-  submissionMethod?: TransactionSubmissionMethod;
 };
 
 /**
@@ -618,6 +619,9 @@ export type TransactionBatchMeta = {
    */
   origin?: string;
 
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /**
    * ID of the JSON-RPC request from DAPP.
    */
@@ -644,14 +648,6 @@ export type SendFlowHistoryEntry = {
    */
   timestamp: number;
 };
-
-/**
- * The method used to submit a transaction to the network.
- */
-export enum TransactionSubmissionMethod {
-  SentinelStx = 'sentinel_stx',
-  SentinelRelay = 'sentinel_relay',
-}
 
 /**
  * Represents the status of a transaction within the wallet.
@@ -815,6 +811,11 @@ export enum TransactionType {
   musdConversion = 'musdConversion',
 
   /**
+   * Deposit funds for a Relay quote when the parent transaction is an mUSD conversion.
+   */
+  musdRelayDeposit = 'musdRelayDeposit',
+
+  /**
    * Deposit funds for Across quote via Perps.
    */
   perpsAcrossDeposit = 'perpsAcrossDeposit',
@@ -849,6 +850,11 @@ export enum TransactionType {
    * Deposit funds for Across quote via Predict.
    */
   predictAcrossDeposit = 'predictAcrossDeposit',
+
+  /**
+   * Withdraw funds for Across quote via Predict.
+   */
+  predictAcrossWithdraw = 'predictAcrossWithdraw',
 
   /**
    * Buy a position via Predict.
@@ -998,6 +1004,11 @@ export enum TransactionType {
    * A token approval transaction subscribing to the shield insurance service
    */
   shieldSubscriptionApprove = 'shieldSubscriptionApprove',
+
+  /**
+   * A transaction that sets a spending limit delegation for the MetaMask Card.
+   */
+  cardDelegation = 'cardDelegation',
 }
 
 export enum TransactionContainerType {
@@ -1216,7 +1227,6 @@ export interface RemoteTransactionSourceRequest {
 
 /**
  * An object capable of fetching transaction data from a remote source.
- * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -1247,13 +1257,15 @@ export type DappSuggestedGasFees = {
 };
 
 /**
- * Gas values saved by the user for a specific chain.
+ * Gas values saved by the user for a specific chain and account.
  */
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface SavedGasFees {
-  maxBaseFee: string;
-  priorityFee: string;
+  level?: UserFeeLevel | GasFeeEstimateLevel;
+  maxBaseFee?: string;
+  priorityFee?: string;
+  gasPrice?: string;
 }
 
 /**
@@ -1296,16 +1308,6 @@ export type InferTransactionTypeResult = {
    */
   type: TransactionType;
 };
-
-/**
- * A function for verifying a transaction, whether it is malicious or not.
- */
-export type SecurityProviderRequest = (
-  requestData: TransactionMeta,
-  messageType: string,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-) => Promise<any>;
 
 /**
  * Specifies the shape of the base transaction parameters.
@@ -1525,8 +1527,8 @@ export type GasFeeFlow = {
 
 /** Request to a layer 1 gas fee flow to obtain layer 1 fee estimate. */
 export type Layer1GasFeeFlowRequest = {
-  /** RPC Provider instance. */
-  provider: Provider;
+  /** The messenger instance. */
+  messenger: TransactionControllerMessenger;
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
@@ -1821,6 +1823,14 @@ export type TransactionBatchSingleRequest = {
  * Currently only atomic batches are supported via EIP-7702.
  */
 export type TransactionBatchRequest = {
+  /**
+   * Whether the EIP-7702 batch transaction should be executed atomically.
+   * When `true` (default), all calls in the batch either succeed or revert together.
+   * When `false`, calls are independent — individual calls can fail without
+   * reverting the entire batch.
+   */
+  atomic?: boolean;
+
   batchId?: Hex;
 
   /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
@@ -1860,6 +1870,9 @@ export type TransactionBatchRequest = {
 
   /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
   origin?: string;
+
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
 
   /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
   overwriteUpgrade?: boolean;
@@ -2108,20 +2121,6 @@ export type AfterAddHook = (request: {
 }>;
 
 /**
- * Custom logic to be executed after a transaction is simulated.
- * Can optionally update the transaction by returning the `updateTransaction` callback.
- */
-export type AfterSimulateHook = (request: {
-  transactionMeta: TransactionMeta;
-}) => Promise<
-  | {
-      skipSimulation?: boolean;
-      updateTransaction?: (transaction: TransactionMeta) => void;
-    }
-  | undefined
->;
-
-/**
  * Custom logic to be executed before a transaction is signed.
  * Can optionally update the transaction by returning the `updateTransaction` callback.
  */
@@ -2156,6 +2155,14 @@ export type MetamaskPayMetadata = {
 
   /** Chain ID of the payment token. */
   chainId?: Hex;
+
+  /** Fiat on-ramp metadata (order ID and provider). */
+  fiat?: {
+    /** Order ID (normalized format: /providers/{provider}/orders/{id}). */
+    orderId: string;
+    /** Provider code (e.g. "transak-native"). */
+    provider: string;
+  };
 
   /**
    * Whether this is a post-quote transaction (e.g., withdrawal flow).
@@ -2246,6 +2253,9 @@ export type AddTransactionOptions = {
   /** Origin of the transaction request, such as a dApp hostname. */
   origin?: string;
 
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /** Custom logic to publish the transaction. */
   publishHook?: PublishHook;
 
@@ -2319,4 +2329,29 @@ export type RequiredAsset = {
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
+};
+
+/**
+ * Decoded revert from a single lifecycle source.
+ */
+export type Revert = {
+  /** Decoded human-readable revert reason. */
+  message?: string;
+
+  /** Raw revert data hex returned by the EVM. */
+  data?: Hex;
+};
+
+/**
+ * Revert information across each stage where a transaction can fail.
+ */
+export type RevertData = {
+  /** Revert from pre-confirmation gas estimation. */
+  gas?: Revert;
+
+  /** Revert from the simulation API's root call frame. */
+  simulation?: Revert;
+
+  /** Revert from on-chain failure, via receipt replay. */
+  receipt?: Revert;
 };
