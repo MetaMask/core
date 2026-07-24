@@ -7,7 +7,7 @@ import {
 import type { CaipChainId, Hex } from '@metamask/utils';
 import BigNumberJS from 'bignumber.js';
 
-import type { ChainId } from '../types';
+import type { ChainId } from '../types/index.js';
 
 /**
  * Convert wei to human-readable amount with decimals, trim trailing zeros.

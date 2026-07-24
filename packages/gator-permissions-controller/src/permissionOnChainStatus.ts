@@ -4,16 +4,16 @@ import type { Delegation } from '@metamask/delegation-core';
 import { bytesToHex, getChecksumAddress, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { DeployedContractsByName } from './decodePermission/types';
+import type { DeployedContractsByName } from './decodePermission/types.js';
 import {
   extractExpiryFromCaveatTerms,
   getChecksumEnforcersByChainId,
-} from './decodePermission/utils';
-import { controllerLog } from './logger';
+} from './decodePermission/utils.js';
+import { controllerLog } from './logger.js';
 import type {
   PermissionInfoWithMetadata,
   GatorPermissionStatus,
-} from './types';
+} from './types.js';
 
 /** Function selector for `DelegationManager.disabledDelegations(bytes32)`. */
 const DISABLED_DELEGATIONS_SELECTOR = '0x2d40d052';

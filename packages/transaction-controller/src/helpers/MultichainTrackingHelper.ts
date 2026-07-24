@@ -10,8 +10,8 @@ import type { NonceLock, NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import { createModuleLogger, projectLogger } from '../logger';
-import type { PendingTransactionTracker } from './PendingTransactionTracker';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { PendingTransactionTracker } from './PendingTransactionTracker.js';
 
 /**
  * Registry of network clients provided by the NetworkController

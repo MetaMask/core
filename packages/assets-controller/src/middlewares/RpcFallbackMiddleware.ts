@@ -1,12 +1,12 @@
-import { projectLogger, createModuleLogger } from '../logger';
-import { forDataTypes } from '../types';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import { forDataTypes } from '../types.js';
 import type {
   AssetsDataSource,
   ChainId,
   DataResponse,
   Middleware,
-} from '../types';
-import { mergeDataResponses } from './ParallelMiddleware';
+} from '../types.js';
+import { mergeDataResponses } from './ParallelMiddleware.js';
 
 const CONTROLLER_NAME = 'RpcFallbackMiddleware';
 

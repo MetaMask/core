@@ -3,10 +3,13 @@ import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-
 import {
   DEFAULT_CHAIN_RANKING,
   DEFAULT_FEATURE_FLAG_CONFIG,
-} from '../constants/bridge';
-import type { FeatureFlagsPlatformConfig, ChainConfiguration } from '../types';
-import { validateFeatureFlagsResponse } from '../validators/feature-flags';
-import { formatChainIdToCaip } from './caip-formatters';
+} from '../constants/bridge.js';
+import type {
+  FeatureFlagsPlatformConfig,
+  ChainConfiguration,
+} from '../types.js';
+import { validateFeatureFlagsResponse } from '../validators/feature-flags.js';
+import { formatChainIdToCaip } from './caip-formatters.js';
 
 export const formatFeatureFlags = (
   bridgeFeatureFlags: FeatureFlagsPlatformConfig,

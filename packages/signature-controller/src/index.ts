@@ -1,4 +1,4 @@
-export * from './SignatureController';
+export * from './SignatureController.js';
 export type {
   SignatureControllerResetStateAction,
   SignatureControllerRejectUnapprovedAction,
@@ -10,5 +10,5 @@ export type {
   SignatureControllerSetDeferredSignErrorAction,
   SignatureControllerSetTypedMessageInProgressAction,
   SignatureControllerSetPersonalMessageInProgressAction,
-} from './SignatureController-method-action-types';
-export * from './types';
+} from './SignatureController-method-action-types.js';
+export * from './types.js';

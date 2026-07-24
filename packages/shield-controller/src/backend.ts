@@ -12,8 +12,8 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { AuthorizationList } from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';
 
-import { SignTypedDataVersion } from './constants';
-import { PollingWithCockatielPolicy } from './polling-with-policy';
+import { SignTypedDataVersion } from './constants.js';
+import { PollingWithCockatielPolicy } from './polling-with-policy.js';
 import type {
   CheckCoverageRequest,
   CheckSignatureCoverageRequest,
@@ -22,7 +22,7 @@ import type {
   LogSignatureRequest,
   LogTransactionRequest,
   ShieldBackend,
-} from './types';
+} from './types.js';
 
 export type InitCoverageCheckRequest = {
   txParams: [

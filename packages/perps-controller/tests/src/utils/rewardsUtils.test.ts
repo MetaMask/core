@@ -1,10 +1,10 @@
-import type { PerpsLogger } from '../../../src/types';
+import type { PerpsLogger } from '../../../src/types/index.js';
 /* eslint-disable */
 import {
   formatAccountToCaipAccountId,
   isCaipAccountId,
   handleRewardsError,
-} from '../../../src/utils/rewardsUtils';
+} from '../../../src/utils/rewardsUtils.js';
 
 describe('rewardsUtils', () => {
   describe('formatAccountToCaipAccountId', () => {

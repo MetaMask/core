@@ -27,25 +27,25 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { DELEGATION_FRAMEWORK_VERSION } from './constants';
-import type { DecodedPermission } from './decodePermission';
+import { DELEGATION_FRAMEWORK_VERSION } from './constants.js';
+import type { DecodedPermission } from './decodePermission/index.js';
 import {
   createPermissionDecodersForContracts,
   findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
-} from './decodePermission';
+} from './decodePermission/index.js';
 import {
   GatorPermissionsFetchError,
   GatorPermissionsProviderError,
   OriginNotAllowedError,
   PermissionDecodingError,
-} from './errors';
-import type { GatorPermissionsControllerMethodActions } from './GatorPermissionsController-method-action-types';
-import { controllerLog } from './logger';
-import { updateGrantedPermissionsStatus } from './permissionOnChainStatus';
-import type { PermissionStatusEip1193Provider } from './permissionOnChainStatus';
-import { GatorPermissionsSnapRpcMethod } from './types';
+} from './errors.js';
+import type { GatorPermissionsControllerMethodActions } from './GatorPermissionsController-method-action-types.js';
+import { controllerLog } from './logger.js';
+import { updateGrantedPermissionsStatus } from './permissionOnChainStatus.js';
+import type { PermissionStatusEip1193Provider } from './permissionOnChainStatus.js';
+import { GatorPermissionsSnapRpcMethod } from './types.js';
 import type {
   StoredGatorPermission,
   PermissionInfoWithMetadata,
@@ -54,8 +54,8 @@ import type {
   DelegationDetails,
   RevocationParams,
   PendingRevocationParams,
-} from './types';
-import { executeSnapRpc } from './utils';
+} from './types.js';
+import { executeSnapRpc } from './utils.js';
 
 // === GENERAL ===
 

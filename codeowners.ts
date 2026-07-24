@@ -160,6 +160,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'gas-fee-controller': {
     teams: ['@MetaMask/confirmations'],
+    initializationPath: 'gas-fee-controller',
   },
   'gator-permissions-controller': {
     teams: ['@MetaMask/delegation'],

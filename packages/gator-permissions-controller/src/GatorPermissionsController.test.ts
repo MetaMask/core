@@ -25,22 +25,22 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import { hexToBigInt, numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers.js';
 import {
   mockGatorPermissionsStorageEntriesFactory,
   mockNativeTokenStreamStorageEntry,
-} from '../tests/mocks';
-import { DELEGATION_FRAMEWORK_VERSION } from './constants';
-import { GatorPermissionsFetchError } from './errors';
-import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
-import { GatorPermissionsController } from './GatorPermissionsController';
+} from '../tests/mocks.js';
+import { DELEGATION_FRAMEWORK_VERSION } from './constants.js';
+import { GatorPermissionsFetchError } from './errors.js';
+import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController.js';
+import { GatorPermissionsController } from './GatorPermissionsController.js';
 import type {
   PermissionInfoWithMetadata,
   GatorPermissionStatus,
   StoredGatorPermission,
   RevocationParams,
   SupportedPermissionType,
-} from './types';
+} from './types.js';
 
 const PERMISSION_STATUSES: GatorPermissionStatus[] = [
   'Active',

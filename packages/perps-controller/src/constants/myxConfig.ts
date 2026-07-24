@@ -12,7 +12,7 @@ import type {
   MYXNetwork,
   MYXEndpoints,
   MYXAssetConfigs,
-} from '../types/myx-types';
+} from '../types/myx-types.js';
 
 // ============================================================================
 // Network Constants

@@ -15,16 +15,16 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import { Mutex } from 'async-mutex';
 
-import { projectLogger, createModuleLogger } from '../../logger';
+import { projectLogger, createModuleLogger } from '../../logger.js';
+import type { BackendWebSocketServiceMethodActions } from '../BackendWebSocketService-method-action-types.js';
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
   ServerNotificationMessage,
-} from '../BackendWebSocketService';
-import { WebSocketState } from '../BackendWebSocketService';
-import type { BackendWebSocketServiceMethodActions } from '../BackendWebSocketService-method-action-types';
-import type { OHLCVServiceMethodActions } from './OHLCVService-method-action-types';
-import type { OHLCVBar, OHLCVSubscriptionOptions } from './types';
+} from '../BackendWebSocketService.js';
+import { WebSocketState } from '../BackendWebSocketService.js';
+import type { OHLCVServiceMethodActions } from './OHLCVService-method-action-types.js';
+import type { OHLCVBar, OHLCVSubscriptionOptions } from './types.js';
 
 // =============================================================================
 // Constants

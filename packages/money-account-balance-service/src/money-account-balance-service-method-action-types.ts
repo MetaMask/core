@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MoneyAccountBalanceService } from './money-account-balance-service';
+import type { MoneyAccountBalanceService } from './money-account-balance-service.js';
 
 /**
  * Fetches the canonical Money account balance, selecting the Money API or

@@ -1,5 +1,5 @@
-import type { PushAnalyticsPayload } from '../types';
-import { toPushAnalyticsPayload } from './to-push-analytics-payload';
+import type { PushAnalyticsPayload } from '../types/index.js';
+import { toPushAnalyticsPayload } from './to-push-analytics-payload.js';
 
 const mockFcmData = {
   notification_id: 'test-notification-id',

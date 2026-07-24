@@ -4,16 +4,16 @@ import type { PublishHookResult } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../constants';
-import { projectLogger } from '../logger';
+import { TransactionPayStrategy } from '../constants.js';
+import { projectLogger } from '../logger.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../types';
-import { accountSupports7702 } from '../utils/7702';
-import { prefixError } from '../utils/error-prefix';
-import { getStrategyByName } from '../utils/strategy';
-import { updateTransaction } from '../utils/transaction';
+} from '../types.js';
+import { accountSupports7702 } from '../utils/7702.js';
+import { prefixError } from '../utils/error-prefix.js';
+import { getStrategyByName } from '../utils/strategy.js';
+import { updateTransaction } from '../utils/transaction.js';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 const ERROR_PREFIX = 'MetaMask Pay: ';

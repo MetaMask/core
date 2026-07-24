@@ -1,6 +1,6 @@
 import { parseCaipAssetType } from '@metamask/utils';
 
-import type { Caip19AssetId, ChainId } from '../types';
+import type { Caip19AssetId, ChainId } from '../types.js';
 
 /**
  * Inputs needed to decide whether `RpcDataSource` should run a supplemental

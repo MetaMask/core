@@ -5,7 +5,7 @@ import {
 } from '@metamask/delegation-deployments';
 import { getChecksumAddress } from '@metamask/utils';
 
-import { createPermissionDecodersForContracts } from '.';
+import { createPermissionDecodersForContracts } from './index.js';
 
 describe('erc20-token-revocation decoder', () => {
   const chainId = CHAIN_ID.sepolia;

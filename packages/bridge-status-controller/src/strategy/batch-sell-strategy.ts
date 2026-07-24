@@ -4,7 +4,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
-import { QuoteAndTxMetadata } from '../types';
+import { QuoteAndTxMetadata } from '../types.js';
 import {
   findAllTransactionsInBatch,
   getAddTransactionBatchParams,
@@ -13,9 +13,9 @@ import {
   isTradeTx,
   shouldDisable7702,
   toQuoteAndTxMetadataBatch,
-} from '../utils/transaction';
-import { SubmitStep } from './types';
-import type { SubmitStrategyParams, SubmitStepResult } from './types';
+} from '../utils/transaction.js';
+import { SubmitStep } from './types.js';
+import type { SubmitStrategyParams, SubmitStepResult } from './types.js';
 
 const getHistoryKeyForQuote = ({
   quoteResponse: { quoteId, quote },

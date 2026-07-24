@@ -2,7 +2,7 @@ import {
   formatAddressToAssetId,
   formatChainIdToCaip,
   getNativeAsset,
-} from './caip';
+} from './caip.js';
 
 describe('caip helpers', () => {
   describe('formatChainIdToCaip', () => {

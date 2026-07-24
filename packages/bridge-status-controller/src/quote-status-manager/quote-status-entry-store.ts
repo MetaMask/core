@@ -1,10 +1,10 @@
-import { QuoteStatusState } from './constants';
-import { QuoteStatusStateFsm } from './quote-status-state-fsm';
+import { QuoteStatusState } from './constants.js';
+import { QuoteStatusStateFsm } from './quote-status-state-fsm.js';
 import {
   QuoteStatusEntryStoreOptions,
   QuoteStatusPersistEntry,
   QuoteStatusRuntimeEntry,
-} from './types';
+} from './types.js';
 
 /**
  * In-memory store for quote status update entries.

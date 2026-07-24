@@ -5,7 +5,7 @@ import type { Hex } from '@metamask/utils';
 import type {
   ChecksumEnforcersByChainId,
   DeployedContractsByName,
-} from './types';
+} from './types.js';
 
 /**
  * The names of the enforcer contracts for each permission type.

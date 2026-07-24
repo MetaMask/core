@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NetworkEnablementController } from './NetworkEnablementController';
+import type { NetworkEnablementController } from './NetworkEnablementController.js';
 
 /**
  * Enables or disables a network for the user.
@@ -140,8 +140,8 @@ export type NetworkEnablementControllerIsNetworkEnabledAction = {
 
 /**
  * Returns popular EVM network chain IDs in hex form, restricted to networks
- * that exist in NetworkController (networkConfigurationsByChainId). Source list
- * is POPULAR_NETWORKS.
+ * that exist in NetworkController (networkConfigurationsByChainId). Source is
+ * the bundled `POPULAR_NETWORKS` unioned with registry-featured EVM chains.
  *
  * @returns Hex chain IDs for popular EVM networks that are configured.
  */

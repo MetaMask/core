@@ -22,7 +22,7 @@ export type {
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionControllerMessenger,
   TransactionControllerOptions,
-} from './TransactionController';
+} from './TransactionController.js';
 export type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
@@ -56,12 +56,12 @@ export type {
   TransactionControllerUpdatePreviousGasParamsAction,
   TransactionControllerUpdateSelectedGasFeeTokenAction,
   TransactionControllerUpdateRequiredTransactionIdsAction,
-} from './TransactionController-method-action-types';
+} from './TransactionController-method-action-types.js';
 export {
   CANCEL_RATE,
   SPEED_UP_RATE,
   TransactionController,
-} from './TransactionController';
+} from './TransactionController.js';
 export type {
   AddTransactionOptions,
   AfterAddHook,
@@ -115,7 +115,7 @@ export type {
   TransactionParams,
   TransactionReceipt,
   ValidateSecurityRequest,
-} from './types';
+} from './types.js';
 export {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
@@ -127,22 +127,22 @@ export {
   TransactionType,
   UserFeeLevel,
   WalletDevice,
-} from './types';
-export { mergeGasFeeEstimates } from './utils/gas-flow';
+} from './types.js';
+export { mergeGasFeeEstimates } from './utils/gas-flow.js';
 export {
   decodeAuthorizationSignature,
   generateEIP7702BatchTransaction,
-} from './utils/eip7702';
+} from './utils/eip7702.js';
 export {
   isEIP1559Transaction,
   normalizeTransactionParams,
-} from './utils/utils';
-export { hasTransactionType } from './utils/transaction-type';
-export { CHAIN_IDS } from './constants';
-export { HARDFORK } from './utils/prepare';
-export { getAccountAddressRelationship } from './api/accounts-api';
+} from './utils/utils.js';
+export { hasTransactionType } from './utils/transaction-type.js';
+export { CHAIN_IDS } from './constants.js';
+export { HARDFORK } from './utils/prepare.js';
+export { getAccountAddressRelationship } from './api/accounts-api.js';
 export type {
   GetAccountAddressRelationshipRequest,
   AccountAddressRelationshipResult,
-} from './api/accounts-api';
-export { generateBatchId } from './utils/batch';
+} from './api/accounts-api.js';
+export { generateBatchId } from './utils/batch.js';

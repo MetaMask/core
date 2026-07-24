@@ -2,6 +2,7 @@ export { accountsController } from './accounts-controller/accounts-controller.js
 export { addressBookController } from './address-book-controller/address-book-controller.js';
 export { approvalController } from './approval-controller/approval-controller.js';
 export { connectivityController } from './connectivity-controller/connectivity-controller.js';
+export { gasFeeController } from './gas-fee-controller/gas-fee-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
 export { networkController } from './network-controller/network-controller.js';
 export { passkeyController } from './passkey-controller/passkey-controller.js';

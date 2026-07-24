@@ -1,6 +1,6 @@
-import { EXECUTION_PERMISSION_EXPIRY_RULE_TYPE } from '../../constants';
-import type { RuleDecoder } from '../types';
-import { extractExpiryFromCaveatTerms, getTermsByEnforcer } from '../utils';
+import { EXECUTION_PERMISSION_EXPIRY_RULE_TYPE } from '../../constants.js';
+import type { RuleDecoder } from '../types.js';
+import { extractExpiryFromCaveatTerms, getTermsByEnforcer } from '../utils.js';
 
 /**
  * Rule decoder that extracts the expiry timestamp from a TimestampEnforcer

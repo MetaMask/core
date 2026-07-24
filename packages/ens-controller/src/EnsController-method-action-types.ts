@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { EnsController } from './EnsController';
+import type { EnsController } from './EnsController.js';
 
 /**
  * Clears ensResolutionsByAddress state property.

@@ -33,6 +33,7 @@ import type {
   RampsControllerGetQuotesAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
 import type {
   AuthorizationList,
   TransactionControllerAddTransactionBatchAction,
@@ -57,8 +58,8 @@ import type {
   CONTROLLER_NAME,
   PaymentOverride,
   TransactionPayStrategy,
-} from './constants';
-import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
+} from './constants.js';
+import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
@@ -76,6 +77,7 @@ export type AllowedActions =
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
   | TokensControllerGetStateAction
+  | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerEstimateGasAction
@@ -339,6 +341,9 @@ export type TransactionData = {
   /** Quotes retrieved for the transaction. */
   quotes?: TransactionPayQuote<Json>[];
 
+  /** Most relevant structured validation error from the latest quote attempt. */
+  quoteError?: QuoteErrorInfo;
+
   /** Timestamp of when quotes were last updated. */
   quotesLastUpdated?: number;
 
@@ -434,6 +439,36 @@ export type TransactionPaySourceAmount = {
 
   /** Address of the target token. */
   targetTokenAddress: Hex;
+};
+
+/**
+ * Machine-readable discriminator for a quote validation failure.
+ *
+ * Used for analytics and tests. Human-readable copy is carried by `message`
+ * and `detail` on {@link QuoteErrorInfo}.
+ */
+export type QuoteErrorReason =
+  | 'balance-unavailable'
+  | 'insufficient-source-balance'
+  | 'insufficient-transfer-balance'
+  | 'no-quotes'
+  | 'simulation-failed';
+
+/**
+ * Structured description of why a quote failed validation.
+ *
+ * `message` and `detail` are formatted (English) copy ready to display; `reason`
+ * is a machine-readable discriminator for analytics and tests.
+ */
+export type QuoteErrorInfo = {
+  /** Short, display-ready summary of the failure. */
+  message: string;
+
+  /** Machine-readable discriminator for the failure. */
+  reason: QuoteErrorReason;
+
+  /** Optional display-ready detail rows (e.g. Required / Current / Missing). */
+  detail?: string[];
 };
 
 /** Source token used to pay for required tokens. */

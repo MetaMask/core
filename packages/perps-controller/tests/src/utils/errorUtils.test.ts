@@ -2,7 +2,7 @@ import {
   isAbortError,
   ensureError,
   isKeyringLockedError,
-} from '../../../src/utils/errorUtils';
+} from '../../../src/utils/errorUtils.js';
 
 describe('errorUtils', () => {
   describe('isAbortError', () => {

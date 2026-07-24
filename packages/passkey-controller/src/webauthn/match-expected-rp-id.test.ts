@@ -1,6 +1,6 @@
 import { sha256 } from '@noble/hashes/sha2';
 
-import { matchExpectedRPID } from './match-expected-rp-id';
+import { matchExpectedRPID } from './match-expected-rp-id.js';
 
 describe('matchExpectedRPID', () => {
   it('throws when no RP ID matches', () => {

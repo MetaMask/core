@@ -42,8 +42,8 @@ import {
   assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidPassword,
   assertIsValidVaultData,
-} from './assertions';
-import type { AuthConnection } from './constants';
+} from './assertions.js';
+import type { AuthConnection } from './constants.js';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
@@ -51,16 +51,16 @@ import {
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   Web3AuthNetwork,
-} from './constants';
+} from './constants.js';
 import {
   InvalidPrimarySecretDataTypeError,
   PasswordSyncError,
   RecoveryError,
   SeedlessOnboardingError,
-} from './errors';
-import { projectLogger, createModuleLogger } from './logger';
-import { SecretMetadata } from './SecretMetadata';
-import type { SeedlessOnboardingControllerMethodActions } from './SeedlessOnboardingController-method-action-types';
+} from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import { SecretMetadata } from './SecretMetadata.js';
+import type { SeedlessOnboardingControllerMethodActions } from './SeedlessOnboardingController-method-action-types.js';
 import type {
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
@@ -72,14 +72,14 @@ import type {
   VaultData,
   DeserializedVaultData,
   ToprfKeyDeriver,
-} from './types';
+} from './types.js';
 import {
   compareAndGetLatestToken,
   decodeJWTToken,
   decodeNodeAuthToken,
   deserializeVaultData,
   serializeVaultData,
-} from './utils';
+} from './utils.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
 

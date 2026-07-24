@@ -15,6 +15,11 @@ const config: KnipConfig = {
       // which knip can't resolve to an actual file even though `ts-jest` is
       // listed in `devDependencies`.
       ignoreUnresolved: ['ts-jest/jest-preset'],
+      // `bats` (used to run the shell script tests) ships a non-standard `bin`
+      // field, so it has no `.bin` shim and is invoked by path. knip can't tie
+      // that invocation back to the dependency, so both are declared here.
+      ignoreBinaries: ['bats/bin/bats'],
+      ignoreDependencies: ['bats'],
     },
     'packages/perps-controller': {
       ignoreDependencies: ['@metamask/accounts-controller'],

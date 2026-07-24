@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ChompApiService } from './chomp-api-service';
+import type { ChompApiService } from './chomp-api-service.js';
 
 /**
  * Associates an address with a CHOMP profile.
