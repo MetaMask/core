@@ -1,9 +1,9 @@
 import { distance } from 'fastest-levenshtein';
 
-import { matchedPathPrefix } from './PathTrie';
-import type { PathTrie } from './PathTrie';
-import { PhishingDetectorResultType } from './types';
-import type { PhishingDetectorResult } from './types';
+import { matchedPathPrefix } from './PathTrie.js';
+import type { PathTrie } from './PathTrie.js';
+import { PhishingDetectorResultType } from './types.js';
+import type { PhishingDetectorResult } from './types.js';
 import {
   domainPartsToDomain,
   domainPartsToFuzzyForm,
@@ -14,7 +14,7 @@ import {
   matchPartsAgainstList,
   processConfigs,
   sha256Hash,
-} from './utils';
+} from './utils.js';
 
 export type LegacyPhishingDetectorList = {
   whitelist?: string[];

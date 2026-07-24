@@ -1,26 +1,26 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
-import { deleteFromTrie, insertToTrie, deepCopyPathTrie } from './PathTrie';
-import type { Hotlist, PhishingListState } from './PhishingController';
-import { ListKeys, phishingListKeyNameMap } from './PhishingController';
+import { deleteFromTrie, insertToTrie, deepCopyPathTrie } from './PathTrie.js';
+import type { Hotlist, PhishingListState } from './PhishingController.js';
+import { ListKeys, phishingListKeyNameMap } from './PhishingController.js';
 import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
-} from './PhishingDetector';
+} from './PhishingDetector.js';
 import {
   ADDRESS_SCAN_SUPPORTED_CHAINS,
   APPROVAL_SUPPORTED_CHAINS,
   DEFAULT_CHAIN_ID_TO_NAME,
   TOKEN_SCAN_SUPPORTED_CHAINS,
-} from './types';
+} from './types.js';
 import type {
   AddressScanSupportedChain,
   ApprovalSupportedChain,
   TokenScanCacheData,
   TokenScanResult,
   TokenScanSupportedChain,
-} from './types';
+} from './types.js';
 
 const DEFAULT_TOLERANCE = 3;
 

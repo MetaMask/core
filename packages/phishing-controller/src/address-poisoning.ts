@@ -1,6 +1,6 @@
 import { isValidHexAddress } from '@metamask/controller-utils';
 
-import type { SimilarAddressMatch, SimilarityOptions } from './types';
+import type { SimilarAddressMatch, SimilarityOptions } from './types.js';
 
 const DEFAULT_PREFIX_LEN = 4;
 const DEFAULT_SUFFIX_LEN = 4;
