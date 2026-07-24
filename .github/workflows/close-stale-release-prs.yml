@@ -70,7 +70,29 @@ jobs:
               return;
             }
 
-            for (const pr of releasePrs) {
+            for (const candidate of releasePrs) {
+              // Re-fetch before acting: the initial list is a snapshot and the
+              // PR may have merged/closed (or become active) since then.
+              const { data: pr } = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: candidate.number,
+              });
+
+              if (pr.state !== 'open') {
+                core.info(
+                  `Skipping #${pr.number} (${pr.head.ref}): no longer open`,
+                );
+                continue;
+              }
+
+              if (pr.labels.some((label) => label.name === exemptLabel)) {
+                core.info(
+                  `Skipping #${pr.number} (${pr.head.ref}): exempt label "${exemptLabel}"`,
+                );
+                continue;
+              }
+
               const ageMs = now - Date.parse(pr.updated_at);
               if (ageMs < staleMs) {
                 core.info(
@@ -118,19 +140,34 @@ jobs:
                 '<!-- stale-release-pr-comment -->',
               ].join('\n');
 
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: pr.number,
-                body,
-              });
+              // Close before commenting so a failed close does not bump
+              // updated_at and postpone the next stale attempt.
+              try {
+                await github.rest.pulls.update({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  state: 'closed',
+                });
+              } catch (error) {
+                core.warning(
+                  `Failed to close #${pr.number} (${pr.head.ref}): ${error.message}`,
+                );
+                continue;
+              }
 
-              await github.rest.pulls.update({
-                owner,
-                repo,
-                pull_number: pr.number,
-                state: 'closed',
-              });
+              try {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  body,
+                });
+              } catch (error) {
+                core.warning(
+                  `Closed #${pr.number} but failed to comment: ${error.message}`,
+                );
+              }
 
               try {
                 await github.rest.git.deleteRef({
