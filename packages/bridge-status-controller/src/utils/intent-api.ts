@@ -3,7 +3,7 @@ import {
   ChainId,
   getClientHeaders,
   Intent,
-  QuoteResponse,
+  QuoteResponseV1,
   StatusTypes,
 } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
@@ -150,7 +150,7 @@ export function mapIntentOrderStatusToTransactionStatus(
  * @returns The intent data from the quote
  * @throws Error if the quote does not contain intent data
  */
-export function getIntentFromQuote(quoteResponse: QuoteResponse): Intent {
+export function getIntentFromQuote(quoteResponse: QuoteResponseV1): Intent {
   const { intent } = quoteResponse.quote;
   if (!intent) {
     throw new Error('submitIntent: missing intent data');

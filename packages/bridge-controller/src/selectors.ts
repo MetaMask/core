@@ -19,7 +19,11 @@ import {
 } from 'reselect';
 
 import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge.js';
-import type { BridgeControllerState, ExchangeRate } from './types.js';
+import type {
+  BridgeControllerState,
+  DeepPartial,
+  ExchangeRate,
+} from './types.js';
 import { RequestStatus, SortOrder } from './types.js';
 import {
   getNativeAssetForChainId,
@@ -33,15 +37,13 @@ import {
   formatChainIdToHex,
 } from './utils/caip-formatters.js';
 import { processFeatureFlags } from './utils/feature-flags.js';
+import { sumAmounts } from './utils/number-formatters.js';
 import { calcBatchFees } from './utils/quote-metadata/calculators.js';
 import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
-import type {
-  QuoteMetadata,
-  TokenAmountValues,
-} from './utils/quote-metadata/types.js';
+import type { QuoteMetadata } from './utils/quote-metadata/types.js';
 import { getDefaultSlippagePercentage } from './utils/slippage.js';
-import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
 
 /**
  * The controller states that provide exchange rates
@@ -95,7 +97,7 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
  */
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
-  selectedQuote: (QuoteResponseV1 & QuoteMetadata) | null;
+  selectedQuote: (QuoteResponse & QuoteMetadata) | null;
 };
 
 type EvmTokenExchangeRate = { price?: number; currency?: string };
@@ -290,7 +292,7 @@ export const selectIsAssetExchangeRateInState = (
 const selectBridgeFeesPerGas = createBridgeSelector(
   [
     (state) => state.gasFeeEstimatesByChainId,
-    (state) => state.quotes?.[0]?.quote.srcChainId,
+    (state) => state.quotes?.[0]?.chainId,
   ],
   (gasFeeEstimatesByChainId, srcChainId) => {
     if (!srcChainId) {
@@ -338,20 +340,19 @@ const selectMetadata = createBridgeSelector(
       calcQuoteMetadata(quote, {
         srcTokenExchangeRate: selectExchangeRateByAssetId(
           exchangeRateSources,
-          quote.quote.srcAsset.assetId,
+          quote.quote.src.asset.assetId,
         ),
         bridgeFeesPerGas,
         destTokenExchangeRate: selectExchangeRateByAssetId(
           exchangeRateSources,
           formatAddressToAssetId(
-            destTokenAddress ?? quote.quote.destAsset.assetId,
+            destTokenAddress ?? quote.quote.dest.asset.assetId,
             destChainId,
           ),
         ),
         nativeExchangeRate: selectExchangeRateByAssetId(
           exchangeRateSources,
-          getNativeAssetForChainId(srcChainId ?? quote.quote.srcChainId)
-            ?.assetId,
+          getNativeAssetForChainId(srcChainId ?? quote.chainId)?.assetId,
         ),
       }),
     );
@@ -372,7 +373,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
     selectBridgeQuotesWithMetadata,
     (_, { sortOrder }: BridgeQuotesClientParams) => sortOrder,
   ],
-  (quotesWithMetadata, sortOrder): (QuoteResponseV1 & QuoteMetadata)[] => {
+  (quotesWithMetadata, sortOrder): (QuoteResponse & QuoteMetadata)[] => {
     switch (sortOrder) {
       case SortOrder.ETA_ASC:
         return orderBy(
@@ -381,27 +382,32 @@ const selectSortedBridgeQuotes = createBridgeSelector(
           'asc',
         );
       default:
-        if (quotesWithMetadata.every((quote) => quote?.cost?.valueInCurrency)) {
+        if (
+          quotesWithMetadata.every(
+            (quote) => quote.quote.priceData?.priceImpact?.valueInCurrency,
+          )
+        ) {
           return orderBy(
             quotesWithMetadata,
-            ({ cost }) => Number(cost?.valueInCurrency),
+            ({ quote: { priceData } }) =>
+              Number(priceData?.priceImpact?.valueInCurrency),
             'asc',
           );
         }
         if (
           quotesWithMetadata.every(
-            (quote) => quote.quote.priceData?.priceImpact,
+            (quote) => quote.quote.priceData?.priceImpact?.amount,
           )
         ) {
           return orderBy(
             quotesWithMetadata,
-            ({ quote }) => Number(quote.priceData?.priceImpact),
+            ({ quote }) => Number(quote.priceData?.priceImpact?.amount),
             'asc',
           );
         }
         return orderBy(
           quotesWithMetadata,
-          ({ quote }) => Number(quote.destTokenAmount),
+          ({ quote }) => Number(quote.dest.amount),
           'desc',
         );
     }
@@ -417,12 +423,11 @@ const selectActiveQuote = createBridgeSelector(
   [
     selectRecommendedQuote,
     selectSortedBridgeQuotes,
-    (_, { selectedQuote }) => selectedQuote,
+    (_, { selectedQuote }) => selectedQuote?.quote.requestId,
   ],
-  (recommendedQuote, sortedQuotes, selectedQuote) =>
-    sortedQuotes.find(
-      (quote) => quote.quote.requestId === selectedQuote?.quote.requestId,
-    ) ?? recommendedQuote,
+  (recommendedQuote, sortedQuotes, requestId) =>
+    sortedQuotes.find((quote) => quote.quote.requestId === requestId) ??
+    recommendedQuote,
 );
 
 const selectIsQuoteGoingToRefresh = createBridgeSelector(
@@ -503,35 +508,38 @@ const selectRecommendedQuotes = createBridgeSelector(
       const requestIndex = quote.quoteRequestIndex ?? 0;
       acc[requestIndex] ??= quote;
       return acc;
-    }, Array<(QuoteResponseV1 & QuoteMetadata) | null>(requestCount).fill(null)),
+    }, Array<QuoteResponse | null>(requestCount).fill(null)),
+);
+const selectDestAmountSum = createBridgeSelector(
+  [selectRecommendedQuotes],
+  (recommendedQuotes) => {
+    return sumAmounts(recommendedQuotes.map((quote) => quote?.quote.dest));
+  },
 );
 
-const selectMetadataSum = createBridgeSelector(
-  [
-    selectRecommendedQuotes,
-    (
-      _,
-      {
-        key,
-      }: { key: 'totalNetworkFee' | 'minToTokenAmount' | 'toTokenAmount' },
-    ) => key,
-  ],
-  (recommendedQuotes, key) =>
-    recommendedQuotes.reduce<TokenAmountValues>(
-      (acc, quote) => {
-        acc.usd = new BigNumber(acc.usd)
-          .plus(quote?.[key]?.usd ?? 0)
-          .toString();
-        acc.valueInCurrency = new BigNumber(acc.valueInCurrency)
-          .plus(quote?.[key]?.valueInCurrency ?? 0)
-          .toString();
-        acc.amount = new BigNumber(acc.amount)
-          .plus(quote?.[key]?.amount ?? 0)
-          .toString();
-        return acc;
-      },
-      { usd: '0', valueInCurrency: '0', amount: '0' },
-    ),
+const selectMinDestAmountSum = createBridgeSelector(
+  [selectDestAmountSum],
+  (destAmountSum): DeepPartial<QuoteResponse['quote']['dest']> | undefined => {
+    if (!destAmountSum) {
+      return undefined;
+    }
+
+    const {
+      minAmount,
+      minAmountNormalized,
+      minAmountValueInCurrency,
+      minAmountUsd,
+      asset,
+    } = destAmountSum;
+
+    return {
+      amount: minAmount,
+      normalizedAmount: minAmountNormalized,
+      valueInCurrency: minAmountValueInCurrency,
+      usd: minAmountUsd,
+      asset,
+    };
+  },
 );
 
 /**
@@ -556,10 +564,8 @@ const selectMetadataSum = createBridgeSelector(
  */
 export const selectBatchSellQuotes = createStructuredBridgeSelector({
   recommendedQuotes: selectRecommendedQuotes,
-  totalReceived: (state, opts) =>
-    selectMetadataSum(state, { ...opts, key: 'toTokenAmount' }),
-  minimumReceived: (state, opts) =>
-    selectMetadataSum(state, { ...opts, key: 'minToTokenAmount' }),
+  totalReceived: selectDestAmountSum,
+  minimumReceived: selectMinDestAmountSum,
   quotesLastFetchedMs: (state) => state.quotesLastFetched,
   isLoading: (state) => state.quotesLoadingStatus === RequestStatus.LOADING,
   quoteFetchError: (state) => state.quoteFetchError,

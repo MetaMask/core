@@ -32,7 +32,6 @@ import type { BridgeController } from './bridge-controller.js';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge.js';
 import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell.js';
 import type { BatchSellTradesResponseSchema } from './validators/batch-sell.js';
-import type { BridgeAssetSchema } from './validators/bridge-asset.js';
 import type {
   ChainConfigurationSchema,
   ChainRankingSchema,
@@ -40,6 +39,7 @@ import type {
 } from './validators/feature-flags.js';
 import type { IntentSchema } from './validators/intent.js';
 import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
 import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete.js';
 import type { TxFeeGasLimitsSchema } from './validators/quote.js';
 import type { FeeDataSchema } from './validators/quote.js';
@@ -102,12 +102,6 @@ export enum SortOrder {
   COST_ASC = 'cost_ascending',
   ETA_ASC = 'time_descending',
 }
-
-/**
- * This is the interface for the asset object returned by the bridge-api
- * This type is used in the QuoteResponse and in the fetchBridgeTokens response
- */
-export type BridgeAsset = Infer<typeof BridgeAssetSchema>;
 
 /**
  * This is the interface for the token object used in the extension client
@@ -271,7 +265,7 @@ export enum RequestStatus {
 
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>[];
-  quotes: (QuoteResponseV1 & L1GasFees & NonEvmFees)[];
+  quotes: QuoteResponse[];
   /**
    * The time elapsed between the initial quote fetch and when the first valid quote was received
    */

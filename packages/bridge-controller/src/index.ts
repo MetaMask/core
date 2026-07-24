@@ -43,7 +43,6 @@ export type {
   NonEvmFees,
   GasMultiplierByChainId,
   FeatureFlagResponse,
-  BridgeAsset,
   GenericQuoteRequest,
   BatchSellTradesResponse,
   GaslessProperties,
@@ -75,6 +74,7 @@ export {
 export {
   validateQuoteResponseV1,
   QuoteResponseSchemaV1,
+  type QuoteResponseV1,
 } from './validators/quote-response-v1.js';
 export { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 
@@ -114,24 +114,39 @@ export {
   isEvmTxData,
   isStellarTrade,
 } from './validators/trade.js';
-export type {
-  QuoteResponseV1 as QuoteResponse,
-  QuoteResponseV1,
-} from './validators/quote-response-v1.js';
+export type { QuoteResponse } from './validators/quote-response.js';
 export type { Quote } from './validators/quote.js';
 export { FeeType, DiscountType } from './validators/quote.js';
 export { ActionTypes } from './validators/step.js';
+export { toQuoteResponseV1 } from './coercers/quote-response-v2-to-v1.js';
+export { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
+
+export { sumAmounts } from './utils/number-formatters.js';
+export { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.js';
+export { toQuoteMetadataV2 } from './utils/quote-metadata/to-quote-metadata-v2.js';
+
 export {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
 } from './validators/quote-stream-complete.js';
 export { BatchSellTransactionType } from './validators/batch-sell.js';
+export { type AmountsAndAssetSchema } from './validators/amount-and-asset.js';
 export { TokenFeatureType } from './validators/token-feature.js';
+export type {
+  BridgeAsset,
+  BridgeAssetV2,
+  MinimalAsset,
+} from './validators/bridge-asset.js';
 export {
   BridgeAssetSchema,
   validateBridgeAsset,
+  validateBridgeAssetV2,
+  MinimalAssetSchema,
+  BridgeAssetV2Schema,
+  BridgeAssetSecurityDataType,
 } from './validators/bridge-asset.js';
 export { FeatureId } from './validators/feature-flags.js';
+export { toBridgeAssetV2 } from './coercers/quote-response-v1-to-v2.js';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,

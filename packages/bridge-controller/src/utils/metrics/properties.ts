@@ -5,14 +5,12 @@ import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge.js';
 import { ChainId } from '../../types.js';
 import type { GenericQuoteRequest, QuoteRequest } from '../../types.js';
 import { FeatureId } from '../../validators/feature-flags.js';
-import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
-import type { TxData } from '../../validators/trade.js';
+import type { QuoteResponse } from '../../validators/quote-response.js';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge.js';
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
 } from '../caip-formatters.js';
-import type { QuoteMetadata } from '../quote-metadata/types.js';
 import { MetricsSwapType } from './constants.js';
 import type {
   AccountHardwareType,
@@ -72,17 +70,24 @@ export const getSwapTypeFromQuote = (
 };
 
 export const formatProviderLabel = ({
-  bridgeId,
+  aggregator,
+  protocols,
   bridges,
-}: QuoteResponseV1<TxData | string>['quote']): `${string}_${string}` =>
-  `${bridgeId}_${bridges[0]}`;
+  bridgeId,
+}: {
+  aggregator?: string;
+  protocols?: string[];
+  bridges?: string[];
+  bridgeId?: string;
+}): `${string}_${string}` =>
+  `${aggregator ?? bridgeId}_${protocols?.[0] ?? bridges?.[0]}`;
 
 /**
  * @param quoteRequest - The current quote request used to derive chain and token identity fields.
  * @param quoteRequest.srcChainId - Source chain id of the quote request.
  * @param quoteRequest.destChainId - Destination chain id of the quote request.
  * @param quoteRequest.srcTokenAddress - Source token address of the quote request.
- * @param quoteRequest.destTokenAddress - Destination token address of the quote request.
+ * @param quoteRequest.destTokenAddress - Destination  token address of the quote request.
  * @param tokenSecurityTypeDestination - The security classification of the destination token,
  * supplied by the client (e.g. from token security/scanning data). Pass `null` when no
  * security data is available for the selected destination token.
@@ -155,10 +160,10 @@ export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
 };
 
 export const getQuotesReceivedProperties = (
-  activeQuote: null | (QuoteResponseV1 & QuoteMetadata),
+  activeQuote: null | QuoteResponse,
   warnings: QuoteWarning[] = [],
   isSubmittable: boolean = true,
-  recommendedQuote?: null | (QuoteResponseV1 & QuoteMetadata),
+  recommendedQuote?: null | QuoteResponse,
   usdBalanceSource?: number,
   hasSufficientGasForQuote?: boolean | null,
 ) => {
@@ -170,17 +175,19 @@ export const getQuotesReceivedProperties = (
     quoted_time_minutes: activeQuote?.estimatedProcessingTimeInSeconds
       ? activeQuote.estimatedProcessingTimeInSeconds / 60
       : 0,
-    usd_quoted_gas: Number(activeQuote?.gasFee?.total?.usd ?? 0),
-    usd_quoted_return: Number(activeQuote?.toTokenAmount?.usd ?? 0),
+    usd_quoted_gas: Number(activeQuote?.quote?.feeData?.network?.[0]?.usd ?? 0),
+    usd_quoted_return: Number(activeQuote?.quote?.dest?.usd ?? 0),
     usd_balance_source: usdBalanceSource ?? 0,
     best_quote_provider: recommendedQuote
       ? formatProviderLabel(recommendedQuote.quote)
       : provider,
     provider,
-    token_symbol_source: activeQuote?.quote.srcAsset.symbol ?? '',
-    token_symbol_destination: activeQuote?.quote.destAsset.symbol ?? null,
+    token_symbol_source: activeQuote?.quote.src.asset.symbol ?? '',
+    token_symbol_destination: activeQuote?.quote.dest.asset.symbol ?? null,
     warnings,
-    price_impact: Number(activeQuote?.quote.priceData?.priceImpact ?? 0),
+    price_impact: Number(
+      activeQuote?.quote.priceData?.priceImpact?.amount ?? 0,
+    ),
     ...(hasSufficientGasForQuote !== undefined && {
       has_sufficient_gas_for_quote: hasSufficientGasForQuote,
     }),
