@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `prepareTransactionAmount` support to `updateAmount` for atomically applying complete transaction amount patches and publishing one quote update ([#9543](https://github.com/MetaMask/core/pull/9543))
+
 ### Changed
 
 - Bump `@metamask/ramps-controller` from `^17.0.0` to `^17.1.0` ([#9646](https://github.com/MetaMask/core/pull/9646))
@@ -44,14 +48,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [25.1.0]
 
+### Added
+
+- Add explicit `updateAmount` orchestration with complete-patch validation, in-flight intent deduplication, and synchronous coherent transaction updates before quote generation ([#9543](https://github.com/MetaMask/core/pull/9543))
+
 ### Changed
 
 - Consume `hasTransactionType` helper from `@metamask/transaction-controller` to derive relevant transaction type against the top-level `TransactionMeta` ([#9570](https://github.com/MetaMask/core/pull/9570))
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589))
 - Bump `@metamask/assets-controller` from `^11.0.0` to `^11.1.0` ([#9579](https://github.com/MetaMask/core/pull/9579))
-### Added
-
-- Add explicit `updateAmount` orchestration with complete-patch validation, in-flight intent deduplication, and synchronous coherent transaction updates before quote generation ([#9543](https://github.com/MetaMask/core/pull/9543))
 
 ## [25.0.0]
 

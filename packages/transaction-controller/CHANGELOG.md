@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `updateTransactionCallback` for applying coherent transaction metadata updates through the messenger ([#9543](https://github.com/MetaMask/core/pull/9543))
+- Export `updateEIP7702BatchData` for updating nested EIP-7702 batch calldata without mutating the input ([#9543](https://github.com/MetaMask/core/pull/9543))
+
 ### Changed
 
 - Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
@@ -25,13 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [69.1.0]
 
+### Added
+
+- Add `updateTransactionCallback` for atomic callback-based metadata updates and export `updateEIP7702BatchData` for synchronous indexed updates to nested transaction calldata ([#9543](https://github.com/MetaMask/core/pull/9543))
+
 ### Changed
 
 - Query layer 1 gas fee oracles via direct `eth_call` RPC requests instead of an ethers `Contract` backed by `Web3Provider` ([#9505](https://github.com/MetaMask/core/pull/9505))
   - `Web3Provider` schedules its JSON-RPC dispatch with `setTimeout`, which never fires on React Native iOS when the timer pump is starved, blocking `addTransaction` indefinitely and preventing dapp confirmations from appearing ([MetaMask/metamask-mobile#32863](https://github.com/MetaMask/metamask-mobile/issues/32863))
-### Added
-
-- Add `updateTransactionCallback` for atomic callback-based metadata updates and export `updateEIP7702BatchData` for synchronous indexed updates to nested transaction calldata ([#9543](https://github.com/MetaMask/core/pull/9543))
 
 ### Fixed
 
