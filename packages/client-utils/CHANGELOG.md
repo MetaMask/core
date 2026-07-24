@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: add `.js` import extensions to UX Teams packages ([#9621](https://github.com/MetaMask/core/pull/9621))
+
 ## [1.2.1]
 
 ### Changed
