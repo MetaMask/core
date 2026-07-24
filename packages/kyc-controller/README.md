@@ -22,7 +22,6 @@ This watches `src/**/*.ts` and re-runs the build on each change (it also perform
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
 
-
 ## Architecture
 
 `@metamask/kyc-controller` is a shared, **platform-agnostic** package that owns
@@ -47,13 +46,13 @@ This document explains:
 
 The package is built around a few deliberate constraints:
 
-| Principle | How it shows up in the code |
-| --- | --- |
-| **Vendor-neutral surface** | Consumers deal with `KycProduct` (`'ramps' \| 'card'`) and a phase machine, never with MoonPay/SumSub specifics. `KycVendor` is internal. |
-| **Platform-agnostic core** | No React, no `Buffer`/`atob`, no native SDK imports. Crypto uses `@noble/*` + `@scure/base`. WebView/iframe presentation and the SumSub SDK are **injected** by each client. |
-| **Controller owns orchestration; clients own presentation** | `KycController` owns all state, HTTP orchestration, crypto and the frame protocol. Clients only render frames, forward raw messages, and present the SumSub SDK. |
-| **Stateless service** | `KycService` performs HTTP only; it holds no state and derives auth/geolocation from other controllers via the messenger. |
-| **Everything through the messenger** | Both classes register their public methods as messenger actions, and reach external capabilities (auth token, geolocation) via delegated actions. |
+| Principle                                                   | How it shows up in the code                                                                                                                                                  |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Vendor-neutral surface**                                  | Consumers deal with `KycProduct` (`'ramps' \| 'card'`) and a phase machine, never with MoonPay/SumSub specifics. `KycVendor` is internal.                                    |
+| **Platform-agnostic core**                                  | No React, no `Buffer`/`atob`, no native SDK imports. Crypto uses `@noble/*` + `@scure/base`. WebView/iframe presentation and the SumSub SDK are **injected** by each client. |
+| **Controller owns orchestration; clients own presentation** | `KycController` owns all state, HTTP orchestration, crypto and the frame protocol. Clients only render frames, forward raw messages, and present the SumSub SDK.             |
+| **Stateless service**                                       | `KycService` performs HTTP only; it holds no state and derives auth/geolocation from other controllers via the messenger.                                                    |
+| **Everything through the messenger**                        | Both classes register their public methods as messenger actions, and reach external capabilities (auth token, geolocation) via delegated actions.                            |
 
 ---
 
@@ -150,14 +149,14 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 Endpoints:
 
-| Method | HTTP | Endpoint | Purpose |
-| --- | --- | --- | --- |
-| `getGeoCountry` | — | (geolocation action) | Resolve alpha-3 country |
-| `fetchDisclaimers` | `GET` | `/vendors/moonpay/disclaimers?country=` | Terms to accept |
-| `createSession` | `POST` | `/vendors/moonpay/sessions` | Create vendor session |
-| `checkKycRequired` | `POST` | `/vendors/moonpay/kyc-required` | Is KYC required? (normalizes `required` → `kycRequired`) |
-| `createUkycSession` | `POST` | `/sessions` | Start SumSub sub-flow |
-| `submitWrappedKey` | `POST` | `/sessions/{id}/wrapped-key` | Exchange wrapped key → applicant token |
+| Method              | HTTP   | Endpoint                                | Purpose                                                  |
+| ------------------- | ------ | --------------------------------------- | -------------------------------------------------------- |
+| `getGeoCountry`     | —      | (geolocation action)                    | Resolve alpha-3 country                                  |
+| `fetchDisclaimers`  | `GET`  | `/vendors/moonpay/disclaimers?country=` | Terms to accept                                          |
+| `createSession`     | `POST` | `/vendors/moonpay/sessions`             | Create vendor session                                    |
+| `checkKycRequired`  | `POST` | `/vendors/moonpay/kyc-required`         | Is KYC required? (normalizes `required` → `kycRequired`) |
+| `createUkycSession` | `POST` | `/sessions`                             | Start SumSub sub-flow                                    |
+| `submitWrappedKey`  | `POST` | `/sessions/{id}/wrapped-key`            | Exchange wrapped key → applicant token                   |
 
 ### 2.3 `crypto.ts`
 
@@ -242,7 +241,7 @@ stateDiagram-v2
 
     terms --> session : acceptTermsAndStartSession()
     session --> check : createSession() ok
-    session --> terms : createSession() fails (clears saved terms)
+    session --> terms : createSession() fails<br/>(clears saved terms, activeProduct + stale tokens)
 
     check --> form : Check frame → active (already authenticated)
     check --> auth : Check frame → connectionRequired (needs OTP)
@@ -269,19 +268,31 @@ stateDiagram-v2
 > sub-flow (see [§7](#7-sumsub-sub-flow)). When no product is set the flow stops
 > at `form` and the consumer drives `checkKycRequired` / `startSumSub` manually.
 
+> **`initialize` never tears down an active flow.** If `phase` is already one of
+> the in-progress phases (`session`, `check`, `auth`, `form`, `submit`), a
+> repeat `initialize` is a **no-op** — it will not create a new session, clear
+> tokens, or reset `activeProduct`. Call `reset()` first to start over.
+
+> **`reset()` is callable from any phase and supersedes in-flight work.** In
+> addition to returning `phase` to `idle` (and clearing tokens, `activeProduct`,
+> and the `sumsub` sub-tree), `reset()` bumps an internal flow generation so any
+> still-pending async step (geolocation, disclaimers, session creation, the
+> KYC-required check, or the SumSub sub-flow) discards its result instead of
+> writing it onto the now-idle controller.
+
 Phase meanings (from `types.ts`):
 
-| Phase | Meaning |
-| --- | --- |
-| `idle` | Nothing started. |
-| `terms` | Waiting for the customer to accept vendor terms. |
-| `session` | Creating the vendor session. |
-| `check` | Running the **invisible** connection-check frame. |
-| `auth` | Running the **visible** authentication (email OTP) frame. |
-| `form` | Authenticated. Auto-runs the KYC-required check when a product is set; otherwise waits for the consumer. |
-| `submit` | Submitting the KYC-required check. |
-| `done` | Complete — see `kycRequiredByProduct` / `sumsub`. Document verification auto-launches when KYC is required. |
-| `error` | Halted — see `error`. |
+| Phase     | Meaning                                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------------------------- |
+| `idle`    | Nothing started.                                                                                            |
+| `terms`   | Waiting for the customer to accept vendor terms.                                                            |
+| `session` | Creating the vendor session.                                                                                |
+| `check`   | Running the **invisible** connection-check frame.                                                           |
+| `auth`    | Running the **visible** authentication (email OTP) frame.                                                   |
+| `form`    | Authenticated. Auto-runs the KYC-required check when a product is set; otherwise waits for the consumer.    |
+| `submit`  | Submitting the KYC-required check.                                                                          |
+| `done`    | Complete — see `kycRequiredByProduct` / `sumsub`. Document verification auto-launches when KYC is required. |
+| `error`   | Halted — see `error`.                                                                                       |
 
 ---
 
@@ -381,11 +392,21 @@ sequenceDiagram
 
     Frame->>UI: { kind:"complete", meta:{channelId},<br/>payload:{ status, credentials, customer } }
     UI->>Ctrl: handleFrameMessage({ message })
-    Note over Ctrl: 1. store customer.id (moonpayCustomerId)<br/>2. decryptCredentials(envelope, privKey)<br/>3. route by channelId (ch_1 Check / ch_2 Auth)
+    Note over Ctrl: 1. phase guard: only honor ch_1 in `check`,<br/>ch_2 in `auth` — else drop the message<br/>2. store customer.id (moonpayCustomerId)<br/>3. decryptCredentials(envelope, privKey)<br/>4. route by channelId (ch_1 Check / ch_2 Auth)
     Ctrl->>Ctrl: apply outcome → next phase
 ```
 
 Channels: `ch_1` = Check, `ch_2` = Auth, `ch_reset` = Reset.
+
+> **Phase-guarded intake.** A `complete` is only processed when the flow is
+> actually waiting on that frame — `ch_1` while `phase === 'check'`, `ch_2`
+> while `phase === 'auth'`. Because both outcome handlers advance `phase` to
+> `form` synchronously, a stale, duplicate, or post-`reset()` `complete`
+> (delivered once the flow has moved on) is dropped before any state is touched,
+> so it cannot resurrect tokens, re-store `customer.id`, or rewind `phase`.
+> Frame messages are external input and are not covered by the `#generation`
+> guard used for the controller's own async steps, so this boundary check is how
+> late frame posts are neutralized.
 
 Credential decryption (`crypto.ts`):
 
@@ -424,13 +445,22 @@ stateDiagram-v2
     idle --> creatingSession : startSumSub()
     creatingSession --> fetchingToken : createUkycSession() ok
     fetchingToken --> launching : submitWrappedKey() ok
-    launching --> inProgress : launcher.onStatusChange
-    inProgress --> complete : status = Completed
-    launching --> complete : SDK resolves
+    launching --> inProgress : onStatusChange (non-Completed)
+    launching --> complete : onStatusChange = Completed
+    inProgress --> complete : onStatusChange = Completed
+    launching --> failed : resolves without a Completed status
+    inProgress --> failed : resolves without a Completed status
     creatingSession --> failed : error
     fetchingToken --> failed : error
     launching --> failed : launcher unavailable / error
 ```
+
+> **Completion is status-driven, not resolution-driven.** A resolved `launch`
+> is only recorded as `complete` when the SDK reported the `Completed` status
+> via `onStatusChange` at least once. If `launch` resolves without ever having
+> reported `Completed` (e.g. the applicant abandoned the flow, or a non-success
+> outcome), the controller records `failed` — so consumers never mistake an
+> unfinished flow for a verified one.
 
 The `KycSumSubLauncher` interface (injected per client):
 
@@ -442,8 +472,10 @@ type KycSumSubLauncher = {
 ```
 
 `launch` receives `applicantAccessToken`, an `onTokenExpiration` callback (the
-controller re-runs `submitWrappedKey` to refresh), and an `onStatusChange`
-callback that the controller maps into `sumsub.status`.
+controller re-runs `submitWrappedKey` to refresh — but **refuses to refresh
+after a `reset()`**, throwing instead so a still-open SDK cannot keep an
+orphaned UKYC session alive), and an `onStatusChange` callback that the
+controller maps into `sumsub.status`.
 
 ---
 
@@ -609,40 +641,39 @@ graph LR
     shared -. injected adapters .- client
 ```
 
-| Concern | Owner |
-| --- | --- |
-| Flow phase machine & state | `KycController` (shared) |
-| UKYC HTTP + validation + retries | `KycService` (shared) |
-| Credential decryption / key exchange | `crypto.ts` (shared) |
-| Frame message semantics | `KycController.handleFrameMessage` (shared) |
-| Frame **transport** (WebView/iframe) | Client |
-| SumSub SDK presentation | Client (via `KycSumSubLauncher`) |
-| Auth bearer token / geolocation | Other controllers (via messenger) |
-| Persistence of state | Client (base-controller persistence) |
+| Concern                              | Owner                                       |
+| ------------------------------------ | ------------------------------------------- |
+| Flow phase machine & state           | `KycController` (shared)                    |
+| UKYC HTTP + validation + retries     | `KycService` (shared)                       |
+| Credential decryption / key exchange | `crypto.ts` (shared)                        |
+| Frame message semantics              | `KycController.handleFrameMessage` (shared) |
+| Frame **transport** (WebView/iframe) | Client                                      |
+| SumSub SDK presentation              | Client (via `KycSumSubLauncher`)            |
+| Auth bearer token / geolocation      | Other controllers (via messenger)           |
+| Persistence of state                 | Client (base-controller persistence)        |
 
 ---
 
 ### Appendix — key source files
 
-| File | Responsibility |
-| --- | --- |
+| File                   | Responsibility                                        |
+| ---------------------- | ----------------------------------------------------- |
 | `src/KycController.ts` | Stateful orchestrator, phase machine, frame protocol. |
-| `src/KycService.ts` | Stateless UKYC HTTP client + superstruct validation. |
-| `src/crypto.ts` | X25519 ECDH + AES-256-GCM credential decryption. |
-| `src/selectors.ts` | Memoized selectors over controller state. |
-| `src/types.ts` | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc. |
-| `src/countryCodes.ts` | ISO alpha-2 → alpha-3 mapping. |
-| `src/index.ts` | Public exports (no barrel wildcards). |
+| `src/KycService.ts`    | Stateless UKYC HTTP client + superstruct validation.  |
+| `src/crypto.ts`        | X25519 ECDH + AES-256-GCM credential decryption.      |
+| `src/selectors.ts`     | Memoized selectors over controller state.             |
+| `src/types.ts`         | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.   |
+| `src/countryCodes.ts`  | ISO alpha-2 → alpha-3 mapping.                        |
+| `src/index.ts`         | Public exports (no barrel wildcards).                 |
 
 Reference client (metamask-mobile):
 
-| File | Responsibility |
-| --- | --- |
-| `app/core/Engine/controllers/kyc/kyc-controller-init.ts` | Construct controller + inject launcher. |
-| `app/core/Engine/controllers/kyc/kyc-service-init.ts` | Construct service. |
-| `app/core/Engine/controllers/kyc/reactNativeSumSubLauncher.ts` | Native SumSub adapter. |
-| `app/core/Engine/messengers/kyc/*.ts` | Messenger delegation. |
-| `app/components/Views/MoonpayDemo/useKycFlow.ts` | React ↔ controller binding. |
-| `app/components/Views/MoonpayDemo/useMoonpayFrame.ts` | WebView postMessage bridge. |
-| `app/selectors/kycController.ts` | Redux selectors. |
-
+| File                                                           | Responsibility                          |
+| -------------------------------------------------------------- | --------------------------------------- |
+| `app/core/Engine/controllers/kyc/kyc-controller-init.ts`       | Construct controller + inject launcher. |
+| `app/core/Engine/controllers/kyc/kyc-service-init.ts`          | Construct service.                      |
+| `app/core/Engine/controllers/kyc/reactNativeSumSubLauncher.ts` | Native SumSub adapter.                  |
+| `app/core/Engine/messengers/kyc/*.ts`                          | Messenger delegation.                   |
+| `app/components/Views/MoonpayDemo/useKycFlow.ts`               | React ↔ controller binding.            |
+| `app/components/Views/MoonpayDemo/useMoonpayFrame.ts`          | WebView postMessage bridge.             |
+| `app/selectors/kycController.ts`                               | Redux selectors.                        |
