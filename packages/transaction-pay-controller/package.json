@@ -59,7 +59,7 @@
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/assets-controller": "^11.2.0",
+    "@metamask/assets-controller": "^11.2.1",
     "@metamask/assets-controllers": "^110.0.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",

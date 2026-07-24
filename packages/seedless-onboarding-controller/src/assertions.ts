@@ -1,5 +1,5 @@
-import { SeedlessOnboardingControllerErrorMessage } from './constants';
-import type { AuthenticatedUserDetails, VaultData } from './types';
+import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
+import type { AuthenticatedUserDetails, VaultData } from './types.js';
 
 /**
  * Assert that the provided password is a valid non-empty string.
