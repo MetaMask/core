@@ -217,6 +217,11 @@ export function getHeadlessProviderAllowlist(
     }
   }
 
+  // TODO: per-surface allowlists (`surfaces[surface]`) do not yet take effect on
+  // the real MM Pay quote. transaction-pay-controller's `getRampsQuote` calls
+  // `RampsController.getQuotes` without a `surface`, so that path always falls
+  // through to the top-level `providerIds` list below. Thread the surface
+  // through the confirmations pay path when per-surface lists are actually used.
   return coerceProviderIdList(value.providerIds);
 }
 
