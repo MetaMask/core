@@ -1,13 +1,13 @@
 import { Failure, StructError } from '@metamask/superstruct';
 import { KnownCaipNamespace } from '@metamask/utils';
 
-import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20';
-import { mockBridgeQuotesErc20Erc20V2Migration } from '../../tests/mock-quotes-erc20-erc20-migration-v2';
-import { mergeQuoteMetadata } from '../utils/quote-metadata/merge';
-import { toQuoteMetadataV1 } from '../utils/quote-metadata/to-quote-metadata-v1';
-import { formatStructErrors } from '../utils/struct-error';
-import { toQuoteResponseV2 } from './quote-response-v1-to-v2';
-import { toQuoteResponseV1 } from './quote-response-v2-to-v1';
+import { mockBridgeQuotesErc20Erc20V2Migration } from '../../tests/mock-quotes-erc20-erc20-migration-v2.js';
+import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20.js';
+import { mergeQuoteMetadata } from '../utils/quote-metadata/merge.js';
+import { toQuoteMetadataV1 } from '../utils/quote-metadata/to-quote-metadata-v1.js';
+import { formatStructErrors } from '../utils/struct-error.js';
+import { toQuoteResponseV2 } from './quote-response-v1-to-v2.js';
+import { toQuoteResponseV1 } from './quote-response-v2-to-v1.js';
 
 const MOCK_QUOTE_METADATA = {
   adjustedReturn: {

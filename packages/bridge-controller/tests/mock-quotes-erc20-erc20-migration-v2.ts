@@ -1,5 +1,5 @@
-import { toQuoteResponseV2 } from '../src';
-import { ActionTypes } from '../src/validators/step';
+import { toQuoteResponseV2 } from '../src/coercers/quote-response-v1-to-v2.js';
+import { ActionTypes } from '../src/validators/step.js';
 
 /**
  * This is the V2 QuoteResponse

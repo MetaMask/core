@@ -21,9 +21,9 @@ import {
   StrictHexStruct,
 } from '@metamask/utils';
 
-import { FeatureId } from './feature-flags';
-import { FloatStringSchema } from './number';
-import { QuoteSchemaV2 } from './quote';
+import { FeatureId } from './feature-flags.js';
+import { FloatStringSchema } from './number.js';
+import { QuoteSchemaV2 } from './quote.js';
 import {
   BitcoinTradeData,
   BitcoinTradeDataSchema,
@@ -33,7 +33,7 @@ import {
   TronTradeDataSchema,
   TxData,
   TxDataSchema,
-} from './trade';
+} from './trade.js';
 
 const CommonQuoteResponseSchema = type({
   quoteId: optional(string()),

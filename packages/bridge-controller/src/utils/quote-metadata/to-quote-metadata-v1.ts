@@ -1,9 +1,9 @@
 import { merge } from 'lodash';
 
-import type { DeepPartial } from '../../types';
-import type { QuoteResponse } from '../../validators/quote-response';
-import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
-import type { QuoteMetadata } from './types';
+import type { DeepPartial } from '../../types.js';
+import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import type { QuoteResponse } from '../../validators/quote-response.js';
+import type { QuoteMetadata } from './types.js';
 
 /**
  * Extracts legacy {@link QuoteMetadata} values from a {@link QuoteResponse} or {@link QuoteResponseV1}.

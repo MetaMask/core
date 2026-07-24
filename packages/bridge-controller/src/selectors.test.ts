@@ -43,8 +43,8 @@ import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 import { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.js';
 import { BatchSellTransactionType } from './validators/batch-sell.js';
 import type { BridgeAssetV2 } from './validators/bridge-asset.js';
-import type { QuoteResponse } from './validators/quote-response.js';
 import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';

@@ -95,8 +95,8 @@ import {
   isValidQuoteRequest,
   isValidBatchSellQuoteRequest,
 } from './validators/quote-request.js';
-import type { QuoteResponse } from './validators/quote-response.js';
 import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {

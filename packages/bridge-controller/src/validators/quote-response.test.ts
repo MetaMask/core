@@ -1,7 +1,7 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 
-import { mockBridgeQuotesErc20Erc20V2Migration } from '../../tests/mock-quotes-erc20-erc20-migration-v2';
-import { validateQuoteResponse } from './quote-response';
+import { mockBridgeQuotesErc20Erc20V2Migration } from '../../tests/mock-quotes-erc20-erc20-migration-v2.js';
+import { validateQuoteResponse } from './quote-response.js';
 
 describe('quote-response-v2', () => {
   describe('validateQuoteResponse', () => {

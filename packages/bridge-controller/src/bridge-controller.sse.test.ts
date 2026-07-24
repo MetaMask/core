@@ -15,13 +15,13 @@ import {
   getMockBridgeQuotesErc20Erc20V2,
 } from '../tests/mock-quotes-erc20-erc20.js';
 import {
-  getMockBridgeQuotesNativeErc20V2,
-  mockBridgeQuotesNativeErc20V1,
-} from '../tests/mock-quotes-native-erc20.js';
-import {
   getMockBridgeQuotesNativeErc20EthV2,
   mockBridgeQuotesNativeErc20EthV1,
 } from '../tests/mock-quotes-native-erc20-eth.js';
+import {
+  getMockBridgeQuotesNativeErc20V2,
+  mockBridgeQuotesNativeErc20V1,
+} from '../tests/mock-quotes-native-erc20.js';
 import {
   advanceToNthTimer,
   advanceToNthTimerThenFlush,

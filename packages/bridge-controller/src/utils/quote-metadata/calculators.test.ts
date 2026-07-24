@@ -6,8 +6,8 @@ import { getMockBridgeQuotesErc20Erc20V2 } from '../../../tests/mock-quotes-erc2
 import { getMockBridgeQuotesNativeErc20V2 } from '../../../tests/mock-quotes-native-erc20.js';
 import { getMockBridgeQuotesSolErc20V2 } from '../../../tests/mock-quotes-sol-erc20.js';
 import type { GenericQuoteRequest, L1GasFees } from '../../types.js';
-import type { Quote } from '../../validators/quote.js';
 import { isValidQuoteRequest } from '../../validators/quote-request.js';
+import type { Quote } from '../../validators/quote.js';
 import type { TxData } from '../../validators/trade.js';
 import { getNativeAssetForChainId, isNativeAddress } from '../bridge.js';
 import { formatEtaInMinutes } from '../number-formatters.js';

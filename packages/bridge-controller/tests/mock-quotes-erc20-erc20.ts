@@ -2,9 +2,9 @@ import { merge } from 'lodash';
 
 import { toQuoteResponseV2 } from '../src/coercers/quote-response-v1-to-v2.js';
 import type { DeepPartial } from '../src/types.js';
-import type { QuoteResponse } from '../src/validators/quote-response.js';
 import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1.js';
 import type { QuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import type { QuoteResponse } from '../src/validators/quote-response.js';
 import { ActionTypes } from '../src/validators/step.js';
 
 export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [

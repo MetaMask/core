@@ -1,7 +1,7 @@
-import type { DeepPartial } from '../../types';
-import { FeeType } from '../../validators/quote';
-import { QuoteResponse } from '../../validators/quote-response';
-import { calcTokenAmount } from '../number-formatters';
+import type { DeepPartial } from '../../types.js';
+import { QuoteResponse } from '../../validators/quote-response.js';
+import { FeeType } from '../../validators/quote.js';
+import { calcTokenAmount } from '../number-formatters.js';
 
 /**
  * Builds a partial {@link QuoteResponese} with normalized amounts

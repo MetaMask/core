@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { BigNumber } from 'bignumber.js';
 
-import type { DeepPartial } from '../types';
-import type { QuoteResponse } from '../validators/quote-response';
+import type { DeepPartial } from '../types.js';
+import type { QuoteResponse } from '../validators/quote-response.js';
 
 /**
  * 1500000 -> 1.5

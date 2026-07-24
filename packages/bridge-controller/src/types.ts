@@ -27,8 +27,8 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { BridgeController } from './bridge-controller.js';
 import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types.js';
+import type { BridgeController } from './bridge-controller.js';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge.js';
 import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell.js';
 import type { BatchSellTradesResponseSchema } from './validators/batch-sell.js';
@@ -38,12 +38,12 @@ import type {
   PlatformConfigSchema,
 } from './validators/feature-flags.js';
 import type { IntentSchema } from './validators/intent.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
+import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete.js';
 import type { TxFeeGasLimitsSchema } from './validators/quote.js';
 import type { FeeDataSchema } from './validators/quote.js';
 import type { GaslessPropertiesSchema } from './validators/quote.js';
-import type { QuoteResponse } from './validators/quote-response.js';
-import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
-import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete.js';
 import type { StepSchema } from './validators/step.js';
 import type { TokenFeatureSchema } from './validators/token-feature.js';
 

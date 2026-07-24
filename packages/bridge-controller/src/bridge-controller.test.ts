@@ -1,5 +1,6 @@
 /* eslint-disable jest/no-restricted-matchers */
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { handleFetch } from '@metamask/controller-utils';
 import {
   BtcScope,
   EthAccountType,
@@ -7,7 +8,6 @@ import {
   SolAccountType,
   SolScope,
 } from '@metamask/keyring-api';
-import { handleFetch } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -18,13 +18,12 @@ import type { CaipAssetType } from '@metamask/utils';
 import nock from 'nock';
 
 import { flushPromises } from '../../../tests/helpers.js';
-
 import { mockBridgeQuotesErc20NativeV1 } from '../tests/mock-quotes-erc20-native.js';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
 import {
   mockBridgeQuotesNativeErc20EthV1,
   getMockBridgeQuotesNativeErc20EthV2,
 } from '../tests/mock-quotes-native-erc20-eth.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
 import {
   getMockBridgeQuotesSolErc20V2,
   mockBridgeQuotesSolErc20V1,

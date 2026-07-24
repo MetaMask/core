@@ -2,21 +2,21 @@ import { create, coerce, Infer, is, intersection } from '@metamask/superstruct';
 import { parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { formatAddressToAssetId } from '../utils/caip-formatters';
+import { formatAddressToAssetId } from '../utils/caip-formatters.js';
 import {
   BridgeAssetSchema,
   BridgeAssetV2Schema,
   MinimalAssetSchema,
-} from '../validators/bridge-asset';
-import { QuoteSchemaV2, FeeType, QuoteSchema } from '../validators/quote';
+} from '../validators/bridge-asset.js';
+import { QuoteResponseSchemaV1 } from '../validators/quote-response-v1.js';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
 import {
   QuoteResponseSchemaV2,
   validateQuoteResponse,
-} from '../validators/quote-response';
-import type { QuoteResponse } from '../validators/quote-response';
-import { QuoteResponseSchemaV1 } from '../validators/quote-response-v1';
-import type { QuoteResponseV1 } from '../validators/quote-response-v1';
-import { StepSchemaV2, StepSchema } from '../validators/step';
+} from '../validators/quote-response.js';
+import type { QuoteResponse } from '../validators/quote-response.js';
+import { QuoteSchemaV2, FeeType, QuoteSchema } from '../validators/quote.js';
+import { StepSchemaV2, StepSchema } from '../validators/step.js';
 
 const BridgeAssetV2FromV1 = coerce(
   BridgeAssetV2Schema,

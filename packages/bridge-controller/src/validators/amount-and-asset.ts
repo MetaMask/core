@@ -7,8 +7,8 @@ import {
   Infer,
 } from '@metamask/superstruct';
 
-import { BridgeAssetV2Schema } from './bridge-asset';
-import { NumberStringSchema, FloatStringSchema } from './number';
+import { BridgeAssetV2Schema } from './bridge-asset.js';
+import { NumberStringSchema, FloatStringSchema } from './number.js';
 
 export const AmountsAndAssetSchema = type({
   /*

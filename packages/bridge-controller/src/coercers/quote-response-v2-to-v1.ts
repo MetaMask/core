@@ -8,29 +8,29 @@ import {
 } from '@metamask/superstruct';
 import { parseCaipAssetType } from '@metamask/utils';
 
-import type { Step } from '../types';
+import type { Step } from '../types.js';
 import {
   formatAddressToCaipReference,
   formatChainIdToDec,
-} from '../utils/caip-formatters';
-import type { QuoteMetadata } from '../utils/quote-metadata/types';
-import { formatStructErrors } from '../utils/struct-error';
+} from '../utils/caip-formatters.js';
+import type { QuoteMetadata } from '../utils/quote-metadata/types.js';
+import { formatStructErrors } from '../utils/struct-error.js';
 import {
   BridgeAssetSchema,
   BridgeAssetV2Schema,
   MinimalAssetSchema,
-} from '../validators/bridge-asset';
+} from '../validators/bridge-asset.js';
+import { QuoteResponseSchemaV1 } from '../validators/quote-response-v1.js';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
+import { QuoteResponseSchemaV2 } from '../validators/quote-response.js';
+import type { QuoteResponse } from '../validators/quote-response.js';
 import {
   QuoteSchemaV2,
   FeeType,
   Quote,
   QuoteSchema,
-} from '../validators/quote';
-import { QuoteResponseSchemaV2 } from '../validators/quote-response';
-import type { QuoteResponse } from '../validators/quote-response';
-import { QuoteResponseSchemaV1 } from '../validators/quote-response-v1';
-import type { QuoteResponseV1 } from '../validators/quote-response-v1';
-import { StepSchemaV2, StepSchema } from '../validators/step';
+} from '../validators/quote.js';
+import { StepSchemaV2, StepSchema } from '../validators/step.js';
 
 const BridgeAssetV1FromV2 = coerce(
   intersection([BridgeAssetSchema, MinimalAssetSchema]),

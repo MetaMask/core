@@ -1,8 +1,8 @@
 import { merge } from 'lodash';
 
-import type { QuoteResponse } from '../..';
-import { getMockBridgeQuotesErc20Erc20V2 } from '../../../tests/mock-quotes-erc20-erc20';
-import { mergeQuoteMetadata } from './merge';
+import { getMockBridgeQuotesErc20Erc20V2 } from '../../../tests/mock-quotes-erc20-erc20.js';
+import type { QuoteResponse } from '../../validators/quote-response.js';
+import { mergeQuoteMetadata } from './merge.js';
 
 describe('mergeQuoteMetadata', () => {
   it.each([

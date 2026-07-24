@@ -1,12 +1,12 @@
 import { merge } from 'lodash';
 
-import type { TxData } from '../src/validators/trade.js';
 import { toQuoteResponseV2 } from '../src/coercers/quote-response-v1-to-v2.js';
 import type { DeepPartial } from '../src/types.js';
-import type { QuoteResponse } from '../src/validators/quote-response.js';
 import type { QuoteResponseV1 } from '../src/validators/quote-response-v1.js';
 import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import type { QuoteResponse } from '../src/validators/quote-response.js';
 import { ActionTypes } from '../src/validators/step.js';
+import type { TxData } from '../src/validators/trade.js';
 
 export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
   {

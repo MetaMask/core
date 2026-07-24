@@ -1,11 +1,11 @@
 import { parseCaipAssetType } from '@metamask/utils';
 
-import { toBridgeAssetV2 } from '../../coercers/quote-response-v1-to-v2';
-import type { DeepPartial } from '../../types';
-import type { QuoteResponse } from '../../validators/quote-response';
-import { getNativeAssetForChainId } from '../bridge';
-import { calcTokenValue } from '../number-formatters';
-import type { QuoteMetadata } from './types';
+import { toBridgeAssetV2 } from '../../coercers/quote-response-v1-to-v2.js';
+import type { DeepPartial } from '../../types.js';
+import type { QuoteResponse } from '../../validators/quote-response.js';
+import { getNativeAssetForChainId } from '../bridge.js';
+import { calcTokenValue } from '../number-formatters.js';
+import type { QuoteMetadata } from './types.js';
 
 /**
  * Converts a {@link QuoteMetadata} to a partial {@link QuoteResponse} containing only metadata
