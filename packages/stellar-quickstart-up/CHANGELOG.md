@@ -7,8 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Networks packages ([#9649](https://github.com/MetaMask/core/pull/9649))
-
 [Unreleased]: https://github.com/MetaMask/core/
