@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: add `.js` import extensions to Earn packages ([#9625](https://github.com/MetaMask/core/pull/9625))
+- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
+
 ### Changed
 
 - Bump `@metamask/money-account-api-data-service` from `^0.2.0` to `^0.3.0` ([#9592](https://github.com/MetaMask/core/pull/9592))
