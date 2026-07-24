@@ -128,7 +128,9 @@ function evaluateStaleEligibility({ pr, now, core, phase = '' }) {
   const suffix = phase ? ` ${phase}` : '';
 
   if (pr.state !== 'open') {
-    core.info(`Skipping #${pr.number} (${pr.head.ref}): no longer open${suffix}`);
+    core.info(
+      `Skipping #${pr.number} (${pr.head.ref}): no longer open${suffix}`,
+    );
     return { eligible: false };
   }
 
@@ -362,7 +364,9 @@ async function commentOnPull(github, owner, repo, pullNumber, body, core) {
       body,
     });
   } catch (error) {
-    core.warning(`Closed #${pullNumber} but failed to comment: ${error.message}`);
+    core.warning(
+      `Closed #${pullNumber} but failed to comment: ${error.message}`,
+    );
   }
 }
 
@@ -379,14 +383,7 @@ async function commentOnPull(github, owner, repo, pullNumber, body, core) {
  * @param {object} options.core - `@actions/core` helpers.
  * @returns {Promise<void>}
  */
-async function processReleasePr({
-  github,
-  owner,
-  repo,
-  candidate,
-  now,
-  core,
-}) {
+async function processReleasePr({ github, owner, repo, candidate, now, core }) {
   let pr;
   try {
     pr = await getPull(github, owner, repo, candidate.number);
@@ -458,7 +455,12 @@ async function processReleasePr({
 
   let latestMergeState;
   try {
-    latestMergeState = await getMergeState(github, owner, repo, latestPr.number);
+    latestMergeState = await getMergeState(
+      github,
+      owner,
+      repo,
+      latestPr.number,
+    );
   } catch (error) {
     core.warning(
       `Failed final merge-state check for #${latestPr.number} (${latestPr.head.ref}): ${error.message}`,
