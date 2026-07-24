@@ -510,7 +510,6 @@ export const calcQuoteMetadata = (
   };
 };
 
-// TODO Phase 1.5 of migration uses calcQuoteMetadata's results as fallback
 export const calcQuoteMetadataV2 = (
   quote: QuoteResponse,
   usdToFiatExchangeRate: BigNumber,
@@ -551,5 +550,3 @@ export const calcQuoteMetadataV2 = (
     },
   };
 };
-
-// TODO Phase 2 of migration only uses metadata from the API response
