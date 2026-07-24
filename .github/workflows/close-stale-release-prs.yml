@@ -73,11 +73,19 @@ jobs:
             for (const candidate of releasePrs) {
               // Re-fetch before acting: the initial list is a snapshot and the
               // PR may have merged/closed (or become active) since then.
-              const { data: pr } = await github.rest.pulls.get({
-                owner,
-                repo,
-                pull_number: candidate.number,
-              });
+              let pr;
+              try {
+                ({ data: pr } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: candidate.number,
+                }));
+              } catch (error) {
+                core.warning(
+                  `Failed to refresh #${candidate.number} (${candidate.head.ref}): ${error.message}`,
+                );
+                continue;
+              }
 
               if (pr.state !== 'open') {
                 core.info(
@@ -101,23 +109,31 @@ jobs:
                 continue;
               }
 
-              const mergeQueue = await github.graphql(
-                `
-                  query ($owner: String!, $repo: String!, $number: Int!) {
-                    repository(owner: $owner, name: $repo) {
-                      pullRequest(number: $number) {
-                        isInMergeQueue
-                        autoMergeRequest {
-                          enabledAt
+              let pullRequest;
+              try {
+                const mergeQueue = await github.graphql(
+                  `
+                    query ($owner: String!, $repo: String!, $number: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        pullRequest(number: $number) {
+                          isInMergeQueue
+                          autoMergeRequest {
+                            enabledAt
+                          }
                         }
                       }
                     }
-                  }
-                `,
-                { owner, repo, number: pr.number },
-              );
+                  `,
+                  { owner, repo, number: pr.number },
+                );
+                pullRequest = mergeQueue.repository.pullRequest;
+              } catch (error) {
+                core.warning(
+                  `Failed to check merge state for #${pr.number} (${pr.head.ref}): ${error.message}`,
+                );
+                continue;
+              }
 
-              const pullRequest = mergeQueue.repository.pullRequest;
               if (pullRequest.isInMergeQueue || pullRequest.autoMergeRequest) {
                 core.info(
                   `Skipping #${pr.number} (${pr.head.ref}): merge in progress`,
