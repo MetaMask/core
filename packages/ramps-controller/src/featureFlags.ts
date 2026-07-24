@@ -31,23 +31,6 @@ export const MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY =
 export const HEADLESS_ALL_PROVIDERS_FEATURE_VERSION = '1';
 
 /**
- * Canonical surface keys accepted in the flag payload's `surfaces` map. A
- * surface entry overrides the top-level `providerIds` list for quote requests
- * tagged with that surface.
- */
-export const HEADLESS_ALLOWLIST_SURFACES = {
-  MONEY: 'money',
-  PERPS: 'perps',
-  PREDICTIONS: 'predictions',
-} as const;
-
-/**
- * A canonical surface key of the flag payload's `surfaces` map.
- */
-export type HeadlessAllowlistSurface =
-  (typeof HEADLESS_ALLOWLIST_SURFACES)[keyof typeof HEADLESS_ALLOWLIST_SURFACES];
-
-/**
  * The subset of `RemoteFeatureFlagController` state that
  * {@link isHeadlessAllProvidersEnabled} reads. Structural so consumers can
  * pass the whole controller state (or `undefined` before initialization)
@@ -172,56 +155,24 @@ export function isHeadlessAllProvidersEnabled(
  * The provider-id allowlist carried by the flag's object payload, or
  * `undefined` when the widened pick should not be restricted.
  *
- * Resolution, most specific first:
- *
- * 1. When `surface` is given and the payload's `surfaces[surface]` is a
- *    non-empty valid list, that list wins.
- * 2. Otherwise the payload's top-level `providerIds`, when non-empty and
- *    valid.
- * 3. Otherwise `undefined` (no restriction). The boolean `true` form, a
- *    disabled or malformed payload, and empty or all-invalid lists all land
- *    here; unknown keys and non-string entries are ignored.
- *
- * Note that `surfaces` entries only apply to quote requests tagged with a
- * `surface`; a request without one (for example MM Pay's `getRampsQuote`)
- * resolves the top-level `providerIds` list only.
+ * Returns the payload's top-level `providerIds` when non-empty and valid, or
+ * `undefined` (no restriction). The boolean `true` form, a disabled or
+ * malformed payload, and empty or all-invalid lists all resolve to
+ * `undefined`; unknown keys and non-string entries are ignored.
  *
  * @param remoteFeatureFlagState - `RemoteFeatureFlagController` state (or the
  * relevant subset of it). May be `null`/`undefined` before the controller is
  * initialized.
- * @param surface - Optional consumer surface key; canonical values are the
- * {@link HEADLESS_ALLOWLIST_SURFACES} members.
  * @returns The provider ids the widened pick is restricted to, or `undefined`
  * for no restriction.
  */
 export function getHeadlessProviderAllowlist(
   remoteFeatureFlagState: HeadlessFeatureFlagsLookup | null | undefined,
-  surface?: string,
 ): string[] | undefined {
   const value = resolveFlagValue(remoteFeatureFlagState);
   if (!isEnabledPayload(value)) {
     return undefined;
   }
-
-  if (surface !== undefined) {
-    const { surfaces } = value;
-    if (
-      typeof surfaces === 'object' &&
-      surfaces !== null &&
-      !Array.isArray(surfaces)
-    ) {
-      const surfaceList = coerceProviderIdList(surfaces[surface]);
-      if (surfaceList) {
-        return surfaceList;
-      }
-    }
-  }
-
-  // TODO: per-surface allowlists (`surfaces[surface]`) do not yet take effect on
-  // the real MM Pay quote. transaction-pay-controller's `getRampsQuote` calls
-  // `RampsController.getQuotes` without a `surface`, so that path always falls
-  // through to the top-level `providerIds` list below. Thread the surface
-  // through the confirmations pay path when per-surface lists are actually used.
   return coerceProviderIdList(value.providerIds);
 }
 

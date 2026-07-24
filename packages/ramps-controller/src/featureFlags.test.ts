@@ -1,7 +1,6 @@
 import type { Json } from '@metamask/utils';
 
 import {
-  HEADLESS_ALLOWLIST_SURFACES,
   HEADLESS_ALL_PROVIDERS_FEATURE_VERSION,
   getHeadlessAllProvidersMinimumVersion,
   MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
@@ -15,16 +14,6 @@ describe('MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY', () => {
     expect(MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY).toBe(
       'moneyHeadlessAllProviders',
     );
-  });
-});
-
-describe('HEADLESS_ALLOWLIST_SURFACES', () => {
-  it('matches the canonical payload surface keys', () => {
-    expect(HEADLESS_ALLOWLIST_SURFACES).toStrictEqual({
-      MONEY: 'money',
-      PERPS: 'perps',
-      PREDICTIONS: 'predictions',
-    });
   });
 });
 
@@ -261,82 +250,6 @@ describe('getHeadlessProviderAllowlist', () => {
         }),
       ),
     ).toStrictEqual(['/providers/moonpay']);
-  });
-
-  describe('surfaces', () => {
-    const payload = {
-      enabled: true,
-      featureVersion: '1',
-      providerIds: ['/providers/moonpay'],
-      surfaces: {
-        [HEADLESS_ALLOWLIST_SURFACES.MONEY]: ['/providers/transak'],
-        [HEADLESS_ALLOWLIST_SURFACES.PERPS]: [],
-      },
-    };
-
-    it('lets a surface entry override the top-level list for that surface', () => {
-      expect(
-        getHeadlessProviderAllowlist(
-          stateWithFlag(payload),
-          HEADLESS_ALLOWLIST_SURFACES.MONEY,
-        ),
-      ).toStrictEqual(['/providers/transak']);
-    });
-
-    it('falls back to the top-level list for a surface not in the payload', () => {
-      expect(
-        getHeadlessProviderAllowlist(
-          stateWithFlag(payload),
-          HEADLESS_ALLOWLIST_SURFACES.PREDICTIONS,
-        ),
-      ).toStrictEqual(['/providers/moonpay']);
-    });
-
-    it('falls back to the top-level list for an empty surface entry', () => {
-      expect(
-        getHeadlessProviderAllowlist(
-          stateWithFlag(payload),
-          HEADLESS_ALLOWLIST_SURFACES.PERPS,
-        ),
-      ).toStrictEqual(['/providers/moonpay']);
-    });
-
-    it('uses the top-level list when no surface is given', () => {
-      expect(
-        getHeadlessProviderAllowlist(stateWithFlag(payload)),
-      ).toStrictEqual(['/providers/moonpay']);
-    });
-
-    it('returns a surface list even when the top-level list is absent', () => {
-      expect(
-        getHeadlessProviderAllowlist(
-          stateWithFlag({
-            enabled: true,
-            featureVersion: '1',
-            surfaces: { money: ['/providers/transak'] },
-          }),
-          'money',
-        ),
-      ).toStrictEqual(['/providers/transak']);
-    });
-
-    it.each([
-      ['a string', 'money'],
-      ['an array', [['/providers/transak']]],
-      ['null', null],
-    ])('ignores surfaces when it is %s', (_description, surfaces) => {
-      expect(
-        getHeadlessProviderAllowlist(
-          stateWithFlag({
-            enabled: true,
-            featureVersion: '1',
-            providerIds: ['/providers/moonpay'],
-            surfaces,
-          }),
-          'money',
-        ),
-      ).toStrictEqual(['/providers/moonpay']);
-    });
   });
 
   it('honors a localOverrides payload over the remote payload', () => {

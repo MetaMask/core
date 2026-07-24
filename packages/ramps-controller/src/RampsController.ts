@@ -1000,11 +1000,9 @@ export class RampsController extends BaseController<
    * identically. Fails closed: when `RemoteFeatureFlagController:getState` is
    * not wired up, quoting stays native-only.
    *
-   * @param surface - Optional consumer surface key selecting a per-surface
-   * allowlist from the flag payload's `surfaces` map.
    * @returns The enabled bit and the optional provider-id allowlist.
    */
-  #resolveAllProvidersFlag(surface?: string): {
+  #resolveAllProvidersFlag(): {
     enabled: boolean;
     allowlist?: string[];
   } {
@@ -1014,10 +1012,7 @@ export class RampsController extends BaseController<
       );
       return {
         enabled: isHeadlessAllProvidersEnabled(remoteFeatureFlagState),
-        allowlist: getHeadlessProviderAllowlist(
-          remoteFeatureFlagState,
-          surface,
-        ),
+        allowlist: getHeadlessProviderAllowlist(remoteFeatureFlagState),
       };
     } catch {
       return { enabled: false };
@@ -1868,13 +1863,6 @@ export class RampsController extends BaseController<
    *   passed `providers` list is filtered to those supporting the region and
    *   asset. If nothing qualifies, `getQuotes` returns an empty response
    *   instead of quoting other providers.
-   * @param options.surface - Optional consumer surface key for the
-   *   `moneyHeadlessAllProviders` flag payload's `surfaces` map (canonical
-   *   values: `money` | `perps` | `predictions`). Selects that surface's
-   *   provider allowlist over the payload's top-level `providerIds`. Only
-   *   consulted on the widened all-providers path; has no effect on fetching
-   *   or caching, and a surface absent from the payload falls back to the
-   *   top-level list.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
@@ -1892,7 +1880,6 @@ export class RampsController extends BaseController<
     autoSelectProvider?: boolean;
     preferredProviderIds?: string[];
     restrictToKnownOrNativeProviders?: boolean;
-    surface?: string;
     redirectUrl?: string;
     action?: RampAction;
     forceRefresh?: boolean;
@@ -1931,7 +1918,7 @@ export class RampsController extends BaseController<
     // during the awaited quote fetch cannot produce a mixed read.
     const { enabled: allProvidersEnabled, allowlist: providerAllowlist } =
       wantsAutoSelection
-        ? this.#resolveAllProvidersFlag(options.surface)
+        ? this.#resolveAllProvidersFlag()
         : { enabled: false, allowlist: undefined };
     const widenToAllProviders = wantsAutoSelection && allProvidersEnabled;
 
