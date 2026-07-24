@@ -1,0 +1,150 @@
+name: Close Stale Release PRs
+
+# Release PRs on `release/*` branches are expected to merge quickly. Abandoned
+# ones block other engineers from starting a new release. This workflow closes
+# inactive release PRs, leaves a comment, and deletes the branch.
+on:
+  schedule:
+    # Check twice an hour so the 3h window is reasonably precise.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: close-stale-release-prs
+  cancel-in-progress: false
+
+jobs:
+  close-stale-release-prs:
+    name: Close stale release PRs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Close inactive release PRs
+        uses: actions/github-script@v8
+        env:
+          STALE_HOURS: '3'
+          # Optional escape hatch for long-running releases that must stay open.
+          EXEMPT_LABEL: 'release:keep-open'
+        with:
+          script: |
+            const staleHours = Number(process.env.STALE_HOURS);
+            const staleMs = staleHours * 60 * 60 * 1000;
+            const exemptLabel = process.env.EXEMPT_LABEL;
+            const now = Date.now();
+            const { owner, repo } = context.repo;
+
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const releasePrs = pulls.filter((pr) => {
+              if (!pr.head.ref.startsWith('release/')) {
+                return false;
+              }
+
+              // Only manage same-repo release branches (never forks).
+              if (pr.head.repo?.full_name !== `${owner}/${repo}`) {
+                return false;
+              }
+
+              if (pr.labels.some((label) => label.name === exemptLabel)) {
+                core.info(
+                  `Skipping #${pr.number} (${pr.head.ref}): exempt label "${exemptLabel}"`,
+                );
+                return false;
+              }
+
+              return true;
+            });
+
+            if (releasePrs.length === 0) {
+              core.info('No open release PRs to evaluate.');
+              return;
+            }
+
+            for (const pr of releasePrs) {
+              const ageMs = now - Date.parse(pr.updated_at);
+              if (ageMs < staleMs) {
+                core.info(
+                  `Skipping #${pr.number} (${pr.head.ref}): updated ${Math.round(ageMs / 60000)}m ago`,
+                );
+                continue;
+              }
+
+              const mergeQueue = await github.graphql(
+                `
+                  query ($owner: String!, $repo: String!, $number: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      pullRequest(number: $number) {
+                        isInMergeQueue
+                        autoMergeRequest {
+                          enabledAt
+                        }
+                      }
+                    }
+                  }
+                `,
+                { owner, repo, number: pr.number },
+              );
+
+              const pullRequest = mergeQueue.repository.pullRequest;
+              if (pullRequest.isInMergeQueue || pullRequest.autoMergeRequest) {
+                core.info(
+                  `Skipping #${pr.number} (${pr.head.ref}): merge in progress`,
+                );
+                continue;
+              }
+
+              const inactiveHours = (ageMs / (60 * 60 * 1000)).toFixed(1);
+              const body = [
+                '## Stale release PR closed',
+                '',
+                `This release PR was automatically closed because it had no activity for ${staleHours} hours (last updated ${inactiveHours}h ago).`,
+                '',
+                'Open release PRs on `release/*` branches are expected to merge promptly so they do not block others from starting a new release.',
+                '',
+                'The release branch will be deleted. If you still need to publish these packages, start a fresh release with `yarn create-release-branch`.',
+                '',
+                `To keep a release PR open longer in exceptional cases, add the \`${exemptLabel}\` label.`,
+                '',
+                '<!-- stale-release-pr-comment -->',
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr.number,
+                body,
+              });
+
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: pr.number,
+                state: 'closed',
+              });
+
+              try {
+                await github.rest.git.deleteRef({
+                  owner,
+                  repo,
+                  ref: `heads/${pr.head.ref}`,
+                });
+                core.info(
+                  `Closed #${pr.number} and deleted branch ${pr.head.ref}`,
+                );
+              } catch (error) {
+                // Branch may already be gone; still treat the PR close as success.
+                core.warning(
+                  `Closed #${pr.number} but failed to delete ${pr.head.ref}: ${error.message}`,
+                );
+              }
+            }
