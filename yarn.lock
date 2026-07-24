@@ -5854,8 +5854,10 @@ __metadata:
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/is-odd": "npm:^3"
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"
+    is-odd: "npm:^3.0.0"
     jest: "npm:^30.4.2"
     ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
@@ -11707,6 +11709,13 @@ __metadata:
   dependencies:
     "@types/node": "npm:*"
   checksum: 10/893e46e12be576baa471cf2fc13a4f0e413eaf30a5850de8fdbea3040e138ad4171234c59b986cf7137ff20a1582b254bf0c44cfd715d5ed772e1ab94dd75cd1
+  languageName: node
+  linkType: hard
+
+"@types/is-odd@npm:^3":
+  version: 3.0.4
+  resolution: "@types/is-odd@npm:3.0.4"
+  checksum: 10/937dc9c1a7db0810029194ab5d0f1256bd48ddbcb1b8e28099203a480136f11ef7fb78677e8f4dd14a4577911650270736fb12d22d9fcc6dbc0b49c4dd98038b
   languageName: node
   linkType: hard
 
@@ -19121,6 +19130,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"is-number@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "is-number@npm:6.0.0"
+  checksum: 10/8668b49747649ee0878e0a6d9e35e1c95bab58c5dd1a2b698df34989512ec553cfd090fa7af247d590afe4b12ec996e735b9a670c2cf0efbaefe7fb2c2457615
+  languageName: node
+  linkType: hard
+
 "is-number@npm:^7.0.0":
   version: 7.0.0
   resolution: "is-number@npm:7.0.0"
@@ -19139,6 +19155,15 @@ __metadata:
   version: 2.0.0
   resolution: "is-obj@npm:2.0.0"
   checksum: 10/c9916ac8f4621962a42f5e80e7ffdb1d79a3fab7456ceaeea394cd9e0858d04f985a9ace45be44433bf605673c8be8810540fe4cc7f4266fc7526ced95af5a08
+  languageName: node
+  linkType: hard
+
+"is-odd@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "is-odd@npm:3.0.0"
+  dependencies:
+    is-number: "npm:^6.0.0"
+  checksum: 10/1b0614ce1d6af841a5c04980cb8f9a44594444e448b35b5afd05c0aed5ce297e131f898412c42cdbe2e9b24551488e3f5d12a5917395ca42e2a0bc5518893642
   languageName: node
   linkType: hard
 

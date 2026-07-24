@@ -61,8 +61,10 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
+    "@types/is-odd": "^3",
     "@types/jest": "^30.0.0",
     "deepmerge": "^4.2.2",
+    "is-odd": "^3.0.0",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
