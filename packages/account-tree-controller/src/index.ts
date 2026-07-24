@@ -38,6 +38,8 @@ export type {
   AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
   AccountTreeControllerInitAction,
   AccountTreeControllerReinitAction,
+  AccountTreeControllerExportStateAction,
+  AccountTreeControllerImportStateAction,
 } from './AccountTreeController-method-action-types.js';
 
 export type { AccountContext } from './AccountTreeController.js';
@@ -46,3 +48,17 @@ export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
 } from './AccountTreeController.js';
+
+export type {
+  AccountTreePayload,
+  AccountWalletMnemonicPayload,
+  AccountWalletPrivateKeyPayload,
+  AccountWalletMnemonicGroupEntry,
+  AccountWalletPrivateKeyGroupEntry,
+  AccountWalletPayloadId,
+  AccountGroupPayloadId,
+  AccountTreeSnapshotEntry,
+  ExportStateOptions,
+} from './state/payload.js';
+
+export { AccountTreeSnapshot } from './state/snapshot.js';

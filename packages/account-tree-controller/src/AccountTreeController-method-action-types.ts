@@ -200,6 +200,35 @@ export type AccountTreeControllerSyncWithUserStorageAtLeastOnceAction = {
 };
 
 /**
+ * Produces a versioned snapshot of the current wallet and group state.
+ *
+ * When `options.includeSecrets` is `true` and the vault is unlocked,
+ * mnemonic phrases and private keys are included in the snapshot.
+ *
+ * @param options - Export options.
+ * @returns A promise resolving to an `AccountTreeSnapshot`.
+ */
+export type AccountTreeControllerExportStateAction = {
+  type: `AccountTreeController:exportState`;
+  handler: AccountTreeController['exportState'];
+};
+
+/**
+ * Applies a versioned snapshot to the current state.
+ *
+ * New mnemonic wallets are imported via `MultichainAccountService` and new
+ * private-key accounts via `KeyringController`. Metadata (name, pinned,
+ * hidden) is applied to all existing and newly created wallets / groups.
+ *
+ * @param payload - The payload to import.
+ * @returns A promise that resolves when the import is complete.
+ */
+export type AccountTreeControllerImportStateAction = {
+  type: `AccountTreeController:importState`;
+  handler: AccountTreeController['importState'];
+};
+
+/**
  * Union of all AccountTreeController action types.
  */
 export type AccountTreeControllerMethodActions =
@@ -218,4 +247,6 @@ export type AccountTreeControllerMethodActions =
   | AccountTreeControllerSetAccountGroupHiddenAction
   | AccountTreeControllerClearStateAction
   | AccountTreeControllerSyncWithUserStorageAction
-  | AccountTreeControllerSyncWithUserStorageAtLeastOnceAction;
+  | AccountTreeControllerSyncWithUserStorageAtLeastOnceAction
+  | AccountTreeControllerExportStateAction
+  | AccountTreeControllerImportStateAction;
