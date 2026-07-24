@@ -1739,7 +1739,6 @@ describe('RampsController', () => {
           },
         );
       });
-
     });
   });
 
