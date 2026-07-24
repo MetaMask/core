@@ -26,6 +26,10 @@ const MOCK_ACCOUNT_ADDRESS =
   '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_BORING_VAULT_ADDRESS =
   '0xA20f97813014129E7609171d2D3AA3da5206259e' as Hex;
+// The vault address as exposed by the CHOMP service-details API. Distinct from
+// MOCK_BORING_VAULT_ADDRESS so tests can prove the server value wins.
+const MOCK_SERVICE_DETAILS_VAULT_ADDRESS =
+  '0x5555555555555555555555555555555555555555' as Hex;
 
 // CHOMP-API-derived values.
 const MOCK_DELEGATE_ADDRESS =
@@ -330,6 +334,126 @@ describe('MoneyAccountUpgradeController', () => {
       expect(
         allCaveatTerms.some((terms) =>
           terms.includes(MOCK_BORING_VAULT_ADDRESS.toLowerCase().slice(2)),
+        ),
+      ).toBe(true);
+    });
+
+    it('prefers the vaultAddress from service details over the boringVaultAddress param', async () => {
+      const { controller, mocks } = setup();
+
+      mocks.getServiceDetails.mockResolvedValue({
+        auth: { message: 'CHOMP Authentication' },
+        chains: {
+          [MOCK_CHAIN_ID]: {
+            autoDepositDelegate: MOCK_DELEGATE_ADDRESS,
+            protocol: {
+              vedaProtocol: {
+                supportedTokens: [
+                  {
+                    tokenAddress: MOCK_MUSD_TOKEN_ADDRESS,
+                    tokenDecimals: 18,
+                  },
+                ],
+                adapterAddress: MOCK_VEDA_VAULT_ADAPTER_ADDRESS,
+                intentTypes: ['cash-deposit', 'cash-withdrawal'],
+                vaultAddress: MOCK_SERVICE_DETAILS_VAULT_ADDRESS,
+              },
+            },
+          },
+        },
+      });
+
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      const allCaveatTerms = mocks.verifyDelegation.mock.calls
+        .flatMap(([{ signedDelegation }]) => signedDelegation.caveats)
+        .map((caveat) => caveat.terms.toLowerCase());
+      // The server-supplied vault address is used...
+      expect(
+        allCaveatTerms.some((terms) =>
+          terms.includes(
+            MOCK_SERVICE_DETAILS_VAULT_ADDRESS.toLowerCase().slice(2),
+          ),
+        ),
+      ).toBe(true);
+      // ...and the param is ignored.
+      expect(
+        allCaveatTerms.some((terms) =>
+          terms.includes(MOCK_BORING_VAULT_ADDRESS.toLowerCase().slice(2)),
+        ),
+      ).toBe(false);
+    });
+
+    it('falls back to the boringVaultAddress param when service details omit vaultAddress', async () => {
+      const { controller, mocks } = setup();
+
+      // The default service details response has no vaultAddress.
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      const allCaveatTerms = mocks.verifyDelegation.mock.calls
+        .flatMap(([{ signedDelegation }]) => signedDelegation.caveats)
+        .map((caveat) => caveat.terms.toLowerCase());
+      expect(
+        allCaveatTerms.some((terms) =>
+          terms.includes(MOCK_BORING_VAULT_ADDRESS.toLowerCase().slice(2)),
+        ),
+      ).toBe(true);
+    });
+
+    it('throws when service details omit vaultAddress and no fallback is provided', async () => {
+      const { controller } = setup();
+
+      await expect(
+        controller.init({ chainId: MOCK_CHAIN_ID }),
+      ).rejects.toThrow(
+        `vaultAddress not found for chain ${MOCK_CHAIN_ID} in service details response and no fallback boringVaultAddress was provided`,
+      );
+    });
+
+    it('uses the service details vaultAddress when no fallback param is provided', async () => {
+      const { controller, mocks } = setup();
+
+      mocks.getServiceDetails.mockResolvedValue({
+        auth: { message: 'CHOMP Authentication' },
+        chains: {
+          [MOCK_CHAIN_ID]: {
+            autoDepositDelegate: MOCK_DELEGATE_ADDRESS,
+            protocol: {
+              vedaProtocol: {
+                supportedTokens: [
+                  {
+                    tokenAddress: MOCK_MUSD_TOKEN_ADDRESS,
+                    tokenDecimals: 18,
+                  },
+                ],
+                adapterAddress: MOCK_VEDA_VAULT_ADAPTER_ADDRESS,
+                intentTypes: ['cash-deposit', 'cash-withdrawal'],
+                vaultAddress: MOCK_SERVICE_DETAILS_VAULT_ADDRESS,
+              },
+            },
+          },
+        },
+      });
+
+      await controller.init({ chainId: MOCK_CHAIN_ID });
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      const allCaveatTerms = mocks.verifyDelegation.mock.calls
+        .flatMap(([{ signedDelegation }]) => signedDelegation.caveats)
+        .map((caveat) => caveat.terms.toLowerCase());
+      expect(
+        allCaveatTerms.some((terms) =>
+          terms.includes(
+            MOCK_SERVICE_DETAILS_VAULT_ADDRESS.toLowerCase().slice(2),
+          ),
         ),
       ).toBe(true);
     });

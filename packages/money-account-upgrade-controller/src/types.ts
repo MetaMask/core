@@ -3,10 +3,12 @@ import type { Hex } from '@metamask/utils';
 /**
  * Configuration required to perform the Money Account upgrade sequence.
  *
- * `delegateAddress`, `musdTokenAddress`, and `vedaVaultAdapterAddress` come
- * from the CHOMP service details API. `delegatorImplAddress` and the caveat
- * enforcer addresses are resolved from `@metamask/delegation-deployments` for
- * the target chain. (DelegationManager resolution is delegated to
+ * `delegateAddress`, `musdTokenAddress`, `vedaVaultAdapterAddress`, and
+ * `boringVaultAddress` come from the CHOMP service details API (the last with
+ * a consumer-supplied fallback until the backend universally exposes
+ * `vaultAddress`). `delegatorImplAddress` and the caveat enforcer addresses
+ * are resolved from `@metamask/delegation-deployments` for the target chain.
+ * (DelegationManager resolution is delegated to
  * `@metamask/delegation-controller`, which handles delegation signing.)
  */
 export type UpgradeConfig = {

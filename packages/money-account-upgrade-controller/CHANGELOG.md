@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `init()` now prefers the vault address from the CHOMP `getServiceDetails` response (`vaultAddress`), falling back to the `boringVaultAddress` param when the backend does not yet expose it ([#9600](https://github.com/MetaMask/core/pull/9600))
+  - `boringVaultAddress` is now an optional param. When service details include `vaultAddress`, that value wins over any supplied `boringVaultAddress`. `init()` throws if neither is available. This is non-breaking: existing callers that pass `boringVaultAddress` are unaffected.
+
 ## [3.0.0]
 
 ### Added

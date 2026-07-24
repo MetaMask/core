@@ -177,6 +177,12 @@ export type ServiceDetailsProtocol = {
   supportedTokens: ServiceDetailsSupportedToken[];
   adapterAddress: Hex;
   intentTypes: ('cash-deposit' | 'cash-withdrawal')[];
+  /**
+   * The protocol's vault contract. For Veda this is the boring vault, whose
+   * share token is the withdrawal-side delegation token (e.g. vmUSD). Optional
+   * until the backend exposes it.
+   */
+  vaultAddress?: Hex;
 };
 
 export type ServiceDetailsChain = {

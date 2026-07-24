@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `vaultAddress` to the `ServiceDetailsProtocol` type and validate it in the `getServiceDetails` response ([#9600](https://github.com/MetaMask/core/pull/9600))
+  - For Veda this is the boring vault contract, whose share token is the withdrawal-side delegation token (e.g. vmUSD). The field is optional and only present when the backend exposes it; responses that omit it continue to validate.
+
 ## [4.0.0]
 
 ### Added

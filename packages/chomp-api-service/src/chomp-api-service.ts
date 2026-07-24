@@ -234,6 +234,7 @@ const ServiceDetailsProtocolStruct = type({
   ),
   adapterAddress: StrictHexStruct,
   intentTypes: array(enums(['cash-deposit', 'cash-withdrawal'])),
+  vaultAddress: optional(StrictHexStruct),
 });
 
 const ServiceDetailsResponseStruct = type({

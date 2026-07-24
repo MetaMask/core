@@ -682,6 +682,52 @@ describe('ChompApiService', () => {
       expect(result).toStrictEqual(serviceDetailsResponse);
     });
 
+    it('returns the vaultAddress when present in the protocol details', async () => {
+      const responseWithVaultAddress = {
+        ...serviceDetailsResponse,
+        chains: {
+          '0xa4b1': {
+            ...serviceDetailsResponse.chains['0xa4b1'],
+            protocol: {
+              vedaProtocol: {
+                ...serviceDetailsResponse.chains['0xa4b1'].protocol
+                  .vedaProtocol,
+                vaultAddress: '0xA20f97813014129E7609171d2D3AA3da5206259e',
+              },
+            },
+          },
+        },
+      };
+      nock(BASE_URL)
+        .get('/v1/chomp')
+        .query({ chainId: '0xa4b1' })
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, responseWithVaultAddress);
+      const { service } = createService();
+
+      const result = await service.getServiceDetails(['0xa4b1']);
+
+      expect(result).toStrictEqual(responseWithVaultAddress);
+      expect(result.chains['0xa4b1'].protocol.vedaProtocol.vaultAddress).toBe(
+        '0xA20f97813014129E7609171d2D3AA3da5206259e',
+      );
+    });
+
+    it('validates a response that omits the optional vaultAddress', async () => {
+      nock(BASE_URL)
+        .get('/v1/chomp')
+        .query({ chainId: '0xa4b1' })
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, serviceDetailsResponse);
+      const { service } = createService();
+
+      const result = await service.getServiceDetails(['0xa4b1']);
+
+      expect(
+        result.chains['0xa4b1'].protocol.vedaProtocol.vaultAddress,
+      ).toBeUndefined();
+    });
+
     it('throws on non-OK status', async () => {
       nock(BASE_URL).get('/v1/chomp').query({ chainId: '0xa4b1' }).reply(400);
       const { service } = createService();

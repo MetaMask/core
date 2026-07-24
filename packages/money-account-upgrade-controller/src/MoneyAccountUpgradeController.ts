@@ -194,16 +194,18 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param params - The parameters for initialization.
    * @param params.chainId - The chain to initialize for.
    * @param params.boringVaultAddress - The Veda boring vault contract
-   * (vmUSD) for the given chain. Used as the withdrawal-side delegation
-   * token. Supplied by the consumer until the CHOMP service-details API
-   * exposes it.
+   * (vmUSD) for the given chain, used as the withdrawal-side delegation token.
+   * The vault address is now sourced from the CHOMP service-details API
+   * (`vaultAddress`) when the backend exposes it; this param is a temporary
+   * fallback for backends that don't yet return it, and will be removed once
+   * the field is universally available.
    */
   async init({
     chainId,
     boringVaultAddress,
   }: {
     chainId: Hex;
-    boringVaultAddress: Hex;
+    boringVaultAddress?: Hex;
   }): Promise<void> {
     const contracts =
       DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][hexToNumber(chainId)];
@@ -236,11 +238,18 @@ export class MoneyAccountUpgradeController extends BaseController<
       );
     }
 
+    const resolvedVaultAddress = vedaProtocol.vaultAddress ?? boringVaultAddress;
+    if (!resolvedVaultAddress) {
+      throw new Error(
+        `vaultAddress not found for chain ${chainId} in service details response and no fallback boringVaultAddress was provided`,
+      );
+    }
+
     this.#config = {
       chainId,
       delegateAddress: chain.autoDepositDelegate,
       musdTokenAddress: vedaProtocol.supportedTokens[0].tokenAddress,
-      boringVaultAddress,
+      boringVaultAddress: resolvedVaultAddress,
       vedaVaultAdapterAddress: vedaProtocol.adapterAddress,
       delegatorImplAddress: contracts.EIP7702StatelessDeleGatorImpl,
       erc20TransferAmountEnforcer: contracts.ERC20TransferAmountEnforcer,
