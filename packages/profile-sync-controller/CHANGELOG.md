@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `authenticationControllerSelectors` for best-effort reads of cached session identity from `AuthenticationController` state ([#9604](https://github.com/MetaMask/core/pull/9604))
+  - `selectSrpSessionData` — raw `srpSessionData` map
+  - `selectSessionData` — primary (first) SRP session entry
+  - `selectCanonicalProfileId` — cached `canonicalProfileId`, treating `''` as missing
+  - Intended for sync consumers (e.g. Braze) that should not wait on `getSessionProfile()`. Same staleness as a valid cached session; use `refreshCanonicalProfileId()` when freshness is required.
+
 ## [28.3.0]
 
 ### Added
