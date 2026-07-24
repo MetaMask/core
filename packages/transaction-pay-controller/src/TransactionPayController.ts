@@ -17,6 +17,7 @@ import type {
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
+  TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
@@ -148,7 +149,7 @@ export class TransactionPayController extends BaseController<
     callback: TransactionConfigCallback,
   ): void {
     this.#updateTransactionData(transactionId, (transactionData) => {
-      const config = {
+      const config: TransactionConfig = {
         accountOverride: transactionData.accountOverride,
         atomic: transactionData.atomic,
         isHyperliquidSource: transactionData.isHyperliquidSource,
@@ -165,17 +166,7 @@ export class TransactionPayController extends BaseController<
 
       callback(config);
 
-      transactionData.accountOverride = config.accountOverride;
-      transactionData.atomic = config.atomic;
-      transactionData.isHyperliquidSource = config.isHyperliquidSource;
-      transactionData.isMaxAmount = config.isMaxAmount;
-      transactionData.isPolymarketDepositWallet =
-        config.isPolymarketDepositWallet;
-      transactionData.isPostQuote = config.isPostQuote;
-      transactionData.isQuoteRequired = config.isQuoteRequired;
-      transactionData.paymentOverride = config.paymentOverride;
-      transactionData.recipient = config.recipient;
-      transactionData.refundTo = config.refundTo;
+      Object.assign(transactionData, config);
 
       if (
         !config.isPostQuote &&

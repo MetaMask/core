@@ -216,7 +216,7 @@ async function executeSingleQuote(
   // the on-chain Transfer log and submit the second-leg batch (approve + vault
   // deposit) sponsored from `recipient`.
   if (quote.request.atomic === false && completion.status === 'success') {
-    const { transactionHash } = await submitPostCompletionBatch({
+    const { transactionHash } = await submitPostNonAtomic({
       completion,
       messenger,
       quote,
@@ -232,10 +232,10 @@ async function executeSingleQuote(
 /**
  * Runs the second leg of a non-atomic Relay quote. Resolves the settled amount
  * from the on-chain Transfer log at `completion.targetHash`, then submits the
- * post-completion batch via `submitMoneyAccountVaultDeposit`. Post-quote flows
- * fetch pre-built calls via the client `getPaymentOverrideData` callback;
- * non-post-quote flows fall through to the transaction's own nested calls
- * re-encoded via `getAmountData`.
+ * batch via `submitMoneyAccountVaultDeposit`. Post-quote flows fetch pre-built
+ * calls via the client `getPaymentOverrideData` callback; non-post-quote flows
+ * fall through to the transaction's own nested calls re-encoded via
+ * `getAmountData`.
  *
  * @param options - Submit options.
  * @param options.completion - Outcome of `waitForRelayCompletion`.
@@ -244,7 +244,7 @@ async function executeSingleQuote(
  * @param options.transaction - Original transaction meta.
  * @returns Hash of the final submitted child transaction, if available.
  */
-async function submitPostCompletionBatch({
+async function submitPostNonAtomic({
   completion,
   messenger,
   quote,
@@ -261,10 +261,7 @@ async function submitPostCompletionBatch({
     quote,
   });
 
-  const recipient = quote.request.recipient ?? quote.request.from;
-
-  const depositCalls: BatchTransactionParams[] | undefined = quote.request
-    .isPostQuote
+  const override = quote.request.isPostQuote
     ? await buildPostQuoteDepositCalls({
         messenger,
         sourceAmountRaw,
@@ -273,10 +270,13 @@ async function submitPostCompletionBatch({
       })
     : undefined;
 
+  const recipient =
+    override?.recipient ?? quote.request.recipient ?? quote.request.from;
+
   return submitMoneyAccountVaultDeposit({
     messenger,
     moneyAccountAddress: recipient,
-    depositCalls,
+    depositCalls: override?.calls,
     sourceAmountRaw,
     transaction,
     vaultDisabled: false,
@@ -294,12 +294,15 @@ async function submitPostCompletionBatch({
  * leg once Relay has already settled funds to the recipient. Throw eagerly so
  * the failure surfaces at the correct call site with an actionable message.
  *
+ * The callback may also return the `recipient` that funds settled on, which the
+ * caller prefers as the source of truth for the second-leg account.
+ *
  * @param options - Build options.
  * @param options.messenger - Controller messenger.
  * @param options.quote - The Relay quote that was submitted.
  * @param options.sourceAmountRaw - Settled amount in raw units.
  * @param options.transaction - Original transaction meta.
- * @returns The batch calls.
+ * @returns The batch calls and optional recipient.
  * @throws If the callback returns an empty batch.
  */
 async function buildPostQuoteDepositCalls({
@@ -312,7 +315,7 @@ async function buildPostQuoteDepositCalls({
   quote: TransactionPayQuote<RelayQuote>;
   sourceAmountRaw: string;
   transaction: TransactionMeta;
-}): Promise<BatchTransactionParams[]> {
+}): Promise<{ calls: BatchTransactionParams[]; recipient?: Hex }> {
   const { transactionData } = messenger.call(
     'TransactionPayController:getState',
   );
@@ -322,7 +325,7 @@ async function buildPostQuoteDepositCalls({
     .shiftedBy(-decimals)
     .toFixed();
 
-  const { calls } = await messenger.call(
+  const { calls, recipient } = await messenger.call(
     'TransactionPayController:getPaymentOverrideData',
     {
       amount: amountHuman,
@@ -332,19 +335,23 @@ async function buildPostQuoteDepositCalls({
   );
 
   if (!calls.length) {
-    throw new Error(
-      'Missing post-quote deposit calls from getPaymentOverrideData',
-    );
+    throw new Error('Missing post-quote deposit calls');
   }
 
-  return calls;
+  return { calls, recipient };
 }
 
 /**
  * Resolves the actual amount that landed on the recipient after a Relay bridge.
- * Prefers the on-chain Transfer log on `completion.targetHash`; falls back to
- * the Relay quote's minimum output when the target hash is the same-chain
- * `FALLBACK_HASH` placeholder or the on-chain read fails.
+ *
+ * When Relay settled on a different chain there is a real target-chain hash, so
+ * the exact settled amount is read from its on-chain Transfer log; a read
+ * failure or missing amount throws rather than guessing, since using the quote
+ * minimum would knowingly strand dust and defeat an EXACT_INPUT quote.
+ *
+ * Same-chain relays have no separate settlement hash (the `FALLBACK_HASH`
+ * placeholder), so there is nothing to read and the quote's minimum output is
+ * used as the only available source.
  *
  * @param options - Resolution options.
  * @param options.completion - Outcome of `waitForRelayCompletion`.
@@ -365,35 +372,29 @@ async function resolveSettledAmount({
     | Hex
     | undefined;
 
-  if (
-    recipient &&
-    completion.targetHash &&
-    completion.targetHash !== FALLBACK_HASH
-  ) {
-    try {
-      const { amountRaw: onChainAmount } = await getTransferredAmountFromTxHash(
-        {
-          messenger,
-          txHash: completion.targetHash,
-          chainId: quote.request.targetChainId,
-          tokenAddress: quote.request.targetTokenAddress,
-          walletAddress: recipient,
-        },
-      );
+  const hasSettlementHash = Boolean(
+    completion.targetHash && completion.targetHash !== FALLBACK_HASH,
+  );
 
-      if (onChainAmount) {
-        log('Resolved settled amount from on-chain transaction', {
-          targetHash: completion.targetHash,
-          onChainAmount,
-        });
-        return onChainAmount;
-      }
-    } catch (error) {
-      log(
-        'Failed to read on-chain amount, falling back to quote minimum output',
-        { targetHash: completion.targetHash, error },
-      );
+  if (recipient && hasSettlementHash) {
+    const { amountRaw: onChainAmount } = await getTransferredAmountFromTxHash({
+      messenger,
+      txHash: completion.targetHash as Hex,
+      chainId: quote.request.targetChainId,
+      tokenAddress: quote.request.targetTokenAddress,
+      walletAddress: recipient,
+    });
+
+    if (!onChainAmount) {
+      throw new Error('Cannot resolve settled amount from on-chain transaction');
     }
+
+    log('Resolved settled amount from on-chain transaction', {
+      targetHash: completion.targetHash,
+      onChainAmount,
+    });
+
+    return onChainAmount;
   }
 
   const fallback = quote.original.details.currencyOut.minimumAmount;
@@ -701,7 +702,7 @@ async function buildRelaySubmitParams({
     (transaction.txParams.from as Hex).toLowerCase();
 
   // Non-atomic flows are excluded from the paymentOverride prepend: their
-  // second leg is submitted separately by `submitPostCompletionBatch` after
+  // second leg is submitted separately by `submitPostNonAtomic` after
   // Relay completion, so prepending here would double-embed the vault deposit.
   // Cross-chain atomic flows (e.g. `moneyAccountWithdraw` on Monad settling
   // USDC on Arbitrum for Perps) still need the source-side vault withdraw +

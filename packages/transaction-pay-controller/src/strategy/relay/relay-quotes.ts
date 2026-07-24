@@ -336,33 +336,23 @@ async function getSingleQuote(
       await applyPolymarketDepositWalletOverrides(body, request, messenger);
     }
 
-    // Non-atomic flow: the quote only bridges/swaps to deliver the required
-    // asset to `recipient`. The second leg (target transaction or
-    // paymentOverride batch) is NOT embedded in the quote; it is submitted
-    // separately after Relay completion (see relay-submit). Skip all
-    // embedding paths and honour caller-specified refundTo.
-    const isNonAtomic = request.atomic === false;
+    const isAtomic = request.atomic !== false;
 
-    // Skip transaction processing when skipProcessTransactions (defaulting to
-    // isPostQuote) is true — the original transaction will be included in the
-    // batch separately, not as part of the quote.
-    // Skip for Polymarket deposit wallet flows — the source is already a
-    // bridged token transfer, not a contract call to embed.
-    // Skip for non-atomic flows — the second leg is submitted after settlement.
-    const shouldProcessTransactions =
-      !(request.skipProcessTransactions ?? request.isPostQuote) &&
-      !request.isPolymarketDepositWallet &&
-      !isNonAtomic;
+    const processedTransactions = await processTransactions(
+      transaction,
+      request,
+      body,
+      messenger,
+    );
 
-    if (shouldProcessTransactions) {
-      await processTransactions(transaction, request, body, messenger);
-    } else if (
-      !isNonAtomic &&
+    if (
+      !processedTransactions &&
+      isAtomic &&
       request.isPostQuote &&
       request.paymentOverride === PaymentOverride.MoneyAccount
     ) {
       await processMoneyAccountPostQuote(transaction, request, body, messenger);
-    } else if (request.refundTo) {
+    } else if (!processedTransactions && request.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
       // failed Relay transactions refund to the correct account (e.g. the Predict
       // Safe proxy) rather than defaulting to the EOA.
@@ -402,13 +392,33 @@ function normalizeAuthorizationList(
  * @param request - Quote request.
  * @param requestBody  - Request body to populate.
  * @param messenger  - Controller messenger.
+ * @returns `true` when the transaction was embedded in the quote; `false` when
+ * skipped so the caller can route to an alternate handler.
  */
 async function processTransactions(
   transaction: TransactionMeta,
   request: QuoteRequest,
   requestBody: RelayQuoteRequest,
   messenger: TransactionPayControllerMessenger,
-): Promise<void> {
+): Promise<boolean> {
+  const isAtomic = request.atomic !== false;
+
+  // Skip when skipProcessTransactions (defaulting to isPostQuote) is set — the
+  // original transaction is submitted separately, not embedded in the quote.
+  // Skip Polymarket deposit wallet flows — the source is already a bridged
+  // token transfer, not a contract call to embed. Skip non-atomic flows — the
+  // second leg is submitted after Relay settlement.
+  const skipProcessTransactions =
+    request.skipProcessTransactions ?? request.isPostQuote;
+  const shouldSkip =
+    skipProcessTransactions === true ||
+    request.isPolymarketDepositWallet === true ||
+    !isAtomic;
+
+  if (shouldSkip) {
+    return false;
+  }
+
   const { nestedTransactions, txParams } = transaction;
   const { isMaxAmount, targetChainId } = request;
   const data = txParams?.data as Hex | undefined;
@@ -432,7 +442,7 @@ async function processTransactions(
 
   if (skipDelegation) {
     log('Skipping delegation as token transfer or Hypercore deposit');
-    return;
+    return true;
   }
 
   if (isMaxAmount) {
@@ -477,6 +487,8 @@ async function processTransactions(
       value: delegation.value,
     },
   ];
+
+  return true;
 }
 
 async function processMoneyAccountPostQuote(

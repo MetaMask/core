@@ -1888,29 +1888,25 @@ describe('Relay Submit Utils', () => {
         expect(result).toStrictEqual({ transactionHash: VAULT_HASH_MOCK });
       });
 
-      it('falls back to quote minimum output when on-chain amount is unavailable', async () => {
+      it('throws when the cross-chain on-chain amount is unavailable', async () => {
         getTransferredAmountFromTxHashMock.mockResolvedValue({
           amountRaw: undefined,
           blockNumber: undefined,
         });
 
-        await submitRelayQuotes(request);
-
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-          expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Cannot resolve settled amount from on-chain transaction',
         );
+        expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
       });
 
-      it('falls back to quote minimum output when on-chain read throws', async () => {
+      it('propagates the error when the cross-chain on-chain read throws', async () => {
         getTransferredAmountFromTxHashMock.mockRejectedValue(
           new Error('rpc error'),
         );
 
-        await submitRelayQuotes(request);
-
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-          expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
-        );
+        await expect(submitRelayQuotes(request)).rejects.toThrow('rpc error');
+        expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
       });
 
       it('skips on-chain read and uses quote minimum when targetHash is FALLBACK_HASH', async () => {
@@ -1931,16 +1927,21 @@ describe('Relay Submit Utils', () => {
         );
       });
 
-      it('throws when neither on-chain nor quote-minimum amount is available', async () => {
+      it('throws when the same-chain flow has no quote-minimum amount', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [FALLBACK_HASH],
+          }),
+        } as Response);
         request.quotes[0].original.details.currencyOut.minimumAmount = '';
-        getTransferredAmountFromTxHashMock.mockResolvedValue({
-          amountRaw: undefined,
-          blockNumber: undefined,
-        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Cannot resolve post-completion amount',
         );
+        expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
       });
 
       it('falls back to completion targetHash when submit returns no hash', async () => {
@@ -2023,11 +2024,36 @@ describe('Relay Submit Utils', () => {
           );
         });
 
+        it('prefers the recipient returned by getPaymentOverrideData', async () => {
+          const CALLBACK_RECIPIENT_MOCK =
+            '0xcallback00000000000000000000000000000001' as Hex;
+          getPaymentOverrideDataMock.mockResolvedValue({
+            calls: DEPOSIT_CALLS_MOCK,
+            recipient: CALLBACK_RECIPIENT_MOCK,
+          });
+
+          await submitRelayQuotes(request);
+
+          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              moneyAccountAddress: CALLBACK_RECIPIENT_MOCK,
+            }),
+          );
+        });
+
+        it('falls back to the quote recipient when getPaymentOverrideData omits it', async () => {
+          await submitRelayQuotes(request);
+
+          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+            expect.objectContaining({ moneyAccountAddress: RECIPIENT_MOCK }),
+          );
+        });
+
         it('throws when getPaymentOverrideData returns no calls', async () => {
           getPaymentOverrideDataMock.mockResolvedValue({ calls: [] });
 
           await expect(submitRelayQuotes(request)).rejects.toThrow(
-            'Missing post-quote deposit calls from getPaymentOverrideData',
+            'Missing post-quote deposit calls',
           );
           expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
         });
