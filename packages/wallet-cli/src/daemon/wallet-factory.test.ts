@@ -12,6 +12,7 @@ import { join } from 'node:path';
 
 import { KeyValueStore } from '../persistence/KeyValueStore.js';
 import * as persistenceModule from '../persistence/persistence.js';
+import * as autoApprovalModule from './auto-approval.js';
 import { Password, Srp } from './secrets.js';
 import { createWallet } from './wallet-factory.js';
 
@@ -122,6 +123,21 @@ describe('createWallet', () => {
     expect(instanceOptions.transactionController?.disableSwaps).toBe(true);
     expect(instanceOptions.transactionController?.hooks).toStrictEqual({});
     expect(ClientConfigApiService).toHaveBeenCalled();
+
+    await dispose();
+  });
+
+  it('installs the headless auto-approval subscription on the real wallet messenger', async () => {
+    const autoApprovalSpy = jest
+      .spyOn(autoApprovalModule, 'subscribeToAutoApproval')
+      .mockReturnValue(() => undefined);
+
+    const { wallet, dispose } = await createWallet(CONFIG);
+
+    expect(autoApprovalSpy).toHaveBeenCalledWith(
+      wallet.messenger,
+      expect.any(Function),
+    );
 
     await dispose();
   });
@@ -501,6 +517,43 @@ describe('createWallet', () => {
       expect(closeSpy).toHaveBeenCalled();
     });
 
+    it('unsubscribes auto-approval before destroying the wallet', async () => {
+      const autoApprovalUnsubscribe = jest.fn();
+      jest
+        .spyOn(autoApprovalModule, 'subscribeToAutoApproval')
+        .mockReturnValue(autoApprovalUnsubscribe);
+
+      const { wallet, dispose } = await createWallet(CONFIG);
+      await dispose();
+
+      const destroyMock = wallet.destroy as jest.Mock;
+      expect(autoApprovalUnsubscribe).toHaveBeenCalledTimes(1);
+      expect(autoApprovalUnsubscribe.mock.invocationCallOrder[0]).toBeLessThan(
+        destroyMock.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('logs and continues when the auto-approval unsubscribe throws', async () => {
+      jest
+        .spyOn(autoApprovalModule, 'subscribeToAutoApproval')
+        .mockReturnValue(() => {
+          throw new Error('auto-approval unsub boom');
+        });
+      const log = jest.fn();
+      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+
+      const { wallet, dispose } = await createWallet({ ...CONFIG, log });
+      await dispose();
+
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Auto-approval unsubscribe failed during teardown',
+        ),
+      );
+      expect(wallet.destroy as jest.Mock).toHaveBeenCalledTimes(1);
+      expect(closeSpy).toHaveBeenCalled();
+    });
+
     it('logs and still closes the store when wallet.destroy rejects', async () => {
       const log = jest.fn();
       const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
@@ -606,6 +659,29 @@ describe('createWallet', () => {
 
       await expect(createWallet(CONFIG)).rejects.toThrow('subscribe failed');
       const realWallet = MockWallet.mock.results[1]?.value as Wallet;
+      expect(realWallet.destroy).toHaveBeenCalledTimes(1);
+      expect(closeSpy).toHaveBeenCalled();
+    });
+
+    it('unsubscribes persistence, destroys the wallet, and closes the store when subscribeToAutoApproval throws', async () => {
+      const persistenceUnsubscribe = jest.fn();
+      jest
+        .spyOn(persistenceModule, 'subscribeToChanges')
+        .mockReturnValue(persistenceUnsubscribe);
+      jest
+        .spyOn(autoApprovalModule, 'subscribeToAutoApproval')
+        .mockImplementation(() => {
+          throw new Error('auto-approval subscribe failed');
+        });
+      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+
+      await expect(createWallet(CONFIG)).rejects.toThrow(
+        'auto-approval subscribe failed',
+      );
+      const realWallet = MockWallet.mock.results[1]?.value as Wallet;
+      // The persistence subscription was installed before the throw, so it
+      // must be torn down even though autoApprovalUnsubscribe was never set.
+      expect(persistenceUnsubscribe).toHaveBeenCalledTimes(1);
       expect(realWallet.destroy).toHaveBeenCalledTimes(1);
       expect(closeSpy).toHaveBeenCalled();
     });
