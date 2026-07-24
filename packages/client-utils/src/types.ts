@@ -48,7 +48,9 @@ export type ActivityKind =
   | 'stopMarketCloseShort'
   | 'marketCloseShort'
   | 'assetActivation'
-  | 'assetDeactivation';
+  | 'assetDeactivation'
+  | 'rampBuy'
+  | 'rampSell';
 
 export type Status = 'pending' | 'success' | 'failed' | 'cancelled';
 
@@ -79,7 +81,21 @@ type ActivityData<Type extends ActivityKind, Data> = {
   status: Status;
   timestamp: number;
   hash?: string;
+  // Stable identifier for items that may not have a hash yet (e.g. a ramp
+  // order pending fiat settlement, where `hash` is empty until it settles
+  // on-chain).
+  id?: string;
   data: Data;
+};
+
+/**
+ * Bank transfer instruction fields attached to a ramp order by providers
+ * that require manual payment (e.g. SEPA, wire transfer).
+ */
+export type RampOrderPaymentDetail = {
+  fiatCurrency: string;
+  paymentMethod: string;
+  fields: { name: string; id: string; value: string }[];
 };
 
 export type ActivityItem =
@@ -158,6 +174,22 @@ export type ActivityItem =
         methodId?: string;
         transactionCategory?: string;
         transactionProtocol?: string;
+      }
+    >
+  | ActivityData<
+      'rampBuy' | 'rampSell',
+      {
+        from?: string;
+        fiat?: FiatAmount;
+        token?: TokenAmount;
+        fees?: Fee[];
+        provider?: {
+          id?: string;
+          name?: string;
+          orderLink?: string;
+        };
+        statusDescription?: string;
+        paymentDetails?: RampOrderPaymentDetail[];
       }
     >;
 
