@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fetch spot prices immediately on price-subscription updates and after seeding native / default tracked assets so held assets are not left unpriced until the next poll after onboarding ([#9631](https://github.com/MetaMask/core/pull/9631))
+
 ## [11.2.0]
 
 ### Added

@@ -10,12 +10,12 @@ import {
 import { BigNumber } from 'bignumber.js';
 import { merge } from 'lodash';
 
-import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
-import { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2';
-import { toBridgeAssetV2 } from './coercers/quote-response-v1-to-v2';
-import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge';
-import type { BridgeAppState } from './selectors';
+import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
+import { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
+import { toBridgeAssetV2 } from './coercers/quote-response-v1-to-v2.js';
+import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge.js';
+import type { BridgeAppState } from './selectors.js';
 import {
   selectExchangeRateByAssetId,
   selectIsAssetExchangeRateInState,
@@ -27,25 +27,24 @@ import {
   selectTokenWarnings,
   selectBatchSellQuotes,
   selectBatchSellTrades,
-} from './selectors';
-import { SortOrder, RequestStatus, ChainId } from './types';
-import type { NonEvmFees } from './types';
-import type { DeepPartial } from './types';
-import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge';
+} from './selectors.js';
+import { SortOrder, RequestStatus, ChainId, NonEvmFees } from './types.js';
+import type { DeepPartial } from './types.js';
+import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge.js';
 import {
   formatAddressToAssetId,
   formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToDec,
   formatChainIdToHex,
-} from './utils/caip-formatters';
-import { calcQuoteMetadata } from './utils/quote-metadata/calculators';
-import { mergeQuoteMetadata } from './utils/quote-metadata/merge';
-import { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1';
-import { BatchSellTransactionType } from './validators/batch-sell';
-import type { BridgeAssetV2 } from './validators/bridge-asset';
-import type { QuoteResponse } from './validators/quote-response';
-import { validateQuoteResponseV1 } from './validators/quote-response-v1';
+} from './utils/caip-formatters.js';
+import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
+import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
+import { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.js';
+import { BatchSellTransactionType } from './validators/batch-sell.js';
+import type { BridgeAssetV2 } from './validators/bridge-asset.js';
+import type { QuoteResponse } from './validators/quote-response.js';
+import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';

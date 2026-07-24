@@ -1,24 +1,24 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 
-import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
-import { ChainId } from '../../types';
-import type { GenericQuoteRequest, QuoteRequest } from '../../types';
-import { FeatureId } from '../../validators/feature-flags';
-import type { QuoteResponse } from '../../validators/quote-response';
-import { getNativeAssetForChainId, isCrossChain } from '../bridge';
+import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge.js';
+import { ChainId } from '../../types.js';
+import type { GenericQuoteRequest, QuoteRequest } from '../../types.js';
+import { FeatureId } from '../../validators/feature-flags.js';
+import type { QuoteResponse } from '../../validators/quote-response.js';
+import { getNativeAssetForChainId, isCrossChain } from '../bridge.js';
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
-} from '../caip-formatters';
-import { MetricsSwapType } from './constants';
+} from '../caip-formatters.js';
+import { MetricsSwapType } from './constants.js';
 import type {
   AccountHardwareType,
   InputKeys,
   InputValues,
   QuoteWarning,
   RequestParams,
-} from './types';
+} from './types.js';
 
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>
@@ -87,7 +87,7 @@ export const formatProviderLabel = ({
  * @param quoteRequest.srcChainId - Source chain id of the quote request.
  * @param quoteRequest.destChainId - Destination chain id of the quote request.
  * @param quoteRequest.srcTokenAddress - Source token address of the quote request.
- * @param quoteRequest.destTokenAddress - Destination token address of the quote request.
+ * @param quoteRequest.destTokenAddress - Destination  token address of the quote request.
  * @param tokenSecurityTypeDestination - The security classification of the destination token,
  * supplied by the client (e.g. from token security/scanning data). Pass `null` when no
  * security data is available for the selected destination token.

@@ -9,19 +9,19 @@ import type {
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 
-import { flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers.js';
 import {
   mockBridgeQuotesErc20Erc20V1,
   getMockBridgeQuotesErc20Erc20V2,
-} from '../tests/mock-quotes-erc20-erc20';
+} from '../tests/mock-quotes-erc20-erc20.js';
 import {
   getMockBridgeQuotesNativeErc20V2,
   mockBridgeQuotesNativeErc20V1,
-} from '../tests/mock-quotes-native-erc20';
+} from '../tests/mock-quotes-native-erc20.js';
 import {
   getMockBridgeQuotesNativeErc20EthV2,
   mockBridgeQuotesNativeErc20EthV1,
-} from '../tests/mock-quotes-native-erc20-eth';
+} from '../tests/mock-quotes-native-erc20-eth.js';
 import {
   advanceToNthTimer,
   advanceToNthTimerThenFlush,
@@ -30,28 +30,28 @@ import {
   mockSseEventSourceWithMultipleDelays,
   mockSseEventSourceWithWarnings,
   mockSseServerError,
-} from '../tests/mock-sse';
-import { BridgeController } from './bridge-controller';
+} from '../tests/mock-sse.js';
+import { BridgeController } from './bridge-controller.js';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
-} from './constants/bridge';
-import { ChainId, RequestStatus } from './types';
-import type { BridgeControllerMessenger } from './types';
-import * as balanceUtils from './utils/balance';
+} from './constants/bridge.js';
+import { ChainId, RequestStatus } from './types.js';
+import type { BridgeControllerMessenger } from './types.js';
+import * as balanceUtils from './utils/balance.js';
 import {
   formatChainIdToCaip,
   formatChainIdToDec,
-} from './utils/caip-formatters';
-import * as featureFlagUtils from './utils/feature-flags';
-import * as fetchUtils from './utils/fetch';
-import { FeatureId } from './validators/feature-flags';
-import { validateQuoteResponseV1 } from './validators/quote-response-v1';
-import { QuoteStreamCompleteReason } from './validators/quote-stream-complete';
-import { TokenFeatureType } from './validators/token-feature';
-import type { TxData } from './validators/trade';
+} from './utils/caip-formatters.js';
+import * as featureFlagUtils from './utils/feature-flags.js';
+import * as fetchUtils from './utils/fetch.js';
+import { FeatureId } from './validators/feature-flags.js';
+import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
+import { QuoteStreamCompleteReason } from './validators/quote-stream-complete.js';
+import { TokenFeatureType } from './validators/token-feature.js';
+import type { TxData } from './validators/trade.js';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,

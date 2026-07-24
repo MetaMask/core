@@ -45,49 +45,49 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
-} from './constants';
+} from './constants.js';
 import {
   QUOTE_STATUS_BACKFILL_WINDOW_MS,
   QUOTE_STATUS_UPDATE_ENTRY_TTL,
   QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS,
-} from './quote-status-manager/constants';
+} from './quote-status-manager/constants.js';
 import {
   QuoteStatusGetError,
   QuoteStatusUpdateError,
-} from './quote-status-manager/errors';
-import { QuoteStatusManager } from './quote-status-manager/quotes-status-manager';
-import executeSubmitStrategy from './strategy';
-import { SubmitStep } from './strategy/types';
-import type { SubmitStrategyParams } from './strategy/types';
+} from './quote-status-manager/errors.js';
+import { QuoteStatusManager } from './quote-status-manager/quotes-status-manager.js';
+import executeSubmitStrategy from './strategy/index.js';
+import { SubmitStep } from './strategy/types.js';
+import type { SubmitStrategyParams } from './strategy/types.js';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
   FetchFunction,
   BridgeHistoryItem,
-} from './types';
-import type { BridgeStatusControllerMessenger } from './types';
-import { BridgeClientId } from './types';
-import { getAccountByAddress } from './utils/accounts';
-import { getJwt } from './utils/authentication';
-import {
-  getBatchSellTrades,
-  stopPollingForQuotes,
-  trackMetricsEvent,
-} from './utils/bridge';
+} from './types.js';
+import type { BridgeStatusControllerMessenger } from './types.js';
+import { BridgeClientId } from './types.js';
+import { getAccountByAddress } from './utils/accounts.js';
+import { getJwt } from './utils/authentication.js';
 import {
   fetchBridgeTxStatus,
   fetchBridgeQuoteStatus,
   getStatusRequestWithSrcTxHash,
   shouldSkipFetchDueToFetchFailures,
   shouldWaitForFinalBridgeStatus,
-} from './utils/bridge-status';
+} from './utils/bridge-status.js';
+import {
+  getBatchSellTrades,
+  stopPollingForQuotes,
+  trackMetricsEvent,
+} from './utils/bridge.js';
 import {
   getInitialHistoryItem,
   getMatchingHistoryEntryForTxMeta,
   rekeyHistoryItemInState,
   shouldPollHistoryItem,
   getMatchingHistoryEntryForApprovalTxMeta,
-} from './utils/history';
+} from './utils/history.js';
 import {
   getFinalizedTxProperties,
   getPriceImpactFromQuote,
@@ -97,9 +97,9 @@ import {
   getEVMTxPropertiesFromTransactionMeta,
   getTxStatusesFromHistory,
   getPreConfirmationPropertiesFromQuote,
-} from './utils/metrics';
-import { getSelectedChainId } from './utils/network';
-import { getTraceParams } from './utils/trace';
+} from './utils/metrics.js';
+import { getSelectedChainId } from './utils/network.js';
+import { getTraceParams } from './utils/trace.js';
 import {
   getTransactionMetaById,
   getTransactions,
@@ -107,7 +107,7 @@ import {
   isCrossChainTx,
   updateTransactionsInBatch,
   hasNestedSwapTransactions,
-} from './utils/transaction';
+} from './utils/transaction.js';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list

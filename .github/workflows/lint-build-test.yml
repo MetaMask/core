@@ -3,6 +3,9 @@ name: Lint, Build, and Test
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   prepare:
     name: Prepare
@@ -12,6 +15,9 @@ jobs:
         node-version: [18.x, 20.x, 22.x, 24.x]
     outputs:
       child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
+      merge-base: ${{ steps.fetch-merge-base.outputs.merge-base }}
+      package-names: ${{ steps.packages.outputs.package-names }}
+      changed-paths: ${{ steps.packages.outputs.changed-paths }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -26,6 +32,46 @@ jobs:
         run: |
           echo "child-workspace-package-names=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')" >> "$GITHUB_OUTPUT"
         shell: bash
+      - name: Fetch merge base
+        id: fetch-merge-base
+        if: matrix.node-version == '24.x' && (github.base_ref != '' || github.event.merge_group.base_ref != '')
+        run: |
+          set -euo pipefail
+
+          PREFIXED_REF_REGEX='refs/heads/(.+)'
+          if [[ "$BASE_REF" =~ $PREFIXED_REF_REGEX ]]; then
+            BASE_REF="${BASH_REMATCH[1]}"
+          fi
+
+          MERGE_BASE=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_REF...$HEAD_SHA" --jq '.merge_base_commit.sha')
+          git fetch --unshallow --filter=blob:none --no-tags origin HEAD
+
+          echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          GH_TOKEN: ${{ github.token }}
+      - name: Get changed package names
+        id: packages
+        if: matrix.node-version == '24.x'
+        run: |
+          if [[ -n "$MERGE_BASE" ]]; then
+            OUTPUT=$(yarn tsx scripts/get-changed-workspaces.mts --merge-base "$MERGE_BASE" --head-ref "$HEAD_SHA")
+            PACKAGES=$(echo "$OUTPUT" | jq -c '.names')
+            if [[ $(echo "$OUTPUT" | jq '.hasRootChange') == "true" ]]; then
+              CHANGED_PATHS="full"
+            else
+              CHANGED_PATHS=$(echo "$OUTPUT" | jq -c '.locations')
+            fi
+          else
+            PACKAGES=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')
+            CHANGED_PATHS="full"
+          fi
+          echo "package-names=$PACKAGES" >> "$GITHUB_OUTPUT"
+          echo "changed-paths=$CHANGED_PATHS" >> "$GITHUB_OUTPUT"
+        env:
+          MERGE_BASE: ${{ steps.fetch-merge-base.outputs.merge-base }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
 
   lint:
     name: Lint (${{ matrix.script }})
@@ -38,7 +84,6 @@ jobs:
           - codeowners:check
           - constraints
           - lint:dependencies
-          - lint:eslint
           - lint:misc:check
           - lint:teams
           - lint:tsconfigs:all
@@ -63,14 +108,52 @@ jobs:
             exit 1
           fi
 
-  validate-changelog:
-    name: Validate changelog
+  lint-eslint:
+    name: Lint (lint:eslint)
     runs-on: ubuntu-latest
+    if: needs.prepare.outputs.changed-paths != '[]'
     needs: prepare
     strategy:
       matrix:
         node-version: [24.x]
-        package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
+          node-version: ${{ matrix.node-version }}
+      - name: Lint
+        run: |
+          if [[ "$CHANGED_PATHS" == "full" ]]; then
+            echo "Running ESLint on all packages."
+            echo ""
+            yarn lint:eslint
+          else
+            echo "Running ESLint on:"
+            echo "$CHANGED_PATHS" | jq -r '"- " + .[]'
+            echo ""
+            echo "$CHANGED_PATHS" | jq -r '.[]' | xargs yarn lint:eslint
+          fi
+        env:
+          CHANGED_PATHS: ${{ needs.prepare.outputs.changed-paths }}
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+
+  validate-changelog:
+    name: Validate changelog
+    runs-on: ubuntu-latest
+    if: needs.prepare.outputs.package-names != '[]'
+    needs: prepare
+    strategy:
+      matrix:
+        node-version: [24.x]
+        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -118,7 +201,36 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
-      - run: yarn build
+      - name: Unshallow checkout
+        if: needs.prepare.outputs.merge-base != ''
+        run: |
+          # Unshallow so git can walk history back to the merge base for
+          # `git diff --name-only`. Using `--filter=blob:none` avoids
+          # downloading file content — only commit and tree objects are needed.
+          git fetch --unshallow --filter=blob:none --no-tags origin HEAD
+      - name: Build
+        run: |
+          if [[ -n "$MERGE_BASE" && "$CHANGED_PATHS" != "full" ]]; then
+            TSCONFIG=$(mktemp --tmpdir="$GITHUB_WORKSPACE" --suffix=.json)
+            yarn tsx scripts/generate-partial-build-tsconfig.mts "$MERGE_BASE" "$HEAD_SHA" > "$TSCONFIG"
+            if [[ -s "$TSCONFIG" ]]; then
+              echo "Building changed packages:"
+              jq -r '"- " + (.references[].path | ltrimstr("./") | rtrimstr("/tsconfig.build.json"))' "$TSCONFIG"
+              echo ""
+              yarn ts-bridge --project "$TSCONFIG" --verbose
+            else
+              echo "No packages to build."
+            fi
+            rm -f "$TSCONFIG"
+          else
+            echo "Building all packages."
+            echo ""
+            yarn build
+          fi
+        env:
+          MERGE_BASE: ${{ needs.prepare.outputs.merge-base }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          CHANGED_PATHS: ${{ needs.prepare.outputs.changed-paths }}
       - name: Require clean working directory
         shell: bash
         run: |
@@ -157,10 +269,11 @@ jobs:
   test-18:
     name: Test (18.x)
     runs-on: ubuntu-latest
+    if: needs.prepare.outputs.package-names != '[]'
     needs: prepare
     strategy:
       matrix:
-        package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
+        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -182,10 +295,11 @@ jobs:
   test-20:
     name: Test (20.x)
     runs-on: ubuntu-latest
+    if: needs.prepare.outputs.package-names != '[]'
     needs: prepare
     strategy:
       matrix:
-        package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
+        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -207,10 +321,11 @@ jobs:
   test-22:
     name: Test (22.x)
     runs-on: ubuntu-latest
+    if: needs.prepare.outputs.package-names != '[]'
     needs: prepare
     strategy:
       matrix:
-        package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
+        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -252,6 +367,7 @@ jobs:
   test-wallet-cli-e2e:
     name: Test wallet-cli daemon e2e (${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    if: contains(fromJson(needs.prepare.outputs.package-names), '@metamask/wallet-cli')
     needs: prepare
     strategy:
       matrix:

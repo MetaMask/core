@@ -7,8 +7,8 @@ import type { QuoteResponseV1 } from '@metamask/bridge-controller';
 import type { Provider } from '@metamask/network-controller';
 import { StructError } from '@metamask/superstruct';
 
-import { REFRESH_INTERVAL_MS } from '../constants';
-import { QuoteStatusManager } from '../quote-status-manager/quotes-status-manager';
+import { REFRESH_INTERVAL_MS } from '../constants.js';
+import { QuoteStatusManager } from '../quote-status-manager/quotes-status-manager.js';
 import type {
   StatusResponse,
   StatusRequestWithSrcTxHash,
@@ -17,10 +17,10 @@ import type {
   BridgeHistoryItem,
   StatusRequest,
   BridgeStatusControllerMessenger,
-} from '../types';
-import { isHistoryItemTooOld } from './history';
-import { getNetworkClientByChainId } from './network';
-import { validateBridgeStatusResponse } from './validators';
+} from '../types.js';
+import { isHistoryItemTooOld } from './history.js';
+import { getNetworkClientByChainId } from './network.js';
+import { validateBridgeStatusResponse } from './validators.js';
 
 export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
   `${bridgeApiBaseUrl}/getTxStatus`;

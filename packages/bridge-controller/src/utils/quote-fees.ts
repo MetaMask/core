@@ -2,19 +2,19 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipChainId } from '@metamask/utils';
 
-import { CHAIN_IDS } from '../constants/chains';
+import { CHAIN_IDS } from '../constants/chains.js';
 import type {
   L1GasFees,
   NonEvmFees,
   BridgeControllerMessenger,
-} from '../types';
-import type { QuoteResponseV1 } from '../validators/quote-response-v1';
-import { isTronTrade } from '../validators/trade';
-import type { TxData } from '../validators/trade';
-import { isNonEvmChainId, sumHexes } from './bridge';
-import { formatChainIdToCaip, formatChainIdToHex } from './caip-formatters';
-import { computeFeeRequest } from './snaps';
-import { extractTradeData } from './trade-utils';
+} from '../types.js';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
+import { isTronTrade } from '../validators/trade.js';
+import type { TxData } from '../validators/trade.js';
+import { isNonEvmChainId, sumHexes } from './bridge.js';
+import { formatChainIdToCaip, formatChainIdToHex } from './caip-formatters.js';
+import { computeFeeRequest } from './snaps.js';
+import { extractTradeData } from './trade-utils.js';
 
 /**
  * Appends transaction fees for EVM chains to quotes

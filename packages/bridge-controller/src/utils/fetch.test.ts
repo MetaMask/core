@@ -4,19 +4,22 @@ import type { CaipAssetType } from '@metamask/utils';
 import {
   getMockBridgeQuotesErc20Erc20V2,
   mockBridgeQuotesErc20Erc20V1,
-} from '../../tests/mock-quotes-erc20-erc20';
-import { mockBridgeQuotesNativeErc20V1 } from '../../tests/mock-quotes-native-erc20';
-import { toQuoteResponseV2 } from '../coercers/quote-response-v1-to-v2';
-import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
-import { BatchSellTransactionType } from '../validators/batch-sell';
-import { FeatureId } from '../validators/feature-flags';
+} from '../../tests/mock-quotes-erc20-erc20.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../../tests/mock-quotes-native-erc20.js';
+import { toQuoteResponseV2 } from '../coercers/quote-response-v1-to-v2.js';
+import {
+  BridgeClientId,
+  BRIDGE_PROD_API_BASE_URL,
+} from '../constants/bridge.js';
+import { BatchSellTransactionType } from '../validators/batch-sell.js';
+import { FeatureId } from '../validators/feature-flags.js';
 import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
   fetchAssetPrices,
   fetchBatchSellTrades,
   formatBatchSellTradesRequest,
-} from './fetch';
+} from './fetch.js';
 
 const mockFetchFn = jest.fn();
 

@@ -84,7 +84,10 @@ import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource.js';
 import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
-import { PriceDataSource } from './data-sources/PriceDataSource.js';
+import {
+  isPriceableAsset,
+  PriceDataSource,
+} from './data-sources/PriceDataSource.js';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
 import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource.js';
@@ -1379,9 +1382,11 @@ export class AssetsController extends BaseController<
           forceUpdate: true,
         });
       }
+      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } catch (error) {
       log('Failed to fetch assets after tree change', error);
       this.#subscribeAssets();
+      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
       releaseLock();
     }
@@ -1399,14 +1404,18 @@ export class AssetsController extends BaseController<
         chainIds: [...this.#enabledChains],
         forceUpdate: true,
       });
-      this.#subscribeAssets();
+      // Seed before subscribe so the price poll / update fetch sees natives
+      // and default tracked assets that were never returned by balance APIs.
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
+      this.#subscribeAssets();
+      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } catch (error) {
       log('Failed to fetch assets on startup', error);
-      this.#subscribeAssets();
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
+      this.#subscribeAssets();
+      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
       releaseLock();
     }
@@ -2163,6 +2172,9 @@ export class AssetsController extends BaseController<
         }
         const normalizedAssetId = normalizeAssetId(assetId as Caip19AssetId);
         if (prices[normalizedAssetId] ?? prices[assetId]) {
+          continue;
+        }
+        if (!isPriceableAsset(normalizedAssetId)) {
           continue;
         }
         assetsForPriceUpdate.push(normalizedAssetId);
@@ -3424,11 +3436,11 @@ export class AssetsController extends BaseController<
         });
       }
 
-      // Subscribe after fetch so WS notifications can recover state
-      this.#subscribeAssets();
-
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
+      // Subscribe after seed so the price poll sees natives / defaults.
+      this.#subscribeAssets();
+      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
       releaseLock();
     }
@@ -3487,6 +3499,7 @@ export class AssetsController extends BaseController<
     if (addedChains.length > 0) {
       this.#ensureDefaultTrackedAssetsSeeded(addedChains);
     }
+    this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
   }
 
   /**
@@ -3518,6 +3531,8 @@ export class AssetsController extends BaseController<
     });
 
     this.#ensureDefaultTrackedAssetsSeeded([caipChainId]);
+    const accounts = this.#getSelectedAccounts();
+    this.#fetchMissingPricesWithoutCache(accounts, [caipChainId]);
   }
 
   /**

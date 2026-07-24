@@ -18,28 +18,32 @@ import {
   createStructuredSelector as createStructuredSelector_,
 } from 'reselect';
 
-import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
-import type { BridgeControllerState, DeepPartial, ExchangeRate } from './types';
-import { RequestStatus, SortOrder } from './types';
+import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge.js';
+import type {
+  BridgeControllerState,
+  DeepPartial,
+  ExchangeRate,
+} from './types.js';
+import { RequestStatus, SortOrder } from './types.js';
 import {
   getNativeAssetForChainId,
   isNativeAddress,
   isNonEvmChainId,
-} from './utils/bridge';
+} from './utils/bridge.js';
 import {
   formatAddressToAssetId,
   formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToHex,
-} from './utils/caip-formatters';
-import { processFeatureFlags } from './utils/feature-flags';
-import { sumAmounts } from './utils/number-formatters';
-import { calcBatchFees } from './utils/quote-metadata/calculators';
-import { calcQuoteMetadata } from './utils/quote-metadata/calculators';
-import { mergeQuoteMetadata } from './utils/quote-metadata/merge';
-import type { QuoteMetadata } from './utils/quote-metadata/types';
-import { getDefaultSlippagePercentage } from './utils/slippage';
-import type { QuoteResponse } from './validators/quote-response';
+} from './utils/caip-formatters.js';
+import { processFeatureFlags } from './utils/feature-flags.js';
+import { sumAmounts } from './utils/number-formatters.js';
+import { calcBatchFees } from './utils/quote-metadata/calculators.js';
+import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
+import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
+import type { QuoteMetadata } from './utils/quote-metadata/types.js';
+import { getDefaultSlippagePercentage } from './utils/slippage.js';
+import type { QuoteResponse } from './validators/quote-response.js';
 
 /**
  * The controller states that provide exchange rates
@@ -458,8 +462,8 @@ export const selectIsQuoteExpired = createBridgeSelector(
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
       !isQuoteGoingToRefresh &&
-      quotesLastFetched &&
-      currentTimeInMs - quotesLastFetched > refreshRate,
+        quotesLastFetched &&
+        currentTimeInMs - quotesLastFetched > refreshRate,
     ),
 );
 

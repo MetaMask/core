@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AnalyticsController } from './AnalyticsController';
+import type { AnalyticsController } from './AnalyticsController.js';
 
 /**
  * Track an analytics event.

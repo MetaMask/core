@@ -1,12 +1,12 @@
 import { is } from '@metamask/superstruct';
 import { merge } from 'lodash';
 
-import type { QuoteResponse } from '../../validators/quote-response';
-import { QuoteResponseSchemaV1 } from '../../validators/quote-response-v1';
-import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
-import { toNormalizedAmounts } from './to-normalized-amounts';
-import { toQuoteMetadataV2 } from './to-quote-metadata-v2';
-import type { QuoteMetadata } from './types';
+import type { QuoteResponse } from '../../validators/quote-response.js';
+import { QuoteResponseSchemaV1 } from '../../validators/quote-response-v1.js';
+import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import { toNormalizedAmounts } from './to-normalized-amounts.js';
+import { toQuoteMetadataV2 } from './to-quote-metadata-v2.js';
+import type { QuoteMetadata } from './types.js';
 
 /**
  * Merges legacy {@link QuoteMetadata} values into the {@link QuoteResponse}

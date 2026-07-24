@@ -5,9 +5,9 @@ import {
 } from '@metamask/delegation-deployments';
 import type { Hex } from '@metamask/utils';
 
-import type { ChecksumCaveat } from '../types';
-import { getChecksumEnforcersByChainId } from '../utils';
-import { expiryRule } from './expiryRule';
+import type { ChecksumCaveat } from '../types.js';
+import { getChecksumEnforcersByChainId } from '../utils.js';
+import { expiryRule } from './expiryRule.js';
 
 describe('expiryRule', () => {
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][CHAIN_ID.sepolia];

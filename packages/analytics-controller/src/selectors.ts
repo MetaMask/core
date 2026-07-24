@@ -1,4 +1,4 @@
-import type { AnalyticsControllerState } from './AnalyticsController';
+import type { AnalyticsControllerState } from './AnalyticsController.js';
 
 /**
  * Selects the analytics ID from the controller state.

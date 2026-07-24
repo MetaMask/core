@@ -45,19 +45,19 @@ import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { flushPromises } from '../../../tests/helpers';
-import { BridgeStatusController } from './bridge-status-controller';
+import { flushPromises } from '../../../tests/helpers.js';
+import { BridgeStatusController } from './bridge-status-controller.js';
 import {
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
   MAX_ATTEMPTS,
-} from './constants';
+} from './constants.js';
 import {
   QUOTE_STATUS_BACKFILL_WINDOW_MS,
   QuoteStatusState,
-} from './quote-status-manager/constants';
-import { BridgeClientId } from './types';
+} from './quote-status-manager/constants.js';
+import { BridgeClientId } from './types.js';
 import type {
   BridgeId,
   StartPollingForBridgeTxStatusArgsSerialized,
@@ -65,11 +65,11 @@ import type {
   BridgeStatusControllerState,
   BridgeStatusControllerMessenger,
   StatusResponse,
-} from './types';
-import * as bridgeStatusUtils from './utils/bridge-status';
-import * as historyUtils from './utils/history';
-import * as metricsUtils from './utils/metrics';
-import * as transactionUtils from './utils/transaction';
+} from './types.js';
+import * as bridgeStatusUtils from './utils/bridge-status.js';
+import * as historyUtils from './utils/history.js';
+import * as metricsUtils from './utils/metrics.js';
+import * as transactionUtils from './utils/transaction.js';
 
 type AllBridgeStatusControllerActions =
   MessengerActions<BridgeStatusControllerMessenger>;

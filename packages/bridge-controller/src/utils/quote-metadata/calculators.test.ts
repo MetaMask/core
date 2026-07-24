@@ -2,15 +2,15 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getMockBridgeQuotesErc20Erc20V2 } from '../../../tests/mock-quotes-erc20-erc20';
-import { getMockBridgeQuotesNativeErc20V2 } from '../../../tests/mock-quotes-native-erc20';
-import { getMockBridgeQuotesSolErc20V2 } from '../../../tests/mock-quotes-sol-erc20';
-import type { GenericQuoteRequest, L1GasFees } from '../../types';
-import type { Quote } from '../../validators/quote';
-import { isValidQuoteRequest } from '../../validators/quote-request';
-import type { TxData } from '../../validators/trade';
-import { getNativeAssetForChainId, isNativeAddress } from '../bridge';
-import { formatEtaInMinutes } from '../number-formatters';
+import { getMockBridgeQuotesErc20Erc20V2 } from '../../../tests/mock-quotes-erc20-erc20.js';
+import { getMockBridgeQuotesNativeErc20V2 } from '../../../tests/mock-quotes-native-erc20.js';
+import { getMockBridgeQuotesSolErc20V2 } from '../../../tests/mock-quotes-sol-erc20.js';
+import type { GenericQuoteRequest, L1GasFees } from '../../types.js';
+import type { Quote } from '../../validators/quote.js';
+import { isValidQuoteRequest } from '../../validators/quote-request.js';
+import type { TxData } from '../../validators/trade.js';
+import { getNativeAssetForChainId, isNativeAddress } from '../bridge.js';
+import { formatEtaInMinutes } from '../number-formatters.js';
 import {
   calcNonEvmTotalNetworkFee,
   calcToAmount,
@@ -23,7 +23,7 @@ import {
   calcCost,
   calcSlippagePercentage,
   calcPriceImpact,
-} from './calculators';
+} from './calculators.js';
 
 describe('Quote Utils', () => {
   describe('isValidQuoteRequest', () => {

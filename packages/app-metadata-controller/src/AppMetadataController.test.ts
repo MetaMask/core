@@ -5,12 +5,12 @@ import type { MockAnyNamespace } from '@metamask/messenger';
 import {
   AppMetadataController,
   getDefaultAppMetadataControllerState,
-} from './AppMetadataController';
+} from './AppMetadataController.js';
 import type {
   AppMetadataControllerOptions,
   AppMetadataControllerActions,
   AppMetadataControllerEvents,
-} from './AppMetadataController';
+} from './AppMetadataController.js';
 
 describe('AppMetadataController', () => {
   describe('constructor', () => {

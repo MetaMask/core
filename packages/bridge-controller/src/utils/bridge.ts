@@ -10,22 +10,22 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
-} from '../constants/bridge';
-import { CHAIN_IDS } from '../constants/chains';
-import { SWAPS_CONTRACT_ADDRESSES } from '../constants/swaps';
+} from '../constants/bridge.js';
+import { CHAIN_IDS } from '../constants/chains.js';
+import { SWAPS_CONTRACT_ADDRESSES } from '../constants/swaps.js';
 import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
   SYMBOL_TO_SLIP44_MAP,
-} from '../constants/tokens';
-import type { SupportedSwapsNativeCurrencySymbols } from '../constants/tokens';
-import type { BridgeControllerState, GenericQuoteRequest } from '../types';
-import { ChainId } from '../types';
-import type { BridgeAsset } from '../validators/bridge-asset';
+} from '../constants/tokens.js';
+import type { BridgeAsset } from '../validators/bridge-asset.js';
+import type { SupportedSwapsNativeCurrencySymbols } from '../constants/tokens.js';
+import type { BridgeControllerState, GenericQuoteRequest } from '../types.js';
+import { ChainId } from '../types.js';
 import {
   formatChainIdToCaip,
   formatChainIdToDec,
   formatChainIdToHex,
-} from './caip-formatters';
+} from './caip-formatters.js';
 
 /**
  * Checks whether the transaction is a cross-chain transaction by comparing the source and destination chainIds

@@ -5,10 +5,10 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-} from '../types';
-import { getTermsByEnforcer } from '../utils';
-import { expiryRule } from './expiryRule';
-import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
+} from '../types.js';
+import { getTermsByEnforcer } from '../utils.js';
+import { expiryRule } from './expiryRule.js';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder.js';
 
 enum ApprovalRevocationFlag {
   Erc20Approve = 0x01,

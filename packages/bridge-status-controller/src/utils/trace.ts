@@ -5,7 +5,7 @@ import {
   QuoteResponseV1,
 } from '@metamask/bridge-controller';
 
-import { TraceName } from '../constants';
+import { TraceName } from '../constants.js';
 
 export const getTraceParams = (
   quoteResponse: QuoteResponseV1,

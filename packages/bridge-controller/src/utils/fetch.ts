@@ -3,8 +3,8 @@ import { StructError } from '@metamask/superstruct';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
-import { toQuoteResponseV2 } from '../coercers/quote-response-v1-to-v2';
-import { toQuoteResponseV1 } from '../coercers/quote-response-v2-to-v1';
+import { toQuoteResponseV2 } from '../coercers/quote-response-v1-to-v2.js';
+import { toQuoteResponseV1 } from '../coercers/quote-response-v2-to-v1.js';
 import type {
   FetchFunction,
   GenericQuoteRequest,
@@ -13,27 +13,27 @@ import type {
   QuoteStreamCompleteData,
   BatchSellTradesRequest,
   BatchSellTradesResponse,
-} from '../types';
-import { validateBatchSellTradesResponse } from '../validators/batch-sell';
-import { validateBridgeAsset } from '../validators/bridge-asset';
-import type { BridgeAsset } from '../validators/bridge-asset';
-import type { FeatureId } from '../validators/feature-flags';
-import type { QuoteResponse } from '../validators/quote-response';
-import type { QuoteResponseV1 } from '../validators/quote-response-v1';
-import { validateQuoteResponseV1 } from '../validators/quote-response-v1';
-import { validateQuoteStreamComplete } from '../validators/quote-stream-complete';
-import { validateTokenFeature } from '../validators/token-feature';
-import { isEvmTxData } from '../validators/trade';
-import type { TxData } from '../validators/trade';
-import { getEthUsdtResetData } from './bridge';
+} from '../types.js';
+import { validateBatchSellTradesResponse } from '../validators/batch-sell.js';
+import { validateBridgeAsset } from '../validators/bridge-asset.js';
+import type { BridgeAsset } from '../validators/bridge-asset.js';
+import type { FeatureId } from '../validators/feature-flags.js';
+import type { QuoteResponse } from '../validators/quote-response.js';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
+import { validateQuoteResponseV1 } from '../validators/quote-response-v1.js';
+import { validateQuoteStreamComplete } from '../validators/quote-stream-complete.js';
+import { validateTokenFeature } from '../validators/token-feature.js';
+import { isEvmTxData } from '../validators/trade.js';
+import type { TxData } from '../validators/trade.js';
+import { getEthUsdtResetData } from './bridge.js';
 import {
   formatAddressToAssetId,
   formatAddressToCaipReference,
   formatChainIdToDec,
-} from './caip-formatters';
-import { fetchServerEvents } from './fetch-server-events';
-import type { QuoteMetadata } from './quote-metadata/types';
-import { formatStructErrors } from './struct-error';
+} from './caip-formatters.js';
+import { fetchServerEvents } from './fetch-server-events.js';
+import type { QuoteMetadata } from './quote-metadata/types.js';
+import { formatStructErrors } from './struct-error.js';
 
 export const getClientHeaders = ({
   clientId,

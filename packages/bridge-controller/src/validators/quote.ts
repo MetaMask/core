@@ -10,15 +10,15 @@ import {
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 
-import { AmountsAndAssetSchema } from './amount-and-asset';
-import { ChainIdSchema, BridgeAssetSchema } from './bridge-asset';
-import { IntentSchema } from './intent';
+import { AmountsAndAssetSchema } from './amount-and-asset.js';
+import { ChainIdSchema, BridgeAssetSchema } from './bridge-asset.js';
+import { IntentSchema } from './intent.js';
 import {
   TruthyDigitStringSchema,
   NumberStringSchema,
   FloatStringSchema,
-} from './number';
-import { RefuelDataSchema, StepSchema, StepSchemaV2 } from './step';
+} from './number.js';
+import { RefuelDataSchema, StepSchema, StepSchemaV2 } from './step.js';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
