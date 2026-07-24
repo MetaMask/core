@@ -30,7 +30,7 @@ const DEGRADED_PAYLOAD = {
   error: { httpStatus: 503 },
   networkClientId: 'mainnet',
   primaryEndpointUrl: PUBLIC_ENDPOINT_URL,
-  retryReason: 'connection-error' as const,
+  retryReason: 'connection_failed' as const,
   rpcMethodName: 'eth_blockNumber',
   traceId: 'trace-1',
   type: 'retries_exhausted' as const,
@@ -118,7 +118,7 @@ describe('NetworkController analytics', () => {
         rpc_method_name: 'eth_blockNumber',
         type: 'retries_exhausted',
 
-        retry_reason: 'connection-error',
+        retry_reason: 'connection_failed',
 
         duration_ms: 1234,
 
