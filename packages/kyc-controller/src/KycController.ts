@@ -331,6 +331,17 @@ export class KycController extends BaseController<
   #generation = 0;
 
   /**
+   * Guards the automatic post-authentication continuation. The Check/Auth
+   * frames can post more than one `complete` message (duplicate or late), each
+   * of which resolves to an `active` outcome with an access token. Without this
+   * flag, every such message would re-enter {@link #continueAfterAuthentication}
+   * and run the KYC-required check / SumSub sub-flow again while a prior run is
+   * still in flight. Set for the duration of a continuation and cleared by
+   * {@link reset} so a fresh flow can continue again.
+   */
+  #continuationInFlight = false;
+
+  /**
    * Constructs a new {@link KycController}.
    *
    * @param options - The constructor options.
@@ -375,7 +386,7 @@ export class KycController extends BaseController<
     // this call's product (or `null`). Otherwise a prior run's product could
     // linger and cause `#continueAfterAuthentication` to auto-run the check /
     // sub-flow when the caller intended the manual (product-less) flow.
-    this.update((state) => {
+    this.#applyUpdate((state) => {
       if (params?.email) {
         state.email = params.email;
       }
@@ -385,7 +396,7 @@ export class KycController extends BaseController<
     // Resolve country for display; non-blocking.
     try {
       const country = await this.messenger.call('KycService:getGeoCountry');
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.geoCountry = country;
       });
     } catch {
@@ -401,7 +412,7 @@ export class KycController extends BaseController<
       return;
     }
 
-    this.update((state) => {
+    this.#applyUpdate((state) => {
       state.phase = 'terms';
     });
     await this.loadDisclaimers();
@@ -420,7 +431,7 @@ export class KycController extends BaseController<
         this.state.geoCountry ??
         (await this.messenger.call('KycService:getGeoCountry'));
       if (country !== this.state.geoCountry) {
-        this.update((state) => {
+        this.#applyUpdate((state) => {
           state.geoCountry = country;
         });
       }
@@ -428,12 +439,12 @@ export class KycController extends BaseController<
         'KycService:fetchDisclaimers',
         { country },
       );
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.disclaimers = disclaimers;
         state.disclaimersError = null;
       });
     } catch (error) {
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.disclaimersError = `Failed to load disclaimers: ${String(error)}`;
       });
     }
@@ -457,7 +468,7 @@ export class KycController extends BaseController<
     const disclaimerIds = this.state.disclaimers.map(
       (disclaimer) => disclaimer.id,
     );
-    this.update((state) => {
+    this.#applyUpdate((state) => {
       if (params?.email) {
         state.email = params.email;
       }
@@ -491,7 +502,7 @@ export class KycController extends BaseController<
     // authentication. The Check/Auth frames re-populate these for the new
     // session.
     this.#authClientToken = null;
-    this.update((state) => {
+    this.#applyUpdate((state) => {
       state.error = null;
       state.phase = 'session';
       state.statusMessage = 'Creating session...';
@@ -503,16 +514,19 @@ export class KycController extends BaseController<
         'KycService:createSession',
         { email, termsAcceptedAt, disclaimerIds: acceptedDisclaimerIds },
       );
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.sessionToken = sessionToken;
         state.phase = 'check';
         state.statusMessage = 'Authenticating via Check frame...';
       });
     } catch (error) {
-      // Invalidate the stored acceptance so the customer can retry.
-      this.update((state) => {
-        state.termsAcceptedAt = null;
-        state.acceptedDisclaimerIds = [];
+      // Invalidate the stored acceptance so the customer can retry. Also clear
+      // `activeProduct` so a later `acceptTermsAndStartSession` that omits a
+      // product cannot auto-run the KYC check / SumSub chain for this failed
+      // flow's product — matching how `initialize` starts from a clean product.
+      this.#applyUpdate((state) => {
+        this.#clearAcceptedTerms(state);
+        state.activeProduct = null;
         state.error = `Session creation failed: ${String(error)}`;
         state.statusMessage =
           'Session creation failed — accept the terms to try again.';
@@ -526,10 +540,23 @@ export class KycController extends BaseController<
    * Clears the persisted terms acceptance.
    */
   clearSavedTerms(): void {
-    this.update((state) => {
-      state.termsAcceptedAt = null;
-      state.acceptedDisclaimerIds = [];
+    this.#applyUpdate((state) => {
+      this.#clearAcceptedTerms(state);
     });
+  }
+
+  /**
+   * Clears the stored terms acceptance on the given draft state. Shared by the
+   * paths that must invalidate acceptance — explicit clear, vendor terms
+   * update, and session-creation failure — so they stay in sync. This is a
+   * targeted invalidation and, unlike {@link reset}, deliberately leaves the
+   * rest of the flow (geolocation, disclaimers, phase) untouched.
+   *
+   * @param state - The state to mutate.
+   */
+  #clearAcceptedTerms(state: KycControllerState): void {
+    state.termsAcceptedAt = null;
+    state.acceptedDisclaimerIds = [];
   }
 
   /**
@@ -566,7 +593,7 @@ export class KycController extends BaseController<
 
     const customerId = payload.payload?.customer?.id ?? null;
     if (customerId) {
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.moonpayCustomerId = customerId;
       });
     }
@@ -617,7 +644,7 @@ export class KycController extends BaseController<
     clientToken?: string,
   ): Promise<void> {
     if (status === 'active' && accessToken) {
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.accessToken = accessToken;
         state.phase = 'form';
         state.statusMessage = 'Already authenticated. Review to submit.';
@@ -627,7 +654,7 @@ export class KycController extends BaseController<
     }
     if (status === 'connectionRequired' && clientToken) {
       this.#authClientToken = clientToken;
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.phase = 'auth';
         state.statusMessage = 'Verify your email via OTP in the Auth frame.';
       });
@@ -651,7 +678,7 @@ export class KycController extends BaseController<
     accessToken?: string,
   ): Promise<void> {
     if (status === 'active' && accessToken) {
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.accessToken = accessToken;
         state.phase = 'form';
         state.statusMessage = 'Authenticated. Review to submit.';
@@ -684,17 +711,35 @@ export class KycController extends BaseController<
       return;
     }
 
-    const kycRequired = await this.checkKycRequired({ product });
-    if (!kycRequired) {
+    // A duplicate or late `complete` message can re-enter here while a prior
+    // continuation is still running; ignore it so the check / sub-flow does not
+    // run twice concurrently.
+    if (this.#continuationInFlight) {
       return;
     }
+    this.#continuationInFlight = true;
+
+    // Capture the generation so a `reset()` landing mid-continuation does not
+    // let the `finally` clear a flag that belongs to a newer flow.
+    const generation = this.#generation;
 
     try {
-      await this.startSumSub();
-    } catch {
-      // `startSumSub` already records `sumsub.status = 'failed'`; swallow the
-      // rethrown error (e.g. SDK unavailable) so the awaited continuation
-      // resolves cleanly rather than surfacing as an unhandled rejection.
+      const kycRequired = await this.checkKycRequired({ product });
+      if (!kycRequired) {
+        return;
+      }
+
+      try {
+        await this.startSumSub();
+      } catch {
+        // `startSumSub` already records `sumsub.status = 'failed'`; swallow the
+        // rethrown error (e.g. SDK unavailable) so the awaited continuation
+        // resolves cleanly rather than surfacing as an unhandled rejection.
+      }
+    } finally {
+      if (this.#generation === generation) {
+        this.#continuationInFlight = false;
+      }
     }
   }
 
@@ -702,9 +747,8 @@ export class KycController extends BaseController<
    * Invalidates stored terms and returns to the terms phase.
    */
   #requireTermsReacceptance(): void {
-    this.update((state) => {
-      state.termsAcceptedAt = null;
-      state.acceptedDisclaimerIds = [];
+    this.#applyUpdate((state) => {
+      this.#clearAcceptedTerms(state);
       state.phase = 'terms';
       state.statusMessage =
         'The vendor updated its Terms of Use — please re-accept.';
@@ -782,7 +826,7 @@ export class KycController extends BaseController<
     // while the HTTP call is in flight and avoid writing stale results.
     const generation = this.#generation;
 
-    this.update((state) => {
+    this.#applyUpdate((state) => {
       state.phase = 'submit';
       state.statusMessage = 'Checking KYC status...';
     });
@@ -797,7 +841,7 @@ export class KycController extends BaseController<
       if (this.#generation !== generation) {
         return false;
       }
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.kycRequiredByProduct[params.product] = kycRequired;
         state.lastCheckedAt = new Date().toISOString();
         state.phase = 'done';
@@ -840,7 +884,7 @@ export class KycController extends BaseController<
   }): Promise<Record<string, unknown>> {
     if (!this.#sumsubLauncher.isAvailable()) {
       const error = 'SumSub SDK is not available in this runtime.';
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.sumsub.status = 'failed';
         state.sumsub.result = { error };
       });
@@ -853,7 +897,7 @@ export class KycController extends BaseController<
     const generation = this.#generation;
 
     try {
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.sumsub.status = 'creatingSession';
         state.sumsub.result = null;
       });
@@ -893,7 +937,7 @@ export class KycController extends BaseController<
         return {};
       }
 
-      this.update((state) => {
+      this.#applyUpdate((state) => {
         state.sumsub.status = 'launching';
         state.sumsub.applicantAccessToken = applicantAccessToken;
       });
@@ -906,6 +950,14 @@ export class KycController extends BaseController<
       const result = await this.#sumsubLauncher.launch({
         applicantAccessToken,
         onTokenExpiration: async () => {
+          // A reset() may have superseded this flow while the SDK stayed open.
+          // Refuse to refresh against the now-stale UKYC session rather than
+          // silently keeping an orphaned SDK alive.
+          if (this.#generation !== generation) {
+            throw new Error(
+              'KYC flow was reset; SumSub session is no longer active.',
+            );
+          }
           const refreshed = await this.messenger.call(
             'KycService:submitWrappedKey',
             exchange,
@@ -951,7 +1003,11 @@ export class KycController extends BaseController<
     this.#authClientToken = null;
     // Invalidate any in-flight async work started before this reset.
     this.#generation += 1;
-    this.update((state) => {
+    // Allow the next authenticated flow to auto-continue; any continuation from
+    // the superseded generation will no longer clear this flag (see the
+    // generation guard in `#continueAfterAuthentication`).
+    this.#continuationInFlight = false;
+    this.#applyUpdate((state) => {
       state.phase = 'idle';
       state.statusMessage = '';
       state.error = null;
@@ -987,8 +1043,29 @@ export class KycController extends BaseController<
     if (this.#generation !== generation) {
       return false;
     }
-    this.update(updater);
+    this.#applyUpdate(updater);
     return true;
+  }
+
+  /**
+   * The single state-update path for this controller. All mutations go through
+   * here (rather than calling `this.update` directly) so the mechanism stays
+   * consistent and one subtlety is handled in a single place:
+   *
+   * `sumsub.result` is typed as the recursive `Json`, and expanding
+   * `Draft<Json>` (which happens whenever an updater touches `sumsub.result`)
+   * trips TypeScript's "type instantiation is excessively deep" guard. By
+   * typing the callback parameter as the plain {@link KycControllerState}
+   * instead of Immer's `Draft`, we avoid expanding the draft type while keeping
+   * the same mutate-in-place semantics (the underlying value is still the Immer
+   * draft at runtime).
+   *
+   * @param updater - The state mutation to apply.
+   */
+  #applyUpdate(updater: (state: KycControllerState) => void): void {
+    this.update((state) => {
+      updater(state as unknown as KycControllerState);
+    });
   }
 
   /**
@@ -997,7 +1074,7 @@ export class KycController extends BaseController<
    * @param message - The error message.
    */
   #fail(message: string): void {
-    this.update((state) => {
+    this.#applyUpdate((state) => {
       state.error = message;
       state.phase = 'error';
     });

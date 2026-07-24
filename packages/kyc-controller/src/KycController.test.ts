@@ -275,7 +275,9 @@ describe('KycController', () => {
           });
 
           // Establish an auth-frame client token from a prior authentication.
-          const envelope = envelopeFor(controller, { clientToken: 'old-client' });
+          const envelope = envelopeFor(controller, {
+            clientToken: 'old-client',
+          });
           await controller.handleFrameMessage({
             message: {
               kind: 'complete',
@@ -316,6 +318,31 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.termsAcceptedAt).toBeNull();
           expect(controller.state.error).toMatch(/Session creation failed/u);
+        },
+      );
+    });
+
+    it('clears the active product when session creation fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              activeProduct: 'card',
+              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createSession.mockRejectedValue(new Error('nope'));
+          handlers.fetchDisclaimers.mockResolvedValue([]);
+
+          await controller.acceptTermsAndStartSession({ product: 'ramps' });
+
+          // The failed flow must not leave a lingering product behind that a
+          // later product-less `acceptTermsAndStartSession` would auto-run.
+          expect(controller.state.phase).toBe('terms');
+          expect(controller.state.activeProduct).toBeNull();
         },
       );
     });
@@ -687,6 +714,114 @@ describe('KycController', () => {
       );
     });
 
+    it('ignores a duplicate completion while a prior continuation is in flight', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionToken: 'tok',
+              activeProduct: 'card',
+              geoCountry: 'FRA',
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          // Hold the KYC-required check open so the first continuation is still
+          // in flight when the second (duplicate) completion arrives.
+          let releaseCheck: (value: { kycRequired: boolean }) => void = () => {
+            // no-op placeholder until the deferred promise is wired up
+          };
+          handlers.checkKycRequired.mockReturnValue(
+            new Promise<{ kycRequired: boolean }>((resolve) => {
+              releaseCheck = resolve;
+            }),
+          );
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
+          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+          const message = {
+            kind: 'complete',
+            meta: { channelId: 'ch_2' },
+            payload: { status: 'active', credentials: envelope },
+          };
+
+          const first = controller.handleFrameMessage({ message });
+          const second = controller.handleFrameMessage({ message });
+
+          releaseCheck({ kycRequired: true });
+          await Promise.all([first, second]);
+
+          expect(handlers.checkKycRequired).toHaveBeenCalledTimes(1);
+          expect(launcher.launch).toHaveBeenCalledTimes(1);
+          expect(controller.state.sumsub.status).toBe('complete');
+        },
+      );
+    });
+
+    it('allows a fresh flow to continue after a reset interrupts an in-flight continuation', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionToken: 'tok',
+              activeProduct: 'ramps',
+              geoCountry: 'USA',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          // The keypair is stable across reset, so both envelopes can be built
+          // up front while the session token (used only to derive the public
+          // key here) is still present.
+          const envelope1 = envelopeFor(controller, {
+            accessToken: 'access-1',
+          });
+          const envelope2 = envelopeFor(controller, {
+            accessToken: 'access-2',
+          });
+          const messageFor = (credentials: unknown) => ({
+            kind: 'complete',
+            meta: { channelId: 'ch_1' },
+            payload: { status: 'active', credentials },
+          });
+
+          // Hold the first continuation open so a reset can land while it is
+          // still in flight.
+          let releaseCheck: (value: { kycRequired: boolean }) => void = () => {
+            // no-op placeholder until the deferred promise is wired up
+          };
+          handlers.checkKycRequired.mockReturnValueOnce(
+            new Promise<{ kycRequired: boolean }>((resolve) => {
+              releaseCheck = resolve;
+            }),
+          );
+
+          const first = controller.handleFrameMessage({
+            message: messageFor(envelope1),
+          });
+
+          // Reset while the continuation is awaiting the check. Its `finally`
+          // must not clear the guard (it belongs to the superseded generation);
+          // `reset` clears it instead.
+          controller.reset();
+          releaseCheck({ kycRequired: false });
+          await first;
+
+          // Re-establish a product-scoped flow and confirm the next completion
+          // continues again rather than being blocked forever by a stuck guard.
+          await controller.initialize({ email: 'a@b.co', product: 'ramps' });
+          handlers.checkKycRequired.mockResolvedValue({ kycRequired: false });
+          await controller.handleFrameMessage({
+            message: messageFor(envelope2),
+          });
+
+          expect(handlers.checkKycRequired).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
     it('does not launch verification when the auto-run check fails', async () => {
       await withController(
         {
@@ -830,7 +965,9 @@ describe('KycController', () => {
             return { kycRequired: true };
           });
 
-          const result = await controller.checkKycRequired({ product: 'ramps' });
+          const result = await controller.checkKycRequired({
+            product: 'ramps',
+          });
 
           expect(result).toBe(false);
           expect(controller.state.phase).toBe('idle');
@@ -849,7 +986,9 @@ describe('KycController', () => {
             throw new Error('down');
           });
 
-          const result = await controller.checkKycRequired({ product: 'ramps' });
+          const result = await controller.checkKycRequired({
+            product: 'ramps',
+          });
 
           expect(result).toBe(false);
           expect(controller.state.phase).toBe('idle');
@@ -982,6 +1121,34 @@ describe('KycController', () => {
         expect(controller.state.sumsub.status).toBe('idle');
         expect(controller.state.sumsub.sessionId).toBeNull();
         expect(controller.state.phase).toBe('idle');
+      });
+    });
+
+    it('refuses to refresh the token via onTokenExpiration after a reset', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        let refreshError: unknown;
+        launcher.launch.mockImplementation(async ({ onTokenExpiration }) => {
+          // The SDK stays open across a reset, then asks for a fresh token.
+          controller.reset();
+          // Only the initial submitWrappedKey (session setup) should have run.
+          const callsBeforeRefresh =
+            handlers.submitWrappedKey.mock.calls.length;
+          try {
+            await onTokenExpiration();
+          } catch (error) {
+            refreshError = error;
+          }
+          // The refresh must not hit the stale UKYC session.
+          expect(handlers.submitWrappedKey.mock.calls).toHaveLength(
+            callsBeforeRefresh,
+          );
+          return { ok: true };
+        });
+
+        await controller.startSumSub();
+
+        expect(refreshError).toBeInstanceOf(Error);
+        expect((refreshError as Error).message).toMatch(/flow was reset/u);
       });
     });
 

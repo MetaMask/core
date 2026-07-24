@@ -208,11 +208,17 @@ export class KycService {
     const location = await this.#messenger.call(
       'GeolocationController:getGeolocation',
     );
-    assert(location, string());
-    const alpha2 = location.split('-')[0].toUpperCase();
+    // Guard nullish/empty geolocation with the documented domain error rather
+    // than letting `assert(location, string())` surface a superstruct
+    // assertion error (which would change how the failure reads in
+    // `disclaimersError`).
+    const alpha2 =
+      typeof location === 'string' ? location.split('-')[0].toUpperCase() : '';
     if (!alpha2 || alpha2 === 'UNKNOWN') {
       throw new Error(
-        `Unable to determine country from geolocation (got "${location}").`,
+        `Unable to determine country from geolocation (got "${String(
+          location,
+        )}").`,
       );
     }
     const alpha3 = alpha2ToAlpha3(alpha2);
@@ -261,7 +267,11 @@ export class KycService {
       method: 'POST',
       body: JSON.stringify(params),
     });
-    return this.#validateResponse(data, CreateSessionResponseStruct, 'sessions');
+    return this.#validateResponse(
+      data,
+      CreateSessionResponseStruct,
+      'sessions',
+    );
   }
 
   /**
