@@ -255,7 +255,9 @@ describe('KycService', () => {
   describe('baseUrl override', () => {
     it('uses the provided baseUrl instead of the env-derived URL', async () => {
       const customUrl = 'https://kyc-api.local.test';
-      const disclaimers = [{ id: '1', display_name: 'Terms', url: 'https://t' }];
+      const disclaimers = [
+        { id: '1', display_name: 'Terms', url: 'https://t' },
+      ];
       nock(customUrl)
         .get('/vendors/moonpay/disclaimers')
         .query({ country: 'USA' })
