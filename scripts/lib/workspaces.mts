@@ -27,6 +27,10 @@ const IGNORED_ROOT_FILES = new Set([
   // build/test/lint run is required, so it should not trigger a full run on its
   // own.
   'yarn.lock',
+
+  // The root package.json has special logic: only a version-only change (e.g.,
+  // from a release PR) is safe to ignore. Any other change triggers a full run.
+  'package.json',
 ]);
 
 export type Workspace = {
@@ -204,6 +208,42 @@ async function getChangedLockfilePackages(
 }
 
 /**
+ * Check whether the root `package.json` changed only in its `version` field
+ * between `mergeBase` and `headRef`.
+ *
+ * Release PRs bump only `version`; any other change (scripts, dependencies,
+ * etc.) requires a full rebuild.
+ *
+ * @param mergeBase - The merge base SHA.
+ * @param headRef - The PR branch tip SHA (or "HEAD").
+ * @returns `true` if only the `version` field differs.
+ */
+async function isRootPackageVersionOnlyChange(
+  mergeBase: string,
+  headRef: string,
+): Promise<boolean> {
+  const [{ stdout: baseContent }, { stdout: currentContent }] =
+    await Promise.all([
+      execa('git', ['show', `${mergeBase}:package.json`], {
+        cwd: ROOT_WORKSPACE,
+        encoding: 'utf8',
+      }),
+      execa('git', ['show', `${headRef}:package.json`], {
+        cwd: ROOT_WORKSPACE,
+        encoding: 'utf8',
+      }),
+    ]);
+
+  const base = JSON.parse(baseContent);
+  const current = JSON.parse(currentContent);
+
+  delete base.version;
+  delete current.version;
+
+  return JSON.stringify(base) === JSON.stringify(current);
+}
+
+/**
  * Build a map from each workspace name to the full set of its transitive
  * dependencies, by walking the resolved lockfile graph via `@yarnpkg/core`.
  *
@@ -378,6 +418,16 @@ export async function computeChangedWorkspaces({
   // If any changed file lives outside all package directories (e.g. root
   // configs, workflow files, scripts), rebuild and test everything.
   if (checkRootChange(workspaces, changedFiles)) {
+    return new Set(workspaces.map(({ name }) => name));
+  }
+
+  // The root package.json is ignored by checkRootChange (release PRs bump only
+  // version), but any non-version change (scripts, dependencies, etc.) still
+  // requires a full rebuild.
+  if (
+    changedFiles.includes('package.json') &&
+    !(await isRootPackageVersionOnlyChange(mergeBase, headRef))
+  ) {
     return new Set(workspaces.map(({ name }) => name));
   }
 
