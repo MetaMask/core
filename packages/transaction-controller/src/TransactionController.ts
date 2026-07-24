@@ -129,9 +129,6 @@ import type {
   AddTransactionOptions,
   PublishHookResult,
   GetGasFeeTokensRequest,
-  BeginAtomicBatchUpdateRequest,
-  BeginAtomicBatchUpdateResult,
-  AtomicBatchPreparationResult,
 } from './types.js';
 import {
   GasFeeEstimateLevel,
