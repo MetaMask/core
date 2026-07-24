@@ -75,6 +75,9 @@
 ## Product Safety Team
 /packages/phishing-controller    @MetaMask/product-safety
 
+## Universal KYC Team
+/packages/kyc-controller    @MetaMask/universal-kyc
+
 ## Swaps-Bridge Team
 /packages/bridge-controller           @MetaMask/swaps-engineers
 /packages/bridge-status-controller    @MetaMask/swaps-engineers
@@ -287,3 +290,5 @@
 /packages/money-account-upgrade-controller/CHANGELOG.md        @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/snap-account-service/package.json                    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/CHANGELOG.md                    @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/kyc-controller/package.json                          @MetaMask/universal-kyc @MetaMask/core-platform
+/packages/kyc-controller/CHANGELOG.md                          @MetaMask/universal-kyc @MetaMask/core-platform
