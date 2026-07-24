@@ -8,16 +8,13 @@ import type {
   BalanceUpdate,
 } from '@metamask/core-backend';
 import type { ApiPlatformClient } from '@metamask/core-backend';
-import {
-  isCaipChainId,
-  KnownCaipNamespace,
-  toCaipChainId,
-} from '@metamask/utils';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import type { ChainId, Caip19AssetId, DataResponse } from '../types.js';
+import { decimalToChainId } from '../utils/caip.js';
 import { processAccountActivityBalanceUpdates } from '../utils/processAccountActivityBalanceUpdates.js';
+import { shouldSupportChain } from '../utils/snaps-assets-migration.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,
@@ -190,25 +187,6 @@ function haveAddressesChanged(
   );
 }
 
-/**
- * Normalize API chain identifier to CAIP-2 ChainId.
- * Passes through strings already in CAIP-2 form (e.g. eip155:1, solana:5eykt...).
- * Converts bare decimals to eip155:decimal.
- * Uses @metamask/utils for CAIP parsing.
- *
- * @param chainIdOrDecimal - Chain ID string (CAIP-2 or decimal) or decimal number.
- * @returns CAIP-2 ChainId.
- */
-function toChainId(chainIdOrDecimal: number | string): ChainId {
-  if (typeof chainIdOrDecimal === 'string') {
-    if (isCaipChainId(chainIdOrDecimal)) {
-      return chainIdOrDecimal;
-    }
-    return toCaipChainId(KnownCaipNamespace.Eip155, chainIdOrDecimal);
-  }
-  return toCaipChainId(KnownCaipNamespace.Eip155, String(chainIdOrDecimal));
-}
-
 // Note: AccountActivityMessage and BalanceUpdate types are imported from @metamask/core-backend
 
 // ============================================================================
@@ -371,7 +349,17 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
   async #fetchActiveChains(): Promise<ChainId[]> {
     const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
-    return response.fullSupport.map(toChainId);
+    // Use fullSupport networks as active chains, gated by the Snaps →
+    // AssetsController migration FF: non-migration namespaces (e.g. `eip155`)
+    // are always surfaced, while migration networks (Solana, Stellar, Tron) are
+    // only surfaced once their per-network stage reaches
+    // ReadAssetsControllerWithFallback.
+    const { remoteFeatureFlags } = this.#messenger.call(
+      'RemoteFeatureFlagController:getState',
+    );
+    return response.fullSupport
+      .map(decimalToChainId)
+      .filter((chainId) => shouldSupportChain(chainId, remoteFeatureFlags));
   }
 
   #subscribeToEvents(): void {

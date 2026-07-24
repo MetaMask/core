@@ -26,3 +26,4 @@ export {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
 } from './native-assets.js';
+export { decimalToChainId } from './caip.js';
