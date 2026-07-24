@@ -1,4 +1,3 @@
-import { Minipass } from 'minipass';
 import { ok } from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
@@ -151,25 +150,22 @@ async function extractFromTar(
 
           if (checksumAlgorithm) {
             const hash = createHash(checksumAlgorithm);
-            const passThrough = new Minipass({ async: true });
-            passThrough.pipe(hash);
-            passThrough.on('end', () => {
+            entry.on('data', (chunk: Buffer) => hash.update(chunk));
+            entry.on('end', () => {
               downloads.push({
                 path: absolutePath,
                 binary: entry.path as Binary,
                 checksum: hash.digest('hex'),
               });
             });
-            return passThrough;
+          } else {
+            downloads.push({
+              path: absolutePath,
+              binary: entry.path as Binary,
+            });
           }
 
-          // When no checksum is needed, record the entry and return undefined
-          // to use the original stream without transformation
-          downloads.push({
-            path: absolutePath,
-            binary: entry.path as Binary,
-          });
-          return undefined;
+          return entry;
         },
       },
       binaries,
