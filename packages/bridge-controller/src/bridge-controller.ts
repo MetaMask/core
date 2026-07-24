@@ -43,6 +43,7 @@ import {
   getDefaultBridgeControllerState,
   isCrossChain,
   isEthUsdt,
+  isNativeAddress,
   isNonEvmChainId,
   isSolanaChainId,
 } from './utils/bridge';
@@ -579,7 +580,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         )
         .filter(
           (assetId: CaipAssetType | undefined): assetId is CaipAssetType =>
-            !selectIsAssetExchangeRateInState(exchangeRateSources, assetId),
+            !selectIsAssetExchangeRateInState(exchangeRateSources, assetId) ||
+            // Always fetch native asset exchange rates
+            isNativeAddress(assetId),
         ),
     );
 
