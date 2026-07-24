@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Add strict validation for `eth_sendTransaction` and `eth_signTransaction` params ([#9482](https://github.com/MetaMask/core/pull/9482))
+  - Reject requests whose params do not match the transaction schema (extraneous top-level keys, ill-typed fields such as non-hex `to`/`data`, malformed `accessList` / `authorizationList` entries) or exceed `MAX_TRANSACTION_PARAMS_SIZE_BYTES` when serialized
+  - Prevents downstream normalization / PPOM WASM from crashing on deeply-nested junk fields or padded payloads and silently bypassing security scans
+
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
 - Bump `@metamask/message-manager` from `^14.1.1` to `^14.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))

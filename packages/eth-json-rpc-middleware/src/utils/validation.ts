@@ -1,7 +1,15 @@
 import { TYPED_MESSAGE_SCHEMA } from '@metamask/eth-sig-util';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
-import { validate } from '@metamask/superstruct';
+import {
+  array,
+  number,
+  object,
+  optional,
+  string,
+  union,
+  validate,
+} from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
 import type { WalletMiddlewareContext } from '../wallet.js';
@@ -233,4 +241,75 @@ export function validateTypedMessageKeys(data: string): void {
       throw rpcErrors.invalidInput();
     }
   }
+}
+
+export const TransactionParamsStruct = object({
+  accessList: optional(
+    array(object({ address: string(), storageKeys: array(string()) })),
+  ),
+  authorizationList: optional(
+    array(
+      object({
+        address: string(),
+        chainId: optional(string()),
+        nonce: optional(string()),
+        r: optional(string()),
+        s: optional(string()),
+        yParity: optional(string()),
+      }),
+    ),
+  ),
+  chainId: optional(string()),
+  data: optional(string()),
+  from: string(),
+  gas: optional(union([string(), number()])),
+  gasLimit: optional(string()),
+  gasPrice: optional(string()),
+  maxFeePerGas: optional(string()),
+  maxPriorityFeePerGas: optional(string()),
+  nonce: optional(string()),
+  to: optional(string()),
+  type: optional(string()),
+  value: optional(string()),
+});
+
+// Upper bound derived from the largest valid eth_sendTransaction payload:
+// EIP-3860 caps initcode at 49,152 bytes → hex-encoded in 'data' field ≈ 98 KB of JSON.
+// 200 KB is ~2× that ceiling, giving clear headroom above any protocol-legal
+// transaction while blocking the padding attacks this cap defends against.
+// TODO(CONF-1662): tighten once P99 production data is available.
+export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 200 * 1024;
+
+/**
+ * Validates `eth_sendTransaction` / `eth_signTransaction` params against the
+ * standard transaction schema and rejects payloads whose serialized size
+ * exceeds `MAX_TRANSACTION_PARAMS_SIZE_BYTES`.
+ *
+ * Guards against two attack shapes:
+ * - Size: valid-shaped but oversized payloads (e.g. `data` padded with
+ *   millions of hex zeros) that exhaust memory in downstream code. Checked
+ *   first via `JSON.stringify` so oversized input is rejected before schema
+ *   work.
+ * - Structural: extraneous top-level keys or ill-typed fields (e.g.
+ *   `{ from, to, test: { b: { b: ... × 1200 } } }`) that would crash
+ *   downstream normalization / PPOM WASM with `RangeError: Maximum call
+ *   stack size exceeded`, silently bypassing security checks. Superstruct's
+ *   `object()` rejects unknown keys by name without accessing their values,
+ *   so hostile nested subtrees are never traversed by schema validation.
+ *
+ * @param params - The transaction params object supplied by the dapp.
+ * @throws rpcErrors.invalidParams() if params is an array or exceeds the
+ * serialized size limit.
+ * @throws rpcErrors.invalidInput() if params fails schema validation
+ * (wrong type, extraneous top-level key, or malformed nested field).
+ */
+export function validateTransactionParams(params: unknown): void {
+  if (
+    new TextEncoder().encode(JSON.stringify(params)).byteLength >
+    MAX_TRANSACTION_PARAMS_SIZE_BYTES
+  ) {
+    throw rpcErrors.invalidInput('Request too large');
+  }
+
+  validateParams(params, TransactionParamsStruct);
 }

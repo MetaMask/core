@@ -34,5 +34,6 @@ export {
   GetSupportedExecutionPermissionsResultStruct,
 } from './methods/wallet-get-supported-execution-permissions.js';
 export * from './providerAsMiddleware.js';
+export { validateTransactionParams } from './utils/validation.js';
 export * from './retryOnEmpty.js';
 export * from './wallet.js';

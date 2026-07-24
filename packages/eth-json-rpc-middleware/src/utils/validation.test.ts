@@ -5,9 +5,11 @@ import { any, validate } from '@metamask/superstruct';
 
 import type { WalletMiddlewareKeyValues } from '../wallet.js';
 import {
+  MAX_TRANSACTION_PARAMS_SIZE_BYTES,
   resemblesAddress,
   validateAndNormalizeKeyholder,
   validateParams,
+  validateTransactionParams,
   validateTypedMessageKeys,
 } from './validation.js';
 
@@ -276,6 +278,187 @@ describe('Validation Utils', () => {
 
         expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
       });
+    });
+  });
+
+  describe('validateTransactionParams', () => {
+    const VALID_FROM = '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb';
+    const VALID_TO = '0xdac17f958d2ee523a2206206994597c13d831ec7';
+
+    beforeEach(() => {
+      const actual = jest.requireActual<{
+        validate: typeof validate;
+      }>('@metamask/superstruct');
+      validateMock.mockImplementation(actual.validate);
+    });
+
+    it('does not throw for minimal valid params', () => {
+      expect(() =>
+        validateTransactionParams({ from: VALID_FROM }),
+      ).not.toThrow();
+    });
+
+    it('does not throw for the full valid param set', () => {
+      expect(() =>
+        validateTransactionParams({
+          accessList: [
+            {
+              address: VALID_TO,
+              storageKeys: ['0x00', '0x01'],
+            },
+          ],
+          authorizationList: [
+            {
+              chainId: '0x1',
+              address: VALID_TO,
+              nonce: '0x0',
+              r: '0x0',
+              s: '0x0',
+              yParity: '0x0',
+            },
+          ],
+          chainId: '0x1',
+          data: '0x095ea7b3',
+          from: VALID_FROM,
+          gas: '0x5208',
+          gasLimit: '0x5208',
+          gasPrice: '0x1',
+          maxFeePerGas: '0x2',
+          maxPriorityFeePerGas: '0x1',
+          nonce: '0x0',
+          to: VALID_TO,
+          type: '0x2',
+          value: '0x0',
+        }),
+      ).not.toThrow();
+    });
+
+    it.each([
+      ['null', null],
+      ['undefined', undefined],
+      ['a string', 'not-an-object'],
+      ['a number', 42],
+      ['a boolean', true],
+      ['an array', [{ from: VALID_FROM }]],
+    ])('throws when params is %s', (_label, value) => {
+      expect(() => validateTransactionParams(value)).toThrow(/Invalid params/u);
+    });
+
+    it('throws for an extraneous top-level key', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          extraKey: 'unexpected',
+        }),
+      ).toThrow(/Invalid params/u);
+    });
+
+    it('throws when params contain an extraneous key with a deeply-nested value', () => {
+      let junk: Record<string, unknown> = {};
+      for (let i = 0; i < 1200; i++) {
+        junk = { b: junk };
+      }
+
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          value: '0x0',
+          data: '0x095ea7b3',
+          test: junk,
+        }),
+      ).toThrow(/Invalid params/u);
+    });
+
+    it('runs the size check before schema validation', () => {
+      const stringifySpy = jest.spyOn(JSON, 'stringify');
+
+      try {
+        expect(() =>
+          validateTransactionParams({
+            from: VALID_FROM,
+            to: VALID_TO,
+            extraKey: 'unexpected',
+          }),
+        ).toThrow(/Invalid params/u);
+
+        expect(stringifySpy).toHaveBeenCalled();
+      } finally {
+        stringifySpy.mockRestore();
+      }
+    });
+
+    it('throws when a typed field has the wrong type', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: { nested: 'not-an-address' },
+        }),
+      ).toThrow(/Invalid params/u);
+    });
+
+    it('throws when `data` is not a hex string', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          data: 1234 as unknown as string,
+        }),
+      ).toThrow(/Invalid params/u);
+    });
+
+    it('throws when `accessList` entries are malformed', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          accessList: [{ address: 'not-hex', storageKeys: 'not-an-array' }],
+        }),
+      ).toThrow(/Invalid params/u);
+    });
+
+    it('throws for a data-padding attack that passes the schema', () => {
+      const padded = `0x${'00'.repeat(MAX_TRANSACTION_PARAMS_SIZE_BYTES)}`;
+
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          data: padded,
+        }),
+      ).toThrow('Request too large');
+    });
+
+    it('throws for an accessList-padding attack that passes the schema', () => {
+      const padded = Array.from(
+        { length: Math.ceil(MAX_TRANSACTION_PARAMS_SIZE_BYTES / 64) },
+        () => ({
+          address: VALID_TO,
+          storageKeys: [`0x${'00'.repeat(32)}`],
+        }),
+      );
+
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          accessList: padded,
+        }),
+      ).toThrow('Request too large');
+    });
+
+    it('does not throw for a legitimate multi-entry accessList well under the size limit', () => {
+      const entries = Array.from({ length: 16 }, () => ({
+        address: VALID_TO,
+        storageKeys: [`0x${'11'.repeat(32)}`, `0x${'22'.repeat(32)}`],
+      }));
+
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          accessList: entries,
+        }),
+      ).not.toThrow();
     });
   });
 });
