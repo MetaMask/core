@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "composite": false,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["../../types", "./src/**/*.type-test.ts"]
+}

@@ -22,7 +22,7 @@ import {
 } from '../../base-data-service/tests/mocks.js';
 import { createUIQueryClient } from './createUIQueryClient.js';
 
-const DATA_SERVICES = ['ExampleDataService'];
+const DATA_SERVICES = ['ExampleDataService'] as const;
 
 function createClients(config?: QueryClientConfig): {
   service: ExampleDataService;
@@ -100,6 +100,28 @@ describe('createUIQueryClient', () => {
       },
     ]);
 
+    service.destroy();
+  });
+
+  it('proxies requests to the messenger adapter', async () => {
+    const { service } = createClients();
+    const messengerAdapter = {
+      call: jest.fn((actionType, assets) => {
+        if (actionType === getAssetsQueryKey[0]) {
+          return service.getAssets(assets);
+        }
+        throw new Error(`Unknown action: ${actionType}`);
+      }),
+      subscribe: jest.fn(),
+      unsubscribe: jest.fn(),
+    };
+    const client = createUIQueryClient(DATA_SERVICES, messengerAdapter);
+
+    await client.fetchQuery({
+      queryKey: getAssetsQueryKey,
+    });
+
+    expect(messengerAdapter.call).toHaveBeenCalledWith(...getAssetsQueryKey);
     service.destroy();
   });
 
@@ -225,6 +247,46 @@ describe('createUIQueryClient', () => {
 
     observerA.destroy();
     observerB.destroy();
+    service.destroy();
+  });
+
+  it('supports customizing invalidation', async () => {
+    const { clientA, messenger, service } = createClients();
+
+    const spy = jest.spyOn(messenger, 'call');
+
+    const observer = new QueryObserver(clientA, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    const promise = new Promise((resolve) => {
+      observer.subscribe((event) => {
+        if (event.status === 'success') {
+          resolve(event.data);
+        }
+      });
+    });
+
+    await promise;
+
+    // Replace the mock response and invalidate
+    mockAssets({
+      status: 200,
+      body: [],
+    });
+
+    await clientA.invalidateQueries(
+      { queryKey: getAssetsQueryKey, refetchType: 'all' },
+      { throwOnError: true },
+    );
+
+    expect(spy).toHaveBeenCalledWith(
+      'ExampleDataService:invalidateQueries',
+      { queryKey: getAssetsQueryKey, refetchType: 'all' },
+      { throwOnError: true },
+    );
+
+    observer.destroy();
     service.destroy();
   });
 

@@ -47,9 +47,13 @@
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
     "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
-    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
-    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test": "yarn test:jest && yarn test:types",
+    "test:clean": "yarn test:jest:clean && yarn test:types",
+    "test:jest": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:jest:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:jest:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:types": "tsc --noEmit --project tsconfig.type-tests.json && echo \"Type tests pass\"",
+    "test:verbose": "yarn test:jest:verbose && yarn test:types",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {

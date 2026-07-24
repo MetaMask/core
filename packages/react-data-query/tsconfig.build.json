@@ -13,5 +13,6 @@
       "path": "../messenger/tsconfig.build.json"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "exclude": ["**/*.test.ts", "**/*.type-test.ts"]
 }
