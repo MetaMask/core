@@ -336,18 +336,28 @@ async function getSingleQuote(
       await applyPolymarketDepositWalletOverrides(body, request, messenger);
     }
 
+    // Non-atomic flow: the quote only bridges/swaps to deliver the required
+    // asset to `recipient`. The second leg (target transaction or
+    // paymentOverride batch) is NOT embedded in the quote; it is submitted
+    // separately after Relay completion (see relay-submit). Skip all
+    // embedding paths and honour caller-specified refundTo.
+    const isNonAtomic = request.atomic === false;
+
     // Skip transaction processing when skipProcessTransactions (defaulting to
     // isPostQuote) is true — the original transaction will be included in the
     // batch separately, not as part of the quote.
     // Skip for Polymarket deposit wallet flows — the source is already a
     // bridged token transfer, not a contract call to embed.
+    // Skip for non-atomic flows — the second leg is submitted after settlement.
     const shouldProcessTransactions =
       !(request.skipProcessTransactions ?? request.isPostQuote) &&
-      !request.isPolymarketDepositWallet;
+      !request.isPolymarketDepositWallet &&
+      !isNonAtomic;
 
     if (shouldProcessTransactions) {
       await processTransactions(transaction, request, body, messenger);
     } else if (
+      !isNonAtomic &&
       request.isPostQuote &&
       request.paymentOverride === PaymentOverride.MoneyAccount
     ) {

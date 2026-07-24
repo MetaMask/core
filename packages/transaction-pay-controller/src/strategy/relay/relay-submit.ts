@@ -2,6 +2,7 @@ import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
+  BatchTransactionParams,
   TransactionBatchRequest,
   TransactionBatchSingleRequest,
   TransactionMeta,
@@ -23,6 +24,7 @@ import {
   getRelayPollingInterval,
   getRelayPollingTimeout,
 } from '../../utils/feature-flags.js';
+import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import {
   getLiveTokenBalance,
@@ -32,6 +34,7 @@ import {
 import {
   collectTransactionIds,
   getTransaction,
+  getTransferredAmountFromTxHash,
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction.js';
@@ -208,7 +211,203 @@ async function executeSingleQuote(
     },
   );
 
+  // Non-atomic flow: the quote bridged funds to `recipient` without embedding
+  // the second leg. Now that Relay has settled, resolve the settled amount from
+  // the on-chain Transfer log and submit the second-leg batch (approve + vault
+  // deposit) sponsored from `recipient`.
+  if (quote.request.atomic === false && completion.status === 'success') {
+    const { transactionHash } = await submitPostCompletionBatch({
+      completion,
+      messenger,
+      quote,
+      transaction,
+    });
+
+    return { transactionHash: transactionHash ?? completion.targetHash };
+  }
+
   return { transactionHash: completion.targetHash };
+}
+
+/**
+ * Runs the second leg of a non-atomic Relay quote. Resolves the settled amount
+ * from the on-chain Transfer log at `completion.targetHash`, then submits the
+ * post-completion batch via `submitMoneyAccountVaultDeposit`. Post-quote flows
+ * fetch pre-built calls via the client `getPaymentOverrideData` callback;
+ * non-post-quote flows fall through to the transaction's own nested calls
+ * re-encoded via `getAmountData`.
+ *
+ * @param options - Submit options.
+ * @param options.completion - Outcome of `waitForRelayCompletion`.
+ * @param options.messenger - Controller messenger.
+ * @param options.quote - The Relay quote that was submitted.
+ * @param options.transaction - Original transaction meta.
+ * @returns Hash of the final submitted child transaction, if available.
+ */
+async function submitPostCompletionBatch({
+  completion,
+  messenger,
+  quote,
+  transaction,
+}: {
+  completion: RelayCompletionOutcome;
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): Promise<{ transactionHash?: Hex }> {
+  const sourceAmountRaw = await resolveSettledAmount({
+    completion,
+    messenger,
+    quote,
+  });
+
+  const recipient = quote.request.recipient ?? quote.request.from;
+
+  const depositCalls: BatchTransactionParams[] | undefined = quote.request
+    .isPostQuote
+    ? await buildPostQuoteDepositCalls({
+        messenger,
+        sourceAmountRaw,
+        transaction,
+        quote,
+      })
+    : undefined;
+
+  return submitMoneyAccountVaultDeposit({
+    messenger,
+    moneyAccountAddress: recipient,
+    depositCalls,
+    sourceAmountRaw,
+    transaction,
+    vaultDisabled: false,
+  });
+}
+
+/**
+ * Builds the post-completion batch for a post-quote flow whose parent
+ * transaction carries no vault calls. Delegates to the client
+ * `getPaymentOverrideData` callback with the settled amount.
+ *
+ * The callback MUST return a non-empty batch. Post-quote parent metas (e.g.
+ * Perps/Predict withdraws) carry no vault-side nested calls, so falling back
+ * to `getAmountData` in `resolveVaultDepositBatch` cannot recover the second
+ * leg once Relay has already settled funds to the recipient. Throw eagerly so
+ * the failure surfaces at the correct call site with an actionable message.
+ *
+ * @param options - Build options.
+ * @param options.messenger - Controller messenger.
+ * @param options.quote - The Relay quote that was submitted.
+ * @param options.sourceAmountRaw - Settled amount in raw units.
+ * @param options.transaction - Original transaction meta.
+ * @returns The batch calls.
+ * @throws If the callback returns an empty batch.
+ */
+async function buildPostQuoteDepositCalls({
+  messenger,
+  quote,
+  sourceAmountRaw,
+  transaction,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  sourceAmountRaw: string;
+  transaction: TransactionMeta;
+}): Promise<BatchTransactionParams[]> {
+  const { transactionData } = messenger.call(
+    'TransactionPayController:getState',
+  );
+
+  const { decimals } = quote.original.details.currencyOut.currency;
+  const amountHuman = new BigNumber(sourceAmountRaw)
+    .shiftedBy(-decimals)
+    .toFixed();
+
+  const { calls } = await messenger.call(
+    'TransactionPayController:getPaymentOverrideData',
+    {
+      amount: amountHuman,
+      transaction,
+      transactionData: transactionData[transaction.id],
+    },
+  );
+
+  if (!calls.length) {
+    throw new Error(
+      'Missing post-quote deposit calls from getPaymentOverrideData',
+    );
+  }
+
+  return calls;
+}
+
+/**
+ * Resolves the actual amount that landed on the recipient after a Relay bridge.
+ * Prefers the on-chain Transfer log on `completion.targetHash`; falls back to
+ * the Relay quote's minimum output when the target hash is the same-chain
+ * `FALLBACK_HASH` placeholder or the on-chain read fails.
+ *
+ * @param options - Resolution options.
+ * @param options.completion - Outcome of `waitForRelayCompletion`.
+ * @param options.messenger - Controller messenger.
+ * @param options.quote - The Relay quote that was submitted.
+ * @returns The raw (atomic) settled amount as a decimal string.
+ */
+async function resolveSettledAmount({
+  completion,
+  messenger,
+  quote,
+}: {
+  completion: RelayCompletionOutcome;
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+}): Promise<string> {
+  const recipient = (quote.request.recipient ?? quote.request.from) as
+    | Hex
+    | undefined;
+
+  if (
+    recipient &&
+    completion.targetHash &&
+    completion.targetHash !== FALLBACK_HASH
+  ) {
+    try {
+      const { amountRaw: onChainAmount } = await getTransferredAmountFromTxHash(
+        {
+          messenger,
+          txHash: completion.targetHash,
+          chainId: quote.request.targetChainId,
+          tokenAddress: quote.request.targetTokenAddress,
+          walletAddress: recipient,
+        },
+      );
+
+      if (onChainAmount) {
+        log('Resolved settled amount from on-chain transaction', {
+          targetHash: completion.targetHash,
+          onChainAmount,
+        });
+        return onChainAmount;
+      }
+    } catch (error) {
+      log(
+        'Failed to read on-chain amount, falling back to quote minimum output',
+        { targetHash: completion.targetHash, error },
+      );
+    }
+  }
+
+  const fallback = quote.original.details.currencyOut.minimumAmount;
+
+  if (!fallback) {
+    throw new Error('Cannot resolve post-completion amount');
+  }
+
+  log('Resolved settled amount from quote minimum output', {
+    fallback,
+    targetHash: completion.targetHash,
+  });
+
+  return fallback;
 }
 
 function setRelaySourceHash(
@@ -501,9 +700,17 @@ async function buildRelaySubmitParams({
     quote.request.from.toLowerCase() !==
     (transaction.txParams.from as Hex).toLowerCase();
 
+  // Non-atomic flows are excluded from the paymentOverride prepend: their
+  // second leg is submitted separately by `submitPostCompletionBatch` after
+  // Relay completion, so prepending here would double-embed the vault deposit.
+  // Cross-chain atomic flows (e.g. `moneyAccountWithdraw` on Monad settling
+  // USDC on Arbitrum for Perps) still need the source-side vault withdraw +
+  // transfer prepended here so Relay has funds to bridge.
+  const isNonAtomic = quote.request.atomic === false;
+
   let allParams = normalizedParams;
 
-  if (quote.request.paymentOverride) {
+  if (quote.request.paymentOverride && !isNonAtomic) {
     const { transactionData } = messenger.call(
       'TransactionPayController:getState',
     );

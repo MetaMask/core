@@ -3507,6 +3507,82 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
+    describe('non-atomic post-quote (atomic: false)', () => {
+      const NON_ATOMIC_REQUEST: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        atomic: false,
+        isPostQuote: true,
+      };
+
+      beforeEach(() => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+      });
+
+      it('does not call processTransactions or getPaymentOverrideData when atomic is false', async () => {
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [NON_ATOMIC_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+      });
+
+      it('bypasses the Money Account post-quote override embedding when atomic is false', async () => {
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...NON_ATOMIC_REQUEST,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+      });
+
+      it('honours caller-specified refundTo when atomic is false', async () => {
+        const refundTo = '0xaa00000000000000000000000000000000000042' as Hex;
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [{ ...NON_ATOMIC_REQUEST, refundTo }],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.refundTo).toBe(refundTo);
+      });
+
+      it('honours caller-specified recipient when atomic is false', async () => {
+        const recipient = '0xbb00000000000000000000000000000000000042' as Hex;
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [{ ...NON_ATOMIC_REQUEST, recipient }],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.recipient).toBe(recipient);
+      });
+    });
+
     describe('HyperLiquid source (isHyperliquidSource)', () => {
       const HL_REQUEST: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,

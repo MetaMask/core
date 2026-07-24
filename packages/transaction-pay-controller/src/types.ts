@@ -110,6 +110,18 @@ export type TransactionConfig = {
   accountOverride?: Hex;
 
   /**
+   * Whether the target transaction (or `paymentOverride` batch) is executed
+   * atomically with the Relay quote. Defaults to `true` (embedded in the quote
+   * and executed by the Relay solver). When `false`, Pay does not embed the
+   * target/override calls in the quote; the quote only bridges the required
+   * asset to `recipient`, and the calls are submitted separately after Relay
+   * completion. Used by flows whose second-leg amount is only known after
+   * Relay settles (EXACT_INPUT max flows) or that require the second leg to
+   * originate from a different signer than the Relay solver.
+   */
+  atomic?: boolean;
+
+  /**
    * Whether the source of funds is HyperLiquid (HyperCore).
    * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
    * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
@@ -134,6 +146,14 @@ export type TransactionConfig = {
 
   /** When true, a quote is always fetched even when the source and target tokens are identical. */
   isQuoteRequired?: boolean;
+
+  /**
+   * Final recipient of the Relay quote output. When set, overrides the default
+   * recipient (the EOA) in the quote request. Required for flows whose Relay
+   * output must settle on an address other than the funding EOA (e.g. a Money
+   * Account smart account for withdraw-to-MA).
+   */
+  recipient?: Hex;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -294,6 +314,12 @@ export type TransactionData = {
    */
   accountOverride?: Hex;
 
+  /**
+   * Whether the target transaction is executed atomically with the Relay
+   * quote. See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
+
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
 
@@ -323,6 +349,12 @@ export type TransactionData = {
 
   /** When true, a quote is always fetched even when the source and target tokens are identical. */
   isQuoteRequired?: boolean;
+
+  /**
+   * Final recipient of the Relay quote output. See
+   * {@link TransactionConfig.recipient}.
+   */
+  recipient?: Hex;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -517,6 +549,12 @@ export type FiatRates = {
 
 /** Request for a quote to retrieve a required token. */
 export type QuoteRequest = {
+  /**
+   * Whether the target transaction is executed atomically with the Relay
+   * quote. See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
+
   /** Address of the user's account. */
   from: Hex;
 

@@ -149,14 +149,16 @@ export class TransactionPayController extends BaseController<
   ): void {
     this.#updateTransactionData(transactionId, (transactionData) => {
       const config = {
-        isMaxAmount: transactionData.isMaxAmount,
-        isPostQuote: transactionData.isPostQuote,
-        isHyperliquidSource: transactionData.isHyperliquidSource,
-        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
-        isQuoteRequired: transactionData.isQuoteRequired,
-        refundTo: transactionData.refundTo,
         accountOverride: transactionData.accountOverride,
+        atomic: transactionData.atomic,
+        isHyperliquidSource: transactionData.isHyperliquidSource,
+        isMaxAmount: transactionData.isMaxAmount,
+        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
+        isPostQuote: transactionData.isPostQuote,
+        isQuoteRequired: transactionData.isQuoteRequired,
         paymentOverride: transactionData.paymentOverride,
+        recipient: transactionData.recipient,
+        refundTo: transactionData.refundTo,
       };
 
       const previousAccountOverride = config.accountOverride;
@@ -164,14 +166,16 @@ export class TransactionPayController extends BaseController<
       callback(config);
 
       transactionData.accountOverride = config.accountOverride;
-      transactionData.isMaxAmount = config.isMaxAmount;
-      transactionData.isPostQuote = config.isPostQuote;
+      transactionData.atomic = config.atomic;
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
+      transactionData.isMaxAmount = config.isMaxAmount;
       transactionData.isPolymarketDepositWallet =
         config.isPolymarketDepositWallet;
+      transactionData.isPostQuote = config.isPostQuote;
       transactionData.isQuoteRequired = config.isQuoteRequired;
-      transactionData.refundTo = config.refundTo;
       transactionData.paymentOverride = config.paymentOverride;
+      transactionData.recipient = config.recipient;
+      transactionData.refundTo = config.refundTo;
 
       if (
         !config.isPostQuote &&
