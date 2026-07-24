@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add stage-gated ingestion of the Snaps → AssetsController migration networks (Solana, Stellar, Tron) ([#9534](https://github.com/MetaMask/core/pull/9647))
+  - `AssetsController` and `BackendWebsocketDataSource` now resolve a per-network migration stage from `RemoteFeatureFlagController` state (via `RemoteFeatureFlagController:getState`) using the `networkAssetsSnapsMigrationSolana`, `networkAssetsSnapsMigrationStellar`, and `networkAssetsSnapsMigrationTron` flags. Migration networks are only ingested and surfaced as active chains from `SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback` onward, and left to the Snap when the stage is `Off` (the fail-safe when the flag is missing). Non-migration namespaces (e.g. `eip155`) are never gated.
+
 ### Fixed
 
 - Fetch spot prices immediately on price-subscription updates and after seeding native / default tracked assets so held assets are not left unpriced until the next poll after onboarding ([#9631](https://github.com/MetaMask/core/pull/9631))
