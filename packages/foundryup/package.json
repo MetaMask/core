@@ -47,7 +47,6 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "minipass": "^7.1.2",
     "tar": "^7.4.3",
     "unzipper": "^0.12.3",
     "yargs": "^17.7.2",
