@@ -129,6 +129,35 @@ describe('KycController', () => {
       );
     });
 
+    it('does not restart an in-progress session flow', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              phase: 'check',
+              email: 'a@b.co',
+              sessionToken: 'live-session',
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['1'],
+              activeProduct: 'ramps',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.initialize({ email: 'other@b.co', product: 'card' });
+
+          // A repeat initialize mid-flow must be a no-op: no new session, no
+          // token/phase teardown, and no clobbering of the active product.
+          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(handlers.getGeoCountry).not.toHaveBeenCalled();
+          expect(controller.state.phase).toBe('check');
+          expect(controller.state.sessionToken).toBe('live-session');
+          expect(controller.state.activeProduct).toBe('ramps');
+          expect(controller.state.email).toBe('a@b.co');
+        },
+      );
+    });
+
     it('stays on terms when terms exist but no email is available', async () => {
       await withController(
         {
@@ -262,6 +291,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
+              phase: 'check',
               email: 'a@b.co',
               sessionToken: 'old-session',
               accessToken: 'stale-access',
@@ -369,6 +399,43 @@ describe('KycController', () => {
       );
     });
 
+    it('leaves the controller idle when reset() runs before session creation fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              sessionToken: 'old-session',
+              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          let rejectSession: (reason: Error) => void = () => {
+            // no-op placeholder until the deferred promise is wired up
+          };
+          handlers.createSession.mockReturnValue(
+            new Promise<{ sessionToken: string }>((_resolve, reject) => {
+              rejectSession = reject;
+            }),
+          );
+
+          const pending = controller.acceptTermsAndStartSession();
+
+          // Reset while the create request is in flight, then let it fail. The
+          // superseded flow must not force the now-idle controller back to
+          // `terms` or re-run disclaimer loading.
+          controller.reset();
+          rejectSession(new Error('nope'));
+          await pending;
+
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.error).toBeNull();
+          expect(handlers.fetchDisclaimers).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('clears the active product when session creation fails', async () => {
       await withController(
         {
@@ -461,17 +528,20 @@ describe('KycController', () => {
     });
 
     it('captures the customer id and ignores a status-less complete message', async () => {
-      await withController(async ({ controller }) => {
-        const result = await controller.handleFrameMessage({
-          message: {
-            kind: 'complete',
-            meta: { channelId: 'ch_1' },
-            payload: { customer: { id: 'cust-1' } },
-          },
-        });
-        expect(result).toStrictEqual({});
-        expect(controller.state.moonpayCustomerId).toBe('cust-1');
-      });
+      await withController(
+        { options: { state: { phase: 'check' } } },
+        async ({ controller }) => {
+          const result = await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_1' },
+              payload: { customer: { id: 'cust-1' } },
+            },
+          });
+          expect(result).toStrictEqual({});
+          expect(controller.state.moonpayCustomerId).toBe('cust-1');
+        },
+      );
     });
 
     it('ignores messages on an unknown channel', async () => {
@@ -487,9 +557,36 @@ describe('KycController', () => {
       });
     });
 
+    it('ignores a stale completion for a frame the flow is no longer waiting on', async () => {
+      // Phase `done` (e.g. after a completed flow or a `reset()` that returns
+      // to an idle phase) means the Check frame is no longer active; a late or
+      // duplicate `ch_1` completion must not resurrect tokens or rewind phase.
+      await withController(
+        { options: { state: { phase: 'done', sessionToken: 'tok' } } },
+        async ({ controller }) => {
+          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+          const result = await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_1' },
+              payload: {
+                status: 'active',
+                credentials: envelope,
+                customer: { id: 'cust-late' },
+              },
+            },
+          });
+          expect(result).toStrictEqual({});
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.accessToken).toBeNull();
+          expect(controller.state.moonpayCustomerId).toBeNull();
+        },
+      );
+    });
+
     it('fails when credential decryption throws', async () => {
       await withController(
-        { options: { state: { sessionToken: 'tok' } } },
+        { options: { state: { phase: 'check', sessionToken: 'tok' } } },
         async ({ controller }) => {
           await controller.handleFrameMessage({
             message: {
@@ -507,7 +604,7 @@ describe('KycController', () => {
     describe('check frame', () => {
       it('moves to form on an active status with an access token', async () => {
         await withController(
-          { options: { state: { sessionToken: 'tok' } } },
+          { options: { state: { phase: 'check', sessionToken: 'tok' } } },
           async ({ controller }) => {
             const envelope = envelopeFor(controller, {
               accessToken: 'access-1',
@@ -527,7 +624,7 @@ describe('KycController', () => {
 
       it('moves to auth on connectionRequired and enables the auth frame URL', async () => {
         await withController(
-          { options: { state: { sessionToken: 'tok' } } },
+          { options: { state: { phase: 'check', sessionToken: 'tok' } } },
           async ({ controller }) => {
             const envelope = envelopeFor(controller, {
               clientToken: 'client-1',
@@ -555,6 +652,7 @@ describe('KycController', () => {
           {
             options: {
               state: {
+                phase: 'check',
                 sessionToken: 'tok',
                 termsAcceptedAt: 't',
                 acceptedDisclaimerIds: ['1'],
@@ -577,7 +675,7 @@ describe('KycController', () => {
 
       it('fails on an unexpected status', async () => {
         await withController(
-          { options: { state: { sessionToken: 'tok' } } },
+          { options: { state: { phase: 'check', sessionToken: 'tok' } } },
           async ({ controller }) => {
             await controller.handleFrameMessage({
               message: {
@@ -595,7 +693,7 @@ describe('KycController', () => {
     describe('auth frame', () => {
       it('moves to form on an active status with an access token', async () => {
         await withController(
-          { options: { state: { sessionToken: 'tok' } } },
+          { options: { state: { phase: 'auth', sessionToken: 'tok' } } },
           async ({ controller }) => {
             const envelope = envelopeFor(controller, {
               accessToken: 'access-2',
@@ -614,29 +712,35 @@ describe('KycController', () => {
       });
 
       it('requires re-acceptance on termsAcceptanceRequired', async () => {
-        await withController(async ({ controller }) => {
-          await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_2' },
-              payload: { status: 'termsAcceptanceRequired' },
-            },
-          });
-          expect(controller.state.phase).toBe('terms');
-        });
+        await withController(
+          { options: { state: { phase: 'auth' } } },
+          async ({ controller }) => {
+            await controller.handleFrameMessage({
+              message: {
+                kind: 'complete',
+                meta: { channelId: 'ch_2' },
+                payload: { status: 'termsAcceptanceRequired' },
+              },
+            });
+            expect(controller.state.phase).toBe('terms');
+          },
+        );
       });
 
       it('fails on an unexpected status', async () => {
-        await withController(async ({ controller }) => {
-          await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_2' },
-              payload: { status: 'unavailable' },
-            },
-          });
-          expect(controller.state.phase).toBe('error');
-        });
+        await withController(
+          { options: { state: { phase: 'auth' } } },
+          async ({ controller }) => {
+            await controller.handleFrameMessage({
+              message: {
+                kind: 'complete',
+                meta: { channelId: 'ch_2' },
+                payload: { status: 'unavailable' },
+              },
+            });
+            expect(controller.state.phase).toBe('error');
+          },
+        );
       });
     });
   });
@@ -644,7 +748,11 @@ describe('KycController', () => {
   describe('automatic post-authentication continuation', () => {
     it('stays at form and does not run the check when no product is set', async () => {
       await withController(
-        { options: { state: { sessionToken: 'tok', geoCountry: 'USA' } } },
+        {
+          options: {
+            state: { phase: 'check', sessionToken: 'tok', geoCountry: 'USA' },
+          },
+        },
         async ({ controller, handlers }) => {
           const envelope = envelopeFor(controller, { accessToken: 'access-1' });
 
@@ -667,6 +775,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
+              phase: 'check',
               sessionToken: 'tok',
               activeProduct: 'ramps',
               geoCountry: 'USA',
@@ -702,6 +811,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
+              phase: 'auth',
               sessionToken: 'tok',
               activeProduct: 'card',
               geoCountry: 'FRA',
@@ -736,6 +846,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
+              phase: 'check',
               sessionToken: 'tok',
               activeProduct: 'ramps',
               geoCountry: 'USA',
@@ -766,6 +877,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
+              phase: 'auth',
               sessionToken: 'tok',
               activeProduct: 'card',
               geoCountry: 'FRA',
@@ -774,7 +886,9 @@ describe('KycController', () => {
         },
         async ({ controller, handlers, launcher }) => {
           // Hold the KYC-required check open so the first continuation is still
-          // in flight when the second (duplicate) completion arrives.
+          // in flight when the second (duplicate) completion arrives. The first
+          // completion moves `phase` to `form` synchronously, so the duplicate
+          // is dropped by the frame-phase guard before it can re-run the check.
           let releaseCheck: (value: { kycRequired: boolean }) => void = () => {
             // no-op placeholder until the deferred promise is wired up
           };
@@ -812,9 +926,15 @@ describe('KycController', () => {
         {
           options: {
             state: {
+              phase: 'check',
+              email: 'a@b.co',
               sessionToken: 'tok',
               activeProduct: 'ramps',
               geoCountry: 'USA',
+              // Persisted terms so a post-reset `initialize` auto-recreates the
+              // session (reaching phase `check`) for the second completion.
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['1'],
             },
           },
         },
@@ -828,7 +948,13 @@ describe('KycController', () => {
           const envelope2 = envelopeFor(controller, {
             accessToken: 'access-2',
           });
-          const messageFor = (credentials: unknown) => ({
+          const messageFor = (
+            credentials: unknown,
+          ): {
+            kind: string;
+            meta: { channelId: string };
+            payload: { status: string; credentials: unknown };
+          } => ({
             kind: 'complete',
             meta: { channelId: 'ch_1' },
             payload: { status: 'active', credentials },
@@ -849,16 +975,17 @@ describe('KycController', () => {
             message: messageFor(envelope1),
           });
 
-          // Reset while the continuation is awaiting the check. Its `finally`
-          // must not clear the guard (it belongs to the superseded generation);
-          // `reset` clears it instead.
+          // Reset while the continuation is awaiting the check. Its result is
+          // discarded by the generation guard (the check belongs to the
+          // superseded generation) rather than written onto the idle flow.
           controller.reset();
           releaseCheck({ kycRequired: false });
           await first;
 
-          // Re-establish a product-scoped flow and confirm the next completion
-          // continues again rather than being blocked forever by a stuck guard.
-          await controller.initialize({ email: 'a@b.co', product: 'ramps' });
+          // Re-establish a product-scoped flow (auto-creates a session and
+          // returns to phase `check`) and confirm the next completion continues
+          // again rather than being blocked forever by a stuck guard.
+          await controller.initialize({ product: 'ramps' });
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: false });
           await controller.handleFrameMessage({
             message: messageFor(envelope2),
@@ -874,6 +1001,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
+              phase: 'check',
               sessionToken: 'tok',
               activeProduct: 'ramps',
               geoCountry: 'USA',
@@ -1167,6 +1295,27 @@ describe('KycController', () => {
         // The interrupted step must not write stale sub-flow state.
         expect(controller.state.sumsub.status).toBe('idle');
         expect(controller.state.sumsub.sessionId).toBeNull();
+        expect(controller.state.phase).toBe('idle');
+      });
+    });
+
+    it('aborts without launching the SDK when reset() runs just before launch', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        // A reset() lands during the final token exchange, i.e. after the
+        // session is prepared but before the SDK is presented.
+        handlers.submitWrappedKey.mockImplementation(async () => {
+          controller.reset();
+          return { status: 'ok', applicantAccessToken: 'aat' };
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({});
+        // The SDK must not be opened on a flow that was reset to idle, and the
+        // `launching` status must not be written.
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.sumsub.status).toBe('idle');
+        expect(controller.state.sumsub.applicantAccessToken).toBeNull();
         expect(controller.state.phase).toBe('idle');
       });
     });

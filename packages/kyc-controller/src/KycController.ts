@@ -37,6 +37,17 @@ const MOCK_JWT_TOKEN = 'mock-jwt-token';
 // outcome) must not be recorded as `complete`.
 const SUMSUB_COMPLETED_STATUS = 'Completed';
 
+// Phases that represent an active vendor-session flow (tokens issued and/or
+// Check/Auth frames in progress). A repeat `initialize` while in one of these
+// must not restart the session and disrupt the in-flight flow.
+const IN_PROGRESS_PHASES: KycPhase[] = [
+  'session',
+  'check',
+  'auth',
+  'form',
+  'submit',
+];
+
 // === STATE ===
 
 /**
@@ -331,17 +342,6 @@ export class KycController extends BaseController<
   #generation = 0;
 
   /**
-   * Guards the automatic post-authentication continuation. The Check/Auth
-   * frames can post more than one `complete` message (duplicate or late), each
-   * of which resolves to an `active` outcome with an access token. Without this
-   * flag, every such message would re-enter {@link #continueAfterAuthentication}
-   * and run the KYC-required check / SumSub sub-flow again while a prior run is
-   * still in flight. Set for the duration of a continuation and cleared by
-   * {@link reset} so a fresh flow can continue again.
-   */
-  #continuationInFlight = false;
-
-  /**
    * Constructs a new {@link KycController}.
    *
    * @param options - The constructor options.
@@ -382,6 +382,15 @@ export class KycController extends BaseController<
     email?: string;
     product?: KycProduct;
   }): Promise<void> {
+    // A repeat `initialize` while a session flow is already in progress must
+    // not tear it down: creating a new vendor session clears the tokens and
+    // forces `phase` back through `session`/`check`, breaking an in-flight
+    // Check/Auth frame flow. Leave the active flow untouched and let the
+    // consumer drive it (or call `reset` first to start over).
+    if (IN_PROGRESS_PHASES.includes(this.state.phase)) {
+      return;
+    }
+
     // `initialize` starts a fresh flow, so `activeProduct` is always reset to
     // this call's product (or `null`). Otherwise a prior run's product could
     // linger and cause `#continueAfterAuthentication` to auto-run the check /
@@ -393,10 +402,15 @@ export class KycController extends BaseController<
       state.activeProduct = params?.product ?? null;
     });
 
+    // Capture the flow generation so a `reset()` landing while the async
+    // geolocation / session steps below are in flight cannot write results
+    // onto an idle controller.
+    const generation = this.#generation;
+
     // Resolve country for display; non-blocking.
     try {
       const country = await this.messenger.call('KycService:getGeoCountry');
-      this.#applyUpdate((state) => {
+      this.#updateIfCurrent(generation, (state) => {
         state.geoCountry = country;
       });
     } catch {
@@ -425,13 +439,17 @@ export class KycController extends BaseController<
    * @param params.country - ISO 3166-1 alpha-3 country code override.
    */
   async loadDisclaimers(params?: { country?: string }): Promise<void> {
+    // Capture the flow generation so a `reset()` landing while the geo /
+    // disclaimers requests are in flight cannot write results onto an idle
+    // controller.
+    const generation = this.#generation;
     try {
       const country =
         params?.country ??
         this.state.geoCountry ??
         (await this.messenger.call('KycService:getGeoCountry'));
       if (country !== this.state.geoCountry) {
-        this.#applyUpdate((state) => {
+        this.#updateIfCurrent(generation, (state) => {
           state.geoCountry = country;
         });
       }
@@ -439,12 +457,12 @@ export class KycController extends BaseController<
         'KycService:fetchDisclaimers',
         { country },
       );
-      this.#applyUpdate((state) => {
+      this.#updateIfCurrent(generation, (state) => {
         state.disclaimers = disclaimers;
         state.disclaimersError = null;
       });
     } catch (error) {
-      this.#applyUpdate((state) => {
+      this.#updateIfCurrent(generation, (state) => {
         state.disclaimersError = `Failed to load disclaimers: ${String(error)}`;
       });
     }
@@ -504,6 +522,11 @@ export class KycController extends BaseController<
     // frames re-populate these for the new session. Because `sessionToken` is
     // cleared here and only re-set on success, a failed creation leaves it
     // `null` rather than resurrecting the previous session.
+    // Capture the flow generation so a `reset()` landing while the create
+    // request is in flight cannot resurrect a session (success) or overwrite
+    // the now-idle controller (failure). The synchronous update below runs
+    // before any `await`, so it needs no guard.
+    const generation = this.#generation;
     this.#authClientToken = null;
     this.#applyUpdate((state) => {
       state.error = null;
@@ -518,12 +541,17 @@ export class KycController extends BaseController<
         'KycService:createSession',
         { email, termsAcceptedAt, disclaimerIds: acceptedDisclaimerIds },
       );
-      this.#applyUpdate((state) => {
+      this.#updateIfCurrent(generation, (state) => {
         state.sessionToken = sessionToken;
         state.phase = 'check';
         state.statusMessage = 'Authenticating via Check frame...';
       });
     } catch (error) {
+      // A reset() superseded this flow while the request was in flight; leave
+      // the idle controller alone rather than forcing it back to `terms`.
+      if (this.#generation !== generation) {
+        return;
+      }
       // Invalidate the stored acceptance so the customer can retry. Also clear
       // `activeProduct` so a later `acceptTermsAndStartSession` that omits a
       // product cannot auto-run the KYC check / SumSub chain for this failed
@@ -592,6 +620,23 @@ export class KycController extends BaseController<
     }
 
     const channelId = payload.meta?.channelId;
+
+    // Only honor a Check/Auth `complete` for the frame the flow is currently
+    // waiting on. This drops stale or duplicate messages — e.g. a late post
+    // after `reset()` (phase `idle`) or after the flow already advanced past
+    // this frame — so they cannot resurrect tokens or rewind `phase` on a
+    // controller that has moved on. Frame messages are external input and,
+    // unlike the async steps, are not covered by the `#generation` guard.
+    let expectedPhase: KycPhase | null = null;
+    if (channelId === CHANNEL_CHECK) {
+      expectedPhase = 'check';
+    } else if (channelId === CHANNEL_AUTH) {
+      expectedPhase = 'auth';
+    }
+    if (!expectedPhase || this.state.phase !== expectedPhase) {
+      return {};
+    }
+
     const status = payload.payload?.status;
     const credsEnvelope = payload.payload?.credentials;
 
@@ -627,11 +672,8 @@ export class KycController extends BaseController<
       return {};
     }
 
-    if (channelId === CHANNEL_AUTH) {
-      await this.#handleAuthOutcome(status, accessToken);
-      return {};
-    }
-
+    // channelId === CHANNEL_AUTH, guaranteed by the expectedPhase guard above.
+    await this.#handleAuthOutcome(status, accessToken);
     return {};
   }
 
@@ -715,35 +757,24 @@ export class KycController extends BaseController<
       return;
     }
 
-    // A duplicate or late `complete` message can re-enter here while a prior
-    // continuation is still running; ignore it so the check / sub-flow does not
-    // run twice concurrently.
-    if (this.#continuationInFlight) {
+    // Re-entry protection lives at the frame boundary: `handleFrameMessage`
+    // only honors a Check/Auth `complete` while `phase` matches, and both
+    // outcome handlers move `phase` to `form` before awaiting this method. A
+    // duplicate or late `complete` therefore lands after the phase moved on and
+    // is dropped before it can start a second continuation. Any writes here are
+    // additionally guarded by `#generation` (see `checkKycRequired` /
+    // `startSumSub`) so a `reset()` mid-continuation cannot corrupt state.
+    const kycRequired = await this.checkKycRequired({ product });
+    if (!kycRequired) {
       return;
     }
-    this.#continuationInFlight = true;
-
-    // Capture the generation so a `reset()` landing mid-continuation does not
-    // let the `finally` clear a flag that belongs to a newer flow.
-    const generation = this.#generation;
 
     try {
-      const kycRequired = await this.checkKycRequired({ product });
-      if (!kycRequired) {
-        return;
-      }
-
-      try {
-        await this.startSumSub();
-      } catch {
-        // `startSumSub` already records `sumsub.status = 'failed'`; swallow the
-        // rethrown error (e.g. SDK unavailable) so the awaited continuation
-        // resolves cleanly rather than surfacing as an unhandled rejection.
-      }
-    } finally {
-      if (this.#generation === generation) {
-        this.#continuationInFlight = false;
-      }
+      await this.startSumSub();
+    } catch {
+      // `startSumSub` already records `sumsub.status = 'failed'`; swallow the
+      // rethrown error (e.g. SDK unavailable) so the awaited continuation
+      // resolves cleanly rather than surfacing as an unhandled rejection.
     }
   }
 
@@ -842,15 +873,15 @@ export class KycController extends BaseController<
       );
       // The flow was reset while the check was in flight; discard the result
       // rather than resurrecting a done/cached state on an idle controller.
-      if (this.#generation !== generation) {
-        return false;
-      }
-      this.#applyUpdate((state) => {
+      const applied = this.#updateIfCurrent(generation, (state) => {
         state.kycRequiredByProduct[params.product] = kycRequired;
         state.lastCheckedAt = new Date().toISOString();
         state.phase = 'done';
         state.statusMessage = 'KYC check complete.';
       });
+      if (!applied) {
+        return false;
+      }
       return kycRequired;
     } catch (error) {
       if (this.#generation !== generation) {
@@ -935,16 +966,19 @@ export class KycController extends BaseController<
         exchange,
       );
 
-      // A reset() landed while the session/token was being prepared; abort
-      // before presenting the SDK rather than launching on an idle controller.
-      if (this.#generation !== generation) {
-        return {};
-      }
-
-      this.#applyUpdate((state) => {
+      // A reset() may have landed while the session/token was being prepared.
+      // Gate the `launching` write and the decision to open the SDK behind a
+      // single generation check: `#updateIfCurrent` only writes when still
+      // current and reports whether it did. Since there is no `await` between
+      // this check and `launch` below, a successful result guarantees the SDK
+      // is never presented on a flow that a concurrent reset() returned to idle.
+      const stillCurrent = this.#updateIfCurrent(generation, (state) => {
         state.sumsub.status = 'launching';
         state.sumsub.applicantAccessToken = applicantAccessToken;
       });
+      if (!stillCurrent) {
+        return {};
+      }
 
       // Track whether the SDK ever reported a successful completion. A resolved
       // `launch` alone does not imply success — the applicant may have
@@ -1005,12 +1039,9 @@ export class KycController extends BaseController<
    */
   reset(): void {
     this.#authClientToken = null;
-    // Invalidate any in-flight async work started before this reset.
+    // Invalidate any in-flight async work started before this reset so its
+    // results are discarded rather than written onto the now-idle controller.
     this.#generation += 1;
-    // Allow the next authenticated flow to auto-continue; any continuation from
-    // the superseded generation will no longer clear this flag (see the
-    // generation guard in `#continueAfterAuthentication`).
-    this.#continuationInFlight = false;
     this.#applyUpdate((state) => {
       state.phase = 'idle';
       state.statusMessage = '';
