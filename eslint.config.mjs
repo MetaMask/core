@@ -421,6 +421,7 @@ const config = createConfig([
       'packages/gas-fee-controller/**',
       'packages/gator-permissions-controller/**',
       'packages/geolocation-controller/**',
+      'packages/java-tron-up/**',
       'packages/json-rpc-engine/**',
       'packages/json-rpc-middleware-stream/**',
       'packages/keyring-controller/**',
