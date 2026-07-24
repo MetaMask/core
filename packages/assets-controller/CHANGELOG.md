@@ -8,16 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- `AccountActivityDataSource` is now the highest-priority balance data source and participates in chain-claiming: chains it reports as "up" (from `AccountActivityService:statusChanged`) are claimed first so the polling data sources (`AccountsApiDataSource`/`RpcDataSource`) do not also poll them
+
+- `AccountActivityDataSource` is now the highest-priority balance data source and participates in chain-claiming: chains it reports as "up" (from `AccountActivityService:statusChanged`) are claimed first so the polling data sources (`AccountsApiDataSource`/`RpcDataSource`) do not also poll them ([#9517](https://github.com/MetaMask/core/pull/9517))
   - `AssetsController` no longer references `BackendWebSocketService` actions/events; real-time balances and chain status are consumed exclusively from `AccountActivityService`
 
 ### Removed
 
-- **BREAKING:** Remove `BackendWebsocketDataSource` and its factory/types (`BackendWebsocketDataSource`, `createBackendWebsocketDataSource`, `BackendWebsocketDataSourceOptions`, `BackendWebsocketDataSourceState`). Real-time balance updates and per-chain status are now consumed from `AccountActivityService` via `AccountActivityDataSource`, which manages the WebSocket connection and subscriptions. Consumers no longer need to delegate `BackendWebSocketService` actions/events to the `AssetsController` messenger
+- **BREAKING:** Remove `BackendWebsocketDataSource` and its factory/types (`BackendWebsocketDataSource`, `createBackendWebsocketDataSource`, `BackendWebsocketDataSourceOptions`, `BackendWebsocketDataSourceState`). Real-time balance updates and per-chain status are now consumed from `AccountActivityService` via `AccountActivityDataSource`, which manages the WebSocket connection and subscriptions. Consumers no longer need to delegate `BackendWebSocketService` actions/events to the `AssetsController` messenger ([#9517](https://github.com/MetaMask/core/pull/9517))
 
 ### Fixed
 
-- The coalesced re-subscribe scheduled by `AssetsController` now re-checks the run guards (UI open, keyring unlocked, and `isEnabled`) when its debounce/jitter timer fires. Previously a re-subscribe scheduled while tracking was allowed could still run after the controller was disabled or tracking was stopped (e.g. UI closed or keyring locked), inappropriately restarting polling subscriptions
+- The coalesced re-subscribe scheduled by `AssetsController` now re-checks the run guards (UI open, keyring unlocked, and `isEnabled`) when its debounce/jitter timer fires. Previously a re-subscribe scheduled while tracking was allowed could still run after the controller was disabled or tracking was stopped (e.g. UI closed or keyring locked), inappropriately restarting polling subscriptions ([#9517](https://github.com/MetaMask/core/pull/9517))
+
 ## [11.2.1]
 
 ### Fixed

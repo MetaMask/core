@@ -77,9 +77,9 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './data-sources/AbstractDataSource.js';
+import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource.js';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
-import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource.js';
 import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import {
@@ -151,7 +151,6 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils/index.js';
-import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates.js';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
@@ -203,25 +202,6 @@ const MESSENGER_EXPOSED_METHODS = [
 
 /** Default polling interval hint for data sources (30 seconds) */
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
-
-/**
- * Trailing debounce window (ms) for coalescing event-driven re-subscribes.
- * A burst of `onActiveChainsUpdated` callbacks (e.g. many `statusChanged`
- * up/down notifications, or several data sources reporting supported chains at
- * init) collapses into a single re-subscribe pass so polling data sources are
- * not torn down and re-created (with a fresh immediate fetch) once per event.
- */
-const RESUBSCRIBE_DEBOUNCE_MS = 250;
-
-/**
- * Maximum random jitter (ms) added to the re-subscribe delay whenever a data
- * source's active chains change (e.g. WebSocket `statusChanged` up/down).
- * Staggers the resulting WS-subscribe fan-out across clients that all receive
- * the same backend broadcast, avoiding a thundering herd. Applied to both chain
- * additions and removals; the earliest scheduled run still wins so a
- * shorter-delay request pre-empts a pending longer-delay one.
- */
-const RESUBSCRIBE_JITTER_MS = 5000;
 
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)
@@ -770,20 +750,6 @@ export class AssetsController extends BaseController<
    * the account subscribes to both data sources for its chains.
    */
   readonly #activeSubscriptions: Map<string, SubscriptionResponse> = new Map();
-
-  /**
-   * Pending trailing-debounce timer for coalesced re-subscribes. Bursts of
-   * event-driven `#scheduleSubscribeAssets()` calls collapse into a single
-   * `#subscribeAssets()` run. See {@link RESUBSCRIBE_DEBOUNCE_MS}.
-   */
-  #resubscribeTimer: ReturnType<typeof setTimeout> | null = null;
-
-  /**
-   * Scheduled fire time (epoch ms) of {@link #resubscribeTimer}. Lets an urgent
-   * (non-jittered) re-subscribe pre-empt a pending jittered one so a chain
-   * removal is not delayed behind a chain addition's jitter window.
-   */
-  #resubscribeRunAt = 0;
 
   /** Currently enabled chains from NetworkEnablementController */
   #enabledChains: Set<ChainId> = new Set();
@@ -1455,14 +1421,8 @@ export class AssetsController extends BaseController<
     // No one-time fetch needed here — #handleEnabledNetworksChanged
     // handles fetches when the user enables a network, and
     // #subscribeAssets re-subscribes with the correct chain assignment.
-    // Coalesce bursts of chain updates into a single re-subscribe so polling
-    // data sources are not torn down/re-created (with a redundant immediate
-    // fetch) once per event.
-    // Jitter is always applied to stagger the resulting WS-subscribe fan-out
-    // across clients receiving the same backend broadcast, avoiding a
-    // thundering herd for both chain additions and removals.
     if (addedChains.length > 0 || removedChains.length > 0) {
-      this.#scheduleSubscribeAssets();
+      this.#subscribeAssets();
     }
   }
 
@@ -2957,13 +2917,6 @@ export class AssetsController extends BaseController<
     this.#stateSizeReported = false;
     this.#lastKnownAccountIds = new Set();
 
-    // Cancel any pending coalesced re-subscribe so it cannot fire after stop.
-    if (this.#resubscribeTimer) {
-      clearTimeout(this.#resubscribeTimer);
-      this.#resubscribeTimer = null;
-    }
-    this.#resubscribeRunAt = 0;
-
     // Stop price subscription first (uses direct messenger call)
     this.unsubscribeAssetsPrice();
 
@@ -3007,67 +2960,6 @@ export class AssetsController extends BaseController<
   handleBasicFunctionalityChange(_isBasic: boolean): void {
     this.#stop();
     this.#subscribeAssets();
-  }
-
-  /**
-   * Schedule a coalesced re-subscribe. Multiple calls within
-   * {@link RESUBSCRIBE_DEBOUNCE_MS} collapse into a single `#subscribeAssets()`
-   * run. Used for event-driven bursts (e.g. `onActiveChainsUpdated` from many
-   * `statusChanged` notifications) so polling data sources are not repeatedly
-   * torn down and re-created (each re-create firing an immediate, redundant
-   * fetch). Explicit flows (startup, account changes, enabled-network changes)
-   * keep calling `#subscribeAssets()` directly so their re-subscribe is not
-   * delayed.
-   *
-   * A random delay up to {@link RESUBSCRIBE_JITTER_MS} is added on top of the
-   * base debounce to stagger the WS-subscribe fan-out across clients receiving
-   * the same backend broadcast, avoiding a thundering herd. The earliest
-   * scheduled run always wins, so a shorter-delay request pre-empts a pending
-   * longer-delay one while a later request never pushes a sooner pending run out.
-   */
-  #scheduleSubscribeAssets(): void {
-    const delay =
-      RESUBSCRIBE_DEBOUNCE_MS +
-      Math.floor(Math.random() * RESUBSCRIBE_JITTER_MS);
-    const runAt = Date.now() + delay;
-
-    if (this.#resubscribeTimer) {
-      // Keep the earliest scheduled run so an urgent (shorter-delay) request can
-      // pre-empt a pending jittered one, but a jittered request never pushes a
-      // sooner pending run later.
-      if (runAt >= this.#resubscribeRunAt) {
-        return;
-      }
-      clearTimeout(this.#resubscribeTimer);
-      this.#resubscribeTimer = null;
-    }
-
-    this.#resubscribeRunAt = runAt;
-    this.#resubscribeTimer = setTimeout(() => {
-      this.#resubscribeTimer = null;
-      this.#resubscribeRunAt = 0;
-      // Re-check the run guards at fire time. A re-subscribe can be scheduled
-      // while tracking is allowed but fire after it should have stopped:
-      // #handleActiveChainsUpdate only gates on #isEnabled(), so a data source
-      // reporting chains "down" (e.g. on WebSocket disconnect) after the UI
-      // closed or the keyring locked can still schedule this timer; and
-      // #isEnabled() is an external getter that can flip without routing
-      // through #stop() (which is what cancels the timer). Running
-      // #subscribeAssets() regardless would inappropriately restart polling.
-      if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
-        log('Skipping coalesced re-subscribe: tracking no longer active', {
-          uiOpen: this.#uiOpen,
-          keyringUnlocked: this.#keyringUnlocked,
-          isEnabled: this.#isEnabled(),
-        });
-        return;
-      }
-      try {
-        this.#subscribeAssets();
-      } catch (error) {
-        log('Failed to run coalesced re-subscribe', error);
-      }
-    }, delay);
   }
 
   /**

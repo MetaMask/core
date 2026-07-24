@@ -10,12 +10,12 @@ import type {
 } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type { ChainId, Caip19AssetId } from '../types';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import type { ChainId, Caip19AssetId } from '../types.js';
 import {
   AccountActivityDataSource,
   createAccountActivityDataSource,
-} from './AccountActivityDataSource';
+} from './AccountActivityDataSource.js';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -306,6 +306,31 @@ describe('AccountActivityDataSource', () => {
         ],
         chainIds: [CHAIN_MAINNET],
         dataTypes: ['balance', 'metadata'],
+      });
+
+      cleanup();
+    });
+
+    it('converts a hex postBalance to a human-readable amount', async () => {
+      const account = createMockAccount();
+      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+        groupAccounts: [account],
+      });
+
+      triggerBalanceUpdated({
+        address: EVM_ADDRESS,
+        chain: CHAIN_MAINNET,
+        updates: [
+          createBalanceUpdate({ postBalance: { amount: '0x10aa6d94e80' } }),
+        ],
+      });
+
+      await Promise.resolve();
+
+      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.assetsBalance[account.id][ETH_ASSET]).toStrictEqual({
+        amount: '0.00000114526056',
       });
 
       cleanup();

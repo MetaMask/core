@@ -126,7 +126,6 @@ export type {
   AccountsApiDataSourceState,
 } from './data-sources/index.js';
 
-
 // Data sources - RPC
 export { RpcDataSource, createRpcDataSource } from './data-sources/index.js';
 
