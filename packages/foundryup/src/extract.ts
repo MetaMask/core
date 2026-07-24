@@ -1,3 +1,4 @@
+import { Minipass } from 'minipass';
 import { ok } from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
@@ -142,6 +143,9 @@ async function extractFromTar(
     extractTar(
       {
         cwd: dir,
+        // @ts-expect-error: Types here broke in `tar@7.5.12`, but it appears to
+        // work fine as-is.
+        // See: https://github.com/isaacs/node-tar/issues/459
         transform: (entry) => {
           const absolutePath = entry.absolute;
           if (!absolutePath) {
@@ -150,22 +154,25 @@ async function extractFromTar(
 
           if (checksumAlgorithm) {
             const hash = createHash(checksumAlgorithm);
-            entry.on('data', (chunk: Buffer) => hash.update(chunk));
-            entry.on('end', () => {
+            const passThrough = new Minipass({ async: true });
+            passThrough.pipe(hash);
+            passThrough.on('end', () => {
               downloads.push({
                 path: absolutePath,
                 binary: entry.path as Binary,
                 checksum: hash.digest('hex'),
               });
             });
-          } else {
-            downloads.push({
-              path: absolutePath,
-              binary: entry.path as Binary,
-            });
+            return passThrough;
           }
 
-          return entry;
+          // When no checksum is needed, record the entry and return undefined
+          // to use the original stream without transformation
+          downloads.push({
+            path: absolutePath,
+            binary: entry.path as Binary,
+          });
+          return undefined;
         },
       },
       binaries,
