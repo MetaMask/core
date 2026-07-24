@@ -1,8 +1,6 @@
 import {
-  getAllWorkspaces,
   getTypeScriptWorkspaces,
   computeChangedWorkspaces,
-  getChangedFiles,
 } from './lib/workspaces.mjs';
 
 /**
@@ -30,20 +28,16 @@ async function main(): Promise<void> {
 
   const headRef = process.argv[3] ?? 'HEAD';
 
-  const allWorkspaces = await getAllWorkspaces();
   const typeScriptWorkspaces = await getTypeScriptWorkspaces();
-  const changedFiles = await getChangedFiles(mergeBase, headRef);
-
-  const packagesToBuild = await computeChangedWorkspaces({
-    workspaces: allWorkspaces,
-    changedFiles,
+  const { workspaces: packagesToBuild } = await computeChangedWorkspaces({
     includeDependencies: true,
     mergeBase,
     headRef,
   });
 
+  const packagesToBuildNames = new Set(packagesToBuild.map(({ name }) => name));
   const references = typeScriptWorkspaces
-    .filter(({ name }) => packagesToBuild.has(name))
+    .filter(({ name }) => packagesToBuildNames.has(name))
     .map(({ location }) => ({ path: `./${location}/tsconfig.build.json` }));
 
   if (references.length === 0) {

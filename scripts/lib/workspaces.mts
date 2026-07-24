@@ -39,8 +39,8 @@ export type Workspace = {
 };
 
 export type DependencyGraph = {
-  dependants: Record<string, Set<string>>;
-  dependencies: Record<string, Set<string>>;
+  dependants: Record<string, Set<Workspace>>;
+  dependencies: Record<string, Set<Workspace>>;
 };
 
 /**
@@ -95,11 +95,11 @@ export async function getTypeScriptWorkspaces(): Promise<Workspace[]> {
 export async function getWorkspaceDependencies(
   workspaces: Workspace[],
 ): Promise<DependencyGraph> {
-  const dependants: Record<string, Set<string>> = Object.fromEntries(
-    workspaces.map(({ name }) => [name, new Set<string>()]),
+  const dependants: Record<string, Set<Workspace>> = Object.fromEntries(
+    workspaces.map(({ name }) => [name, new Set<Workspace>()]),
   );
-  const dependencies: Record<string, Set<string>> = Object.fromEntries(
-    workspaces.map(({ name }) => [name, new Set<string>()]),
+  const dependencies: Record<string, Set<Workspace>> = Object.fromEntries(
+    workspaces.map(({ name }) => [name, new Set<Workspace>()]),
   );
 
   const packages = await Promise.all(
@@ -110,15 +110,21 @@ export async function getWorkspaceDependencies(
     ),
   );
 
-  for (const [index, { name }] of workspaces.entries()) {
+  for (const [index, workspace] of workspaces.entries()) {
     const pkg = packages[index];
     for (const dependency of Object.keys({
       ...pkg.dependencies,
       ...pkg.devDependencies,
     })) {
       if (dependants[dependency] !== undefined) {
-        dependants[dependency].add(name);
-        dependencies[name].add(dependency);
+        const dependencyWorkspace = workspaces.find(
+          (item) => item.name === pkg.name,
+        );
+
+        if (dependencyWorkspace) {
+          dependants[dependency].add(workspace);
+          dependencies[workspace.name].add(dependencyWorkspace);
+        }
       }
     }
   }
@@ -331,23 +337,23 @@ async function getLockfileAffectedWorkspaces(
   mergeBase: string,
   headRef: string,
   workspaces: Workspace[],
-): Promise<Set<string>> {
+): Promise<Set<Workspace>> {
   const [changedPackages, workspaceGraph] = await Promise.all([
     getChangedLockfilePackages(mergeBase, headRef),
     buildWorkspaceTransitiveDependencies(),
   ]);
 
-  const result = new Set<string>();
+  const result = new Set<Workspace>();
 
-  for (const { name } of workspaces) {
-    const transitiveDeps = workspaceGraph.get(name);
+  for (const workspace of workspaces) {
+    const transitiveDeps = workspaceGraph.get(workspace.name);
     if (!transitiveDeps) {
       continue;
     }
 
     for (const pkg of changedPackages) {
       if (transitiveDeps.has(pkg)) {
-        result.add(name);
+        result.add(workspace);
         break;
       }
     }
@@ -389,46 +395,49 @@ export function checkRootChange(
  * dependency, and those are seeded into the result before dependant expansion.
  *
  * @param options - Options.
- * @param options.workspaces - The workspace set to compute against.
- * @param options.changedFiles - List of changed files relative to the repo root.
- * @param options.includeDependencies - Whether to also expand to transitive
- * dependencies.
  * @param options.mergeBase - The merge base SHA, used to diff `yarn.lock` when
  * it changed.
  * @param options.headRef - The PR branch tip SHA (or "HEAD"), used to read the
  * current side of `yarn.lock` when diffing.
+ * @param options.includeDependencies - Whether to also expand to transitive
+ * dependencies.
  * @returns The set of workspace names to check.
  */
 export async function computeChangedWorkspaces({
-  workspaces,
-  changedFiles,
-  includeDependencies,
   mergeBase,
   headRef,
+  includeDependencies,
 }: {
-  workspaces: Workspace[];
-  changedFiles: string[];
-  includeDependencies: boolean;
   mergeBase: string;
   headRef: string;
-}): Promise<Set<string>> {
-  const { dependants, dependencies } =
-    await getWorkspaceDependencies(workspaces);
+  includeDependencies: boolean;
+}): Promise<{
+  workspaces: Workspace[];
+  hasRootChange: boolean;
+}> {
+  const changedFiles = await getChangedFiles(mergeBase, headRef);
+  const workspaces = await getAllWorkspaces();
 
-  // If any changed file lives outside all package directories (e.g. root
+  // If any changed file lives outside all package directories (e.g., root
   // configs, workflow files, scripts), rebuild and test everything.
   if (checkRootChange(workspaces, changedFiles)) {
-    return new Set(workspaces.map(({ name }) => name));
+    return {
+      workspaces,
+      hasRootChange: true,
+    };
   }
 
-  // The root package.json is ignored by checkRootChange (release PRs bump only
-  // version), but any non-version change (scripts, dependencies, etc.) still
-  // requires a full rebuild.
+  // The root package.json is ignored by `checkRootChange` (release PRs bump
+  // only version), but any non-version changes (scripts, dependencies, etc.)
+  // still require a full rebuild.
   if (
     changedFiles.includes('package.json') &&
     !(await isRootPackageVersionOnlyChange(mergeBase, headRef))
   ) {
-    return new Set(workspaces.map(({ name }) => name));
+    return {
+      workspaces,
+      hasRootChange: true,
+    };
   }
 
   const result = new Set(
@@ -436,7 +445,8 @@ export async function computeChangedWorkspaces({
       const workspace = workspaces.find(({ location }) =>
         file.startsWith(`${location}/`),
       );
-      return workspace ? [workspace.name] : [];
+
+      return workspace ? [workspace] : [];
     }),
   );
 
@@ -453,21 +463,27 @@ export async function computeChangedWorkspaces({
     }
   }
 
+  const { dependants, dependencies } =
+    await getWorkspaceDependencies(workspaces);
+
   // Expand to transitive dependants (packages that depend on what changed).
-  for (const pkg of result) {
-    for (const dependant of dependants[pkg] ?? []) {
+  for (const workspace of result) {
+    for (const dependant of dependants[workspace.name] ?? []) {
       result.add(dependant);
     }
   }
 
   if (includeDependencies) {
     // Expand to transitive dependencies (dist files must exist to build dependants).
-    for (const pkg of result) {
-      for (const dependency of dependencies[pkg] ?? []) {
+    for (const workspace of result) {
+      for (const dependency of dependencies[workspace.name] ?? []) {
         result.add(dependency);
       }
     }
   }
 
-  return result;
+  return {
+    workspaces: Array.from(result),
+    hasRootChange: false,
+  };
 }
