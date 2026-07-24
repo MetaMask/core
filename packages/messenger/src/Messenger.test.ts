@@ -1971,6 +1971,7 @@ describe('Messenger', () => {
 
       // Child can now subscribe to the delegated event
       const subscriber = jest.fn();
+      // eslint-disable-next-line no-restricted-syntax
       childMessenger.subscribe('Source:stateChange', subscriber);
       sourceMessenger.publish('Source:stateChange', { value: 1 });
       expect(subscriber).toHaveBeenCalledWith({ value: 1 });
