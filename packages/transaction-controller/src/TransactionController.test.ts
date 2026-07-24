@@ -4960,6 +4960,27 @@ describe('TransactionController', () => {
       expect(result.txParams.value).toBe('0x2');
     });
 
+    it('uses a transaction returned by the callback', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+      const updatedTransaction = {
+        ...TRANSACTION_META_MOCK,
+        txParams: { ...TRANSACTION_META_MOCK.txParams, value: '0x3' },
+      };
+
+      const result = controller.updateTransactionCallback(
+        TRANSACTION_META_MOCK.id,
+        () => updatedTransaction,
+      );
+
+      expect(result.txParams.value).toBe('0x3');
+    });
+
     it('throws if the transaction does not exist', () => {
       const { controller } = setupController();
 
@@ -7796,6 +7817,35 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].gasLimitNoBuffer).toBe('0x200');
     });
 
+    it('clears stale revert metadata and applies a new gas revert', async () => {
+      updateGasMock.mockImplementationOnce(async ({ txMeta }) => {
+        txMeta.revert = { gas: { message: 'New gas revert' } };
+      });
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                nestedTransactions: [{ to: ACCOUNT_2_MOCK, data: '0x1234' }],
+                revert: { gas: { message: 'Old gas revert' } },
+              },
+            ],
+          },
+        },
+      });
+
+      await controller.updateAtomicBatchData({
+        transactionId: TRANSACTION_META_MOCK.id,
+        transactionIndex: 0,
+        transactionData: '0x89AB',
+      });
+
+      expect(controller.state.transactions[0].revert).toStrictEqual({
+        gas: { message: 'New gas revert' },
+      });
+    });
+
     it('updates gas', async () => {
       const gasMock = '0x1234';
       const gasLimitNoBufferMock = '0x123';
@@ -7823,6 +7873,26 @@ describe('TransactionController', () => {
         options: {
           state: {
             transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      await expect(
+        controller.updateAtomicBatchData({
+          transactionId: TRANSACTION_META_MOCK.id,
+          transactionIndex: 0,
+          transactionData: '0x89AB',
+        }),
+      ).rejects.toThrow('Nested transaction not found');
+    });
+
+    it('throws if the transaction has no nested transactions', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, nestedTransactions: undefined },
+            ],
           },
         },
       });
