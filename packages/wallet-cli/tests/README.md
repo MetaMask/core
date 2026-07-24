@@ -69,13 +69,12 @@ anvil port>` in its `beforeEach` and restores the block in `afterEach`, so
 
 ## CI
 
-The `test-wallet-cli-e2e` job runs `test:e2e` on every push/PR. To avoid paying
-the Foundry download on unrelated PRs, it installs `anvil` **only when files
-under `packages/wallet-cli/` changed** (detected via the PR file list). On PRs
-that don't touch wallet-cli, `anvil` is absent and the real-chain suite skips
-itself; the offline lifecycle suite always runs.
+The `test-wallet-cli-e2e` job runs only when `@metamask/wallet-cli` is in the
+affected package set (its `if` gate), so unrelated PRs skip the job entirely and
+never pay the Foundry download. When the job does run, it always installs
+`anvil` and runs both e2e suites.
 
-When it does install `anvil`, the job also sets `MM_E2E_REQUIRE_ANVIL=true`, so
-the real-chain suite fails loudly if the binary is nonetheless missing rather
+Because `anvil` is always installed, the job also sets `MM_E2E_REQUIRE_ANVIL=true`,
+so the real-chain suite fails loudly if the binary is nonetheless missing rather
 than skipping green — that would otherwise hide the loss of the only test that
 exercises a real broadcast.
