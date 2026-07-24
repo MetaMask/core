@@ -48,6 +48,8 @@ function makeMockWallet(): Wallet {
       call: jest.fn(),
       subscribe: jest.fn(),
       unsubscribe: jest.fn(),
+      // Called when the analytics stub messenger delegates its handlers up.
+      _internalRegisterDelegatedActionHandler: jest.fn(),
     },
     controllerMetadata: {},
     state: {},
@@ -107,6 +109,15 @@ describe('createWallet', () => {
     expect(instanceOptions.networkController.infuraProjectId).toBe(
       'test-infura-id',
     );
+    expect(
+      instanceOptions.networkController.analyticsOptions.isRpcEndpointUrlPublic(
+        'https://example.test',
+      ),
+    ).toBe(false);
+    expect(
+      instanceOptions.networkController.analyticsOptions
+        .rpcServiceEventsSampleRate,
+    ).toBe(0);
     expect(
       instanceOptions.remoteFeatureFlagController.clientConfigApiService,
     ).toBeInstanceOf(ClientConfigApiService);
@@ -344,6 +355,7 @@ describe('createWallet', () => {
             }),
             subscribe: jest.fn(),
             unsubscribe: jest.fn(),
+            _internalRegisterDelegatedActionHandler: jest.fn(),
           },
         }) as unknown as Wallet,
     );
@@ -375,6 +387,7 @@ describe('createWallet', () => {
             }),
             subscribe: jest.fn(),
             unsubscribe: jest.fn(),
+            _internalRegisterDelegatedActionHandler: jest.fn(),
           },
         }) as unknown as Wallet,
     );

@@ -1,4 +1,8 @@
 import type {
+  AnalyticsControllerGetStateAction,
+  AnalyticsControllerTrackEventAction,
+} from '@metamask/analytics-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -58,6 +62,11 @@ import type {
 } from './create-network-client.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import type { NetworkControllerMethodActions } from './NetworkController-method-action-types.js';
+import {
+  trackRpcServiceDegraded,
+  trackRpcServiceUnavailable,
+} from './rpc-service-analytics.js';
+import type { NetworkControllerAnalyticsOptions } from './rpc-service-analytics.js';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
 import { getRpcFailoverMode } from './selectors.js';
 import type { RpcFailoverMode } from './selectors.js';
@@ -712,7 +721,9 @@ export type NetworkControllerActions =
  */
 type AllowedActions =
   | ConnectivityControllerGetStateAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | AnalyticsControllerGetStateAction
+  | AnalyticsControllerTrackEventAction;
 
 export type NetworkControllerMessenger = Messenger<
   typeof controllerName,
@@ -765,6 +776,13 @@ export type NetworkControllerOptions = {
   getBlockTrackerOptions?: (
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  /**
+   * Configuration that makes the controller emit "RPC Service Unavailable" and
+   * "RPC Service Degraded" analytics events via the `AnalyticsController:trackEvent`
+   * action whenever an RPC endpoint becomes unavailable or degraded. The messenger
+   * must allow `AnalyticsController:getState` and `AnalyticsController:trackEvent`.
+   */
+  analyticsOptions: NetworkControllerAnalyticsOptions;
 };
 
 /**
@@ -1265,6 +1283,8 @@ export class NetworkController extends BaseController<
 
   readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
 
+  readonly #analyticsOptions: NetworkControllerAnalyticsOptions;
+
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
@@ -1286,6 +1306,7 @@ export class NetworkController extends BaseController<
       log,
       getRpcServiceOptions,
       getBlockTrackerOptions,
+      analyticsOptions,
     } = options;
     const initialState = {
       ...getDefaultNetworkControllerState(),
@@ -1329,6 +1350,7 @@ export class NetworkController extends BaseController<
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
     this.#getBlockTrackerOptions = getBlockTrackerOptions;
+    this.#analyticsOptions = analyticsOptions;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1365,6 +1387,17 @@ export class NetworkController extends BaseController<
           networkStatus: NetworkStatus.Available,
         });
       },
+    );
+
+    this.messenger.subscribe(`${this.name}:rpcEndpointUnavailable`, (payload) =>
+      trackRpcServiceUnavailable(
+        this.messenger,
+        this.#analyticsOptions,
+        payload,
+      ),
+    );
+    this.messenger.subscribe(`${this.name}:rpcEndpointDegraded`, (payload) =>
+      trackRpcServiceDegraded(this.messenger, this.#analyticsOptions, payload),
     );
 
     this.messenger.subscribe(

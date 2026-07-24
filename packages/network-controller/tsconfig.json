@@ -5,6 +5,7 @@
     "rootDir": "../.."
   },
   "references": [
+    { "path": "../analytics-controller" },
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
     { "path": "../connectivity-controller" },

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Wire analytics into the default `NetworkController` initialization ([#9270](https://github.com/MetaMask/core/pull/9270))
+  - Adds a required `instanceOptions.networkController.analyticsOptions` option (`isRpcEndpointUrlPublic` and `rpcServiceEventsSampleRate`) that the controller uses to emit `RPC Service Unavailable` and `RPC Service Degraded` events.
+  - The `Wallet` root messenger now requires the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions. Consumers must register handlers for them on the root messenger; a consumer that does not use analytics can register handlers that do nothing.
+
 ## [8.1.0]
 
 ### Changed

@@ -1,3 +1,4 @@
+import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import type { ConnectivityStatus } from '@metamask/connectivity-controller';
 import {
@@ -41,6 +42,7 @@ import type {
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController.js';
 import { RpcEndpointType } from '../src/NetworkController.js';
+import type { NetworkControllerAnalyticsOptions } from '../src/rpc-service-analytics.js';
 import { RpcServiceOptions } from '../src/rpc-service/rpc-service.js';
 import type { RpcFailoverMode } from '../src/selectors.js';
 import type {
@@ -84,6 +86,15 @@ export const TESTNET = {
 };
 
 /**
+ * Analytics options for tests that don't exercise analytics. Reports no
+ * endpoint as public and never samples, so no analytics events are emitted.
+ */
+export const MOCK_ANALYTICS_OPTIONS: NetworkControllerAnalyticsOptions = {
+  isRpcEndpointUrlPublic: () => false,
+  rpcServiceEventsSampleRate: 0,
+};
+
+/**
  * Build a root messenger that includes all events used by the network
  * controller.
  *
@@ -91,14 +102,18 @@ export const TESTNET = {
  * @param options.connectivityStatus - The connectivity status to return by default.
  * If not provided, defaults to Online.
  * @param options.rpcFailoverMode - The RPC failover mode to return, defaults to `disabled`.
+ * @param options.analyticsId - The analytics ID that `AnalyticsController:getState`
+ * returns by default. Defaults to a fixed valid UUIDv4.
  * @returns The messenger.
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
   rpcFailoverMode = 'disabled',
+  analyticsId = '11111111-1111-4111-8111-111111111111',
 }: {
   connectivityStatus?: ConnectivityStatus;
   rpcFailoverMode?: RpcFailoverMode;
+  analyticsId?: string;
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
@@ -121,6 +136,16 @@ export function buildRootMessenger({
       },
       cacheTimestamp: 0,
     }),
+  );
+
+  rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
+    ...getDefaultAnalyticsControllerState(),
+    analyticsId,
+  }));
+
+  rootMessenger.registerActionHandler(
+    'AnalyticsController:trackEvent',
+    jest.fn(),
   );
 
   return rootMessenger;
@@ -150,6 +175,8 @@ export function buildNetworkControllerMessenger(
     actions: [
       'ConnectivityController:getState',
       'RemoteFeatureFlagController:getState',
+      'AnalyticsController:getState',
+      'AnalyticsController:trackEvent',
     ],
     // eslint-disable-next-line no-restricted-syntax
     events: ['RemoteFeatureFlagController:stateChange'],
@@ -666,6 +693,7 @@ export async function withController<ReturnValue>(
   const controller = new NetworkController({
     messenger: networkControllerMessenger,
     infuraProjectId: 'infura-project-id',
+    analyticsOptions: MOCK_ANALYTICS_OPTIONS,
     getRpcServiceOptions: (): Omit<
       RpcServiceOptions,
       'failoverService' | 'endpointUrl'

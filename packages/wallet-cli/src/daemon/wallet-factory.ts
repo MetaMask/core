@@ -1,3 +1,9 @@
+import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
+import type {
+  AnalyticsControllerGetStateAction,
+  AnalyticsControllerTrackEventAction,
+} from '@metamask/analytics-controller';
+import { Messenger } from '@metamask/messenger';
 import {
   ClientConfigApiService,
   ClientType,
@@ -11,7 +17,12 @@ import {
   importSecretRecoveryPhrase,
   Wallet,
 } from '@metamask/wallet';
-import type { WalletOptions } from '@metamask/wallet';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+  WalletOptions,
+} from '@metamask/wallet';
 import { rm } from 'node:fs/promises';
 
 import { KeyValueStore } from '../persistence/KeyValueStore.js';
@@ -90,6 +101,12 @@ function buildInstanceOptions(
     },
     networkController: {
       infuraProjectId,
+      // The CLI does not report analytics, so no endpoint is treated as public
+      // and no events are sampled.
+      analyticsOptions: {
+        isRpcEndpointUrlPublic: (): boolean => false,
+        rpcServiceEventsSampleRate: 0,
+      },
     },
     remoteFeatureFlagController: {
       clientConfigApiService: new ClientConfigApiService({
@@ -122,6 +139,41 @@ function buildInstanceOptions(
       hooks: {},
     },
   };
+}
+
+/**
+ * Register handlers for the `AnalyticsController` actions that
+ * `NetworkController` calls to emit RPC service analytics. The daemon does not
+ * report analytics, so these do nothing: `getState` returns an empty analytics
+ * ID, which stops the controller before it tracks anything, and `trackEvent` is
+ * a no-op. Registering them keeps those messenger calls from throwing.
+ *
+ * @param messenger - The wallet's root messenger.
+ */
+function registerAnalyticsStubHandlers(messenger: Wallet['messenger']): void {
+  // Actions can only be registered under a messenger of their own namespace,
+  // and registering them delegates them up to the root automatically, so
+  // `NetworkController` (delegated the same actions) can call them.
+  const analyticsMessenger = new Messenger<
+    'AnalyticsController',
+    AnalyticsControllerGetStateAction | AnalyticsControllerTrackEventAction,
+    never,
+    RootMessenger<DefaultActions, DefaultEvents>
+  >({
+    namespace: 'AnalyticsController',
+    parent: messenger as RootMessenger<DefaultActions, DefaultEvents>,
+  });
+  analyticsMessenger.registerActionHandler(
+    'AnalyticsController:getState',
+    () => ({
+      ...getDefaultAnalyticsControllerState(),
+      analyticsId: '',
+    }),
+  );
+  analyticsMessenger.registerActionHandler(
+    'AnalyticsController:trackEvent',
+    () => undefined,
+  );
 }
 
 /**
@@ -195,6 +247,7 @@ export async function createWallet({
       state,
       instanceOptions: buildInstanceOptions(infuraProjectId),
     });
+    registerAnalyticsStubHandlers(wallet.messenger);
     unsubscribe = subscribeToChanges(
       wallet.messenger,
       wallet.controllerMetadata,
@@ -302,6 +355,7 @@ async function loadPersistedState(
   const probe = new Wallet({
     instanceOptions: buildInstanceOptions(infuraProjectId),
   });
+  registerAnalyticsStubHandlers(probe.messenger);
   try {
     return loadState(store, probe.controllerMetadata);
   } finally {

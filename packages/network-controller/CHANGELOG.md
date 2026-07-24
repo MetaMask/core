@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add required `analyticsOptions` constructor option that makes `NetworkController` emit `RPC Service Unavailable` and `RPC Service Degraded` analytics events via the `AnalyticsController:trackEvent` action when an RPC endpoint becomes unavailable or degraded ([#9270](https://github.com/MetaMask/core/pull/9270))
+  - The option takes `isRpcEndpointUrlPublic` (decides whether an endpoint URL is safe to report verbatim or as `'custom'`) and `rpcServiceEventsSampleRate` (the proportion of events to emit, between `0` and `1`).
+  - Adds the `NetworkControllerAnalyticsOptions` and `RpcServiceEventName` types.
+
 ### Changed
+
+- **BREAKING:** `NetworkControllerMessenger` now requires the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions ([#9270](https://github.com/MetaMask/core/pull/9270))
+  - Consumers must delegate these actions to the network controller messenger and pass the new required `analyticsOptions` constructor option.
 
 - **BREAKING:** `BuiltInNetworkClientId` is now `string` instead of `InfuraNetworkType` ([#9432](https://github.com/MetaMask/core/pull/9432))
   - This type was previously constrained to known Infura network names (e.g. `"mainnet"`, `"sepolia"`). It is now `string` to allow dynamically configured Infura networks whose names are not bundled into the package.
@@ -30,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Drive RPC failover from the single `corePlatformRpcFailoverMode` remote feature flag ([#9175](https://github.com/MetaMask/core/pull/9175))
   - The flag is a string with three values: `disabled` (failover off), `enabled` (divert to failover URLs when the primary endpoint is unavailable), and `forced` (Infura endpoints that have failover URLs route all traffic to those URLs, bypassing Infura entirely). Custom endpoints are unaffected, and the value defaults to `disabled` when the flag is absent or unrecognized.
   - `NetworkController` no longer reads the `walletFrameworkRpcFailoverEnabled` flag; the `enabled` mode replaces it. Update your remote feature flag configuration to set `corePlatformRpcFailoverMode`.
+- **BREAKING:** The `NetworkControllerMessenger` now allows the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions ([#9270](https://github.com/MetaMask/core/pull/9270))
+  - Consumers that pass the `analytics` option must delegate these actions to the network controller messenger.
 
 ### Removed
 

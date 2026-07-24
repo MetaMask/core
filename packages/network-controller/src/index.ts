@@ -56,6 +56,10 @@ export type {
   RetryReason,
 } from './create-network-client.js';
 export { classifyRetryReason } from './create-network-client.js';
+export type {
+  NetworkControllerAnalyticsOptions,
+  RpcServiceEventName,
+} from './rpc-service-analytics.js';
 export { isConnectionError } from './rpc-service/rpc-service.js';
 export type {
   NetworkControllerGetEthQueryAction,
