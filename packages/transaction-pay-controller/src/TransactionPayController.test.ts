@@ -237,6 +237,16 @@ describe('TransactionPayController', () => {
       });
       getTransactionMock.mockReturnValue(transaction);
       const updatedTransaction = mockTransactionUpdateCallback();
+      updatedTransaction.txParams.gas = '0x5208';
+      updatedTransaction.gasLimitNoBuffer = '21000';
+      updatedTransaction.gasUsed = '0x5208';
+      updatedTransaction.securityAlertResponse = {
+        reason: 'stale',
+        result_type: 'Malicious',
+      };
+      updatedTransaction.simulationData = { tokenBalanceChanges: [] };
+      updatedTransaction.simulationFails = { debug: {} };
+      updatedTransaction.revert = { gas: {} as never };
       const controller = createController({ prepareTransactionAmount });
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => undefined);
       updateQuotesMock.mockClear();
@@ -265,6 +275,13 @@ describe('TransactionPayController', () => {
       expect(
         updatedTransaction.nestedTransactions?.map(({ data }) => data),
       ).toStrictEqual(['0xAAAA', '0xBBBB']);
+      expect(updatedTransaction.txParams.gas).toBeUndefined();
+      expect(updatedTransaction.gasLimitNoBuffer).toBeUndefined();
+      expect(updatedTransaction.gasUsed).toBeUndefined();
+      expect(updatedTransaction.securityAlertResponse).toBeUndefined();
+      expect(updatedTransaction.simulationData).toBeUndefined();
+      expect(updatedTransaction.simulationFails).toBeUndefined();
+      expect(updatedTransaction.revert).toBeUndefined();
       expect(updatedTransaction.txParams.data).toContain('aaaa');
       expect(updatedTransaction.txParams.data).toContain('bbbb');
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);

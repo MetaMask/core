@@ -321,6 +321,23 @@ export class TransactionPayController extends BaseController<
           transactionMeta.nestedTransactions = nestedTransactions;
           transactionMeta.requiredAssets = amountPreparation.requiredAssets;
           transactionMeta.txParams.data = transactionData;
+          transactionMeta.txParams.gas = undefined;
+          transactionMeta.gasLimitNoBuffer = undefined;
+          transactionMeta.gasUsed = undefined;
+          transactionMeta.securityAlertResponse = undefined;
+          transactionMeta.simulationData = undefined;
+          transactionMeta.simulationFails = undefined;
+
+          if (transactionMeta.revert) {
+            delete transactionMeta.revert.gas;
+
+            if (
+              !transactionMeta.revert.simulation &&
+              !transactionMeta.revert.receipt
+            ) {
+              transactionMeta.revert = undefined;
+            }
+          }
         },
       );
     } finally {
