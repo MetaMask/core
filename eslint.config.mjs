@@ -466,6 +466,8 @@ const config = createConfig([
       'packages/smart-transactions-controller/**',
       'packages/snap-account-service/**',
       'packages/social-controllers/**',
+      'packages/solana-test-validator-up/**',
+      'packages/stellar-quickstart-up/**',
       'packages/storage-service/**',
       'packages/subscription-controller/**',
       'packages/transaction-controller/**',
