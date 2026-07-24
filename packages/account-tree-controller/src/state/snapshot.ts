@@ -8,13 +8,7 @@ import {
   ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
   validateAndMigrate,
 } from './payload.js';
-
-type SnapshotIdMap = {
-  /** Maps local controller IDs (wallet or group) to their portable payload IDs. */
-  localToPayload: Map<string, string>;
-  /** Maps portable payload IDs to their local controller IDs. */
-  payloadToLocal: Map<string, string>;
-};
+import { IdMap } from './id-map.js';
 
 /**
  * Immutable value object returned by {@link AccountTreeController.exportState}.
@@ -28,12 +22,9 @@ type SnapshotIdMap = {
 export class AccountTreeSnapshot {
   readonly #entries: AccountTreeSnapshotEntry[];
 
-  readonly #idMap: SnapshotIdMap | null;
+  readonly #idMap: IdMap | null;
 
-  constructor(
-    entries: AccountTreeSnapshotEntry[],
-    idMap: SnapshotIdMap | null,
-  ) {
+  constructor(entries: AccountTreeSnapshotEntry[], idMap: IdMap | null) {
     this.#entries = entries;
     this.#idMap = idMap;
   }
@@ -54,25 +45,21 @@ export class AccountTreeSnapshot {
       return new AccountTreeSnapshot(filteredEntries, null);
     }
 
-    const localToPayload = new Map<string, string>();
-    const payloadToLocal = new Map<string, string>();
-
+    const pairs: Parameters<IdMap['add']>[] = [];
     for (const entry of filteredEntries) {
-      const localWalletId = this.#idMap.payloadToLocal.get(entry.id);
+      const localWalletId = this.#idMap.getLocalId(entry.id);
       if (localWalletId !== undefined) {
-        localToPayload.set(localWalletId, entry.id);
-        payloadToLocal.set(entry.id, localWalletId);
+        pairs.push([localWalletId, entry.id]);
       }
       for (const group of entry.groups) {
-        const localGroupId = this.#idMap.payloadToLocal.get(group.id);
+        const localGroupId = this.#idMap.getLocalId(group.id);
         if (localGroupId !== undefined) {
-          localToPayload.set(localGroupId, group.id);
-          payloadToLocal.set(group.id, localGroupId);
+          pairs.push([localGroupId, group.id]);
         }
       }
     }
 
-    return new AccountTreeSnapshot(filteredEntries, { localToPayload, payloadToLocal });
+    return new AccountTreeSnapshot(filteredEntries, new IdMap(pairs));
   }
 
   /**
@@ -84,8 +71,8 @@ export class AccountTreeSnapshot {
    */
   toLocalId(
     payloadId: AccountWalletPayloadId | AccountGroupPayloadId,
-  ): string | undefined {
-    return this.#idMap?.payloadToLocal.get(payloadId);
+  ): ReturnType<IdMap['getLocalId']> {
+    return this.#idMap?.getLocalId(payloadId);
   }
 
   /**
@@ -96,12 +83,9 @@ export class AccountTreeSnapshot {
    * @returns The payload ID, or `undefined` if not found or no ID map is present.
    */
   toPayloadId(
-    localId: string,
-  ): AccountWalletPayloadId | AccountGroupPayloadId | undefined {
-    return this.#idMap?.localToPayload.get(localId) as
-      | AccountWalletPayloadId
-      | AccountGroupPayloadId
-      | undefined;
+    localId: Parameters<IdMap['add']>[0],
+  ): ReturnType<IdMap['getPayloadId']> {
+    return this.#idMap?.getPayloadId(localId);
   }
 
   /**

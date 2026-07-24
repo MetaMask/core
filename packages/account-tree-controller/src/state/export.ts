@@ -14,6 +14,7 @@ import type {
   AccountWalletPrivateKeyPayload,
   ExportStateOptions,
 } from './payload.js';
+import { IdMap } from './id-map.js';
 import { AccountTreeSnapshot } from './snapshot.js';
 
 export type ExportContext = {
@@ -60,13 +61,7 @@ export async function exportState(
   const { isUnlocked } = context.messenger.call('KeyringController:getState');
   const shouldIncludeSecrets = includeSecrets && isUnlocked;
 
-  const localToPayload = new Map<string, string>();
-  const payloadToLocal = new Map<string, string>();
-
-  function trackIds(localId: string, payloadId: string): void {
-    localToPayload.set(localId, payloadId);
-    payloadToLocal.set(payloadId, localId);
-  }
+  const idMap = new IdMap();
 
   const entries: Array<AccountWalletMnemonicPayload | AccountWalletPrivateKeyPayload> =
     [];
@@ -79,14 +74,14 @@ export async function exportState(
       const entropySourceId = wallet.metadata.entropy.id;
       const walletPayloadId: AccountWalletPayloadId = `wallet:${entropySourceId}`;
 
-      trackIds(wallet.id, walletPayloadId);
+      idMap.add(wallet.id, walletPayloadId);
 
       const groups: AccountWalletMnemonicGroupEntry[] = [];
       for (const group of Object.values(wallet.groups)) {
         const { groupIndex } = group.metadata.entropy;
         const groupPayloadId: AccountGroupPayloadId = `${walletPayloadId}/${groupIndex}`;
 
-        trackIds(group.id, groupPayloadId);
+        idMap.add(group.id, groupPayloadId);
 
         const groupMeta = state.accountGroupsMetadata[group.id];
         groups.push({
@@ -146,8 +141,8 @@ export async function exportState(
       }
 
       // Track this local wallet ID → singleton payload wallet ID (first wallet wins for reverse).
-      if (!localToPayload.has(wallet.id)) {
-        trackIds(wallet.id, walletPayloadId);
+      if (!idMap.getPayloadId(wallet.id)) {
+        idMap.add(wallet.id, walletPayloadId);
       }
 
       for (const group of Object.values(wallet.groups)) {
@@ -163,7 +158,7 @@ export async function exportState(
         const { address } = account;
         const groupPayloadId: AccountGroupPayloadId = `wallet:private-key/${address}`;
 
-        trackIds(group.id, groupPayloadId);
+        idMap.add(group.id, groupPayloadId);
 
         const groupMeta = state.accountGroupsMetadata[group.id];
         let privateKeyValue: AccountWalletPrivateKeyGroupEntry['value'];
@@ -204,5 +199,5 @@ export async function exportState(
     // AccountWalletType.Snap and hardware keyrings: skipped in v1.
   }
 
-  return new AccountTreeSnapshot(entries, { localToPayload, payloadToLocal });
+  return new AccountTreeSnapshot(entries, idMap);
 }

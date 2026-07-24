@@ -62,3 +62,4 @@ export type {
 } from './state/payload.js';
 
 export { AccountTreeSnapshot } from './state/snapshot.js';
+export { IdMap } from './state/id-map.js';
