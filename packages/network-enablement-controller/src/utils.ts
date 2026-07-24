@@ -8,7 +8,6 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
-import { POPULAR_NETWORKS } from './constants.js';
 import type { NetworkEnablementControllerState } from './NetworkEnablementController.js';
 
 /**
@@ -84,20 +83,4 @@ export function isOnlyNetworkEnabledInNamespace(
 
   // Return false if there are zero or multiple enabled networks
   return false;
-}
-
-/**
- * Checks if a network is considered popular based on its reference.
- *
- * @param reference - The network reference (typically the chain ID reference part)
- * @returns True if the network is popular, false otherwise
- */
-export function isPopularNetwork(reference: string): boolean {
-  try {
-    return POPULAR_NETWORKS.includes(toHex(reference));
-  } catch {
-    // If toHex fails (e.g., for non-decimal references like Bitcoin hashes),
-    // the network is not popular
-    return false;
-  }
 }

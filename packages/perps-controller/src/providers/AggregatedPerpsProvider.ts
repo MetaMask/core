@@ -16,9 +16,9 @@
 
 import type { CaipAccountId } from '@metamask/utils';
 
-import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer';
-import { ProviderRouter } from '../routing/ProviderRouter';
-import { WebSocketConnectionState } from '../types';
+import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
+import { ProviderRouter } from '../routing/ProviderRouter.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
   AggregatedProviderConfig,
@@ -80,7 +80,7 @@ import type {
   WithdrawResult,
   RawLedgerUpdate,
   PerpsReadOptions,
-} from '../types';
+} from '../types/index.js';
 
 /**
  * AggregatedPerpsProvider implements PerpsProvider by coordinating

@@ -1,7 +1,7 @@
 import { merge } from 'lodash';
 
-import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
-import type { QuoteMetadata } from './types';
+import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import type { QuoteMetadata } from './types.js';
 
 /**
  * Merges legacy {@link QuoteMetadata} values into the {@link QuoteResponse}

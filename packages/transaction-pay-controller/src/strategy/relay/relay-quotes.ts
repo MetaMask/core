@@ -64,6 +64,7 @@ import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
 import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
+import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
   RelayQuoteMetamask,
@@ -122,7 +123,7 @@ export async function getRelayQuotes(
           applyHyperliquidActivationFee(
             normalizedRequest,
             request.messenger,
-            request.transaction.type,
+            request.transaction,
             request.signal,
           ),
         ),
@@ -130,14 +131,23 @@ export async function getRelayQuotes(
 
     log('Normalized requests', normalizedRequests);
 
-    return await Promise.all(
+    const quotes = await Promise.all(
       normalizedRequests.map((singleRequest) =>
         getQuoteWithMaxAmountHandling(singleRequest, request),
       ),
     );
+
+    await validateRelayQuotes({
+      messenger: request.messenger,
+      quotes,
+      signal: request.signal,
+      transaction: request.transaction,
+    });
+
+    return quotes;
   } catch (error) {
     log('Error fetching quotes', { error });
-    throw new Error(`Failed to fetch Relay quotes: ${String(error)}`);
+    throw error;
   }
 }
 

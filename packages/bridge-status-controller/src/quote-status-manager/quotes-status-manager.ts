@@ -1,25 +1,25 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
 
-import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
+import { BridgeClientId, BridgeStatusControllerMessenger } from '../types.js';
 import {
   getTransactionMetaById,
   hasNestedSwapTransactions,
   isCrossChainTx,
-} from '../utils/transaction';
+} from '../utils/transaction.js';
 import {
   QuoteStatusState,
   QuoteStatusStateToBackendStatus,
   QuoteStatusUpdateBackendErrorType,
   QuoteStatusBackendStatus,
   QuoteStatusFetchWithRetryOutcomeType,
-} from './constants';
-import { QuoteStatusUpdateError } from './errors';
-import { QuoteStatusApiService } from './quote-status-api-service';
-import { QuoteStatusEntryStore } from './quote-status-entry-store';
-import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
-import { QuoteStatusStateFsm } from './quote-status-state-fsm';
-import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
-import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types';
+} from './constants.js';
+import { QuoteStatusUpdateError } from './errors.js';
+import { QuoteStatusApiService } from './quote-status-api-service.js';
+import { QuoteStatusEntryStore } from './quote-status-entry-store.js';
+import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome.js';
+import { QuoteStatusStateFsm } from './quote-status-state-fsm.js';
+import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome.js';
+import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types.js';
 
 /**
  * Tracks bridge/swap quotes through their lifecycle and keeps the backend in

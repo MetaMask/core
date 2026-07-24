@@ -3,16 +3,16 @@ import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 import { merge } from 'lodash';
 
-import { mockBridgeQuotesErc20Erc20V1 } from '../../../tests/mock-quotes-erc20-erc20';
-import { mockBridgeQuotesNativeErc20V1 } from '../../../tests/mock-quotes-native-erc20';
-import { getMockBridgeQuotesSolErc20V2 } from '../../../tests/mock-quotes-sol-erc20';
-import type { GenericQuoteRequest, L1GasFees } from '../../types';
-import type { Quote } from '../../validators/quote';
-import { isValidQuoteRequest } from '../../validators/quote-request';
-import { QuoteResponseV1 } from '../../validators/quote-response-v1';
-import type { TxData } from '../../validators/trade';
-import { getNativeAssetForChainId, isNativeAddress } from '../bridge';
-import { formatEtaInMinutes } from '../number-formatters';
+import { mockBridgeQuotesErc20Erc20V1 } from '../../../tests/mock-quotes-erc20-erc20.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../../../tests/mock-quotes-native-erc20.js';
+import { getMockBridgeQuotesSolErc20V2 } from '../../../tests/mock-quotes-sol-erc20.js';
+import type { GenericQuoteRequest, L1GasFees } from '../../types.js';
+import { isValidQuoteRequest } from '../../validators/quote-request.js';
+import { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import type { Quote } from '../../validators/quote.js';
+import type { TxData } from '../../validators/trade.js';
+import { getNativeAssetForChainId, isNativeAddress } from '../bridge.js';
+import { formatEtaInMinutes } from '../number-formatters.js';
 import {
   calcNonEvmTotalNetworkFee,
   calcToAmount,
@@ -25,7 +25,7 @@ import {
   calcCost,
   calcSlippagePercentage,
   calcPriceImpact,
-} from './calculators';
+} from './calculators.js';
 
 describe('Quote Utils', () => {
   describe('isValidQuoteRequest', () => {

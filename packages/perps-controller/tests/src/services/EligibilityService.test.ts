@@ -1,6 +1,6 @@
-import { EligibilityService } from '../../../src/services/EligibilityService';
-import type { PerpsPlatformDependencies } from '../../../src/types';
-import { createMockInfrastructure } from '../../helpers/serviceMocks';
+import { EligibilityService } from '../../../src/services/EligibilityService.js';
+import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
+import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 describe('EligibilityService', () => {
   let mockDeps: jest.Mocked<PerpsPlatformDependencies>;

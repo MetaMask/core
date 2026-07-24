@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { GeolocationApiService } from './geolocation-api-service';
+import type { GeolocationApiService } from './geolocation-api-service.js';
 
 /**
  * Returns the geolocation code. Serves from cache when the TTL has not

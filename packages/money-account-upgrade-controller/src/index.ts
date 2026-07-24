@@ -1,14 +1,14 @@
-export type { UpgradeConfig } from './types';
+export type { UpgradeConfig } from './types.js';
 export {
   MoneyAccountUpgradeStepError,
   TerminalUpgradeError,
   isMoneyAccountUpgradeStepError,
   isTerminalMoneyAccountUpgradeError,
-} from './errors';
+} from './errors.js';
 export {
   MoneyAccountUpgradeController,
   getDefaultMoneyAccountUpgradeControllerState,
-} from './MoneyAccountUpgradeController';
+} from './MoneyAccountUpgradeController.js';
 export type {
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerGetStateAction,
@@ -17,5 +17,5 @@ export type {
   MoneyAccountUpgradeControllerEvents,
   MoneyAccountUpgradeControllerMessenger,
   MoneyAccountUpgradeStatus,
-} from './MoneyAccountUpgradeController';
-export type { MoneyAccountUpgradeControllerUpgradeAccountAction } from './MoneyAccountUpgradeController-method-action-types';
+} from './MoneyAccountUpgradeController.js';
+export type { MoneyAccountUpgradeControllerUpgradeAccountAction } from './MoneyAccountUpgradeController-method-action-types.js';

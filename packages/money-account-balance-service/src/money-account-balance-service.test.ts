@@ -22,7 +22,7 @@ import {
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   MULTICALL3_ADDRESS_BY_CHAIN_ID,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
-} from './constants';
+} from './constants.js';
 import {
   MoneyAccountBalanceFetchError,
   MoneyAccountBalanceUnavailableError,
@@ -30,12 +30,12 @@ import {
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
   VedaResponseValidationError,
-} from './errors';
-import type { MoneyAccountBalanceServiceMessenger } from './money-account-balance-service';
+} from './errors.js';
+import type { MoneyAccountBalanceServiceMessenger } from './money-account-balance-service.js';
 import {
   MoneyAccountBalanceService,
   serviceName,
-} from './money-account-balance-service';
+} from './money-account-balance-service.js';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('@ethersproject/providers');

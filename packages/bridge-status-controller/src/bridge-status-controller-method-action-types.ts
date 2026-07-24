@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { BridgeStatusController } from './bridge-status-controller';
+import type { BridgeStatusController } from './bridge-status-controller.js';
 
 export type BridgeStatusControllerStartPollingForBridgeTxStatusAction = {
   type: `BridgeStatusController:startPollingForBridgeTxStatus`;

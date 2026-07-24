@@ -1,5 +1,5 @@
-import type { AnalyticsControllerState } from './AnalyticsController';
-import { analyticsControllerSelectors } from './selectors';
+import type { AnalyticsControllerState } from './AnalyticsController.js';
+import { analyticsControllerSelectors } from './selectors.js';
 
 describe('analyticsControllerSelectors', () => {
   const defaultAnalyticsId = '550e8400-e29b-41d4-a716-446655440000';

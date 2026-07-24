@@ -2,16 +2,16 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-} from '../types';
+} from '../types.js';
 import {
   ERC20_APPROVE_SELECTOR_TERMS,
   ERC20_APPROVE_ZERO_AMOUNT_TERMS,
   getTermsByEnforcer,
   ZERO_32_BYTES,
-} from '../utils';
-import { expiryRule } from './expiryRule';
-import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
-import { redeemerRule } from './redeemerRule';
+} from '../utils.js';
+import { expiryRule } from './expiryRule.js';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder.js';
+import { redeemerRule } from './redeemerRule.js';
 
 /**
  * Builds the configuration for the erc20-token-revocation permission decoder.

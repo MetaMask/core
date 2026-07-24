@@ -846,6 +846,57 @@ describe('Token Utils', () => {
       );
       expect(findNetworkClientIdByChainIdMock).not.toHaveBeenCalled();
     });
+
+    it('falls back to latest block when pending native balance query throws', async () => {
+      PROVIDER_MOCK.request
+        .mockRejectedValueOnce(new Error('pending not supported'))
+        .mockResolvedValueOnce('0xde0b6b3a7640000');
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        NATIVE_TOKEN_ADDRESS,
+      );
+
+      expect(result).toBe('1000000000000000000');
+      expect(PROVIDER_MOCK.request).toHaveBeenNthCalledWith(1, {
+        method: 'eth_getBalance',
+        params: [ACCOUNT_MOCK, 'pending'],
+      });
+      expect(PROVIDER_MOCK.request).toHaveBeenNthCalledWith(2, {
+        method: 'eth_getBalance',
+        params: [ACCOUNT_MOCK, 'latest'],
+      });
+    });
+
+    it('falls back to latest block when pending ERC-20 balance query throws', async () => {
+      PROVIDER_MOCK.request
+        .mockRejectedValueOnce(new Error('pending not supported'))
+        .mockResolvedValueOnce('0x4C4B40');
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        ERC20_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('5000000');
+
+      const calldata = new Interface(abiERC20).encodeFunctionData('balanceOf', [
+        ACCOUNT_MOCK,
+      ]);
+
+      expect(PROVIDER_MOCK.request).toHaveBeenNthCalledWith(1, {
+        method: 'eth_call',
+        params: [{ to: ERC20_ADDRESS_MOCK, data: calldata }, 'pending'],
+      });
+      expect(PROVIDER_MOCK.request).toHaveBeenNthCalledWith(2, {
+        method: 'eth_call',
+        params: [{ to: ERC20_ADDRESS_MOCK, data: calldata }, 'latest'],
+      });
+    });
   });
 
   describe('computeTokenAmounts', () => {

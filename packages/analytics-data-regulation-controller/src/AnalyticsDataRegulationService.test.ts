@@ -6,9 +6,12 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
 
-import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService';
-import { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService';
-import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
+import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService.js';
+import { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService.js';
+import {
+  DATA_DELETE_RESPONSE_STATUSES,
+  DATA_DELETE_STATUSES,
+} from './types.js';
 
 describe('AnalyticsDataRegulationService', () => {
   const segmentSourceId = 'test-source-id';

@@ -8,12 +8,12 @@ import { string, type as structType } from '@metamask/superstruct';
 import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
-import type { AccountOwnershipProof } from './ProfileMetricsService';
-import type { ProofOfOwnershipServiceMethodActions } from './ProofOfOwnershipService-method-action-types';
+import type { AccountOwnershipProof } from './ProfileMetricsService.js';
+import type { ProofOfOwnershipServiceMethodActions } from './ProofOfOwnershipService-method-action-types.js';
 import {
   canonicalizeAddress,
   ProofUnsupportedNamespaceError,
-} from './utils/canonicalize';
+} from './utils/canonicalize.js';
 
 // === GENERAL ===
 

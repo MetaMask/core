@@ -1,17 +1,17 @@
 import { BridgeClientId } from '@metamask/bridge-controller';
 import { Infer } from '@metamask/superstruct';
 
-import { BridgeStatusControllerMessenger } from '../types';
+import { BridgeStatusControllerMessenger } from '../types.js';
 import {
   QuoteStatusState,
   QuoteStatusUpdateBackendErrorType,
-} from './constants';
-import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors';
-import { QuoteStatusStateFsm } from './quote-status-state-fsm';
+} from './constants.js';
+import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors.js';
+import { QuoteStatusStateFsm } from './quote-status-state-fsm.js';
 import {
   QuoteStatusGetResponseSchema,
   QuoteStatusUpdateResponseSchema,
-} from './validators';
+} from './validators.js';
 
 /**
  * Persisted queue entry describing a single quote status update attempt.

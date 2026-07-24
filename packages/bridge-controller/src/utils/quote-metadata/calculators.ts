@@ -13,13 +13,13 @@ import type {
   NonEvmFees,
   DeepPartial,
   BridgeAsset,
-} from '../../types';
-import { FloatStringSchema } from '../../validators/number';
-import type { QuoteResponseV1 as QuoteResponse } from '../../validators/quote-response-v1';
-import { TxData } from '../../validators/trade';
-import { isEvmQuoteResponse, isNativeAddress } from '../bridge';
-import { calcTokenAmount } from '../number-formatters';
-import type { QuoteMetadata, TokenAmountValues } from './types';
+} from '../../types.js';
+import { FloatStringSchema } from '../../validators/number.js';
+import type { QuoteResponseV1 as QuoteResponse } from '../../validators/quote-response-v1.js';
+import { TxData } from '../../validators/trade.js';
+import { isEvmQuoteResponse, isNativeAddress } from '../bridge.js';
+import { calcTokenAmount } from '../number-formatters.js';
+import type { QuoteMetadata, TokenAmountValues } from './types.js';
 
 export const calcNonEvmTotalNetworkFee = (
   bridgeQuote: QuoteResponse & NonEvmFees,

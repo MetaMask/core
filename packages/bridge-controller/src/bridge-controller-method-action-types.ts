@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { BridgeController } from './bridge-controller';
+import type { BridgeController } from './bridge-controller.js';
 
 export type BridgeControllerUpdateBridgeQuoteRequestParamsAction = {
   type: `BridgeController:updateBridgeQuoteRequestParams`;

@@ -4,7 +4,7 @@ import {
   calculateThresholdForFlag,
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
-} from './user-segmentation-utils';
+} from './user-segmentation-utils.js';
 
 const MOCK_METRICS_IDS = {
   MOBILE_VALID: '123e4567-e89b-4456-a456-426614174000',
