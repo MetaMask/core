@@ -1,13 +1,13 @@
-import type { TransactionPayControllerMessenger } from '../../types';
-import { getFeatureFlags } from '../../utils/feature-flags';
-import { RELAY_STATUS_URL } from './constants';
+import type { TransactionPayControllerMessenger } from '../../types.js';
+import { getFeatureFlags } from '../../utils/feature-flags.js';
+import { RELAY_STATUS_URL } from './constants.js';
 import type {
   RelayExecuteRequest,
   RelayExecuteResponse,
   RelayQuote,
   RelayQuoteRequest,
   RelayStatusResponse,
-} from './types';
+} from './types.js';
 
 /**
  * Fetch a quote from the Relay API.

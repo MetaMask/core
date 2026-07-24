@@ -4,8 +4,8 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 
-import { createModuleLogger, projectLogger } from '../logger';
-import type { TransactionMeta, TransactionStatus } from '../types';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { TransactionMeta, TransactionStatus } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'nonce');
 

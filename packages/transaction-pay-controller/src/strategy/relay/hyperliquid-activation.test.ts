@@ -1,16 +1,18 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
-} from '../../types';
-import { getHyperliquidActivationFeeConfig } from '../../utils/feature-flags';
-import { HYPERLIQUID_INFO_URL } from './constants';
-import type { HyperLiquidLedgerUpdate } from './hyperliquid-activation';
+} from '../../types.js';
+import { getHyperliquidActivationFeeConfig } from '../../utils/feature-flags.js';
+import { HYPERLIQUID_INFO_URL } from './constants.js';
+import type { HyperLiquidLedgerUpdate } from './hyperliquid-activation.js';
 import {
   applyHyperliquidActivationFee,
   isHyperLiquidAccountActivated,
-} from './hyperliquid-activation';
+} from './hyperliquid-activation.js';
 
 jest.mock('../../utils/feature-flags', () => ({
   getHyperliquidActivationFeeConfig: jest.fn(),
@@ -38,16 +40,21 @@ const HYPERLIQUID_SOURCE_REQUEST_MOCK: QuoteRequest = {
 };
 
 /**
- * An inbound `send` (funds received from another account) - does not activate.
+ * An inbound `send` (funds received from another account) - does not activate
+ * unless it created the account and carries the activation fee.
  *
+ * @param fee - Optional fee recorded on the transfer.
+ * @param time - Optional entry timestamp.
  * @returns A ledger update representing an inbound send.
  */
-function inboundSend(): HyperLiquidLedgerUpdate {
+function inboundSend(fee?: string, time?: number): HyperLiquidLedgerUpdate {
   return {
+    time,
     delta: {
       type: 'send',
       user: OTHER_ADDRESS_MOCK,
       destination: ADDRESS_MOCK,
+      ...(fee === undefined ? {} : { fee }),
     },
   };
 }
@@ -134,13 +141,52 @@ describe('HyperLiquid Activation', () => {
       ).toBe(true);
     });
 
-    it('returns true for a withdraw', () => {
+    it('returns false for a bridge withdraw', () => {
+      // Bridge withdrawals do not settle the spot activation fee.
       expect(
         isHyperLiquidAccountActivated(
           [{ delta: { type: 'withdraw' } }],
           ADDRESS_MOCK,
         ),
+      ).toBe(false);
+    });
+
+    it('returns true when the creation entry carries the activation fee', () => {
+      expect(
+        isHyperLiquidAccountActivated([inboundSend('1.0')], ADDRESS_MOCK),
       ).toBe(true);
+    });
+
+    it('returns true when the earliest of several entries carries the activation fee', () => {
+      expect(
+        isHyperLiquidAccountActivated(
+          [inboundSend('0.0', 300), inboundSend('1.0', 100)],
+          ADDRESS_MOCK,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when only a later entry carries a fee', () => {
+      // A fee on a non-creation inbound entry belongs to the sender's own
+      // first-send activation, not to this account.
+      expect(
+        isHyperLiquidAccountActivated(
+          [{ time: 100, delta: { type: 'deposit' } }, inboundSend('1.0', 200)],
+          ADDRESS_MOCK,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false when the creation entry fee is below the activation fee', () => {
+      expect(
+        isHyperLiquidAccountActivated([inboundSend('0.001231')], ADDRESS_MOCK),
+      ).toBe(false);
+    });
+
+    it('returns false when the creation entry fee is not numeric', () => {
+      expect(
+        isHyperLiquidAccountActivated([inboundSend('abc')], ADDRESS_MOCK),
+      ).toBe(false);
     });
 
     it('matches the address case-insensitively', () => {
@@ -269,7 +315,7 @@ describe('HyperLiquid Activation', () => {
       expect(result).toStrictEqual(request);
     });
 
-    it('treats the account as activated when the info request throws', async () => {
+    it('reserves the fee when the info request throws', async () => {
       fetchMock.mockRejectedValue(new Error('network'));
 
       const result = await applyHyperliquidActivationFee(
@@ -277,10 +323,11 @@ describe('HyperLiquid Activation', () => {
         MESSENGER_MOCK,
       );
 
-      expect(result).toStrictEqual(HYPERLIQUID_SOURCE_REQUEST_MOCK);
+      expect(result.sourceTokenAmount).toBe(REDUCED_AMOUNT_MOCK);
+      expect(result.hyperliquidActivationFeeUsd).toBe('1');
     });
 
-    it('treats the account as activated when the info request is not ok', async () => {
+    it('reserves the fee when the info request is not ok', async () => {
       fetchMock.mockResolvedValue({ ok: false, status: 500 } as never);
 
       const result = await applyHyperliquidActivationFee(
@@ -288,21 +335,58 @@ describe('HyperLiquid Activation', () => {
         MESSENGER_MOCK,
       );
 
-      expect(result).toStrictEqual(HYPERLIQUID_SOURCE_REQUEST_MOCK);
+      expect(result.sourceTokenAmount).toBe(REDUCED_AMOUNT_MOCK);
+      expect(result.hyperliquidActivationFeeUsd).toBe('1');
     });
 
-    it('resolves the config for the given transaction type', async () => {
+    it('resolves the config for the transaction type', async () => {
       fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
 
       await applyHyperliquidActivationFee(
         HYPERLIQUID_SOURCE_REQUEST_MOCK,
         MESSENGER_MOCK,
-        'perpsWithdraw',
+        { type: TransactionType.perpsWithdraw } as TransactionMeta,
       );
 
       expect(getConfigMock).toHaveBeenCalledWith(
         MESSENGER_MOCK,
-        'perpsWithdraw',
+        TransactionType.perpsWithdraw,
+      );
+    });
+
+    it('resolves the config for the nested transaction type when batched', async () => {
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
+
+      await applyHyperliquidActivationFee(
+        HYPERLIQUID_SOURCE_REQUEST_MOCK,
+        MESSENGER_MOCK,
+        {
+          type: TransactionType.batch,
+          nestedTransactions: [{}, { type: TransactionType.perpsWithdraw }],
+        } as TransactionMeta,
+      );
+
+      expect(getConfigMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        TransactionType.perpsWithdraw,
+      );
+    });
+
+    it('resolves the config for the batch type when no nested transaction is typed', async () => {
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
+
+      await applyHyperliquidActivationFee(
+        HYPERLIQUID_SOURCE_REQUEST_MOCK,
+        MESSENGER_MOCK,
+        {
+          type: TransactionType.batch,
+          nestedTransactions: [{}],
+        } as TransactionMeta,
+      );
+
+      expect(getConfigMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        TransactionType.batch,
       );
     });
   });

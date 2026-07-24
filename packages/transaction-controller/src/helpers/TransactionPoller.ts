@@ -4,10 +4,10 @@ import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta } from '../types';
-import { getAcceleratedPollingParams } from '../utils/feature-flags';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { getAcceleratedPollingParams } from '../utils/feature-flags.js';
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
 

@@ -7,14 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ConfigRegistryControllerStateChangedEvent` (`ConfigRegistryController:stateChanged`) to the controller's events ([#9595](https://github.com/MetaMask/core/pull/9595))
+- Add `ConfigRegistryController.getNetworkConfigByCaip2ChainId` method to retrieve a network config by its CAIP-2 chain ID ([#9597](https://github.com/MetaMask/core/pull/9597), [#9606](https://github.com/MetaMask/core/pull/9606))
+  - The method returns the network config if found, or `undefined` if not found.
+  - The method is also accessible via the controller's messenger as `ConfigRegistryController:getNetworkConfigByCaip2ChainId`.
+
 ### Changed
 
+- **BREAKING:** `ConfigRegistryControllerState.configs.networks` is now a `Record<Caip2ChainId, RegistryNetworkConfig>` instead of a `Record<string, RegistryNetworkConfig>` ([#9606](https://github.com/MetaMask/core/pull/9606))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
 - Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.3.0` ([#9119](https://github.com/MetaMask/core/pull/9119), [#9463](https://github.com/MetaMask/core/pull/9463))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
 - Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.8` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9349](https://github.com/MetaMask/core/pull/9349))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+### Removed
+
+- **BREAKING:** Removed `ConfigRegistryControllerStateChangeEvent` type in favor of `ConfigRegistryControllerStateChangedEvent` ([#9595](https://github.com/MetaMask/core/pull/9595))
 
 ## [0.4.1]
 

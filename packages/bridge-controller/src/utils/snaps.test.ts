@@ -4,7 +4,7 @@ import { v4 as uuid } from 'uuid';
 import {
   getMinimumBalanceForRentExemptionRequest,
   computeFeeRequest,
-} from './snaps';
+} from './snaps.js';
 
 jest.mock('uuid', () => ({
   v4: jest.fn(),

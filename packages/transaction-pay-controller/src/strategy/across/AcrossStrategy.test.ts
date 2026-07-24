@@ -5,18 +5,18 @@ import {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../../constants';
+import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../../constants.js';
 import type {
   PayStrategyCheckQuoteSupportRequest,
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getAcrossQuotes } from './across-quotes';
-import { submitAcrossQuotes } from './across-submit';
-import { AcrossStrategy } from './AcrossStrategy';
-import type { AcrossQuote } from './types';
+} from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getAcrossQuotes } from './across-quotes.js';
+import { submitAcrossQuotes } from './across-submit.js';
+import { AcrossStrategy } from './AcrossStrategy.js';
+import type { AcrossQuote } from './types.js';
 
 jest.mock('./across-quotes');
 jest.mock('./across-submit');

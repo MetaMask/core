@@ -5,24 +5,24 @@ import type {
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type {
-  TransactionPayControllerMessenger,
-  TransactionPaymentToken,
-} from '..';
-import { TransactionPayStrategy } from '..';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   PERPS_DEPOSIT_TYPES,
-} from '../constants';
-import { projectLogger } from '../logger';
+} from '../constants.js';
+import type {
+  TransactionPayControllerMessenger,
+  TransactionPaymentToken,
+} from '../index.js';
+import { TransactionPayStrategy } from '../index.js';
+import { projectLogger } from '../logger.js';
 import type {
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayRequiredToken,
-} from '../types';
-import { getTokenFiatRate, isSameToken } from './token';
-import { getTransaction } from './transaction';
+} from '../types.js';
+import { getTokenFiatRate, isSameToken } from './token.js';
+import { getTransaction } from './transaction.js';
 
 const log = createModuleLogger(projectLogger, 'source-amounts');
 

@@ -2,6 +2,7 @@ import { Interface } from '@ethersproject/abi';
 import { TokensControllerState } from '@metamask/assets-controllers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { createModuleLogger } from '@metamask/utils';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 import { hexToBigInt, toCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -10,14 +11,17 @@ import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   SLIP44_COIN_TYPE_BY_CHAIN,
-} from '../constants';
-import type { FiatRates, TransactionPayControllerMessenger } from '../types';
+} from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type { FiatRates, TransactionPayControllerMessenger } from '../types.js';
 import {
   getAssetsUnifyStateFeature,
   getStablecoins,
   isChainExcludedFromInfura,
-} from './feature-flags';
-import { getNetworkClientId, rpcRequest } from './provider';
+} from './feature-flags.js';
+import { getNetworkClientId, rpcRequest } from './provider.js';
+
+const log = createModuleLogger(projectLogger, 'token');
 
 /**
  * Check if two tokens are the same (same address and chain).
@@ -332,13 +336,15 @@ export async function getLiveTokenBalance(
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
-    const result = await rpcRequest<string>({
-      messenger,
-      chainId,
-      method: 'eth_getBalance',
-      params: [account, 'pending'],
-      options,
-    });
+    const result = await requestBalanceWithFallback((blockTag) =>
+      rpcRequest<string>({
+        messenger,
+        chainId,
+        method: 'eth_getBalance',
+        params: [account, blockTag],
+        options,
+      }),
+    );
 
     return new BigNumber(result, 16).toString(10);
   }
@@ -347,15 +353,40 @@ export async function getLiveTokenBalance(
     account,
   ]) as Hex;
 
-  const result = await rpcRequest<string>({
-    messenger,
-    chainId,
-    method: 'eth_call',
-    params: [{ to: tokenAddress, data: calldata }, 'pending'],
-    options,
-  });
+  const result = await requestBalanceWithFallback((blockTag) =>
+    rpcRequest<string>({
+      messenger,
+      chainId,
+      method: 'eth_call',
+      params: [{ to: tokenAddress, data: calldata }, blockTag],
+      options,
+    }),
+  );
 
   return new BigNumber(result, 16).toString(10);
+}
+
+/**
+ * Request a balance using the `pending` block tag, falling back to `latest`
+ * if the `pending` query throws.
+ *
+ * Some custom RPC endpoints do not support `pending` block queries. When the
+ * `pending` request fails, retry with `latest` so a live balance can still be
+ * resolved.
+ *
+ * @param request - Function that performs the balance request for a given
+ * block tag.
+ * @returns Raw balance result as a hex string.
+ */
+async function requestBalanceWithFallback(
+  request: (blockTag: 'pending' | 'latest') => Promise<string>,
+): Promise<string> {
+  try {
+    return await request('pending');
+  } catch (error) {
+    log('Pending balance query failed, falling back to latest', error);
+    return request('latest');
+  }
 }
 
 /**

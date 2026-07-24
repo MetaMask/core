@@ -10,7 +10,7 @@ import {
   getMYXChainId,
   getMYXHttpEndpoint,
   MYX_SIZE_DECIMALS,
-} from '../../../src/constants/myxConfig';
+} from '../../../src/constants/myxConfig.js';
 
 describe('myxConfig', () => {
   describe('fromMYXPrice', () => {

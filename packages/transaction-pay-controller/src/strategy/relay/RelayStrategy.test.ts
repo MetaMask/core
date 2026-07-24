@@ -1,15 +1,16 @@
 import type { Hex } from '@metamask/utils';
 
+import { TransactionPayStrategy } from '../../constants.js';
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getRelayQuotes } from './relay-quotes';
-import { submitRelayQuotes } from './relay-submit';
-import { RelayStrategy } from './RelayStrategy';
-import type { RelayQuote } from './types';
+} from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getRelayQuotes } from './relay-quotes.js';
+import { submitRelayQuotes } from './relay-submit.js';
+import { RelayStrategy } from './RelayStrategy.js';
+import type { RelayQuote } from './types.js';
 
 jest.mock('./relay-quotes');
 jest.mock('./relay-submit');
@@ -84,7 +85,13 @@ describe('RelayStrategy', () => {
   });
 
   it('delegates getQuotes', async () => {
-    const quote = { strategy: 'relay' } as TransactionPayQuote<RelayQuote>;
+    const quote = {
+      request: {
+        sourceChainId: '0x1' as Hex,
+        sourceTokenAddress: '0xabc' as Hex,
+      },
+      strategy: TransactionPayStrategy.Relay,
+    } as TransactionPayQuote<RelayQuote>;
     getRelayQuotesMock.mockResolvedValue([quote]);
 
     const strategy = new RelayStrategy();

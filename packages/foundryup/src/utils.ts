@@ -1,13 +1,13 @@
 import { execFileSync, execSync } from 'node:child_process';
 import { arch } from 'node:os';
 
-import { Architecture } from './types';
+import { Architecture } from './types.js';
 import type {
   Checksums,
   PlatformArchChecksums,
   Binary,
   Platform,
-} from './types';
+} from './types.js';
 
 /**
  * No Operation. A function that does nothing and returns nothing.

@@ -4,21 +4,21 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
+import { BridgeClientId, BridgeStatusControllerMessenger } from '../types.js';
 import {
   QuoteStatusState,
   QuoteStatusUpdateBackendErrorType,
   QuoteStatusBackendStatus,
   QuoteStatusFetchWithRetryOutcomeType,
-} from './constants';
-import { QuoteStatusApiService } from './quote-status-api-service';
-import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
-import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
-import { QuoteStatusManager } from './quotes-status-manager';
+} from './constants.js';
+import { QuoteStatusApiService } from './quote-status-api-service.js';
+import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome.js';
+import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome.js';
+import { QuoteStatusManager } from './quotes-status-manager.js';
 import type {
   QuoteStatusPersistEntry,
   QuoteStatusUpdateResponse,
-} from './types';
+} from './types.js';
 
 jest.mock('./quote-status-api-service');
 
@@ -668,12 +668,17 @@ describe('QuoteStatusUpdateManager', () => {
     it('surfaces an error when the entry is not found', () => {
       const { manager, onError } = createManager();
 
-      manager.reportFinalised('tx-missing', true);
+      manager.reportFinalised('tx-missing', true, 'eip155:1');
 
       expect(onError).toHaveBeenCalledTimes(1);
       expect(onError.mock.calls[0][0].message).toBe(
         'reporting finalization status but entry was not found',
       );
+      expect(onError.mock.calls[0][0].details).toStrictEqual({
+        quoteId: '',
+        txMetaId: 'tx-missing',
+        srcChainId: 'eip155:1',
+      });
     });
 
     it('transitions to FinalizedSuccess and reports it', async () => {
@@ -1315,7 +1320,7 @@ describe('QuoteStatusUpdateManager', () => {
       } as QuoteStatusUpdateResponse);
       const { manager, onError } = createManager();
 
-      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+      manager.reportSubmitted('quote-1', '0xabc', 'tx-1', 'eip155:1');
       await flush();
 
       expect(onError).toHaveBeenCalledTimes(1);
@@ -1325,6 +1330,9 @@ describe('QuoteStatusUpdateManager', () => {
       expect(onError.mock.calls[0][0].details).toStrictEqual({
         quoteId: 'quote-1',
         errorType: QuoteStatusUpdateBackendErrorType.QuoteNotFound,
+        txMetaId: 'tx-1',
+        srcTxHash: '0xabc',
+        srcChainId: 'eip155:1',
       });
     });
 

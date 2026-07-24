@@ -5,31 +5,31 @@ import {
   CHAIN_ID_HYPERCORE,
   PaymentOverride,
   TransactionPayStrategy,
-} from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
+} from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
-} from '../../types';
+} from '../../types.js';
 import {
   getFeatureFlags,
   getSlippage,
   isEIP7702Chain,
-} from '../../utils/feature-flags';
-import { calculateGasCost, getGasFee } from '../../utils/gas';
+} from '../../utils/feature-flags.js';
 import {
   getGasStationCostInSourceTokenRaw,
   getGasStationEligibility,
-} from '../../utils/gas-station';
-import { estimateQuoteGasLimits } from '../../utils/quote-gas';
+} from '../../utils/gas-station.js';
+import { calculateGasCost, getGasFee } from '../../utils/gas.js';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
-} from '../../utils/token';
-import { fetchServerQuote } from './server-api';
-import { getServerQuotes } from './server-quotes';
-import { ServerProviderName, ServerTradeType } from './types';
+} from '../../utils/token.js';
+import { fetchServerQuote } from './server-api.js';
+import { getServerQuotes } from './server-quotes.js';
+import { ServerProviderName, ServerTradeType } from './types.js';
 
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),

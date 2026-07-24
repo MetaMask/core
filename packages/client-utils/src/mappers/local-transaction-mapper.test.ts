@@ -1,6 +1,6 @@
-import { localTransactionFixtures } from '../../test/fixtures/local-transactions';
-import { formatAddressToAssetId } from './helpers/caip';
-import { mapLocalTransaction } from './local-transaction-mapper';
+import { localTransactionFixtures } from '../../test/fixtures/local-transactions.js';
+import { formatAddressToAssetId } from './helpers/caip.js';
+import { mapLocalTransaction } from './local-transaction-mapper.js';
 
 jest.mock('./helpers/token-metadata', () => ({
   getKnownTokenMetadata: jest.requireActual('../../test/test-helpers')

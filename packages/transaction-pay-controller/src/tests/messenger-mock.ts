@@ -13,6 +13,7 @@ import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/netw
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { SentinelApiServiceSimulateTransactionsAction } from '@metamask/sentinel-api-service';
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
@@ -23,7 +24,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
 
-import type { TransactionPayControllerMessenger } from '..';
+import type { TransactionPayControllerMessenger } from '../index.js';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetFiatOptionsAction,
@@ -31,8 +32,8 @@ import type {
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
-} from '../TransactionPayController-method-action-types';
-import type { TransactionPayControllerGetStateAction } from '../types';
+} from '../TransactionPayController-method-action-types.js';
+import type { TransactionPayControllerGetStateAction } from '../types.js';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
 type AllEvents = MessengerEvents<TransactionPayControllerMessenger>;
@@ -139,6 +140,10 @@ export function getMessengerMock({
 
   const estimateGasBatchMock: jest.MockedFn<
     TransactionControllerEstimateGasBatchAction['handler']
+  > = jest.fn();
+
+  const simulateTransactionsMock: jest.MockedFn<
+    SentinelApiServiceSimulateTransactionsAction['handler']
   > = jest.fn();
 
   const getAssetsControllerStateMock = jest.fn();
@@ -282,6 +287,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'SentinelApiService:simulateTransactions',
+      simulateTransactionsMock,
+    );
+
+    messenger.registerActionHandler(
       'AssetsController:getStateForTransactionPay',
       getAssetsControllerStateMock,
     );
@@ -322,6 +332,7 @@ export function getMessengerMock({
     polymarketGetDepositWalletAddressMock,
     polymarketSubmitDepositWalletBatchMock,
     publish,
+    simulateTransactionsMock,
     updateTransactionMock,
   };
 }

@@ -1,8 +1,8 @@
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from '../../../src/constants/eventNames';
-import { PerpsAnalyticsEvent } from '../../../src/types';
+} from '../../../src/constants/eventNames.js';
+import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 
 describe('PERPS_EVENT_PROPERTY', () => {
   describe('advanced chart analytics property keys', () => {

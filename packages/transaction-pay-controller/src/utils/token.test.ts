@@ -7,13 +7,13 @@ import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   POLYGON_USDCE_ADDRESS,
-} from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
+} from '../constants.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,
@@ -26,7 +26,7 @@ import {
   getLiveTokenBalance,
   normalizeTokenAddress,
   TokenAddressTarget,
-} from './token';
+} from './token.js';
 
 const TOKEN_ADDRESS_MOCK = '0x559B65722aD62AD6DAC4Fa5a1c6B23A2e8ce57Ec' as Hex;
 const TOKEN_ADDRESS_2_MOCK = '0x123456789abcdef1234567890abcdef12345678' as Hex;
@@ -845,6 +845,57 @@ describe('Token Utils', () => {
         INFURA_NETWORK_CLIENT_ID_MOCK,
       );
       expect(findNetworkClientIdByChainIdMock).not.toHaveBeenCalled();
+    });
+
+    it('falls back to latest block when pending native balance query throws', async () => {
+      PROVIDER_MOCK.request
+        .mockRejectedValueOnce(new Error('pending not supported'))
+        .mockResolvedValueOnce('0xde0b6b3a7640000');
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        NATIVE_TOKEN_ADDRESS,
+      );
+
+      expect(result).toBe('1000000000000000000');
+      expect(PROVIDER_MOCK.request).toHaveBeenNthCalledWith(1, {
+        method: 'eth_getBalance',
+        params: [ACCOUNT_MOCK, 'pending'],
+      });
+      expect(PROVIDER_MOCK.request).toHaveBeenNthCalledWith(2, {
+        method: 'eth_getBalance',
+        params: [ACCOUNT_MOCK, 'latest'],
+      });
+    });
+
+    it('falls back to latest block when pending ERC-20 balance query throws', async () => {
+      PROVIDER_MOCK.request
+        .mockRejectedValueOnce(new Error('pending not supported'))
+        .mockResolvedValueOnce('0x4C4B40');
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        ERC20_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('5000000');
+
+      const calldata = new Interface(abiERC20).encodeFunctionData('balanceOf', [
+        ACCOUNT_MOCK,
+      ]);
+
+      expect(PROVIDER_MOCK.request).toHaveBeenNthCalledWith(1, {
+        method: 'eth_call',
+        params: [{ to: ERC20_ADDRESS_MOCK, data: calldata }, 'pending'],
+      });
+      expect(PROVIDER_MOCK.request).toHaveBeenNthCalledWith(2, {
+        method: 'eth_call',
+        params: [{ to: ERC20_ADDRESS_MOCK, data: calldata }, 'latest'],
+      });
     });
   });
 

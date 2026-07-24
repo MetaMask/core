@@ -3,17 +3,20 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { NATIVE_TOKEN_ADDRESS } from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
-import { ETH_MAINNET_FIAT_ASSET, FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
-import type { TransactionPayFiatAsset } from './constants';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { NATIVE_TOKEN_ADDRESS } from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import {
+  ETH_MAINNET_FIAT_ASSET,
+  FIAT_ASSET_ID_BY_TX_TYPE,
+} from './constants.js';
+import type { TransactionPayFiatAsset } from './constants.js';
 import {
   deriveFiatAssetForFiatPayment,
   getRawSourceAmountFromOrderCryptoAmount,
   isMoneyAccountDepositTransaction,
   resolveSourceAmountRaw,
-} from './utils';
+} from './utils.js';
 
 const TX_HASH_MOCK = '0xabc123';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;

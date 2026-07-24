@@ -1,7 +1,7 @@
 /**
  * Provider aggregation module exports
  */
-export { SubscriptionMultiplexer } from './SubscriptionMultiplexer';
+export { SubscriptionMultiplexer } from './SubscriptionMultiplexer.js';
 export type {
   PriceAggregationMode,
   MultiplexedPricesParams,
@@ -9,4 +9,4 @@ export type {
   MultiplexedOrderFillsParams,
   MultiplexedOrdersParams,
   MultiplexedAccountParams,
-} from './SubscriptionMultiplexer';
+} from './SubscriptionMultiplexer.js';

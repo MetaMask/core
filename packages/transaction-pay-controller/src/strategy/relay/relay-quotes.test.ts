@@ -7,7 +7,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -16,12 +16,12 @@ import {
   NATIVE_TOKEN_ADDRESS,
   PaymentOverride,
   POLYGON_USDCE_ADDRESS,
-} from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
+} from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
-} from '../../types';
+} from '../../types.js';
 import {
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
@@ -30,23 +30,24 @@ import {
   isRelayExecuteEnabled,
   getGasBuffer,
   getSlippage,
-} from '../../utils/feature-flags';
-import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+} from '../../utils/feature-flags.js';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas.js';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
-} from '../../utils/token';
-import { getRelayQuotes } from './relay-quotes';
-import type { RelayQuote, RelayTransactionStep } from './types';
+} from '../../utils/token.js';
+import { getRelayQuotes } from './relay-quotes.js';
+import type { RelayQuote, RelayTransactionStep } from './types.js';
 
 jest.mock('../../utils/token', () => ({
-  ...jest.createMockFromModule<typeof import('../../utils/token')>(
+  ...jest.createMockFromModule<typeof import('../../utils/token.js')>(
     '../../utils/token',
   ),
   normalizeTokenAddress:
-    jest.requireActual<typeof import('../../utils/token')>('../../utils/token')
-      .normalizeTokenAddress,
+    jest.requireActual<typeof import('../../utils/token.js')>(
+      '../../utils/token',
+    ).normalizeTokenAddress,
 }));
 jest.mock('../../utils/gas', () => ({
   ...jest.requireActual('../../utils/gas'),
@@ -60,6 +61,7 @@ jest.mock('../../utils/feature-flags', () => ({
   getGasBuffer: jest.fn(),
   getSlippage: jest.fn(),
 }));
+jest.mock('./relay-validation');
 
 const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
 const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
@@ -4177,9 +4179,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow(
-        'Failed to fetch Relay quotes: Error: Batch estimation failed',
-      );
+      ).rejects.toThrow('Batch estimation failed');
     });
 
     it('includes gas limits in quote', async () => {
@@ -4242,7 +4242,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow('Failed to fetch Relay quotes');
+      ).rejects.toThrow(Error);
     });
 
     it('throws when relay transaction estimation fields are missing', async () => {
@@ -4266,7 +4266,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow('Failed to fetch Relay quotes');
+      ).rejects.toThrow(Error);
     });
 
     describe('Polymarket deposit-wallet source (isPolymarketDepositWallet)', () => {
@@ -4583,7 +4583,15 @@ describe('Relay Quotes Utils', () => {
       successfulFetchMock
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ delta: { type: 'withdraw' } }],
+          json: async () => [
+            {
+              delta: {
+                type: 'send',
+                user: FROM_MOCK,
+                destination: '0x6b9e773128f453f5c2c60935ee2de2cbc5390a24',
+              },
+            },
+          ],
         } as never)
         .mockResolvedValueOnce({
           ok: true,

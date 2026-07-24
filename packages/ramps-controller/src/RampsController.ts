@@ -76,6 +76,7 @@ import type {
   TransakServiceGetUserLimitsAction,
   TransakServiceRequestOttAction,
   TransakServiceGeneratePaymentWidgetUrlAction,
+  TransakServiceCreateWidgetUrlAction,
   TransakServiceSubmitPurposeOfUsageFormAction,
   TransakServicePatchUserAction,
   TransakServiceSubmitSsnDetailsAction,
@@ -146,6 +147,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:getUserLimits',
   'TransakService:requestOtt',
   'TransakService:generatePaymentWidgetUrl',
+  'TransakService:createWidgetUrl',
   'TransakService:submitPurposeOfUsageForm',
   'TransakService:patchUser',
   'TransakService:submitSsnDetails',
@@ -613,6 +615,7 @@ type AllowedActions =
   | TransakServiceGetUserLimitsAction
   | TransakServiceRequestOttAction
   | TransakServiceGeneratePaymentWidgetUrlAction
+  | TransakServiceCreateWidgetUrlAction
   | TransakServiceSubmitPurposeOfUsageFormAction
   | TransakServicePatchUserAction
   | TransakServiceSubmitSsnDetailsAction
@@ -841,6 +844,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakGetUserLimits',
   'transakRequestOtt',
   'transakGeneratePaymentWidgetUrl',
+  'transakCreateWidgetUrl',
   'transakSubmitPurposeOfUsageForm',
   'transakPatchUser',
   'transakSubmitSsnDetails',
@@ -3064,6 +3068,34 @@ export class RampsController extends BaseController<
       walletAddress,
       extraParams,
     );
+  }
+
+  /**
+   * Creates a Transak payment widget URL via the ramps API proxy, which
+   * injects the partner API key server-side. Replaces the OTT flow
+   * ({@link transakRequestOtt} + {@link transakGeneratePaymentWidgetUrl}).
+   *
+   * @param quote - The buy quote to pre-fill in the widget.
+   * @param walletAddress - The destination wallet address.
+   * @param extraParams - Optional additional widget parameters (e.g. theming).
+   * @returns The single-use widget URL.
+   */
+  async transakCreateWidgetUrl(
+    quote: TransakBuyQuote,
+    walletAddress: string,
+    extraParams?: Record<string, string>,
+  ): Promise<string> {
+    try {
+      return await this.messenger.call(
+        'TransakService:createWidgetUrl',
+        quote,
+        walletAddress,
+        extraParams,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
   }
 
   /**

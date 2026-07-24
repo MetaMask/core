@@ -14,15 +14,15 @@ import {
   toCaipChainId,
 } from '@metamask/utils';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
-import type { ChainId, Caip19AssetId, DataResponse } from '../types';
-import { processAccountActivityBalanceUpdates } from '../utils/processAccountActivityBalanceUpdates';
-import { AbstractDataSource } from './AbstractDataSource';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import type { ChainId, Caip19AssetId, DataResponse } from '../types.js';
+import { processAccountActivityBalanceUpdates } from '../utils/processAccountActivityBalanceUpdates.js';
+import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,
   SubscriptionRequest,
-} from './AbstractDataSource';
+} from './AbstractDataSource.js';
 
 // ============================================================================
 // CONSTANTS

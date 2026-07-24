@@ -19,7 +19,7 @@ import type {
   FetchFunction,
   QuoteAndTxMetadata,
   StartPollingForBridgeTxStatusArgs,
-} from '../types';
+} from '../types.js';
 
 export enum SubmitStep {
   /**

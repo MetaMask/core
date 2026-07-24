@@ -1,18 +1,18 @@
 import { hasProperty } from '@metamask/utils';
 
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
-import { isVersionGatedFeatureFlag } from '../types';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { isVersionGatedFeatureFlag } from '../types/index.js';
 import type {
   PerpsPlatformDependencies,
   PerpsRemoteFeatureFlagState,
-} from '../types';
-import { ensureError } from '../utils/errorUtils';
-import { validateMarketPattern } from '../utils/marketUtils';
+} from '../types/index.js';
+import { ensureError } from '../utils/errorUtils.js';
+import { validateMarketPattern } from '../utils/marketUtils.js';
 import {
   parseCommaSeparatedString,
   stripQuotes,
-} from '../utils/stringParseUtils';
-import type { ServiceContext } from './ServiceContext';
+} from '../utils/stringParseUtils.js';
+import type { ServiceContext } from './ServiceContext.js';
 
 /**
  * FeatureFlagConfigurationService

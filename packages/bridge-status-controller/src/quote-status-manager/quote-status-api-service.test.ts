@@ -1,18 +1,18 @@
 import { StatusTypes } from '@metamask/bridge-controller';
 
-import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
+import { BridgeClientId, BridgeStatusControllerMessenger } from '../types.js';
 import {
   QuoteStatusUpdateBackendErrorType,
   QuoteStatusBackendStatus,
   QuoteStatusFetchWithRetryOutcomeType,
-} from './constants';
-import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors';
-import { QuoteStatusApiService } from './quote-status-api-service';
+} from './constants.js';
+import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors.js';
+import { QuoteStatusApiService } from './quote-status-api-service.js';
 import type {
   QuoteStatusApiServiceOptions,
   QuoteStatusGetResponse,
-} from './types';
-import * as validators from './validators';
+} from './types.js';
+import * as validators from './validators.js';
 
 const API_BASE_URL = 'https://bridge.api.test';
 
@@ -225,7 +225,10 @@ describe('QuoteStatusApiService', () => {
       expect(error.message).toBe(
         'unexpected response shape from quote/updateStatus',
       );
-      expect(error.details).toStrictEqual({ quoteId: REQUEST_DATA.quoteId });
+      expect(error.details).toStrictEqual({
+        quoteId: REQUEST_DATA.quoteId,
+        srcTxHash: REQUEST_DATA.srcTxHash,
+      });
     });
 
     it('throws on an unexpected error response shape when no onError callback is provided', async () => {

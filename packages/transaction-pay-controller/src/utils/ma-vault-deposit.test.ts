@@ -5,16 +5,16 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { TransactionPayControllerMessenger } from '../types';
-import { findRecentChompVaultDeposit } from './chomp';
-import { submitMoneyAccountVaultDeposit } from './ma-vault-deposit';
-import { getNetworkClientId } from './provider';
+import type { TransactionPayControllerMessenger } from '../types.js';
+import { findRecentChompVaultDeposit } from './chomp.js';
+import { submitMoneyAccountVaultDeposit } from './ma-vault-deposit.js';
+import { getNetworkClientId } from './provider.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
-} from './transaction';
+} from './transaction.js';
 
 jest.mock('./chomp');
 jest.mock('./provider');

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { GatorPermissionsController } from './GatorPermissionsController';
+import type { GatorPermissionsController } from './GatorPermissionsController.js';
 
 /**
  * Fetches granted permissions from the gator permissions provider Snap and updates state.

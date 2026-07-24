@@ -1,12 +1,12 @@
 /* eslint-disable */
-import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig';
-import type { AccountState } from '../../../src/types';
+import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
+import type { AccountState } from '../../../src/types/index.js';
 import {
   addSpotBalanceToAccountState,
   aggregateAccountStates,
   calculateWeightedReturnOnEquity,
   getSpotBalance,
-} from '../../../src/utils/accountUtils';
+} from '../../../src/utils/accountUtils.js';
 
 describe('aggregateAccountStates', () => {
   const fallback: AccountState = {

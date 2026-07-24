@@ -4,7 +4,7 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import type { QuoteRequest } from '../../types';
+import type { QuoteRequest } from '../../types.js';
 
 /**
  * Check whether an authorization list on the original transaction is unsupported by Across.

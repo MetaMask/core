@@ -17,9 +17,9 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import type { CurrencyRateControllerMethodActions } from './CurrencyRateController-method-action-types';
-import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
-import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
+import type { CurrencyRateControllerMethodActions } from './CurrencyRateController-method-action-types.js';
+import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service.js';
+import { getNativeTokenAddress } from './token-prices-service/codefi-v2.js';
 
 /**
  * currencyRates - Object keyed by native currency

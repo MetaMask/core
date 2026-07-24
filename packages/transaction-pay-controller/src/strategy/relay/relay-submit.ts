@@ -3,6 +3,8 @@ import { TransactionType } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   BatchTransactionParams,
+  TransactionBatchRequest,
+  TransactionBatchSingleRequest,
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
@@ -10,55 +12,62 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { prefixError } from '../../utils/error-prefix';
+} from '../../types.js';
+import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-} from '../../utils/feature-flags';
-import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit';
-import { getNetworkClientId } from '../../utils/provider';
+} from '../../utils/feature-flags.js';
+import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
+import { getNetworkClientId } from '../../utils/provider.js';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
   TokenAddressTarget,
-} from '../../utils/token';
+} from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   getTransferredAmountFromTxHash,
   updateTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
+} from '../../utils/transaction.js';
 import {
   FALLBACK_HASH,
   RELAY_DEPOSIT_TYPES,
   RELAY_FAILURE_STATUSES,
   RELAY_PENDING_STATUSES,
-} from './constants';
-import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
+} from './constants.js';
+import { submitHyperliquidWithdraw } from './hyperliquid-withdraw.js';
 import {
   sweepPolymarketDepositWallet,
   submitPolymarketWithdraw,
-} from './polymarket/withdraw';
-import { getRelayStatus } from './relay-api';
-import { submitViaRelayExecute } from './relay-submit-execute';
+} from './polymarket/withdraw.js';
+import { getRelayStatus } from './relay-api.js';
+import { submitViaRelayExecute } from './relay-submit-execute.js';
 import type {
   RelayCompletionOutcome,
   RelayQuote,
   RelayStatus,
   RelayStatusResponse,
   RelayTransactionStep,
-} from './types';
+} from './types.js';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 const RELAY_ERROR_PREFIX = 'Relay: ';
+
+type RelaySubmitParams = {
+  allParams: TransactionParams[];
+  normalizedParams: TransactionParams[];
+};
+
+export type RelaySubmitCalls = { calls: TransactionParams[] };
 
 /**
  * Submits Relay quotes.
@@ -74,6 +83,23 @@ export async function submitRelayQuotes(
   } catch (error) {
     throw prefixError(error, RELAY_ERROR_PREFIX);
   }
+}
+
+export async function getRelaySubmitCalls({
+  messenger,
+  quote,
+  transaction,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): Promise<RelaySubmitCalls> {
+  const { allParams } = await buildRelaySubmitParams({
+    messenger,
+    quote,
+    transaction,
+  });
+  return { calls: allParams };
 }
 
 async function submitRelayQuotesInternal(
@@ -592,20 +618,6 @@ async function submitTransactions(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
-  const { steps } = quote.original;
-  const txSteps = steps.filter(
-    (step): step is RelayTransactionStep => step.kind === 'transaction',
-  );
-  const params = txSteps.flatMap((step) => step.items).map((item) => item.data);
-  const SUPPORTED_STEP_KINDS = ['transaction', 'signature'];
-  const invalidKind = steps.find(
-    (step) => !SUPPORTED_STEP_KINDS.includes(step.kind),
-  )?.kind;
-
-  if (invalidKind) {
-    throw new Error(`Unsupported step kind: ${invalidKind}`);
-  }
-
   // In post-quote flows (e.g. Predict withdraw), the source tokens are held in
   // the Safe — not the EOA — and only become available after the original tx
   // executes as part of the batch. Skip the EOA balance check here.
@@ -613,6 +625,65 @@ async function submitTransactions(
     await validateSourceBalance(quote, messenger);
   }
 
+  const { allParams, normalizedParams } = await buildRelaySubmitParams({
+    messenger,
+    quote,
+    transaction,
+  });
+
+  if (quote.original.metamask.isExecute) {
+    return await submitViaRelayExecute(
+      quote,
+      transaction,
+      messenger,
+      allParams,
+    );
+  }
+
+  return await submitViaTransactionController(
+    quote,
+    transaction,
+    messenger,
+    normalizedParams,
+    allParams,
+  );
+}
+
+function getRelayTransactionStepData(
+  quote: TransactionPayQuote<RelayQuote>,
+): RelayTransactionStep['items'][0]['data'][] {
+  const { steps } = quote.original;
+  const supportedStepKinds = ['transaction', 'signature'];
+  const invalidKind = steps.find(
+    (step) => !supportedStepKinds.includes(step.kind),
+  )?.kind;
+
+  if (invalidKind) {
+    throw new Error(`Unsupported step kind: ${invalidKind}`);
+  }
+
+  const txSteps = steps.filter(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+
+  return txSteps
+    .flatMap((step) => step.items)
+    .map((item) => item.data)
+    .filter((data): data is RelayTransactionStep['items'][0]['data'] =>
+      isRelayTransactionStepData(data),
+    );
+}
+
+async function buildRelaySubmitParams({
+  messenger,
+  quote,
+  transaction,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): Promise<RelaySubmitParams> {
+  const params = getRelayTransactionStepData(quote);
   const normalizedParams = params.map((singleParams) =>
     normalizeParams(singleParams, messenger),
   );
@@ -678,22 +749,14 @@ async function submitTransactions(
     allParams = [prependedParams, ...normalizedParams];
   }
 
-  if (quote.original.metamask.isExecute) {
-    return await submitViaRelayExecute(
-      quote,
-      transaction,
-      messenger,
-      allParams,
-    );
-  }
+  return { allParams, normalizedParams };
+}
 
-  return await submitViaTransactionController(
-    quote,
-    transaction,
-    messenger,
-    normalizedParams,
-    allParams,
-  );
+function isRelayTransactionStepData(
+  data: RelayTransactionStep['items'][0]['data'],
+): data is RelayTransactionStep['items'][0]['data'] {
+  const maybeStepData = data as { to?: unknown };
+  return maybeStepData.to !== undefined;
 }
 
 /**
@@ -840,50 +903,17 @@ async function submitViaTransactionController(
       },
     );
   } else {
-    const gasLimit7702 = metamask.is7702
-      ? toHex(metamask.gasLimits[0])
-      : undefined;
-
-    const prependCount = allParams.length - normalizedParams.length;
-
-    const transactions = allParams.map((singleParams, index) => {
-      const gasLimit = gasLimits[index];
-      const gas =
-        gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
-
-      return {
-        params: {
-          data: singleParams.data as Hex,
-          gas,
-          maxFeePerGas: singleParams.maxFeePerGas as Hex,
-          maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
-          to: singleParams.to as Hex,
-          value: singleParams.value as Hex,
-        },
-        type: getTransactionType(
-          prependCount,
-          index,
-          getEffectiveTransactionType(transaction),
-          normalizedParams.length,
-        ),
-      };
-    });
-
-    await messenger.call('TransactionController:addTransactionBatch', {
-      from,
-      disable7702: !gasLimit7702,
-      disableHook: Boolean(gasLimit7702),
-      disableSequential: Boolean(gasLimit7702),
-      gasFeeToken,
-      gasLimit7702,
-      networkClientId,
-      origin: ORIGIN_METAMASK,
-      isInternal: true,
-      isGasFeeSponsored: isSourceGasFeeSponsored,
-      overwriteUpgrade: true,
-      requireApproval: false,
-      transactions,
-    });
+    await messenger.call(
+      'TransactionController:addTransactionBatch',
+      buildRelayTransactionBatchRequest({
+        allParams,
+        isGasFeeSponsored: isSourceGasFeeSponsored,
+        messenger,
+        normalizedParams,
+        quote,
+        transaction,
+      }),
+    );
   }
 
   end();
@@ -912,6 +942,100 @@ async function submitViaTransactionController(
   }
 
   return hash as Hex;
+}
+
+function buildRelayTransactionBatchRequest({
+  allParams,
+  isGasFeeSponsored,
+  messenger,
+  normalizedParams,
+  quote,
+  transaction,
+}: {
+  allParams: TransactionParams[];
+  isGasFeeSponsored: boolean | undefined;
+  messenger: TransactionPayControllerMessenger;
+  normalizedParams: TransactionParams[];
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): TransactionBatchRequest {
+  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { metamask } = quote.original;
+  const networkClientId = getNetworkClientId(messenger, sourceChainId);
+  const gasFeeToken = quote.fees?.isSourceGasFeeToken
+    ? sourceTokenAddress
+    : undefined;
+  const gasLimit7702 = getGasLimit7702(quote);
+
+  return {
+    from,
+    disable7702: !gasLimit7702,
+    disableHook: Boolean(gasLimit7702),
+    disableSequential: Boolean(gasLimit7702),
+    gasFeeToken,
+    gasLimit7702,
+    networkClientId,
+    origin: ORIGIN_METAMASK,
+    isInternal: true,
+    isGasFeeSponsored,
+    overwriteUpgrade: true,
+    requireApproval: false,
+    transactions: buildRelayBatchTransactions({
+      allParams,
+      gasLimit7702,
+      gasLimits: metamask.gasLimits,
+      normalizedParams,
+      transaction,
+    }),
+  };
+}
+
+function buildRelayBatchTransactions({
+  allParams,
+  gasLimit7702,
+  gasLimits,
+  normalizedParams,
+  transaction,
+}: {
+  allParams: TransactionParams[];
+  gasLimit7702?: Hex;
+  gasLimits: number[];
+  normalizedParams: TransactionParams[];
+  transaction: TransactionMeta;
+}): TransactionBatchSingleRequest[] {
+  const prependCount = allParams.length - normalizedParams.length;
+
+  return allParams.map((singleParams, index) => {
+    const gasLimit = gasLimits[index];
+    const gas =
+      gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
+
+    return {
+      params: {
+        data: singleParams.data as Hex,
+        gas,
+        maxFeePerGas: singleParams.maxFeePerGas as Hex,
+        maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
+        to: singleParams.to as Hex,
+        value: singleParams.value as Hex,
+      },
+      type: getTransactionType(
+        prependCount,
+        index,
+        getEffectiveTransactionType(transaction),
+        normalizedParams.length,
+      ),
+    };
+  });
+}
+
+function getGasLimit7702(
+  quote: TransactionPayQuote<RelayQuote>,
+): Hex | undefined {
+  const { gasLimits, is7702 } = quote.original.metamask;
+  const gasLimit = gasLimits[0];
+
+  return is7702 && gasLimit !== undefined ? toHex(gasLimit) : undefined;
 }
 
 /**

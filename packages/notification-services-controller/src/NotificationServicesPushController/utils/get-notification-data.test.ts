@@ -2,7 +2,7 @@ import {
   formatAmount,
   getAmount,
   getLeadingZeroCount,
-} from './get-notification-data';
+} from './get-notification-data.js';
 
 describe('getNotificationData - formatAmount() tests', () => {
   it('should format large numbers', () => {

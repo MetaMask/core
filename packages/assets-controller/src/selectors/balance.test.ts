@@ -1,9 +1,9 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AssetsControllerState } from '../AssetsController';
-import type { Caip19AssetId } from '../types';
-import type { AccountsById, EnabledNetworkMap } from './balance';
+import type { AssetsControllerState } from '../AssetsController.js';
+import type { Caip19AssetId } from '../types.js';
+import type { AccountsById, EnabledNetworkMap } from './balance.js';
 import {
   calculateBalanceChangeForAccountGroup,
   calculateBalanceForAllWallets,
@@ -12,7 +12,7 @@ import {
   getAggregatedBalanceForAccountIds,
   getGroupIdForAccount,
   getInternalAccountsForGroup,
-} from './balance';
+} from './balance.js';
 
 describe('balance selectors', () => {
   const accountId1 = 'account-id-1';

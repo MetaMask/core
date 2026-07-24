@@ -6,10 +6,10 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { ProofOfOwnershipService } from '.';
-import type { ProofOfOwnershipServiceMessenger } from '.';
-import { SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD } from './ProofOfOwnershipService';
-import { ProofUnsupportedNamespaceError } from './utils/canonicalize';
+import { ProofOfOwnershipService } from './index.js';
+import type { ProofOfOwnershipServiceMessenger } from './index.js';
+import { SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD } from './ProofOfOwnershipService.js';
+import { ProofUnsupportedNamespaceError } from './utils/canonicalize.js';
 
 /**
  * Creates a mock InternalAccount with the given scopes. EVM accounts are

@@ -8,12 +8,12 @@ import type {
 import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
 
-import { ProfileMetricsService } from '.';
+import { ProfileMetricsService } from './index.js';
 import type {
   ProfileMetricsSubmitMetricsRequest,
   ProfileMetricsServiceMessenger,
-} from '.';
-import { getAuthUrl } from './ProfileMetricsService';
+} from './index.js';
+import { getAuthUrl } from './ProfileMetricsService.js';
 
 const defaultBaseEndpoint = getAuthUrl(SDK.Env.DEV);
 

@@ -1,4 +1,4 @@
-import { assertIsError, graphQL } from './util';
+import { assertIsError, graphQL } from './util.js';
 
 describe('Utils', () => {
   describe('graphQL', () => {

@@ -12,7 +12,7 @@
  *
  * Usage:
  * ```typescript
- * import { usePerpsController } from './controllers';
+ * import { usePerpsController } from './controllers.js';
  *
  * const { placeOrder, getPositions } = usePerpsController();
  * // Live prices hooks removed with Live Market Prices component
@@ -35,7 +35,7 @@ export {
   PerpsMode,
   DEFAULT_PERPS_MODE,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
-} from './PerpsController';
+} from './PerpsController.js';
 export type {
   PerpsControllerState,
   PerpsControllerOptions,
@@ -44,7 +44,7 @@ export type {
   PerpsControllerActions,
   PerpsControllerEvents,
   ProLayoutPreferences,
-} from './PerpsController';
+} from './PerpsController.js';
 export type {
   PerpsControllerCalculateFeesAction,
   PerpsControllerCalculateLiquidationPriceAction,
@@ -139,10 +139,10 @@ export type {
   PerpsControllerValidateOrderAction,
   PerpsControllerValidateWithdrawalAction,
   PerpsControllerWithdrawAction,
-} from './PerpsController-method-action-types';
+} from './PerpsController-method-action-types.js';
 
 // Provider interfaces and implementations
-export { HyperLiquidProvider } from './providers/HyperLiquidProvider';
+export { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
 
 // Type definitions (explicit named exports)
 export {
@@ -150,7 +150,7 @@ export {
   PerpsAnalyticsEvent,
   MARKET_CATEGORIES,
   MarketCategory,
-} from './types';
+} from './types/index.js';
 export type {
   RawLedgerUpdate,
   UserHistoryItem,
@@ -266,12 +266,12 @@ export type {
   PaymentToken,
   PerpsSelectedPaymentToken,
   VersionGatedFeatureFlag,
-} from './types';
+} from './types/index.js';
 export {
   PerpsTraceNames,
   PerpsTraceOperations,
   isVersionGatedFeatureFlag,
-} from './types';
+} from './types/index.js';
 
 // Types from sub-modules (re-exported via types/index.ts)
 export type {
@@ -286,14 +286,14 @@ export type {
   ReconnectOptions,
   ExtendedAssetMeta,
   ExtendedPerpDex,
-} from './types';
+} from './types/index.js';
 export type {
   BaseTransactionResult,
   LastTransactionResult,
   TransactionStatus,
   TransactionRecord,
-} from './types';
-export { isTransactionRecord, isLastTransactionResult } from './types';
+} from './types/index.js';
+export { isTransactionRecord, isLastTransactionResult } from './types/index.js';
 export type {
   AssetPosition,
   SpotBalance,
@@ -310,7 +310,7 @@ export type {
   MetaAndAssetCtxsResponse,
   PredictedFundingsResponse,
   SpotMetaResponse,
-} from './types';
+} from './types/index.js';
 export type {
   HyperLiquidEndpoints,
   AssetNetworkConfig,
@@ -324,8 +324,8 @@ export type {
   TradingDefaultsConfig,
   FeeRatesConfig,
   HyperLiquidNetwork,
-} from './types';
-export type { PerpsToken } from './types';
+} from './types/index.js';
+export type { PerpsToken } from './types/index.js';
 
 // Constants (explicit named exports)
 export {
@@ -339,10 +339,10 @@ export {
   getCandlePeriodsForDuration,
   getDefaultCandlePeriodForDuration,
   calculateCandleCount,
-} from './constants';
-export { PERPS_EVENT_PROPERTY, PERPS_EVENT_VALUE } from './constants';
-export { DETAILED_ORDER_TYPES, isTPSLOrder } from './constants';
-export { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from './constants';
+} from './constants/index.js';
+export { PERPS_EVENT_PROPERTY, PERPS_EVENT_VALUE } from './constants/index.js';
+export { DETAILED_ORDER_TYPES, isTPSLOrder } from './constants/index.js';
+export { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from './constants/index.js';
 export {
   ARBITRUM_MAINNET_CHAIN_ID_HEX,
   ARBITRUM_MAINNET_CHAIN_ID,
@@ -395,9 +395,9 @@ export {
   INITIAL_AMOUNT_UI_PROGRESS,
   WITHDRAWAL_PROGRESS_STAGES,
   PROGRESS_BAR_COMPLETION_DELAY_MS,
-} from './constants';
-export type { SupportedAsset } from './constants';
-export { PerpsMeasurementName } from './constants';
+} from './constants/index.js';
+export type { SupportedAsset } from './constants/index.js';
+export { PerpsMeasurementName } from './constants/index.js';
 export {
   MYX_MAINNET_CHAIN_ID,
   MYX_TESTNET_CHAIN_ID,
@@ -426,7 +426,7 @@ export {
   MYX_DEFAULT_SLIPPAGE_BPS,
   MYX_MINIMUM_ORDER_SIZE_USD,
   MYX_EXECUTION_FEE_TOKEN,
-} from './constants';
+} from './constants/index.js';
 export {
   PERPS_CONSTANTS,
   WITHDRAWAL_CONSTANTS,
@@ -443,8 +443,8 @@ export {
   MARKET_SORTING_CONFIG,
   PROVIDER_CONFIG,
   FUNDING_RATE_CONFIG,
-} from './constants';
-export type { SortOptionId } from './constants';
+} from './constants/index.js';
+export type { SortOptionId } from './constants/index.js';
 
 // Utilities (explicit named exports)
 export {
@@ -453,16 +453,16 @@ export {
   getSelectedEvmAccount,
   calculateWeightedReturnOnEquity,
   aggregateAccountStates,
-} from './utils';
-export type { ReturnOnEquityInput } from './utils';
-export { ensureError, isAbortError } from './utils';
+} from './utils/index.js';
+export type { ReturnOnEquityInput } from './utils/index.js';
+export { ensureError, isAbortError } from './utils/index.js';
 export type {
   OrderBookCacheEntry,
   ProcessL2BookDataParams,
   ProcessBboDataParams,
-} from './utils';
-export { processL2BookData, processBboData } from './utils';
-export type { ValidationDebugLogger } from './utils';
+} from './utils/index.js';
+export { processL2BookData, processBboData } from './utils/index.js';
+export type { ValidationDebugLogger } from './utils/index.js';
 export {
   createErrorResult,
   validateWithdrawalParams,
@@ -474,26 +474,26 @@ export {
   getMaxOrderValue,
   validateOrderParams,
   validateCoinExists,
-} from './utils';
+} from './utils/index.js';
 export {
   generatePerpsId,
   generateDepositId,
   generateWithdrawalId,
   generateOrderId,
   generateTransactionId,
-} from './utils';
+} from './utils/index.js';
 export {
   calculateOpenInterestUSD,
   isMarketTradable,
   transformMarketData,
   formatChange,
-} from './utils';
-export type { HyperLiquidMarketData } from './utils';
+} from './utils/index.js';
+export type { HyperLiquidMarketData } from './utils/index.js';
 export {
   getPerpsConnectionAttemptContext,
   withPerpsConnectionAttemptContext,
-} from './utils/perpsConnectionAttemptContext';
-export type { PerpsConnectionAttemptContext } from './utils/perpsConnectionAttemptContext';
+} from './utils/perpsConnectionAttemptContext.js';
+export type { PerpsConnectionAttemptContext } from './utils/perpsConnectionAttemptContext.js';
 export {
   MAX_MARKET_PATTERN_LENGTH,
   escapeRegex,
@@ -512,9 +512,12 @@ export {
   isHip3Market,
   rankMarketsByQuery,
   getMarketMatchRank,
-} from './utils';
-export { MarketMatchRank } from './utils';
-export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';
+} from './utils/index.js';
+export { MarketMatchRank } from './utils/index.js';
+export type {
+  MarketPatternMatcher,
+  CompiledMarketPattern,
+} from './utils/index.js';
 export type {
   OrderCalculationsDebugLogger,
   CalculateFinalPositionSizeParams,
@@ -523,7 +526,7 @@ export type {
   CalculateOrderPriceAndSizeResult,
   BuildOrdersArrayParams,
   BuildOrdersArrayResult,
-} from './utils';
+} from './utils/index.js';
 export {
   calculatePositionSize,
   calculateMarginRequired,
@@ -531,28 +534,28 @@ export {
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
   buildOrdersArray,
-} from './utils';
+} from './utils/index.js';
 export {
   formatAccountToCaipAccountId,
   isCaipAccountId,
   handleRewardsError,
-} from './utils';
+} from './utils/index.js';
 export {
   countSignificantFigures,
   hasExceededSignificantFigures,
   roundToSignificantFigures,
-} from './utils';
-export type { SortMarketsParams } from './utils';
-export { parseVolume, sortMarkets } from './utils';
-export type { StandaloneInfoClientOptions } from './utils';
+} from './utils/index.js';
+export type { SortMarketsParams } from './utils/index.js';
+export { parseVolume, sortMarkets } from './utils/index.js';
+export type { StandaloneInfoClientOptions } from './utils/index.js';
 export {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
   queryStandaloneOpenOrders,
-} from './utils';
-export { stripQuotes, parseCommaSeparatedString } from './utils';
-export { generateERC20TransferData } from './utils';
-export { wait } from './utils';
+} from './utils/index.js';
+export { stripQuotes, parseCommaSeparatedString } from './utils/index.js';
+export { generateERC20TransferData } from './utils/index.js';
+export { wait } from './utils/index.js';
 export {
   adaptOrderToSDK,
   adaptPositionFromSDK,
@@ -565,9 +568,9 @@ export {
   calculateHip3AssetId,
   parseAssetName,
   adaptHyperLiquidLedgerUpdateToUserHistoryItem,
-} from './utils';
-export { getEnvironment } from './utils';
-export type { FiatRangeConfig } from './utils';
+} from './utils/index.js';
+export { getEnvironment } from './utils/index.js';
+export type { FiatRangeConfig } from './utils/index.js';
 export {
   PRICE_THRESHOLD,
   formatWithSignificantDigits,
@@ -578,11 +581,11 @@ export {
   formatPnl,
   formatPercentage,
   formatFundingRate,
-} from './utils';
+} from './utils/index.js';
 
 // Error codes (explicit named exports)
-export { PERPS_ERROR_CODES } from './perpsErrorCodes';
-export type { PerpsErrorCode } from './perpsErrorCodes';
+export { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
+export type { PerpsErrorCode } from './perpsErrorCodes.js';
 
 // Selectors (explicit named exports)
 export {
@@ -597,11 +600,20 @@ export {
   selectOrderBookGrouping,
   selectProLayoutPreferences,
   selectPerpsMode,
-} from './selectors';
+} from './selectors.js';
 
 // Services (only externally consumed items)
-export { TradingReadinessCache } from './services/TradingReadinessCache';
-export type { ServiceContext } from './services/ServiceContext';
+export { TradingReadinessCache } from './services/TradingReadinessCache.js';
+export type { ServiceContext } from './services/ServiceContext.js';
+export {
+  AggregatedOrderBookConnection,
+  processAggregatedOrderBook,
+} from './services/AggregatedOrderBookConnection.js';
+export type {
+  OrderBookConnectionStatus,
+  SubscribeAggregatedOrderBookParams,
+  AggregatedOrderBookConnectionOptions,
+} from './services/AggregatedOrderBookConnection.js';
 
 // Removed with Live Market Prices component:
 // - usePerpsPrices

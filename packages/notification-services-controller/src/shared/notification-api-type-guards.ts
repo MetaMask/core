@@ -2,7 +2,7 @@ import type {
   UnprocessedRawNotification,
   OnChainNotification,
   PlatformNotification,
-} from '../NotificationServicesController/types/notification-api';
+} from '../NotificationServicesController/types/notification-api/index.js';
 
 /**
  * Narrows a v4 API notification to an on-chain notification.

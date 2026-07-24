@@ -9,9 +9,9 @@ import type { Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 import { v4 as uuid } from 'uuid';
 
-import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
-import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
-import { projectLogger as log } from './AnalyticsLogger';
+import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types.js';
+import { validateAnalyticsControllerState } from './analyticsControllerStateValidator.js';
+import { projectLogger as log } from './AnalyticsLogger.js';
 import type {
   AnalyticsPlatformAdapter,
   AnalyticsDeliveryOptions,
@@ -20,7 +20,7 @@ import type {
   AnalyticsUserTraits,
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
-import { analyticsControllerSelectors } from './selectors';
+import { analyticsControllerSelectors } from './selectors.js';
 
 // === GENERAL ===
 

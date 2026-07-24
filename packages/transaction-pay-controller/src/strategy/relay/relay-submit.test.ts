@@ -7,32 +7,35 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { PaymentOverride } from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
+import { PaymentOverride } from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import type { FeatureFlags } from '../../utils/feature-flags';
+} from '../../types.js';
+import type { FeatureFlags } from '../../utils/feature-flags.js';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-} from '../../utils/feature-flags';
-import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit';
-import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
+} from '../../utils/feature-flags.js';
+import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
+import {
+  getLiveTokenBalance,
+  normalizeTokenAddress,
+} from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   getTransferredAmountFromTxHash,
   updateTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
-import { FALLBACK_HASH, RELAY_STATUS_URL } from './constants';
-import { submitRelayQuotes } from './relay-submit';
-import { submitViaRelayExecute } from './relay-submit-execute';
-import type { RelayQuote } from './types';
+} from '../../utils/transaction.js';
+import { FALLBACK_HASH, RELAY_STATUS_URL } from './constants.js';
+import { submitViaRelayExecute } from './relay-submit-execute.js';
+import { getRelaySubmitCalls, submitRelayQuotes } from './relay-submit.js';
+import type { RelayQuote } from './types.js';
 
 jest.mock('../../utils/ma-vault-deposit');
 jest.mock('../../utils/token');
@@ -41,7 +44,6 @@ jest.mock('../../utils/feature-flags');
 jest.mock('./hyperliquid-withdraw');
 jest.mock('./polymarket/withdraw');
 jest.mock('./relay-submit-execute');
-
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
 const SOURCE_HASH_MOCK = '0xsourcehash';
@@ -1754,12 +1756,69 @@ describe('Relay Submit Utils', () => {
       beforeEach(() => {
         request.quotes[0].original.metamask.isExecute = true;
         submitViaRelayExecuteMock.mockResolvedValue(undefined);
+        getDelegationTransactionMock.mockResolvedValue({
+          data: '0xdelegationdata' as Hex,
+          to: '0xdelegationManager' as Hex,
+          value: '0x0' as Hex,
+        });
       });
 
       it('delegates to submitViaRelayExecute when isExecute is true', async () => {
         await submitRelayQuotes(request);
 
         expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('uses fallback data and value when step item data/value are undefined', async () => {
+        request.quotes[0].original.steps[0].items[0].data.data =
+          undefined as unknown as Hex;
+        request.quotes[0].original.steps[0].items[0].data.value =
+          undefined as unknown as string;
+
+        await submitRelayQuotes(request);
+
+        expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('includes authorizationList in execute request when delegation returns one', async () => {
+        getDelegationTransactionMock.mockResolvedValue({
+          data: '0xdelegationdata' as Hex,
+          to: '0xdelegationManager' as Hex,
+          value: '0x0' as Hex,
+          authorizationList: [
+            {
+              address: '0xabc' as Hex,
+              chainId: '0x1' as Hex,
+              nonce: '0x2' as Hex,
+              r: '0xr' as Hex,
+              s: '0xs' as Hex,
+              yParity: '0x0' as Hex,
+            },
+          ],
+        });
+
+        // submitViaRelayExecute is mocked; we just verify the flow completes
+        // without error, which exercises the authorizationList.map branch in
+        // buildRelayExecuteRequest (line 654 of relay-submit.ts)
+        await submitRelayQuotes(request);
+        expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe('getRelaySubmitCalls', () => {
+    it('returns calls from buildRelaySubmitParams', async () => {
+      const { calls } = await getRelaySubmitCalls({
+        messenger,
+        quote: request.quotes[0],
+        transaction: request.transaction,
+      });
+
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({
+        data: '0x1234',
+        from: FROM_MOCK,
+        to: '0xfedcb',
       });
     });
 
