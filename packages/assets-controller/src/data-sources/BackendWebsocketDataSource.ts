@@ -8,6 +8,7 @@ import type {
   BalanceUpdate,
 } from '@metamask/core-backend';
 import type { ApiPlatformClient } from '@metamask/core-backend';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
@@ -36,7 +37,8 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // Allowed actions that BackendWebsocketDataSource can call
 export type BackendWebsocketDataSourceAllowedActions =
-  BackendWebSocketServiceActions;
+  | BackendWebSocketServiceActions
+  | RemoteFeatureFlagControllerGetStateAction;
 
 // Allowed events that BackendWebsocketDataSource can subscribe to
 export type BackendWebsocketDataSourceAllowedEvents =
@@ -220,6 +222,7 @@ function haveAddressesChanged(
  * - BackendWebSocketService:findSubscriptionsByChannelPrefix
  * - BackendWebSocketService:addChannelCallback
  * - BackendWebSocketService:removeChannelCallback
+ * - RemoteFeatureFlagController:getState
  */
 const DEFAULT_CHAINS_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
 
