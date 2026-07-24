@@ -150,19 +150,6 @@ jobs:
                 .join('\0');
 
               const inactiveHours = (ageMs / (60 * 60 * 1000)).toFixed(1);
-              const body = [
-                '## Stale release PR closed',
-                '',
-                `This release PR was automatically closed because it had no activity for ${staleHours} hours (last updated ${inactiveHours}h ago).`,
-                '',
-                'Open release PRs on `release/*` branches are expected to merge promptly so they do not block others from starting a new release.',
-                '',
-                'The release branch will be deleted. If you still need to publish these packages, start a fresh release with `yarn create-release-branch`.',
-                '',
-                `To keep a release PR open longer in exceptional cases, add the \`${exemptLabel}\` label.`,
-                '',
-                '<!-- stale-release-pr-comment -->',
-              ].join('\n');
 
               // Final recheck immediately before destructive ops: activity,
               // head SHA, labels, or merge state may have changed since the
@@ -269,6 +256,88 @@ jobs:
                 continue;
               }
 
+              // Re-fetch the branch tip immediately before delete so a push
+              // that landed after close is not discarded. Comment afterward
+              // so the message matches whether the branch was actually removed.
+              let branchOutcome = 'deleted';
+              let branchOutcomeDetail = '';
+              let branchSha;
+
+              try {
+                const { data: branchRef } = await github.rest.git.getRef({
+                  owner,
+                  repo,
+                  ref: `heads/${expectedHeadRef}`,
+                });
+                branchSha = branchRef.object.sha;
+              } catch (error) {
+                branchOutcome = 'kept-refresh-failed';
+                branchOutcomeDetail = error.message;
+                core.warning(
+                  `Closed #${latestPr.number} but failed to refresh ${expectedHeadRef} before delete: ${error.message}`,
+                );
+              }
+
+              if (branchOutcome === 'deleted' && branchSha !== expectedHeadSha) {
+                branchOutcome = 'kept-head-moved';
+                branchOutcomeDetail = `head moved from ${expectedHeadSha} to ${branchSha}`;
+                core.warning(
+                  `Closed #${latestPr.number} but skipped deleting ${expectedHeadRef}: ${branchOutcomeDetail}`,
+                );
+              }
+
+              if (branchOutcome === 'deleted') {
+                try {
+                  await github.rest.git.deleteRef({
+                    owner,
+                    repo,
+                    ref: `heads/${expectedHeadRef}`,
+                  });
+                  core.info(
+                    `Closed #${latestPr.number} and deleted branch ${expectedHeadRef}`,
+                  );
+                } catch (error) {
+                  branchOutcome = 'kept-delete-failed';
+                  branchOutcomeDetail = error.message;
+                  core.warning(
+                    `Closed #${latestPr.number} but failed to delete ${expectedHeadRef}: ${error.message}`,
+                  );
+                }
+              }
+
+              let branchStatusLines;
+              if (branchOutcome === 'deleted') {
+                branchStatusLines = [
+                  `The release branch \`${expectedHeadRef}\` has been deleted. If you still need to publish these packages, start a fresh release with \`yarn create-release-branch\`.`,
+                ];
+              } else if (branchOutcome === 'kept-head-moved') {
+                branchStatusLines = [
+                  `The release branch \`${expectedHeadRef}\` was **not** deleted because its tip changed after close (\`${expectedHeadSha}\` → \`${branchSha}\`).`,
+                  '',
+                  'Delete the branch manually if it is no longer needed, or open a new release PR from the updated tip.',
+                ];
+              } else {
+                branchStatusLines = [
+                  `The release branch \`${expectedHeadRef}\` was **not** deleted (${branchOutcomeDetail}).`,
+                  '',
+                  'Delete the branch manually if it is no longer needed, or start a fresh release with `yarn create-release-branch`.',
+                ];
+              }
+
+              const body = [
+                '## Stale release PR closed',
+                '',
+                `This release PR was automatically closed because it had no activity for ${staleHours} hours (last updated ${inactiveHours}h ago).`,
+                '',
+                'Open release PRs on `release/*` branches are expected to merge promptly so they do not block others from starting a new release.',
+                '',
+                ...branchStatusLines,
+                '',
+                `To keep a release PR open longer in exceptional cases, add the \`${exemptLabel}\` label.`,
+                '',
+                '<!-- stale-release-pr-comment -->',
+              ].join('\n');
+
               try {
                 await github.rest.issues.createComment({
                   owner,
@@ -279,46 +348,6 @@ jobs:
               } catch (error) {
                 core.warning(
                   `Closed #${latestPr.number} but failed to comment: ${error.message}`,
-                );
-              }
-
-              // Re-fetch the branch tip immediately before delete so a push
-              // that landed after close is not discarded.
-              let branchSha;
-              try {
-                const { data: branchRef } = await github.rest.git.getRef({
-                  owner,
-                  repo,
-                  ref: `heads/${expectedHeadRef}`,
-                });
-                branchSha = branchRef.object.sha;
-              } catch (error) {
-                core.warning(
-                  `Closed #${latestPr.number} but failed to refresh ${expectedHeadRef} before delete: ${error.message}`,
-                );
-                continue;
-              }
-
-              if (branchSha !== expectedHeadSha) {
-                core.warning(
-                  `Closed #${latestPr.number} but skipped deleting ${expectedHeadRef}: head moved from ${expectedHeadSha} to ${branchSha}`,
-                );
-                continue;
-              }
-
-              try {
-                await github.rest.git.deleteRef({
-                  owner,
-                  repo,
-                  ref: `heads/${expectedHeadRef}`,
-                });
-                core.info(
-                  `Closed #${latestPr.number} and deleted branch ${expectedHeadRef}`,
-                );
-              } catch (error) {
-                // Branch may already be gone; still treat the PR close as success.
-                core.warning(
-                  `Closed #${latestPr.number} but failed to delete ${expectedHeadRef}: ${error.message}`,
                 );
               }
             }
