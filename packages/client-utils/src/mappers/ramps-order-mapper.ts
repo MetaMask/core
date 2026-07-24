@@ -1,6 +1,5 @@
 import type { CaipChainId } from '@metamask/utils';
 
-import { formatChainIdToCaip } from './helpers/caip.js';
 import type {
   ActivityItem,
   Fee,
@@ -9,6 +8,7 @@ import type {
   Status,
   TokenAmount,
 } from '../types.js';
+import { formatChainIdToCaip } from './helpers/caip.js';
 
 type RampsOrderStatusLike =
   | 'UNKNOWN'
