@@ -1,4 +1,4 @@
-import { decodeClientDataJSON } from './decode-client-data-json';
+import { decodeClientDataJSON } from './decode-client-data-json.js';
 
 describe('decodeClientDataJSON', () => {
   it('converts base64url-encoded attestation clientDataJSON to JSON', () => {

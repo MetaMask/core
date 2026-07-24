@@ -49,39 +49,39 @@ import type { webcrypto } from 'node:crypto';
 import type {
   MockKeyringControllerMessenger,
   RootMessenger,
-} from '../tests/__fixtures__/mockMessenger';
-import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
+} from '../tests/__fixtures__/mockMessenger.js';
+import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger.js';
 import {
   handleMockSecretDataGet,
   handleMockSecretDataAdd,
   handleMockCommitment,
   handleMockAuthenticate,
-} from '../tests/__fixtures__/topfClient';
+} from '../tests/__fixtures__/topfClient.js';
 import {
   createMockSecretDataGetResponse,
   MULTIPLE_MOCK_SECRET_METADATA,
-} from '../tests/mocks/toprf';
-import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
-import { createMockJWTToken } from '../tests/mocks/utils';
-import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
+} from '../tests/mocks/toprf.js';
+import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor.js';
+import { createMockJWTToken } from '../tests/mocks/utils.js';
+import MockVaultEncryptor from '../tests/mocks/vaultEncryptor.js';
 import {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
-} from './constants';
-import { PasswordSyncError, RecoveryError } from './errors';
-import { SecretMetadata } from './SecretMetadata';
+} from './constants.js';
+import { PasswordSyncError, RecoveryError } from './errors.js';
+import { SecretMetadata } from './SecretMetadata.js';
 import {
   SeedlessOnboardingController,
   getInitialSeedlessOnboardingControllerStateWithDefaults,
-} from './SeedlessOnboardingController';
+} from './SeedlessOnboardingController.js';
 import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
-} from './SeedlessOnboardingController';
-import type { SeedlessOnboardingControllerState } from './types';
+} from './SeedlessOnboardingController.js';
+import type { SeedlessOnboardingControllerState } from './types.js';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';

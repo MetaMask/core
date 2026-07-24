@@ -1,7 +1,7 @@
 import { areUint8ArraysEqual } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
 
-import { bytesToHex } from '../utils/encoding';
+import { bytesToHex } from '../utils/encoding.js';
 
 /**
  * Verify that an authenticator data rpIdHash matches one of the expected

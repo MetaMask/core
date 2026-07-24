@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SeedlessOnboardingController } from './SeedlessOnboardingController';
+import type { SeedlessOnboardingController } from './SeedlessOnboardingController.js';
 
 export type SeedlessOnboardingControllerFetchMetadataAccessCredsAction = {
   type: `SeedlessOnboardingController:fetchMetadataAccessCreds`;
