@@ -1,7 +1,7 @@
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 
-import { SecretType } from '../../src/constants';
-import { MockToprfEncryptorDecryptor } from './toprfEncryptor';
+import { SecretType } from '../../src/constants.js';
+import { MockToprfEncryptorDecryptor } from './toprfEncryptor.js';
 
 export const TOPRF_BASE_URL = /https:\/\/node-[1-5]\.dev-node\.web3auth\.io/u;
 

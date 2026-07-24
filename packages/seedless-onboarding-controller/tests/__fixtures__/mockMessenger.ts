@@ -9,8 +9,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { controllerName } from '../../src/constants';
-import type { SeedlessOnboardingControllerMessenger } from '../../src/SeedlessOnboardingController';
+import { controllerName } from '../../src/constants.js';
+import type { SeedlessOnboardingControllerMessenger } from '../../src/SeedlessOnboardingController.js';
 
 export type AllSeedlessOnboardingControllerActions =
   MessengerActions<SeedlessOnboardingControllerMessenger>;

@@ -5,8 +5,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import { controllerName } from '../../src/constants';
-import type { PasskeyControllerMessenger } from '../../src/types';
+import { controllerName } from '../../src/constants.js';
+import type { PasskeyControllerMessenger } from '../../src/types.js';
 
 type AllPasskeyControllerActions = MessengerActions<PasskeyControllerMessenger>;
 
