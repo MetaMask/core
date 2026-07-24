@@ -1,14 +1,14 @@
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 
-import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
-import { NetworkClientType } from '../../src/types';
-import type { ProviderType } from './helpers';
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service.js';
+import { NetworkClientType } from '../../src/types.js';
+import type { ProviderType } from './helpers.js';
 import {
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
   withMockedCommunications,
   withNetworkClient,
-} from './helpers';
-import { testsForRpcFailoverBehavior } from './rpc-failover';
+} from './helpers.js';
+import { testsForRpcFailoverBehavior } from './rpc-failover.js';
 
 type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {
   providerType: ProviderType;

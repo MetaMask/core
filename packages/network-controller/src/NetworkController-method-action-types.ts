@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NetworkController } from './NetworkController';
+import type { NetworkController } from './NetworkController.js';
 
 /**
  * Returns the EthQuery instance for the currently selected network.

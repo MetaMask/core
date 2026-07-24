@@ -1,4 +1,4 @@
-import { KeyringControllerErrorMessage } from './constants';
+import { KeyringControllerErrorMessage } from './constants.js';
 
 /**
  * Options for creating a KeyringControllerError.

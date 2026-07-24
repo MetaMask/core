@@ -2,8 +2,8 @@
  * Accounts API barrel export.
  */
 
-export { AccountsApiClient } from './client';
-export { V6_DEFI_POSITION_TYPES } from './types';
+export { AccountsApiClient } from './client.js';
+export { V6_DEFI_POSITION_TYPES } from './types.js';
 export type {
   V5BalanceItem,
   V5BalancesResponse,
@@ -29,4 +29,4 @@ export type {
   V2NftsResponse,
   TokenDiscoveryItem,
   V2TokensResponse,
-} from './types';
+} from './types.js';

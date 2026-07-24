@@ -1,8 +1,8 @@
-import { buildRootMessenger } from '../../tests/helpers';
+import { buildRootMessenger } from '../../tests/helpers.js';
 import {
   withMockedCommunications,
   withNetworkClient,
-} from '../../tests/network-client/helpers';
+} from '../../tests/network-client/helpers.js';
 
 describe('createNetworkClient - RPC endpoint failover (forced)', () => {
   describe('when rpcFailoverMode is forced and providerType is infura', () => {

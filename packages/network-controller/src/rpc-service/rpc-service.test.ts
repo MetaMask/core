@@ -13,7 +13,7 @@ import {
   CUSTOM_RPC_ERRORS,
   DEFAULT_MAX_RETRIES,
   RpcService,
-} from './rpc-service';
+} from './rpc-service.js';
 
 describe('RpcService', () => {
   beforeEach(() => {
