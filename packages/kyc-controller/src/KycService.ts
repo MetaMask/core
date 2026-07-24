@@ -208,9 +208,8 @@ export class KycService {
     const location = await this.#messenger.call(
       'GeolocationController:getGeolocation',
     );
-    const alpha2 = String(location ?? '')
-      .split('-')[0]
-      .toUpperCase();
+    assert(location, string());
+    const alpha2 = location.split('-')[0].toUpperCase();
     if (!alpha2 || alpha2 === 'UNKNOWN') {
       throw new Error(
         `Unable to determine country from geolocation (got "${location}").`,
@@ -390,6 +389,7 @@ export class KycService {
     const bearerToken = await this.#messenger.call(
       'AuthenticationController:getBearerToken',
     );
+    assert(bearerToken, string());
     if (!bearerToken) {
       throw new Error(
         'Unable to obtain an authentication bearer token — is the wallet signed in?',
