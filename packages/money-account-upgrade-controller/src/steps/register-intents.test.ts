@@ -12,8 +12,8 @@ import type {
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
-import { registerIntentsStep } from './register-intents';
+import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
+import { registerIntentsStep } from './register-intents.js';
 
 jest.mock('@metamask/delegation-core', () => ({
   createRedeemerTerms: jest.fn(),
