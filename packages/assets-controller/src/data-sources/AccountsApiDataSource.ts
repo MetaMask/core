@@ -24,6 +24,7 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types.js';
+import { decimalToChainId } from '../utils/caip.js';
 import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
 import {
   getMigrationStages,
@@ -114,17 +115,6 @@ export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-
-function decimalToChainId(decimalChainId: number | string): ChainId {
-  // Handle both decimal numbers and already-formatted CAIP chain IDs
-  if (typeof decimalChainId === 'string') {
-    if (isCaipChainId(decimalChainId)) {
-      return decimalChainId;
-    }
-    return toCaipChainId(KnownCaipNamespace.Eip155, decimalChainId);
-  }
-  return toCaipChainId(KnownCaipNamespace.Eip155, String(decimalChainId));
-}
 
 /**
  * Convert a CAIP-2 chain ID from the API response to our ChainId type.
