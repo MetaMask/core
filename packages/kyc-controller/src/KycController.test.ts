@@ -299,12 +299,55 @@ describe('KycController', () => {
       );
     });
 
+    it('clears the old session token while a new session is being created', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              sessionToken: 'old-session',
+              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          let releaseSession: (value: {
+            sessionToken: string;
+          }) => void = () => {
+            // no-op placeholder until the deferred promise is wired up
+          };
+          handlers.createSession.mockReturnValue(
+            new Promise<{ sessionToken: string }>((resolve) => {
+              releaseSession = resolve;
+            }),
+          );
+
+          const pending = controller.acceptTermsAndStartSession();
+
+          // While the request is in flight (phase `session`) the stale token
+          // must already be gone so no Check frame URL can be built for it.
+          expect(controller.state.phase).toBe('session');
+          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.buildCheckFrameUrl()).toBeNull();
+
+          releaseSession({ sessionToken: 'new-session' });
+          await pending;
+
+          expect(controller.state.sessionToken).toBe('new-session');
+          expect(controller.buildCheckFrameUrl()).toContain(
+            'sessionToken=new-session',
+          );
+        },
+      );
+    });
+
     it('reverts to terms when session creation fails', async () => {
       await withController(
         {
           options: {
             state: {
               email: 'a@b.co',
+              sessionToken: 'old-session',
               disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
@@ -318,6 +361,10 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.termsAcceptedAt).toBeNull();
           expect(controller.state.error).toMatch(/Session creation failed/u);
+          // A failed creation must not leave the old session token behind, so
+          // the Check frame cannot be built against an invalid session.
+          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.buildCheckFrameUrl()).toBeNull();
         },
       );
     });

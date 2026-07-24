@@ -496,16 +496,20 @@ export class KycController extends BaseController<
     }
 
     // A new session invalidates any authentication carried over from a prior
-    // session. Clear the stale access token and auth-frame client token so
-    // `buildAuthFrameUrl` cannot return a URL tied to an old client token and
-    // `checkKycRequired` cannot run with an access token from an earlier
-    // authentication. The Check/Auth frames re-populate these for the new
-    // session.
+    // session. Clear the stale session token, access token, and auth-frame
+    // client token so `buildCheckFrameUrl` cannot return a URL bound to an old
+    // (or, on failure, invalid) session token, `buildAuthFrameUrl` cannot
+    // return a URL tied to an old client token, and `checkKycRequired` cannot
+    // run with an access token from an earlier authentication. The Check/Auth
+    // frames re-populate these for the new session. Because `sessionToken` is
+    // cleared here and only re-set on success, a failed creation leaves it
+    // `null` rather than resurrecting the previous session.
     this.#authClientToken = null;
     this.#applyUpdate((state) => {
       state.error = null;
       state.phase = 'session';
       state.statusMessage = 'Creating session...';
+      state.sessionToken = null;
       state.accessToken = null;
     });
 
