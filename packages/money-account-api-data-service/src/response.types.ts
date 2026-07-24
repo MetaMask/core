@@ -5,7 +5,7 @@ import type {
   InterestResponseStruct,
   PositionResponseStruct,
   RateHistoryResponseStruct,
-} from './structs';
+} from './structs.js';
 
 // All types in this file mirror the external Money Account API's snake_case
 // JSON contract verbatim to maintain 1:1 parity with API responses.
@@ -32,6 +32,16 @@ export type VaultPosition = {
   lifetime_interest_usd: string;
   current_apy: string;
   effective_apy: string;
+};
+
+/**
+ * Balance summary on the positions response.
+ * `null` when the API's wallet-balance path is disabled or unavailable.
+ */
+export type PositionBalance = {
+  musd_balance: string;
+  vmusd_value_in_musd: string;
+  total_balance: string;
 };
 
 /**

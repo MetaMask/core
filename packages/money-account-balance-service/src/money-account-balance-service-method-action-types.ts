@@ -3,7 +3,26 @@
  * Do not edit manually.
  */
 
-import type { MoneyAccountBalanceService } from './money-account-balance-service';
+import type { MoneyAccountBalanceService } from './money-account-balance-service.js';
+
+/**
+ * Fetches the canonical Money account balance, selecting the Money API or
+ * RPC source according to the `moneyAccountBalanceSource` remote feature
+ * flag (default: RPC primary with Money API fallback).
+ *
+ * Callers must not select a source. Provenance is returned on the result so
+ * fallback is never silent. Malformed or unavailable source balances are
+ * reported via the messenger's `captureException` before fallback.
+ *
+ * @param accountAddress - The Money account's Ethereum address.
+ * @returns Canonical balance amounts with source provenance.
+ * @throws {@link MoneyAccountBalanceFetchError} when every eligible source
+ * fails. Never returns a synthetic zero balance.
+ */
+export type MoneyAccountBalanceServiceFetchBalanceWithFallbackAction = {
+  type: `MoneyAccountBalanceService:fetchBalanceWithFallback`;
+  handler: MoneyAccountBalanceService['fetchBalanceWithFallback'];
+};
 
 /**
  * Fetches the mUSD ERC-20 balance for the given account address via RPC.
@@ -87,6 +106,7 @@ export type MoneyAccountBalanceServiceGetVaultApyAction = {
  * Union of all MoneyAccountBalanceService action types.
  */
 export type MoneyAccountBalanceServiceMethodActions =
+  | MoneyAccountBalanceServiceFetchBalanceWithFallbackAction
   | MoneyAccountBalanceServiceGetMusdBalanceAction
   | MoneyAccountBalanceServiceGetMoneyAccountBalanceAction
   | MoneyAccountBalanceServiceGetVmusdBalanceAction

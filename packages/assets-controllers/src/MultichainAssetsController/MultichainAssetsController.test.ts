@@ -25,16 +25,16 @@ import { TokenScanResultType } from '@metamask/phishing-controller';
 import type { Snap } from '@metamask/snaps-utils';
 import { v4 as uuidv4 } from 'uuid';
 
+import { jestAdvanceTime } from '../../../../tests/helpers.js';
 import {
   getDefaultMultichainAssetsControllerState,
   MultichainAssetsController,
-} from '.';
-import { jestAdvanceTime } from '../../../../tests/helpers';
+} from './index.js';
 import type {
   AssetMetadataResponse,
   MultichainAssetsControllerMessenger,
   MultichainAssetsControllerState,
-} from './MultichainAssetsController';
+} from './MultichainAssetsController.js';
 
 const mockSolanaAccount: InternalAccount = {
   type: 'solana:data-account',
@@ -263,9 +263,11 @@ const setupController = ({
   mocks,
   /** `0` disables periodic Blockaid re-scan (default for tests). */
   blockaidTokenRescanInterval = 0,
+  isDeprecated,
 }: {
   state?: MultichainAssetsControllerState;
   blockaidTokenRescanInterval?: number;
+  isDeprecated?: () => boolean;
   mocks?: {
     listMultichainAccounts?: InternalAccount[];
     handleRequestReturnValue?: CaipAssetTypeOrId[];
@@ -353,6 +355,7 @@ const setupController = ({
     messenger: multichainAssetsControllerMessenger,
     state,
     blockaidTokenRescanInterval,
+    ...(isDeprecated && { isDeprecated }),
   });
 
   return {
@@ -1979,6 +1982,199 @@ describe('MultichainAssetsController', () => {
 
       publishSpy.mockRestore();
       controller.stopAllPolling();
+    });
+  });
+
+  describe('isDeprecated', () => {
+    const deprecatedAccountId = mockSolanaAccount.id;
+
+    const initialState: MultichainAssetsControllerState = {
+      accountsAssets: {
+        [deprecatedAccountId]: [
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+        ],
+      },
+      assetsMetadata: {
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501': {
+          name: 'Solana',
+          symbol: 'SOL',
+          fungible: true,
+          iconUrl: 'url1',
+          units: [{ name: 'Solana', symbol: 'SOL', decimals: 9 }],
+        },
+      },
+      allIgnoredAssets: {
+        [deprecatedAccountId]: [
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Spam',
+        ],
+      },
+    };
+
+    const emptyState: MultichainAssetsControllerState = {
+      accountsAssets: {},
+      assetsMetadata: {},
+      allIgnoredAssets: {},
+    };
+
+    it('clears all persisted state at construction when isDeprecated() returns true', () => {
+      const { controller } = setupController({
+        state: initialState,
+        isDeprecated: () => true,
+      });
+
+      expect(controller.state).toStrictEqual(emptyState);
+    });
+
+    it('preserves persisted state at construction when isDeprecated() returns false', () => {
+      const { controller } = setupController({
+        state: initialState,
+        isDeprecated: () => false,
+      });
+
+      expect(controller.state).toStrictEqual(initialState);
+    });
+
+    it('does not throw at construction when isDeprecated() is true and state is already empty', () => {
+      const { controller } = setupController({
+        isDeprecated: () => true,
+      });
+
+      expect(controller.state).toStrictEqual(emptyState);
+    });
+
+    it('does not issue Snap requests at construction when isDeprecated() returns true', () => {
+      const { mockSnapHandleRequest } = setupController({
+        state: initialState,
+        blockaidTokenRescanInterval: 60_000,
+        isDeprecated: () => true,
+      });
+
+      expect(mockSnapHandleRequest).not.toHaveBeenCalled();
+    });
+
+    it('does not add assets and clears stale state when isDeprecated toggles to true at runtime via addAssets', async () => {
+      let deprecated = false;
+      const { controller, mockSnapHandleRequest } = setupController({
+        state: initialState,
+        isDeprecated: () => deprecated,
+      });
+
+      expect(controller.state).toStrictEqual(initialState);
+
+      deprecated = true;
+      mockSnapHandleRequest.mockClear();
+
+      const result = await controller.addAssets(
+        ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:NewToken'],
+        deprecatedAccountId,
+      );
+
+      expect(result).toStrictEqual([]);
+      expect(controller.state).toStrictEqual(emptyState);
+      expect(mockSnapHandleRequest).not.toHaveBeenCalled();
+    });
+
+    it('does not ignore assets and clears stale state when isDeprecated toggles to true at runtime via ignoreAssets', () => {
+      let deprecated = false;
+      const { controller } = setupController({
+        state: initialState,
+        isDeprecated: () => deprecated,
+      });
+
+      expect(controller.state).toStrictEqual(initialState);
+
+      deprecated = true;
+
+      controller.ignoreAssets(
+        ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501'],
+        deprecatedAccountId,
+      );
+
+      expect(controller.state).toStrictEqual(emptyState);
+    });
+
+    it('clears stale state and skips Snap requests on "AccountsController:accountAdded" when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger, mockSnapHandleRequest } = setupController({
+        state: initialState,
+        isDeprecated: () => deprecated,
+      });
+
+      expect(controller.state).toStrictEqual(initialState);
+
+      deprecated = true;
+      mockSnapHandleRequest.mockClear();
+
+      messenger.publish(
+        'AccountsController:accountAdded',
+        mockSolanaAccount as unknown as InternalAccount,
+      );
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(controller.state).toStrictEqual(emptyState);
+      expect(mockSnapHandleRequest).not.toHaveBeenCalled();
+    });
+
+    it('clears stale state on "AccountsController:accountRemoved" when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        state: initialState,
+        isDeprecated: () => deprecated,
+      });
+
+      expect(controller.state).toStrictEqual(initialState);
+
+      deprecated = true;
+
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        deprecatedAccountId,
+      );
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(controller.state).toStrictEqual(emptyState);
+    });
+
+    it('clears stale state and skips Snap requests on "AccountsController:accountAssetListUpdated" when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger, mockSnapHandleRequest } = setupController({
+        state: initialState,
+        isDeprecated: () => deprecated,
+      });
+
+      expect(controller.state).toStrictEqual(initialState);
+
+      deprecated = true;
+      mockSnapHandleRequest.mockClear();
+
+      messenger.publish('AccountsController:accountAssetListUpdated', {
+        assets: {
+          [deprecatedAccountId]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:NewToken'],
+            removed: [],
+          },
+        },
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(controller.state).toStrictEqual(emptyState);
+      expect(mockSnapHandleRequest).not.toHaveBeenCalled();
+    });
+
+    it('does not run the periodic Blockaid rescan when isDeprecated() returns true', async () => {
+      const { controller, mockBulkScanTokens } = setupController({
+        blockaidTokenRescanInterval: 60_000,
+        state: initialState,
+        isDeprecated: () => true,
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(mockBulkScanTokens).not.toHaveBeenCalled();
+      expect(controller.state).toStrictEqual(emptyState);
     });
   });
 

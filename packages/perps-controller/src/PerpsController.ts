@@ -14,18 +14,18 @@ import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
-import { CandlePeriod } from './constants/chartConfig';
+import { CandlePeriod } from './constants/chartConfig.js';
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from './constants/eventNames';
-import { USDC_SYMBOL } from './constants/hyperLiquidConfig';
-import { PerpsMeasurementName } from './constants/performanceMetrics';
+} from './constants/eventNames.js';
+import { USDC_SYMBOL } from './constants/hyperLiquidConfig.js';
+import { PerpsMeasurementName } from './constants/performanceMetrics.js';
 import type {
   SortOptionId,
   ProLayoutPreferences,
   PerpsMode,
-} from './constants/perpsConfig';
+} from './constants/perpsConfig.js';
 import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
@@ -35,21 +35,21 @@ import {
   MAX_SLIPPAGE_BOUNDS,
   DEFAULT_PERPS_MODE,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
-} from './constants/perpsConfig';
-import type { PerpsControllerMethodActions } from './PerpsController-method-action-types';
-import { PERPS_ERROR_CODES } from './perpsErrorCodes';
-import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider';
-import { HyperLiquidProvider } from './providers/HyperLiquidProvider';
-import { AccountService } from './services/AccountService';
-import { DataLakeService } from './services/DataLakeService';
-import { DepositService } from './services/DepositService';
-import { EligibilityService } from './services/EligibilityService';
-import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService';
-import { MarketDataService } from './services/MarketDataService';
-import { RewardsIntegrationService } from './services/RewardsIntegrationService';
-import type { ServiceContext } from './services/ServiceContext';
-import { TerminalMarketService } from './services/TerminalMarketService';
-import { TradingService } from './services/TradingService';
+} from './constants/perpsConfig.js';
+import type { PerpsControllerMethodActions } from './PerpsController-method-action-types.js';
+import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider.js';
+import { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
+import { AccountService } from './services/AccountService.js';
+import { DataLakeService } from './services/DataLakeService.js';
+import { DepositService } from './services/DepositService.js';
+import { EligibilityService } from './services/EligibilityService.js';
+import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
+import { MarketDataService } from './services/MarketDataService.js';
+import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
+import type { ServiceContext } from './services/ServiceContext.js';
+import { TerminalMarketService } from './services/TerminalMarketService.js';
+import { TradingService } from './services/TradingService.js';
 // PerpsStreamChannelKey removed: using string for channel keys (PerpsStreamManager.pauseChannel takes string)
 import {
   WebSocketConnectionState,
@@ -59,7 +59,7 @@ import {
   isVersionGatedFeatureFlag,
   MARKET_CATEGORIES,
   // Platform dependencies interface for core migration (bundles all platform-specific deps)
-} from './types';
+} from './types/index.js';
 import type {
   AccountState,
   AssetRoute,
@@ -126,28 +126,31 @@ import type {
   PerpsAddTransactionOptions,
   MarketTypeFilter,
   MYXCredentials,
-} from './types';
-import type { SortDirection } from './types';
+} from './types/index.js';
+import type { SortDirection } from './types/index.js';
 import type {
   PerpsControllerAllowedActions,
   PerpsControllerAllowedEvents,
-} from './types/messenger';
-import type { CandleData } from './types/perps-types';
+} from './types/messenger.js';
+import type { CandleData } from './types/perps-types.js';
 import {
   LastTransactionResult,
   TransactionStatus,
-} from './types/transactionTypes';
-import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils';
-import { ensureError } from './utils/errorUtils';
-import { parseAssetName } from './utils/hyperLiquidAdapter';
-import { compileMarketPattern, shouldIncludeMarket } from './utils/marketUtils';
-import type { CompiledMarketPattern } from './utils/marketUtils';
+} from './types/transactionTypes.js';
+import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
+import { ensureError } from './utils/errorUtils.js';
+import { parseAssetName } from './utils/hyperLiquidAdapter.js';
+import {
+  compileMarketPattern,
+  shouldIncludeMarket,
+} from './utils/marketUtils.js';
+import type { CompiledMarketPattern } from './utils/marketUtils.js';
 import {
   hydrateFromDiskSync,
   persistMarketEntriesToDisk,
   persistUserEntriesToDisk,
-} from './utils/perpsDiskPersistence';
-import { wait } from './utils/wait';
+} from './utils/perpsDiskPersistence.js';
+import { wait } from './utils/wait.js';
 
 /** Derived type for logger options from PerpsLogger interface */
 type PerpsLoggerOptions = Parameters<PerpsLogger['error']>[1];
@@ -228,7 +231,7 @@ export type SelectedPaymentTokenSnapshot = {
 };
 
 // Re-export error codes from separate file to avoid circular dependencies
-export { PERPS_ERROR_CODES, type PerpsErrorCode } from './perpsErrorCodes';
+export { PERPS_ERROR_CODES, type PerpsErrorCode } from './perpsErrorCodes.js';
 
 /**
  * Initialization state enum for state machine tracking
@@ -246,8 +249,8 @@ export {
   PerpsMode,
   DEFAULT_PERPS_MODE,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
-} from './constants/perpsConfig';
-export type { ProLayoutPreferences } from './constants/perpsConfig';
+} from './constants/perpsConfig.js';
+export type { ProLayoutPreferences } from './constants/perpsConfig.js';
 
 /**
  * State shape for PerpsController

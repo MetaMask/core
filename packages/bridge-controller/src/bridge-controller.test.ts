@@ -16,32 +16,35 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 import nock from 'nock';
 
-import { flushPromises } from '../../../tests/helpers';
-import { handleFetch } from '../../controller-utils/src';
-import { mockBridgeQuotesErc20NativeV1 } from '../tests/mock-quotes-erc20-native';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
-import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth';
-import { mockBridgeQuotesSolErc20V1 } from '../tests/mock-quotes-sol-erc20';
-import { advanceToNthTimerThenFlush } from '../tests/mock-sse';
-import { BridgeController } from './bridge-controller';
+import { flushPromises } from '../../../tests/helpers.js';
+import { handleFetch } from '../../controller-utils/src/index.js';
+import { mockBridgeQuotesErc20NativeV1 } from '../tests/mock-quotes-erc20-native.js';
+import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
+import { mockBridgeQuotesSolErc20V1 } from '../tests/mock-quotes-sol-erc20.js';
+import { advanceToNthTimerThenFlush } from '../tests/mock-sse.js';
+import { BridgeController } from './bridge-controller.js';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
-} from './constants/bridge';
-import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
-import * as selectors from './selectors';
-import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types';
-import type { BridgeControllerMessenger, GenericQuoteRequest } from './types';
-import * as balanceUtils from './utils/balance';
-import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
+} from './constants/bridge.js';
+import { SWAPS_API_V2_BASE_URL } from './constants/swaps.js';
+import * as selectors from './selectors.js';
+import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types.js';
+import type {
+  BridgeControllerMessenger,
+  GenericQuoteRequest,
+} from './types.js';
+import * as balanceUtils from './utils/balance.js';
+import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge.js';
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
-} from './utils/caip-formatters';
-import * as featureFlagUtils from './utils/feature-flags';
-import * as fetchUtils from './utils/fetch';
+} from './utils/caip-formatters.js';
+import * as featureFlagUtils from './utils/feature-flags.js';
+import * as fetchUtils from './utils/fetch.js';
 import {
   BatchSellMetricsEventName,
   BatchSellMetricsLocation,
@@ -50,9 +53,9 @@ import {
   MetricsActionType,
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
-} from './utils/metrics/constants';
-import { FeatureId } from './validators/feature-flags';
-import type { QuoteResponseV1 } from './validators/quote-response-v1';
+} from './utils/metrics/constants.js';
+import { FeatureId } from './validators/feature-flags.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
@@ -247,7 +250,7 @@ describe('BridgeController', function () {
             }
             return {
               remoteFeatureFlags: { bridgeConfig: { ...bridgeConfig } },
-              address: '0x123',
+              address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
               provider: jest.fn(),
             } as never;
           },
@@ -266,7 +269,7 @@ describe('BridgeController', function () {
             srcTokenAddress: '0x0000000000000000000000000000000000000000',
             destTokenAddress: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
             srcTokenAmount: '1000000000000000000',
-            walletAddress: '0x123',
+            walletAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
             slippage: 0.5,
           },
           metricsContext,
@@ -328,7 +331,7 @@ describe('BridgeController', function () {
               }
               return {
                 remoteFeatureFlags: { bridgeConfig: { ...bridgeConfig } },
-                address: '0x123',
+                address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
                 provider: jest.fn(),
               } as never;
             },
@@ -347,7 +350,7 @@ describe('BridgeController', function () {
               srcTokenAddress: '0x0000000000000000000000000000000000000000',
               destTokenAddress: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
               srcTokenAmount: '1000000000000000000',
-              walletAddress: '0x123',
+              walletAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
               slippage: 0.5,
             },
             metricsContext,
@@ -403,7 +406,7 @@ describe('BridgeController', function () {
             }
             return {
               remoteFeatureFlags: { bridgeConfig: { ...bridgeConfig } },
-              address: '0x123',
+              address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
               provider: jest.fn(),
             } as never;
           },
@@ -420,7 +423,7 @@ describe('BridgeController', function () {
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
           destTokenAddress: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
           srcTokenAmount: '1000000000000000000',
-          walletAddress: '0x123',
+          walletAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
           slippage: 0.5,
         };
 
@@ -1867,6 +1870,11 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should include undefined Authentication header if getBearerToken throws an error', async function () {
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementationOnce(jest.fn())
+      .mockImplementationOnce(jest.fn());
+    jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
     jest.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
@@ -1880,7 +1888,7 @@ describe('BridgeController', function () {
                 );
               default:
                 return {
-                  address: '0x123',
+                  address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
                   provider: jest.fn(),
                   currentCurrency: 'usd',
                   currencyRates: {},
@@ -1911,9 +1919,9 @@ describe('BridgeController', function () {
           srcChainId: '0x1',
           destChainId: '0xa',
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
-          destTokenAddress: '0x123',
+          destTokenAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
           srcTokenAmount: '1000000000000000000',
-          walletAddress: '0x123',
+          walletAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
           slippage: 0.5,
         };
 
@@ -1926,12 +1934,27 @@ describe('BridgeController', function () {
         await advanceToNthTimerThenFlush();
 
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
+        expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(fetchBridgeQuotesSpy.mock.calls[0][3]).toBeUndefined();
+        expect(consoleErrorSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "Error getting JWT token for bridge-api request",
+              [Error: AuthenticationController:getBearerToken not implemented],
+            ],
+            [
+              "Error getting JWT token for bridge-api request",
+              [Error: AuthenticationController:getBearerToken not implemented],
+            ],
+          ]
+        `);
       },
     );
   });
 
   it('updateBridgeQuoteRequestParams should include auth token as Authentication header', async function () {
+    jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
+    jest.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
         const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
@@ -1942,7 +1965,7 @@ describe('BridgeController', function () {
                 return 'AUTH_TOKEN';
               default:
                 return {
-                  address: '0x123',
+                  address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
                   provider: jest.fn(),
                   currentCurrency: 'usd',
                   currencyRates: {},
@@ -1961,18 +1984,24 @@ describe('BridgeController', function () {
           .mockResolvedValue(true);
         const fetchBridgeQuotesSpy = jest
           .spyOn(fetchUtils, 'fetchBridgeQuotes')
-          .mockResolvedValueOnce({
-            quotes: mockBridgeQuotesNativeErc20EthV1,
-            validationFailures: [],
+          .mockImplementationOnce(async () => {
+            return await new Promise((resolve) => {
+              return setTimeout(() => {
+                resolve({
+                  quotes: mockBridgeQuotesNativeErc20EthV1,
+                  validationFailures: [],
+                });
+              }, 5000);
+            });
           });
 
         const quoteParams = {
           srcChainId: '0x1',
           destChainId: '0xa',
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
-          destTokenAddress: ETH_USDT_ADDRESS,
+          destTokenAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
           srcTokenAmount: '1000000000000000000',
-          walletAddress: ETH_USDT_ADDRESS,
+          walletAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
           slippage: 0.5,
         };
 
@@ -2620,6 +2649,7 @@ describe('BridgeController', function () {
           jest.advanceTimersByTime(100);
           await flushPromises();
           const { quotes } = bridgeController.state;
+          expect(quotes).toHaveLength(expectedQuotesLength);
           expect(bridgeController.state).toStrictEqual(
             expect.objectContaining({
               quotesLoadingStatus: RequestStatus.FETCHED,
@@ -2642,8 +2672,6 @@ describe('BridgeController', function () {
           );
 
           expect(snapCalls).toMatchSnapshot();
-
-          expect(quotes).toHaveLength(expectedQuotesLength);
 
           // Verify validation failure tracking
           expect(trackMetaMetricsFn).toHaveBeenCalledTimes(
@@ -3996,11 +4024,9 @@ describe('BridgeController', function () {
       ...overrides,
     });
 
-    let getBridgeFeatureFlagsSpy: jest.SpyInstance;
-
     beforeEach(() => {
       jest.clearAllMocks();
-      getBridgeFeatureFlagsSpy = jest
+      jest
         .spyOn(featureFlagUtils, 'getBridgeFeatureFlags')
         .mockReturnValueOnce({
           ...defaultFlags,
@@ -4010,7 +4036,10 @@ describe('BridgeController', function () {
               bridgeIds: ['bridge1', 'bridge2'],
               fee: 0,
             },
+            [FeatureId.QUICK_BUY_FOLLOW_TRADING]: undefined,
             [FeatureId.QUICK_BUY_TOKEN_DETAILS]: undefined,
+            [FeatureId.BATCH_SELL]: undefined,
+            [FeatureId.UNIFIED_SWAP_BRIDGE]: undefined,
             [FeatureId.DAPP_SWAP]: undefined,
           },
         });
@@ -4137,7 +4166,7 @@ describe('BridgeController', function () {
           const fetchBridgeQuotesSpy = jest
             .spyOn(fetchUtils, 'fetchBridgeQuotes')
             .mockResolvedValueOnce({
-              quotes: quotesByDecreasingProcessingTime as never,
+              quotes: quotesByDecreasingProcessingTime,
               validationFailures: [],
             });
           const expectedControllerState = bridgeController.state;
@@ -4263,6 +4292,10 @@ describe('BridgeController', function () {
     it('should not add aggIds and fee if quoteRequestOverrides is not set', async () => {
       await withController(
         async ({ controller: bridgeController, rootMessenger }) => {
+          const getBridgeFeatureFlagsSpy = jest.spyOn(
+            featureFlagUtils,
+            'getBridgeFeatureFlags',
+          );
           getBridgeFeatureFlagsSpy.mockRestore();
           getBridgeFeatureFlagsSpy.mockReturnValueOnce({
             ...defaultFlags,

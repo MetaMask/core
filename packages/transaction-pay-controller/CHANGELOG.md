@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
+### Added
+
+- **BREAKING:** Validate Relay quotes by simulating their transactions, surfacing failures as a structured `quoteError` on `TransactionData` ([#9143](https://github.com/MetaMask/core/pull/9143))
+  - The messenger must now allow the `SentinelApiService:simulateTransactions` action.
+  - Add `quoteError` (`QuoteErrorInfo`: `{ message, reason, detail? }`) and export `QuoteErrorInfo` and `QuoteErrorReason`.
+  - Add `payStrategies.relay.validationEnabled` extended feature flag (in `confirmations_pay_extended`) as a kill switch; validation is disabled by default.
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^11.1.1` to `^11.2.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+
+### Fixed
+
+- Reserve the HyperLiquid activation fee based on how HyperLiquid actually charges it ([#9594](https://github.com/MetaMask/core/pull/9594))
+  - Bridge withdrawals no longer count as activation, so accounts whose only outbound history is bridge withdrawals now get the fee reserved and their max withdrawals no longer fail with `Insufficient USDC balance for token transfer gas`
+  - Accounts created by an inbound transfer that paid the activation fee are detected as activated, so no fee is reserved and the full balance can be withdrawn
+  - Activation-check failures now reserve the fee instead of skipping it
+- Resolve the activation fee feature flag override through the nested transaction type when the parent transaction is a batch, so EIP-7702 batched withdrawals match their `perpsWithdraw` override instead of silently disabling the fee ([#9594](https://github.com/MetaMask/core/pull/9594))
+
+## [25.1.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^11.1.0` to `^11.1.1` ([#9593](https://github.com/MetaMask/core/pull/9593))
+- Bump `@metamask/assets-controllers` from `^109.4.1` to `^110.0.0` ([#9593](https://github.com/MetaMask/core/pull/9593))
+- Bump `@metamask/transaction-controller` from `^69.2.0` to `^69.2.1` ([#9593](https://github.com/MetaMask/core/pull/9593))
+
+## [25.1.0]
+
+### Changed
+
+- Consume `hasTransactionType` helper from `@metamask/transaction-controller` to derive relevant transaction type against the top-level `TransactionMeta` ([#9570](https://github.com/MetaMask/core/pull/9570))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589))
+- Bump `@metamask/assets-controller` from `^11.0.0` to `^11.1.0` ([#9579](https://github.com/MetaMask/core/pull/9579))
+
 ## [25.0.0]
 
 ### Added
@@ -1300,7 +1338,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.1.1...@metamask/transaction-pay-controller@26.0.0
+[25.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.1.0...@metamask/transaction-pay-controller@25.1.1
+[25.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.0.0...@metamask/transaction-pay-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.1.0...@metamask/transaction-pay-controller@25.0.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.3...@metamask/transaction-pay-controller@24.1.0
 [24.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.2...@metamask/transaction-pay-controller@24.0.3

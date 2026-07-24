@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.5.0]
+
 ### Changed
 
-- Bump `@metamask/bridge-controller` from `^77.5.0` to `^77.6.0` ([#9558](https://github.com/MetaMask/core/pull/9558))
+- Use `gasFee.total` instead of `gasFee.effective` to calculate gas metrics properties ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Update utils to use `mergeQuoteMetadata` and handle optional QuoteMetadata values. ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Bump `@metamask/bridge-controller` from `^77.7.0` to `^78.0.0` ([#9614](https://github.com/MetaMask/core/pull/9614)), ([#9637](https://github.com/MetaMask/core/pull/9637))
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+
+## [74.4.0]
+
+### Changed
+
+- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
+- Add optional `txMetaId`, `srcTxHash`, and `srcChainId` fields to `QuoteStatusUpdateErrorDetails` to provide more context in quote-status update error reports ([#9596](https://github.com/MetaMask/core/pull/9596))
+- Bump `@metamask/bridge-controller` from `^77.5.0` to `^77.7.0` ([#9558](https://github.com/MetaMask/core/pull/9558), [#9593](https://github.com/MetaMask/core/pull/9593))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.1` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593))
 
 ## [74.3.0]
 
@@ -1428,7 +1442,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.5.0...HEAD
+[74.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.4.0...@metamask/bridge-status-controller@74.5.0
+[74.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.3.0...@metamask/bridge-status-controller@74.4.0
 [74.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.2.0...@metamask/bridge-status-controller@74.3.0
 [74.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.2...@metamask/bridge-status-controller@74.2.0
 [74.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.1...@metamask/bridge-status-controller@74.1.2

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SocialService } from './SocialService';
+import type { SocialService } from './SocialService.js';
 
 /**
  * Fetches the leaderboard of top traders.

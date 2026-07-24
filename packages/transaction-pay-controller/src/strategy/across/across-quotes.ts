@@ -1,11 +1,15 @@
 import { successfulFetch, toHex } from '@metamask/controller-utils';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { TransactionPayStrategy } from '../../constants';
-import { projectLogger } from '../../logger';
+import { TransactionPayStrategy } from '../../constants.js';
+import { projectLogger } from '../../logger.js';
 import type {
   Amount,
   FiatRates,
@@ -13,38 +17,40 @@ import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { getFiatValueFromUsd, sumAmounts } from '../../utils/amounts';
-import { getPayStrategiesConfig, getSlippage } from '../../utils/feature-flags';
-import { calculateGasCost } from '../../utils/gas';
+} from '../../types.js';
+import { getFiatValueFromUsd, sumAmounts } from '../../utils/amounts.js';
+import {
+  getPayStrategiesConfig,
+  getSlippage,
+} from '../../utils/feature-flags.js';
 import {
   getGasStationCostInSourceTokenRaw,
   getGasStationEligibility,
-} from '../../utils/gas-station';
-import { estimateQuoteGasLimits } from '../../utils/quote-gas';
-import type { QuoteGasTransaction } from '../../utils/quote-gas';
+} from '../../utils/gas-station.js';
+import { calculateGasCost } from '../../utils/gas.js';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
+import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
-} from '../../utils/token';
-import { isPredictWithdrawTransaction } from '../../utils/transaction';
-import type { AcrossDestination } from './across-actions';
-import { getAcrossDestination } from './across-actions';
-import { hasUnsupportedTransactionAuthorizationList } from './authorization-list';
-import { normalizeAcrossRequest } from './perps';
-import { isAcrossQuoteRequest } from './requests';
+} from '../../utils/token.js';
+import type { AcrossDestination } from './across-actions.js';
+import { getAcrossDestination } from './across-actions.js';
+import { hasUnsupportedTransactionAuthorizationList } from './authorization-list.js';
+import { normalizeAcrossRequest } from './perps.js';
+import { isAcrossQuoteRequest } from './requests.js';
 import {
   getAcrossOrderedTransactions,
   getOriginalTransactionGas,
-} from './transactions';
+} from './transactions.js';
 import type {
   AcrossAction,
   AcrossActionRequestBody,
   AcrossGasLimits,
   AcrossQuote,
   AcrossSwapApprovalResponse,
-} from './types';
+} from './types.js';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 
@@ -190,7 +196,9 @@ async function getQuoteWithGasStationHandling(
 
   const requiresSourceGasReservation =
     request.isPostQuote === true &&
-    isPredictWithdrawTransaction(fullRequest.transaction);
+    hasTransactionType(fullRequest.transaction, [
+      TransactionType.predictWithdraw,
+    ]);
 
   const adjustedSourceAmount = new BigNumber(request.sourceTokenAmount)
     .minus(phase1Quote.fees.sourceNetwork.max.raw)
@@ -567,7 +575,8 @@ async function calculateSourceNetworkCost(
   const { swapTx } = quote;
   const swapChainId = toHex(swapTx.chainId);
   const isPredictWithdraw =
-    request.isPostQuote === true && isPredictWithdrawTransaction(transaction);
+    request.isPostQuote === true &&
+    hasTransactionType(transaction, [TransactionType.predictWithdraw]);
   const relaxPrefundedSourceEstimate =
     isPredictWithdraw &&
     new BigNumber(request.sourceTokenAmount).gt(request.sourceBalanceRaw);

@@ -2,39 +2,39 @@ import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
 import type { UserStorageController } from '@metamask/profile-sync-controller';
 
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountTreeControllerState } from '../../types';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { TraceName } from '../analytics';
-import type { ProfileId } from '../authentication';
-import { getProfileId } from '../authentication';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountTreeControllerState } from '../../types.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { TraceName } from '../analytics/index.js';
+import type { ProfileId } from '../authentication/index.js';
+import { getProfileId } from '../authentication/index.js';
 import {
   createLocalGroupsFromUserStorage,
   performLegacyAccountSyncing,
   syncGroupsMetadata,
   syncGroupMetadata,
   syncWalletMetadata,
-} from '../syncing';
+} from '../syncing/index.js';
 import type {
   BackupAndSyncContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-} from '../types';
+} from '../types.js';
 import {
   getAllGroupsFromUserStorage,
   getGroupFromUserStorage,
   getWalletFromUserStorage,
   pushGroupToUserStorageBatch,
-} from '../user-storage';
+} from '../user-storage/index.js';
 import {
   createStateSnapshot,
   restoreStateFromSnapshot,
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
   toErrorMessage,
-} from '../utils';
-import type { StateSnapshot } from '../utils';
-import { AtomicSyncQueue } from './atomic-sync-queue';
+} from '../utils/index.js';
+import type { StateSnapshot } from '../utils/index.js';
+import { AtomicSyncQueue } from './atomic-sync-queue.js';
 
 /**
  * Service responsible for managing all backup and sync operations.
@@ -215,9 +215,9 @@ export class BackupAndSyncService {
    *
    * @returns A promise that resolves when the sync is complete.
    */
-  async performFullSync(): Promise<void> {
+  performFullSync(): Promise<void> {
     if (!this.isBackupAndSyncEnabled) {
-      return undefined;
+      return Promise.resolve(undefined);
     }
 
     // If there's an ongoing sync (including first sync), return it
@@ -249,9 +249,9 @@ export class BackupAndSyncService {
    *
    * @returns A promise that resolves when the sync is complete.
    */
-  async performFullSyncAtLeastOnce(): Promise<void> {
+  performFullSyncAtLeastOnce(): Promise<void> {
     if (!this.isBackupAndSyncEnabled) {
-      return undefined;
+      return Promise.resolve(undefined);
     }
 
     if (!this.#firstOngoingFullSyncPromise) {

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MultichainTransactionsController } from './MultichainTransactionsController';
+import type { MultichainTransactionsController } from './MultichainTransactionsController.js';
 
 /**
  * Updates transactions for a specific account. This is used for the initial fetch

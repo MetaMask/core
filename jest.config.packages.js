@@ -80,6 +80,9 @@ module.exports = {
   // Here we ensure that Jest resolves `@metamask/*` imports to the uncompiled source code for packages that live in this repo.
   // NOTE: This must be synchronized with the `paths` option in `tsconfig.base.json`.
   moduleNameMapper: {
+    // Strip .js extensions from relative imports so Jest resolves them to
+    // the TypeScript source files.
+    '^(\\.{1,2}/.+)\\.js$': '$1',
     '^@metamask/json-rpc-engine/v2$': [
       '<rootDir>/../json-rpc-engine/src/v2/index.ts',
     ],
@@ -104,10 +107,6 @@ module.exports = {
 
   // A preset that is used as a base for Jest's configuration
   preset: 'ts-jest',
-
-  // The path to the Prettier executable used to format snapshots
-  // Jest doesn't support Prettier 3 yet, so we use Prettier 2
-  prettierPath: require.resolve('prettier-2'),
 
   // Run tests from one or more projects
   // projects: undefined

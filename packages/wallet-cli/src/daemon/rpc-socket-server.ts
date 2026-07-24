@@ -10,8 +10,8 @@ import { chmod, unlink } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Server } from 'node:net';
 
-import type { RpcHandlerMap } from './types';
-import { isErrorWithCode } from './utils';
+import type { RpcHandlerMap } from './types.js';
+import { isErrorWithCode } from './utils.js';
 
 const CONNECTION_TIMEOUT_MS = 30_000;
 

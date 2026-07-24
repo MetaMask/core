@@ -1,9 +1,9 @@
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from '../../../logger';
-import type { MulticallClient } from '../clients';
-import type { TokensApiClient } from '../clients/TokensApiClient';
+import { projectLogger, createModuleLogger } from '../../../logger.js';
+import type { MulticallClient } from '../clients/index.js';
+import type { TokensApiClient } from '../clients/TokensApiClient.js';
 import type {
   AccountId,
   Address,
@@ -15,8 +15,8 @@ import type {
   TokenDetectionOptions,
   TokenDetectionResult,
   TokenListEntry,
-} from '../types';
-import { reduceInBatchesSerially } from '../utils';
+} from '../types/index.js';
+import { reduceInBatchesSerially } from '../utils/index.js';
 
 const log = createModuleLogger(projectLogger, 'TokenDetector');
 

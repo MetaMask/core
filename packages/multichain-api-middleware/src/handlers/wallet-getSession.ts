@@ -23,7 +23,7 @@ import type {
   GetCaveatForOriginHook,
   GetNonEvmSupportedMethodsHook,
   SortAccountIdsByLastSelectedHook,
-} from './types';
+} from './types.js';
 
 type WalletGetSessionResult = {
   sessionScopes: NormalizedScopesObject;

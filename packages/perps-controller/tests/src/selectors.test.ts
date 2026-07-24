@@ -1,6 +1,6 @@
 /* eslint-disable */
-import { MARKET_SORTING_CONFIG } from '../../src/constants/perpsConfig';
-import type { PerpsControllerState } from '../../src/PerpsController';
+import { MARKET_SORTING_CONFIG } from '../../src/constants/perpsConfig.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
 import {
   selectIsFirstTimeUser,
   selectTradeConfiguration,
@@ -13,7 +13,7 @@ import {
   selectRecentlyViewedMarkets,
   selectProLayoutPreferences,
   selectPerpsMode,
-} from '../../src/selectors';
+} from '../../src/selectors.js';
 
 describe('PerpsController selectors', () => {
   describe('selectIsFirstTimeUser', () => {

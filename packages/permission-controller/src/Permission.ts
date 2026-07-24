@@ -4,14 +4,14 @@ import type { Json } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { CaveatConstraint, Caveat } from './Caveat';
+import type { CaveatConstraint, Caveat } from './Caveat.js';
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   PermissionController,
   PermissionsRequest,
   SideEffectMessenger,
-} from './PermissionController';
-import type { SubjectType } from './SubjectMetadataController';
+} from './PermissionController.js';
+import type { SubjectType } from './SubjectMetadataController.js';
 
 /**
  * The origin of a subject.

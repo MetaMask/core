@@ -1,8 +1,12 @@
 import {
   MARKET_SORTING_CONFIG,
   PERPS_CONSTANTS,
-} from '../constants/perpsConfig';
-import type { PerpsMarketData, SortDirection, SortField } from '../types';
+} from '../constants/perpsConfig.js';
+import type {
+  PerpsMarketData,
+  SortDirection,
+  SortField,
+} from '../types/index.js';
 
 export type SortMarketsParams = {
   markets: PerpsMarketData[];

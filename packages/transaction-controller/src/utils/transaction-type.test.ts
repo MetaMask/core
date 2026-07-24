@@ -8,14 +8,16 @@ import {
 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionType } from '../types';
-import { DELEGATION_PREFIX } from './eip7702';
-import { rpcRequest } from './provider';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { TransactionType } from '../types.js';
+import { DELEGATION_PREFIX } from './eip7702.js';
+import { rpcRequest } from './provider.js';
 import {
   decodeTransactionData,
   determineTransactionType,
-} from './transaction-type';
+  hasTransactionType,
+} from './transaction-type.js';
 
 jest.mock('./provider', () => ({
   rpcRequest: jest.fn(),
@@ -394,5 +396,72 @@ describe('decodeTransactionData', () => {
     expect(result?.args._to.toLowerCase()).toBe(to.toLowerCase());
     expect(result?.args[0].toLowerCase()).toBe(to.toLowerCase());
     expect(result?.args[1].toString()).toBe(amount);
+  });
+});
+
+describe('hasTransactionType', () => {
+  const MATCH = TransactionType.perpsWithdraw;
+  const OTHER = TransactionType.simpleSend;
+
+  it('returns true when the top-level transaction type matches', () => {
+    const transaction = { type: MATCH } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(true);
+  });
+
+  it('returns true when a nested transaction type matches', () => {
+    const transaction = {
+      nestedTransactions: [{ type: MATCH }],
+    } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(true);
+  });
+
+  it('returns true when one of multiple nested transaction types matches', () => {
+    const transaction = {
+      nestedTransactions: [{ type: OTHER }, { type: MATCH }],
+    } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(true);
+  });
+
+  it('returns true when the top-level type matches any of multiple candidates', () => {
+    const transaction = { type: MATCH } as TransactionMeta;
+
+    expect(
+      hasTransactionType(transaction, [TransactionType.predictWithdraw, MATCH]),
+    ).toBe(true);
+  });
+
+  it('returns false when nested transactions have different types', () => {
+    const transaction = {
+      nestedTransactions: [{ type: OTHER }],
+    } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(false);
+  });
+
+  it('returns false when nestedTransactions is undefined', () => {
+    const transaction = {} as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(false);
+  });
+
+  it('returns false when nestedTransactions is empty', () => {
+    const transaction = {
+      nestedTransactions: [] as { type: TransactionType }[],
+    } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(false);
+  });
+
+  it('returns false when the transaction is undefined', () => {
+    expect(hasTransactionType(undefined, [MATCH])).toBe(false);
+  });
+
+  it('returns false when the types array is empty', () => {
+    const transaction = { type: MATCH } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [])).toBe(false);
   });
 });

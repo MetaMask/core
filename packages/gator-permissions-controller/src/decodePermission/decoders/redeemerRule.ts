@@ -1,9 +1,9 @@
 import { decodeRedeemerTerms } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 
-import { EXECUTION_PERMISSION_REDEEMER_RULE_TYPE } from '../../constants';
-import type { RuleDecoder } from '../types';
-import { getTermsByEnforcer } from '../utils';
+import { EXECUTION_PERMISSION_REDEEMER_RULE_TYPE } from '../../constants.js';
+import type { RuleDecoder } from '../types.js';
+import { getTermsByEnforcer } from '../utils.js';
 
 /**
  * Rule decoder that extracts a redeemer allowlist from a RedeemerEnforcer

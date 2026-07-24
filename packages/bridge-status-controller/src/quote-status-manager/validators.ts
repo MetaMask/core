@@ -8,13 +8,13 @@ import {
   optional,
 } from '@metamask/superstruct';
 
-import { StatusResponseSchema } from '../utils/validators';
+import { StatusResponseSchema } from '../utils/validators.js';
 import {
   BaseQuoteStatusUpdateErrorTypes,
   QuoteStatusUpdateBackendOnChainMismatchTypes,
   QuoteStatusBackendValues,
-} from './constants';
-import { QuoteStatusGetResponse, QuoteStatusUpdateResponse } from './types';
+} from './constants.js';
+import { QuoteStatusGetResponse, QuoteStatusUpdateResponse } from './types.js';
 
 const QuoteStatusUpdateResponseWithCurrentStatusSchema = type({
   statusCode: number(),

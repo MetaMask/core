@@ -1,7 +1,7 @@
 import {
   coalescePerpsRestRequest,
   resetPerpsRestCacheForTests,
-} from '../../../src/utils/coalescePerpsRestRequest';
+} from '../../../src/utils/coalescePerpsRestRequest.js';
 
 describe('coalescePerpsRestRequest', () => {
   beforeEach(() => {

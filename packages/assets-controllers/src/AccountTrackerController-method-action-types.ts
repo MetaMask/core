@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AccountTrackerController } from './AccountTrackerController';
+import type { AccountTrackerController } from './AccountTrackerController.js';
 
 /**
  * Refreshes the balances of the accounts depending on the multi-account setting.

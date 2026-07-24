@@ -4,14 +4,14 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { projectLogger } from '../logger';
+import { projectLogger } from '../logger.js';
 import type {
   Amount,
   QuoteRequest,
   TransactionPayControllerMessenger,
-} from '../types';
-import { getFeatureFlags, isEIP7702Chain } from './feature-flags';
-import { calculateGasFeeTokenCost } from './gas';
+} from '../types.js';
+import { getFeatureFlags, isEIP7702Chain } from './feature-flags.js';
+import { calculateGasFeeTokenCost } from './gas.js';
 
 const log = createModuleLogger(projectLogger, 'gas-station');
 

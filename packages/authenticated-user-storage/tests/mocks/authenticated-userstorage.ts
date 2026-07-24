@@ -1,11 +1,11 @@
-import { getAuthenticatedStorageUrl } from '../../src/authenticated-user-storage';
+import { getAuthenticatedStorageUrl } from '../../src/authenticated-user-storage.js';
 import type {
   AssetsWatchlistBlob,
   DelegationResponse,
   DelegationSubmission,
   NotificationPreferences,
-} from '../../src/types';
-import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators';
+} from '../../src/types.js';
+import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators.js';
 
 export const MOCK_DELEGATIONS_URL = `${getAuthenticatedStorageUrl('prod')}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/notifications`;

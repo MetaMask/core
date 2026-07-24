@@ -31,36 +31,36 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildCustomRpcEndpoint,
   buildInfuraNetworkConfiguration,
-} from '../../network-controller/tests/helpers';
-import { formatAggregatorNames } from './assetsUtil';
-import { MUSD_ERC20_ADDRESS_LOWER } from './constants';
+} from '../../network-controller/tests/helpers.js';
+import { formatAggregatorNames } from './assetsUtil.js';
+import { MUSD_ERC20_ADDRESS_LOWER } from './constants.js';
 import {
   resetSuggestedOccurrenceFloorsCacheForTesting,
   TOKEN_END_POINT_API,
-} from './token-service';
-import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
+} from './token-service.js';
+import type { TokenDetectionControllerMessenger } from './TokenDetectionController.js';
 import {
   TokenDetectionController,
   controllerName,
-} from './TokenDetectionController';
-import { getDefaultTokenListState } from './TokenListController';
+} from './TokenDetectionController.js';
+import { getDefaultTokenListState } from './TokenListController.js';
 import type {
   TokenListMap,
   TokenListState,
   TokenListToken,
-} from './TokenListController';
-import type { TokenListService } from './TokenListService';
-import type { Token } from './TokenRatesController';
+} from './TokenListController.js';
+import type { TokenListService } from './TokenListService.js';
+import type { Token } from './TokenRatesController.js';
 import type {
   TokensController,
   TokensControllerState,
-} from './TokensController';
-import { getDefaultTokensState } from './TokensController';
+} from './TokensController.js';
+import { getDefaultTokensState } from './TokensController.js';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -4065,6 +4065,276 @@ describe('TokenDetectionController', () => {
           expect(musdRows).toHaveLength(1);
         },
       );
+    });
+  });
+
+  describe('isDeprecated', () => {
+    it('does not throw at construction when isDeprecated() is true', async () => {
+      await withController(
+        { options: { isDeprecated: () => true } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not make any network calls when isDeprecated() returns true from construction', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+      await withController(
+        {
+          options: {
+            isDeprecated: () => true,
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockTokenListGetState,
+          mockGetNetworkClientById,
+        }) => {
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0xa86a': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    aggregators: [],
+                    iconUrl: '',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          });
+          mockGetNetworkClientById(
+            () =>
+              ({
+                configuration: { chainId: '0xa86a' },
+              }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+          );
+
+          await controller.detectTokens();
+
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+          expect(controller.state).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not detect tokens when isDeprecated toggles to true at runtime via detectTokens', async () => {
+      let deprecated = false;
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+      await withController(
+        {
+          options: {
+            isDeprecated: () => deprecated,
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
+          },
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          await controller.detectTokens();
+
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+          expect(controller.state).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not start polling when isDeprecated toggles to true at runtime via start', async () => {
+      let deprecated = false;
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+      await withController(
+        {
+          options: {
+            isDeprecated: () => deprecated,
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
+          },
+        },
+        async ({ controller }) => {
+          const mockDetectTokens = jest
+            .spyOn(controller, 'detectTokens')
+            .mockImplementation();
+
+          deprecated = true;
+
+          await controller.start();
+
+          expect(mockDetectTokens).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not detect tokens when isDeprecated toggles to true at runtime via _executePoll', async () => {
+      let deprecated = false;
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+      await withController(
+        {
+          options: {
+            isDeprecated: () => deprecated,
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          await controller._executePoll({
+            chainIds: ['0xa86a'],
+            address: '0x1',
+          });
+
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+          expect(controller.state).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not add tokens when isDeprecated toggles to true at runtime via addDetectedTokensViaWs', async () => {
+      let deprecated = false;
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            isDeprecated: () => deprecated,
+            disabled: false,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          deprecated = true;
+
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('does not add tokens when isDeprecated toggles to true at runtime via addDetectedTokensViaPolling', async () => {
+      let deprecated = false;
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            isDeprecated: () => deprecated,
+            disabled: false,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          deprecated = true;
+
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('keeps polling but bails early when isDeprecated toggles to true at runtime', async () => {
+      jest.useFakeTimers();
+      let deprecated = false;
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+      await withController(
+        {
+          options: {
+            isDeprecated: () => deprecated,
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
+          },
+        },
+        async ({ controller }) => {
+          const detectTokensSpy = jest.spyOn(controller, 'detectTokens');
+
+          controller.setIntervalLength(10);
+          await controller.start();
+          expect(detectTokensSpy).toHaveBeenCalledTimes(1);
+
+          deprecated = true;
+          await controller.detectTokens();
+          mockGetBalancesInSingleCall.mockClear();
+
+          detectTokensSpy.mockClear();
+          await jestAdvanceTime({ duration: 15 });
+          expect(detectTokensSpy).toHaveBeenCalled();
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+        },
+      );
+      jest.useRealTimers();
     });
   });
 });

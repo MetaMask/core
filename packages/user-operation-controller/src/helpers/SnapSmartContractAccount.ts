@@ -1,4 +1,4 @@
-import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from '../constants';
+import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from '../constants.js';
 import type {
   PrepareUserOperationRequest,
   PrepareUserOperationResponse,
@@ -7,9 +7,9 @@ import type {
   SmartContractAccount,
   UpdateUserOperationRequest,
   UpdateUserOperationResponse,
-} from '../types';
-import type { UserOperationControllerMessenger } from '../UserOperationController';
-import { toEip155ChainId } from '../utils/chain-id';
+} from '../types.js';
+import type { UserOperationControllerMessenger } from '../UserOperationController.js';
+import { toEip155ChainId } from '../utils/chain-id.js';
 
 export class SnapSmartContractAccount implements SmartContractAccount {
   readonly #messenger: UserOperationControllerMessenger;

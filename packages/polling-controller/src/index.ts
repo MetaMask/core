@@ -1,11 +1,11 @@
 export {
   BlockTrackerPollingControllerOnly,
   BlockTrackerPollingController,
-} from './BlockTrackerPollingController';
+} from './BlockTrackerPollingController.js';
 
 export {
   StaticIntervalPollingControllerOnly,
   StaticIntervalPollingController,
-} from './StaticIntervalPollingController';
+} from './StaticIntervalPollingController.js';
 
-export type { IPollingController } from './types';
+export type { IPollingController } from './types.js';

@@ -49,16 +49,16 @@ import type {
   AssetsContractControllerGetERC721AssetNameAction,
   AssetsContractControllerGetERC721AssetSymbolAction,
   AssetsContractControllerGetERC721TokenURIAction,
-} from './AssetsContractController-method-action-types';
+} from './AssetsContractController-method-action-types.js';
 import {
   compareNftMetadata,
   getFormattedIpfsUrl,
   hasNewCollectionFields,
   reduceInBatchesSerially,
-} from './assetsUtil';
-import { Source } from './constants';
-import { getNftOwnershipForMultipleNfts } from './multicall';
-import type { NftOwnershipResult } from './multicall';
+} from './assetsUtil.js';
+import { Source } from './constants.js';
+import { getNftOwnershipForMultipleNfts } from './multicall.js';
+import type { NftOwnershipResult } from './multicall.js';
 import type {
   ApiNftContract,
   ReservoirResponse,
@@ -66,7 +66,7 @@ import type {
   Attributes,
   LastSale,
   TopBid,
-} from './NftDetectionController';
+} from './NftDetectionController.js';
 
 export type NFTStandardType = 'ERC721' | 'ERC1155';
 

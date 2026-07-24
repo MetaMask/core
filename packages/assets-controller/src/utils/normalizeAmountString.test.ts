@@ -1,4 +1,4 @@
-import { normalizeAmountString } from './normalizeAmountString';
+import { normalizeAmountString } from './normalizeAmountString.js';
 
 describe('normalizeAmountString', () => {
   describe('with decimals=18 (e.g. ETH/most ERC20)', () => {

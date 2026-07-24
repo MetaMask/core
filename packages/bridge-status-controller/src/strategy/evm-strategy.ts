@@ -7,10 +7,10 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
-import { BridgeStatusControllerMessenger } from '../types';
-import { getAccountByAddress } from '../utils/accounts';
-import { getNetworkClientIdByChainId } from '../utils/network';
-import { getApprovalTraceParams } from '../utils/trace';
+import { BridgeStatusControllerMessenger } from '../types.js';
+import { getAccountByAddress } from '../utils/accounts.js';
+import { getNetworkClientIdByChainId } from '../utils/network.js';
+import { getApprovalTraceParams } from '../utils/trace.js';
 import {
   addTransaction,
   generateActionId,
@@ -18,9 +18,9 @@ import {
   handleMobileHardwareWalletDelay,
   toTransactionParams,
   waitForTxConfirmation,
-} from '../utils/transaction';
-import { SubmitStep } from './types';
-import type { SubmitStrategyParams, SubmitStepResult } from './types';
+} from '../utils/transaction.js';
+import { SubmitStep } from './types.js';
+import type { SubmitStrategyParams, SubmitStepResult } from './types.js';
 
 /**
  * Submits a single tx to the TransactionController and returns the txMetaId

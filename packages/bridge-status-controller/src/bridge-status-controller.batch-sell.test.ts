@@ -7,6 +7,7 @@ import type {
 import {
   BatchSellTransactionType,
   FeatureId,
+  mergeQuoteMetadata,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -25,16 +26,16 @@ import {
   getTxMetasForBatch,
   mockBatchSellErc20Erc20,
   mockBatchSellTradesErc20Erc20,
-} from '../test/mock-batch-sell-erc20-erc20';
-import { BridgeStatusController } from './bridge-status-controller';
-import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import { BridgeClientId } from './types';
+} from '../test/mock-batch-sell-erc20-erc20.js';
+import { BridgeStatusController } from './bridge-status-controller.js';
+import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants.js';
+import { BridgeClientId } from './types.js';
 import type {
   BridgeHistoryItem,
   BridgeStatusControllerMessenger,
-} from './types';
-import { getBatchSellHistoryItemsForTxHash } from './utils/history';
-import { shouldDisable7702 } from './utils/transaction';
+} from './types.js';
+import { getBatchSellHistoryItemsForTxHash } from './utils/history.js';
+import { shouldDisable7702 } from './utils/transaction.js';
 
 const mockGenerateBatchId = jest.fn();
 jest.mock('@metamask/transaction-controller', () => ({
@@ -153,24 +154,29 @@ const mockSelectedAccount = {
   },
 };
 const batchId = '0xBatchId1';
-const mockQuotes = mockBatchSellErc20Erc20.map((quote) => ({
-  ...quote,
-  quote: {
-    ...quote.quote,
-    // BatchSell quotes have no gasless params because they are not simulated
-    gasIncluded7702: undefined,
-    gasIncluded: undefined,
-    gasSponsored: undefined,
-  },
-  sentAmount: {
-    usd: '100',
-    valueInCurrency: '200',
-  },
-  toTokenAmount: {
-    usd: '101',
-    valueInCurrency: '201',
-  },
-}));
+const mockQuotes = mockBatchSellErc20Erc20
+  .map((quote) => ({
+    ...quote,
+    quote: {
+      ...quote.quote,
+      // BatchSell quotes have no gasless params because they are not simulated
+      gasIncluded7702: undefined,
+      gasIncluded: undefined,
+      gasSponsored: undefined,
+    },
+  }))
+  .map((quote) =>
+    mergeQuoteMetadata(quote, {
+      sentAmount: {
+        usd: '100',
+        valueInCurrency: '200',
+      },
+      toTokenAmount: {
+        usd: '101',
+        valueInCurrency: '201',
+      },
+    }),
+  );
 const mockTransferTx: BatchSellTradesResponse['transactions'][number] = {
   chainId: 10,
   from: '0xaccount1',

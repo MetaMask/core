@@ -16,7 +16,7 @@ import type {
   AssetPrice,
   FungibleAssetPrice,
   Caip19AssetId,
-} from '../types';
+} from '../types.js';
 
 /**
  * Exchange rates in the format expected by the bridge controller:

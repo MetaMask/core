@@ -15,15 +15,15 @@ import {
 } from '@metamask/superstruct';
 import type { Infer, Struct } from '@metamask/superstruct';
 
-import type { AccountTreeController } from '../AccountTreeController';
+import type { AccountTreeController } from '../AccountTreeController.js';
 import type {
   AccountGroupMultichainAccountObject,
   AccountTreeGroupPersistedMetadata,
-} from '../group';
-import type { RuleResult } from '../rule';
-import type { AccountTreeControllerMessenger } from '../types';
-import type { AccountTreeWalletPersistedMetadata } from '../wallet';
-import type { BackupAndSyncEmitAnalyticsEventParams } from './analytics';
+} from '../group.js';
+import type { RuleResult } from '../rule.js';
+import type { AccountTreeControllerMessenger } from '../types.js';
+import type { AccountTreeWalletPersistedMetadata } from '../wallet.js';
+import type { BackupAndSyncEmitAnalyticsEventParams } from './analytics/index.js';
 
 /**
  * Schema for an updatable field with value and timestamp.

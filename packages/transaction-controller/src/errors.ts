@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
-import { SimulationErrorCode } from './types';
+import { SimulationErrorCode } from './types.js';
 
 export class SimulationError extends Error {
   code?: string | number;

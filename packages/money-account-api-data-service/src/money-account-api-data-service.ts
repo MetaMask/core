@@ -4,7 +4,11 @@ import type {
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
 import { BaseDataService } from '@metamask/base-data-service';
-import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import type {
+  CreateServicePolicyOptions,
+  TraceContext,
+  TraceRequest,
+} from '@metamask/controller-utils';
 import { handleWhen, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { validate } from '@metamask/superstruct';
@@ -16,10 +20,10 @@ import {
   Env,
   MONEY_ACCOUNT_API_URL_MAP,
   RATE_HISTORY_STALE_TIME_MS,
-} from './constants';
-import { MoneyAccountApiResponseValidationError } from './errors';
-import { projectLogger, createModuleLogger } from './logger';
-import type { MoneyAccountApiDataServiceMethodActions } from './money-account-api-data-service-method-action-types';
+} from './constants.js';
+import { MoneyAccountApiResponseValidationError } from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { MoneyAccountApiDataServiceMethodActions } from './money-account-api-data-service-method-action-types.js';
 import type {
   HistoryResponse,
   InterestResponse,
@@ -31,12 +35,12 @@ import {
   InterestResponseStruct,
   PositionResponseStruct,
   RateHistoryResponseStruct,
-} from './structs';
+} from './structs.js';
 import type {
   HistoryOptions,
   InterestOptions,
   RateHistoryOptions,
-} from './types';
+} from './types.js';
 
 // === GENERAL ===
 
@@ -47,6 +51,30 @@ import type {
 export const serviceName = 'MoneyAccountApiDataService';
 
 const log = createModuleLogger(projectLogger, serviceName);
+const traceLogger = createModuleLogger(projectLogger, 'trace');
+
+export const TRACES = {
+  POSITIONS_API: 'Money Account API Fetch Positions',
+  INTEREST_API: 'Money Account API Fetch Interest',
+  HISTORY_API: 'Money Account API Fetch History',
+  RATE_HISTORY_API: 'Money Account API Fetch Rate History',
+} as const;
+
+export type MoneyAccountApiDataServiceTraceName =
+  (typeof TRACES)[keyof typeof TRACES];
+
+export type MoneyAccountApiDataServiceTraceRequest = Omit<
+  TraceRequest,
+  'name'
+> & {
+  name: MoneyAccountApiDataServiceTraceName;
+  startTime?: number;
+};
+
+export type MoneyAccountApiDataServiceTraceCallback = <ReturnType>(
+  request: MoneyAccountApiDataServiceTraceRequest,
+  fn?: (context?: TraceContext) => ReturnType,
+) => Promise<ReturnType>;
 
 // === MESSENGER ===
 
@@ -113,6 +141,14 @@ export type MoneyAccountApiDataServiceMessenger = Messenger<
 
 // === SERVICE DEFINITION ===
 
+export type MoneyAccountApiDataServiceOptions = {
+  messenger: MoneyAccountApiDataServiceMessenger;
+  env?: Env;
+  queryClientConfig?: QueryClientConfig;
+  policyOptions?: CreateServicePolicyOptions;
+  trace?: MoneyAccountApiDataServiceTraceCallback;
+};
+
 /**
  * Data service responsible for fetching positions, interest, cash-flow
  * history, and vault rate history from the Money Account APY Tracking API.
@@ -123,27 +159,26 @@ export class MoneyAccountApiDataService extends BaseDataService<
 > {
   readonly #baseUrl: string;
 
+  readonly #trace: MoneyAccountApiDataServiceTraceCallback;
+
   /**
    * Constructs a new MoneyAccountApiDataService.
    *
-   * @param args - The constructor arguments.
-   * @param args.messenger - The messenger suited for this service.
-   * @param args.env - The target environment. Defaults to production.
-   * @param args.queryClientConfig - Configuration for the underlying TanStack
-   * Query client.
-   * @param args.policyOptions - Options to pass to `createServicePolicy`.
+   * @param options - The constructor arguments.
+   * @param options.messenger - The messenger suited for this service.
+   * @param options.env - The target environment. Defaults to production.
+   * @param options.queryClientConfig - Configuration for the underlying
+   * TanStack Query client.
+   * @param options.policyOptions - Options to pass to `createServicePolicy`.
+   * @param options.trace - Optional callback to trace network requests.
    */
   constructor({
     messenger,
     env = Env.PRD,
     queryClientConfig = {},
     policyOptions = {},
-  }: {
-    messenger: MoneyAccountApiDataServiceMessenger;
-    env?: Env;
-    queryClientConfig?: QueryClientConfig;
-    policyOptions?: CreateServicePolicyOptions;
-  }) {
+    trace,
+  }: MoneyAccountApiDataServiceOptions) {
     super({
       name: serviceName,
       messenger,
@@ -158,6 +193,15 @@ export class MoneyAccountApiDataService extends BaseDataService<
 
     this.#baseUrl = MONEY_ACCOUNT_API_URL_MAP[env];
 
+    this.#trace =
+      trace ??
+      (async <Result>(
+        _request: MoneyAccountApiDataServiceTraceRequest,
+        fn?: (context?: TraceContext) => Result,
+      ): Promise<Result> => {
+        return await Promise.resolve(fn?.() as Result);
+      });
+
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -170,7 +214,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
    * Fetches the current vault positions for a given user address.
    *
    * @param address - The user's Ethereum address.
-   * @returns The position response containing vault positions.
+   * @returns The position response containing vault positions and an optional
+   * `balance` summary (`null` when the API balance path is unavailable).
    */
   async fetchPositions(address: string): Promise<PositionResponse> {
     const url = new URL(
@@ -182,25 +227,33 @@ export class MoneyAccountApiDataService extends BaseDataService<
       queryKey: [`${this.name}:fetchPositions`, address.toLowerCase()],
       staleTime: DEFAULT_STALE_TIME_MS,
       queryFn: async () => {
-        const response = await fetch(url);
+        return this.#traceNetworkRequest(
+          {
+            name: TRACES.POSITIONS_API,
+            data: { operation: 'fetchPositions' },
+          },
+          async () => {
+            const response = await fetch(url);
 
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `Money Account API positions request failed with status '${response.status}'`,
-          );
-        }
+            if (!response.ok) {
+              throw new HttpError(
+                response.status,
+                `Money Account API positions request failed with status '${response.status}'`,
+              );
+            }
 
-        const json: Json = await response.json();
+            const json: Json = await response.json();
 
-        const [error, validated] = validate(json, PositionResponseStruct);
-        if (error) {
-          throw new MoneyAccountApiResponseValidationError(
-            `Malformed response from positions endpoint: ${error.message}`,
-          );
-        }
+            const [error, validated] = validate(json, PositionResponseStruct);
+            if (error) {
+              throw new MoneyAccountApiResponseValidationError(
+                `Malformed response from positions endpoint: ${error.message}`,
+              );
+            }
 
-        return validated as unknown as PositionResponse;
+            return validated as unknown as PositionResponse;
+          },
+        );
       },
     });
   }
@@ -240,25 +293,33 @@ export class MoneyAccountApiDataService extends BaseDataService<
       ],
       staleTime: DEFAULT_STALE_TIME_MS,
       queryFn: async () => {
-        const response = await fetch(url);
+        return this.#traceNetworkRequest(
+          {
+            name: TRACES.INTEREST_API,
+            data: { operation: 'fetchInterest' },
+          },
+          async () => {
+            const response = await fetch(url);
 
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `Money Account API interest request failed with status '${response.status}'`,
-          );
-        }
+            if (!response.ok) {
+              throw new HttpError(
+                response.status,
+                `Money Account API interest request failed with status '${response.status}'`,
+              );
+            }
 
-        const json: Json = await response.json();
+            const json: Json = await response.json();
 
-        const [error, validated] = validate(json, InterestResponseStruct);
-        if (error) {
-          throw new MoneyAccountApiResponseValidationError(
-            `Malformed response from interest endpoint: ${error.message}`,
-          );
-        }
+            const [error, validated] = validate(json, InterestResponseStruct);
+            if (error) {
+              throw new MoneyAccountApiResponseValidationError(
+                `Malformed response from interest endpoint: ${error.message}`,
+              );
+            }
 
-        return validated as unknown as InterestResponse;
+            return validated as unknown as InterestResponse;
+          },
+        );
       },
     });
   }
@@ -313,25 +374,33 @@ export class MoneyAccountApiDataService extends BaseDataService<
             url.searchParams.append('limit', String(options.limit));
           }
 
-          const response = await fetch(url);
+          return this.#traceNetworkRequest(
+            {
+              name: TRACES.HISTORY_API,
+              data: { operation: 'fetchHistory' },
+            },
+            async () => {
+              const response = await fetch(url);
 
-          if (!response.ok) {
-            throw new HttpError(
-              response.status,
-              `Money Account API history request failed with status '${response.status}'`,
-            );
-          }
+              if (!response.ok) {
+                throw new HttpError(
+                  response.status,
+                  `Money Account API history request failed with status '${response.status}'`,
+                );
+              }
 
-          const json: Json = await response.json();
+              const json: Json = await response.json();
 
-          const [error, validated] = validate(json, HistoryResponseStruct);
-          if (error) {
-            throw new MoneyAccountApiResponseValidationError(
-              `Malformed response from history endpoint: ${error.message}`,
-            );
-          }
+              const [error, validated] = validate(json, HistoryResponseStruct);
+              if (error) {
+                throw new MoneyAccountApiResponseValidationError(
+                  `Malformed response from history endpoint: ${error.message}`,
+                );
+              }
 
-          return validated as unknown as HistoryResponse;
+              return validated as unknown as HistoryResponse;
+            },
+          );
         },
       },
       options?.cursor ?? undefined,
@@ -373,26 +442,86 @@ export class MoneyAccountApiDataService extends BaseDataService<
       ],
       staleTime: RATE_HISTORY_STALE_TIME_MS,
       queryFn: async () => {
-        const response = await fetch(url);
+        return this.#traceNetworkRequest(
+          {
+            name: TRACES.RATE_HISTORY_API,
+            data: { operation: 'fetchRateHistory' },
+          },
+          async () => {
+            const response = await fetch(url);
 
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `Money Account API rate-history request failed with status '${response.status}'`,
-          );
-        }
+            if (!response.ok) {
+              throw new HttpError(
+                response.status,
+                `Money Account API rate-history request failed with status '${response.status}'`,
+              );
+            }
 
-        const json: Json = await response.json();
+            const json: Json = await response.json();
 
-        const [error, validated] = validate(json, RateHistoryResponseStruct);
-        if (error) {
-          throw new MoneyAccountApiResponseValidationError(
-            `Malformed response from rate-history endpoint: ${error.message}`,
-          );
-        }
+            const [error, validated] = validate(
+              json,
+              RateHistoryResponseStruct,
+            );
+            if (error) {
+              throw new MoneyAccountApiResponseValidationError(
+                `Malformed response from rate-history endpoint: ${error.message}`,
+              );
+            }
 
-        return validated as unknown as RateHistoryResponse;
+            return validated as unknown as RateHistoryResponse;
+          },
+        );
       },
     });
+  }
+
+  /**
+   * Runs a network request and emits a best-effort backdated trace.
+   *
+   * @param request - Trace metadata for the network request.
+   * @param fn - Network request to execute.
+   * @returns The network request result.
+   */
+  async #traceNetworkRequest<Result>(
+    request: MoneyAccountApiDataServiceTraceRequest,
+    fn: () => Promise<Result>,
+  ): Promise<Result> {
+    const startTime = Date.now();
+    let success = false;
+    let errorName: string | undefined;
+
+    try {
+      const result = await fn();
+      success = true;
+      return result;
+    } catch (error) {
+      errorName = error instanceof Error ? error.name : typeof error;
+      throw error;
+    } finally {
+      const traceRequest = {
+        ...request,
+        startTime,
+        data: {
+          ...request.data,
+          success,
+          ...(errorName ? { errorName } : {}),
+        },
+      };
+      const onTraceError = (traceError: unknown): void => {
+        traceLogger('Failed to emit trace', {
+          traceName: request.name,
+          traceError,
+        });
+      };
+
+      try {
+        Promise.resolve(this.#trace(traceRequest, () => undefined)).catch(
+          onTraceError,
+        );
+      } catch (traceError) {
+        onTraceError(traceError);
+      }
+    }
   }
 }

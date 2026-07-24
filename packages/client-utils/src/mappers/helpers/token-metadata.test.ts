@@ -1,4 +1,4 @@
-import { getKnownTokenMetadata } from './token-metadata';
+import { getKnownTokenMetadata } from './token-metadata.js';
 
 describe('getKnownTokenMetadata', () => {
   it('returns undefined when the contract address is missing', () => {

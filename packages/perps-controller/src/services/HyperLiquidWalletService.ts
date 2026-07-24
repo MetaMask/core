@@ -5,17 +5,17 @@ import {
 } from '@metamask/utils';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
-import { getChainId } from '../constants/hyperLiquidConfig';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
+import { getChainId } from '../constants/hyperLiquidConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   PerpsPlatformDependencies,
   PerpsTypedMessageParams,
-} from '../types';
-import type { PerpsControllerMessengerBase } from '../types/messenger';
+} from '../types/index.js';
+import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import {
   getSelectedEvmAccountDetailsFromMessenger,
   getSelectedEvmAccountFromMessenger,
-} from '../utils/accountUtils';
+} from '../utils/accountUtils.js';
 
 // Mirrors KeyringTypes from @metamask/keyring-controller. Inlined to keep this
 // service portable between mobile and the core monorepo.

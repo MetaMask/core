@@ -15,7 +15,7 @@ import {
   isJsonRpcRequest,
 } from '@metamask/utils';
 
-import { stringify } from './v2/utils';
+import { stringify } from './v2/utils.js';
 
 export type JsonRpcEngineCallbackError = Error | SerializedJsonRpcError | null;
 

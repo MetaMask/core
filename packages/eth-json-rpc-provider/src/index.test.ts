@@ -1,4 +1,4 @@
-import * as allExports from '.';
+import * as allExports from './index.js';
 
 describe('Package exports', () => {
   it('has expected exports', () => {

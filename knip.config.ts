@@ -15,6 +15,11 @@ const config: KnipConfig = {
       // which knip can't resolve to an actual file even though `ts-jest` is
       // listed in `devDependencies`.
       ignoreUnresolved: ['ts-jest/jest-preset'],
+      // `bats` (used to run the shell script tests) ships a non-standard `bin`
+      // field, so it has no `.bin` shim and is invoked by path. knip can't tie
+      // that invocation back to the dependency, so both are declared here.
+      ignoreBinaries: ['bats/bin/bats'],
+      ignoreDependencies: ['bats'],
     },
     'packages/perps-controller': {
       ignoreDependencies: ['@metamask/accounts-controller'],
@@ -223,7 +228,7 @@ const config: KnipConfig = {
       // `docusaurus.config.ts` and `sidebars.ts` are seen and the matching
       // devDeps don't get flagged as unused.
       entry: ['site/docusaurus.config.ts', 'site/sidebars.ts'],
-      project: ['site/**/*.{ts,tsx}'],
+      project: ['content/**/*.{ts,tsx}', 'site/**/*.{ts,tsx}'],
       ignoreDependencies: [
         // Loaded by docusaurus as a plugin name string (themes[0]); knip
         // doesn't trace string-referenced plugins.

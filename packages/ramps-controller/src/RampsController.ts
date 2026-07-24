@@ -10,11 +10,22 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { isHeadlessAllProvidersEnabled } from './featureFlags';
-import { getProvidersServingAsset } from './providerAvailability';
-import type { RampsControllerMethodActions } from './RampsController-method-action-types';
-import type { RampsErrorCode } from './rampsErrorCodes';
-import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
+import { isHeadlessAllProvidersEnabled } from './featureFlags.js';
+import { getProvidersServingAsset } from './providerAvailability.js';
+import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
+import type { RampsErrorCode } from './rampsErrorCodes.js';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
+import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetTokensAction,
+  RampsServiceGetProvidersAction,
+  RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
+} from './RampsService-method-action-types.js';
 import type {
   BuyWidget,
   Country,
@@ -30,26 +41,15 @@ import type {
   RampsToken,
   RampsServiceActions,
   RampsOrder,
-} from './RampsService';
-import { RampsOrderStatus } from './RampsService';
-import type {
-  RampsServiceGetGeolocationAction,
-  RampsServiceGetCountriesAction,
-  RampsServiceGetTokensAction,
-  RampsServiceGetProvidersAction,
-  RampsServiceGetPaymentMethodsAction,
-  RampsServiceGetQuotesAction,
-  RampsServiceGetBuyWidgetUrlAction,
-  RampsServiceGetOrderAction,
-  RampsServiceGetOrderFromCallbackAction,
-} from './RampsService-method-action-types';
+} from './RampsService.js';
+import { RampsOrderStatus } from './RampsService.js';
 import type {
   RequestCache as RequestCacheType,
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
   ResourceType,
-} from './RequestCache';
+} from './RequestCache.js';
 import {
   DEFAULT_REQUEST_CACHE_TTL,
   DEFAULT_REQUEST_CACHE_MAX_SIZE,
@@ -59,24 +59,7 @@ import {
   createSuccessState,
   createErrorState,
   RequestStatus,
-} from './RequestCache';
-import type {
-  TransakAccessToken,
-  TransakUserDetails,
-  TransakBuyQuote,
-  TransakKycRequirement,
-  TransakAdditionalRequirementsResponse,
-  TransakDepositOrder,
-  TransakUserLimits,
-  TransakOttResponse,
-  TransakQuoteTranslation,
-  TransakTranslationRequest,
-  TransakIdProofStatus,
-  TransakOrderPaymentMethod,
-  PatchUserRequestBody,
-  TransakOrder,
-} from './TransakService';
-import type { TransakServiceActions } from './TransakService';
+} from './RequestCache.js';
 import type {
   TransakServiceSetApiKeyAction,
   TransakServiceSetAccessTokenAction,
@@ -93,6 +76,7 @@ import type {
   TransakServiceGetUserLimitsAction,
   TransakServiceRequestOttAction,
   TransakServiceGeneratePaymentWidgetUrlAction,
+  TransakServiceCreateWidgetUrlAction,
   TransakServiceSubmitPurposeOfUsageFormAction,
   TransakServicePatchUserAction,
   TransakServiceSubmitSsnDetailsAction,
@@ -102,7 +86,24 @@ import type {
   TransakServiceCancelOrderAction,
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
-} from './TransakService-method-action-types';
+} from './TransakService-method-action-types.js';
+import type {
+  TransakAccessToken,
+  TransakUserDetails,
+  TransakBuyQuote,
+  TransakKycRequirement,
+  TransakAdditionalRequirementsResponse,
+  TransakDepositOrder,
+  TransakUserLimits,
+  TransakOttResponse,
+  TransakQuoteTranslation,
+  TransakTranslationRequest,
+  TransakIdProofStatus,
+  TransakOrderPaymentMethod,
+  PatchUserRequestBody,
+  TransakOrder,
+} from './TransakService.js';
+import type { TransakServiceActions } from './TransakService.js';
 
 // === GENERAL ===
 
@@ -146,6 +147,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:getUserLimits',
   'TransakService:requestOtt',
   'TransakService:generatePaymentWidgetUrl',
+  'TransakService:createWidgetUrl',
   'TransakService:submitPurposeOfUsageForm',
   'TransakService:patchUser',
   'TransakService:submitSsnDetails',
@@ -613,6 +615,7 @@ type AllowedActions =
   | TransakServiceGetUserLimitsAction
   | TransakServiceRequestOttAction
   | TransakServiceGeneratePaymentWidgetUrlAction
+  | TransakServiceCreateWidgetUrlAction
   | TransakServiceSubmitPurposeOfUsageFormAction
   | TransakServicePatchUserAction
   | TransakServiceSubmitSsnDetailsAction
@@ -841,6 +844,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakGetUserLimits',
   'transakRequestOtt',
   'transakGeneratePaymentWidgetUrl',
+  'transakCreateWidgetUrl',
   'transakSubmitPurposeOfUsageForm',
   'transakPatchUser',
   'transakSubmitSsnDetails',
@@ -3064,6 +3068,34 @@ export class RampsController extends BaseController<
       walletAddress,
       extraParams,
     );
+  }
+
+  /**
+   * Creates a Transak payment widget URL via the ramps API proxy, which
+   * injects the partner API key server-side. Replaces the OTT flow
+   * ({@link transakRequestOtt} + {@link transakGeneratePaymentWidgetUrl}).
+   *
+   * @param quote - The buy quote to pre-fill in the widget.
+   * @param walletAddress - The destination wallet address.
+   * @param extraParams - Optional additional widget parameters (e.g. theming).
+   * @returns The single-use widget URL.
+   */
+  async transakCreateWidgetUrl(
+    quote: TransakBuyQuote,
+    walletAddress: string,
+    extraParams?: Record<string, string>,
+  ): Promise<string> {
+    try {
+      return await this.messenger.call(
+        'TransakService:createWidgetUrl',
+        quote,
+        walletAddress,
+        extraParams,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
   }
 
   /**

@@ -4,8 +4,8 @@ import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { TransactionPayStrategy } from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
+import { TransactionPayStrategy } from '../constants.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
   TransactionPaySourceAmount,
   TransactionData,
@@ -13,26 +13,28 @@ import type {
   TransactionPayTotals,
   TransactionPaymentToken,
   TransactionPayRequiredToken,
-} from '../types';
-import type { UpdateQuotesRequest } from './quotes';
-import { refreshQuotes, updateQuotes } from './quotes';
+} from '../types.js';
+import type { UpdateQuotesRequest } from './quotes.js';
+import { refreshQuotes, updateQuotes } from './quotes.js';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
   getStrategiesByName,
   getStrategyByName,
-} from './strategy';
-import { getLiveTokenBalance, getTokenFiatRate } from './token';
-import { calculateTotals } from './totals';
-import { getTransaction, updateTransaction } from './transaction';
+} from './strategy.js';
+import { getLiveTokenBalance, getTokenFiatRate } from './token.js';
+import { calculateTotals } from './totals.js';
+import { getTransaction, updateTransaction } from './transaction.js';
+import { QuoteError } from './validation.js';
 
 jest.mock('./strategy');
 jest.mock('./transaction');
 jest.mock('./totals');
 jest.mock('./token', () => ({
-  ...jest.createMockFromModule<typeof import('./token')>('./token'),
+  ...jest.createMockFromModule<typeof import('./token.js')>('./token'),
   computeTokenAmounts:
-    jest.requireActual<typeof import('./token')>('./token').computeTokenAmounts,
+    jest.requireActual<typeof import('./token.js')>('./token')
+      .computeTokenAmounts,
 }));
 
 jest.useFakeTimers();
@@ -212,6 +214,43 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('stores no quote validation error when quotes are rejected by post-quote support check', async () => {
+      checkStrategyQuoteSupportMock.mockResolvedValue(false);
+
+      await run();
+
+      const transactionDataMock = {};
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+        quoteError: undefined,
+      });
+    });
+
+    it('clears quote validation error when quote loading starts', async () => {
+      const validationError = {
+        message: 'Insufficient source balance for quote',
+        reason: 'insufficient-source-balance' as const,
+      };
+
+      await run();
+
+      const transactionDataMock = {
+        quoteError: validationError,
+      };
+
+      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+
+      expect(transactionDataMock).toStrictEqual({
+        isLoading: true,
+        quoteError: undefined,
+      });
+    });
+
     it('stores no-op quote in state if no source amounts and payment token selected', async () => {
       await run({
         transactionData: {
@@ -300,6 +339,30 @@ describe('Quotes Utils', () => {
       getTransactionMock.mockReturnValue(undefined);
 
       await expect(run()).rejects.toThrow('Transaction not found');
+    });
+
+    it('preserves structured QuoteError info when strategy throws one', async () => {
+      const error = new QuoteError({
+        message: 'Insufficient source balance for quote',
+        reason: 'insufficient-source-balance',
+        detail: ['Required: 1 USDC', 'Current: 0.5 USDC'],
+      });
+      getQuotesMock.mockRejectedValue(error);
+
+      await run();
+
+      const transactionDataMock = {} as Record<string, unknown>;
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quoteError: {
+          message: 'Insufficient source balance for quote',
+          reason: 'insufficient-source-balance',
+          detail: ['Required: 1 USDC', 'Current: 0.5 USDC'],
+        },
+      });
     });
 
     it('clears quotes in state if strategy throws', async () => {

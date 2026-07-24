@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { createConnection } from 'node:net';
 import type { Socket } from 'node:net';
 
-import { readLine, writeLine } from './socket-line';
-import { isErrorWithCode } from './utils';
+import { readLine, writeLine } from './socket-line.js';
+import { isErrorWithCode } from './utils.js';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -44,8 +44,12 @@ async function connectSocket(socketPath: string): Promise<Socket> {
  *
  * Opens a connection, writes one JSON-RPC request line, reads one JSON-RPC
  * response line, then closes the connection. Retries once after a short delay
- * on transient connection errors (ECONNREFUSED, ECONNRESET). Verifies that the
- * response `id` matches the outgoing request `id`.
+ * only on `ECONNREFUSED` — the connection was never established, so the daemon
+ * provably never received the request and re-sending is safe. Does not retry
+ * on `ECONNRESET`, which can drop after the daemon has already received and
+ * acted on the request: blindly re-sending could execute a non-idempotent
+ * action (e.g. a transaction broadcast) twice, so it is surfaced to the caller
+ * instead. Verifies that the response `id` matches the outgoing request `id`.
  *
  * @param options - Command options.
  * @param options.socketPath - The Unix socket path.
@@ -91,10 +95,13 @@ export async function sendCommand({
   try {
     return await attempt();
   } catch (error: unknown) {
-    if (
-      !isErrorWithCode(error, 'ECONNREFUSED') &&
-      !isErrorWithCode(error, 'ECONNRESET')
-    ) {
+    // Only retry on ECONNREFUSED: the connection was never established, so the
+    // daemon provably never received the request and re-sending is safe.
+    // ECONNRESET can drop *after* the daemon received and began (or finished)
+    // processing the request, so blindly re-sending a non-idempotent request
+    // (e.g. a transaction broadcast) could execute it twice. Surface it to the
+    // caller instead of retrying.
+    if (!isErrorWithCode(error, 'ECONNREFUSED')) {
       throw error;
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -105,8 +112,9 @@ export async function sendCommand({
 /**
  * Why an unreachable daemon cannot be queried.
  *
- * - `'refused'`: connection refused after retry (`ECONNREFUSED` / `ECONNRESET`).
- *   Typical of a daemon that has crashed or is mid-restart.
+ * - `'refused'`: the connection could not be completed — `ECONNREFUSED`
+ *   (retried once) or `ECONNRESET` (a mid-request drop, not retried). Typical
+ *   of a daemon that has crashed or is mid-restart.
  * - `'timeout'`: the daemon accepted the connection but did not respond within
  *   the read timeout — most likely wedged on a long-running operation.
  * - `'permission'`: the socket exists but cannot be opened (`EACCES` / `EPERM`).

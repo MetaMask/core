@@ -1,12 +1,12 @@
 import nock from 'nock';
 import type { UserStorageGenericFeatureKey } from 'src/shared/storage-schema';
 
-import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SHARED_SALT } from '../shared/encryption/constants';
-import { Env } from '../shared/env';
-import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
-import { arrangeAuthAPIs } from './__fixtures__/auth';
-import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
+import { SHARED_SALT } from '../shared/encryption/constants.js';
+import encryption, { createSHA256Hash } from '../shared/encryption/index.js';
+import { Env } from '../shared/env.js';
+import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema.js';
+import { arrangeAuthAPIs } from './__fixtures__/auth.js';
+import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils.js';
 import {
   handleMockUserStorageGet,
   handleMockUserStoragePut,
@@ -14,18 +14,18 @@ import {
   handleMockUserStorageDeleteAllFeatureEntries,
   handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
-} from './__fixtures__/userstorage';
-import type { IBaseAuth } from './authentication-jwt-bearer/types';
-import { NotFoundError, UserStorageError } from './errors';
+} from './__fixtures__/userstorage.js';
+import type { IBaseAuth } from './authentication-jwt-bearer/types.js';
+import { NotFoundError, UserStorageError } from './errors.js';
 import {
   MOCK_NOTIFICATIONS_DATA,
   MOCK_STORAGE_KEY,
   MOCK_STORAGE_RESPONSE,
   MOCK_STORAGE_URL,
   MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES,
-} from './mocks/userstorage';
-import type { StorageOptions } from './user-storage';
-import { STORAGE_URL, UserStorage } from './user-storage';
+} from './mocks/userstorage.js';
+import type { StorageOptions } from './user-storage.js';
+import { STORAGE_URL, UserStorage } from './user-storage.js';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';

@@ -10,8 +10,8 @@ import {
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   AccountId,
   ChainId,
@@ -21,21 +21,21 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
-} from '../types';
+} from '../types.js';
 import type {
   DataSourceState,
   SubscriptionRequest,
-} from './AbstractDataSource';
-import { AbstractDataSource } from './AbstractDataSource';
+} from './AbstractDataSource.js';
+import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   StakedBalancePollingInput,
   StakedBalanceFetchResult,
-} from './evm-rpc-services';
+} from './evm-rpc-services/index.js';
 import {
   StakedBalanceFetcher,
   getStakingContractAddress,
   getSupportedStakingChainIds,
-} from './evm-rpc-services';
+} from './evm-rpc-services/index.js';
 
 const CONTROLLER_NAME = 'StakedBalanceDataSource';
 const DEFAULT_POLL_INTERVAL = 180_000; // 3 minutes

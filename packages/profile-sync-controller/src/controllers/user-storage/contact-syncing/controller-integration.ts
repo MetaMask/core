@@ -1,16 +1,16 @@
 import type { AddressBookEntry } from '@metamask/address-book-controller';
 
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
-import { TraceName } from '../constants';
-import { canPerformContactSyncing } from './sync-utils';
-import type { ContactSyncingOptions } from './types';
-import type { UserStorageContactEntry } from './types';
-import type { SyncAddressBookEntry } from './utils';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema.js';
+import { TraceName } from '../constants.js';
+import { canPerformContactSyncing } from './sync-utils.js';
+import type { ContactSyncingOptions } from './types.js';
+import type { UserStorageContactEntry } from './types.js';
+import type { SyncAddressBookEntry } from './utils.js';
 import {
   mapAddressBookEntryToUserStorageEntry,
   mapUserStorageEntryToAddressBookEntry,
-} from './utils';
-import { isContactBridgedFromAccounts } from './utils';
+} from './utils.js';
+import { isContactBridgedFromAccounts } from './utils.js';
 
 export type SyncContactsWithUserStorageConfig = {
   onContactSyncErroneousSituation?: (

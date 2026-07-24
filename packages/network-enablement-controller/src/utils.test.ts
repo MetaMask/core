@@ -1,11 +1,7 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 
-import type { NetworkEnablementControllerState } from './NetworkEnablementController';
-import {
-  deriveKeys,
-  isOnlyNetworkEnabledInNamespace,
-  isPopularNetwork,
-} from './utils';
+import type { NetworkEnablementControllerState } from './NetworkEnablementController.js';
+import { deriveKeys, isOnlyNetworkEnabledInNamespace } from './utils.js';
 
 describe('Utils', () => {
   describe('deriveKeys', () => {
@@ -262,31 +258,6 @@ describe('Utils', () => {
         expect(caipResult).toBe(true);
         expect(hexResult).toBe(caipResult);
       });
-    });
-  });
-
-  describe('isPopularNetwork', () => {
-    it('returns true for popular EVM networks', () => {
-      // Test with Ethereum mainnet (chain ID 1)
-      expect(isPopularNetwork('1')).toBe(true);
-
-      // Test with Polygon mainnet (chain ID 137)
-      expect(isPopularNetwork('137')).toBe(true);
-    });
-
-    it('returns false for non-popular EVM networks', () => {
-      // Test with a custom/test network
-      expect(isPopularNetwork('999999')).toBe(false);
-    });
-
-    it('returns false for non-decimal references (like Bitcoin hashes)', () => {
-      // Test with Bitcoin block hash reference
-      expect(isPopularNetwork('000000000019d6689c085ae165831e93')).toBe(false);
-    });
-
-    it('returns false for invalid references', () => {
-      // Test with completely invalid reference
-      expect(isPopularNetwork('invalid-reference')).toBe(false);
     });
   });
 });

@@ -6,17 +6,18 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll, isDone } from 'nock';
 
-import { flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers.js';
+import packageJson from '../package.json';
 import type {
   TransakServiceMessenger,
   TransakAccessToken,
-} from './TransakService';
+} from './TransakService.js';
 import {
   TransakService,
   TransakEnvironment,
   TransakOrderIdTransformer,
   TransakApiError,
-} from './TransakService';
+} from './TransakService.js';
 
 // === Test Constants ===
 
@@ -216,22 +217,37 @@ function getRootMessenger(): RootMessenger {
 }
 
 function getMessenger(rootMessenger: RootMessenger): TransakServiceMessenger {
-  return new Messenger({
+  const messenger: TransakServiceMessenger = new Messenger({
     namespace: 'TransakService',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    actions: ['AuthenticationController:getBearerToken'],
+    events: [],
+    messenger,
+  });
+  return messenger;
 }
 
 function getService({
   options = {},
+  mockGetBearerToken,
 }: {
   options?: Partial<ConstructorParameters<typeof TransakService>[0]>;
+  mockGetBearerToken?: jest.Mock;
 } = {}): {
   service: TransakService;
   rootMessenger: RootMessenger;
   messenger: TransakServiceMessenger;
+  mockGetBearerToken: jest.Mock;
 } {
   const rootMessenger = getRootMessenger();
+  const getBearerTokenMock =
+    mockGetBearerToken ?? jest.fn().mockResolvedValue('mock-bearer-token');
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    getBearerTokenMock,
+  );
   const messenger = getMessenger(rootMessenger);
   const service = new TransakService({
     fetch,
@@ -243,7 +259,12 @@ function getService({
     ...options,
   });
 
-  return { service, rootMessenger, messenger };
+  return {
+    service,
+    rootMessenger,
+    messenger,
+    mockGetBearerToken: getBearerTokenMock,
+  };
 }
 
 function authenticateService(service: TransakService): void {
@@ -1031,6 +1052,36 @@ describe('TransakService', () => {
       expect(result).toStrictEqual(MOCK_BUY_QUOTE);
     });
 
+    it('omits query parameters whose values are undefined', async () => {
+      nockTranslation();
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/lookup/quotes')
+        .query(
+          (query) =>
+            query.fiatAmount === undefined &&
+            query.fiatCurrency === 'USD' &&
+            query.apiKey === MOCK_API_KEY,
+        )
+        .reply(200, { data: MOCK_BUY_QUOTE });
+
+      const { service } = getService();
+
+      const promise = service.getBuyQuote(
+        'USD',
+        'eip155:1/slip44:60',
+        'eip155:1',
+        'credit_debit_card',
+        // A JS consumer can pass undefined despite the type; it must not
+        // become a literal "undefined" query parameter.
+        undefined as unknown as string,
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual(MOCK_BUY_QUOTE);
+    });
+
     it('normalizes ramps API payment method IDs before translation', async () => {
       nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/native/translate`)
@@ -1615,6 +1666,34 @@ describe('TransakService', () => {
       expect(result.orderType).toBe('DEPOSIT');
     });
 
+    it('omits the wallet query parameter when it is undefined', async () => {
+      const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query(
+          (query) =>
+            query.wallet === undefined &&
+            query.action === 'deposit' &&
+            query.context === MOCK_CONTEXT,
+        )
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService();
+
+      const promise = service.getOrder(
+        depositOrderId,
+        // A JS consumer can pass undefined despite the type; it must not
+        // become a literal "undefined" query parameter.
+        undefined as unknown as string,
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.id).toBe(depositOrderId);
+    });
+
     it('converts a raw Transak order ID to deposit format', async () => {
       nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/orders/raw-order-id`)
@@ -1951,6 +2030,188 @@ describe('TransakService', () => {
         'credit_debit_card',
       );
       expect(parsed.searchParams.get('hideMenu')).toBe('true');
+    });
+  });
+
+  describe('createWidgetUrl', () => {
+    const WIDGET_URL_PATH = `${STAGING_PROVIDER_PATH}/widget-url`;
+    const MOCK_WIDGET_URL = 'https://global-stg.transak.com?sessionId=sess-1';
+
+    it('creates a widget URL via the ramps API proxy', async () => {
+      let requestBody: Record<string, unknown> | undefined;
+      const scope = nock(STAGING_ORDERS_BASE)
+        .post(WIDGET_URL_PATH, (body) => {
+          requestBody = body;
+          return true;
+        })
+        .query({
+          action: 'deposit',
+          sdk: '2.1.6',
+          controller: packageJson.version,
+          context: MOCK_CONTEXT,
+        })
+        .matchHeader('authorization', 'Bearer mock-bearer-token')
+        .matchHeader('x-transak-access-token', MOCK_ACCESS_TOKEN.accessToken)
+        .reply(200, { widgetUrl: MOCK_WIDGET_URL });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET', {
+        themeColor: '037dd6',
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toBe(MOCK_WIDGET_URL);
+      expect(scope.isDone()).toBe(true);
+      expect(requestBody).toStrictEqual({
+        widgetParams: {
+          referrerDomain: 'metamask.io',
+          fiatCurrency: 'USD',
+          cryptoCurrencyCode: 'ETH',
+          fiatAmount: 100,
+          network: 'ethereum',
+          paymentMethod: 'credit_debit_card',
+          walletAddress: '0xWALLET',
+          hideExchangeScreen: 'true',
+          disableWalletAddressEdit: 'true',
+          hideMenu: 'true',
+          redirectURL:
+            'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+          themeColor: '037dd6',
+        },
+      });
+    });
+
+    it('throws when not authenticated with Transak', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET'),
+      ).rejects.toThrow('Authentication required');
+    });
+
+    it('omits the Transak access token header when the token is cleared while awaiting the bearer token', async () => {
+      const scope = nock(STAGING_ORDERS_BASE, {
+        badheaders: ['x-transak-access-token'],
+      })
+        .post(WIDGET_URL_PATH)
+        .query({
+          action: 'deposit',
+          sdk: '2.1.6',
+          controller: packageJson.version,
+          context: MOCK_CONTEXT,
+        })
+        .matchHeader('authorization', 'Bearer mock-bearer-token')
+        .reply(200, { widgetUrl: MOCK_WIDGET_URL });
+
+      const { service, mockGetBearerToken } = getService();
+      authenticateService(service);
+      mockGetBearerToken.mockImplementation(async () => {
+        service.clearAccessToken();
+        return 'mock-bearer-token';
+      });
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toBe(MOCK_WIDGET_URL);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('propagates failures from the bearer token fetch', async () => {
+      const { service } = getService({
+        mockGetBearerToken: jest
+          .fn()
+          .mockRejectedValue(new Error('wallet is locked')),
+      });
+      authenticateService(service);
+
+      await expect(
+        service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET'),
+      ).rejects.toThrow('wallet is locked');
+    });
+
+    it('throws a TransakApiError on a non-2xx proxy response', async () => {
+      nock(STAGING_ORDERS_BASE)
+        .post(WIDGET_URL_PATH)
+        .query(true)
+        .reply(400, {
+          error: { message: 'referrerDomain is required' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow(TransakApiError);
+    });
+
+    it('respects rampsApiBaseUrlOverride for local development', async () => {
+      const scope = nock('http://localhost:3000')
+        .post(WIDGET_URL_PATH)
+        .query(true)
+        .reply(200, { widgetUrl: MOCK_WIDGET_URL });
+
+      const { service } = getService({
+        options: { rampsApiBaseUrlOverride: 'http://localhost:3000' },
+      });
+      authenticateService(service);
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toBe(MOCK_WIDGET_URL);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('uses the production proxy path when environment is Production', async () => {
+      const scope = nock(PRODUCTION_ORDERS_BASE)
+        .post(`${PRODUCTION_PROVIDER_PATH}/widget-url`)
+        .query(true)
+        .reply(200, { widgetUrl: MOCK_WIDGET_URL });
+
+      const { service } = getService({
+        options: { environment: TransakEnvironment.Production },
+      });
+      authenticateService(service);
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toBe(MOCK_WIDGET_URL);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('uses the dev ramps API with the staging provider path when environment is Development', async () => {
+      const scope = nock('https://on-ramp.dev-api.cx.metamask.io')
+        .post(WIDGET_URL_PATH)
+        .query(true)
+        .reply(200, { widgetUrl: MOCK_WIDGET_URL });
+
+      const { service } = getService({
+        options: { environment: TransakEnvironment.Development },
+      });
+      authenticateService(service);
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toBe(MOCK_WIDGET_URL);
+      expect(scope.isDone()).toBe(true);
     });
   });
 

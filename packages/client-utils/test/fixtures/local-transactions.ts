@@ -3,12 +3,12 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
-import { formatAddressToAssetId } from '../../src/mappers/helpers/caip';
+import { formatAddressToAssetId } from '../../src/mappers/helpers/caip.js';
 import {
   buildApproveTransactionData,
   buildPermit2ApproveTransactionData,
   encodeMerklClaimCalldata,
-} from '../test-helpers';
+} from '../test-helpers.js';
 
 const chainIds = {
   mainnet: '0x1',

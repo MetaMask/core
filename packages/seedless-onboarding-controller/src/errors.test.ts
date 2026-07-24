@@ -1,10 +1,15 @@
-import { TOPRFErrorCode } from '@metamask/toprf-secure-backup';
+import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
+import { SecretType } from './constants';
 import {
   getErrorMessageFromTOPRFErrorCode,
+  InvalidPrimarySecretDataTypeError,
+  RecoveryError,
   SeedlessOnboardingError,
 } from './errors';
+import { SecretMetadata } from './SecretMetadata';
 
 describe('getErrorMessageFromTOPRFErrorCode', () => {
   it('returns TooManyLoginAttempts for RateLimitExceeded', () => {
@@ -50,6 +55,97 @@ describe('getErrorMessageFromTOPRFErrorCode', () => {
         'fallback',
       ),
     ).toBe('fallback');
+  });
+});
+
+describe('RecoveryError', () => {
+  it('includes rate limit data when TOPRFError has valid rateLimitDetails', () => {
+    const error = RecoveryError.getInstance(
+      new TOPRFError(TOPRFErrorCode.RateLimitExceeded, 'Rate limit exceeded', {
+        rateLimitDetails: {
+          remainingTime: 250,
+          message: 'Rate limit in effect',
+          lockTime: 300,
+          guessCount: 7,
+        },
+      }),
+    );
+
+    expect(error).toStrictEqual(
+      new RecoveryError(
+        SeedlessOnboardingControllerErrorMessage.TooManyLoginAttempts,
+        {
+          remainingTime: 250,
+          numberOfAttempts: 7,
+        },
+      ),
+    );
+  });
+
+  it('omits rate limit data when rateLimitDetails are incomplete', () => {
+    const error = RecoveryError.getInstance(
+      new TOPRFError(TOPRFErrorCode.RateLimitExceeded, 'Rate limit exceeded', {
+        rateLimitDetails: {
+          remainingTime: 250,
+        },
+      }),
+    );
+
+    expect(error).toStrictEqual(
+      new RecoveryError(
+        SeedlessOnboardingControllerErrorMessage.TooManyLoginAttempts,
+      ),
+    );
+  });
+});
+
+describe('InvalidPrimarySecretDataTypeError', () => {
+  it('creates an error with the expected message and name', () => {
+    const error = new InvalidPrimarySecretDataTypeError([
+      EncAccountDataType.ImportedPrivateKey,
+    ]);
+
+    expect(error.message).toBe(
+      SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+    );
+    expect(error.name).toBe(
+      'SeedlessOnboardingController - InvalidPrimarySecretDataTypeError',
+    );
+    expect(error.data).toStrictEqual([EncAccountDataType.ImportedPrivateKey]);
+  });
+
+  it('creates an error from secret metadata without exposing secret payloads', () => {
+    const privateKeySecret = '0xdeadbeef-private-key-secret';
+    const mnemonicSecret =
+      'witch collapse practice feed shame open despair creek road again ice least';
+    const secrets = [
+      new SecretMetadata(privateKeySecret, {
+        type: SecretType.PrivateKey,
+        dataType: EncAccountDataType.ImportedPrivateKey,
+      }),
+      new SecretMetadata(mnemonicSecret, {
+        type: SecretType.Mnemonic,
+        dataType: EncAccountDataType.ImportedSrp,
+      }),
+    ];
+
+    const error = InvalidPrimarySecretDataTypeError.fromSecretMetadata(secrets);
+
+    expect(error.data).toStrictEqual([
+      EncAccountDataType.ImportedPrivateKey,
+      EncAccountDataType.ImportedSrp,
+    ]);
+
+    const serializedError = JSON.stringify({
+      name: error.name,
+      message: error.message,
+      data: error.data,
+    });
+    for (const secret of [privateKeySecret, mnemonicSecret]) {
+      expect(serializedError).not.toContain(secret);
+    }
+    expect(JSON.stringify(error.data)).not.toContain(privateKeySecret);
+    expect(JSON.stringify(error.data)).not.toContain(mnemonicSecret);
   });
 });
 
