@@ -2,7 +2,7 @@ import type { AccountTreeControllerState } from '@metamask/account-tree-controll
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AssetsControllerState } from '../AssetsController.js';
-import type { Caip19AssetId } from '../types.js';
+import type { Caip19AssetId, FungibleAssetPrice } from '../types.js';
 import type { AccountsById, EnabledNetworkMap } from './balance.js';
 import {
   calculateBalanceChangeForAccountGroup,
@@ -13,6 +13,20 @@ import {
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './balance.js';
+
+function arrangeAssetsControllerState(
+  overrides: Partial<AssetsControllerState> = {},
+): AssetsControllerState {
+  return {
+    assetsBalance: {},
+    assetsInfo: {},
+    assetsPrice: {},
+    customAssets: {},
+    assetPreferences: {},
+    selectedCurrency: 'usd',
+    ...overrides,
+  };
+}
 
 describe('balance selectors', () => {
   const accountId1 = 'account-id-1';
@@ -72,6 +86,54 @@ describe('balance selectors', () => {
     [accountId1]: selectedAccount,
     [accountId2]: account2,
   };
+
+  const assetEth = 'eip155:1/slip44:60' as Caip19AssetId;
+  const assetUsdc =
+    'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+  const assetPolygon = 'eip155:137/slip44:966' as Caip19AssetId;
+  const assetTangYuan =
+    'eip155:56/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+  const assetInfoEth = {
+    type: 'native' as const,
+    symbol: 'ETH',
+    name: 'Ethereum',
+    decimals: 18,
+  };
+
+  const assetInfoUsdc = {
+    type: 'erc20' as const,
+    symbol: 'USDC',
+    name: 'USD Coin',
+    decimals: 6,
+  };
+
+  const assetInfoPolygon = {
+    type: 'native' as const,
+    symbol: 'POL',
+    name: 'Polygon',
+    decimals: 18,
+  };
+
+  const assetInfoTangYuan = {
+    type: 'erc20' as const,
+    symbol: 'TangYuan',
+    name: 'TangYuan',
+    decimals: 9,
+  };
+
+  function testFungibleAssetPrice(
+    price: number,
+    pricePercentChange1d = 0,
+  ): FungibleAssetPrice {
+    return {
+      assetPriceType: 'fungible',
+      price,
+      pricePercentChange1d,
+      lastUpdated: 0,
+      usdPrice: price,
+    };
+  }
 
   describe('getGroupIdForAccount', () => {
     it('returns groupId when account is in a group', () => {
@@ -159,12 +221,8 @@ describe('balance selectors', () => {
   });
 
   describe('getAggregatedBalanceForAccount', () => {
-    const assetEth = 'eip155:1/slip44:60' as Caip19AssetId;
-    const assetUsdc =
-      'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-
     it('returns entries only when no assetsPrice', () => {
-      const state: AssetsControllerState = {
+      const state = arrangeAssetsControllerState({
         assetsBalance: {
           [accountId1]: {
             [assetEth]: { amount: '1.5' },
@@ -172,23 +230,10 @@ describe('balance selectors', () => {
           },
         },
         assetsInfo: {
-          [assetEth]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            decimals: 18,
-          },
-          [assetUsdc]: {
-            type: 'erc20',
-            symbol: 'USDC',
-            name: 'USD Coin',
-            decimals: 6,
-          },
+          [assetEth]: assetInfoEth,
+          [assetUsdc]: assetInfoUsdc,
         },
-        assetsPrice: {},
-        customAssets: {},
-        assetPreferences: {},
-      };
+      });
 
       const result = getAggregatedBalanceForAccount(state, selectedAccount);
 
@@ -207,7 +252,7 @@ describe('balance selectors', () => {
     });
 
     it('returns totalBalanceInFiat and pricePercentChange1d when assetsPrice present', () => {
-      const state: AssetsControllerState = {
+      const state = arrangeAssetsControllerState({
         assetsBalance: {
           [accountId1]: {
             [assetEth]: { amount: '1' },
@@ -215,32 +260,14 @@ describe('balance selectors', () => {
           },
         },
         assetsInfo: {
-          [assetEth]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            decimals: 18,
-          },
-          [assetUsdc]: {
-            type: 'erc20',
-            symbol: 'USDC',
-            name: 'USD Coin',
-            decimals: 6,
-          },
+          [assetEth]: assetInfoEth,
+          [assetUsdc]: assetInfoUsdc,
         },
         assetsPrice: {
-          [assetEth]: {
-            price: 2000,
-            pricePercentChange1d: 2,
-          } as AssetsControllerState['assetsPrice'][Caip19AssetId],
-          [assetUsdc]: {
-            price: 1,
-            pricePercentChange1d: 0,
-          } as AssetsControllerState['assetsPrice'][Caip19AssetId],
+          [assetEth]: testFungibleAssetPrice(2000, 2),
+          [assetUsdc]: testFungibleAssetPrice(1, 0),
         },
-        customAssets: {},
-        assetPreferences: {},
-      };
+      });
 
       const result = getAggregatedBalanceForAccount(state, selectedAccount);
 
@@ -254,8 +281,36 @@ describe('balance selectors', () => {
       );
     });
 
+    it('does not rescale legitimately large human-readable balances (amount >= 10^decimals)', () => {
+      // Regression test for metamask-extension#44786: state amounts are always
+      // human-readable, so a balance of 54.06B tokens with 9 decimals must not
+      // be mistaken for raw base units and divided by 10^9.
+      const state = arrangeAssetsControllerState({
+        assetsBalance: {
+          [accountId1]: {
+            [assetTangYuan]: { amount: '54060000000' },
+          },
+        },
+        assetsInfo: {
+          [assetTangYuan]: assetInfoTangYuan,
+        },
+        assetsPrice: {
+          [assetTangYuan]: testFungibleAssetPrice(2.5634e-11, 0),
+        },
+      });
+
+      const result = getAggregatedBalanceForAccount(state, selectedAccount);
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0]).toMatchObject({
+        assetId: assetTangYuan,
+        amount: '54060000000',
+      });
+      expect(result.totalBalanceInFiat).toBeCloseTo(54060000000 * 2.5634e-11);
+    });
+
     it('excludes hidden assets', () => {
-      const state: AssetsControllerState = {
+      const state = arrangeAssetsControllerState({
         assetsBalance: {
           [accountId1]: {
             [assetEth]: { amount: '1' },
@@ -263,25 +318,13 @@ describe('balance selectors', () => {
           },
         },
         assetsInfo: {
-          [assetEth]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            decimals: 18,
-          },
-          [assetUsdc]: {
-            type: 'erc20',
-            symbol: 'USDC',
-            name: 'USD Coin',
-            decimals: 6,
-          },
+          [assetEth]: assetInfoEth,
+          [assetUsdc]: assetInfoUsdc,
         },
-        assetsPrice: {},
-        customAssets: {},
         assetPreferences: {
           [assetUsdc]: { hidden: true },
         },
-      };
+      });
 
       const result = getAggregatedBalanceForAccount(state, selectedAccount);
 
@@ -296,8 +339,7 @@ describe('balance selectors', () => {
           '0x137': false,
         },
       };
-      const assetPolygon = 'eip155:137/slip44:966' as Caip19AssetId;
-      const state: AssetsControllerState = {
+      const state = arrangeAssetsControllerState({
         assetsBalance: {
           [accountId1]: {
             [assetEth]: { amount: '1' },
@@ -305,23 +347,10 @@ describe('balance selectors', () => {
           },
         },
         assetsInfo: {
-          [assetEth]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            decimals: 18,
-          },
-          [assetPolygon]: {
-            type: 'native',
-            symbol: 'POL',
-            name: 'Polygon',
-            decimals: 18,
-          },
+          [assetEth]: assetInfoEth,
+          [assetPolygon]: assetInfoPolygon,
         },
-        assetsPrice: {},
-        customAssets: {},
-        assetPreferences: {},
-      };
+      });
 
       const result = getAggregatedBalanceForAccount(
         state,
@@ -334,23 +363,15 @@ describe('balance selectors', () => {
     });
 
     it('aggregates multiple accounts when internalAccountsOrAccountIds is AccountId[]', () => {
-      const state: AssetsControllerState = {
+      const state = arrangeAssetsControllerState({
         assetsBalance: {
           [accountId1]: { [assetEth]: { amount: '1' } },
           [accountId2]: { [assetEth]: { amount: '2' } },
         },
         assetsInfo: {
-          [assetEth]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            decimals: 18,
-          },
+          [assetEth]: assetInfoEth,
         },
-        assetsPrice: {},
-        customAssets: {},
-        assetPreferences: {},
-      };
+      });
 
       const result = getAggregatedBalanceForAccount(
         state,
@@ -366,23 +387,15 @@ describe('balance selectors', () => {
     });
 
     it('uses only selected account when no optional params', () => {
-      const state: AssetsControllerState = {
+      const state = arrangeAssetsControllerState({
         assetsBalance: {
           [accountId1]: { [assetEth]: { amount: '1' } },
           [accountId2]: { [assetEth]: { amount: '99' } },
         },
         assetsInfo: {
-          [assetEth]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            decimals: 18,
-          },
+          [assetEth]: assetInfoEth,
         },
-        assetsPrice: {},
-        customAssets: {},
-        assetPreferences: {},
-      };
+      });
 
       const result = getAggregatedBalanceForAccount(state, selectedAccount);
 
@@ -391,29 +404,16 @@ describe('balance selectors', () => {
     });
 
     it('uses group accounts when accountTreeState and accountsById provided', () => {
-      const state: AssetsControllerState = {
+      const state = arrangeAssetsControllerState({
         assetsBalance: {
           [accountId1]: { [assetEth]: { amount: '1' } },
           [accountId2]: { [assetUsdc]: { amount: '500' } },
         },
         assetsInfo: {
-          [assetEth]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            decimals: 18,
-          },
-          [assetUsdc]: {
-            type: 'erc20',
-            symbol: 'USDC',
-            name: 'USD Coin',
-            decimals: 6,
-          },
+          [assetEth]: assetInfoEth,
+          [assetUsdc]: assetInfoUsdc,
         },
-        assetsPrice: {},
-        customAssets: {},
-        assetPreferences: {},
-      };
+      });
 
       const result = getAggregatedBalanceForAccount(
         state,
@@ -429,14 +429,32 @@ describe('balance selectors', () => {
       expect(amounts).toStrictEqual(['1', '500']);
     });
 
+    it('uses group account ids when accountTreeState is provided without accountsById', () => {
+      const state = arrangeAssetsControllerState({
+        assetsBalance: {
+          [accountId1]: { [assetEth]: { amount: '1' } },
+          [accountId2]: { [assetUsdc]: { amount: '500' } },
+        },
+        assetsInfo: {
+          [assetEth]: assetInfoEth,
+          [assetUsdc]: assetInfoUsdc,
+        },
+      });
+
+      const result = getAggregatedBalanceForAccount(
+        state,
+        selectedAccount,
+        undefined,
+        accountTreeState,
+      );
+
+      expect(result.entries).toHaveLength(2);
+      const amounts = result.entries.map((entry) => entry.amount).sort();
+      expect(amounts).toStrictEqual(['1', '500']);
+    });
+
     it('returns empty entries when state has no balance for account', () => {
-      const state: AssetsControllerState = {
-        assetsBalance: {},
-        assetsInfo: {},
-        assetsPrice: {},
-        customAssets: {},
-        assetPreferences: {},
-      };
+      const state = arrangeAssetsControllerState();
 
       const result = getAggregatedBalanceForAccount(state, selectedAccount);
 
@@ -446,8 +464,7 @@ describe('balance selectors', () => {
     });
 
     it('when enabledNetworkMap is undefined all chains are included', () => {
-      const assetPolygon = 'eip155:137/slip44:966' as Caip19AssetId;
-      const state: AssetsControllerState = {
+      const state = arrangeAssetsControllerState({
         assetsBalance: {
           [accountId1]: {
             [assetEth]: { amount: '1' },
@@ -455,23 +472,10 @@ describe('balance selectors', () => {
           },
         },
         assetsInfo: {
-          [assetEth]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            decimals: 18,
-          },
-          [assetPolygon]: {
-            type: 'native',
-            symbol: 'POL',
-            name: 'Polygon',
-            decimals: 18,
-          },
+          [assetEth]: assetInfoEth,
+          [assetPolygon]: assetInfoPolygon,
         },
-        assetsPrice: {},
-        customAssets: {},
-        assetPreferences: {},
-      };
+      });
 
       const result = getAggregatedBalanceForAccount(state, selectedAccount);
 
@@ -516,25 +520,15 @@ describe('balance selectors', () => {
   });
 
   describe('getAggregatedBalanceForAccountIds', () => {
-    const assetEth = 'eip155:1/slip44:60' as Caip19AssetId;
-
-    const state: AssetsControllerState = {
+    const state = arrangeAssetsControllerState({
       assetsBalance: {
         [accountId1]: { [assetEth]: { amount: '1' } },
         [accountId2]: { [assetEth]: { amount: '2' } },
       },
       assetsInfo: {
-        [assetEth]: {
-          type: 'native',
-          symbol: 'ETH',
-          name: 'Ethereum',
-          decimals: 18,
-        },
+        [assetEth]: assetInfoEth,
       },
-      assetsPrice: {},
-      customAssets: {},
-      assetPreferences: {},
-    };
+    });
 
     it('aggregates balances across the provided account ids', () => {
       const result = getAggregatedBalanceForAccountIds(state, [
@@ -562,15 +556,12 @@ describe('balance selectors', () => {
     });
 
     it('computes fiat totals when prices are present', () => {
-      const pricedState: AssetsControllerState = {
+      const pricedState = arrangeAssetsControllerState({
         ...state,
         assetsPrice: {
-          [assetEth]: {
-            price: 2000,
-            pricePercentChange1d: 5,
-          } as AssetsControllerState['assetsPrice'][Caip19AssetId],
+          [assetEth]: testFungibleAssetPrice(2000, 5),
         },
-      };
+      });
 
       const result = getAggregatedBalanceForAccountIds(pricedState, [
         accountId1,
@@ -592,10 +583,6 @@ describe('wallet-balance selectors', () => {
   const groupId1 = 'entropy:wallet1/1';
   const groupId2 = 'entropy:wallet2/0';
 
-  const assetEth = 'eip155:1/slip44:60' as Caip19AssetId;
-  const assetUsdc =
-    'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-
   const accountTreeState = {
     accountTree: {
       wallets: {
@@ -616,49 +603,52 @@ describe('wallet-balance selectors', () => {
     },
   } as unknown as AccountTreeControllerState;
 
-  const buildState = (
-    overrides?: Partial<AssetsControllerState>,
-  ): AssetsControllerState =>
-    ({
-      assetsBalance: {
-        [accountId1]: { [assetEth]: { amount: '1' } },
-        [accountId2]: { [assetUsdc]: { amount: '1000' } },
-        [accountId3]: { [assetEth]: { amount: '2' } },
+  const assetEth = 'eip155:1/slip44:60' as Caip19AssetId;
+  const assetUsdc =
+    'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+  function testFungibleAssetPrice(
+    price: number,
+    pricePercentChange1d = 0,
+  ): FungibleAssetPrice {
+    return {
+      assetPriceType: 'fungible',
+      price,
+      pricePercentChange1d,
+      lastUpdated: 0,
+    };
+  }
+
+  const walletBalanceDefaults = {
+    assetsBalance: {
+      [accountId1]: { [assetEth]: { amount: '1' } },
+      [accountId2]: { [assetUsdc]: { amount: '1000' } },
+      [accountId3]: { [assetEth]: { amount: '2' } },
+    },
+    assetsInfo: {
+      [assetEth]: {
+        type: 'native' as const,
+        symbol: 'ETH',
+        name: 'Ethereum',
+        decimals: 18,
       },
-      assetsInfo: {
-        [assetEth]: {
-          type: 'native',
-          symbol: 'ETH',
-          name: 'Ethereum',
-          decimals: 18,
-        },
-        [assetUsdc]: {
-          type: 'erc20',
-          symbol: 'USDC',
-          name: 'USD Coin',
-          decimals: 6,
-        },
+      [assetUsdc]: {
+        type: 'erc20' as const,
+        symbol: 'USDC',
+        name: 'USD Coin',
+        decimals: 6,
       },
-      assetsPrice: {
-        [assetEth]: {
-          price: 2000,
-          pricePercentChange1d: 10,
-        },
-        [assetUsdc]: {
-          price: 1,
-          pricePercentChange1d: 0,
-        },
-      },
-      customAssets: {},
-      assetPreferences: {},
-      selectedCurrency: 'usd',
-      ...overrides,
-    }) as unknown as AssetsControllerState;
+    },
+    assetsPrice: {
+      [assetEth]: testFungibleAssetPrice(2000, 10),
+      [assetUsdc]: testFungibleAssetPrice(1, 0),
+    },
+  } satisfies Partial<AssetsControllerState>;
 
   describe('calculateBalanceForAllWallets', () => {
     it('aggregates totals per group, wallet, and overall', () => {
       const result = calculateBalanceForAllWallets(
-        buildState(),
+        arrangeAssetsControllerState(walletBalanceDefaults),
         accountTreeState,
       );
 
@@ -682,9 +672,10 @@ describe('wallet-balance selectors', () => {
 
     it('includes the user currency derived from selectedCurrency', () => {
       const result = calculateBalanceForAllWallets(
-        buildState({
+        arrangeAssetsControllerState({
+          ...walletBalanceDefaults,
           selectedCurrency: 'eur',
-        } as Partial<AssetsControllerState>),
+        }),
         accountTreeState,
       );
 
@@ -694,7 +685,7 @@ describe('wallet-balance selectors', () => {
     });
 
     it('falls back to usd when selectedCurrency is missing', () => {
-      const state = buildState();
+      const state = arrangeAssetsControllerState(walletBalanceDefaults);
       delete (state as { selectedCurrency?: unknown }).selectedCurrency;
 
       const result = calculateBalanceForAllWallets(state, accountTreeState);
@@ -707,7 +698,10 @@ describe('wallet-balance selectors', () => {
         accountTree: { wallets: {} },
       } as unknown as AccountTreeControllerState;
 
-      const result = calculateBalanceForAllWallets(buildState(), emptyTree);
+      const result = calculateBalanceForAllWallets(
+        arrangeAssetsControllerState(walletBalanceDefaults),
+        emptyTree,
+      );
 
       expect(result.wallets).toStrictEqual({});
       expect(result.totalBalanceInUserCurrency).toBe(0);
@@ -717,7 +711,7 @@ describe('wallet-balance selectors', () => {
       const enabledNetworkMap = { eip155: { '0x1': false } };
 
       const result = calculateBalanceForAllWallets(
-        buildState(),
+        arrangeAssetsControllerState(walletBalanceDefaults),
         accountTreeState,
         enabledNetworkMap,
       );
@@ -729,7 +723,7 @@ describe('wallet-balance selectors', () => {
   describe('calculateBalanceChangeForAccountGroup', () => {
     it('derives current/previous/amount/percent from the 1d price change', () => {
       const result = calculateBalanceChangeForAccountGroup(
-        buildState(),
+        arrangeAssetsControllerState(walletBalanceDefaults),
         accountTreeState,
         groupId1,
         '1d',
@@ -754,7 +748,7 @@ describe('wallet-balance selectors', () => {
       // A portfolio-weighted approach would instead use the blended 6.6667%
       // change (3000 / 1.066667 = 2812.5), which is materially different.
       const result = calculateBalanceChangeForAccountGroup(
-        buildState(),
+        arrangeAssetsControllerState(walletBalanceDefaults),
         accountTreeState,
         groupId0,
         '1d',
@@ -781,7 +775,7 @@ describe('wallet-balance selectors', () => {
 
     it('returns a zeroed change for non-1d periods', () => {
       const result = calculateBalanceChangeForAccountGroup(
-        buildState(),
+        arrangeAssetsControllerState(walletBalanceDefaults),
         accountTreeState,
         groupId1,
         '30d',
@@ -796,7 +790,7 @@ describe('wallet-balance selectors', () => {
 
     it('returns a zeroed change for an empty group', () => {
       const result = calculateBalanceChangeForAccountGroup(
-        buildState(),
+        arrangeAssetsControllerState(walletBalanceDefaults),
         accountTreeState,
         groupId2,
         '1d',
@@ -810,7 +804,7 @@ describe('wallet-balance selectors', () => {
 
     it('returns a zeroed change for an unknown group', () => {
       const result = calculateBalanceChangeForAccountGroup(
-        buildState(),
+        arrangeAssetsControllerState(walletBalanceDefaults),
         accountTreeState,
         'nonexistent-group',
         '1d',
