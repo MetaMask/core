@@ -141,6 +141,10 @@ jobs:
                 continue;
               }
 
+              const expectedUpdatedAt = pr.updated_at;
+              const expectedHeadSha = pr.head.sha;
+              const expectedHeadRef = pr.head.ref;
+
               const inactiveHours = (ageMs / (60 * 60 * 1000)).toFixed(1);
               const body = [
                 '## Stale release PR closed',
@@ -156,18 +160,102 @@ jobs:
                 '<!-- stale-release-pr-comment -->',
               ].join('\n');
 
+              // Final recheck immediately before destructive ops: activity,
+              // head SHA, labels, or merge state may have changed since the
+              // earlier refresh / GraphQL query.
+              let latestPr;
+              try {
+                ({ data: latestPr } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                }));
+              } catch (error) {
+                core.warning(
+                  `Failed final refresh for #${pr.number} (${expectedHeadRef}): ${error.message}`,
+                );
+                continue;
+              }
+
+              if (latestPr.state !== 'open') {
+                core.info(
+                  `Skipping #${pr.number} (${latestPr.head.ref}): no longer open before close`,
+                );
+                continue;
+              }
+
+              if (latestPr.labels.some((label) => label.name === exemptLabel)) {
+                core.info(
+                  `Skipping #${pr.number} (${latestPr.head.ref}): exempt label added before close`,
+                );
+                continue;
+              }
+
+              if (
+                latestPr.updated_at !== expectedUpdatedAt ||
+                latestPr.head.sha !== expectedHeadSha ||
+                latestPr.head.ref !== expectedHeadRef
+              ) {
+                core.info(
+                  `Skipping #${pr.number} (${latestPr.head.ref}): activity or head changed before close`,
+                );
+                continue;
+              }
+
+              if (Date.now() - Date.parse(latestPr.updated_at) < staleMs) {
+                core.info(
+                  `Skipping #${pr.number} (${latestPr.head.ref}): no longer stale before close`,
+                );
+                continue;
+              }
+
+              let latestMergeState;
+              try {
+                const mergeQueue = await github.graphql(
+                  `
+                    query ($owner: String!, $repo: String!, $number: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        pullRequest(number: $number) {
+                          isInMergeQueue
+                          autoMergeRequest {
+                            enabledAt
+                          }
+                        }
+                      }
+                    }
+                  `,
+                  { owner, repo, number: latestPr.number },
+                );
+                latestMergeState = mergeQueue.repository.pullRequest;
+              } catch (error) {
+                core.warning(
+                  `Failed final merge-state check for #${latestPr.number} (${latestPr.head.ref}): ${error.message}`,
+                );
+                continue;
+              }
+
+              if (
+                latestMergeState.isInMergeQueue ||
+                latestMergeState.autoMergeRequest
+              ) {
+                core.info(
+                  `Skipping #${latestPr.number} (${latestPr.head.ref}): merge started before close`,
+                );
+                continue;
+              }
+
               // Close before commenting so a failed close does not bump
               // updated_at and postpone the next stale attempt.
               try {
                 await github.rest.pulls.update({
                   owner,
                   repo,
-                  pull_number: pr.number,
+                  pull_number: latestPr.number,
                   state: 'closed',
                 });
               } catch (error) {
                 core.warning(
-                  `Failed to close #${pr.number} (${pr.head.ref}): ${error.message}`,
+                  `Failed to close #${latestPr.number} (${latestPr.head.ref}): ${error.message}`,
                 );
                 continue;
               }
@@ -176,12 +264,12 @@ jobs:
                 await github.rest.issues.createComment({
                   owner,
                   repo,
-                  issue_number: pr.number,
+                  issue_number: latestPr.number,
                   body,
                 });
               } catch (error) {
                 core.warning(
-                  `Closed #${pr.number} but failed to comment: ${error.message}`,
+                  `Closed #${latestPr.number} but failed to comment: ${error.message}`,
                 );
               }
 
@@ -189,15 +277,15 @@ jobs:
                 await github.rest.git.deleteRef({
                   owner,
                   repo,
-                  ref: `heads/${pr.head.ref}`,
+                  ref: `heads/${latestPr.head.ref}`,
                 });
                 core.info(
-                  `Closed #${pr.number} and deleted branch ${pr.head.ref}`,
+                  `Closed #${latestPr.number} and deleted branch ${latestPr.head.ref}`,
                 );
               } catch (error) {
                 // Branch may already be gone; still treat the PR close as success.
                 core.warning(
-                  `Closed #${pr.number} but failed to delete ${pr.head.ref}: ${error.message}`,
+                  `Closed #${latestPr.number} but failed to delete ${latestPr.head.ref}: ${error.message}`,
                 );
               }
             }
