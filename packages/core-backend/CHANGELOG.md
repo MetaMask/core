@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Core Platform joint packages ([#9642](https://github.com/MetaMask/core/pull/9642))
-
 ## [7.0.0]
 
 ### Added
