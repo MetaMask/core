@@ -4,7 +4,7 @@ import {
   buildRpcServiceDegradedAnalyticsTrackingEvent,
   buildRpcServiceUnavailableAnalyticsTrackingEvent,
   sanitizeRpcEndpointUrl,
-} from './rpc-service-analytics';
+} from './rpc-service-analytics.js';
 
 const PUBLIC_URL = 'https://mainnet.infura.io/v3/the-key';
 const isPublic = (): boolean => true;

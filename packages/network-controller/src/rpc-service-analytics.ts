@@ -13,8 +13,8 @@ import type {
   NetworkControllerMessenger,
   NetworkControllerRpcEndpointDegradedEvent,
   NetworkControllerRpcEndpointUnavailableEvent,
-} from './NetworkController';
-import { isConnectionError } from './rpc-service/rpc-service';
+} from './NetworkController.js';
+import { isConnectionError } from './rpc-service/rpc-service.js';
 
 type RpcEndpointUnavailablePayload =
   NetworkControllerRpcEndpointUnavailableEvent['payload'][0];

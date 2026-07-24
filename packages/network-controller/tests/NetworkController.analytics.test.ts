@@ -1,9 +1,12 @@
 import type { Hex } from '@metamask/utils';
 
-import { NetworkController } from '../src';
-import type { NetworkControllerAnalyticsOptions } from '../src';
-import { buildNetworkControllerMessenger, buildRootMessenger } from './helpers';
-import type { RootMessenger } from './helpers';
+import { NetworkController } from '../src/index.js';
+import type { NetworkControllerAnalyticsOptions } from '../src/rpc-service-analytics.js';
+import {
+  buildNetworkControllerMessenger,
+  buildRootMessenger,
+} from './helpers.js';
+import type { RootMessenger } from './helpers.js';
 
 const PUBLIC_ENDPOINT_URL = 'https://mainnet.infura.io/v3/the-key';
 
