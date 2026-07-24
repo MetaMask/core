@@ -66,6 +66,30 @@ export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
 };
 
 /**
+ * Gets an account from the currently selected account group, optionally
+ * filtered by a CAIP-2 chain ID.
+ *
+ * This is the group-based replacement for both
+ * `AccountsController:getSelectedAccount` and
+ * `AccountsController:getSelectedMultichainAccount`.
+ *
+ * When no chain ID is provided, an account of the selected group is returned
+ * using an EVM-priority rule: the first EVM account found in the group, or the
+ * first account in the group if no EVM account is found. When a chain ID is
+ * provided, the first account in the selected group whose scopes match the
+ * given chain is returned.
+ *
+ * @param chainId - Optional CAIP-2 chain ID used to filter accounts by scope.
+ * @returns The matching internal account from the selected group, or
+ * undefined if no group is selected or no account matches.
+ * @throws If `chainId` is provided but is not a valid CAIP-2 chain ID.
+ */
+export type AccountTreeControllerGetAccountFromSelectedAccountGroupAction = {
+  type: `AccountTreeController:getAccountFromSelectedAccountGroup`;
+  handler: AccountTreeController['getAccountFromSelectedAccountGroup'];
+};
+
+/**
  * Gets the account group object from its ID.
  *
  * @param groupId - Account group ID.
@@ -208,6 +232,7 @@ export type AccountTreeControllerMethodActions =
   | AccountTreeControllerGetAccountWalletObjectAction
   | AccountTreeControllerGetAccountWalletObjectsAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | AccountTreeControllerGetAccountFromSelectedAccountGroupAction
   | AccountTreeControllerGetAccountGroupObjectAction
   | AccountTreeControllerGetAccountContextAction
   | AccountTreeControllerGetSelectedAccountGroupAction
