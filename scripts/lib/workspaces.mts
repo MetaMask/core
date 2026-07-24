@@ -147,21 +147,27 @@ export async function getChangedFiles(
 
 /**
  * Get the set of package names whose entries changed in yarn.lock between
- * `mergeBase` and the current working tree.
+ * `mergeBase` and `headRef`.
  *
- * @param mergeBase - The merge base SHA to compare the lockfile against.
+ * @param mergeBase - The merge base SHA.
+ * @param headRef - The PR branch tip SHA (or "HEAD").
  * @returns The set of changed package names.
  */
 async function getChangedLockfilePackages(
   mergeBase: string,
+  headRef: string,
 ): Promise<Set<string>> {
-  const [{ stdout: baseLockContent }, currentLockContent] = await Promise.all([
-    execa('git', ['show', `${mergeBase}:yarn.lock`], {
-      cwd: ROOT_WORKSPACE,
-      encoding: 'utf8',
-    }),
-    readFile(join(ROOT_WORKSPACE, 'yarn.lock'), 'utf-8'),
-  ]);
+  const [{ stdout: baseLockContent }, { stdout: currentLockContent }] =
+    await Promise.all([
+      execa('git', ['show', `${mergeBase}:yarn.lock`], {
+        cwd: ROOT_WORKSPACE,
+        encoding: 'utf8',
+      }),
+      execa('git', ['show', `${headRef}:yarn.lock`], {
+        cwd: ROOT_WORKSPACE,
+        encoding: 'utf8',
+      }),
+    ]);
 
   const baseLock = parseSyml(baseLockContent);
   const currentLock = parseSyml(currentLockContent);
@@ -269,23 +275,25 @@ async function buildWorkspaceTransitiveDependencies(): Promise<
 }
 
 /**
- * Given a merge base SHA, determine which workspaces are affected by changes
- * to `yarn.lock` between that commit and the current working tree.
+ * Given a merge base SHA and head ref, determine which workspaces are affected
+ * by changes to `yarn.lock` between those two commits.
  *
  * A workspace is considered affected if any package that changed in the
  * lockfile appears in its transitive dependency closure.
  *
- * @param mergeBase - The merge base SHA to compare the lockfile against.
+ * @param mergeBase - The merge base SHA.
+ * @param headRef - The PR branch tip SHA (or "HEAD").
  * @param workspaces - The workspace set to check against.
  * @returns The set of workspace names whose transitive dependencies include
  * any package that changed in the lockfile.
  */
 async function getLockfileAffectedWorkspaces(
   mergeBase: string,
+  headRef: string,
   workspaces: Workspace[],
 ): Promise<Set<string>> {
   const [changedPackages, workspaceGraph] = await Promise.all([
-    getChangedLockfilePackages(mergeBase),
+    getChangedLockfilePackages(mergeBase, headRef),
     buildWorkspaceTransitiveDependencies(),
   ]);
 
@@ -347,6 +355,8 @@ export function checkRootChange(
  * dependencies.
  * @param options.mergeBase - The merge base SHA, used to diff `yarn.lock` when
  * it changed.
+ * @param options.headRef - The PR branch tip SHA (or "HEAD"), used to read the
+ * current side of `yarn.lock` when diffing.
  * @returns The set of workspace names to check.
  */
 export async function computeChangedWorkspaces({
@@ -354,11 +364,13 @@ export async function computeChangedWorkspaces({
   changedFiles,
   includeDependencies,
   mergeBase,
+  headRef,
 }: {
   workspaces: Workspace[];
   changedFiles: string[];
   includeDependencies: boolean;
   mergeBase: string;
+  headRef: string;
 }): Promise<Set<string>> {
   const { dependants, dependencies } =
     await getWorkspaceDependencies(workspaces);
@@ -384,6 +396,7 @@ export async function computeChangedWorkspaces({
   if (changedFiles.includes('yarn.lock')) {
     for (const pkg of await getLockfileAffectedWorkspaces(
       mergeBase,
+      headRef,
       workspaces,
     )) {
       result.add(pkg);

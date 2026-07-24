@@ -39,6 +39,7 @@ async function main(): Promise<void> {
     changedFiles,
     includeDependencies: true,
     mergeBase,
+    headRef,
   });
 
   const references = typeScriptWorkspaces

@@ -49,6 +49,7 @@ const changed = await computeChangedWorkspaces({
   changedFiles,
   includeDependencies,
   mergeBase,
+  headRef,
 });
 
 const changedWorkspaces = workspaces.filter(({ name }) => changed.has(name));
