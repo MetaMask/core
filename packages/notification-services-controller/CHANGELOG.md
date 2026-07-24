@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `createOnChainPushNotificationMessage` now derives its `title`, `description`, and `ctaLink` from the notification's `template` field and no longer accepts a `translations` argument. ([#9140](https://github.com/MetaMask/core/pull/9140))
+  - Update call sites to drop the second `translations` argument: `createOnChainPushNotificationMessage(notification)`.
+  - `ctaLink` is now populated from `template.cta.link` when present.
+- **BREAKING:** Remove the `createOnChainPushNotificationMessages` function and the `TranslationKeys` type. Push notification copy is now provided by the API via the notification `template`, so client-side translation keys are no longer required. ([#9140](https://github.com/MetaMask/core/pull/9140))
+
 ## [26.0.0]
 
 ### Added
