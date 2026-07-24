@@ -144,6 +144,10 @@ jobs:
               const expectedUpdatedAt = pr.updated_at;
               const expectedHeadSha = pr.head.sha;
               const expectedHeadRef = pr.head.ref;
+              const expectedLabels = pr.labels
+                .map((label) => label.name)
+                .sort()
+                .join('\0');
 
               const inactiveHours = (ageMs / (60 * 60 * 1000)).toFixed(1);
               const body = [
@@ -184,9 +188,14 @@ jobs:
                 continue;
               }
 
-              if (latestPr.labels.some((label) => label.name === exemptLabel)) {
+              const latestLabels = latestPr.labels
+                .map((label) => label.name)
+                .sort()
+                .join('\0');
+
+              if (latestLabels !== expectedLabels) {
                 core.info(
-                  `Skipping #${pr.number} (${latestPr.head.ref}): exempt label added before close`,
+                  `Skipping #${pr.number} (${latestPr.head.ref}): labels changed before close`,
                 );
                 continue;
               }
@@ -273,19 +282,43 @@ jobs:
                 );
               }
 
+              // Re-fetch the branch tip immediately before delete so a push
+              // that landed after close is not discarded.
+              let branchSha;
+              try {
+                const { data: branchRef } = await github.rest.git.getRef({
+                  owner,
+                  repo,
+                  ref: `heads/${expectedHeadRef}`,
+                });
+                branchSha = branchRef.object.sha;
+              } catch (error) {
+                core.warning(
+                  `Closed #${latestPr.number} but failed to refresh ${expectedHeadRef} before delete: ${error.message}`,
+                );
+                continue;
+              }
+
+              if (branchSha !== expectedHeadSha) {
+                core.warning(
+                  `Closed #${latestPr.number} but skipped deleting ${expectedHeadRef}: head moved from ${expectedHeadSha} to ${branchSha}`,
+                );
+                continue;
+              }
+
               try {
                 await github.rest.git.deleteRef({
                   owner,
                   repo,
-                  ref: `heads/${latestPr.head.ref}`,
+                  ref: `heads/${expectedHeadRef}`,
                 });
                 core.info(
-                  `Closed #${latestPr.number} and deleted branch ${latestPr.head.ref}`,
+                  `Closed #${latestPr.number} and deleted branch ${expectedHeadRef}`,
                 );
               } catch (error) {
                 // Branch may already be gone; still treat the PR close as success.
                 core.warning(
-                  `Closed #${latestPr.number} but failed to delete ${latestPr.head.ref}: ${error.message}`,
+                  `Closed #${latestPr.number} but failed to delete ${expectedHeadRef}: ${error.message}`,
                 );
               }
             }
