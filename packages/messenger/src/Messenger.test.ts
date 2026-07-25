@@ -2000,7 +2000,6 @@ describe('Messenger', () => {
 
       expect(childMessenger.call('Source:getValue')).toBe(99);
     });
-
   });
 
   describe('revoke', () => {

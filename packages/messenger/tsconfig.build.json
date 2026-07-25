@@ -7,5 +7,5 @@
   },
   "references": [],
   "include": ["../../types", "./src"],
-  "exclude": ["**/*.tst.ts"]
+  "exclude": ["**/*.test.ts", "**/*.tst.ts"]
 }
