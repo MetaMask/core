@@ -112,7 +112,7 @@ export type MessengerNamespace<
  * When all required members are present, evaluates to the input tuple unchanged.
  * When members are missing, evaluates to a branded intersection type that
  * produces a clear compile error showing exactly which items are missing via
- * the `missingDelegations` property.
+ * the `__MISSING_DELEGATIONS__` property.
  *
  * @template Required - The union of all required string types.
  * @template Provided - The readonly tuple of provided string types.
@@ -124,7 +124,7 @@ export type MessengerNamespace<
  *
  * // Error — 'C' is missing
  * type T2 = RequireExhaustive<'A' | 'B' | 'C', readonly ['A', 'B']>;
- * // => readonly ['A', 'B'] & { missingDelegations: 'C' }
+ * // => readonly ['A', 'B'] & { __MISSING_DELEGATIONS__: 'C' }
  * ```
  */
 type RequireExhaustive<
@@ -132,7 +132,8 @@ type RequireExhaustive<
   Provided extends readonly string[],
 > = [Exclude<Required, Provided[number]>] extends [never]
   ? Provided
-  : Provided & { missingDelegations: Exclude<Required, Provided[number]> };
+  : // eslint-disable-next-line @typescript-eslint/naming-convention
+    Provided & { __MISSING_DELEGATIONS__: Exclude<Required, Provided[number]> };
 
 /**
  * Messenger namespace checks can be disabled by using this as the `namespace` constructor
@@ -1190,16 +1191,15 @@ export class Messenger<
    *   type defined on the delegatee that is **not** under its own namespace.
    * @param args.messenger - The messenger to delegate to.
    * @template Delegatee - The messenger the actions/events are delegated to.
-   * @template DelegatedActions - A const tuple of delegated action type
-   *   strings.
-   * @template DelegatedEvents - A const tuple of delegated event type strings.
+   * @template DelegatedActions - An array of delegated action type strings.
+   * @template DelegatedEvents - An array of delegated event type strings.
    */
   delegateAll<
     Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
-    const DelegatedActions extends readonly (MessengerActions<Delegatee> &
-      Action)['type'][],
-    const DelegatedEvents extends readonly (MessengerEvents<Delegatee> &
-      Event)['type'][],
+    DelegatedActions extends (MessengerActions<Delegatee>['type'] &
+      Action['type'])[],
+    DelegatedEvents extends (MessengerEvents<Delegatee>['type'] &
+      Event['type'])[],
   >({
     actions,
     events,
@@ -1209,23 +1209,19 @@ export class Messenger<
     actions: RequireExhaustive<
       NotNamespacedBy<
         MessengerNamespace<Delegatee>,
-        (MessengerActions<Delegatee> & Action)['type']
+        MessengerActions<Delegatee>['type'] & Action['type']
       >,
       DelegatedActions
     >;
     events: RequireExhaustive<
       NotNamespacedBy<
         MessengerNamespace<Delegatee>,
-        (MessengerEvents<Delegatee> & Event)['type']
+        MessengerEvents<Delegatee>['type'] & Event['type']
       >,
       DelegatedEvents
     >;
   }): void {
-    this.delegate({
-      actions: actions as (MessengerActions<Delegatee> & Action)['type'][],
-      events: events as (MessengerEvents<Delegatee> & Event)['type'][],
-      messenger,
-    });
+    this.delegate({ actions, events, messenger });
   }
 
   /**

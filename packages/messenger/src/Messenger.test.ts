@@ -2048,9 +2048,9 @@ describe('Messenger', () => {
       });
 
       expect(() =>
-        // @ts-expect-error — 'B:getName' is missing from the actions list
         source.delegateAll({
           messenger: child,
+          // @ts-expect-error — 'B:getName' is missing from the actions list
           actions: ['A:getValue'],
           events: [],
         }),
