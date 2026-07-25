@@ -2001,61 +2001,6 @@ describe('Messenger', () => {
       expect(childMessenger.call('Source:getValue')).toBe(99);
     });
 
-    it('excludes the delegatee own-namespace actions from the exhaustiveness check', () => {
-      type SourceAction = {
-        type: 'Source:getValue';
-        handler: () => number;
-      };
-      type ChildOwnAction = {
-        type: 'Child:doStuff';
-        handler: () => void;
-      };
-
-      const sourceMessenger = new Messenger<
-        'Source',
-        SourceAction | ChildOwnAction,
-        never
-      >({ namespace: 'Source' });
-
-      const childMessenger = new Messenger<
-        'Child',
-        SourceAction | ChildOwnAction,
-        never
-      >({ namespace: 'Child' });
-
-      sourceMessenger.registerActionHandler('Source:getValue', () => 42);
-
-      // This should compile without listing 'Child:doStuff' — it belongs
-      // to the child's own namespace and will be registered by the child.
-      sourceMessenger.delegateAll({
-        messenger: childMessenger,
-        actions: ['Source:getValue'],
-        events: [],
-      });
-
-      expect(childMessenger.call('Source:getValue')).toBe(42);
-    });
-
-    it('produces a type error when an action is missing', () => {
-      type ActionA = { type: 'A:getValue'; handler: () => number };
-      type ActionB = { type: 'B:getName'; handler: () => string };
-
-      const source = new Messenger<'Source', ActionA | ActionB, never>({
-        namespace: 'Source',
-      });
-      const child = new Messenger<'Child', ActionA | ActionB, never>({
-        namespace: 'Child',
-      });
-
-      expect(() =>
-        source.delegateAll({
-          messenger: child,
-          // @ts-expect-error — 'B:getName' is missing from the actions list
-          actions: ['A:getValue'],
-          events: [],
-        }),
-      ).not.toThrow();
-    });
   });
 
   describe('revoke', () => {

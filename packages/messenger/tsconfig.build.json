@@ -6,5 +6,6 @@
     "rootDir": "./src"
   },
   "references": [],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "exclude": ["**/*.tst.ts"]
 }
