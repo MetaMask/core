@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `getHeadlessAllProvidersMinimumVersion`; app-version gating for `moneyHeadlessAllProviders` is owned by the LaunchDarkly `versions` wrapper (processed by `RemoteFeatureFlagController`), not a payload `minimumVersion` field. `featureVersion` fail-closed enablement and `providerIds` allowlisting are unchanged. ([#9658](https://github.com/MetaMask/core/pull/9658))
+- **BREAKING:** Remove `getHeadlessAllProvidersMinimumVersion`; app-version gating for `moneyHeadlessAllProviders` is owned by the LaunchDarkly `versions` wrapper (processed by `RemoteFeatureFlagController`), not a payload `minimumVersion` field. `featureVersion` fail-closed enablement and `providerIds` allowlisting are unchanged. ([#9668](https://github.com/MetaMask/core/pull/9668))
 
 ## [17.2.0]
 
