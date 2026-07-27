@@ -11,6 +11,7 @@ import {
   array,
   assert,
   boolean,
+  optional,
   string,
   StructError,
   type,
@@ -18,7 +19,7 @@ import {
 
 import { alpha2ToAlpha3 } from './countryCodes';
 import type { KycServiceMethodActions } from './KycService-method-action-types';
-import type { KycDisclaimer } from './types';
+import type { KycDisclaimer, KycSessionStatus } from './types';
 
 // === GENERAL ===
 
@@ -46,6 +47,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkKycRequired',
   'createUkycSession',
   'submitWrappedKey',
+  'getSessionStatus',
 ] as const;
 
 /**
@@ -124,6 +126,15 @@ const WrappedKeyResponseStruct = type({
 });
 export type WrappedKeyResponse = Infer<typeof WrappedKeyResponseStruct>;
 
+const SessionStatusResponseStruct = type({
+  finalStatus: string(),
+  statusMessage: optional(string()),
+  externalUserId: string(),
+  kycStatus: string(),
+  vendor: string(),
+  vendorStatus: string(),
+});
+
 // === PARAM TYPES ===
 
 export type CreateSessionParams = {
@@ -148,6 +159,10 @@ export type SubmitWrappedKeyParams = {
   wrappedUserKey: string;
   idosSessionId: string;
   jwtToken: string;
+};
+
+export type GetSessionStatusParams = {
+  sessionId: string;
 };
 
 // === SERVICE DEFINITION ===
@@ -352,6 +367,29 @@ export class KycService {
       data,
       WrappedKeyResponseStruct,
       'wrapped-key',
+    );
+  }
+
+  /**
+   * Fetches the current status of a UKYC session. Polled after the SumSub SDK
+   * completes to determine the final verification decision.
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - The UKYC session id.
+   * @returns The session status.
+   */
+  async getSessionStatus(
+    params: GetSessionStatusParams,
+  ): Promise<KycSessionStatus> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(params.sessionId)}/status`,
+      this.#baseUrl,
+    );
+    const data = await this.#request(url, { method: 'GET' });
+    return this.#validateResponse(
+      data,
+      SessionStatusResponseStruct,
+      'session status',
     );
   }
 

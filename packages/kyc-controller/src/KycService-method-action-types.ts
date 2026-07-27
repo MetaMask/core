@@ -76,6 +76,19 @@ export type KycServiceSubmitWrappedKeyAction = {
 };
 
 /**
+ * Fetches the current status of a UKYC session. Polled after the SumSub SDK
+ * completes to determine the final verification decision.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - The UKYC session id.
+ * @returns The session status.
+ */
+export type KycServiceGetSessionStatusAction = {
+  type: `KycService:getSessionStatus`;
+  handler: KycService['getSessionStatus'];
+};
+
+/**
  * Union of all KycService action types.
  */
 export type KycServiceMethodActions =
@@ -84,4 +97,5 @@ export type KycServiceMethodActions =
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
   | KycServiceCreateUkycSessionAction
-  | KycServiceSubmitWrappedKeyAction;
+  | KycServiceSubmitWrappedKeyAction
+  | KycServiceGetSessionStatusAction;

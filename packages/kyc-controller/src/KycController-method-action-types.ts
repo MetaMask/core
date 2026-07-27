@@ -142,6 +142,19 @@ export type KycControllerStartSumSubAction = {
 };
 
 /**
+ * Fetches the current UKYC session status for the active sub-flow and records
+ * it on state. Useful for a one-off refresh outside the automatic polling
+ * loop that {@link startSumSub} runs.
+ *
+ * @returns The fetched session status.
+ * @throws If there is no active SumSub session to query.
+ */
+export type KycControllerGetSessionStatusAction = {
+  type: `KycController:getSessionStatus`;
+  handler: KycController['getSessionStatus'];
+};
+
+/**
  * Resets the flow to idle, clearing session tokens and sub-flow state while
  * preserving persisted terms acceptance and the per-product cache.
  */
@@ -165,4 +178,5 @@ export type KycControllerMethodActions =
   | KycControllerCheckKycRequiredAction
   | KycControllerGetKycStatusAction
   | KycControllerStartSumSubAction
+  | KycControllerGetSessionStatusAction
   | KycControllerResetAction;
