@@ -199,8 +199,8 @@ function setupController(
 
   const fetchV2SupportedNetworksMock = jest.fn().mockResolvedValue({
     fullSupport: initialActiveChains.map((chainId) => {
-      // Pass CAIP-2 IDs through so non-EVM chains (e.g. Solana) survive.
-      return chainId;
+      const [, ref] = chainId.split(':');
+      return parseInt(ref, 10);
     }),
   });
 
