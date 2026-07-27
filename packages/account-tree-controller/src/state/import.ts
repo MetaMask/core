@@ -119,6 +119,48 @@ function setGroupMetadata(
 }
 
 /**
+ * Computes the contiguous ranges of group indices that are present in the payload
+ * but absent from the local wallet, so they can be created in batches.
+ *
+ * @param localWallet - The local entropy wallet to check existing groups against.
+ * @param payloadGroups - Ordered group entries from the payload.
+ * @returns An array of `[fromGroupIndex, toGroupIndex]` ranges to create.
+ */
+function getRangesFromPayloadGroups(
+  localWallet: AccountWalletEntropyObject,
+  payloadGroups: AccountWalletMnemonicGroupEntry[],
+): [number, number][] {
+  let rangeIndex: number | undefined;
+  const ranges: [number, number][] = [];
+
+  // Keep track of the last payload group so we can close the final range if needed.
+  let lastPayloadGroup: AccountWalletMnemonicGroupEntry | undefined;
+  for (const payloadGroup of payloadGroups) {
+    const localGroupId = toMultichainAccountGroupId(
+      localWallet.id,
+      payloadGroup.groupIndex,
+    );
+
+    if (localWallet.groups[localGroupId]) {
+      if (rangeIndex !== undefined) {
+        ranges.push([rangeIndex, payloadGroup.groupIndex - 1]);
+        rangeIndex = undefined;
+      }
+      continue;
+    }
+
+    rangeIndex ??= payloadGroup.groupIndex;
+    lastPayloadGroup = payloadGroup;
+  }
+
+  if (rangeIndex !== undefined && lastPayloadGroup !== undefined) {
+    ranges.push([rangeIndex, lastPayloadGroup.groupIndex]);
+  }
+
+  return ranges;
+}
+
+/**
  * Applies a mnemonic wallet payload entry to the local state.
  *
  * If no local wallet with the same entropy source ID exists and a mnemonic is
@@ -159,33 +201,10 @@ async function importMnemonicWallet(
 
   context.setWalletName(localWallet.id, payloadWallet.metadata.name);
 
-  // Compute range of group indices in the payload to import.
-  let rangeIndex: number | undefined;
-  const ranges: [number, number][] = [];
-  for (const payloadGroup of payloadWallet.groups) {
-    const localGroupId = toMultichainAccountGroupId(
-      localWallet.id,
-      payloadGroup.groupIndex,
-    );
-
-    if (localWallet.groups[localGroupId]) {
-      if (rangeIndex !== undefined) {
-        ranges.push([rangeIndex, payloadGroup.groupIndex - 1]);
-        rangeIndex = undefined;
-      }
-
-      continue;
-    }
-
-    rangeIndex ??= payloadGroup.groupIndex;
-  }
-  // Close any open range that runs to the end of the payload groups.
-  const lastPayloadGroup =
-    payloadWallet.groups[payloadWallet.groups.length - 1];
-  if (rangeIndex !== undefined && lastPayloadGroup !== undefined) {
-    ranges.push([rangeIndex, lastPayloadGroup.groupIndex]);
-  }
-  for (const range of ranges) {
+  for (const range of getRangesFromPayloadGroups(
+    localWallet,
+    payloadWallet.groups,
+  )) {
     await context.messenger.call(
       'MultichainAccountService:createMultichainAccountGroups',
       {
