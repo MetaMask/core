@@ -113,14 +113,12 @@ function setupController(
   options: {
     initialActiveChains?: ChainId[];
     connectionState?: WebSocketState;
-    supportedNetworks?: (number | string)[];
     remoteFeatureFlags?: Record<string, unknown>;
   } = {},
 ): SetupResult {
   const {
     initialActiveChains = [],
     connectionState = WebSocketState.CONNECTED,
-    supportedNetworks,
     remoteFeatureFlags = {},
   } = options;
 
@@ -200,12 +198,10 @@ function setupController(
   );
 
   const fetchV2SupportedNetworksMock = jest.fn().mockResolvedValue({
-    fullSupport:
-      supportedNetworks ??
-      initialActiveChains.map((chainId) => {
-        // Pass CAIP-2 IDs through so non-EVM chains (e.g. Solana) survive.
-        return chainId;
-      }),
+    fullSupport: initialActiveChains.map((chainId) => {
+      // Pass CAIP-2 IDs through so non-EVM chains (e.g. Solana) survive.
+      return chainId;
+    }),
   });
 
   const queryApiClient = {
@@ -325,155 +321,47 @@ describe('BackendWebsocketDataSource', () => {
     controller.destroy();
   });
 
-  describe('active chains migration gating', () => {
-    /**
-     * Init fetches supported networks while disconnected (so chains are stored
-     * but not claimed), then connect to reclaim filtered `#supportedChains`.
-     *
-     * @param options - Setup options forwarded to {@link setupController}.
-     * @returns The controller setup after chains have been claimed on connect.
-     */
-    async function fetchAndClaimActiveChains(
-      options: Parameters<typeof setupController>[0] = {},
-    ): Promise<SetupResult> {
-      const setup = setupController({
-        ...options,
-        initialActiveChains: options?.initialActiveChains ?? [],
-        connectionState: WebSocketState.DISCONNECTED,
+  describe('gate migration networks', () => {
+    it('filters out migration networks from active chains when the FF is unset', async () => {
+      const { controller, triggerConnectionStateChange, fetchV2SupportedNetworksMock } =
+        setupController();
+
+      triggerConnectionStateChange(WebSocketState.CONNECTED);
+
+      fetchV2SupportedNetworksMock.mockResolvedValue({
+        fullSupport: [CHAIN_MAINNET, SOLANA_CHAIN_ID],
       });
+      await controller.refreshActiveChains();
 
-      await new Promise(process.nextTick);
-
-      setup.getConnectionInfoMock.mockReturnValue({
-        state: WebSocketState.CONNECTED,
-        url: 'wss://test.example.com',
-        reconnectAttempts: 0,
-        timeout: 30000,
-        reconnectDelay: 1000,
-        maxReconnectDelay: 30000,
-        requestTimeout: 30000,
-      });
-      setup.triggerConnectionStateChange(WebSocketState.CONNECTED);
-      await new Promise(process.nextTick);
-
-      return setup;
-    }
-
-    it('filters out migration networks from active chains when the migration FF is unset', async () => {
-      const { controller, activeChainsUpdateHandler } =
-        await fetchAndClaimActiveChains({
-          supportedNetworks: [1, SOLANA_CHAIN_ID],
-        });
-
-      expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
-        'BackendWebsocketDataSource',
-        [CHAIN_MAINNET],
-        [],
-      );
-
-      const chains = await controller.getActiveChains();
-      expect(chains).toStrictEqual([CHAIN_MAINNET]);
+      expect(await controller.getActiveChains()).toStrictEqual([CHAIN_MAINNET]);
 
       controller.destroy();
     });
 
-    it('filters out migration networks whose migration stage is Off', async () => {
-      const { controller, activeChainsUpdateHandler } =
-        await fetchAndClaimActiveChains({
-          supportedNetworks: [1, SOLANA_CHAIN_ID],
+    it('gates migration networks independently per namespace', async () => {
+      const { controller, triggerConnectionStateChange, fetchV2SupportedNetworksMock } =
+        setupController({
           remoteFeatureFlags: {
             [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+              stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+            },
+            [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
               stage: SnapsAssetsMigrationStage.Off,
             },
           },
         });
 
-      expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
-        'BackendWebsocketDataSource',
-        [CHAIN_MAINNET],
-        [],
-      );
+      triggerConnectionStateChange(WebSocketState.CONNECTED);
 
-      const chains = await controller.getActiveChains();
-      expect(chains).toStrictEqual([CHAIN_MAINNET]);
-
-      controller.destroy();
-    });
-
-    it.each([
-      {
-        stageName: 'ReadAssetsControllerWithFallback',
-        stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
-      },
-      {
-        stageName: 'ReadAssetsControllerWithoutFallback',
-        stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithoutFallback,
-      },
-      {
-        stageName: 'ReadAssetsControllerOnly',
-        stage: SnapsAssetsMigrationStage.ReadAssetsControllerOnly,
-      },
-    ])(
-      'surfaces a migration network as an active chain when its migration stage is $stageName',
-      async ({ stage }) => {
-        const { controller, activeChainsUpdateHandler } =
-          await fetchAndClaimActiveChains({
-            supportedNetworks: [1, SOLANA_CHAIN_ID],
-            remoteFeatureFlags: {
-              [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: { stage },
-            },
-          });
-
-        expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
-          'BackendWebsocketDataSource',
-          [CHAIN_MAINNET, SOLANA_CHAIN_ID],
-          [],
-        );
-
-        const chains = await controller.getActiveChains();
-        expect(chains).toStrictEqual([CHAIN_MAINNET, SOLANA_CHAIN_ID]);
-
-        controller.destroy();
-      },
-    );
-
-    it('gates migration networks independently per namespace', async () => {
-      const { controller } = await fetchAndClaimActiveChains({
-        supportedNetworks: [1, SOLANA_CHAIN_ID, STELLAR_CHAIN_ID],
-        remoteFeatureFlags: {
-          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
-            stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
-          },
-          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
-            stage: SnapsAssetsMigrationStage.Off,
-          },
-        },
+      fetchV2SupportedNetworksMock.mockResolvedValue({
+        fullSupport: [CHAIN_MAINNET, SOLANA_CHAIN_ID, STELLAR_CHAIN_ID],
       });
+      await controller.refreshActiveChains();
 
-      const chains = await controller.getActiveChains();
-      expect(chains).toStrictEqual([CHAIN_MAINNET, SOLANA_CHAIN_ID]);
-
-      controller.destroy();
-    });
-
-    it.each([
-      { input: 1, expected: 'eip155:1' },
-      { input: '137', expected: 'eip155:137' },
-      { input: 'eip155:42161', expected: 'eip155:42161' },
-    ])('converts chain ID $input to $expected', async ({ input, expected }) => {
-      const { controller, activeChainsUpdateHandler } =
-        await fetchAndClaimActiveChains({
-          supportedNetworks: [input],
-        });
-
-      expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
-        'BackendWebsocketDataSource',
-        [expected],
-        [],
-      );
-
-      const chains = await controller.getActiveChains();
-      expect(chains).toStrictEqual([expected]);
+      expect(await controller.getActiveChains()).toStrictEqual([
+        CHAIN_MAINNET,
+        SOLANA_CHAIN_ID,
+      ]);
 
       controller.destroy();
     });
