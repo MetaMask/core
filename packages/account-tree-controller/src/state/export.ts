@@ -247,8 +247,8 @@ async function exportPrivateKeyWalletObject(
  * Builds an {@link AccountTreeSnapshot} from the current controller state.
  *
  * Iterates over all wallets in the tree:
- * - {@link AccountWalletType.Entropy} (HD) wallets → `'mnemonic'` payload entries.
- * - {@link AccountWalletType.Keyring} wallets of type `simple` → `'private-key'` payload entries.
+ * - {@link AccountWalletType.Entropy} (HD) wallets -> `'mnemonic'` payload entries.
+ * - {@link AccountWalletType.Keyring} wallets of type `simple` -> `'private-key'` payload entries.
  * - Snap wallets and hardware keyrings are skipped in v1.
  *
  * @param context - Export context providing state and messenger access.

@@ -184,7 +184,7 @@ async function importMnemonicWallet(
 
   if (!localWallet) {
     if (!payloadWallet.value) {
-      // No mnemonic in payload and wallet doesn't exist locally — nothing to do.
+      // No mnemonic in payload and wallet doesn't exist locally -- nothing to do.
       return;
     }
 
@@ -278,7 +278,7 @@ async function importPrivateKeyWallet(
     // If it doesn't exist, we need to import the private key.
     if (!hasAccount) {
       if (!payloadGroup.value) {
-        // No importable secret — skip this account.
+        // No importable secret -- skip this account.
         continue;
       }
 

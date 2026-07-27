@@ -142,7 +142,7 @@ export type ExportStateOptions = {
 type Migrator = (raw: unknown) => AccountTreePayload;
 
 const MIGRATORS: Record<number, Migrator> = {
-  // v1 is the current version — identity migration.
+  // v1 is the current version -- identity migration.
   [ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION]: (raw) => raw as AccountTreePayload,
 };
 

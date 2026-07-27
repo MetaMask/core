@@ -285,7 +285,7 @@ describe('importState', () => {
           {
             id: 'wallet:entropy-only',
             type: 'mnemonic',
-            // No mnemonic → will early-return after not finding the wallet.
+            // No mnemonic -> will early-return after not finding the wallet.
             metadata: { name: 'X' },
             groups: [],
           },
@@ -743,7 +743,7 @@ describe('importState', () => {
       const { context, mocks } = setup();
       mocks.KeyringController.withKeyringV2 = makeWithKeyringV2Mock(
         { createAccounts: jest.fn() },
-        [], // Empty → no account was imported.
+        [], // Empty -> no account was imported.
       );
 
       await expect(
@@ -846,7 +846,7 @@ describe('importState', () => {
             groups: [
               {
                 id: `wallet:private-key/${ADDR_C}`,
-                // No value → skip.
+                // No value -> skip.
                 metadata: { name: 'Missing', pinned: false, hidden: false },
               },
             ],
@@ -860,7 +860,7 @@ describe('importState', () => {
 
     it('skips metadata when the local group is not found after import', async () => {
       const { context, mocks } = setup();
-      // State stays empty — the import succeeds but leaves no group in the tree.
+      // State stays empty -- the import succeeds but leaves no group in the tree.
       mocks.KeyringController.withKeyringV2 = makeWithKeyringV2Mock(
         { createAccounts: jest.fn() },
         [{ id: 'some-account-id' }],

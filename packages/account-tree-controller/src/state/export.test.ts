@@ -263,7 +263,7 @@ describe('exportState', () => {
   describe('with an HD wallet', () => {
     it('exports the wallet without secrets by default', async () => {
       const { context, mocks } = setup({ wallets: MOCK_HD_WALLET_STATE });
-      // encodeMnemonic uses Uint16Array internally — must be even-length.
+      // encodeMnemonic uses Uint16Array internally -- must be even-length.
       mocks.KeyringController.withKeyringV2Unsafe = makeHdKeyringHandler(
         'stable-entropy-id',
         new Uint8Array([1, 2, 3, 4]),
@@ -294,7 +294,7 @@ describe('exportState', () => {
 
     it('throws when includeSecrets is true but mnemonic is unavailable', async () => {
       const { context, mocks } = setup({ wallets: MOCK_HD_WALLET_STATE });
-      // mnemonic: null → includeMnemonic will be false → throws after export.
+      // mnemonic: null -> includeMnemonic will be false -> throws after export.
       mocks.KeyringController.withKeyringV2Unsafe = makeHdKeyringHandler(
         'stable-entropy-id',
         null,
@@ -422,11 +422,12 @@ describe('exportState', () => {
 
       const snapshot = await exportState(context, { includeSecrets: true });
       const group = snapshot.serialize().wallets[0]?.groups[0] as {
-        value?: { privateKey: string; encoding: string };
+        value?: { privateKey: string; encoding: string; type: string };
       };
 
       expect(group.value?.privateKey).toBe('0xdeadbeef');
       expect(group.value?.encoding).toBe('hexadecimal');
+      expect(group.value?.type).toBe('eip155:eoa');
     });
 
     it('throws when includeSecrets is true but keyring does not support exportAccount', async () => {
