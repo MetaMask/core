@@ -167,11 +167,19 @@ export class ProfileMetricsService {
   >[0]['fetch'];
 
   /**
-   * The policy that wraps the request.
+   * Policy for `fetchNonces`. Minting new nonces is safe to retry.
    *
    * @see {@link createServicePolicy}
    */
-  readonly #policy: ServicePolicy;
+  readonly #fetchNoncesPolicy: ServicePolicy;
+
+  /**
+   * Policy for `submitMetrics`. Proof payloads embed single-use nonces, so
+   * in-request retries are disabled by default.
+   *
+   * @see {@link createServicePolicy}
+   */
+  readonly #submitMetricsPolicy: ServicePolicy;
 
   /**
    * The API base URL environment.
@@ -189,9 +197,11 @@ export class ProfileMetricsService {
    * `node-fetch`).
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
-   * Retries default to `0`: proof-of-ownership nonces are single-use, and
-   * `ProfileMetricsController`'s poll already re-fetches nonces and retries
-   * failed batches, so in-request retries would resubmit spent nonces.
+   * `submitMetrics` defaults to `maxRetries: 0` (proof nonces are single-use;
+   * the controller poll re-fetches nonces and retries failed submits).
+   * `fetchNonces` keeps the normal retry defaults — a failed nonce fetch
+   * soft-degrades to a proof-less submit that clears the queue, so retries
+   * here are what preserve proofs across transient errors.
    * @param args.env - The environment to determine the correct API endpoints.
    */
   constructor({
@@ -208,7 +218,17 @@ export class ProfileMetricsService {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
-    this.#policy = createServicePolicy({ maxRetries: 0, ...policyOptions });
+    this.#fetchNoncesPolicy = createServicePolicy(policyOptions);
+    // Keep the circuit breaker scaled to the retry count the same way
+    // `createServicePolicy` derives `DEFAULT_MAX_CONSECUTIVE_FAILURES`:
+    // `(1 + maxRetries) * 3` failed attempts ≈ 3 failed `execute()` calls.
+    const submitMaxRetries = policyOptions.maxRetries ?? 0;
+    this.#submitMetricsPolicy = createServicePolicy({
+      ...policyOptions,
+      maxRetries: submitMaxRetries,
+      maxConsecutiveFailures:
+        policyOptions.maxConsecutiveFailures ?? (1 + submitMaxRetries) * 3,
+    });
     this.#baseURL = getAuthUrl(env);
 
     this.#messenger.registerMethodActionHandlers(
@@ -228,7 +248,14 @@ export class ProfileMetricsService {
    * @see {@link createServicePolicy}
    */
   onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
-    return this.#policy.onRetry(listener);
+    const fetchDisposable = this.#fetchNoncesPolicy.onRetry(listener);
+    const submitDisposable = this.#submitMetricsPolicy.onRetry(listener);
+    return {
+      dispose: () => {
+        fetchDisposable.dispose();
+        submitDisposable.dispose();
+      },
+    };
   }
 
   /**
@@ -241,7 +268,14 @@ export class ProfileMetricsService {
    * @see {@link createServicePolicy}
    */
   onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
-    return this.#policy.onBreak(listener);
+    const fetchDisposable = this.#fetchNoncesPolicy.onBreak(listener);
+    const submitDisposable = this.#submitMetricsPolicy.onBreak(listener);
+    return {
+      dispose: () => {
+        fetchDisposable.dispose();
+        submitDisposable.dispose();
+      },
+    };
   }
 
   /**
@@ -264,7 +298,14 @@ export class ProfileMetricsService {
   onDegraded(
     listener: Parameters<ServicePolicy['onDegraded']>[0],
   ): IDisposable {
-    return this.#policy.onDegraded(listener);
+    const fetchDisposable = this.#fetchNoncesPolicy.onDegraded(listener);
+    const submitDisposable = this.#submitMetricsPolicy.onDegraded(listener);
+    return {
+      dispose: () => {
+        fetchDisposable.dispose();
+        submitDisposable.dispose();
+      },
+    };
   }
 
   /**
@@ -310,8 +351,8 @@ export class ProfileMetricsService {
 
   /**
    * Mint nonces for a single ≤ {@link MAX_NONCE_BATCH_SIZE}-sized chunk of
-   * identifiers. Wrapped in {@link #policy} for retry / degraded / circuit
-   * semantics consistent with the rest of the service.
+   * identifiers. Wrapped in {@link #fetchNoncesPolicy} for retry / degraded /
+   * circuit semantics.
    *
    * @param identifiers - The identifiers in this chunk. Must be 1..MAX_NONCE_BATCH_SIZE.
    * @param entropySourceId - The entropy source ID forwarded to the bearer
@@ -322,7 +363,7 @@ export class ProfileMetricsService {
     identifiers: string[],
     entropySourceId: string | null | undefined,
   ): Promise<Record<string, string>> {
-    return await this.#policy.execute(async () => {
+    return await this.#fetchNoncesPolicy.execute(async () => {
       const authToken = await this.#messenger.call(
         'AuthenticationController:getBearerToken',
         entropySourceId ?? undefined,
@@ -372,7 +413,7 @@ export class ProfileMetricsService {
    * @returns The response from the API.
    */
   async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
-    await this.#policy.execute(async () => {
+    await this.#submitMetricsPolicy.execute(async () => {
       const authToken = await this.#messenger.call(
         'AuthenticationController:getBearerToken',
         data.entropySourceId ?? undefined,

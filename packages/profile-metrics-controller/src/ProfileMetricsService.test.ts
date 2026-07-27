@@ -58,6 +58,16 @@ describe('ProfileMetricsService', () => {
           }),
       ).toThrow('invalid environment configuration');
     });
+
+    it('allows policy listeners to be disposed', () => {
+      const { service } = getService();
+
+      expect(() => {
+        service.onRetry(() => undefined).dispose();
+        service.onBreak(() => undefined).dispose();
+        service.onDegraded(() => undefined).dispose();
+      }).not.toThrow();
+    });
   });
 
   describe('ProfileMetricsService:submitMetrics', () => {
@@ -592,11 +602,11 @@ describe('ProfileMetricsService', () => {
       expect(scope.pendingMocks()).toHaveLength(0);
     });
 
-    it('throws when the response is short of identifiers', async () => {
+    it('throws after exhausting retries when the response is short of identifiers', async () => {
       const identifiers = ['0xAddressOne', '0xAddressTwo'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .once()
+        .times(4)
         .reply(200, [
           {
             expires_in: 300,
@@ -604,7 +614,10 @@ describe('ProfileMetricsService', () => {
             nonce: 'nonce-for-one',
           },
         ]);
-      const { rootMessenger } = getService();
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -615,11 +628,11 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws when the response returns identifiers we did not request', async () => {
+    it('throws after exhausting retries when the response returns identifiers we did not request', async () => {
       const identifiers = ['0xAddressOne', '0xAddressTwo'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .once()
+        .times(4)
         .reply(200, [
           {
             expires_in: 300,
@@ -632,7 +645,10 @@ describe('ProfileMetricsService', () => {
             nonce: 'nonce-for-impostor',
           },
         ]);
-      const { rootMessenger } = getService();
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -643,11 +659,11 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws when the response duplicates one identifier in place of another', async () => {
+    it('throws after exhausting retries when the response duplicates one identifier in place of another', async () => {
       const identifiers = ['0xAddressOne', '0xAddressTwo'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .once()
+        .times(4)
         .reply(200, [
           {
             expires_in: 300,
@@ -660,7 +676,10 @@ describe('ProfileMetricsService', () => {
             nonce: 'nonce-for-one-b',
           },
         ]);
-      const { rootMessenger } = getService();
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -671,11 +690,11 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws when the response duplicates an identifier alongside a full set (preventing silent overwrite)', async () => {
+    it('throws after exhausting retries when the response duplicates an identifier alongside a full set (preventing silent overwrite)', async () => {
       const identifiers = ['0xAddressOne', '0xAddressTwo'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .once()
+        .times(4)
         .reply(200, [
           {
             expires_in: 300,
@@ -693,7 +712,10 @@ describe('ProfileMetricsService', () => {
             nonce: 'nonce-for-two',
           },
         ]);
-      const { rootMessenger } = getService();
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -704,13 +726,16 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws when the response body is not an array', async () => {
+    it('throws after exhausting retries when the response body is not an array', async () => {
       const identifiers = ['0xAddressOne'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .once()
+        .times(4)
         .reply(200, { error: 'oops' });
-      const { rootMessenger } = getService();
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -721,13 +746,16 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws when a response entry is missing the `nonce` field', async () => {
+    it('throws after exhausting retries when a response entry is missing the `nonce` field', async () => {
       const identifiers = ['0xAddressOne'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .once()
+        .times(4)
         .reply(200, [{ expires_in: 300, identifier: '0xAddressOne' }]);
-      const { rootMessenger } = getService();
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -738,11 +766,11 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws when a response entry has a non-string `nonce`', async () => {
+    it('throws after exhausting retries when a response entry has a non-string `nonce`', async () => {
       const identifiers = ['0xAddressOne'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .once()
+        .times(4)
         .reply(200, [
           {
             expires_in: 300,
@@ -750,7 +778,10 @@ describe('ProfileMetricsService', () => {
             nonce: 12345,
           },
         ]);
-      const { rootMessenger } = getService();
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -761,11 +792,9 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('attempts a request that responds with non-200 up to 4 times when retries are enabled, throwing if it never succeeds', async () => {
+    it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
       nock(defaultBaseEndpoint).post('/nonce/batch').times(4).reply(500);
-      const { service, rootMessenger } = getService({
-        options: { policyOptions: RETRY_POLICY },
-      });
+      const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
         jest.advanceTimersByTime(delay);
       });
@@ -779,27 +808,12 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('attempts a request that responds with 4xx up to 4 times when retries are enabled, throwing if it never succeeds', async () => {
+    it('attempts a request that responds with 4xx up to 4 times, throwing if it never succeeds', async () => {
       nock(defaultBaseEndpoint).post('/nonce/batch').times(4).reply(400);
-      const { service, rootMessenger } = getService({
-        options: { policyOptions: RETRY_POLICY },
-      });
+      const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
         jest.advanceTimersByTime(delay);
       });
-
-      await expect(
-        rootMessenger.call('ProfileMetricsService:fetchNonces', {
-          identifiers: ['0xAddressOne'],
-        }),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '400'`,
-      );
-    });
-
-    it('does not retry by default when a nonce batch request fails', async () => {
-      nock(defaultBaseEndpoint).post('/nonce/batch').once().reply(400);
-      const { rootMessenger } = getService();
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
