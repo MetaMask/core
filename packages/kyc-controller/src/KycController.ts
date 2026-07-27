@@ -547,6 +547,7 @@ export class KycController extends BaseController<
         state.statusMessage = 'Authenticating via Check frame...';
       });
     } catch (error) {
+      console.error('Session creation failed:', error);
       // A reset() superseded this flow while the request was in flight; leave
       // the idle controller alone rather than forcing it back to `terms`.
       if (this.#generation !== generation) {
@@ -938,7 +939,7 @@ export class KycController extends BaseController<
       });
 
       const jwtToken = MOCK_JWT_TOKEN;
-      const { sessionId, wrappingPublicKey, idosSessionId } =
+      const { sessionId, wrappingPublicKey } =
         await this.messenger.call('KycService:createUkycSession', {
           jwtToken,
           vendorMetadata: {
@@ -952,7 +953,6 @@ export class KycController extends BaseController<
       const exchange = {
         sessionId,
         wrappedUserKey: wrappingPublicKey,
-        idosSessionId,
         jwtToken,
       };
 

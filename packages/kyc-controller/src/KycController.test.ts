@@ -1202,7 +1202,6 @@ describe('KycController', () => {
         handlers.createUkycSession.mockResolvedValue({
           sessionId: 'sid',
           wrappingPublicKey: 'wpk',
-          idosSessionId: 'idos',
         });
         handlers.submitWrappedKey.mockResolvedValue({
           status: 'ok',
@@ -1284,7 +1283,6 @@ describe('KycController', () => {
           return {
             sessionId: 'sid',
             wrappingPublicKey: 'wpk',
-            idosSessionId: 'idos',
           };
         });
 
@@ -1486,7 +1484,6 @@ function withController<ReturnValue>(
     createUkycSession: jest.fn().mockResolvedValue({
       sessionId: 'sid',
       wrappingPublicKey: 'wpk',
-      idosSessionId: 'idos',
     }),
     submitWrappedKey: jest
       .fn()

@@ -196,7 +196,6 @@ describe('KycService', () => {
       const response = {
         sessionId: 'sid',
         wrappingPublicKey: 'wpk',
-        idosSessionId: 'idos',
       };
       nock(MOCK_API_URL).post('/sessions').reply(200, response);
       const { service } = getService();
@@ -229,7 +228,6 @@ describe('KycService', () => {
         await service.submitWrappedKey({
           sessionId: 'sid',
           wrappedUserKey: 'wuk',
-          idosSessionId: 'idos',
           jwtToken: 'jwt',
         }),
       ).toStrictEqual(response);
@@ -245,7 +243,6 @@ describe('KycService', () => {
         service.submitWrappedKey({
           sessionId: 'sid',
           wrappedUserKey: 'wuk',
-          idosSessionId: 'idos',
           jwtToken: 'jwt',
         }),
       ).rejects.toThrow(/Malformed response received from wrapped-key API/u);

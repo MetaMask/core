@@ -114,7 +114,6 @@ const KycRequiredResponseStruct = type({ required: boolean() });
 const UkycSessionResponseStruct = type({
   sessionId: string(),
   wrappingPublicKey: string(),
-  idosSessionId: string(),
 });
 export type UkycSessionResponse = Infer<typeof UkycSessionResponseStruct>;
 
@@ -146,7 +145,6 @@ export type CreateUkycSessionParams = {
 export type SubmitWrappedKeyParams = {
   sessionId: string;
   wrappedUserKey: string;
-  idosSessionId: string;
   jwtToken: string;
 };
 
@@ -345,7 +343,7 @@ export class KycService {
       body: JSON.stringify({
         wrappedUserKey: params.wrappedUserKey,
         jwtToken: params.jwtToken,
-        idosSessionId: params.idosSessionId,
+        sessionId: params.sessionId,
       }),
     });
     return this.#validateResponse(
