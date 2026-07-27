@@ -127,9 +127,16 @@ export type KycControllerGetKycStatusAction = {
 };
 
 /**
- * Runs the SumSub document-verification sub-flow: creates a UKYC session,
- * exchanges the wrapped key for an applicant access token, and presents the
- * SDK via the injected launcher.
+ * Runs the SumSub document-verification sub-flow end to end:
+ *
+ * 1. requests a per-session wrapping key from the UKYC backend;
+ * 2. verifies its `jwtChain` against the Fractal JWKS and confirms the
+ * attested session server public key;
+ * 3. derives the `data_encryption_key` from the wallet's UKYC
+ * `local_user_secret` and wraps it for the session server;
+ * 4. creates the UKYC session (handing over the wrapped key);
+ * 5. fetches the SumSub applicant access token; and
+ * 6. presents the SDK via the injected launcher.
  *
  * @param params - Optional parameters.
  * @param params.locale - BCP-47 locale for the SDK UI.

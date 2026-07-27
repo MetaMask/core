@@ -19,6 +19,7 @@ import {
 import { alpha2ToAlpha3 } from './countryCodes';
 import type { KycServiceMethodActions } from './KycService-method-action-types';
 import type { KycDisclaimer } from './types';
+import { UKYC_JWKS_PATH } from './ukyc';
 
 // === GENERAL ===
 
@@ -44,8 +45,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchDisclaimers',
   'createSession',
   'checkKycRequired',
+  'getWrappingKey',
+  'fetchJwks',
   'createUkycSession',
-  'submitWrappedKey',
+  'fetchApplicantAccessToken',
 ] as const;
 
 /**
@@ -93,6 +96,13 @@ export type KycServiceOptions = {
    * targeting a local or staging KYC API.
    */
   baseUrl?: string;
+  /**
+   * Base URL of the Fractal encryption service, from which the JWKS used to
+   * verify the `jwtChain` returned by {@link KycService.getWrappingKey} is
+   * fetched. Required to run the wrapped-key exchange in
+   * {@link KycService.fetchJwks}.
+   */
+  fractalEncryptionBaseUrl?: string;
   policyOptions?: CreateServicePolicyOptions;
 };
 
@@ -111,17 +121,45 @@ const CreateSessionResponseStruct = type({ sessionToken: string() });
 // this to `kycRequired` for consumers (see `checkKycRequired`).
 const KycRequiredResponseStruct = type({ required: boolean() });
 
+// The session server's X25519 public key, in JWK-like form, returned by
+// `/wrapping-key`. `x` is the base64url public key used to wrap the user key.
+const SessionServerPublicKeyStruct = type({
+  kty: string(),
+  crv: string(),
+  x: string(),
+});
+
+const WrappingKeyResponseStruct = type({
+  id: string(),
+  jwtChain: string(),
+  sessionServerPublicKey: SessionServerPublicKeyStruct,
+});
+export type WrappingKeyResponse = Infer<typeof WrappingKeyResponseStruct>;
+
+// A single Ed25519 (OKP) JWK. `type` (not `object`) keeps optional/extra JWK
+// fields (`use`, `alg`) from failing validation.
+const JwkStruct = type({
+  kty: string(),
+  crv: string(),
+  x: string(),
+  kid: string(),
+});
+const JwksResponseStruct = type({ keys: array(JwkStruct) });
+export type JwksResponse = Infer<typeof JwksResponseStruct>;
+
 const UkycSessionResponseStruct = type({
   sessionId: string(),
-  wrappingPublicKey: string(),
+  idosSessionId: string(),
 });
 export type UkycSessionResponse = Infer<typeof UkycSessionResponseStruct>;
 
-const WrappedKeyResponseStruct = type({
+const ApplicantAccessTokenResponseStruct = type({
   status: string(),
   applicantAccessToken: string(),
 });
-export type WrappedKeyResponse = Infer<typeof WrappedKeyResponseStruct>;
+export type ApplicantAccessTokenResponse = Infer<
+  typeof ApplicantAccessTokenResponseStruct
+>;
 
 // === PARAM TYPES ===
 
@@ -137,15 +175,30 @@ export type CheckKycRequiredParams = {
   capabilities?: { product: string }[];
 };
 
+export type GetWrappingKeyParams = {
+  sessionClientPublicKey: string;
+};
+
+/**
+ * The wrapped `data_encryption_key` sent to the UKYC backend when creating a
+ * session. `encryptedKey` and `nonce` are produced by `wrapEncryptionKey`;
+ * `sessionId` is the wrapping key id returned by `getWrappingKey`.
+ */
+export type WrappedEncryptionKey = {
+  sessionId: string;
+  encryptedKey: string;
+  nonce: string;
+};
+
 export type CreateUkycSessionParams = {
   jwtToken: string;
   vendorMetadata: Record<string, unknown>;
+  wrappedEncryptionKey: WrappedEncryptionKey;
 };
 
-export type SubmitWrappedKeyParams = {
+export type FetchApplicantAccessTokenParams = {
   sessionId: string;
-  wrappedUserKey: string;
-  jwtToken: string;
+  idosSessionId: string;
 };
 
 // === SERVICE DEFINITION ===
@@ -165,6 +218,8 @@ export class KycService {
 
   readonly #baseUrl: string;
 
+  readonly #fractalEncryptionBaseUrl: string;
+
   readonly #policy: ServicePolicy;
 
   /**
@@ -175,6 +230,9 @@ export class KycService {
    * @param options.fetch - A function used to make HTTP requests.
    * @param options.env - The environment; determines the base URL.
    * @param options.baseUrl - Overrides the base URL derived from `env`.
+   * @param options.fractalEncryptionBaseUrl - Base URL of the Fractal
+   * encryption service, from which the JWKS used to verify the wrapping-key
+   * `jwtChain` is fetched.
    * @param options.policyOptions - Options for the request service policy.
    */
   constructor({
@@ -182,12 +240,14 @@ export class KycService {
     fetch: fetchFunction,
     env,
     baseUrl,
+    fractalEncryptionBaseUrl,
     policyOptions,
   }: KycServiceOptions) {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#baseUrl = baseUrl ?? KYC_API_URLS[env];
+    this.#fractalEncryptionBaseUrl = fractalEncryptionBaseUrl ?? '';
     this.#policy = createServicePolicy(policyOptions ?? {});
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -300,10 +360,66 @@ export class KycService {
   }
 
   /**
-   * Creates a UKYC session for the SumSub document-verification sub-flow.
+   * Requests a per-session wrapping key from the UKYC backend.
+   *
+   * The client sends its ephemeral X25519 public key; the backend responds with
+   * its session public key (`sessionServerPublicKey`) and a `jwtChain` that
+   * attests it. The caller must verify `jwtChain` against the Fractal JWKS
+   * (see {@link KycService.fetchJwks}) before trusting the key to wrap the
+   * `data_encryption_key`.
+   *
+   * @param params - The parameters.
+   * @param params.sessionClientPublicKey - Our ephemeral X25519 public key
+   * (base64url).
+   * @returns The wrapping key id, `jwtChain`, and session server public key.
+   */
+  async getWrappingKey(
+    params: GetWrappingKeyParams,
+  ): Promise<WrappingKeyResponse> {
+    const url = new URL('/wrapping-key', this.#baseUrl);
+    const data = await this.#request(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        sessionClientPublicKey: params.sessionClientPublicKey,
+      }),
+    });
+    return this.#validateResponse(
+      data,
+      WrappingKeyResponseStruct,
+      'wrapping-key',
+    );
+  }
+
+  /**
+   * Fetches the Fractal encryption service JWKS used to verify the `jwtChain`
+   * returned by {@link KycService.getWrappingKey}.
+   *
+   * This is an unauthenticated request to a well-known path on the Fractal
+   * host, distinct from the UKYC base URL.
+   *
+   * @returns The JWKS keys.
+   */
+  async fetchJwks(): Promise<JwksResponse> {
+    if (!this.#fractalEncryptionBaseUrl) {
+      throw new Error(
+        'KycService: fractalEncryptionBaseUrl is not configured; cannot fetch JWKS to verify the wrapping key.',
+      );
+    }
+    const url = new URL(UKYC_JWKS_PATH, this.#fractalEncryptionBaseUrl);
+    const data = await this.#request(
+      url,
+      { method: 'GET' },
+      { authenticated: false },
+    );
+    return this.#validateResponse(data, JwksResponseStruct, 'JWKS');
+  }
+
+  /**
+   * Creates a UKYC session for the SumSub document-verification sub-flow,
+   * handing over the wrapped `data_encryption_key`.
    *
    * @param params - The session parameters.
-   * @returns The UKYC session identifiers and wrapped key.
+   * @returns The UKYC session identifiers.
    */
   async createUkycSession(
     params: CreateUkycSessionParams,
@@ -316,6 +432,7 @@ export class KycService {
         vendorUserId: 'mockedId',
         jwtToken: params.jwtToken,
         vendorMetadata: params.vendorMetadata,
+        wrappedEncryptionKey: params.wrappedEncryptionKey,
       }),
     });
     return this.#validateResponse(
@@ -326,29 +443,28 @@ export class KycService {
   }
 
   /**
-   * Exchanges the wrapped user key for a SumSub applicant access token.
+   * Fetches (or refreshes) the SumSub applicant access token for a UKYC
+   * session.
    *
-   * @param params - The exchange parameters.
+   * @param params - The parameters.
+   * @param params.sessionId - The UKYC session id from `createUkycSession`.
+   * @param params.idosSessionId - The idOS session id from `createUkycSession`.
    * @returns The applicant access token and status.
    */
-  async submitWrappedKey(
-    params: SubmitWrappedKeyParams,
-  ): Promise<WrappedKeyResponse> {
+  async fetchApplicantAccessToken(
+    params: FetchApplicantAccessTokenParams,
+  ): Promise<ApplicantAccessTokenResponse> {
     const url = new URL(
       `/sessions/${encodeURIComponent(params.sessionId)}/wrapped-key`,
       this.#baseUrl,
     );
     const data = await this.#request(url, {
       method: 'POST',
-      body: JSON.stringify({
-        wrappedUserKey: params.wrappedUserKey,
-        jwtToken: params.jwtToken,
-        sessionId: params.sessionId,
-      }),
+      body: JSON.stringify({ idosSessionId: params.idosSessionId }),
     });
     return this.#validateResponse(
       data,
-      WrappedKeyResponseStruct,
+      ApplicantAccessTokenResponseStruct,
       'wrapped-key',
     );
   }
@@ -379,7 +495,10 @@ export class KycService {
       const detail =
         error instanceof StructError
           ? `${error.message} (received: ${JSON.stringify(data)})`
-          : String(error);
+          : // `assert` only ever throws `StructError` for the plain structs used
+            // here, so this is a defensive fallback that is not exercised.
+            /* istanbul ignore next */
+            String(error);
       throw new Error(
         `Malformed response received from ${apiName} API: ${detail}`,
       );
@@ -387,30 +506,47 @@ export class KycService {
   }
 
   /**
-   * Performs an authenticated JSON request wrapped in the service policy.
+   * Performs a JSON request wrapped in the service policy.
+   *
+   * Requests are authenticated with the wallet bearer token by default; pass
+   * `{ authenticated: false }` for calls to services that do not expect it
+   * (e.g. the Fractal JWKS endpoint).
    *
    * @param url - The request URL.
    * @param init - The request init (method, body).
+   * @param options - Request options.
+   * @param options.authenticated - Whether to attach the bearer token. Defaults
+   * to `true`.
    * @returns The parsed JSON response.
    */
-  async #request(url: URL, init: RequestInit): Promise<unknown> {
-    const bearerToken = await this.#messenger.call(
-      'AuthenticationController:getBearerToken',
-    );
-    assert(bearerToken, string());
-    if (!bearerToken) {
-      throw new Error(
-        'Unable to obtain an authentication bearer token — is the wallet signed in?',
+  async #request(
+    url: URL,
+    init: RequestInit,
+    options: { authenticated?: boolean } = {},
+  ): Promise<unknown> {
+    const { authenticated = true } = options;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (authenticated) {
+      const bearerToken = await this.#messenger.call(
+        'AuthenticationController:getBearerToken',
       );
+      assert(bearerToken, string());
+      if (!bearerToken) {
+        throw new Error(
+          'Unable to obtain an authentication bearer token — is the wallet signed in?',
+        );
+      }
+      headers.Authorization = `Bearer ${bearerToken}`;
     }
 
     const response = await this.#policy.execute(async () => {
       const localResponse = await this.#fetch(url.toString(), {
         ...init,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${bearerToken}`,
-        },
+        headers,
       });
       if (!localResponse.ok) {
         throw new HttpError(
