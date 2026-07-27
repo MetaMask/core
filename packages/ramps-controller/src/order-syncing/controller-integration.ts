@@ -48,19 +48,6 @@ function getOrderTimestamp(order: RampsOrder | SyncRampsOrder): number {
 }
 
 /**
- * Returns the conflict-resolution timestamp for a remote entry when the same
- * order key appears under multiple entropy profiles.
- *
- * Soft-deletes use `deletedAt`; live entries use {@link getOrderTimestamp}.
- *
- * @param order - A remote ramps order that may include sync metadata.
- * @returns The timestamp used to pick the freshest remote copy.
- */
-function getRemoteConflictTimestamp(order: SyncRampsOrder): number {
-  return order.deletedAt ?? getOrderTimestamp(order);
-}
-
-/**
  * Builds the local/remote merge plan from the current local snapshot and remote
  * entries.
  *
@@ -308,41 +295,19 @@ async function getRemoteOrders(
   const { onOrderSyncErroneousSituation } = config;
 
   try {
-    // Multi-SRP: Portfolio uploads under the connected account's HD entropy
-    // profile. Reading only the primary SRP misses secondary-wallet orders.
-    let entropySourceIds: (string | undefined)[] = [undefined];
-    try {
-      const listed = await getMessenger().call(
-        'UserStorageController:listEntropySources',
-      );
-      if (listed.length > 0) {
-        entropySourceIds = listed;
-      }
-    } catch {
-      // Wallet locked / action missing — fall back to primary (omit id).
-    }
-
-    const remoteOrdersJsonArray: string[] = [];
-
-    for (const entropySourceId of entropySourceIds) {
-      const entries = await getMessenger().call(
+    // Reads the active/primary SRP profile only. Order sync is same-SRP: hosts
+    // sync Extension ↔ Mobile for a given SRP, not across secondary wallets.
+    const remoteOrdersJsonArray =
+      (await getMessenger().call(
         'UserStorageController:performGetStorageAllFeatureEntries',
         USER_STORAGE_RAMPS_ORDERS_FEATURE,
-        entropySourceId,
-      );
-      if (entries?.length) {
-        remoteOrdersJsonArray.push(...entries);
-      }
-    }
+      )) ?? [];
 
     if (remoteOrdersJsonArray.length === 0) {
       return [];
     }
 
-    // Multi-SRP can return the same order key from more than one entropy
-    // profile. Keep the freshest copy so secondary-profile updates are not
-    // discarded just because an older primary-profile entry was parsed first.
-    const ordersByKey = new Map<string, SyncRampsOrder>();
+    const remoteOrders: SyncRampsOrder[] = [];
 
     for (const orderJson of remoteOrdersJsonArray) {
       try {
@@ -365,18 +330,10 @@ async function getRemoteOrders(
           continue;
         }
         const mapped = mapUserStorageEntryToRampsOrder(entry);
-        const key = createOrderStorageKey(mapped);
-        if (!key) {
+        if (!createOrderStorageKey(mapped)) {
           continue;
         }
-        const existing = ordersByKey.get(key);
-        if (
-          !existing ||
-          getRemoteConflictTimestamp(mapped) >
-            getRemoteConflictTimestamp(existing)
-        ) {
-          ordersByKey.set(key, mapped);
-        }
+        remoteOrders.push(mapped);
       } catch (error) {
         // Do not attach raw order JSON — it can include wallet/PII fields.
         onOrderSyncErroneousSituation?.(
@@ -389,7 +346,7 @@ async function getRemoteOrders(
       }
     }
 
-    return Array.from(ordersByKey.values());
+    return remoteOrders;
   } catch (error) {
     onOrderSyncErroneousSituation?.('Failed to fetch remote ramps orders', {
       error,
@@ -537,6 +494,5 @@ export const orderSyncingTestExports = {
   computeMergePlan,
   reconcileOrdersForRemoteUpload,
   getOrderTimestamp,
-  getRemoteConflictTimestamp,
   saveOrdersToUserStorage,
 };

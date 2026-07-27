@@ -39,11 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Persist `lastUpdatedAt` on local orders and bump it on every non-sync `addOrder` so last-write-wins prefers fresher local edits over stale remote copies ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Set `isOrderSyncingInProgress` before the remote fetch so overlapping full syncs cannot race merge/upload ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Trim `providerOrderId` in `getInternalOrderCode` to match User Storage key derivation ([#9474](https://github.com/MetaMask/core/pull/9474))
-- Prefer the freshest remote copy when the same order key appears under multiple entropy profiles during order sync ([#9474](https://github.com/MetaMask/core/pull/9474))
-- Prefer newer remote tombstones over older live duplicates across entropy profiles ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Re-check the sync queue after awaiting an in-flight `syncOrdersWithUserStorage` worker so coalesced requests cannot be skipped ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Report via `onOrderSyncErroneousSituation` when `addOrder` cannot derive an internal order code ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Exclude local-only `paymentDetails` from `areOrdersEqual` so orders carrying local payment details are not re-uploaded on every sync ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Scope remote order fetches to the active/primary SRP profile only; cross-SRP aggregation is out of scope for same-SRP Extension ↔ Mobile sync ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ## [17.2.0]
 
