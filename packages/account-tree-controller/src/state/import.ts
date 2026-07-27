@@ -179,6 +179,12 @@ async function importMnemonicWallet(
 
     rangeIndex ??= payloadGroup.groupIndex;
   }
+  // Close any open range that runs to the end of the payload groups.
+  const lastPayloadGroup =
+    payloadWallet.groups[payloadWallet.groups.length - 1];
+  if (rangeIndex !== undefined && lastPayloadGroup !== undefined) {
+    ranges.push([rangeIndex, lastPayloadGroup.groupIndex]);
+  }
   for (const range of ranges) {
     await context.messenger.call(
       'MultichainAccountService:createMultichainAccountGroups',
@@ -236,9 +242,8 @@ async function importPrivateKeyWallet(
     let localGroup = localWallet?.groups[localGroupId];
 
     // EVM accounts have deterministic IDs, so we can re-use this to find the local group if it exists.
-    const hasAccount = localGroup.accounts.some(
-      (id) => id === payloadAccountId,
-    );
+    const hasAccount =
+      localGroup?.accounts.some((id) => id === payloadAccountId) ?? false;
 
     // If it doesn't exist, we need to import the private key.
     if (!hasAccount) {

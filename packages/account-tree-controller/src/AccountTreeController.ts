@@ -23,11 +23,6 @@ import {
 import { BackupAndSyncService } from './backup-and-sync/service/index.js';
 import type { BackupAndSyncContext } from './backup-and-sync/types.js';
 import { createSyncMutationTracker } from './backup-and-sync/utils/index.js';
-import { exportState } from './state/export.js';
-import { importState } from './state/import.js';
-import type { ExportStateOptions } from './state/payload.js';
-import type { AccountTreeSnapshot } from './state/snapshot.js';
-import type { AccountTreePayload } from './state/payload.js';
 import type { AccountGroupObject, AccountTypeOrderKey } from './group.js';
 import {
   ACCOUNT_TYPE_TO_SORT_ORDER,
@@ -40,6 +35,11 @@ import type { Rule } from './rule.js';
 import { EntropyRule } from './rules/entropy.js';
 import { KeyringRule } from './rules/keyring.js';
 import { SnapRule } from './rules/snap.js';
+import { exportState } from './state/export.js';
+import { importState } from './state/import.js';
+import type { ExportStateOptions } from './state/payload.js';
+import type { AccountTreePayload } from './state/payload.js';
+import type { AccountTreeSnapshot } from './state/snapshot.js';
 import type {
   AccountTreeControllerConfig,
   AccountTreeControllerInternalBackupAndSyncConfig,
@@ -1806,7 +1806,9 @@ export class AccountTreeController extends BaseController<
    * @param options - Export options.
    * @returns A promise resolving to an `AccountTreeSnapshot`.
    */
-  async exportState(options?: ExportStateOptions): Promise<AccountTreeSnapshot> {
+  async exportState(
+    options?: ExportStateOptions,
+  ): Promise<AccountTreeSnapshot> {
     return exportState(
       { getState: () => this.state, messenger: this.messenger },
       options,
