@@ -1,16 +1,16 @@
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
 import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 
-import { mockNetwork } from '../../../tests/mock-network';
-import { buildNetworkControllerMessenger } from '../tests/helpers';
-import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
-import * as createNetworkClientModule from './create-network-client';
-import { RpcServiceOptions } from './rpc-service/rpc-service';
+import { mockNetwork } from '../../../tests/mock-network.js';
+import { buildNetworkControllerMessenger } from '../tests/helpers.js';
+import { createAutoManagedNetworkClient } from './create-auto-managed-network-client.js';
+import * as createNetworkClientModule from './create-network-client.js';
+import { RpcServiceOptions } from './rpc-service/rpc-service.js';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
-} from './types';
-import { NetworkClientType } from './types';
+} from './types.js';
+import { NetworkClientType } from './types.js';
 
 describe('createAutoManagedNetworkClient', () => {
   const networkClientConfigurations: [

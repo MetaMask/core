@@ -7,7 +7,7 @@ export {
   installJavaTron,
   parseJavaTronInstallCliOptions,
   readJavaTronInstallOptionsFromPackageJson,
-} from './install';
+} from './install.js';
 export type {
   JavaTronArtifactConfig,
   JavaTronArtifactPlatformConfig,
@@ -15,4 +15,4 @@ export type {
   JavaTronInstallOptions,
   JavaTronInstallResult,
   JavaTronJavaRuntimeConfig,
-} from './install';
+} from './install.js';

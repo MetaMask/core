@@ -3,7 +3,7 @@
  * API: accounts.api.cx.metamask.io
  */
 
-import type { PageInfo } from '../shared-types';
+import type { PageInfo } from '../shared-types.js';
 
 // ============================================================================
 // BALANCE TYPES

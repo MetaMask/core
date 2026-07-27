@@ -20,14 +20,14 @@ import { CircuitState } from 'cockatiel';
 import deepmerge from 'deepmerge';
 import type { Logger } from 'loglevel';
 
-import { projectLogger, createModuleLogger } from '../logger';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   CockatielEventToEventListenerWithData,
   ExcludeCockatielEventData,
   ExtendCockatielEventData,
   ExtractCockatielEventData,
   FetchOptions,
-} from './shared';
+} from './shared.js';
 
 /**
  * Options for the RpcService constructor with some properties omitted and made optional as they have defaults.

@@ -1,13 +1,13 @@
-export * from './PhishingController';
-export { findSimilarAddresses } from './address-poisoning';
+export * from './PhishingController.js';
+export { findSimilarAddresses } from './address-poisoning.js';
 export type {
   LegacyPhishingDetectorList,
   PhishingDetectorList,
   FuzzyTolerance,
   PhishingDetectorOptions,
   PhishingDetectorConfiguration,
-} from './PhishingDetector';
-export { PhishingDetector } from './PhishingDetector';
+} from './PhishingDetector.js';
+export { PhishingDetector } from './PhishingDetector.js';
 export type {
   PhishingDetectionScanResult,
   AddressScanResult,
@@ -21,22 +21,22 @@ export type {
   Exposure,
   Spender,
   ApprovalFeature,
-} from './types';
-export type { TokenScanCacheData } from './types';
-export { TokenScanResultType } from './types';
+} from './types.js';
+export type { TokenScanCacheData } from './types.js';
+export { TokenScanResultType } from './types.js';
 export {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
   ApprovalResultType,
   ApprovalFeatureType,
-} from './types';
-export type { CacheEntry } from './CacheManager';
+} from './types.js';
+export type { CacheEntry } from './CacheManager.js';
 export {
   PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS,
   getPhishingDetectionScanUrlParam,
   isPhishingDetectionPathBasedHostname,
-} from './utils';
+} from './utils.js';
 
 export type {
   PhishingControllerMaybeUpdateStateAction,
@@ -49,4 +49,4 @@ export type {
   PhishingControllerScanAddressAction,
   PhishingControllerGetApprovalsAction,
   PhishingControllerCheckAddressPoisoningAction,
-} from './PhishingController-method-action-types';
+} from './PhishingController-method-action-types.js';
