@@ -87,18 +87,19 @@ function findLocalWalletMnemonicFromId(
   id: AccountWalletId,
 ): AccountWalletEntropyObject {
   const localWallets = context.getState().accountTree.wallets;
+  const localWallet = localWallets[id];
 
-  if (!localWallets[id]) {
+  if (!localWallet) {
     throw new Error(
       `Failed to import mnemonic wallet: wallet not found after creation`,
     );
   }
-  if (!isMnemonicWalletObject(localWallets[id])) {
+  if (!isMnemonicWalletObject(localWallet)) {
     throw new Error(
       `Failed to import mnemonic wallet: wallet is not of type 'mnemonic'`,
     );
   }
-  return localWallets[id];
+  return localWallet;
 }
 
 /**
