@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add best-effort profile JWT authentication to Money Account API requests, falling back to unauthenticated requests when a token is unavailable ([#9661](https://github.com/MetaMask/core/pull/9661))
+
 ## [0.3.0]
 
 ### Added

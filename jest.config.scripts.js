@@ -34,6 +34,9 @@ module.exports = {
   },
 
   moduleNameMapper: {
+    // Strip .js extensions from relative imports so Jest resolves them to
+    // the TypeScript source files.
+    '^(\\.{1,2}/.+)\\.js$': '$1',
     '^uuid$': require.resolve('uuid'),
   },
 
