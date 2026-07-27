@@ -2,13 +2,13 @@ import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { createPermissionDecodersForContracts } from './decoders';
-import type { DeployedContractsByName } from './types';
+import { createPermissionDecodersForContracts } from './decoders/index.js';
+import type { DeployedContractsByName } from './types.js';
 import {
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
   splitHex,
-} from './utils';
+} from './utils.js';
 
 // Helper to build a contracts map with lowercase addresses
 const buildContracts = (): DeployedContractsByName => ({

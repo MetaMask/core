@@ -37,6 +37,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'listPopularNetworks',
   'listPopularEvmNetworks',
   'listPopularMultichainNetworks',
+  'restoreEnabledNetworkMap',
 ] as const;
 
 /**

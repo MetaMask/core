@@ -142,7 +142,10 @@ export type { RequestSelectorResult } from './selectors.js';
 export { createRequestSelector } from './selectors.js';
 export type { HeadlessFeatureFlagsLookup } from './featureFlags.js';
 export {
+  HEADLESS_ALL_PROVIDERS_FEATURE_VERSION,
   MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
+  getHeadlessAllProvidersMinimumVersion,
+  getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
 } from './featureFlags.js';
 export {
@@ -209,4 +212,5 @@ export type {
   TransakServiceGetOrderAction,
   TransakServiceRequestOttAction,
   TransakServiceGeneratePaymentWidgetUrlAction,
+  TransakServiceCreateWidgetUrlAction,
 } from './TransakService-method-action-types.js';

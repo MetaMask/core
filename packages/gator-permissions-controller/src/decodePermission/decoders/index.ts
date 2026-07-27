@@ -1,14 +1,14 @@
-import type { DeployedContractsByName, PermissionDecoder } from '../types';
-import { getChecksumEnforcersByChainId } from '../utils';
-import { makeErc20TokenAllowanceDecoderConfig } from './erc20TokenAllowance';
-import { makeErc20TokenPeriodicDecoderConfig } from './erc20TokenPeriodic';
-import { makeErc20TokenRevocationDecoderConfig } from './erc20TokenRevocation';
-import { makeErc20TokenStreamDecoderConfig } from './erc20TokenStream';
-import { makePermissionDecoder } from './makePermissionDecoder';
-import { makeNativeTokenAllowanceDecoderConfig } from './nativeTokenAllowance';
-import { makeNativeTokenPeriodicDecoderConfig } from './nativeTokenPeriodic';
-import { makeNativeTokenStreamDecoderConfig } from './nativeTokenStream';
-import { makeTokenApprovalRevocationDecoderConfig } from './tokenApprovalRevocation';
+import type { DeployedContractsByName, PermissionDecoder } from '../types.js';
+import { getChecksumEnforcersByChainId } from '../utils.js';
+import { makeErc20TokenAllowanceDecoderConfig } from './erc20TokenAllowance.js';
+import { makeErc20TokenPeriodicDecoderConfig } from './erc20TokenPeriodic.js';
+import { makeErc20TokenRevocationDecoderConfig } from './erc20TokenRevocation.js';
+import { makeErc20TokenStreamDecoderConfig } from './erc20TokenStream.js';
+import { makePermissionDecoder } from './makePermissionDecoder.js';
+import { makeNativeTokenAllowanceDecoderConfig } from './nativeTokenAllowance.js';
+import { makeNativeTokenPeriodicDecoderConfig } from './nativeTokenPeriodic.js';
+import { makeNativeTokenStreamDecoderConfig } from './nativeTokenStream.js';
+import { makeTokenApprovalRevocationDecoderConfig } from './tokenApprovalRevocation.js';
 
 /**
  * Builds the canonical set of permission decoders for a chain.

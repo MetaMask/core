@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1146.0.0",
+  "version": "1149.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -79,6 +79,10 @@
     "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
+    "@yarnpkg/cli": "^4.17.1",
+    "@yarnpkg/core": "^4.9.0",
+    "@yarnpkg/fslib": "^3.1.5",
+    "@yarnpkg/parsers": "^3.0.3",
     "@yarnpkg/types": "^4.0.0",
     "bats": "^1.13.0",
     "comment-json": "^4.5.1",

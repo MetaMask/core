@@ -10,21 +10,21 @@ import {
 } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 
-import { FeatureId } from './feature-flags';
-import { FloatStringSchema } from './number';
-import { QuoteSchema } from './quote';
+import { FeatureId } from './feature-flags.js';
+import { FloatStringSchema } from './number.js';
+import { QuoteSchema } from './quote.js';
 import {
   TxDataSchema,
   TronTradeDataSchema,
   BitcoinTradeDataSchema,
   StellarTradeDataSchema,
-} from './trade';
+} from './trade.js';
 import type {
   BitcoinTradeData,
   StellarTradeData,
   TronTradeData,
   TxData,
-} from './trade';
+} from './trade.js';
 
 export const QuoteResponseSchemaV1 = type({
   featureId: optional(enums(Object.values(FeatureId))),

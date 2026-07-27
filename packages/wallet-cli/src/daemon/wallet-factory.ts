@@ -16,6 +16,7 @@ import { rm } from 'node:fs/promises';
 
 import { KeyValueStore } from '../persistence/KeyValueStore.js';
 import { loadState, subscribeToChanges } from '../persistence/persistence.js';
+import { subscribeToAutoApproval } from './auto-approval.js';
 import type { Password, Srp } from './secrets.js';
 import type { Logger } from './types.js';
 
@@ -61,7 +62,13 @@ export type CreateWalletResult = {
  * - `remoteFeatureFlagController` — a `ClientConfigApiService` fetching real
  *   flags over the network.
  * - `approvalController` — a no-op `showApprovalRequest` (the daemon is
- *   headless).
+ *   headless); pending requests are accepted separately by the auto-approval
+ *   subscription `createWallet` installs, not by this hook.
+ * - `gasFeeController` — only `clientId: 'cli'` (sent as `X-Client-Id` to the
+ *   gas API); the API endpoints, poll interval, and compatibility callbacks are
+ *   left at the wallet package's platform-agnostic defaults (the default
+ *   `EIP1559APIEndpoint` is already the production URL, so the daemon does not
+ *   re-specify it).
  * - `transactionController` — swaps processing disabled and no client hooks;
  *   see the slot's inline comment for why the daemon relies on the
  *   controller's defaults for everything else.
@@ -77,6 +84,9 @@ function buildInstanceOptions(
 ): WalletOptions['instanceOptions'] {
   return {
     approvalController: {
+      // The daemon is headless, so there is no UI to open: requests are
+      // resolved by the auto-approval subscription (see `subscribeToAutoApproval`)
+      // rather than by this hook, which stays a no-op.
       // TODO: surface approval requests over the daemon transport.
       showApprovalRequest: (): undefined => undefined,
     },
@@ -174,7 +184,8 @@ export async function createWallet({
   const logFn = log ?? ((message: string): void => console.error(message));
   const store = new KeyValueStore(databasePath);
   let wallet: Wallet | undefined;
-  let unsubscribe: (() => void) | undefined;
+  let persistenceUnsubscribe: (() => void) | undefined;
+  let autoApprovalUnsubscribe: (() => void) | undefined;
   let wasFirstRun = false;
 
   try {
@@ -195,12 +206,15 @@ export async function createWallet({
       state,
       instanceOptions: buildInstanceOptions(infuraProjectId),
     });
-    unsubscribe = subscribeToChanges(
+    persistenceUnsubscribe = subscribeToChanges(
       wallet.messenger,
       wallet.controllerMetadata,
       store,
       logFn,
     );
+
+    // Installed before `init` so any approval raised during initialization is covered.
+    autoApprovalUnsubscribe = subscribeToAutoApproval(wallet.messenger, logFn);
 
     // Complete post-construction controller setup before serving requests —
     // e.g. `NetworkController.init` applies the selected network so a provider
@@ -249,10 +263,22 @@ export async function createWallet({
     return {
       wallet,
       dispose: async () =>
-        (disposePromise ??= teardown(unsubscribe, wallet, store, logFn)),
+        (disposePromise ??= teardown(
+          persistenceUnsubscribe,
+          autoApprovalUnsubscribe,
+          wallet,
+          store,
+          logFn,
+        )),
     };
   } catch (error) {
-    await teardown(unsubscribe, wallet, store, logFn);
+    await teardown(
+      persistenceUnsubscribe,
+      autoApprovalUnsubscribe,
+      wallet,
+      store,
+      logFn,
+    );
 
     if (wasFirstRun && databasePath !== IN_MEMORY_DATABASE_PATH) {
       // Best-effort cleanup of the on-disk SQLite files (main, WAL, SHM) so a
@@ -312,29 +338,53 @@ async function loadPersistedState(
 }
 
 /**
+ * Best-effort unsubscribe: run the function if present, logging (and
+ * swallowing) any error so a later teardown step still runs.
+ *
+ * @param unsubscribe - The unsubscribe function, if one was registered.
+ * @param label - Human-readable subscription name for the failure log.
+ * @param logFn - Logger for a failure.
+ */
+function runUnsubscribe(
+  unsubscribe: (() => void) | undefined,
+  label: string,
+  logFn: Logger,
+): void {
+  if (!unsubscribe) {
+    return;
+  }
+  try {
+    unsubscribe();
+  } catch (error) {
+    logFn(
+      `${label} unsubscribe failed during teardown — subscription may remain ` +
+        `live until the process exits: ${String(error)}`,
+    );
+  }
+}
+
+/**
  * Persistence-safe teardown of a wallet and its store; see {@link
  * CreateWalletResult.dispose} for the ordering rationale. Each step is
  * best-effort, so a failure is logged and the remaining steps still run.
  *
- * @param unsubscribe - The persistence-subscription unsubscribe function, if
- * one was registered.
+ * @param persistenceUnsubscribe - The persistence-subscription unsubscribe
+ * function, if one was registered.
+ * @param autoApprovalUnsubscribe - The auto-approval-subscription unsubscribe
+ * function, if one was registered.
  * @param wallet - The wallet to destroy, if one was constructed.
  * @param store - The store to close.
  * @param logFn - Logger for step failures.
  */
 async function teardown(
-  unsubscribe: (() => void) | undefined,
+  persistenceUnsubscribe: (() => void) | undefined,
+  autoApprovalUnsubscribe: (() => void) | undefined,
   wallet: Wallet | undefined,
   store: KeyValueStore,
   logFn: Logger,
 ): Promise<void> {
-  if (unsubscribe) {
-    try {
-      unsubscribe();
-    } catch (error) {
-      logFn(`Persistence unsubscribe failed during teardown: ${String(error)}`);
-    }
-  }
+  runUnsubscribe(persistenceUnsubscribe, 'Persistence', logFn);
+  runUnsubscribe(autoApprovalUnsubscribe, 'Auto-approval', logFn);
   if (wallet) {
     try {
       await wallet.destroy();

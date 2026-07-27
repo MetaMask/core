@@ -4,21 +4,21 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
+import { BridgeClientId, BridgeStatusControllerMessenger } from '../types.js';
 import {
   QuoteStatusState,
   QuoteStatusUpdateBackendErrorType,
   QuoteStatusBackendStatus,
   QuoteStatusFetchWithRetryOutcomeType,
-} from './constants';
-import { QuoteStatusApiService } from './quote-status-api-service';
-import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
-import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
-import { QuoteStatusManager } from './quotes-status-manager';
+} from './constants.js';
+import { QuoteStatusApiService } from './quote-status-api-service.js';
+import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome.js';
+import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome.js';
+import { QuoteStatusManager } from './quotes-status-manager.js';
 import type {
   QuoteStatusPersistEntry,
   QuoteStatusUpdateResponse,
-} from './types';
+} from './types.js';
 
 jest.mock('./quote-status-api-service');
 

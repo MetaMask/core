@@ -8,7 +8,7 @@ import type {
 import type { Json } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
-import type { Encryptor } from '../../src/KeyringController';
+import type { Encryptor } from '../../src/KeyringController.js';
 
 export const PASSWORD = 'password123';
 export const SALT = 'salt';

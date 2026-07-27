@@ -26,7 +26,7 @@ import { v4 as uuid } from 'uuid';
 import type {
   BridgeStatusControllerMessenger,
   SolanaTransactionMeta,
-} from '../types';
+} from '../types.js';
 
 /**
  * Creates a client request object for signing and sending a transaction

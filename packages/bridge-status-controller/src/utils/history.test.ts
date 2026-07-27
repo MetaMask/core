@@ -6,12 +6,12 @@ import type {
   BridgeHistoryItem,
   StartPollingForBridgeTxStatusArgsSerialized,
   StatusResponse,
-} from '../types';
+} from '../types.js';
 import {
   getHistoryKey,
   getInitialHistoryItem,
   rekeyHistoryItemInState,
-} from './history';
+} from './history.js';
 
 describe('History Utils', () => {
   describe('rekeyHistoryItemInState', () => {

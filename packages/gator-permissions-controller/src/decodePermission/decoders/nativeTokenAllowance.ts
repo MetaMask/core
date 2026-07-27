@@ -4,18 +4,18 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-} from '../types';
+} from '../types.js';
 import {
   getByteLength,
   getTermsByEnforcer,
   splitHex,
   UINT256_MAX,
   ZERO_32_BYTES,
-} from '../utils';
-import { expiryRule } from './expiryRule';
-import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
-import { nativePayeeRule } from './nativePayeeRule';
-import { redeemerRule } from './redeemerRule';
+} from '../utils.js';
+import { expiryRule } from './expiryRule.js';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder.js';
+import { nativePayeeRule } from './nativePayeeRule.js';
+import { redeemerRule } from './redeemerRule.js';
 
 /**
  * Builds the configuration for the native-token-allowance permission decoder.

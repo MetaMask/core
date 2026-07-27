@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { isFileMissingError } from './errors';
+import { isFileMissingError } from './errors.js';
 
 export function readPackageJsonToolConfig({
   cwd = process.cwd(),

@@ -5,8 +5,8 @@ import {
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
 
-import { createPermissionDecodersForContracts } from '.';
-import { ZERO_32_BYTES } from '../utils';
+import { ZERO_32_BYTES } from '../utils.js';
+import { createPermissionDecodersForContracts } from './index.js';
 
 describe('erc20-token-allowance decoder', () => {
   const chainId = CHAIN_ID.sepolia;

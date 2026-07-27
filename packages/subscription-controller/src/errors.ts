@@ -1,4 +1,4 @@
-import { SubscriptionApiError } from './types';
+import { SubscriptionApiError } from './types.js';
 
 export class SubscriptionServiceError extends Error {
   /**

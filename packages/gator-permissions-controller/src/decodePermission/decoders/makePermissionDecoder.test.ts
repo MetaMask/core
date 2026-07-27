@@ -10,12 +10,12 @@ import {
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { getChecksumEnforcersByChainId } from '../utils';
-import { erc20PayeeRule } from './erc20PayeeRule';
-import { expiryRule } from './expiryRule';
-import { makePermissionDecoder } from './makePermissionDecoder';
-import { nativePayeeRule } from './nativePayeeRule';
-import { redeemerRule } from './redeemerRule';
+import { getChecksumEnforcersByChainId } from '../utils.js';
+import { erc20PayeeRule } from './erc20PayeeRule.js';
+import { expiryRule } from './expiryRule.js';
+import { makePermissionDecoder } from './makePermissionDecoder.js';
+import { nativePayeeRule } from './nativePayeeRule.js';
+import { redeemerRule } from './redeemerRule.js';
 
 describe('makePermissionDecoder', () => {
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][CHAIN_ID.sepolia];

@@ -2,7 +2,7 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { object, string, number } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
-import { validateParams, validateAndNormalizeAddress } from './utils';
+import { validateParams, validateAndNormalizeAddress } from './utils.js';
 
 describe('validateParams', () => {
   it('does not throw for valid parameters', () => {
