@@ -6,7 +6,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import deepmerge from 'deepmerge';
 
-import { TraceName } from '../analytics/traces';
+import { TraceName } from '../analytics/traces.js';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -16,15 +16,15 @@ import {
   MOCK_SOL_ACCOUNT_1,
   MOCK_SOL_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
-} from '../tests';
-import type { RootMessenger, DeepPartial } from '../tests';
-import { AccountProviderWrapper } from './AccountProviderWrapper';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+} from '../tests/index.js';
+import type { RootMessenger, DeepPartial } from '../tests/index.js';
+import { AccountProviderWrapper } from './AccountProviderWrapper.js';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 import {
   SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
-} from './SolAccountProvider';
+} from './SolAccountProvider.js';
 
 function asConfig(
   partial: DeepPartial<SnapAccountProviderConfig>,

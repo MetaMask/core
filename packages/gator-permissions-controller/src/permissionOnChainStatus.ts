@@ -8,13 +8,13 @@ import type { Hex } from '@metamask/utils';
 import {
   delegationContractsByChainId,
   toEnforcerAddressesByName,
-} from './decodePermission/enforcerAddresses';
-import { extractExpiryFromCaveatTerms } from './decodePermission/utils';
-import { controllerLog } from './logger';
+} from './decodePermission/enforcerAddresses.js';
+import { extractExpiryFromCaveatTerms } from './decodePermission/utils.js';
+import { controllerLog } from './logger.js';
 import type {
   PermissionInfoWithMetadata,
   GatorPermissionStatus,
-} from './types';
+} from './types.js';
 
 /** Function selector for `DelegationManager.disabledDelegations(bytes32)`. */
 const DISABLED_DELEGATIONS_SELECTOR = '0x2d40d052';

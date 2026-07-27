@@ -10,7 +10,7 @@ import {
   MOCK_OIDC_TOKEN_URL,
   MOCK_PAIR_PROFILES_URL,
   MOCK_CUSTOMER_SERVICE_TOKEN_URL,
-} from '../../../sdk/mocks/auth';
+} from '../../../sdk/mocks/auth.js';
 
 type MockResponse = {
   url: string;

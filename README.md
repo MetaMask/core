@@ -430,6 +430,7 @@ linkStyle default opacity:0.5
   money_account_balance_service --> base_data_service;
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;
+  money_account_balance_service --> money_account_api_data_service;
   money_account_balance_service --> network_controller;
   money_account_balance_service --> remote_feature_flag_controller;
   money_account_controller --> accounts_controller;
@@ -487,6 +488,7 @@ linkStyle default opacity:0.5
   network_controller --> messenger;
   network_controller --> remote_feature_flag_controller;
   network_enablement_controller --> base_controller;
+  network_enablement_controller --> config_registry_controller;
   network_enablement_controller --> controller_utils;
   network_enablement_controller --> messenger;
   network_enablement_controller --> multichain_network_controller;
@@ -499,6 +501,7 @@ linkStyle default opacity:0.5
   notification_services_controller --> messenger;
   notification_services_controller --> profile_sync_controller;
   passkey_controller --> base_controller;
+  passkey_controller --> keyring_controller;
   passkey_controller --> messenger;
   permission_controller --> approval_controller;
   permission_controller --> base_controller;
@@ -630,6 +633,7 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> network_controller;
   transaction_pay_controller --> ramps_controller;
   transaction_pay_controller --> remote_feature_flag_controller;
+  transaction_pay_controller --> sentinel_api_service;
   transaction_pay_controller --> transaction_controller;
   user_operation_controller --> approval_controller;
   user_operation_controller --> base_controller;
@@ -647,10 +651,13 @@ linkStyle default opacity:0.5
   wallet --> base_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
+  wallet --> gas_fee_controller;
   wallet --> keyring_controller;
   wallet --> messenger;
   wallet --> network_controller;
+  wallet --> passkey_controller;
   wallet --> remote_feature_flag_controller;
+  wallet --> seedless_onboarding_controller;
   wallet --> storage_service;
   wallet --> transaction_controller;
   wallet_cli --> base_controller;

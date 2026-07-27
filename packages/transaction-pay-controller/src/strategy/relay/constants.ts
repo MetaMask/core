@@ -1,8 +1,8 @@
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { PERPS_DEPOSIT_TYPES } from '../../constants';
-import type { RelayStatus } from './types';
+import { PERPS_DEPOSIT_TYPES } from '../../constants.js';
+import type { RelayStatus } from './types.js';
 
 export const FALLBACK_HASH = '0x0' as Hex;
 

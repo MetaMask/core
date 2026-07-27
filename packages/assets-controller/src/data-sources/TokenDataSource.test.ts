@@ -7,10 +7,10 @@ import type {
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type { Context, DataRequest, Caip19AssetId, ChainId } from '../types';
-import type { TokenDataSourceOptions } from './TokenDataSource';
-import { TokenDataSource } from './TokenDataSource';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import type { Context, DataRequest, Caip19AssetId, ChainId } from '../types.js';
+import type { TokenDataSourceOptions } from './TokenDataSource.js';
+import { TokenDataSource } from './TokenDataSource.js';
 
 type AllActions = PhishingControllerBulkScanTokensAction;
 type AllEvents = never;
@@ -310,6 +310,86 @@ describe('TokenDataSource', () => {
     );
     expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
     expect(next).toHaveBeenCalledWith(context);
+  });
+
+  it('middleware heals low-occurrence balance-only assets without spam-filtering them out', async () => {
+    // Already-tracked balances missing assetsInfo are healed via assetsBalance
+    // (not detectedAssets). Spam filtering must not strip those holdings or
+    // withhold metadata — DetectionMiddleware intentionally skips them.
+    const lowOccurrenceAsset =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(lowOccurrenceAsset, { occurrences: 1 }),
+      ],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [lowOccurrenceAsset]: { amount: '50' },
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[lowOccurrenceAsset]).toBeDefined();
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as
+          | Record<string, unknown>
+          | undefined
+      )?.[lowOccurrenceAsset],
+    ).toBeDefined();
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
+  it('middleware still spam-filters newly detected low-occurrence assets even when also in assetsBalance', async () => {
+    const spamAsset =
+      'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [createMockAssetResponse(spamAsset, { occurrences: 1 })],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [spamAsset],
+        },
+        assetsBalance: {
+          'mock-account-id': {
+            [spamAsset]: { amount: '50' },
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[spamAsset]).toBeUndefined();
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as
+          | Record<string, unknown>
+          | undefined
+      )?.[spamAsset],
+    ).toBeUndefined();
+    expect(context.response.detectedAssets?.['mock-account-id']).not.toContain(
+      spamAsset,
+    );
   });
 
   it('middleware skips assets with existing metadata containing image in response', async () => {

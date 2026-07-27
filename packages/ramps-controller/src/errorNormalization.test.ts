@@ -2,7 +2,7 @@ import {
   extractExplicitTypedError,
   getErrorMessage,
   normalizeToTypedError,
-} from './errorNormalization';
+} from './errorNormalization.js';
 
 type Code = 'NO_QUOTES' | 'QUOTE_FAILED' | 'UNKNOWN';
 

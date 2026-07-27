@@ -2,13 +2,13 @@ import type { TransactionDescription } from '@ethersproject/abi';
 import type { TraceContext, TraceCallback } from '@metamask/controller-utils';
 import { hexToNumber } from '@metamask/utils';
 
-import { getAccountAddressRelationship } from '../api/accounts-api';
-import type { GetAccountAddressRelationshipRequest } from '../api/accounts-api';
-import { projectLogger as log } from '../logger';
-import { TransactionType } from '../types';
-import type { TransactionMeta } from '../types';
-import { decodeTransactionData } from './transaction-type';
-import { validateParamTo } from './validation';
+import { getAccountAddressRelationship } from '../api/accounts-api.js';
+import type { GetAccountAddressRelationshipRequest } from '../api/accounts-api.js';
+import { projectLogger as log } from '../logger.js';
+import { TransactionType } from '../types.js';
+import type { TransactionMeta } from '../types.js';
+import { decodeTransactionData } from './transaction-type.js';
+import { validateParamTo } from './validation.js';
 
 const TOKEN_TRANSFER_TYPES = [
   TransactionType.tokenMethodTransfer,

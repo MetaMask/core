@@ -11,10 +11,10 @@ import { extract as extractTar } from 'tar';
 import { Open } from 'unzipper';
 import type { Source, Entry } from 'unzipper';
 
-import { startDownload } from './download';
-import { Extension } from './types';
-import type { Binary } from './types';
-import { say } from './utils';
+import { startDownload } from './download.js';
+import { Extension } from './types.js';
+import type { Binary } from './types.js';
+import { say } from './utils.js';
 
 /**
  * Extracts the binaries from the given URL and writes them to the destination.

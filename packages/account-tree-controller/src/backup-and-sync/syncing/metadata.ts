@@ -1,8 +1,8 @@
 import deepEqual from 'fast-deep-equal';
 
-import type { BackupAndSyncAnalyticsAction } from '../analytics';
-import type { ProfileId } from '../authentication';
-import type { BackupAndSyncContext } from '../types';
+import type { BackupAndSyncAnalyticsAction } from '../analytics/index.js';
+import type { ProfileId } from '../authentication/index.js';
+import type { BackupAndSyncContext } from '../types.js';
 
 /**
  * Compares metadata between local and user storage, applying the most recent version.

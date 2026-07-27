@@ -6,27 +6,27 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { TransactionPayStrategy } from '../../constants';
-import { projectLogger } from '../../logger';
+import { TransactionPayStrategy } from '../../constants.js';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionFiatPayment,
   TransactionPayRequiredToken,
   TransactionPayQuote,
-} from '../../types';
-import { prefixError } from '../../utils/error-prefix';
-import { getFiatVaultDisabled } from '../../utils/feature-flags';
-import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit';
-import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
-import { MUSD_MONAD_FIAT_ASSET } from './constants';
-import type { FiatQuote } from './types';
+} from '../../types.js';
+import { prefixError } from '../../utils/error-prefix.js';
+import { getFiatVaultDisabled } from '../../utils/feature-flags.js';
+import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
+import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
+import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
+import type { FiatQuote } from './types.js';
 import {
   getRampsQuote,
   getRawSourceAmountFromOrderCryptoAmount,
   resolveSourceAmountRaw,
   validateOrderAsset,
-} from './utils';
+} from './utils.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-direct-musd');
 const DIRECT_MUSD_ERROR_PREFIX = 'Direct mUSD: ';

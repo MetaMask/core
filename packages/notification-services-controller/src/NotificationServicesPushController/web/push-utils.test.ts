@@ -2,15 +2,14 @@ import * as FirebaseAppModule from 'firebase/app';
 import * as FirebaseMessagingModule from 'firebase/messaging';
 import * as FirebaseMessagingSWModule from 'firebase/messaging/sw';
 
-import { processNotification } from '../../NotificationServicesController';
-import { createMockNotificationEthSent } from '../../NotificationServicesController/mocks/mock-raw-notifications';
-import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger';
+import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger.js';
+import type { PushAnalyticsPayload } from '../types/index.js';
 import {
   createRegToken,
   deleteRegToken,
   createSubscribeToPushNotifications,
-} from './push-utils';
-import * as PushWebModule from './push-utils';
+} from './push-utils.js';
+import * as PushWebModule from './push-utils.js';
 
 jest.mock('firebase/app');
 jest.mock('firebase/messaging');
@@ -25,6 +24,23 @@ const mockEnv = {
   appId: 'test-appId',
   measurementId: 'test-measurementId',
   vapidKey: 'test-vapidKey',
+};
+
+const mockFcmData = {
+  notification_id: 'test-notification-id',
+  notification_type: 'wallet_activity',
+  notification_subtype: 'eth_received',
+  profile_id: 'test-profile-id',
+  chain_id: '1',
+  deeplink: 'https://example.com/deeplink',
+};
+
+const expectedAnalyticsPayload: PushAnalyticsPayload = {
+  notification_id: 'test-notification-id',
+  notification_type: 'wallet_activity',
+  notification_subtype: 'eth_received',
+  chain_id: 1,
+  deeplink: 'https://example.com/deeplink',
 };
 
 const firebaseApp: FirebaseAppModule.FirebaseApp = {
@@ -332,9 +348,7 @@ describe('createSubscribeToPushNotifications() tests', () => {
     const firebaseCallback = mocks.mockOnBackgroundMessage.mock
       .lastCall[1] as FirebaseMessagingModule.NextFn<FirebaseMessagingSWModule.MessagePayload>;
     const payload = {
-      data: {
-        data: testData,
-      },
+      data: testData,
     } as unknown as FirebaseMessagingSWModule.MessagePayload;
 
     firebaseCallback(payload);
@@ -342,14 +356,16 @@ describe('createSubscribeToPushNotifications() tests', () => {
     return mocks;
   }
 
-  it('should invoke handler when notifications are received', async () => {
-    const mocks = await arrangeActNotificationReceived(
-      JSON.stringify(createMockNotificationEthSent()),
-    );
+  it('should invoke handler with the parsed analytics payload when notifications are received', async () => {
+    const mocks = await arrangeActNotificationReceived(mockFcmData);
 
-    // Assert New Notification Event & Handler Calls
-    expect(mocks.onNewNotificationsListener).toHaveBeenCalled();
-    expect(mocks.mockOnReceivedHandler).toHaveBeenCalled();
+    // Assert New Notification Event & Handler Calls carry the analytics payload
+    expect(mocks.onNewNotificationsListener).toHaveBeenCalledWith(
+      expectedAnalyticsPayload,
+    );
+    expect(mocks.mockOnReceivedHandler).toHaveBeenCalledWith(
+      expectedAnalyticsPayload,
+    );
 
     // Assert Click Notification Event & Handler Calls
     expect(mocks.pushNotificationClickedListener).not.toHaveBeenCalled();
@@ -360,7 +376,10 @@ describe('createSubscribeToPushNotifications() tests', () => {
     { data: undefined },
     { data: null },
     { data: 'not an object' },
-    { data: { id: 'test-id', payload: { data: 'unexpected shape' } } },
+    // Missing the required `notification_type` field.
+    { data: { notification_id: 'test-id' } },
+    // Missing the required `notification_id` field.
+    { data: { notification_type: 'wallet_activity' } },
   ];
 
   it.each(invalidNotificationDataPayloadsTests)(
@@ -378,23 +397,25 @@ describe('createSubscribeToPushNotifications() tests', () => {
 
     await actCreateSubscription(mocks);
 
-    const notificationData = processNotification(
-      createMockNotificationEthSent(),
-    );
     const mockNotificationEvent = new Event(
       'notificationclick',
     ) as NotificationEvent;
     Object.assign(mockNotificationEvent, {
-      notification: { data: notificationData },
+      notification: { data: expectedAnalyticsPayload },
     });
 
     // Act - Testing service worker notification click event
     // eslint-disable-next-line no-restricted-globals
     self.dispatchEvent(mockNotificationEvent);
 
-    // Assert Click Notification Event & Handler Calls
-    expect(mocks.pushNotificationClickedListener).toHaveBeenCalled();
-    expect(mocks.mockOnClickHandler).toHaveBeenCalled();
+    // Assert Click Notification Event & Handler Calls carry the analytics payload
+    expect(mocks.pushNotificationClickedListener).toHaveBeenCalledWith(
+      expectedAnalyticsPayload,
+    );
+    expect(mocks.mockOnClickHandler).toHaveBeenCalledWith(
+      expect.any(Event),
+      expectedAnalyticsPayload,
+    );
 
     // Assert New Notification Event & Handler Calls
     expect(mocks.onNewNotificationsListener).not.toHaveBeenCalled();

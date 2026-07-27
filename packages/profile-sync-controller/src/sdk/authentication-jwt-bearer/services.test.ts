@@ -1,10 +1,10 @@
-import { Env, Platform } from '../../shared/env';
+import { Env, Platform } from '../../shared/env.js';
 import {
   NonceRetrievalError,
   SignInError,
   PairError,
   RateLimitedError,
-} from '../errors';
+} from '../errors.js';
 import {
   getNonce,
   authenticate,
@@ -21,8 +21,8 @@ import {
   PAIR_PROFILES_URL,
   PROFILE_LINEAGE_URL,
   CUSTOMER_SERVICE_TOKEN_URL,
-} from './services';
-import { AuthType } from './types';
+} from './services.js';
+import { AuthType } from './types.js';
 
 // Mock global fetch
 const mockFetch = jest.fn();

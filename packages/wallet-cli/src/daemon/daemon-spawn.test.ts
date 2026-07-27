@@ -2,12 +2,12 @@ import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import { closeSync, existsSync, openSync } from 'node:fs';
 
-import { pingDaemon } from './daemon-client';
-import { ensureDaemon } from './daemon-spawn';
-import { ensureOwnerOnlyDirectory } from './data-dir';
-import { getDaemonPaths } from './paths';
-import { Password, Srp } from './secrets';
-import type { DaemonSpawnConfig } from './types';
+import { pingDaemon } from './daemon-client.js';
+import { ensureDaemon } from './daemon-spawn.js';
+import { ensureOwnerOnlyDirectory } from './data-dir.js';
+import { getDaemonPaths } from './paths.js';
+import { Password, Srp } from './secrets.js';
+import type { DaemonSpawnConfig } from './types.js';
 
 jest.mock('node:child_process');
 jest.mock('node:fs');

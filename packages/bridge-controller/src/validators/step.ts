@@ -1,6 +1,6 @@
 import { type, enums, optional } from '@metamask/superstruct';
 
-import { BridgeAssetSchema, ChainIdSchema } from './bridge-asset';
+import { BridgeAssetSchema, ChainIdSchema } from './bridge-asset.js';
 
 export enum ActionTypes {
   BRIDGE = 'bridge',

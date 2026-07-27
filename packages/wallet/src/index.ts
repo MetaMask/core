@@ -1,11 +1,11 @@
-export { Wallet } from './Wallet';
-export { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter';
-export { importSecretRecoveryPhrase } from './utilities';
-export type { WalletOptions } from './types';
+export { Wallet } from './Wallet.js';
+export { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
+export { importSecretRecoveryPhrase } from './utilities.js';
+export type { WalletOptions } from './types.js';
 export type {
   DefaultActions,
   DefaultEvents,
   DefaultInstances,
   DefaultState,
   RootMessenger,
-} from './initialization/defaults';
+} from './initialization/defaults.js';

@@ -7,11 +7,11 @@ import type { JsonRpcMiddleware as JsonRpcMiddlewareV2 } from '@metamask/json-rp
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { RestrictedMethodParameters } from './Permission';
+import type { RestrictedMethodParameters } from './Permission.js';
 import type {
   PermissionControllerExecuteRestrictedMethodAction,
   PermissionControllerHasUnrestrictedMethodAction,
-} from './PermissionController-method-action-types';
+} from './PermissionController-method-action-types.js';
 
 /**
  * The set of messenger actions required by the permission middleware.

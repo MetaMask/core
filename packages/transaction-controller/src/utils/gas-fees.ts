@@ -6,21 +6,21 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   SavedGasFees,
   TransactionParams,
   TransactionMeta,
   GasFeeFlow,
-} from '../types';
+} from '../types.js';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   UserFeeLevel,
-} from '../types';
-import { getGasFeeFlow } from './gas-flow';
-import { rpcRequest } from './provider';
+} from '../types.js';
+import { getGasFeeFlow } from './gas-flow.js';
+import { rpcRequest } from './provider.js';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;

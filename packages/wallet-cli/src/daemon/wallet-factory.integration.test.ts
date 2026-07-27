@@ -2,8 +2,8 @@ import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { Password, Srp } from './secrets';
-import { createWallet } from './wallet-factory';
+import { Password, Srp } from './secrets.js';
+import { createWallet } from './wallet-factory.js';
 
 /**
  * Real-Wallet integration tests for `createWallet`. Every other suite in this

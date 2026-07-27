@@ -3,13 +3,14 @@
  * Do not edit manually.
  */
 
-import type { MoneyAccountApiDataService } from './money-account-api-data-service';
+import type { MoneyAccountApiDataService } from './money-account-api-data-service.js';
 
 /**
  * Fetches the current vault positions for a given user address.
  *
  * @param address - The user's Ethereum address.
- * @returns The position response containing vault positions.
+ * @returns The position response containing vault positions and an optional
+ * `balance` summary (`null` when the API balance path is unavailable).
  */
 export type MoneyAccountApiDataServiceFetchPositionsAction = {
   type: `MoneyAccountApiDataService:fetchPositions`;

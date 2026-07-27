@@ -12,8 +12,8 @@ import {
 import { hexToBigInt, numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { DELEGATION_FRAMEWORK_VERSION } from './constants';
-import { toEnforcerAddressesByName } from './decodePermission/enforcerAddresses';
+import { DELEGATION_FRAMEWORK_VERSION } from './constants.js';
+import { toEnforcerAddressesByName } from './decodePermission/enforcerAddresses.js';
 import {
   encodeDisabledDelegationsCalldata,
   getExpiryFromDelegation,
@@ -21,9 +21,9 @@ import {
   readLatestBlockTimestampSeconds,
   resolveGrantedPermissionOnChainStatus,
   updateGrantedPermissionsStatus,
-} from './permissionOnChainStatus';
-import type { PermissionInfoWithMetadata } from './types';
-import type { DelegationDeploymentsEnforcerAddressesByName } from './types';
+} from './permissionOnChainStatus.js';
+import type { PermissionInfoWithMetadata } from './types.js';
+import type { DelegationDeploymentsEnforcerAddressesByName } from './types.js';
 
 const sepoliaContracts =
   DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][CHAIN_ID.sepolia];

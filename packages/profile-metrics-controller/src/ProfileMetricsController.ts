@@ -19,17 +19,17 @@ import { TransactionControllerTransactionSubmittedEvent } from '@metamask/transa
 import { Duration, inMilliseconds, parseCaipChainId } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import type { ProfileMetricsControllerMethodActions } from './ProfileMetricsController-method-action-types';
+import type { ProfileMetricsControllerMethodActions } from './ProfileMetricsController-method-action-types.js';
+import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types.js';
 import type {
   AccountOwnershipProof,
   AccountWithScopes,
-} from './ProfileMetricsService';
-import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types';
-import type { ProofOfOwnershipServiceMethodActions } from './ProofOfOwnershipService-method-action-types';
+} from './ProfileMetricsService.js';
+import type { ProofOfOwnershipServiceMethodActions } from './ProofOfOwnershipService-method-action-types.js';
 import {
   canonicalizeAddress,
   ProofUnsupportedNamespaceError,
-} from './utils/canonicalize';
+} from './utils/canonicalize.js';
 
 /**
  * The name of the {@link ProfileMetricsController}, used to namespace the

@@ -11,11 +11,11 @@ import { remove0x } from '@metamask/utils';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignEip7702AuthorizationAction,
-} from '../../../keyring-controller/src';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionStatus } from '../types';
-import type { AuthorizationList } from '../types';
-import type { TransactionMeta } from '../types';
+} from '../../../keyring-controller/src/index.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionStatus } from '../types.js';
+import type { AuthorizationList } from '../types.js';
+import type { TransactionMeta } from '../types.js';
 import {
   DELEGATION_PREFIX,
   decodeAuthorizationSignature,
@@ -25,12 +25,12 @@ import {
   getDelegationAddress,
   isAccountUpgradedToEIP7702,
   signAuthorizationList,
-} from './eip7702';
+} from './eip7702.js';
 import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
-} from './feature-flags';
-import { rpcRequest } from './provider';
+} from './feature-flags.js';
+import { rpcRequest } from './provider.js';
 
 jest.mock('../utils/feature-flags');
 

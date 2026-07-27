@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TransactionPayController } from './TransactionPayController';
+import type { TransactionPayController } from './TransactionPayController.js';
 
 /**
  * Sets the transaction configuration.

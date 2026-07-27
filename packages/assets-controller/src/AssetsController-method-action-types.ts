@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AssetsController } from './AssetsController';
+import type { AssetsController } from './AssetsController.js';
 
 export type AssetsControllerGetAssetsAction = {
   type: `AssetsController:getAssets`;

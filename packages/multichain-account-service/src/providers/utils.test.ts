@@ -9,7 +9,7 @@ import {
   isTimeoutError,
   withRetry,
   withTimeout,
-} from './utils';
+} from './utils.js';
 
 describe('utils', () => {
   it('retries RPC request up to 3 times if it fails and throws the last error', async () => {

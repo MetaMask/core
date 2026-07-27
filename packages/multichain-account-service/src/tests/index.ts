@@ -1,4 +1,4 @@
-export type * from './types';
-export * from './accounts';
-export * from './messenger';
-export * from './providers';
+export type * from './types.js';
+export * from './accounts.js';
+export * from './messenger.js';
+export * from './providers.js';

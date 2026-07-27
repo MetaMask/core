@@ -1,5 +1,5 @@
-import { TRIGGER_TYPES } from '../constants';
-import type { RawSnapNotification } from '../types/snaps';
+import { TRIGGER_TYPES } from '../constants/index.js';
+import type { RawSnapNotification } from '../types/snaps/index.js';
 
 /**
  * Mocking Utility - create a mock raw snap notification

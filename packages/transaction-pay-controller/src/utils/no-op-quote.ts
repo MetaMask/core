@@ -1,12 +1,12 @@
 import type { Hex, Json } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../constants';
+import { TransactionPayStrategy } from '../constants.js';
 import type {
   Amount,
   FiatValue,
   TransactionPaymentToken,
   TransactionPayQuote,
-} from '../types';
+} from '../types.js';
 
 function zeroFiat(): FiatValue {
   return { fiat: '0', usd: '0' };

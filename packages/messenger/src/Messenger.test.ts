@@ -1,8 +1,8 @@
 import type { Patch } from 'immer';
 
-import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger';
-import type { ActionConstraint } from './Messenger';
-import type { MockAnyNamespace } from './Messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger.js';
+import type { ActionConstraint } from './Messenger.js';
+import type { MockAnyNamespace } from './Messenger.js';
 
 describe('Messenger', () => {
   describe('registerActionHandler and call', () => {

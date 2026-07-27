@@ -1,6 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 
-import { encodeFunctionData } from './abi';
+import { encodeFunctionData } from './abi.js';
 
 const ERC20_ABI = [
   {

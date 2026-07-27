@@ -3,21 +3,21 @@ import type { Json } from '@metamask/utils';
 import type { Wallet } from '@metamask/wallet';
 import { appendFile, readFile, rm, writeFile } from 'node:fs/promises';
 
-import { pingDaemon } from './daemon-client';
-import { ensureOwnerOnlyDirectory } from './data-dir';
-import { getDaemonPaths } from './paths';
-import { startRpcSocketServer } from './rpc-socket-server';
-import type { RpcSocketServerHandle } from './rpc-socket-server';
-import { Password, Srp } from './secrets';
-import { defineHandler } from './types';
+import { pingDaemon } from './daemon-client.js';
+import { ensureOwnerOnlyDirectory } from './data-dir.js';
+import { getDaemonPaths } from './paths.js';
+import { startRpcSocketServer } from './rpc-socket-server.js';
+import type { RpcSocketServerHandle } from './rpc-socket-server.js';
+import { Password, Srp } from './secrets.js';
+import { defineHandler } from './types.js';
 import type {
   DaemonStatusInfo,
   Logger,
   RpcDispatcher,
   RpcHandlerMap,
-} from './types';
-import { isErrorWithCode, isProcessAlive, readPidFile } from './utils';
-import { createWallet } from './wallet-factory';
+} from './types.js';
+import { isErrorWithCode, isProcessAlive, readPidFile } from './utils.js';
+import { createWallet } from './wallet-factory.js';
 
 /**
  * Params struct for the `call` RPC method. `params` must be a non-empty array

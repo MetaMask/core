@@ -16,7 +16,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
-import { BridgeHistoryItem } from '../src';
+import { BridgeHistoryItem } from '../src/index.js';
 
 export const mockBatchSellErc20Erc20: QuoteResponse<TxData, TxData>[] = [
   {

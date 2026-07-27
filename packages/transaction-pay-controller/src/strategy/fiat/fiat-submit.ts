@@ -3,33 +3,33 @@ import { RampsOrderStatus } from '@metamask/ramps-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
   TransactionPayFiatOptions,
   TransactionPayControllerMessenger,
-} from '../../types';
-import { prefixError } from '../../utils/error-prefix';
+} from '../../types.js';
+import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFiatOrderPollIntervalMs,
   getFiatOrderPollTimeoutMs,
-} from '../../utils/feature-flags';
-import { updateTransaction } from '../../utils/transaction';
+} from '../../utils/feature-flags.js';
+import { updateTransaction } from '../../utils/transaction.js';
 import {
   isDirectMusdMoneyAccountQuote,
   submitDirectMusdAfterFiatCompletion,
-} from './fiat-direct-musd';
-import { submitSimpleRelay } from './fiat-submit-simple';
-import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
-import { fundFiatOrderFromTestSource } from './fiat-test-funding';
-import type { FiatQuote } from './types';
+} from './fiat-direct-musd.js';
+import { submitSimpleRelay } from './fiat-submit-simple.js';
+import { submitWithTransactionData } from './fiat-submit-with-transaction-data.js';
+import { fundFiatOrderFromTestSource } from './fiat-test-funding.js';
+import type { FiatQuote } from './types.js';
 import {
   deriveFiatAssetForFiatPayment,
   extractProviderCode,
   resolveSourceAmountRaw,
   validateOrderAsset,
-} from './utils';
+} from './utils.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
 const POST_RAMP_ERROR_PREFIX = 'Post-Ramp: ';

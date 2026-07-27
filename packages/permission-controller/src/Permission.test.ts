@@ -1,14 +1,14 @@
 import { Messenger } from '@metamask/messenger';
 
+import { createRestrictedMethodMessenger } from './createRestrictedMethodMessenger.js';
 import type {
   CaveatConstraint,
   PermissionConstraint,
   PermissionSpecificationBuilder,
   RestrictedMethodSpecificationConstraint,
-} from '.';
-import { constructPermission, PermissionType } from '.';
-import { createRestrictedMethodMessenger } from './createRestrictedMethodMessenger';
-import { findCaveat } from './Permission';
+} from './index.js';
+import { constructPermission, PermissionType } from './index.js';
+import { findCaveat } from './Permission.js';
 
 describe('constructPermission', () => {
   it('constructs a permission', () => {

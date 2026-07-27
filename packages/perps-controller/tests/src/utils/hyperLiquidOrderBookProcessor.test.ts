@@ -5,16 +5,16 @@
 
 import type { BboWsEvent, L2BookResponse } from '@nktkas/hyperliquid';
 
-import type { PriceUpdate } from '../../../src/types';
+import type { PriceUpdate } from '../../../src/types/index.js';
 import {
   processBboData,
   processL2BookData,
-} from '../../../src/utils/hyperLiquidOrderBookProcessor';
+} from '../../../src/utils/hyperLiquidOrderBookProcessor.js';
 import type {
   OrderBookCacheEntry,
   ProcessBboDataParams,
   ProcessL2BookDataParams,
-} from '../../../src/utils/hyperLiquidOrderBookProcessor';
+} from '../../../src/utils/hyperLiquidOrderBookProcessor.js';
 
 describe('hyperLiquidOrderBookProcessor', () => {
   let mockOrderBookCache: Map<string, OrderBookCacheEntry>;

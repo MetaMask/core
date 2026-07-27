@@ -15,7 +15,10 @@ import type {
 } from 'ts-morph';
 import { Node as NodeGuards, Project, ts } from 'ts-morph';
 
-import type { MessengerCapabilityPacket, DocumentedParameter } from './types';
+import type {
+  MessengerCapabilityPacket,
+  DocumentedParameter,
+} from './types.js';
 
 // ---------------------------------------------------------------------------
 // NOTE: `ts-morph` is used heavily in this file to parse and extract
@@ -204,7 +207,7 @@ function findClassMethodDeclaration(
   // Reject qualified-name type names, as we need a plain identifier to
   // resolve the symbol.
   // EXAMPLE:
-  //   import * as somePackage from '...';
+  //   import * as somePackage from '....js';
   //   somePackage.FooController['someMethod']
   //   ^^^^^^^^^^^^^^^^^^^^^^^^^
   const classNameNode = objectType.getTypeName();
@@ -470,7 +473,7 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
   // Reject qualified-name type names, as we need a plain identifier to
   // resolve the symbol.
   // EXAMPLE:
-  //   import * as somePackage from '...';
+  //   import * as somePackage from '....js';
   //   type Actions = somePackage.FooControllerSomeAction;
   //                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   if (!NodeGuards.isIdentifier(nameNode)) {
@@ -548,7 +551,7 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
         // identifier to match the constructor by name.
         // EXAMPLE:
         //   // Bad
-        //   import * as somePackage from '...';
+        //   import * as somePackage from '....js';
         //   type FooControllerSomeAction = somePackage.ControllerGetStateAction<...>
         //                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         const constructorTypeName = body.getTypeName();

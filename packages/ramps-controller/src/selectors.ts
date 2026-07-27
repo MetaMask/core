@@ -1,7 +1,7 @@
-import type { RampsControllerState } from './RampsController';
-import type { RampsErrorCode } from './rampsErrorCodes';
-import type { RequestState } from './RequestCache';
-import { RequestStatus, createCacheKey } from './RequestCache';
+import type { RampsControllerState } from './RampsController.js';
+import type { RampsErrorCode } from './rampsErrorCodes.js';
+import type { RequestState } from './RequestCache.js';
+import { RequestStatus, createCacheKey } from './RequestCache.js';
 
 /**
  * Result shape returned by request selectors.

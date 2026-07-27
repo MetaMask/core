@@ -4,7 +4,7 @@ import {
   NetworkControllerMessenger,
 } from '@metamask/network-controller';
 
-import { InitializationConfiguration } from '../../types';
+import { InitializationConfiguration } from '../../types.js';
 
 export const networkController: InitializationConfiguration<
   NetworkController,

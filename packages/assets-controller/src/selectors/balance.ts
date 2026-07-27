@@ -11,14 +11,14 @@ import {
 } from '@metamask/utils';
 import BigNumberJS from 'bignumber.js';
 
-import type { AssetsControllerState } from '../AssetsController';
+import type { AssetsControllerState } from '../AssetsController.js';
 import type {
   AccountId,
   AssetBalance,
   AssetMetadata,
   AssetPreferences,
   Caip19AssetId,
-} from '../types';
+} from '../types.js';
 
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)

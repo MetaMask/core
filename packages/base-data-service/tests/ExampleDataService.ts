@@ -8,8 +8,8 @@ import {
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
   PersistenceConfiguration,
-} from '../src/BaseDataService';
-import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types';
+} from '../src/BaseDataService.js';
+import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types.js';
 
 export const serviceName = 'ExampleDataService';
 

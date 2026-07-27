@@ -1,11 +1,11 @@
-export type { AccountWalletObject } from './wallet';
-export type { AccountGroupObject } from './group';
-export { isAccountGroupNameUnique } from './group';
+export type { AccountWalletObject } from './wallet.js';
+export type { AccountGroupObject } from './group.js';
+export { isAccountGroupNameUnique } from './group.js';
 
 export {
   USER_STORAGE_GROUPS_FEATURE_KEY,
   USER_STORAGE_WALLETS_FEATURE_KEY,
-} from './backup-and-sync/user-storage/constants';
+} from './backup-and-sync/user-storage/constants.js';
 
 export type {
   AccountTreeControllerState,
@@ -19,7 +19,7 @@ export type {
   AccountTreeControllerAccountGroupRemovedEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
-} from './types';
+} from './types.js';
 
 export type {
   AccountTreeControllerGetAccountWalletObjectAction,
@@ -38,11 +38,11 @@ export type {
   AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
   AccountTreeControllerInitAction,
   AccountTreeControllerReinitAction,
-} from './AccountTreeController-method-action-types';
+} from './AccountTreeController-method-action-types.js';
 
-export type { AccountContext } from './AccountTreeController';
+export type { AccountContext } from './AccountTreeController.js';
 
 export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
-} from './AccountTreeController';
+} from './AccountTreeController.js';

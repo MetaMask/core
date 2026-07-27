@@ -9,10 +9,10 @@ import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { randomBytes } from 'crypto';
 
-import type { DelegationDeploymentsEnforcerAddressesByName } from '../../types';
-import { toEnforcerAddressesByName } from '../enforcerAddresses';
-import { PermissionType } from '../types';
-import { makePermissionDecoder } from './makePermissionDecoder';
+import type { DelegationDeploymentsEnforcerAddressesByName } from '../../types.js';
+import { toEnforcerAddressesByName } from '../enforcerAddresses.js';
+import { PermissionType } from '../types.js';
+import { makePermissionDecoder } from './makePermissionDecoder.js';
 
 const randomAddress = () => `0x${randomBytes(20).toString('hex')}` as const;
 

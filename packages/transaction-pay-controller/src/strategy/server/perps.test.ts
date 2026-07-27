@@ -4,13 +4,13 @@ import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
-} from '../../constants';
-import type { QuoteRequest } from '../../types';
+} from '../../constants.js';
+import type { QuoteRequest } from '../../types.js';
 import {
   SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
   isServerPerpsDepositRequest,
   normalizeServerPerpsRequest,
-} from './perps';
+} from './perps.js';
 
 const BRIDGE_ADDRESS_LOWER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7';
 

@@ -7,10 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
+### Added
+
+- Add `PushAnalyticsPayload` type carrying the first-class push notification fields (`notification_id`, `notification_type`, `notification_subtype`, `chain_id`, `deeplink`). ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Add `getNotificationSubtype` helper that derives a normalised `notification_subtype` from an `INotification`, so both clients pull the subtype from one place. ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Add a `notification_subtype` field to the generated platform notification schema (`PlatformNotification`), surfaced via `getNotificationSubtype` so platform notifications report their server-set subtype (e.g. `position_liquidated`) instead of the generic `platform` label. ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Export `toPushAnalyticsPayload` from `@metamask/notification-services-controller/push-services` so web and mobile clients can parse FCM analytics fields from a shared helper. ([#8944](https://github.com/MetaMask/core/pull/8944))
+
 ### Changed
 
+- **BREAKING:** The `NotificationServicesPushController:onNewNotifications` and `NotificationServicesPushController:pushNotificationClicked` messenger events now carry `PushAnalyticsPayload` instead of `INotification`. ([#8944](https://github.com/MetaMask/core/pull/8944))
+  - The push payload no longer carries the full notification body; clients construct their analytics events directly from the first-class fields.
+  - The `onReceivedHandler` / `onClickHandler` callbacks passed to `createSubscribeToPushNotifications` now receive a `PushAnalyticsPayload` instead of an `INotification`.
+- On push receive, the controller now re-fetches the notifications list from the API rather than inserting the push payload, since the push payload no longer contains the notification body. ([#8944](https://github.com/MetaMask/core/pull/8944))
 - Bump `@metamask/authenticated-user-storage` from `^3.0.0` to `^3.0.1` ([#9458](https://github.com/MetaMask/core/pull/9458))
 - Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+
+### Removed
+
+- **BREAKING:** Remove the nested `data["data"]` / `metadata` FCM payload parsing path; push payloads are now read from the top-level FCM fields written by push-services. ([#8944](https://github.com/MetaMask/core/pull/8944))
 
 ### Fixed
 
@@ -828,7 +845,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@25.0.0...@metamask/notification-services-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.3.0...@metamask/notification-services-controller@25.0.0
 [24.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.2.0...@metamask/notification-services-controller@24.3.0
 [24.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.3...@metamask/notification-services-controller@24.2.0

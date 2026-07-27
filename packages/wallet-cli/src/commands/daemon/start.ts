@@ -1,7 +1,7 @@
 import { Command, Flags } from '@oclif/core';
 
-import { ensureDaemon } from '../../daemon/daemon-spawn';
-import { Password, Srp } from '../../daemon/secrets';
+import { ensureDaemon } from '../../daemon/daemon-spawn.js';
+import { Password, Srp } from '../../daemon/secrets.js';
 
 export default class DaemonStart extends Command {
   static override description = 'Start the wallet daemon';

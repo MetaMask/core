@@ -7,13 +7,13 @@ import type { Messenger } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import type { IDisposable } from 'cockatiel';
 
-import type { ConfigRegistryApiServiceMethodActions } from './config-registry-api-service-method-action-types';
+import type { ConfigRegistryApiServiceMethodActions } from './config-registry-api-service-method-action-types.js';
 import type {
   FetchConfigOptions,
   FetchConfigResult,
   RegistryConfigApiResponse,
-} from './types';
-import { validateRegistryConfigApiResponse } from './types';
+} from './types.js';
+import { validateRegistryConfigApiResponse } from './types.js';
 
 const ENDPOINT_PATH = '/config/networks';
 

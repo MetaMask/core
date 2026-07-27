@@ -27,20 +27,20 @@ import type {
 } from '@metamask/profile-sync-controller';
 import type { SnapControllerGetSnapAction } from '@metamask/snaps-controllers';
 
-import type { controllerName } from './AccountTreeController';
-import type { AccountTreeControllerMethodActions } from './AccountTreeController-method-action-types';
+import type { AccountTreeControllerMethodActions } from './AccountTreeController-method-action-types.js';
+import type { controllerName } from './AccountTreeController.js';
 import type {
   BackupAndSyncAnalyticsEventPayload,
   BackupAndSyncEmitAnalyticsEventParams,
-} from './backup-and-sync/analytics';
+} from './backup-and-sync/analytics/index.js';
 import type {
   AccountGroupObject,
   AccountTreeGroupPersistedMetadata,
-} from './group';
+} from './group.js';
 import type {
   AccountWalletObject,
   AccountTreeWalletPersistedMetadata,
-} from './wallet';
+} from './wallet.js';
 
 // Backward compatibility aliases using indexed access types
 /**

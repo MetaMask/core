@@ -1,10 +1,10 @@
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 
-import { GatorPermissionsProviderError } from './errors';
-import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
-import { GatorPermissionsSnapRpcMethod } from './types';
-import { executeSnapRpc } from './utils';
+import { GatorPermissionsProviderError } from './errors.js';
+import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController.js';
+import { GatorPermissionsSnapRpcMethod } from './types.js';
+import { executeSnapRpc } from './utils.js';
 
 describe('executeSnapRpc', () => {
   const mockSnapId = 'npm:@metamask/test-snap' as SnapId;

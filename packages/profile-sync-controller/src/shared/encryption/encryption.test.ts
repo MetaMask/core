@@ -1,5 +1,5 @@
-import { MAX_KDF_PROMISE_CACHE_SIZE } from './constants';
-import encryption, { createSHA256Hash } from './encryption';
+import { MAX_KDF_PROMISE_CACHE_SIZE } from './constants.js';
+import encryption, { createSHA256Hash } from './encryption.js';
 
 describe('encryption tests', () => {
   const PASSWORD = '123';

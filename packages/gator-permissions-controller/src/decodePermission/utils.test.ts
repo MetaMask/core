@@ -1,14 +1,14 @@
 import type { Caveat } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/utils';
 
-import { buildMockDelegationEnforcerContracts } from '../../tests/mocks';
-import { createPermissionDecodersForContracts } from './decoders';
-import { toEnforcerAddressesByName } from './enforcerAddresses';
+import { buildMockDelegationEnforcerContracts } from '../../tests/mocks.js';
+import { createPermissionDecodersForContracts } from './decoders/index.js';
+import { toEnforcerAddressesByName } from './enforcerAddresses.js';
 import {
   extractExpiryFromCaveatTerms,
   getTermsByEnforcer,
   splitHex,
-} from './utils';
+} from './utils.js';
 
 describe('createPermissionDecodersForContracts', () => {
   it('builds canonical decoders with correct required and allowed enforcers', () => {

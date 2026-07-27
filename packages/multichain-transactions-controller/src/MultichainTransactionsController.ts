@@ -24,7 +24,7 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import type { MultichainTransactionsControllerMethodActions } from './MultichainTransactionsController-method-action-types';
+import type { MultichainTransactionsControllerMethodActions } from './MultichainTransactionsController-method-action-types.js';
 
 const controllerName = 'MultichainTransactionsController';
 

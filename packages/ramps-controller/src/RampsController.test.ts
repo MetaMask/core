@@ -10,19 +10,28 @@ import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags';
+import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
   RampsControllerMessenger,
   RampsControllerState,
   ResourceState,
   UserRegion,
-} from './RampsController';
+} from './RampsController.js';
 import {
   RampsController,
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
-} from './RampsController';
-import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
+} from './RampsController.js';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
+import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetTokensAction,
+  RampsServiceGetProvidersAction,
+  RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
+} from './RampsService-method-action-types.js';
 import type {
   Country,
   TokensResponse,
@@ -34,18 +43,9 @@ import type {
   Quote,
   RampsToken,
   RampsOrder,
-} from './RampsService';
-import { RampsOrderStatus } from './RampsService';
-import type {
-  RampsServiceGetGeolocationAction,
-  RampsServiceGetCountriesAction,
-  RampsServiceGetTokensAction,
-  RampsServiceGetProvidersAction,
-  RampsServiceGetPaymentMethodsAction,
-  RampsServiceGetQuotesAction,
-  RampsServiceGetBuyWidgetUrlAction,
-} from './RampsService-method-action-types';
-import { RequestStatus } from './RequestCache';
+} from './RampsService.js';
+import { RampsOrderStatus } from './RampsService.js';
+import { RequestStatus } from './RequestCache.js';
 import type {
   TransakAccessToken,
   TransakUserDetails,
@@ -61,7 +61,7 @@ import type {
   TransakOrder,
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
-} from './TransakService';
+} from './TransakService.js';
 
 describe('RampsController', () => {
   const circuitBreakerOpenErrorMessage =
@@ -10458,6 +10458,73 @@ describe('RampsController', () => {
             mockQuote,
             '0x123',
             extraParams,
+          );
+        });
+      });
+    });
+
+    describe('transakCreateWidgetUrl', () => {
+      const mockQuote: TransakBuyQuote = {
+        quoteId: 'quote-1',
+        conversionPrice: 50000,
+        marketConversionPrice: 50100,
+        slippage: 0.5,
+        fiatCurrency: 'USD',
+        cryptoCurrency: 'BTC',
+        paymentMethod: 'credit_debit_card',
+        fiatAmount: 100,
+        cryptoAmount: 0.002,
+        isBuyOrSell: 'BUY',
+        network: 'bitcoin',
+        feeDecimal: 0.01,
+        totalFee: 1,
+        feeBreakdown: [],
+        nonce: 1,
+        cryptoLiquidityProvider: 'provider-1',
+        notes: [],
+      };
+
+      it('calls messenger with correct arguments and returns the widget URL', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const handler = jest
+            .fn()
+            .mockResolvedValue('https://global.transak.com?sessionId=sess-1');
+          rootMessenger.registerActionHandler(
+            'TransakService:createWidgetUrl',
+            handler,
+          );
+          const extraParams = { themeColor: '037dd6' };
+          const result = await rootMessenger.call(
+            'RampsController:transakCreateWidgetUrl',
+            mockQuote,
+            '0x123',
+            extraParams,
+          );
+          expect(result).toBe('https://global.transak.com?sessionId=sess-1');
+          expect(handler).toHaveBeenCalledWith(mockQuote, '0x123', extraParams);
+        });
+      });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
+          rootMessenger.registerActionHandler(
+            'TransakService:createWidgetUrl',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakCreateWidgetUrl',
+              mockQuote,
+              '0x123',
+            ),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
           );
         });
       });

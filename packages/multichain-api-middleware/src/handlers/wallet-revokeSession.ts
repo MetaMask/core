@@ -24,7 +24,7 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type { Caip25Caveat, GetCaveatForOriginHook } from './types';
+import type { Caip25Caveat, GetCaveatForOriginHook } from './types.js';
 
 export type WalletRevokeSessionHooks = GetCaveatForOriginHook & {
   revokePermissionForOrigin: (

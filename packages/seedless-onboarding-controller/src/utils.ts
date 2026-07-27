@@ -9,10 +9,12 @@ import {
 import { bytesToUtf8 } from '@noble/ciphers/utils';
 
 import { SecretType } from './constants';
+import type { SecretMetadata } from './SecretMetadata';
 import type {
   DecodedBaseJWTToken,
   DecodedNodeAuthToken,
   DeserializedVaultData,
+  InvalidPrimarySecretDataTypeErrorData,
   VaultData,
 } from './types';
 
@@ -172,4 +174,16 @@ export function getSecretTypeFromDataType(
     default:
       throw new Error(`Unknown EncAccountDataType: ${String(dataType)}`);
   }
+}
+
+/**
+ * Build non-sensitive type labels for secret metadata items.
+ *
+ * @param secrets - The secret metadata items in fetch order.
+ * @returns One `SecretType` or `EncAccountDataType` per item.
+ */
+export function getInvalidPrimarySecretDataTypeErrorData(
+  secrets: SecretMetadata<string | Uint8Array>[],
+): InvalidPrimarySecretDataTypeErrorData {
+  return secrets.map((secret) => secret.dataType ?? secret.type);
 }

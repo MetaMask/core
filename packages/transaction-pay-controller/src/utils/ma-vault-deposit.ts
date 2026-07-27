@@ -4,18 +4,18 @@ import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import { MUSD_MONAD_FIAT_ASSET } from '../strategy/fiat/constants';
-import type { TransactionPayControllerMessenger } from '../types';
-import { findRecentChompVaultDeposit } from './chomp';
-import { prefixError } from './error-prefix';
-import { getNetworkClientId } from './provider';
+import { projectLogger } from '../logger.js';
+import { MUSD_MONAD_FIAT_ASSET } from '../strategy/fiat/constants.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
+import { findRecentChompVaultDeposit } from './chomp.js';
+import { prefixError } from './error-prefix.js';
+import { getNetworkClientId } from './provider.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
-} from './transaction';
+} from './transaction.js';
 
 const log = createModuleLogger(projectLogger, 'ma-vault-deposit');
 

@@ -11,12 +11,11 @@ export {
 export type {
   PasskeyControllerState,
   PasskeyControllerMessenger,
+  PasskeyControllerOptions,
   PasskeyControllerGetStateAction,
   PasskeyControllerActions,
   PasskeyControllerStateChangedEvent,
   PasskeyControllerEvents,
-} from './PasskeyController';
-export type {
   PasskeyCredentialInfo,
   PasskeyDerivationMethod,
   PasskeyKeyDerivation,
@@ -37,9 +36,14 @@ export type {
   PasskeyControllerGenerateAuthenticationOptionsAction,
   PasskeyControllerProtectVaultKeyWithPasskeyAction,
   PasskeyControllerRetrieveVaultKeyWithPasskeyAction,
+  PasskeyControllerUnlockWithPasskeyAction,
+  PasskeyControllerExportSeedPhraseWithPasskeyAction,
+  PasskeyControllerExportAccountsWithPasskeyAction,
   PasskeyControllerVerifyPasskeyAuthenticationAction,
   PasskeyControllerRenewVaultKeyProtectionAction,
-  PasskeyControllerRemovePasskeyAction,
+  PasskeyControllerChangePasswordWithPasskeyVerificationAction,
+  PasskeyControllerRemovePasskeyWithPasskeyVerificationAction,
+  PasskeyControllerRemovePasskeyWithPasswordVerificationAction,
   PasskeyControllerClearStateAction,
   PasskeyControllerDestroyAction,
 } from './PasskeyController-method-action-types';

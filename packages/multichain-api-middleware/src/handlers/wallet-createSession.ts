@@ -50,7 +50,7 @@ import type {
   GetCapabilitiesHook,
   GetNonEvmSupportedMethodsHook,
   SortAccountIdsByLastSelectedHook,
-} from './types';
+} from './types.js';
 
 const SOLANA_CAIP_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 

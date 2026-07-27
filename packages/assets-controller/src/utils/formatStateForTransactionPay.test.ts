@@ -1,9 +1,14 @@
-import type { AssetBalance, AssetMetadata, FungibleAssetPrice } from '../types';
+import type {
+  AssetBalance,
+  AssetMetadata,
+  FungibleAssetPrice,
+} from '../types.js';
 import {
   clearFormatStateForTransactionPayCacheForTesting,
   formatStateForTransactionPay,
   AccountForLegacyFormat,
-} from './formatStateForTransactionPay';
+  FormatStateForTransactionPayParams,
+} from './formatStateForTransactionPay.js';
 
 function price(
   overrides: Partial<FungibleAssetPrice> & { price: number },
@@ -389,25 +394,21 @@ describe('formatStateForTransactionPay', () => {
       clearFormatStateForTransactionPayCacheForTesting();
     });
 
-    it('returns the same object when inputs are unchanged by identity / value', () => {
-      const assetsBalance = {
+    const makeParams = (): FormatStateForTransactionPayParams => ({
+      accounts: [{ ...ACCOUNT_1 }],
+      assetsBalance: {
         [ACCOUNT_1.id]: {
-          [ETH_NATIVE_ID]: { amount: '100' } as AssetBalance,
+          [USDC_ASSET_ID]: { amount: '1000000' } as AssetBalance,
         },
-      };
-      const assetsInfo = {
-        [ETH_NATIVE_ID]: ETH_NATIVE_METADATA,
-      };
-      const assetsPrice = {};
-      const params = {
-        accounts: [ACCOUNT_1],
-        assetsBalance,
-        assetsInfo,
-        assetsPrice,
-        selectedCurrency: 'usd',
-        nativeAssetIdentifiers: EVM_NATIVE_IDS,
-        networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
-      };
+      },
+      assetsInfo: {},
+      assetsPrice: {},
+      selectedCurrency: 'usd',
+      nativeAssetIdentifiers: { ...EVM_NATIVE_IDS },
+    });
+
+    it('returns the cached result when called again with identical inputs', () => {
+      const params = makeParams();
 
       const first = formatStateForTransactionPay(params);
       const second = formatStateForTransactionPay({
@@ -419,38 +420,70 @@ describe('formatStateForTransactionPay', () => {
       expect(second).toBe(first);
     });
 
-    it('recomputes when assetsBalance identity changes', () => {
-      const assetsInfo = {
-        [ETH_NATIVE_ID]: ETH_NATIVE_METADATA,
-      };
-      const first = formatStateForTransactionPay({
-        accounts: [ACCOUNT_1],
-        assetsBalance: {
-          [ACCOUNT_1.id]: {
-            [ETH_NATIVE_ID]: { amount: '100' } as AssetBalance,
-          },
-        },
-        assetsInfo,
-        assetsPrice: {},
-        selectedCurrency: 'usd',
-        nativeAssetIdentifiers: EVM_NATIVE_IDS,
-        networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
-      });
+    it('recomputes when a state slice reference changes', () => {
+      const params = makeParams();
+
+      const first = formatStateForTransactionPay(params);
       const second = formatStateForTransactionPay({
-        accounts: [ACCOUNT_1],
+        ...params,
         assetsBalance: {
           [ACCOUNT_1.id]: {
-            [ETH_NATIVE_ID]: { amount: '200' } as AssetBalance,
+            [USDC_ASSET_ID]: { amount: '2000000' } as AssetBalance,
           },
         },
-        assetsInfo,
-        assetsPrice: {},
-        selectedCurrency: 'usd',
-        nativeAssetIdentifiers: EVM_NATIVE_IDS,
-        networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
       });
 
       expect(second).not.toBe(first);
+      const accountLower = ACCOUNT_1.address.toLowerCase();
+      expect(second.tokenBalances[accountLower]['0x1'][USDC_ADDRESS]).toBe(
+        '0x1e8480',
+      );
+    });
+
+    it('recomputes when the accounts change', () => {
+      const params = makeParams();
+
+      const first = formatStateForTransactionPay(params);
+      const second = formatStateForTransactionPay({
+        ...params,
+        accounts: [
+          {
+            id: 'account-2',
+            address: '0x0Ac1dF02185025F65202660F8167210A80dD5086',
+          },
+        ],
+      });
+
+      expect(second).not.toBe(first);
+      expect(second.tokenBalances).toStrictEqual({});
+    });
+
+    it('recomputes when the selected currency changes', () => {
+      const params = makeParams();
+
+      const first = formatStateForTransactionPay(params);
+      const second = formatStateForTransactionPay({
+        ...params,
+        selectedCurrency: 'eur',
+      });
+
+      expect(second).not.toBe(first);
+      expect(second.currentCurrency).toBe('eur');
+    });
+
+    it('freezes the result so consumers cannot poison the cache', () => {
+      const result = formatStateForTransactionPay(makeParams());
+
+      expect(Object.isFrozen(result)).toBe(true);
+    });
+
+    it('produces the same output whether served from cache or recomputed', () => {
+      const params = makeParams();
+
+      const cached = formatStateForTransactionPay(params);
+      const recomputed = formatStateForTransactionPay(makeParams());
+
+      expect(recomputed).toStrictEqual(cached);
     });
   });
 });

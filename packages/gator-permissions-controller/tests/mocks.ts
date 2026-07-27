@@ -9,7 +9,7 @@ import type { Hex } from '@metamask/utils';
 import type {
   DelegationDeploymentsEnforcerAddressesByName,
   StoredGatorPermission,
-} from '../src/types';
+} from '../src/types.js';
 
 /**
  * Builds a mock delegation-deployments enforcer address map for unit tests.

@@ -55,10 +55,14 @@ export type PasskeyControllerGenerateAuthenticationOptionsAction = {
  * Verifies registration and post-registration authentication, then stores the
  * vault key encrypted under the new passkey.
  *
+ * Fetches the current vault encryption key from KeyringController before wrapping.
+ * When onboarding is complete, requires `password` for step-up verification first.
+ *
  * @param params - Enrollment completion inputs.
  * @param params.registrationResponse - Result of `navigator.credentials.create()`.
  * @param params.authenticationResponse - Result of `navigator.credentials.get()` after {@link generatePostRegistrationAuthenticationOptions}.
- * @param params.vaultKey - Vault encryption key to encrypt and persist.
+ * @param params.password - Wallet password when onboarding is complete (step-up).
+ * @returns Resolves when enrollment completes.
  */
 export type PasskeyControllerProtectVaultKeyWithPasskeyAction = {
   type: `PasskeyController:protectVaultKeyWithPasskey`;
@@ -68,12 +72,51 @@ export type PasskeyControllerProtectVaultKeyWithPasskeyAction = {
 /**
  * Verifies an authentication assertion and returns the decrypted vault key.
  *
+ * Prefer orchestrated methods ({@link unlockWithPasskey},
+ * {@link exportSeedPhraseWithPasskey}, {@link exportAccountsWithPasskey}) for product
+ * flows instead of calling KeyringController with the returned key manually.
+ *
  * @param authenticationResponse - Result of `navigator.credentials.get()`.
  * @returns The plaintext vault encryption key.
  */
 export type PasskeyControllerRetrieveVaultKeyWithPasskeyAction = {
   type: `PasskeyController:retrieveVaultKeyWithPasskey`;
   handler: PasskeyController['retrieveVaultKeyWithPasskey'];
+};
+
+/**
+ * Unlocks the keyring using a passkey authentication assertion.
+ *
+ * @param authenticationResponse - Result of `navigator.credentials.get()`.
+ * @returns Resolves when the keyring is unlocked.
+ */
+export type PasskeyControllerUnlockWithPasskeyAction = {
+  type: `PasskeyController:unlockWithPasskey`;
+  handler: PasskeyController['unlockWithPasskey'];
+};
+
+/**
+ * Exports the seed phrase after passkey step-up authentication.
+ *
+ * @param authenticationResponse - Result of `navigator.credentials.get()`.
+ * @param keyringId - Optional keyring id; defaults to the primary HD keyring.
+ * @returns Raw seed phrase bytes from KeyringController.
+ */
+export type PasskeyControllerExportSeedPhraseWithPasskeyAction = {
+  type: `PasskeyController:exportSeedPhraseWithPasskey`;
+  handler: PasskeyController['exportSeedPhraseWithPasskey'];
+};
+
+/**
+ * Exports private keys for the given addresses after passkey step-up authentication.
+ *
+ * @param authenticationResponse - Result of `navigator.credentials.get()`.
+ * @param addresses - Account addresses to export.
+ * @returns Private keys in the same order as `addresses`.
+ */
+export type PasskeyControllerExportAccountsWithPasskeyAction = {
+  type: `PasskeyController:exportAccountsWithPasskey`;
+  handler: PasskeyController['exportAccountsWithPasskey'];
 };
 
 /**
@@ -98,10 +141,15 @@ export type PasskeyControllerVerifyPasskeyAuthenticationAction = {
  * pass the same `authenticationResponse` you just verified (e.g. from
  * {@link retrieveVaultKeyWithPasskey} / {@link verifyPasskeyAuthentication}).
  *
+ * For password change with passkey step-up, prefer
+ * {@link changePasswordWithPasskeyVerification}, which orchestrates keyring export,
+ * `changePassword`, and re-wrap in one call.
+ *
  * @param params - Re-wrap inputs.
  * @param params.authenticationResponse - Used to derive the wrapping key.
  * @param params.oldVaultKey - Expected current vault key.
  * @param params.newVaultKey - New vault key to encrypt under the passkey.
+ * @returns Resolves when the passkey record is updated.
  */
 export type PasskeyControllerRenewVaultKeyProtectionAction = {
   type: `PasskeyController:renewVaultKeyProtection`;
@@ -109,16 +157,51 @@ export type PasskeyControllerRenewVaultKeyProtectionAction = {
 };
 
 /**
- * Clears enrolled passkey state and in-flight ceremonies. Call only after the same
- * auth gate as renewal (verified passkey assertion or password).
+ * Changes the wallet password after passkey step-up authentication.
+ *
+ * When `renewVaultKeyProtection` is `true` (default), re-wraps the vault key under the
+ * passkey after rotation. When `false`, removes the passkey instead.
+ *
+ * @param params - Change-password inputs.
+ * @param params.newPassword - New wallet password.
+ * @param params.authenticationResponse - Result of `navigator.credentials.get()`.
+ * @param params.options - Optional flow controls.
+ * @param params.options.renewVaultKeyProtection - Re-wrap vault key after password change.
+ * @returns Resolves when the password change completes.
  */
-export type PasskeyControllerRemovePasskeyAction = {
-  type: `PasskeyController:removePasskey`;
-  handler: PasskeyController['removePasskey'];
+export type PasskeyControllerChangePasswordWithPasskeyVerificationAction = {
+  type: `PasskeyController:changePasswordWithPasskeyVerification`;
+  handler: PasskeyController['changePasswordWithPasskeyVerification'];
+};
+
+/**
+ * Removes the enrolled passkey after verifying a passkey authentication assertion.
+ *
+ * @param authenticationResponse - Result of `navigator.credentials.get()`.
+ * @returns Resolves when the passkey is removed.
+ */
+export type PasskeyControllerRemovePasskeyWithPasskeyVerificationAction = {
+  type: `PasskeyController:removePasskeyWithPasskeyVerification`;
+  handler: PasskeyController['removePasskeyWithPasskeyVerification'];
+};
+
+/**
+ * Removes the enrolled passkey after verifying the wallet password.
+ *
+ * @param password - Wallet password for step-up verification.
+ * @returns Resolves when the passkey is removed.
+ */
+export type PasskeyControllerRemovePasskeyWithPasswordVerificationAction = {
+  type: `PasskeyController:removePasskeyWithPasswordVerification`;
+  handler: PasskeyController['removePasskeyWithPasswordVerification'];
 };
 
 /**
  * Resets state and clears in-flight registration/authentication ceremonies.
+ *
+ * For user-facing passkey removal with step-up, use
+ * {@link removePasskeyWithPasskeyVerification} or
+ * {@link removePasskeyWithPasswordVerification}.
  */
 export type PasskeyControllerClearStateAction = {
   type: `PasskeyController:clearState`;
@@ -143,8 +226,13 @@ export type PasskeyControllerMethodActions =
   | PasskeyControllerGenerateAuthenticationOptionsAction
   | PasskeyControllerProtectVaultKeyWithPasskeyAction
   | PasskeyControllerRetrieveVaultKeyWithPasskeyAction
+  | PasskeyControllerUnlockWithPasskeyAction
+  | PasskeyControllerExportSeedPhraseWithPasskeyAction
+  | PasskeyControllerExportAccountsWithPasskeyAction
   | PasskeyControllerVerifyPasskeyAuthenticationAction
   | PasskeyControllerRenewVaultKeyProtectionAction
-  | PasskeyControllerRemovePasskeyAction
+  | PasskeyControllerChangePasswordWithPasskeyVerificationAction
+  | PasskeyControllerRemovePasskeyWithPasskeyVerificationAction
+  | PasskeyControllerRemovePasskeyWithPasswordVerificationAction
   | PasskeyControllerClearStateAction
   | PasskeyControllerDestroyAction;

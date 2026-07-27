@@ -2,9 +2,9 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { TransactionMeta } from '..';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { rpcRequest } from './provider';
+import type { TransactionMeta } from '../index.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { rpcRequest } from './provider.js';
 
 /**
  * Get the native balance for an address.

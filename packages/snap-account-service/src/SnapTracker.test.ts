@@ -7,8 +7,8 @@ import type {
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { TruncatedSnap } from '@metamask/snaps-utils';
 
-import type { SnapAccountServiceMessenger } from './SnapAccountService';
-import { SnapTracker } from './SnapTracker';
+import type { SnapAccountServiceMessenger } from './SnapAccountService.js';
+import { SnapTracker } from './SnapTracker.js';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,

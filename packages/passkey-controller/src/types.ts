@@ -1,3 +1,20 @@
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangedEvent,
+} from '@metamask/base-controller';
+import type {
+  KeyringControllerChangePasswordAction,
+  KeyringControllerExportAccountAction,
+  KeyringControllerExportEncryptionKeyAction,
+  KeyringControllerExportSeedPhraseAction,
+  KeyringControllerSubmitEncryptionKeyAction,
+  KeyringControllerVerifyPasswordAction,
+} from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
+
+import { controllerName } from './constants';
+import type { PasskeyControllerMethodActions } from './PasskeyController-method-action-types';
+
 export type Base64String = string;
 
 export type Base64URLString = string;
@@ -106,4 +123,63 @@ export type PrfClientExtensionResults = {
     enabled?: boolean;
     results?: { first?: Base64URLString };
   };
+};
+
+export type PasskeyControllerState = {
+  passkeyRecord: PasskeyRecord | null;
+};
+
+export type PasskeyControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  PasskeyControllerState
+>;
+
+/**
+ * KeyringController actions that {@link PasskeyController} may call during
+ * orchestrated passkey flows. The restricted messenger must allow these at init.
+ */
+export type PasskeyControllerAllowedActions =
+  | KeyringControllerVerifyPasswordAction
+  | KeyringControllerExportEncryptionKeyAction
+  | KeyringControllerSubmitEncryptionKeyAction
+  | KeyringControllerChangePasswordAction
+  | KeyringControllerExportSeedPhraseAction
+  | KeyringControllerExportAccountAction;
+
+/**
+ * Actions exposed by {@link PasskeyController} on its messenger, including
+ * `:getState`, enrollment/unlock ceremony methods, and lifecycle helpers.
+ */
+export type PasskeyControllerActions =
+  | PasskeyControllerGetStateAction
+  | PasskeyControllerMethodActions;
+
+export type PasskeyControllerStateChangedEvent = ControllerStateChangedEvent<
+  typeof controllerName,
+  PasskeyControllerState
+>;
+
+export type PasskeyControllerEvents = PasskeyControllerStateChangedEvent;
+
+export type PasskeyControllerMessenger = Messenger<
+  typeof controllerName,
+  PasskeyControllerActions | PasskeyControllerAllowedActions,
+  PasskeyControllerEvents
+>;
+
+export type PasskeyControllerOptions = {
+  messenger: PasskeyControllerMessenger;
+  state?: Partial<PasskeyControllerState>;
+  rpId?: string;
+  expectedRPID: string | string[];
+  rpName: string;
+  expectedOrigin: string | string[];
+  userName?: string;
+  userDisplayName?: string;
+  /**
+   * Returns whether wallet onboarding is complete. When `true`, enrollment
+   * requires password step-up. The integrator typically supplies
+   * `() => onboardingController.state.completedOnboarding`.
+   */
+  getIsOnboardingCompleted: () => boolean;
 };

@@ -1,5 +1,5 @@
-import { SHARED_SALT } from './constants';
-import { byteArrayToBase64 } from './utils';
+import { SHARED_SALT } from './constants.js';
+import { byteArrayToBase64 } from './utils.js';
 
 type CachedEntry = {
   salt: Uint8Array;

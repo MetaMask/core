@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Wire the `transactionController` slot in the daemon wallet's instance options, so the daemon runs the `TransactionController` with an explicit CLI-appropriate configuration (swaps processing disabled, no client hooks) rather than relying on the controller's implicit defaults ([#9509](https://github.com/MetaMask/core/pull/9509))
+- Wire the `gasFeeController` slot in the daemon wallet's instance options, passing `clientId: 'cli'` so the CLI identifies itself to the gas estimation API, now that `@metamask/wallet` requires this option ([#9527](https://github.com/MetaMask/core/pull/9527))
 - Add the `mm wallet unlock` command, which dispatches `KeyringController:submitPassword` over the daemon socket, allowing the keyring to be unlocked after a daemon start with no password or after a `mm daemon call KeyringController:setLocked` ([#8821](https://github.com/MetaMask/core/pull/8821))
 - Add the `mm daemon list` command, which prints the messenger actions the running daemon can dispatch via `daemon call`, enumerated from the live messenger so the list cannot drift from what `call` accepts ([#9339](https://github.com/MetaMask/core/pull/9339))
 - Add the `mm daemon` command suite (`start`, `stop`, `status`, `purge`, and `call`) for running the wallet daemon and dispatching messenger actions over its socket ([#9255](https://github.com/MetaMask/core/pull/9255))
@@ -20,10 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The daemon client (`sendCommand`) now retries only on `ECONNREFUSED`, not `ECONNRESET`, since a reset can drop after the daemon has already acted on a request — re-sending could execute a non-idempotent action (e.g. a transaction broadcast) twice ([#9608](https://github.com/MetaMask/core/pull/9608))
 - `--password` / `MM_WALLET_PASSWORD` is now optional on `mm daemon start`; on subsequent runs, omitting it starts the daemon with a locked keyring, and the persisted vault is auto-unlocked when a password is supplied ([#8821](https://github.com/MetaMask/core/pull/8821))
 - The daemon RPC server now validates `params` against each handler's superstruct before dispatch, returning a `-32602 invalidParams` error on mismatch instead of passing raw params to the handler ([#8846](https://github.com/MetaMask/core/pull/8846))
 - Report daemon socket connection errors consistently across `mm daemon call` and `mm daemon list` ([#9339](https://github.com/MetaMask/core/pull/9339))
-- Bump `@metamask/wallet` from `^3.0.0` to `^7.0.1` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9263](https://github.com/MetaMask/core/pull/9263), [#9349](https://github.com/MetaMask/core/pull/9349), [#9396](https://github.com/MetaMask/core/pull/9396), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/wallet` from `^3.0.0` to `^8.1.0` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9263](https://github.com/MetaMask/core/pull/9263), [#9349](https://github.com/MetaMask/core/pull/9349), [#9396](https://github.com/MetaMask/core/pull/9396), [#9470](https://github.com/MetaMask/core/pull/9470), [#9629](https://github.com/MetaMask/core/pull/9629))
 - Wrap daemon password and SRP in opaque `Password` and `Srp` types that redact on logging; validated and unwrapped only at trust boundaries ([#8863](https://github.com/MetaMask/core/pull/8863))
+- Bump `@metamask/wallet` from `^7.0.1` to `8.0.0`. ([#9609](https://github.com/MetaMask/core/pull/9609))
 
 [Unreleased]: https://github.com/MetaMask/core/

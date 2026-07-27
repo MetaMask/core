@@ -8,8 +8,8 @@ import type { Json } from '@metamask/utils';
 import {
   AbstractPollingControllerBaseMixin,
   getKey,
-} from './AbstractPollingController';
-import type { Constructor, PollingTokenSetId } from './types';
+} from './AbstractPollingController.js';
+import type { Constructor, PollingTokenSetId } from './types.js';
 
 /**
  * The minimum input required to start polling for a {@link BlockTrackerPollingController}.

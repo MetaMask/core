@@ -1,4 +1,4 @@
-import { createBatchedHandler } from './create-batch-handler';
+import { createBatchedHandler } from './create-batch-handler.js';
 
 const TEST_BATCH_MS = 50;
 

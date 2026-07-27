@@ -3,18 +3,18 @@ jest.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
 
-import { CandlePeriod } from '../../../src/constants/chartConfig';
+import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
   BUILDER_FEE_CONFIG,
   REFERRAL_CONFIG,
-} from '../../../src/constants/hyperLiquidConfig';
-import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig';
-import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes';
-import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider';
-import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService';
-import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService';
-import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService';
-import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache';
+} from '../../../src/constants/hyperLiquidConfig.js';
+import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
+import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
 import type {
   ClosePositionParams,
   DepositParams,
@@ -22,7 +22,7 @@ import type {
   PerpsPlatformDependencies,
   LiveDataConfig,
   OrderParams,
-} from '../../../src/types';
+} from '../../../src/types/index.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -30,12 +30,12 @@ import {
   validateDepositParams,
   validateOrderParams,
   validateWithdrawalParams,
-} from '../../../src/utils/hyperLiquidValidation';
-import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient';
+} from '../../../src/utils/hyperLiquidValidation.js';
+import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidWalletService');
@@ -1238,6 +1238,10 @@ describe('HyperLiquidProvider', () => {
               universe: [
                 { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
               ],
+              // USDC collateral (matches default spotMeta USDC at index 0
+              // below) so this asset-ID-repair test isn't gated by the
+              // (fail-closed) USDC collateral check.
+              collateralToken: 0,
             });
           }
 
@@ -1291,6 +1295,194 @@ describe('HyperLiquidProvider', () => {
           orders: [expect.objectContaining({ a: 110000, r: true })],
         }),
       );
+    });
+
+    it('rejects placeOrder for a HIP-3 DEX whose collateral token is not USDC (TAT-3304)', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: true,
+      });
+      const mockOrder = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 123 } }] } },
+      });
+      const xyzMeta = {
+        universe: [{ name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 }],
+        collateralToken: 5,
+      };
+      const xyzAssetCtxs = [
+        {
+          funding: '0.0001',
+          openInterest: '1000',
+          prevDayPx: '95',
+          dayNtlVlm: '100000',
+          markPx: '100',
+          midPx: '100',
+          oraclePx: '100',
+        },
+      ];
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: jest
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+          params?.dex === 'xyz'
+            ? Promise.resolve(xyzMeta)
+            : Promise.resolve({
+                universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+              }),
+        ),
+        metaAndAssetCtxs: jest
+          .fn()
+          .mockImplementation((params?: { dex?: string }) => {
+            if (params?.dex === 'xyz') {
+              return Promise.resolve([xyzMeta, xyzAssetCtxs]);
+            }
+
+            return Promise.resolve([
+              { universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }] },
+              [
+                {
+                  funding: '0.0001',
+                  openInterest: '1000',
+                  prevDayPx: '49000',
+                  dayNtlVlm: '1000000',
+                  markPx: '50000',
+                  midPx: '50000',
+                  oraclePx: '50000',
+                },
+              ],
+            ]);
+          }),
+        spotMeta: jest.fn().mockResolvedValue({
+          tokens: [
+            { name: 'USDC', tokenId: '0xdef456', index: 0 },
+            { name: 'USDH', tokenId: '0xabc123', index: 5 },
+          ],
+          universe: [],
+        }),
+        allMids: jest.fn().mockImplementation((params?: { dex?: string }) => {
+          if (params?.dex === 'xyz') {
+            return Promise.resolve({ 'xyz:STOCK1': '100' });
+          }
+
+          return Promise.resolve({ BTC: '50000' });
+        }),
+      });
+
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(mockInfoClient);
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+
+      const result = await hip3Provider.placeOrder({
+        symbol: 'xyz:STOCK1',
+        isBuy: true,
+        size: '10',
+        orderType: 'market',
+        currentPrice: 100,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNSUPPORTED_COLLATERAL);
+      expect(mockOrder).not.toHaveBeenCalled();
+    });
+
+    it('rejects placeOrder for a HIP-3 DEX whose collateral token index cannot be resolved against spot metadata', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: true,
+      });
+      const mockOrder = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 123 } }] } },
+      });
+      // collateralToken index 7 has no corresponding entry in spotMeta.tokens
+      // below (missing/stale spot metadata) — the order must be rejected
+      // rather than treated as USDC-collateralized.
+      const xyzMeta = {
+        universe: [{ name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 }],
+        collateralToken: 7,
+      };
+      const xyzAssetCtxs = [
+        {
+          funding: '0.0001',
+          openInterest: '1000',
+          prevDayPx: '95',
+          dayNtlVlm: '100000',
+          markPx: '100',
+          midPx: '100',
+          oraclePx: '100',
+        },
+      ];
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: jest
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+          params?.dex === 'xyz'
+            ? Promise.resolve(xyzMeta)
+            : Promise.resolve({
+                universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+              }),
+        ),
+        metaAndAssetCtxs: jest
+          .fn()
+          .mockImplementation((params?: { dex?: string }) => {
+            if (params?.dex === 'xyz') {
+              return Promise.resolve([xyzMeta, xyzAssetCtxs]);
+            }
+
+            return Promise.resolve([
+              { universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }] },
+              [
+                {
+                  funding: '0.0001',
+                  openInterest: '1000',
+                  prevDayPx: '49000',
+                  dayNtlVlm: '1000000',
+                  markPx: '50000',
+                  midPx: '50000',
+                  oraclePx: '50000',
+                },
+              ],
+            ]);
+          }),
+        spotMeta: jest.fn().mockResolvedValue({
+          tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+          universe: [],
+        }),
+        allMids: jest.fn().mockImplementation((params?: { dex?: string }) => {
+          if (params?.dex === 'xyz') {
+            return Promise.resolve({ 'xyz:STOCK1': '100' });
+          }
+
+          return Promise.resolve({ BTC: '50000' });
+        }),
+      });
+
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(mockInfoClient);
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+
+      const result = await hip3Provider.placeOrder({
+        symbol: 'xyz:STOCK1',
+        isBuy: true,
+        size: '10',
+        orderType: 'market',
+        currentPrice: 100,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNSUPPORTED_COLLATERAL);
+      expect(mockOrder).not.toHaveBeenCalled();
     });
   });
 

@@ -288,6 +288,7 @@ export const PERPS_EVENT_VALUE = {
     PERP_MARKET: 'perp_market',
     PERP_MARKET_SEARCH: 'perp_market_search',
     POSITION_SCREEN: 'position_screen',
+    BOTTOM_NAV_BAR: 'bottom_nav_bar',
     TP_SL_VIEW: 'tp_sl_view',
     PERPS_HOME: 'perps_home',
     PERPS_TUTORIAL: 'perps_tutorial',

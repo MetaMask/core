@@ -1,10 +1,10 @@
-import { DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS } from '../constants';
+import { DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS } from '../constants.js';
 import {
   processSmartTransactionsFeatureFlags,
   getSmartTransactionsFeatureFlags,
   getSmartTransactionsFeatureFlagsForChain,
   normalizeChainId,
-} from './feature-flags';
+} from './feature-flags.js';
 
 describe('feature-flags', () => {
   describe('processSmartTransactionsFeatureFlags', () => {

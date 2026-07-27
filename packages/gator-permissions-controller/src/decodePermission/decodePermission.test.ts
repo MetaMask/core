@@ -4,8 +4,8 @@ import {
   findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
-} from './decodePermission';
-import type { PermissionDecoder, PermissionType } from './types';
+} from './decodePermission.js';
+import type { PermissionDecoder, PermissionType } from './types.js';
 
 describe('decodePermission', () => {
   describe('findDecodersWithMatchingCaveatAddresses', () => {

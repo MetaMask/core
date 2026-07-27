@@ -6,9 +6,9 @@ import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { EXECUTION_PERMISSION_EXPIRY_RULE_TYPE } from '../../constants';
-import type { PermissionDecoder, ValidateAndDecodeResult } from '../types';
-import { buildEnforcerCountsAndSet, enforcersMatchRule } from '../utils';
+import { EXECUTION_PERMISSION_EXPIRY_RULE_TYPE } from '../../constants.js';
+import type { PermissionDecoder, ValidateAndDecodeResult } from '../types.js';
+import { buildEnforcerCountsAndSet, enforcersMatchRule } from '../utils.js';
 
 /**
  * Creates a single {@link PermissionDecoder} with the given type, enforcer

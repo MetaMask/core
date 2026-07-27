@@ -1,7 +1,10 @@
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
-import type { ContextConstraint, MiddlewareContext } from './MiddlewareContext';
+import type { JsonRpcMiddleware } from './JsonRpcEngineV2.js';
+import type {
+  ContextConstraint,
+  MiddlewareContext,
+} from './MiddlewareContext.js';
 
 // Only permit primitive values as hard-coded scaffold middleware results.
 type JsonPrimitive = string | number | boolean | null;

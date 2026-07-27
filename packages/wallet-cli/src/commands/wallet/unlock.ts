@@ -1,13 +1,13 @@
 import { isJsonRpcFailure } from '@metamask/utils';
 import { Command, Flags } from '@oclif/core';
 
-import { sendCommand } from '../../daemon/daemon-client';
-import { getDaemonPaths } from '../../daemon/paths';
-import { promptPassword } from '../../daemon/prompts';
+import { sendCommand } from '../../daemon/daemon-client.js';
+import { getDaemonPaths } from '../../daemon/paths.js';
+import { promptPassword } from '../../daemon/prompts.js';
 import {
   emptyToUndefined,
   makeDaemonConnectionError,
-} from '../../daemon/utils';
+} from '../../daemon/utils.js';
 
 export default class WalletUnlock extends Command {
   static override description =

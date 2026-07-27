@@ -1,4 +1,4 @@
-import { executeWithRetry } from './network-utils';
+import { executeWithRetry } from './network-utils.js';
 
 describe('BackupAndSync - UserStorage - NetworkUtils', () => {
   beforeEach(() => {

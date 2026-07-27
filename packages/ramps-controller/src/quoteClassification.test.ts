@@ -2,8 +2,8 @@ import {
   isCustomActionQuote,
   isExternalBrowserQuote,
   isInAppOnlyQuote,
-} from './quoteClassification';
-import type { Quote } from './RampsService';
+} from './quoteClassification.js';
+import type { Quote } from './RampsService.js';
 
 const buildQuote = (
   overrides: {

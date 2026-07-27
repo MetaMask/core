@@ -1,4 +1,4 @@
-import { Env, Platform } from '../../shared/env';
+import { Env, Platform } from '../../shared/env.js';
 import {
   NONCE_URL,
   SIWE_LOGIN_URL,
@@ -8,7 +8,7 @@ import {
   PAIR_PROFILES_URL,
   PROFILE_LINEAGE_URL,
   CUSTOMER_SERVICE_TOKEN_URL,
-} from '../authentication-jwt-bearer/services';
+} from '../authentication-jwt-bearer/services.js';
 
 export const MOCK_NONCE_URL = NONCE_URL(Env.PRD);
 export const MOCK_SRP_LOGIN_URL = SRP_LOGIN_URL(Env.PRD);

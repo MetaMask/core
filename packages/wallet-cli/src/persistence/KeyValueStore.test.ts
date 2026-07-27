@@ -4,7 +4,7 @@ import { unlink } from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
-import { KeyValueStore } from './KeyValueStore';
+import { KeyValueStore } from './KeyValueStore.js';
 
 describe('KeyValueStore', () => {
   let store: KeyValueStore;

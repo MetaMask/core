@@ -5,8 +5,8 @@ import type {
 import { ApiPlatformClient } from '@metamask/core-backend';
 import { parseCaipAssetType } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from '../logger';
-import { forDataTypes } from '../types';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import { forDataTypes } from '../types.js';
 import type {
   Caip19AssetId,
   DataRequest,
@@ -14,11 +14,11 @@ import type {
   FungibleAssetPrice,
   Middleware,
   AssetsControllerStateInternal,
-} from '../types';
-import { fetchWithTimeout, normalizeAssetId } from '../utils';
-import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher';
-import type { SubscriptionRequest } from './AbstractDataSource';
-import { reduceInBatchesSerially } from './evm-rpc-services';
+} from '../types.js';
+import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher.js';
+import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
+import type { SubscriptionRequest } from './AbstractDataSource.js';
+import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
 // ============================================================================
 // CONSTANTS
@@ -99,7 +99,7 @@ const NON_PRICEABLE_ASSET_PATTERNS = [
  * @param assetId - The CAIP-19 asset ID to check.
  * @returns True if the asset has market price data.
  */
-function isPriceableAsset(assetId: Caip19AssetId): boolean {
+export function isPriceableAsset(assetId: Caip19AssetId): boolean {
   return !NON_PRICEABLE_ASSET_PATTERNS.some((pattern) => pattern.test(assetId));
 }
 
@@ -524,11 +524,33 @@ export class PriceDataSource {
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
     const { request, subscriptionId, isUpdate } = subscriptionRequest;
 
-    // Handle subscription update - just update the request
+    // Handle subscription update: refresh request and fetch immediately so
+    // newly held / still-unpriced assets (e.g. seeded natives) do not wait
+    // for the next poll tick. Deduper freshness TTL skips recently priced IDs.
     if (isUpdate) {
       const existing = this.#activeSubscriptions.get(subscriptionId);
       if (existing) {
         existing.request = request;
+        existing.onAssetsUpdate = subscriptionRequest.onAssetsUpdate;
+        existing.getAssetsState = subscriptionRequest.getAssetsState;
+
+        try {
+          const fetchResponse = await this.fetch(
+            request,
+            subscriptionRequest.getAssetsState,
+          );
+          if (
+            fetchResponse.assetsPrice &&
+            Object.keys(fetchResponse.assetsPrice).length > 0
+          ) {
+            await existing.onAssetsUpdate({
+              ...fetchResponse,
+              updateMode: 'merge',
+            });
+          }
+        } catch (error) {
+          log('Subscription update fetch failed', { subscriptionId, error });
+        }
         return;
       }
     }

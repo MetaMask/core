@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`BridgeStatusController constructor rehydrates the tx history state 1`] = `
 {
@@ -19,7 +19,7 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
     "pricingData": {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
-      "quotedGasAmount": ".00055",
+      "quotedGasAmount": "1.234",
       "quotedGasInUsd": "2.5778",
       "quotedReturnInUsd": undefined,
     },
@@ -276,7 +276,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
     "pricingData": {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
-      "quotedGasAmount": ".00055",
+      "quotedGasAmount": "1.234",
       "quotedGasInUsd": "2.5778",
       "quotedReturnInUsd": undefined,
     },
@@ -3639,7 +3639,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
   "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasAmount": ".00055",
+    "quotedGasAmount": "1.234",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
@@ -3679,7 +3679,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
         },
       },
       "txFee": {
-        "amount": "0",
+        "amount": "100",
         "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
@@ -3780,7 +3780,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
   "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasAmount": ".00055",
+    "quotedGasAmount": "1.234",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
@@ -3835,7 +3835,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
   "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasAmount": ".00055",
+    "quotedGasAmount": "1.234",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
@@ -4594,7 +4594,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
   "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasAmount": ".00055",
+    "quotedGasAmount": "1.234",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
@@ -4723,7 +4723,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (undefined gasLimit) 1`] = `
+exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (null gasLimit) 1`] = `
 {
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
@@ -4742,7 +4742,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (undefined gasLimit) 2`] = `
+exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (null gasLimit) 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1234567891.456",
@@ -4758,7 +4758,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
   "pricingData": {
     "amountSent": "0",
     "amountSentInUsd": undefined,
-    "quotedGasAmount": ".00055",
+    "quotedGasAmount": "1.234",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
@@ -4798,7 +4798,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
         },
       },
       "txFee": {
-        "amount": "8750000000000",
+        "amount": "100",
         "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",

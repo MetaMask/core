@@ -1,21 +1,21 @@
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
 import type {
   BackupAndSyncContext,
   UserStorageSyncedWalletGroup,
-} from '../types';
+} from '../types.js';
 import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
-} from '../user-storage/network-operations';
-import { getLocalGroupsForEntropyWallet } from '../utils';
+} from '../user-storage/network-operations.js';
+import { getLocalGroupsForEntropyWallet } from '../utils/index.js';
 import {
   createLocalGroupsFromUserStorage,
   syncGroupMetadata,
   syncGroupsMetadata,
-} from './group';
-import * as metadataExports from './metadata';
+} from './group.js';
+import * as metadataExports from './metadata.js';
 
 jest.mock('./metadata');
 jest.mock('../user-storage/network-operations');

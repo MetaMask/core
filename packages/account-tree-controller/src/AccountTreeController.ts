@@ -15,33 +15,33 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { assert } from '@metamask/utils';
 
-import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
+import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics/index.js';
 import {
   formatAnalyticsEvent,
   traceFallback,
-} from './backup-and-sync/analytics';
-import { BackupAndSyncService } from './backup-and-sync/service';
-import type { BackupAndSyncContext } from './backup-and-sync/types';
-import { createSyncMutationTracker } from './backup-and-sync/utils';
-import type { AccountGroupObject, AccountTypeOrderKey } from './group';
+} from './backup-and-sync/analytics/index.js';
+import { BackupAndSyncService } from './backup-and-sync/service/index.js';
+import type { BackupAndSyncContext } from './backup-and-sync/types.js';
+import { createSyncMutationTracker } from './backup-and-sync/utils/index.js';
+import type { AccountGroupObject, AccountTypeOrderKey } from './group.js';
 import {
   ACCOUNT_TYPE_TO_SORT_ORDER,
   isAccountGroupNameUnique,
   isAccountGroupNameUniqueFromWallet,
   MAX_SORT_ORDER,
-} from './group';
-import { projectLogger as log } from './logger';
-import type { Rule } from './rule';
-import { EntropyRule } from './rules/entropy';
-import { KeyringRule } from './rules/keyring';
-import { SnapRule } from './rules/snap';
+} from './group.js';
+import { projectLogger as log } from './logger.js';
+import type { Rule } from './rule.js';
+import { EntropyRule } from './rules/entropy.js';
+import { KeyringRule } from './rules/keyring.js';
+import { SnapRule } from './rules/snap.js';
 import type {
   AccountTreeControllerConfig,
   AccountTreeControllerInternalBackupAndSyncConfig,
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
-} from './types';
-import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
+} from './types.js';
+import type { AccountWalletObject, AccountWalletObjectOf } from './wallet.js';
 
 export const controllerName = 'AccountTreeController';
 

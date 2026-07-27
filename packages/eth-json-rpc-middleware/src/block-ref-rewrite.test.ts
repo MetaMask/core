@@ -5,8 +5,8 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import {
   createFinalMiddlewareWithDefaultResult,
   createRequest,
-} from '../test/util/helpers';
-import { createBlockRefRewriteMiddleware } from './block-ref-rewrite';
+} from '../test/util/helpers.js';
+import { createBlockRefRewriteMiddleware } from './block-ref-rewrite.js';
 
 const createMockBlockTracker = (): PollingBlockTracker => {
   return {

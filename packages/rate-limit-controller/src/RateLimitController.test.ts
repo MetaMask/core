@@ -6,8 +6,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { RateLimitMessenger } from './RateLimitController';
-import { RateLimitController } from './RateLimitController';
+import type { RateLimitMessenger } from './RateLimitController.js';
+import { RateLimitController } from './RateLimitController.js';
 
 const controllerName = 'RateLimitController';
 

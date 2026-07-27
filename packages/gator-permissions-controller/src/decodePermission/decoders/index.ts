@@ -1,8 +1,8 @@
 import { makePermissionDecoderConfigs } from '@metamask/7715-permission-types';
 import type { EnforcerAddressesByName } from '@metamask/7715-permission-types';
 
-import type { PermissionDecoder } from '../types';
-import { makePermissionDecoder } from './makePermissionDecoder';
+import type { PermissionDecoder } from '../types.js';
+import { makePermissionDecoder } from './makePermissionDecoder.js';
 
 /**
  * Builds the canonical set of permission decoders for a chain.

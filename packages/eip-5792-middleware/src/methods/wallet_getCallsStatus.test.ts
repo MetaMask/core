@@ -9,8 +9,8 @@ import type {
   GetCallsStatusHook,
   GetCallsStatusParams,
   GetCallsStatusResult,
-} from '../types';
-import { walletGetCallsStatus } from './wallet_getCallsStatus';
+} from '../types.js';
+import { walletGetCallsStatus } from './wallet_getCallsStatus.js';
 
 const ID_MOCK = '0x12345678';
 

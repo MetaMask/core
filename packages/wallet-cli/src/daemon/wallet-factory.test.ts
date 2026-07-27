@@ -10,10 +10,10 @@ import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { KeyValueStore } from '../persistence/KeyValueStore';
-import * as persistenceModule from '../persistence/persistence';
-import { Password, Srp } from './secrets';
-import { createWallet } from './wallet-factory';
+import { KeyValueStore } from '../persistence/KeyValueStore.js';
+import * as persistenceModule from '../persistence/persistence.js';
+import { Password, Srp } from './secrets.js';
+import { createWallet } from './wallet-factory.js';
 
 jest.mock('@metamask/wallet');
 jest.mock('@metamask/remote-feature-flag-controller');
@@ -103,6 +103,7 @@ describe('createWallet', () => {
     expect(
       instanceOptions.connectivityController.connectivityAdapter,
     ).toBeInstanceOf(AlwaysOnlineAdapter);
+    expect(instanceOptions.gasFeeController.clientId).toBe('cli');
     expect(instanceOptions.networkController.infuraProjectId).toBe(
       'test-infura-id',
     );

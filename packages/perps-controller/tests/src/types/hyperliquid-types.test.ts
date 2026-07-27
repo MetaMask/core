@@ -1,4 +1,4 @@
-import { hyperLiquidModeFoldsSpot } from '../../../src/types/hyperliquid-types';
+import { hyperLiquidModeFoldsSpot } from '../../../src/types/hyperliquid-types.js';
 
 describe('hyperLiquidModeFoldsSpot', () => {
   it('folds for unifiedAccount', () => {

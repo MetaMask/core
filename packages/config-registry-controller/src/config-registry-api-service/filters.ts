@@ -1,4 +1,4 @@
-import type { RegistryNetworkConfig } from './types';
+import type { RegistryNetworkConfig } from './types.js';
 
 export type NetworkFilterOptions = {
   isFeatured?: boolean;

@@ -1,7 +1,7 @@
 import type { Struct } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 
-import type { Password, Srp } from './secrets';
+import type { Password, Srp } from './secrets.js';
 
 /**
  * Sink for daemon diagnostic messages. A backgrounded daemon's stdio may be

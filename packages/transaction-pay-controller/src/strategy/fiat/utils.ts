@@ -9,17 +9,17 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { projectLogger } from '../../logger';
-import type { TransactionPayControllerMessenger } from '../../types';
+import { projectLogger } from '../../logger.js';
+import type { TransactionPayControllerMessenger } from '../../types.js';
 import {
   getFiatAssetPerTransactionType,
   getFiatEnabledTypes,
-} from '../../utils/feature-flags';
-import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
-import { getTransferredAmountFromTxHash } from '../../utils/transaction';
-import type { RelayQuote } from '../relay/types';
-import type { TransactionPayFiatAsset } from './constants';
-import { DEFAULT_FIAT_CURRENCY, FIAT_ENABLED_TYPES } from './constants';
+} from '../../utils/feature-flags.js';
+import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
+import { getTransferredAmountFromTxHash } from '../../utils/transaction.js';
+import type { RelayQuote } from '../relay/types.js';
+import type { TransactionPayFiatAsset } from './constants.js';
+import { DEFAULT_FIAT_CURRENCY, FIAT_ENABLED_TYPES } from './constants.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-utils');
 

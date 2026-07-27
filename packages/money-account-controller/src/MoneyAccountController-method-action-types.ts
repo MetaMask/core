@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MoneyAccountController } from './MoneyAccountController';
+import type { MoneyAccountController } from './MoneyAccountController.js';
 
 /**
  * Initializes the controller by creating a money account for the primary

@@ -2,19 +2,19 @@
 import { toHex } from '@metamask/controller-utils';
 import { parseCaipAssetId } from '@metamask/utils';
 
-import { DepositService } from '../../../src/services/DepositService';
+import { DepositService } from '../../../src/services/DepositService.js';
 import type {
   PerpsProvider,
   PerpsPlatformDependencies,
-} from '../../../src/types';
-import { generateDepositId } from '../../../src/utils/idUtils';
-import { generateERC20TransferData } from '../../../src/utils/transferData';
-import { createMockHyperLiquidProvider } from '../../helpers/providerMocks';
+} from '../../../src/types/index.js';
+import { generateDepositId } from '../../../src/utils/idUtils.js';
+import { generateERC20TransferData } from '../../../src/utils/transferData.js';
+import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
 import {
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/utils/idUtils');
 jest.mock('@metamask/utils');

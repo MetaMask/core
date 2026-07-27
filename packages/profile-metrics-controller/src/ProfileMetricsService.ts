@@ -14,7 +14,7 @@ import {
 } from '@metamask/superstruct';
 import type { IDisposable } from 'cockatiel';
 
-import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types';
+import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types.js';
 
 /**
  * The shape of an entry in the `POST /api/v2/nonce/batch` response body.

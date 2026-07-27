@@ -4,26 +4,26 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { PaymentOverride } from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
+import { PaymentOverride } from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayQuote,
-} from '../../types';
+} from '../../types.js';
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
-} from '../../utils/feature-flags';
-import { getLiveTokenBalance } from '../../utils/token';
+} from '../../utils/feature-flags.js';
+import { getLiveTokenBalance } from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
-import { getServerStatus, submitServerIntent } from './server-api';
-import { submitServerQuotes } from './server-submit';
-import { ServerProviderName, ServerStatus } from './types';
-import type { ServerQuote, ServerSignatureStep } from './types';
+} from '../../utils/transaction.js';
+import { getServerStatus, submitServerIntent } from './server-api.js';
+import { submitServerQuotes } from './server-submit.js';
+import { ServerProviderName, ServerStatus } from './types.js';
+import type { ServerQuote, ServerSignatureStep } from './types.js';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

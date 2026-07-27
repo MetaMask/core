@@ -8,7 +8,7 @@ import { isSafeDynamicKey } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import type { SamplePetnamesControllerMethodActions } from './sample-petnames-controller-method-action-types';
+import type { SamplePetnamesControllerMethodActions } from './sample-petnames-controller-method-action-types.js';
 
 // === GENERAL ===
 

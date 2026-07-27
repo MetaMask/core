@@ -1,5 +1,5 @@
-import type { ExternalScopeObject } from './types';
-import { isValidScope, getValidScopes } from './validation';
+import type { ExternalScopeObject } from './types.js';
+import { isValidScope, getValidScopes } from './validation.js';
 
 const validScopeString = 'eip155:1';
 const validScopeObject: ExternalScopeObject = {

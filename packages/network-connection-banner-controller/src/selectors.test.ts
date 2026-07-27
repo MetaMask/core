@@ -1,8 +1,8 @@
 import type {
   NetworkConnectionBannerControllerState,
   FailedNetwork,
-} from './NetworkConnectionBannerController';
-import { networkConnectionBannerControllerSelectors } from './selectors';
+} from './NetworkConnectionBannerController.js';
+import { networkConnectionBannerControllerSelectors } from './selectors.js';
 
 const failedNetwork: FailedNetwork = {
   chainId: '0x1',

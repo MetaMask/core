@@ -14,13 +14,13 @@ import {
   ExampleDataServiceEvents,
   GetActivityResponse,
   PageParam,
-} from '../../base-data-service/tests/ExampleDataService';
+} from '../../base-data-service/tests/ExampleDataService.js';
 import {
   mockAssets,
   mockTransactionsPage1,
   mockTransactionsPage2,
-} from '../../base-data-service/tests/mocks';
-import { createUIQueryClient } from './createUIQueryClient';
+} from '../../base-data-service/tests/mocks.js';
+import { createUIQueryClient } from './createUIQueryClient.js';
 
 const DATA_SERVICES = ['ExampleDataService'];
 
@@ -261,7 +261,7 @@ describe('createUIQueryClient', () => {
 
     await Promise.all([promiseA, promiseB]);
 
-    // Advance the full cacheTime of ExampleDataService
+    // Advance the full gcTime of ExampleDataService
     jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     const queryData = clientA.getQueryData(getAssetsQueryKey);
@@ -278,7 +278,7 @@ describe('createUIQueryClient', () => {
     jest.useFakeTimers();
 
     const defaultOptions = {
-      queries: { cacheTime: inMilliseconds(5, Duration.Minute) },
+      queries: { gcTime: inMilliseconds(5, Duration.Minute) },
     };
 
     const { clientA, clientB, service } = createClients({ defaultOptions });
@@ -341,12 +341,14 @@ describe('createUIQueryClient', () => {
 
     const observerA = new InfiniteQueryObserver(clientA, {
       queryKey: getActivityQueryKey,
+      initialPageParam: undefined,
       getNextPageParam,
       getPreviousPageParam,
     });
 
     const observerB = new InfiniteQueryObserver(clientB, {
       queryKey: getActivityQueryKey,
+      initialPageParam: undefined,
       getNextPageParam,
       getPreviousPageParam,
     });
@@ -401,7 +403,7 @@ describe('createUIQueryClient', () => {
     const promise = new Promise<Error>((_resolve, reject) => {
       observer.subscribe((event) => {
         if (event.status === 'error') {
-          reject(event.error as Error);
+          reject(event.error);
         }
       });
     });

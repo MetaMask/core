@@ -5,9 +5,9 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { KEYRING_TYPES_SUPPORTING_7702 } from '../constants';
-import type { EIP5792Messenger, GetCapabilitiesResult } from '../types';
-import { getAccountKeyringType } from '../utils';
+import { KEYRING_TYPES_SUPPORTING_7702 } from '../constants.js';
+import type { EIP5792Messenger, GetCapabilitiesResult } from '../types.js';
+import { getAccountKeyringType } from '../utils.js';
 
 /**
  * Type definition for required controller hooks and utilities of {@link getCapabilities}
