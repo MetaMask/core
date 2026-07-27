@@ -2,12 +2,12 @@ import { makePermissionDecoderConfigs } from '@metamask/7715-permission-types';
 import type { EnforcerAddressesByName } from '@metamask/7715-permission-types';
 import { getChecksumAddress, isStrictHexString } from '@metamask/utils';
 
-import { buildMockDelegationEnforcerContracts } from '../../tests/mocks';
-import type { DelegationDeploymentsEnforcerAddressesByName } from '../types';
+import { buildMockDelegationEnforcerContracts } from '../../tests/mocks.js';
+import type { DelegationDeploymentsEnforcerAddressesByName } from '../types.js';
 import {
   toEnforcerAddressesByName,
   delegationContractsByChainId,
-} from './enforcerAddresses';
+} from './enforcerAddresses.js';
 
 const ENFORCER_ADDRESS_KEYS = [
   'allowedCalldataEnforcer',

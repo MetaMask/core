@@ -3,8 +3,8 @@ import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { DELEGATION_FRAMEWORK_VERSION } from '../constants';
-import type { DelegationDeploymentsEnforcerAddressesByName } from '../types';
+import { DELEGATION_FRAMEWORK_VERSION } from '../constants.js';
+import type { DelegationDeploymentsEnforcerAddressesByName } from '../types.js';
 
 // @metamask/delegation-deployments exports a very loosely typed object. We assert a more narrow typing here.
 export const delegationContractsByChainId = DELEGATOR_CONTRACTS[

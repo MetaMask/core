@@ -26,7 +26,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { DecodedPermission } from './decodePermission';
+import type { DecodedPermission } from './decodePermission/index.js';
 import {
   findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
