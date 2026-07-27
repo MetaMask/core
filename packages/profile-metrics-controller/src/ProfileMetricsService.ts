@@ -251,7 +251,7 @@ export class ProfileMetricsService {
     const fetchDisposable = this.#fetchNoncesPolicy.onRetry(listener);
     const submitDisposable = this.#submitMetricsPolicy.onRetry(listener);
     return {
-      dispose: () => {
+      dispose: (): void => {
         fetchDisposable.dispose();
         submitDisposable.dispose();
       },
@@ -271,7 +271,7 @@ export class ProfileMetricsService {
     const fetchDisposable = this.#fetchNoncesPolicy.onBreak(listener);
     const submitDisposable = this.#submitMetricsPolicy.onBreak(listener);
     return {
-      dispose: () => {
+      dispose: (): void => {
         fetchDisposable.dispose();
         submitDisposable.dispose();
       },
@@ -301,7 +301,7 @@ export class ProfileMetricsService {
     const fetchDisposable = this.#fetchNoncesPolicy.onDegraded(listener);
     const submitDisposable = this.#submitMetricsPolicy.onDegraded(listener);
     return {
-      dispose: () => {
+      dispose: (): void => {
         fetchDisposable.dispose();
         submitDisposable.dispose();
       },
