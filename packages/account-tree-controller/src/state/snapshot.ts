@@ -66,8 +66,8 @@ export class AccountTreeSnapshot {
    * Converts a payload ID (wallet or group) to the corresponding local
    * `AccountTreeController` ID.
    *
-   * @param payloadId - Payload wallet or group ID.
-   * @returns The local ID, or `undefined` if not found or no ID map is present.
+   * @param payloadId - Stable cross-device wallet or group payload ID.
+   * @returns The local controller ID, or `undefined` if not found or no ID map is present.
    */
   toLocalId(
     payloadId: AccountWalletPayloadId | AccountGroupPayloadId,
@@ -77,9 +77,9 @@ export class AccountTreeSnapshot {
 
   /**
    * Converts a local `AccountTreeController` ID (wallet or group) to its
-   * payload ID.
+   * stable cross-device payload ID.
    *
-   * @param localId - Local wallet or group ID.
+   * @param localId - Local controller wallet or group ID.
    * @returns The payload ID, or `undefined` if not found or no ID map is present.
    */
   toPayloadId(

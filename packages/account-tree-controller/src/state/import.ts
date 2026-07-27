@@ -21,16 +21,26 @@ import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringAccount } from '@metamask/keyring-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 
+/** Context required by {@link importState}. */
 export type ImportContext = {
   getState: () => AccountTreeControllerState;
   messenger: AccountTreeControllerMessenger;
   setWalletName: (walletId: AccountWalletId, name: string) => void;
-  /** Sets a group name. Implementations should resolve conflicts automatically. */
+  /** Sets a group name. Implementations must resolve name conflicts automatically. */
   setGroupName: (groupId: AccountGroupId, name: string) => void;
   setGroupPinned: (groupId: AccountGroupId, pinned: boolean) => void;
   setGroupHidden: (groupId: AccountGroupId, hidden: boolean) => void;
 };
 
+/**
+ * Searches the local wallet tree for an entropy wallet whose stable payload ID
+ * matches `payloadWalletId`. The entropy source ID is derived on-the-fly via
+ * `KeyringController:withKeyringV2Unsafe` rather than relying on cached metadata.
+ *
+ * @param context - Import context.
+ * @param payloadWalletId - Payload wallet ID to match against.
+ * @returns The matching local entropy wallet, or `undefined` if not found.
+ */
 async function findLocalWalletMnemonicFromPayloadId(
   context: ImportContext,
   payloadWalletId: AccountWalletPayloadId,
@@ -60,7 +70,15 @@ async function findLocalWalletMnemonicFromPayloadId(
   return undefined;
 }
 
-function findLocalWalletMnemonicFromId(context: ImportContext, id: AccountWalletId) {
+/**
+ * Returns the local entropy wallet for the given ID.
+ *
+ * @param context - Import context.
+ * @param id - Local wallet ID.
+ * @returns The entropy wallet object.
+ * @throws If the wallet is not found or is not an entropy wallet.
+ */
+function findLocalWalletMnemonicFromId(context: ImportContext, id: AccountWalletId): AccountWalletEntropyObject {
     const localWallets = context.getState().accountTree.wallets;
 
     if (!localWallets[id]) {
@@ -77,12 +95,11 @@ function findLocalWalletMnemonicFromId(context: ImportContext, id: AccountWallet
 }
 
 /**
- * Applies name / pinned / hidden metadata for a single mnemonic group entry,
- * if the local group exists.
+ * Applies name, pinned, and hidden metadata from a payload group entry to a local group.
  *
- * @param context
- * @param localGroupId
- * @param payloadGroupMetadata
+ * @param context - Import context providing the metadata setters.
+ * @param localGroupId - Local group ID to update.
+ * @param payloadGroupMetadata - Metadata from the payload group entry.
  */
 function setGroupMetadata(
   context: ImportContext,
@@ -95,15 +112,16 @@ function setGroupMetadata(
 }
 
 /**
- * Imports a mnemonic wallet entry from the payload.
+ * Applies a mnemonic wallet payload entry to the local state.
  *
- * @param context
- * @param payloadWallet
- * @param payloadWallet.id
- * @param payloadWallet.value
- * @param payloadWallet.metadata
- * @param payloadWallet.metadata.name
- * @param payloadWallet.groups
+ * If no local wallet with the same entropy source ID exists and a mnemonic is
+ * present in the payload, a new HD wallet is created via
+ * `MultichainAccountService:createMultichainAccountWallet`. Missing groups are
+ * created in batches via `MultichainAccountService:createMultichainAccountGroups`.
+ * Metadata (name, pinned, hidden) is applied to all groups afterward.
+ *
+ * @param context - Import context.
+ * @param payloadWallet - The mnemonic wallet entry from the payload.
  */
 async function importMnemonicWallet(
   context: ImportContext,
@@ -173,10 +191,15 @@ async function importMnemonicWallet(
 }
 
 /**
- * Imports a private-key wallet entry from the payload.
+ * Applies private-key wallet group entries from the payload to the local state.
  *
- * @param context
- * @param payloadGroups
+ * For each group the account address is derived from the payload group ID. If the
+ * account does not yet exist locally and a private key is provided, it is imported
+ * via `KeyringController:withKeyringV2` using the `'private-key:import'` constructor.
+ * Metadata (name, pinned, hidden) is then applied to the local group.
+ *
+ * @param context - Import context.
+ * @param payloadGroups - Private-key group entries from the payload.
  */
 async function importPrivateKeyWallet(
   context: ImportContext,

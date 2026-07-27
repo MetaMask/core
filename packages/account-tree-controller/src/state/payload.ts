@@ -1,11 +1,16 @@
+/** Stable cross-device wallet identifier. Format: `wallet:<entropySourceId>`. */
 export type AccountWalletPayloadId = `wallet:${string}`;
+
+/** Stable cross-device group identifier. Format: `wallet:<entropySourceId>/<groupSubId>`. */
 export type AccountGroupPayloadId = `wallet:${string}/${string}`;
 
 /**
- * Parsed payload group ID.
+ * Parsed representation of an {@link AccountGroupPayloadId}.
  */
 export type ParsedPayloadGroupId = {
+  /** The wallet portion of the group ID. */
   walletId: AccountWalletPayloadId;
+  /** The group-specific sub-ID (e.g. group index for mnemonic wallets, address for private-key wallets). */
   subId: string;
 };
 
@@ -32,23 +37,31 @@ export function parsePayloadGroupId(
   };
 }
 
+/** Current version of the {@link AccountTreePayload} format. */
 export const ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION = 1 as const;
 
+/** Wallet-level metadata carried in every payload wallet entry. */
 export type AccountWalletPayloadMetadata = { name: string };
 
+/** Group-level metadata carried in every payload group entry. */
 export type AccountWalletGroupPayloadMetadata = {
   name: string;
   pinned: boolean;
   hidden: boolean;
 };
 
+/** A single group entry inside an {@link AccountWalletMnemonicPayload}. */
 export type AccountWalletMnemonicGroupEntry = {
+  /** Stable group payload ID. Format: `<walletPayloadId>/<groupIndex>`. */
   id: AccountGroupPayloadId;
+  /** BIP-44 account index this group was derived at. */
   groupIndex: number;
   metadata: AccountWalletGroupPayloadMetadata;
 };
 
+/** A single group entry inside an {@link AccountWalletPrivateKeyPayload}. */
 export type AccountWalletPrivateKeyGroupEntry = {
+  /** Stable group payload ID. Format: `wallet:private-key/<address>`. */
   id: AccountGroupPayloadId;
   /**
    * Private key material. Shape matches `ExportedAccount` from `@metamask/keyring-api/v2`
@@ -62,6 +75,7 @@ export type AccountWalletPrivateKeyGroupEntry = {
   metadata: AccountWalletGroupPayloadMetadata;
 };
 
+/** Payload entry for an HD (entropy) wallet and its derived account groups. */
 export type AccountWalletMnemonicPayload = {
   id: AccountWalletPayloadId;
   type: 'mnemonic';
@@ -71,6 +85,12 @@ export type AccountWalletMnemonicPayload = {
   groups: AccountWalletMnemonicGroupEntry[];
 };
 
+/**
+ * Payload entry for all imported private-key accounts.
+ *
+ * All local simple-keyring wallets are merged into this single entry;
+ * each account is represented as a separate group entry keyed by address.
+ */
 export type AccountWalletPrivateKeyPayload = {
   id: AccountWalletPayloadId;
   type: 'private-key';
@@ -78,23 +98,33 @@ export type AccountWalletPrivateKeyPayload = {
   groups: AccountWalletPrivateKeyGroupEntry[];
 };
 
+/** Union of all wallet entry types that can appear in an {@link AccountTreePayload}. */
+export type AccountTreeWalletEntry =
+  | AccountWalletMnemonicPayload
+  | AccountWalletPrivateKeyPayload;
 
-export type AccountTreeWalletEntry = AccountWalletMnemonicPayload | AccountWalletPrivateKeyPayload;
-
+/** Versioned, portable snapshot of the full account tree state. */
 export type AccountTreePayload = {
   version: typeof ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION;
   wallets: AccountTreeWalletEntry[];
 };
 
-/** Wallet entry type available in {@link AccountTreeSnapshot.filter} predicates. */
+/** Wallet entry type exposed to {@link AccountTreeSnapshot.filter} predicates. */
 export type AccountTreeSnapshotEntry =
   | AccountWalletMnemonicPayload
   | AccountWalletPrivateKeyPayload;
 
+/**
+ * Constructs an {@link AccountWalletPayloadId} from an entropy source ID.
+ *
+ * @param entropySourceId - Stable entropy source ID returned by `HdKeyring.toEntropySourceId()`.
+ * @returns The portable wallet payload ID.
+ */
 export function toWalletPayloadId(entropySourceId: string): AccountWalletPayloadId {
   return `wallet:${entropySourceId}`;
 }
 
+/** Options accepted by {@link AccountTreeController.exportState}. */
 export type ExportStateOptions = {
   /** When `true`, secrets (mnemonic / private keys) are included. Requires the vault to be unlocked. */
   includeSecrets?: boolean;

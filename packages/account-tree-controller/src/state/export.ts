@@ -21,20 +21,48 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import { PrivateKeyExportedAccount } from '@metamask/keyring-api/v2';
 
+/**
+ * Returns `true` if `wallet` is an HD entropy wallet ({@link AccountWalletEntropyObject}).
+ *
+ * @param wallet - The wallet object to test.
+ * @returns Type predicate narrowing to {@link AccountWalletEntropyObject}.
+ */
 export function isMnemonicWalletObject(wallet: AccountWalletObject): wallet is AccountWalletEntropyObject {
   return wallet.type === AccountWalletType.Entropy;
 }
 
+/**
+ * Returns `true` if `wallet` is an imported private-key wallet
+ * ({@link AccountWalletKeyringObject} with keyring type {@link KeyringTypes.simple}).
+ *
+ * @param wallet - The wallet object to test.
+ * @returns Type predicate narrowing to {@link AccountWalletKeyringObject}.
+ */
 export function isPrivateKeyWalletObject(wallet: AccountWalletObject): wallet is AccountWalletKeyringObject {
   return wallet.type === AccountWalletType.Keyring &&
     wallet.metadata.keyring.type === KeyringTypes.simple;
 }
 
+/** Context required by {@link exportState}. */
 export type ExportContext = {
   getState: () => AccountTreeControllerState;
   messenger: AccountTreeControllerMessenger;
 };
 
+/**
+ * Exports a single entropy (HD) wallet object as an {@link AccountWalletMnemonicPayload}.
+ *
+ * Calls `KeyringController:withKeyringV2Unsafe` to derive the stable entropy source ID
+ * via {@link HdKeyring.toEntropySourceId} and, when `includeSecrets` is `true`, to read
+ * the raw mnemonic bytes.
+ *
+ * @param context - Export context.
+ * @param walletObj - The local entropy wallet to export.
+ * @param includeSecrets - When `true`, the BIP-39 mnemonic is included in the payload.
+ * @param idMap - ID map to populate with local↔payload ID pairs for this wallet and its groups.
+ * @returns The mnemonic wallet payload entry.
+ * @throws If `includeSecrets` is `true` but the mnemonic cannot be read from the keyring.
+ */
 async function exportMnemonicWalletObject(context: ExportContext, walletObj: AccountWalletEntropyObject, includeSecrets: boolean, idMap: IdMap): Promise<AccountWalletMnemonicPayload> {
   const result = await context.messenger.call(
     'KeyringController:withKeyringV2Unsafe',
@@ -98,6 +126,20 @@ async function exportMnemonicWalletObject(context: ExportContext, walletObj: Acc
   return wallet;
 }
 
+/**
+ * Exports a single simple-keyring wallet object as an {@link AccountWalletPrivateKeyPayload}.
+ *
+ * All groups from the wallet are merged into the `'private-key'` singleton payload entry.
+ * When `includeSecrets` is `true`, each group's private key is exported via
+ * `KeyringController:withKeyringV2`.
+ *
+ * @param context - Export context.
+ * @param walletObj - The local simple-keyring wallet to export.
+ * @param includeSecrets - When `true`, private keys are included in the payload.
+ * @param idMap - ID map to populate with local↔payload ID pairs for this wallet and its groups.
+ * @returns The private-key wallet payload entry.
+ * @throws If `includeSecrets` is `true` but a private key cannot be exported for an account.
+ */
 async function exportPrivateKeyWalletObject(context: ExportContext, walletObj: AccountWalletKeyringObject, includeSecrets: boolean, idMap: IdMap): Promise<AccountWalletPrivateKeyPayload> {
   // We use a singleton wallet ID for private keys.
   const wallet: AccountWalletPrivateKeyPayload = {
@@ -175,17 +217,14 @@ async function exportPrivateKeyWalletObject(context: ExportContext, walletObj: A
  * Builds an {@link AccountTreeSnapshot} from the current controller state.
  *
  * Iterates over all wallets in the tree:
- * - `Entropy` (BIP-44 HD) wallets → `'mnemonic'` payload entries.
- * - `Keyring` wallets with type `simple` → `'private-key'` payload entries.
- * - `Snap` wallets and hardware keyrings are skipped in v1.
- *
- * When `options.includeSecrets` is `true` **and** the vault is unlocked,
- * mnemonic phrases and private keys are included. Secret fields are silently
- * omitted when the vault is locked or a keyring cannot be accessed.
+ * - {@link AccountWalletType.Entropy} (HD) wallets → `'mnemonic'` payload entries.
+ * - {@link AccountWalletType.Keyring} wallets of type `simple` → `'private-key'` payload entries.
+ * - Snap wallets and hardware keyrings are skipped in v1.
  *
  * @param context - Export context providing state and messenger access.
  * @param options - Export options.
  * @returns A promise that resolves to the built snapshot.
+ * @throws If `options.includeSecrets` is `true` and the vault is locked.
  */
 export async function exportState(
   context: ExportContext,
