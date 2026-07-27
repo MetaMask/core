@@ -2,8 +2,8 @@ import type { Provider } from '@metamask/network-controller';
 import { add0x, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { TerminalUpgradeError } from '../errors';
-import type { Step, StepContext } from './step';
+import { TerminalUpgradeError } from '../errors.js';
+import type { Step, StepContext } from './step.js';
 
 const EIP_7702_DELEGATION_PREFIX = '0xef0100';
 // '0x' (2) + 'ef0100' (6) + 20-byte address (40) = 48 characters.

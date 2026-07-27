@@ -30,17 +30,17 @@ import MockEncryptor, {
   DECRYPTION_ERROR,
   MOCK_ENCRYPTION_KEY,
   SALT,
-} from '../tests/mocks/mockEncryptor';
-import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
+} from '../tests/mocks/mockEncryptor.js';
+import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring.js';
 import {
   HardwareWalletError,
   MockHardwareKeyring,
-} from '../tests/mocks/mockHardwareKeyring';
-import { MockKeyring } from '../tests/mocks/mockKeyring';
-import MockShallowKeyring from '../tests/mocks/mockShallowKeyring';
-import { buildMockTransaction } from '../tests/mocks/mockTransaction';
-import { KeyringControllerErrorMessage } from './constants';
-import { KeyringControllerError } from './errors';
+} from '../tests/mocks/mockHardwareKeyring.js';
+import { MockKeyring } from '../tests/mocks/mockKeyring.js';
+import MockShallowKeyring from '../tests/mocks/mockShallowKeyring.js';
+import { buildMockTransaction } from '../tests/mocks/mockTransaction.js';
+import { KeyringControllerErrorMessage } from './constants.js';
+import { KeyringControllerError } from './errors.js';
 import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
@@ -51,14 +51,14 @@ import type {
   SerializedKeyring,
   KeyringSelector,
   KeyringSelectorV2,
-} from './KeyringController';
+} from './KeyringController.js';
 import {
   AccountImportStrategy,
   KeyringController,
   KeyringTypes,
   isCustodyKeyring,
   keyringBuilderFactory,
-} from './KeyringController';
+} from './KeyringController.js';
 
 type AllKeyringControllerActions = MessengerActions<KeyringControllerMessenger>;
 
