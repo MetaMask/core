@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Return structured Stellar balance errors in `QuoteMetadata.nonEvmBalanceError` when fee computation fails due to insufficient funds
+- Return structured Stellar balance errors in `QuoteMetadata.nonEvmBalanceError` when fee computation fails due to insufficient funds ([#9659](https://github.com/MetaMask/core/pull/9659))
 
 ### Changed
 

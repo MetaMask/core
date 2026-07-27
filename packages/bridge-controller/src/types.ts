@@ -86,6 +86,12 @@ export type NonEvmBalanceError = {
   assetId: string;
   availableAmount: string;
   requiredAmount: string;
+  /**
+   * Minimum native balance the account must keep on-chain (e.g. the Stellar
+   * base reserve), in display units. Enables clients to surface reserve
+   * warnings without chain-specific lookups.
+   */
+  reserveAmount?: string;
 };
 
 /**

@@ -107,7 +107,9 @@ const isNonEvmBalanceError = (value: unknown): value is NonEvmBalanceError => {
     hasProperty(value, 'availableAmount') &&
     isAmountString(value.availableAmount) &&
     hasProperty(value, 'requiredAmount') &&
-    isAmountString(value.requiredAmount)
+    isAmountString(value.requiredAmount) &&
+    (!hasProperty(value, 'reserveAmount') ||
+      isAmountString(value.reserveAmount))
   );
 };
 
