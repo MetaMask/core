@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `refreshNotificationPreferencesCache` method to `SocialService` (and the `SocialService:refreshNotificationPreferencesCache` messenger action). Calls `POST /notifications/preferences/cache-refresh` so the social api re-reads the JWT-identified user's notification preferences from Authenticated User Storage and repopulates its cache. Intended as a best-effort call right after a preference write to AUS, so the change is honoured near-instantly rather than after the social api's cache TTL lapses ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+
 ## [2.6.0]
 
 ### Added
