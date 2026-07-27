@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `RampsControllerMessenger` now requires `UserStorageController` storage actions and `AuthenticationController:isSignedIn` to be delegated so order syncing can run ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Add dependency `fast-deep-equal` for order equality checks during sync ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ### Fixed
 

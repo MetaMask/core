@@ -1,3 +1,5 @@
+import deepEqual from 'fast-deep-equal';
+
 import type { RampsOrder } from '../RampsService.js';
 import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants.js';
 import type { SyncRampsOrder, UserStorageRampsOrderEntry } from './types.js';
@@ -117,39 +119,12 @@ export function stripDeletedAt(order: SyncRampsOrder): SyncRampsOrder {
 }
 
 /**
- * JSON-stringifies values with object keys sorted so equality is stable across
- * key insertion order.
- *
- * @param value - Value to serialize.
- * @returns Stable JSON string.
- */
-function stableStringify(value: unknown): string {
-  return JSON.stringify(value, (_key, nested) => {
-    if (
-      nested &&
-      typeof nested === 'object' &&
-      !Array.isArray(nested) &&
-      !(nested instanceof Date)
-    ) {
-      const record = nested as Record<string, unknown>;
-      return Object.keys(record)
-        .sort()
-        .reduce<Record<string, unknown>>((acc, key) => {
-          acc[key] = record[key];
-          return acc;
-        }, {});
-    }
-    return nested;
-  });
-}
-
-/**
- * Deep-compares two ramps orders by stable JSON serialization of their
- * syncable bodies. Sync metadata (`lastUpdatedAt` / `deletedAt`) and
- * local-only `paymentDetails` are excluded: `paymentDetails` is never persisted
- * remotely, so a local order that carries it must still compare equal to its
- * remote copy. Otherwise such orders would look changed on every sync and, with
- * local-wins-on-tie conflict resolution, be re-uploaded indefinitely.
+ * Deep-compares two ramps orders by their syncable bodies. Sync metadata
+ * (`lastUpdatedAt` / `deletedAt`) and local-only `paymentDetails` are excluded:
+ * `paymentDetails` is never persisted remotely, so a local order that carries
+ * it must still compare equal to its remote copy. Otherwise such orders would
+ * look changed on every sync and, with local-wins-on-tie conflict resolution,
+ * be re-uploaded indefinitely.
  *
  * @param a - First order.
  * @param b - Second order.
@@ -159,16 +134,8 @@ export function areOrdersEqual(
   a: SyncRampsOrder | RampsOrder,
   b: SyncRampsOrder | RampsOrder,
 ): boolean {
-  return (
-    stableStringify(
-      stripPaymentDetailsForRemoteStorage(
-        stripSyncMetadata(a as SyncRampsOrder),
-      ),
-    ) ===
-    stableStringify(
-      stripPaymentDetailsForRemoteStorage(
-        stripSyncMetadata(b as SyncRampsOrder),
-      ),
-    )
+  return deepEqual(
+    stripPaymentDetailsForRemoteStorage(stripSyncMetadata(a as SyncRampsOrder)),
+    stripPaymentDetailsForRemoteStorage(stripSyncMetadata(b as SyncRampsOrder)),
   );
 }
