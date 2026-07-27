@@ -423,6 +423,15 @@ export type RampsControllerRefreshAutorampsAction = {
 };
 
 /**
+ * Bidirectionally syncs V2 ramps orders with User Storage.
+ * Hosts should call this on unlock / when ramps syncing is enabled.
+ */
+export type RampsControllerSyncOrdersWithUserStorageAction = {
+  type: `RampsController:syncOrdersWithUserStorage`;
+  handler: RampsController['syncOrdersWithUserStorage'];
+};
+
+/**
  * Starts polling all pending V2 orders at a fixed interval.
  * Each poll cycle iterates orders with non-terminal statuses,
  * respects pollingSecondsMinimum and backoff from error count.
@@ -840,6 +849,7 @@ export type RampsControllerMethodActions =
   | RampsControllerApplyAutorampStatusFromPushAction
   | RampsControllerRefreshAutorampAction
   | RampsControllerRefreshAutorampsAction
+  | RampsControllerSyncOrdersWithUserStorageAction
   | RampsControllerStartOrderPollingAction
   | RampsControllerStopOrderPollingAction
   | RampsControllerGetBuyWidgetDataAction
