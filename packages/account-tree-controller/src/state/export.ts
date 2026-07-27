@@ -1,9 +1,19 @@
+import { AccountWalletType } from '@metamask/account-api';
+import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
+import { PrivateKeyExportedAccount } from '@metamask/keyring-api/v2';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { encodeMnemonic } from '@metamask/keyring-sdk';
 
 import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from '../types.js';
+import type { AccountWalletObject } from '../wallet.js';
+import {
+  AccountWalletEntropyObject,
+  AccountWalletKeyringObject,
+} from '../wallet.js';
+import { IdMap } from './id-map.js';
 import type {
   AccountTreeWalletEntry,
   AccountWalletMnemonicGroupEntry,
@@ -12,14 +22,7 @@ import type {
   AccountWalletPrivateKeyPayload,
   ExportStateOptions,
 } from './payload.js';
-import { IdMap } from './id-map.js';
 import { AccountTreeSnapshot } from './snapshot.js';
-import type { AccountWalletObject } from '../wallet.js';
-import { AccountWalletEntropyObject, AccountWalletKeyringObject } from '../wallet.js';
-import { AccountWalletType } from '@metamask/account-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
-import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
-import { PrivateKeyExportedAccount } from '@metamask/keyring-api/v2';
 
 /**
  * Returns `true` if `wallet` is an HD entropy wallet ({@link AccountWalletEntropyObject}).
@@ -27,7 +30,9 @@ import { PrivateKeyExportedAccount } from '@metamask/keyring-api/v2';
  * @param wallet - The wallet object to test.
  * @returns Type predicate narrowing to {@link AccountWalletEntropyObject}.
  */
-export function isMnemonicWalletObject(wallet: AccountWalletObject): wallet is AccountWalletEntropyObject {
+export function isMnemonicWalletObject(
+  wallet: AccountWalletObject,
+): wallet is AccountWalletEntropyObject {
   return wallet.type === AccountWalletType.Entropy;
 }
 
@@ -38,9 +43,13 @@ export function isMnemonicWalletObject(wallet: AccountWalletObject): wallet is A
  * @param wallet - The wallet object to test.
  * @returns Type predicate narrowing to {@link AccountWalletKeyringObject}.
  */
-export function isPrivateKeyWalletObject(wallet: AccountWalletObject): wallet is AccountWalletKeyringObject {
-  return wallet.type === AccountWalletType.Keyring &&
-    wallet.metadata.keyring.type === KeyringTypes.simple;
+export function isPrivateKeyWalletObject(
+  wallet: AccountWalletObject,
+): wallet is AccountWalletKeyringObject {
+  return (
+    wallet.type === AccountWalletType.Keyring &&
+    wallet.metadata.keyring.type === KeyringTypes.simple
+  );
 }
 
 /** Context required by {@link exportState}. */
@@ -63,20 +72,30 @@ export type ExportContext = {
  * @returns The mnemonic wallet payload entry.
  * @throws If `includeSecrets` is `true` but the mnemonic cannot be read from the keyring.
  */
-async function exportMnemonicWalletObject(context: ExportContext, walletObj: AccountWalletEntropyObject, includeSecrets: boolean, idMap: IdMap): Promise<AccountWalletMnemonicPayload> {
+async function exportMnemonicWalletObject(
+  context: ExportContext,
+  walletObj: AccountWalletEntropyObject,
+  includeSecrets: boolean,
+  idMap: IdMap,
+): Promise<AccountWalletMnemonicPayload> {
   const result = await context.messenger.call(
     'KeyringController:withKeyringV2Unsafe',
     // The local wallet entropy ID is the keyring ID.
     { id: walletObj.metadata.entropy.id },
     async ({ keyring }) => {
       const hdKeyring = keyring as HdKeyring;
-      const includeMnemonic = includeSecrets && hdKeyring.mnemonic !== null && hdKeyring.mnemonic !== undefined;
+      const includeMnemonic =
+        includeSecrets &&
+        hdKeyring.mnemonic !== null &&
+        hdKeyring.mnemonic !== undefined;
 
       return {
         // Compute the stable entropy source ID from the keyring's mnemonic (BIP-39 seed).
         entropySourceId: await hdKeyring.toEntropySourceId(),
         // No need to include the mnemonic here if we're not exporting secrets.
-        mnemonic: includeMnemonic ? encodeMnemonic(hdKeyring.mnemonic) : undefined,
+        mnemonic: includeMnemonic
+          ? encodeMnemonic(hdKeyring.mnemonic)
+          : undefined,
       };
     },
   );
@@ -140,7 +159,12 @@ async function exportMnemonicWalletObject(context: ExportContext, walletObj: Acc
  * @returns The private-key wallet payload entry.
  * @throws If `includeSecrets` is `true` but a private key cannot be exported for an account.
  */
-async function exportPrivateKeyWalletObject(context: ExportContext, walletObj: AccountWalletKeyringObject, includeSecrets: boolean, idMap: IdMap): Promise<AccountWalletPrivateKeyPayload> {
+async function exportPrivateKeyWalletObject(
+  context: ExportContext,
+  walletObj: AccountWalletKeyringObject,
+  includeSecrets: boolean,
+  idMap: IdMap,
+): Promise<AccountWalletPrivateKeyPayload> {
   // We use a singleton wallet ID for private keys.
   const wallet: AccountWalletPrivateKeyPayload = {
     type: 'private-key',
@@ -173,7 +197,9 @@ async function exportPrivateKeyWalletObject(context: ExportContext, walletObj: A
         { address },
         async ({ keyring }) => {
           if (!keyring.exportAccount) {
-            throw new Error(`Keyring for account ${accountId} does not support exportAccount`);
+            throw new Error(
+              `Keyring for account ${accountId} does not support exportAccount`,
+            );
           }
 
           return keyring.exportAccount(accountId, {
@@ -197,7 +223,9 @@ async function exportPrivateKeyWalletObject(context: ExportContext, walletObj: A
 
     if (includeSecrets) {
       if (!exported) {
-        throw new Error(`Failed to export private key for account ${accountId}`);
+        throw new Error(
+          `Failed to export private key for account ${accountId}`,
+        );
       }
       group.value = {
         privateKey: exported.privateKey,
@@ -235,20 +263,30 @@ export async function exportState(
   const includeSecrets = options.includeSecrets ?? false;
   const { isUnlocked } = context.messenger.call('KeyringController:getState');
   if (includeSecrets && !isUnlocked) {
-    throw new Error(
-      'Cannot include secrets in export when vault is locked',
-    );
+    throw new Error('Cannot include secrets in export when vault is locked');
   }
 
   const idMap = new IdMap();
   const entries: AccountTreeWalletEntry[] = [];
   for (const walletObj of Object.values(state.accountTree.wallets)) {
     if (isMnemonicWalletObject(walletObj)) {
-      entries.push(await exportMnemonicWalletObject(context, walletObj, includeSecrets, idMap));
-    } else if (
-      isPrivateKeyWalletObject(walletObj)
-    ) {
-      entries.push(await exportPrivateKeyWalletObject(context, walletObj, includeSecrets, idMap));
+      entries.push(
+        await exportMnemonicWalletObject(
+          context,
+          walletObj,
+          includeSecrets,
+          idMap,
+        ),
+      );
+    } else if (isPrivateKeyWalletObject(walletObj)) {
+      entries.push(
+        await exportPrivateKeyWalletObject(
+          context,
+          walletObj,
+          includeSecrets,
+          idMap,
+        ),
+      );
     } else {
       // AccountWalletType.Snap and hardware keyrings: skipped for now.
     }

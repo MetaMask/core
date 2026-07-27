@@ -1,14 +1,11 @@
+import { IdMap } from './id-map.js';
 import type {
   AccountGroupPayloadId,
   AccountTreePayload,
   AccountTreeSnapshotEntry,
   AccountWalletPayloadId,
 } from './payload.js';
-import {
-  ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
-  migrate,
-} from './payload.js';
-import { IdMap } from './id-map.js';
+import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION, migrate } from './payload.js';
 
 /**
  * Immutable value object returned by {@link AccountTreeController.exportState}.

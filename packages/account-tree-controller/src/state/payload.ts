@@ -14,8 +14,7 @@ export type ParsedPayloadGroupId = {
   subId: string;
 };
 
-const PAYLOAD_GROUP_ID_REGEX =
-  /^(?<walletId>wallet:[^/]+)\/(?<subId>.+)$/u;
+const PAYLOAD_GROUP_ID_REGEX = /^(?<walletId>wallet:[^/]+)\/(?<subId>.+)$/u;
 
 /**
  * Parses a payload group ID into its wallet ID and group sub-ID components.
@@ -120,7 +119,9 @@ export type AccountTreeSnapshotEntry =
  * @param entropySourceId - Stable entropy source ID returned by `HdKeyring.toEntropySourceId()`.
  * @returns The portable wallet payload ID.
  */
-export function toWalletPayloadId(entropySourceId: string): AccountWalletPayloadId {
+export function toWalletPayloadId(
+  entropySourceId: string,
+): AccountWalletPayloadId {
   return `wallet:${entropySourceId}`;
 }
 
@@ -151,7 +152,9 @@ export function migrate(raw: unknown): AccountTreePayload {
 
   const { version } = raw as Record<string, unknown>;
   if (typeof version !== 'number' || !Number.isInteger(version)) {
-    throw new Error('Invalid AccountTreePayload: missing numeric version field');
+    throw new Error(
+      'Invalid AccountTreePayload: missing numeric version field',
+    );
   }
   if (version > ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION) {
     throw new Error(
