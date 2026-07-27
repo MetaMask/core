@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Disable in-request retries on `ProfileMetricsService` by default (`maxRetries: 0`) ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+- Disable in-request retries on `ProfileMetricsService` by default (`maxRetries: 0`) ([#9667](https://github.com/MetaMask/core/pull/9667))
   - Proof-of-ownership nonces are single-use; retrying the same signed payload
     after a spent nonce caused `PUT /profile/accounts` 400s (`nonce-session`
     key not found). The controller poll already re-fetches nonces and retries
