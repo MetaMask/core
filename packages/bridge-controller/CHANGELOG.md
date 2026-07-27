@@ -7,19 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Bump `@metamask/assets-controller` from `^11.2.0` to `^11.2.1` ([#9648](https://github.com/MetaMask/core/pull/9648))
-
-## [78.0.0]
-
 ### Added
 
 - Define `QuoteResponse` v2 ([#9085](https://github.com/MetaMask/core/pull/9085))
   - `validateQuoteResponse` validates data
   - `toQuoteResponseV2` and `toQuoteResponseV1` convert quote responses to required schema when needed
 - Export `BridgeAsset` and `validateBridgeAsset`, used by QuoteResponse v2, and token endpoints ([#9085](https://github.com/MetaMask/core/pull/9085))
-- Return `priceImpact` and `relayerFee` as part of `QuoteMetadata` ([#9507](https://github.com/MetaMask/core/pull/9507))
 
 ### Changed
 
@@ -29,6 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `QuoteResponse` export now means v2; v1 is still exported as `QuoteResponseV1`
   - `fetchBridgeQuoteStream` now returns `QuoteResponse` v2
   - `appendFeesToQuotes` interface now requires a chainId parameter, but still accepts both V1 and V2 quotes
+- Bump `@metamask/assets-controller` from `^11.2.0` to `^11.2.1` ([#9648](https://github.com/MetaMask/core/pull/9648))
+
+## [78.0.0]
+
+### Added
+
+- Return `priceImpact` and `relayerFee` as part of `QuoteMetadata` ([#9507](https://github.com/MetaMask/core/pull/9507))
+
+### Changed
+
 - **BREAKING:** Make `QuoteMetadata` fields optional and remove unused values
   - Remove falsy (`0` and `null`) fallbacks; missing values are now `undefined`
   - Replace `gasFee.effective`, `gasFee.max`, and `totalMaxNetworkFee` usages with `gasFee.total` and `totalNetworkFee`.
@@ -40,12 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Remove Arc and Stellar from `DEFAULT_CHAIN_RANKING`. This is a short term fix for a very rare edge case where when launchdarkly is not reachable (API issue or internet down), the network selector relies on a default list defined in the bridge controller to display the list of networks for swap/bridge, we want to remove Arc and Stellar from this list since they have not launched yet. ([#9635](https://github.com/MetaMask/core/pull/9635))
-
-## [77.8.0]
-
-### Added
-
-- Add `BRIDGE_UAT_API_BASE_URL` constant so consumers can point the bridge and bridge-status controllers at the UAT environment via `customBridgeApiBaseUrl` ([#9613](https://github.com/MetaMask/core/pull/9613))
 
 ## [77.8.0]
 
