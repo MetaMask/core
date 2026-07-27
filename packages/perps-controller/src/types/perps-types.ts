@@ -3,8 +3,40 @@
  */
 import { CandlePeriod } from '../constants/chartConfig.js';
 
-// Order type enumeration
-export type OrderType = 'market' | 'limit';
+/**
+ * Order type enumeration (placement type).
+ *
+ * - `market` / `limit`: immediate placement.
+ * - `stop_*` / `take_profit_*`: trigger placement — the order rests off-book until
+ *   `OrderParams.triggerPrice` is reached, then executes as a market or limit order
+ *   according to the suffix.
+ *
+ * Provider-agnostic by design: no protocol vocabulary (HyperLiquid's `tpsl`,
+ * `triggerPx`, `isMarket`) appears in the params model.
+ */
+export type OrderType =
+  | 'market'
+  | 'limit'
+  | 'stop_market'
+  | 'stop_limit'
+  | 'take_profit_market'
+  | 'take_profit_limit';
+
+/**
+ * The subset of `OrderType` values that require a trigger price.
+ */
+export type TriggerOrderType = Exclude<OrderType, 'market' | 'limit'>;
+
+/**
+ * Whether a triggered order executes as a market or a limit order.
+ */
+export type OrderExecution = 'market' | 'limit';
+
+/**
+ * Which side of the mark price a trigger order fires on.
+ * `stop` protects against adverse moves, `take_profit` realizes gains.
+ */
+export type TriggerDirection = 'stop' | 'take_profit';
 
 export type TestResultStatus =
   | 'idle'

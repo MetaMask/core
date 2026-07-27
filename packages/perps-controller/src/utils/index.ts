@@ -11,6 +11,8 @@ export {
   adaptOrderToSDK,
   adaptPositionFromSDK,
   adaptOrderFromSDK,
+  adaptPositionTriggerOrderFromSDK,
+  adaptTriggerOrderTypeFromSDK,
   adaptMarketFromSDK,
   adaptAccountStateFromSDK,
   buildAssetMapping,
@@ -27,6 +29,7 @@ export * from './marketDataTransform.js';
 export * from './marketSearch.js';
 export * from './marketUtils.js';
 export * from './orderCalculations.js';
+export * from './orderTypes.js';
 export * from './perpsDiskPersistence.js';
 export * from './rewardsUtils.js';
 export * from './significantFigures.js';

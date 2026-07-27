@@ -1,0 +1,1114 @@
+/* eslint-disable */
+jest.mock('@nktkas/hyperliquid', () => ({}));
+
+import { ORDER_SLIPPAGE_CONFIG } from '../../../src/constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
+import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
+import type {
+  PerpsPlatformDependencies,
+  OrderParams,
+} from '../../../src/types/index.js';
+import {
+  validateAssetSupport,
+  validateBalance,
+  validateCoinExists,
+  validateDepositParams,
+  validateOrderParams,
+  validateWithdrawalParams,
+} from '../../../src/utils/hyperLiquidValidation.js';
+import {
+  createMockInfrastructure,
+  createMockMessenger,
+} from '../../helpers/serviceMocks.js';
+
+jest.mock('../../../src/services/HyperLiquidClientService');
+jest.mock('../../../src/services/HyperLiquidWalletService');
+jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+// Mock stream manager - will be set up in test
+let mockStreamManagerInstance: any;
+const mockGetStreamManagerInstance = jest.fn(() => mockStreamManagerInstance);
+jest.mock(
+  '../../../../components/UI/Perps/providers/PerpsStreamManager',
+  () => ({
+    getStreamManagerInstance: mockGetStreamManagerInstance,
+  }),
+  { virtual: true },
+);
+
+jest.mock('../../../src/utils/hyperLiquidValidation', () => ({
+  validateOrderParams: jest.fn(),
+  validateWithdrawalParams: jest.fn(),
+  validateDepositParams: jest.fn(),
+  validateCoinExists: jest.fn(),
+  validateAssetSupport: jest.fn(),
+  validateBalance: jest.fn(),
+  getSupportedPaths: jest
+    .fn()
+    .mockReturnValue([
+      'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+      'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+    ]),
+  getBridgeInfo: jest.fn().mockReturnValue({
+    chainId: 'eip155:42161',
+    contractAddress: '0x1234567890123456789012345678901234567890',
+  }),
+  createErrorResult: jest.fn((error, defaultResponse) => ({
+    ...defaultResponse,
+    success: false,
+    error: error instanceof Error ? error.message : String(error),
+  })),
+}));
+
+// Mock adapter functions
+jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
+  const actual = jest.requireActual('../../../src/utils/hyperLiquidAdapter');
+  return {
+    ...actual,
+    adaptHyperLiquidLedgerUpdateToUserHistoryItem: jest.fn((updates) => {
+      // Return mock history items based on input
+      if (!updates || !Array.isArray(updates) || updates.length === 0) {
+        return [];
+      }
+      return updates.map((_update: unknown) => ({
+        type: 'deposit' as const,
+        amount: '100',
+        timestamp: Date.now(),
+        hash: '0x123',
+      }));
+    }),
+  };
+});
+
+// Mock TradingReadinessCache - global singleton for signing operation caching
+// Use jest.createMockFromModule for proper mock creation
+jest.mock('../../../src/services/TradingReadinessCache');
+
+const MockedHyperLiquidClientService =
+  HyperLiquidClientService as jest.MockedClass<typeof HyperLiquidClientService>;
+const MockedHyperLiquidWalletService =
+  HyperLiquidWalletService as jest.MockedClass<typeof HyperLiquidWalletService>;
+const MockedHyperLiquidSubscriptionService =
+  HyperLiquidSubscriptionService as jest.MockedClass<
+    typeof HyperLiquidSubscriptionService
+  >;
+const mockValidateOrderParams = validateOrderParams as jest.MockedFunction<
+  typeof validateOrderParams
+>;
+const mockValidateWithdrawalParams =
+  validateWithdrawalParams as jest.MockedFunction<
+    typeof validateWithdrawalParams
+  >;
+const mockValidateDepositParams = validateDepositParams as jest.MockedFunction<
+  typeof validateDepositParams
+>;
+const mockValidateCoinExists = validateCoinExists as jest.MockedFunction<
+  typeof validateCoinExists
+>;
+const mockValidateAssetSupport = validateAssetSupport as jest.MockedFunction<
+  typeof validateAssetSupport
+>;
+const mockValidateBalance = validateBalance as jest.MockedFunction<
+  typeof validateBalance
+>;
+
+// Mock factory functions - defined once, reused everywhere
+// These reduce duplication and make tests more maintainable
+const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
+  clearinghouseState: jest.fn().mockResolvedValue({
+    marginSummary: {
+      totalMarginUsed: '500',
+      accountValue: '10500',
+    },
+    withdrawable: '9500',
+    assetPositions: [
+      {
+        position: {
+          coin: 'BTC',
+          szi: '0.1',
+          entryPx: '50000',
+          positionValue: '5000',
+          unrealizedPnl: '100',
+          marginUsed: '500',
+          leverage: { type: 'cross', value: 10 },
+          liquidationPx: '45000',
+          maxLeverage: 50,
+          returnOnEquity: '20',
+          cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+        },
+        type: 'oneWay',
+      },
+      {
+        position: {
+          coin: 'ETH',
+          szi: '1.5',
+          entryPx: '3000',
+          positionValue: '4500',
+          unrealizedPnl: '50',
+          marginUsed: '450',
+          leverage: { type: 'cross', value: 10 },
+          liquidationPx: '2700',
+          maxLeverage: 50,
+          returnOnEquity: '10',
+          cumFunding: { allTime: '5', sinceOpen: '2', sinceChange: '1' },
+        },
+        type: 'oneWay',
+      },
+    ],
+    crossMarginSummary: {
+      accountValue: '10000',
+      totalMarginUsed: '5000',
+    },
+  }),
+  spotClearinghouseState: jest.fn().mockResolvedValue({
+    balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
+  }),
+  // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
+  // so tests that predated the gate still see spot folded into spendable/withdrawable.
+  userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+  meta: jest.fn().mockResolvedValue({
+    universe: [
+      { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+      { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+    ],
+  }),
+  metaAndAssetCtxs: jest.fn().mockResolvedValue([
+    {
+      universe: [
+        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+        { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+      ],
+    },
+    [
+      {
+        funding: '0.0001',
+        openInterest: '1000',
+        prevDayPx: '49000',
+        dayNtlVlm: '1000000',
+        markPx: '50000',
+        midPx: '50000',
+        oraclePx: '50000',
+      },
+      {
+        funding: '0.0001',
+        openInterest: '500',
+        prevDayPx: '2900',
+        dayNtlVlm: '500000',
+        markPx: '3000',
+        midPx: '3000',
+        oraclePx: '3000',
+      },
+    ],
+  ]),
+  perpDexs: jest.fn().mockResolvedValue([null]),
+  allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+  frontendOpenOrders: jest.fn().mockResolvedValue([]),
+  referral: jest.fn().mockResolvedValue({
+    referrerState: {
+      stage: 'ready',
+      data: { code: 'MMCSI' },
+    },
+  }),
+  maxBuilderFee: jest.fn().mockResolvedValue(1),
+  userFees: jest.fn().mockResolvedValue({
+    feeSchedule: {
+      cross: '0.00030',
+      add: '0.00010',
+      spotCross: '0.00040',
+      spotAdd: '0.00020',
+    },
+    dailyUserVlm: [],
+  }),
+  userNonFundingLedgerUpdates: jest.fn().mockResolvedValue([
+    {
+      delta: { type: 'deposit', usdc: '100' },
+      time: Date.now(),
+      hash: '0x123abc',
+    },
+    {
+      delta: { type: 'withdraw', usdc: '50' },
+      time: Date.now() - 3600000,
+      hash: '0x456def',
+    },
+  ]),
+  portfolio: jest.fn().mockResolvedValue([
+    null,
+    [
+      null,
+      {
+        accountValueHistory: [
+          [Date.now() - 86400000, '10000'], // 24h ago
+          [Date.now() - 172800000, '9500'], // 48h ago
+          [Date.now() - 259200000, '9000'], // 72h ago
+        ],
+      },
+    ],
+  ]),
+  spotMeta: jest.fn().mockResolvedValue({
+    tokens: [
+      { name: 'USDC', tokenId: '0xdef456', index: 0 },
+      { name: 'USDT', tokenId: '0x789abc', index: 1 },
+    ],
+    universe: [],
+  }),
+  historicalOrders: jest.fn().mockResolvedValue([]),
+  userFills: jest.fn().mockResolvedValue([]),
+  userFillsByTime: jest.fn().mockResolvedValue([]),
+  userFunding: jest.fn().mockResolvedValue([]),
+  ...overrides,
+});
+
+const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
+  order: jest.fn().mockResolvedValue({
+    status: 'ok',
+    response: { data: { statuses: [{ resting: { oid: 123 } }] } },
+  }),
+  modify: jest.fn().mockResolvedValue({
+    status: 'ok',
+    response: { data: { statuses: [{ resting: { oid: '123' } }] } },
+  }),
+  cancel: jest.fn().mockResolvedValue({
+    status: 'ok',
+    response: { data: { statuses: ['success'] } },
+  }),
+  withdraw3: jest.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  updateLeverage: jest.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  approveBuilderFee: jest.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  setReferrer: jest.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  sendAsset: jest.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  agentSetAbstraction: jest.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  userSetAbstraction: jest.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  ...overrides,
+});
+
+// Create shared mock platform dependencies for provider tests
+const mockPlatformDependencies: PerpsPlatformDependencies =
+  createMockInfrastructure();
+
+const mockMessenger = createMockMessenger();
+
+/**
+ * Helper to create HyperLiquidProvider with mock platform dependencies
+ * @param options
+ * @param options.isTestnet
+ * @param options.hip3Enabled
+ * @param options.allowlistMarkets
+ * @param options.blocklistMarkets
+ * @param options.useUnifiedAccount
+ */
+const createTestProvider = (
+  options: {
+    isTestnet?: boolean;
+    hip3Enabled?: boolean;
+    allowlistMarkets?: string[];
+    blocklistMarkets?: string[];
+    useUnifiedAccount?: boolean;
+    initialAssetMapping?: [string, number][];
+  } = {},
+): HyperLiquidProvider =>
+  new HyperLiquidProvider({
+    ...options,
+    platformDependencies: mockPlatformDependencies,
+    messenger: mockMessenger,
+  });
+
+describe('HyperLiquidProvider', () => {
+  let provider: HyperLiquidProvider;
+  let mockClientService: jest.Mocked<HyperLiquidClientService>;
+  let mockWalletService: jest.Mocked<HyperLiquidWalletService>;
+  let mockSubscriptionService: jest.Mocked<HyperLiquidSubscriptionService>;
+
+  beforeEach(() => {
+    // Reset all mocks
+    jest.clearAllMocks();
+    (
+      mockPlatformDependencies.marketDataFormatters.formatVolume as jest.Mock
+    ).mockImplementation((value: number) => '$' + value.toFixed(0));
+    (
+      mockPlatformDependencies.marketDataFormatters.formatPerpsFiat as jest.Mock
+    ).mockImplementation((value: number) => '$' + value.toFixed(2));
+    (
+      mockPlatformDependencies.marketDataFormatters
+        .formatPercentage as jest.Mock
+    ).mockImplementation((value: number) => `${value.toFixed(2)}%`);
+    (
+      mockPlatformDependencies.featureFlags.validateVersionGated as jest.Mock
+    ).mockReturnValue(undefined);
+    (mockPlatformDependencies.metrics.isEnabled as jest.Mock).mockReturnValue(
+      true,
+    );
+
+    // Reset TradingReadinessCache mock state (using imported mocked module)
+    const mockedCache = TradingReadinessCache as jest.Mocked<
+      typeof TradingReadinessCache
+    >;
+    mockedCache.get.mockReturnValue(undefined);
+    mockedCache.getBuilderFee.mockReturnValue(undefined);
+    mockedCache.getReferral.mockReturnValue(undefined);
+    mockedCache.isInFlight.mockReturnValue(undefined);
+    mockedCache.setInFlight.mockReturnValue(jest.fn());
+
+    // Initialize mock stream manager instance
+    mockStreamManagerInstance = {
+      clearAllChannels: jest.fn(),
+    };
+
+    // Create mocked service instances using factory functions
+    mockClientService = {
+      initialize: jest.fn(),
+      isInitialized: jest.fn().mockReturnValue(true),
+      isTestnetMode: jest.fn().mockReturnValue(false),
+      ensureInitialized: jest.fn(),
+      getExchangeClient: jest.fn().mockReturnValue(createMockExchangeClient()),
+      getInfoClient: jest.fn().mockReturnValue(createMockInfoClient()),
+      fetchHistoricalOrders: jest.fn().mockResolvedValue([]),
+      disconnect: jest.fn().mockResolvedValue(undefined),
+      toggleTestnet: jest.fn(),
+      setTestnetMode: jest.fn(),
+      getNetwork: jest.fn().mockReturnValue('mainnet'),
+      ensureSubscriptionClient: jest.fn().mockResolvedValue(undefined),
+      getSubscriptionClient: jest.fn(),
+      setOnReconnectCallback: jest.fn(),
+      setOnTerminateCallback: jest.fn(),
+      getConnectionState: jest.fn().mockReturnValue('connected'),
+    } as Partial<HyperLiquidClientService> as jest.Mocked<HyperLiquidClientService>;
+
+    mockWalletService = {
+      setTestnetMode: jest.fn(),
+      getCurrentAccountId: jest
+        .fn()
+        .mockReturnValue(
+          'eip155:42161:0x1234567890123456789012345678901234567890',
+        ),
+      createWalletAdapter: jest.fn().mockReturnValue({
+        request: jest
+          .fn()
+          .mockResolvedValue(['0x1234567890123456789012345678901234567890']),
+      }),
+      getUserAddress: jest
+        .fn()
+        .mockReturnValue('0x1234567890123456789012345678901234567890'),
+      getUserAddressWithDefault: jest
+        .fn()
+        .mockResolvedValue('0x1234567890123456789012345678901234567890'),
+      isKeyringUnlocked: jest.fn().mockReturnValue(true),
+      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+    } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
+
+    mockSubscriptionService = {
+      subscribeToPrices: jest.fn().mockResolvedValue(jest.fn()), // Returns Promise
+      subscribeToPositions: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
+      subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
+      clearAll: jest.fn(),
+      isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
+      getCachedPositions: jest.fn().mockReturnValue([]),
+      updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
+      // Cache methods used by buildAssetMapping optimization
+      setDexMetaCache: jest.fn(),
+      setDexAssetCtxsCache: jest.fn(),
+      getDexAssetCtxsCache: jest.fn().mockReturnValue(undefined),
+      // Price cache used by placeOrder, editOrder, closePosition optimizations
+      getCachedPrice: jest.fn().mockImplementation((symbol: string) => {
+        const prices: Record<string, string> = { BTC: '50000', ETH: '3000' };
+        return prices[symbol];
+      }),
+      getLastAllMidsSnapshot: jest.fn().mockReturnValue(null),
+      // Orders cache used by updatePositionTPSL and getOpenOrders
+      isOrdersCacheInitialized: jest.fn().mockReturnValue(false),
+      getCachedOrders: jest.fn().mockReturnValue([]),
+      // Atomic getter - returns null when cache not initialized (prevents race condition)
+      getOrdersCacheIfInitialized: jest.fn().mockReturnValue(null),
+      // Abstraction-mode resolved-mode setter (unified account migration)
+      setUserAbstractionMode: jest.fn(),
+    } as Partial<HyperLiquidSubscriptionService> as jest.Mocked<HyperLiquidSubscriptionService>;
+
+    // Mock constructors
+    MockedHyperLiquidClientService.mockImplementation(() => mockClientService);
+    MockedHyperLiquidWalletService.mockImplementation(() => mockWalletService);
+    MockedHyperLiquidSubscriptionService.mockImplementation(
+      () => mockSubscriptionService,
+    );
+
+    // Mock validation
+    mockValidateOrderParams.mockReturnValue({ isValid: true });
+    mockValidateWithdrawalParams.mockReturnValue({ isValid: true });
+    mockValidateDepositParams.mockReturnValue({ isValid: true });
+    mockValidateCoinExists.mockReturnValue({ isValid: true });
+    mockValidateAssetSupport.mockReturnValue({ isValid: true });
+    mockValidateBalance.mockReturnValue({ isValid: true });
+    const hyperLiquidValidation = jest.requireMock(
+      '../../../src/utils/hyperLiquidValidation',
+    );
+    hyperLiquidValidation.getSupportedPaths.mockReturnValue([
+      'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+      'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+    ]);
+    hyperLiquidValidation.getBridgeInfo.mockReturnValue({
+      chainId: 'eip155:42161',
+      contractAddress: '0x1234567890123456789012345678901234567890',
+    });
+    hyperLiquidValidation.createErrorResult.mockImplementation(
+      (error: unknown, defaultResponse: Record<string, unknown>) => ({
+        ...defaultResponse,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+    const hyperLiquidAdapter = jest.requireMock(
+      '../../../src/utils/hyperLiquidAdapter',
+    );
+    hyperLiquidAdapter.adaptHyperLiquidLedgerUpdateToUserHistoryItem.mockImplementation(
+      (updates: unknown[]) => {
+        if (!updates || !Array.isArray(updates) || updates.length === 0) {
+          return [];
+        }
+        return updates.map(() => ({
+          type: 'deposit' as const,
+          amount: '100',
+          timestamp: Date.now(),
+          hash: '0x123',
+        }));
+      },
+    );
+
+    provider = createTestProvider({
+      initialAssetMapping: [
+        ['BTC', 0],
+        ['ETH', 1],
+      ],
+    });
+  });
+
+  describe('Advanced order placement', () => {
+    const TPSL_SLIPPAGE = ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / 10000;
+
+    /**
+     * Reads the orders payload submitted to the exchange client.
+     *
+     * @returns The submitted `order` request.
+     */
+    const getSubmittedOrderRequest = () =>
+      (mockClientService.getExchangeClient().order as jest.Mock).mock
+        .calls[0][0];
+
+    it('places a stop market order as a market-on-trigger stop', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_market',
+        triggerPrice: '45000',
+        currentPrice: 50000,
+      };
+
+      const result = await provider.placeOrder(orderParams);
+
+      expect(result.success).toBe(true);
+      const request = getSubmittedOrderRequest();
+      expect(request.grouping).toBe('na');
+      expect(request.orders).toHaveLength(1);
+      expect(request.orders[0].t).toStrictEqual({
+        trigger: { isMarket: true, triggerPx: '45000', tpsl: 'sl' },
+      });
+      // Market-on-trigger sells accept up to the TP/SL slippage below the trigger
+      expect(parseFloat(request.orders[0].p)).toBeCloseTo(
+        45000 * (1 - TPSL_SLIPPAGE),
+        0,
+      );
+    });
+
+    it('places a stop limit order at the requested limit price', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_limit',
+        price: '44500',
+        triggerPrice: '45000',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      const request = getSubmittedOrderRequest();
+      expect(request.orders[0].t).toStrictEqual({
+        trigger: { isMarket: false, triggerPx: '45000', tpsl: 'sl' },
+      });
+      expect(request.orders[0].p).toBe('44500');
+    });
+
+    it('places a take profit market order as a market-on-trigger take profit', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'take_profit_market',
+        triggerPrice: '60000',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      const request = getSubmittedOrderRequest();
+      expect(request.orders[0].t).toStrictEqual({
+        trigger: { isMarket: true, triggerPx: '60000', tpsl: 'tp' },
+      });
+    });
+
+    it('places a take profit limit order at the requested limit price', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'take_profit_limit',
+        price: '60000',
+        triggerPrice: '59500',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      const request = getSubmittedOrderRequest();
+      expect(request.orders[0].t).toStrictEqual({
+        trigger: { isMarket: false, triggerPx: '59500', tpsl: 'tp' },
+      });
+      expect(request.orders[0].p).toBe('60000');
+    });
+
+    it('submits reduce-only as a first-class placement flag', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_market',
+        triggerPrice: '45000',
+        reduceOnly: true,
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrderRequest().orders[0].r).toBe(true);
+    });
+
+    it('defaults reduce-only to false when not requested', async () => {
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'stop_market',
+        triggerPrice: '55000',
+        currentPrice: 50000,
+      });
+
+      expect(getSubmittedOrderRequest().orders[0].r).toBe(false);
+    });
+
+    it('scopes attached TP/SL children to their partial sizes', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.04',
+        stopLossPrice: '45000',
+        stopLossSize: '0.06',
+      });
+
+      expect(result.success).toBe(true);
+      const request = getSubmittedOrderRequest();
+      expect(request.grouping).toBe('normalTpsl');
+      expect(request.orders).toHaveLength(3);
+      // Main order keeps the full size; children carry the partial sizes
+      expect(request.orders[0].s).toBe('0.1');
+      expect(request.orders[1].s).toBe('0.04');
+      expect(request.orders[1].t.trigger.tpsl).toBe('tp');
+      expect(request.orders[2].s).toBe('0.06');
+      expect(request.orders[2].t.trigger.tpsl).toBe('sl');
+      // Partial TP/SL children always reduce the position
+      expect(request.orders[1].r).toBe(true);
+      expect(request.orders[2].r).toBe(true);
+    });
+
+    it('returns a typed error when a trigger placement has no trigger price', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_market',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED,
+      );
+      expect(mockClientService.getExchangeClient().order).not.toHaveBeenCalled();
+    });
+
+    it('returns a typed error when a trigger placement fails validation', async () => {
+      mockValidateOrderParams.mockReturnValue({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_NOT_SUPPORTED,
+      });
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        triggerPrice: '45000',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_NOT_SUPPORTED,
+      );
+    });
+
+    it('forwards the new placement fields to validation', async () => {
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_limit',
+        price: '44500',
+        triggerPrice: '45000',
+        currentPrice: 50000,
+      });
+
+      expect(mockValidateOrderParams).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderType: 'stop_limit',
+          triggerPrice: '45000',
+          price: '44500',
+        }),
+      );
+    });
+
+    it('cancels a placed trigger order', async () => {
+      const placed = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_market',
+        triggerPrice: '45000',
+        currentPrice: 50000,
+      });
+
+      const cancelled = await provider.cancelOrder({
+        orderId: placed.orderId as string,
+        symbol: 'BTC',
+      });
+
+      expect(cancelled.success).toBe(true);
+      expect(mockClientService.getExchangeClient().cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 0, o: 123 }],
+      });
+    });
+
+    it('rejects editing a resting order into a trigger placement', async () => {
+      const result = await provider.editOrder({
+        orderId: '123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'stop_limit',
+          price: '44500',
+          triggerPrice: '45000',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+      );
+      expect(
+        mockClientService.getExchangeClient().modify,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Advanced orders in open-orders state', () => {
+    it('exposes trigger data for open stop and take profit orders', async () => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+            crossMarginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '10500',
+            },
+            withdrawable: '9500',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '40500',
+              sz: '0.04',
+              origSz: '0.04',
+              oid: 501,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price below 45000',
+              isTrigger: true,
+              triggerPx: '45000',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: true,
+              orderType: 'Stop Market',
+            },
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '60000',
+              sz: '0.06',
+              origSz: '0.06',
+              oid: 502,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price above 60000',
+              isTrigger: true,
+              triggerPx: '60000',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: true,
+              orderType: 'Take Profit Limit',
+            },
+          ]),
+        }) as unknown as ReturnType<
+          typeof mockClientService.getInfoClient
+        >,
+      );
+
+      const orders = await provider.getOpenOrders({ skipCache: true });
+
+      const stopOrder = orders.find((order) => order.orderId === '501');
+      expect(stopOrder).toMatchObject({
+        symbol: 'BTC',
+        side: 'sell',
+        triggerOrderType: 'stop_market',
+        triggerPrice: '45000',
+        reduceOnly: true,
+        isTrigger: true,
+        size: '0.04',
+      });
+
+      const takeProfitOrder = orders.find((order) => order.orderId === '502');
+      expect(takeProfitOrder).toMatchObject({
+        triggerOrderType: 'take_profit_limit',
+        triggerPrice: '60000',
+        reduceOnly: true,
+        size: '0.06',
+      });
+    });
+
+    it('reports partial and full trigger orders on the position', async () => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+            crossMarginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '10500',
+            },
+            withdrawable: '9500',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '60000',
+              sz: '0.04',
+              origSz: '0.04',
+              oid: 601,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price above 60000',
+              isTrigger: true,
+              triggerPx: '60000',
+              children: [],
+              isPositionTpsl: true,
+              reduceOnly: true,
+              orderType: 'Take Profit Limit',
+            },
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '40500',
+              sz: '0',
+              origSz: '0',
+              oid: 602,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price below 45000',
+              isTrigger: true,
+              triggerPx: '45000',
+              children: [],
+              isPositionTpsl: true,
+              reduceOnly: true,
+              orderType: 'Stop Market',
+            },
+          ]),
+        }) as unknown as ReturnType<
+          typeof mockClientService.getInfoClient
+        >,
+      );
+
+      const positions = await provider.getPositions({ skipCache: true });
+      const position = positions.find((pos) => pos.symbol === 'BTC');
+
+      expect(position?.takeProfitOrders).toStrictEqual([
+        {
+          orderId: '601',
+          orderType: 'take_profit_limit',
+          triggerPrice: '60000',
+          size: '0.04',
+          isPartial: true,
+          reduceOnly: true,
+        },
+      ]);
+      expect(position?.stopLossOrders).toStrictEqual([
+        {
+          orderId: '602',
+          orderType: 'stop_market',
+          triggerPrice: '45000',
+          // Position-bound stop (size 0) resolves to the whole position
+          size: '0.1',
+          isPartial: false,
+          reduceOnly: true,
+        },
+      ]);
+      expect(position?.takeProfitCount).toBe(1);
+      expect(position?.stopLossCount).toBe(1);
+    });
+
+    it('includes standalone partial triggers that are not position-bound', async () => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+            crossMarginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '10500',
+            },
+            withdrawable: '9500',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '60000',
+              sz: '0.04',
+              origSz: '0.04',
+              oid: 701,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price above 60000',
+              isTrigger: true,
+              triggerPx: '60000',
+              children: [],
+              // Partial TP/SL is placed with 'na' grouping, so it is a
+              // standalone reduce-only trigger rather than position-bound.
+              isPositionTpsl: false,
+              reduceOnly: true,
+              orderType: 'Take Profit Limit',
+            },
+          ]),
+        }) as unknown as ReturnType<
+          typeof mockClientService.getInfoClient
+        >,
+      );
+
+      const positions = await provider.getPositions({ skipCache: true });
+      const position = positions.find((pos) => pos.symbol === 'BTC');
+
+      expect(position?.takeProfitOrders).toStrictEqual([
+        {
+          orderId: '701',
+          orderType: 'take_profit_limit',
+          triggerPrice: '60000',
+          size: '0.04',
+          isPartial: true,
+          reduceOnly: true,
+        },
+      ]);
+      // The scalar summary field stays position-bound-only, which is exactly why
+      // the array exists.
+      expect(position?.takeProfitPrice).toBeUndefined();
+    });
+  });
+
+  describe('updatePositionTPSL with partial sizes', () => {
+    const position = {
+      symbol: 'BTC',
+      size: '0.1',
+      entryPrice: '50000',
+      positionValue: '5000',
+      unrealizedPnl: '100',
+      marginUsed: '500',
+      leverage: { type: 'cross' as const, value: 10 },
+      liquidationPrice: '45000',
+      maxLeverage: 50,
+      returnOnEquity: '20',
+      cumulativeFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+      takeProfitCount: 0,
+      stopLossCount: 0,
+    };
+
+    it('places partial TP/SL as standalone reduce-only triggers', async () => {
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.04',
+        stopLossPrice: '45000',
+        stopLossSize: '0.06',
+        position,
+      });
+
+      expect(result.success).toBe(true);
+      const request = (
+        mockClientService.getExchangeClient().order as jest.Mock
+      ).mock.calls[0][0];
+      // A quantity cannot be expressed under positionTpsl grouping
+      expect(request.grouping).toBe('na');
+      expect(request.orders).toHaveLength(2);
+      expect(request.orders[0].s).toBe('0.04');
+      expect(request.orders[0].r).toBe(true);
+      expect(request.orders[1].s).toBe('0.06');
+      expect(request.orders[1].r).toBe(true);
+    });
+
+    it('keeps whole-position TP/SL on positionTpsl grouping with size 0', async () => {
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        stopLossPrice: '45000',
+        position,
+      });
+
+      expect(result.success).toBe(true);
+      const request = (
+        mockClientService.getExchangeClient().order as jest.Mock
+      ).mock.calls[0][0];
+      expect(request.grouping).toBe('positionTpsl');
+      expect(request.orders[0].s).toBe('0');
+      expect(request.orders[1].s).toBe('0');
+    });
+
+    it('mixes a partial take profit with a whole-position stop loss', async () => {
+      await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.04',
+        stopLossPrice: '45000',
+        position,
+      });
+
+      const request = (
+        mockClientService.getExchangeClient().order as jest.Mock
+      ).mock.calls[0][0];
+      expect(request.grouping).toBe('na');
+      expect(request.orders[0].s).toBe('0.04');
+      // The stop loss without an explicit size covers the full position size
+      expect(request.orders[1].s).toBe('0.1');
+    });
+
+    it('returns a typed error when a partial size exceeds the position', async () => {
+      mockValidateOrderParams.mockImplementation(
+        jest.requireActual('../../../src/utils/hyperLiquidValidation.js')
+          .validateOrderParams,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.5',
+        position,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+      expect(mockClientService.getExchangeClient().order).not.toHaveBeenCalled();
+    });
+  });
+});

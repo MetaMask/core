@@ -12,6 +12,11 @@ import type {
   GetSupportedPathsParams,
   PerpsDebugLogger,
 } from '../types/index.js';
+import type { OrderType } from '../types/perps-types.js';
+import {
+  isLimitExecutionOrderType,
+  isTriggerOrderType,
+} from './orderTypes.js';
 
 /**
  * Optional debug logger for validation functions.
@@ -455,12 +460,13 @@ export function getSupportedPaths(
  * Based on HyperLiquid contract specifications.
  *
  * @param maxLeverage - The maximum leverage for the market
- * @param orderType - The order type (market or limit)
+ * @param orderType - The order type; trigger types follow the limit/market
+ * multiplier of their execution mode (e.g. `stop_limit` is treated as a limit order)
  * @returns Maximum order value in USD
  */
 export function getMaxOrderValue(
   maxLeverage: number,
-  orderType: 'market' | 'limit',
+  orderType: OrderType,
 ): number {
   let marketLimit: number;
 
@@ -474,7 +480,7 @@ export function getMaxOrderValue(
     marketLimit = HYPERLIQUID_ORDER_LIMITS.MarketOrderLimits.LowLeverage;
   }
 
-  return orderType === 'limit'
+  return isLimitExecutionOrderType(orderType)
     ? marketLimit * HYPERLIQUID_ORDER_LIMITS.LimitOrderMultiplier
     : marketLimit;
 }
@@ -488,14 +494,25 @@ export function getMaxOrderValue(
  * @param params.coin - The trading pair coin symbol
  * @param params.size - The order size as string
  * @param params.price - The order price as string
- * @param params.orderType - The order type (market or limit)
+ * @param params.orderType - The order placement type
+ * @param params.triggerPrice - Trigger price; required for trigger placement types and
+ * rejected for market/limit orders so a stray value can never be silently dropped
+ * @param params.takeProfitPrice - Attached take profit price
+ * @param params.stopLossPrice - Attached stop loss price
+ * @param params.takeProfitSize - Partial take profit size
+ * @param params.stopLossSize - Partial stop loss size
  * @returns Validation result with isValid flag and optional error message
  */
 export function validateOrderParams(params: {
   coin?: string;
   size?: string;
   price?: string;
-  orderType?: 'market' | 'limit';
+  orderType?: OrderType;
+  triggerPrice?: string;
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
+  takeProfitSize?: string;
+  stopLossSize?: string;
 }): { isValid: boolean; error?: string } {
   if (!params.coin) {
     return {
@@ -506,8 +523,16 @@ export function validateOrderParams(params: {
 
   // Note: Size validation removed - validateOrder handles amount validation using USD as source of truth
 
-  // Require price for limit orders
-  if (params.orderType === 'limit' && !params.price) {
+  const { orderType } = params;
+  const isTrigger = orderType !== undefined && isTriggerOrderType(orderType);
+
+  // Require price for orders that execute as limit orders (limit, stop_limit,
+  // take_profit_limit)
+  if (
+    orderType !== undefined &&
+    isLimitExecutionOrderType(orderType) &&
+    !params.price
+  ) {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_LIMIT_PRICE_REQUIRED,
@@ -519,6 +544,100 @@ export function validateOrderParams(params: {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
     };
+  }
+
+  if (isTrigger) {
+    if (!params.triggerPrice) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED,
+      };
+    }
+
+    const triggerPrice = parseFloat(params.triggerPrice);
+    if (isNaN(triggerPrice) || triggerPrice <= 0) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,
+      };
+    }
+
+    // A trigger placement combined with attached TP/SL children is rejected
+    // rather than silently reshaped: the exchange semantics of a triggered
+    // parent owning triggered children are not part of this contract.
+    if (params.takeProfitPrice ?? params.stopLossPrice) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_TPSL_UNSUPPORTED,
+      };
+    }
+  } else if (params.triggerPrice) {
+    return {
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_NOT_SUPPORTED,
+    };
+  }
+
+  const partialTpslValidation = validatePartialTpslSizes(params);
+  if (!partialTpslValidation.isValid) {
+    return partialTpslValidation;
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validate quantity-scoped (partial) TP/SL sizes against the parent order.
+ *
+ * @param params - Order parameters carrying the TP/SL prices and sizes
+ * @param params.size - Parent order size
+ * @param params.takeProfitPrice - Attached take profit price
+ * @param params.stopLossPrice - Attached stop loss price
+ * @param params.takeProfitSize - Partial take profit size
+ * @param params.stopLossSize - Partial stop loss size
+ * @returns Validation result with isValid flag and optional error message
+ */
+function validatePartialTpslSizes(params: {
+  size?: string;
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
+  takeProfitSize?: string;
+  stopLossSize?: string;
+}): { isValid: boolean; error?: string } {
+  const orderSize = params.size ? Math.abs(parseFloat(params.size)) : undefined;
+
+  const entries: { size?: string; price?: string }[] = [
+    { size: params.takeProfitSize, price: params.takeProfitPrice },
+    { size: params.stopLossSize, price: params.stopLossPrice },
+  ];
+
+  for (const entry of entries) {
+    if (entry.size === undefined) {
+      continue;
+    }
+
+    // A size without its price would silently place nothing.
+    if (!entry.price) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+      };
+    }
+
+    const size = parseFloat(entry.size);
+    if (isNaN(size) || size <= 0) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+      };
+    }
+
+    if (orderSize !== undefined && !isNaN(orderSize) && size > orderSize) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+      };
+    }
   }
 
   return { isValid: true };

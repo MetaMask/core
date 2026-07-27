@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add trigger placement order types to `OrderType`: `stop_market`, `stop_limit`, `take_profit_market`, and `take_profit_limit`, placeable through `placeOrder` alongside the existing `market` and `limit` types
+  - `OrderParams.triggerPrice` sets the price at which the resting order activates. It is required for the four trigger types and rejected for `market`/`limit` orders, so a stray trigger price can never be silently dropped.
+  - `*_limit` types execute at `OrderParams.price` once triggered; `*_market` types execute as market orders, with a limit price derived from the trigger price and `ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps` as the slippage cap.
+  - The params model stays provider-agnostic: no protocol vocabulary (HyperLiquid's `tpsl`, `triggerPx`, `isMarket`) appears in `OrderParams`, so a second provider can map the same fields.
+- Add partial (quantity-scoped) TP/SL via `OrderParams.takeProfitSize` / `OrderParams.stopLossSize` and `UpdatePositionTPSLParams.takeProfitSize` / `UpdatePositionTPSLParams.stopLossSize`; omitting a size keeps the previous whole-order/whole-position behavior
+  - On HyperLiquid, a size cannot be expressed under `positionTpsl` grouping, so `updatePositionTPSL` submits partial TP/SL as standalone reduce-only trigger orders with `na` grouping and explicit sizes. In that path the pre-cancel sweep also clears previously placed standalone reduce-only triggers for the symbol, so repeated calls stay idempotent; the whole-position path is unchanged.
+- Add `Position.takeProfitOrders` and `Position.stopLossOrders` (`PositionTriggerOrder[]`), the complete view of the trigger orders attached to a position — including partial ones, which the scalar `takeProfitPrice`/`stopLossPrice` fields cannot represent. Each entry carries `orderId`, `orderType`, `triggerPrice`, `size` (resolved to the position size when the protocol encodes "whole position"), `isPartial`, and `reduceOnly`
+- Add `Order.triggerOrderType`, the normalized placement type of an open trigger order, so open-orders state round-trips the placement type alongside the existing `triggerPrice`, `reduceOnly`, and size fields
+- Add the `TriggerOrderType`, `OrderExecution`, `TriggerDirection`, and `PositionTriggerOrder` types
+- Add order-type helpers `TRIGGER_ORDER_TYPES`, `isTriggerOrderType`, `isLimitExecutionOrderType`, `getTriggerExecution`, `getTriggerDirection`, `normalizeExecutionOrderType`, `buildTriggerOrderType`, and `buildPositionTriggerOrderFromOrder`, plus the HyperLiquid mappers `adaptTriggerOrderTypeFromSDK` and `adaptPositionTriggerOrderFromSDK`
+- Add order validation error codes `ORDER_TRIGGER_PRICE_REQUIRED`, `ORDER_TRIGGER_PRICE_POSITIVE`, `ORDER_TRIGGER_PRICE_NOT_SUPPORTED`, `ORDER_TRIGGER_TPSL_UNSUPPORTED`, `ORDER_TPSL_SIZE_INVALID`, and `ORDER_EDIT_TRIGGER_UNSUPPORTED`
+
+### Changed
+
+- `validateOrderParams` accepts the new placement fields (`triggerPrice`, `takeProfitPrice`, `stopLossPrice`, `takeProfitSize`, `stopLossSize`) and enforces them: trigger types need a positive trigger price, `*_limit` types need a limit price, `market`/`limit` orders reject a trigger price, a trigger placement cannot carry attached TP/SL, and a partial TP/SL size must be positive, no larger than the order size, and paired with its price
+- `getMaxOrderValue`, `calculateOrderPriceAndSize`, `buildOrdersArray`, and `FeeCalculationParams` accept the full `OrderType` union; trigger types follow their execution mode (`*_limit` is treated as a limit order, `*_market` as a market order) for order-value limits and fee tiers
+- `validateOrder` falls back to the trigger price when validating the notional of a market-executing trigger order that has no current or limit price
+- `editOrder` rejects modifying a resting order into a trigger placement with `ORDER_EDIT_TRIGGER_UNSUPPORTED` instead of dropping the trigger, since HyperLiquid's `modify` rebuilds the order as a plain limit/market order
+
+### Fixed
+
+- `getPositions` now populates `takeProfitCount` / `stopLossCount` on the REST path, which previously always reported `0` there while the WebSocket path counted them
+- `Order.orderType` now reports how a trigger order executes rather than always reporting `limit`: HyperLiquid sets `limitPx` on trigger orders as a slippage cap, so a `Stop Market`/`Take Profit Market` order was previously read back as a limit order
+
 ## [10.0.0]
 
 ### Added

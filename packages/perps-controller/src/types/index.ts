@@ -7,7 +7,11 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
-import type { CandleData, OrderType } from './perps-types.js';
+import type {
+  CandleData,
+  OrderType,
+  TriggerOrderType,
+} from './perps-types.js';
 
 /**
  * Connection states for WebSocket management.
@@ -240,9 +244,17 @@ export type OrderParams = {
    */
   slippage?: number;
 
+  // Trigger placement (stop_market, stop_limit, take_profit_market, take_profit_limit).
+  // Required for those order types and rejected for market/limit orders.
+  triggerPrice?: string; // Price at which the resting order activates
+
   // Advanced order features
   takeProfitPrice?: string; // Take profit price
   stopLossPrice?: string; // Stop loss price
+  // Partial TP/SL: size of the attached TP/SL order. Omit for a TP/SL covering
+  // the full order size. Must be positive and no greater than `size`.
+  takeProfitSize?: string; // Quantity covered by the attached take profit
+  stopLossSize?: string; // Quantity covered by the attached stop loss
   clientOrderId?: string; // Optional client-provided order ID
   grouping?: 'na' | 'normalTpsl' | 'positionTpsl'; // Override grouping (defaults: 'na' without TP/SL, 'normalTpsl' with TP/SL)
   currentPrice?: number; // Current market price (avoids extra API call if provided)
@@ -295,7 +307,25 @@ export type Position = {
   stopLossPrice?: string; // Stop loss price (if set)
   takeProfitCount: number; // Take profit count, how many tps can affect the position
   stopLossCount: number; // Stop loss count, how many sls can affect the position
+  // Full view of the trigger orders attached to this position, including
+  // quantity-scoped (partial) ones. The scalar `takeProfitPrice`/`stopLossPrice`
+  // fields above only carry one price each and cannot represent partial TP/SL.
+  takeProfitOrders?: PositionTriggerOrder[];
+  stopLossOrders?: PositionTriggerOrder[];
   providerId?: PerpsProviderType; // Multi-provider: which provider holds this position (injected by aggregator)
+};
+
+/**
+ * A trigger order attached to a position, as surfaced in position state.
+ * Provider-agnostic: protocols map their own trigger representation onto this.
+ */
+export type PositionTriggerOrder = {
+  orderId: string; // Exchange order ID (cancelable)
+  orderType: TriggerOrderType; // Normalized placement type
+  triggerPrice: string; // Price at which the order activates
+  size: string; // Quantity this trigger closes (resolved to position size when the protocol encodes "whole position")
+  isPartial: boolean; // true when `size` is smaller than the position size
+  reduceOnly: boolean; // Whether the trigger can only reduce the position
 };
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
@@ -1065,7 +1095,9 @@ export type MaintenanceMarginParams = {
 };
 
 export type FeeCalculationParams = {
-  orderType: 'market' | 'limit';
+  // Trigger placements are charged as their execution kind (a stop_limit pays
+  // limit-order fees when it fills, a stop_market pays taker fees).
+  orderType: OrderType;
   isMaker?: boolean;
   amount?: string;
   symbol: string; // Required: Asset identifier for HIP-3 fee calculation (e.g., 'BTC', 'xyz:TSLA')
@@ -1097,6 +1129,12 @@ export type UpdatePositionTPSLParams = {
   symbol: string; // Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA')
   takeProfitPrice?: string; // Optional: undefined to remove
   stopLossPrice?: string; // Optional: undefined to remove
+  // Partial TP/SL: quantity covered by the TP/SL order. Omit to cover the whole
+  // position. When either size is provided the TP/SL orders are placed as
+  // standalone reduce-only triggers, since a position-bound TP/SL cannot carry a
+  // quantity.
+  takeProfitSize?: string;
+  stopLossSize?: string;
   // Optional tracking data for MetaMetrics events
   trackingData?: TPSLTrackingData;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
@@ -1128,6 +1166,10 @@ export type Order = {
   takeProfitOrderId?: string; // Take profit order ID
   detailedOrderType?: string; // Full order type from exchange (e.g., 'Take Profit Limit', 'Stop Market')
   isTrigger?: boolean; // Whether this is a trigger order (TP/SL)
+  // Normalized trigger placement type, set for trigger orders only. `orderType`
+  // above stays coarse (how the order executes) so existing consumers keep
+  // their meaning; this field carries the full placement type.
+  triggerOrderType?: TriggerOrderType;
   reduceOnly?: boolean; // Whether this is a reduce-only order
   isPositionTpsl?: boolean; // Whether this TP/SL is associated with the full position
   parentOrderId?: string; // Parent order ID for display-only synthetic TP/SL rows

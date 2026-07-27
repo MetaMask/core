@@ -157,6 +157,10 @@ export type {
   GetUserHistoryParams,
   TradeConfiguration,
   OrderType,
+  TriggerOrderType,
+  OrderExecution,
+  TriggerDirection,
+  PositionTriggerOrder,
   MarketType,
   MarketTypeFilter,
   InputMethod,
@@ -474,6 +478,20 @@ export {
   getMaxOrderValue,
   validateOrderParams,
   validateCoinExists,
+} from './utils/index.js';
+export {
+  TRIGGER_ORDER_TYPES,
+  isTriggerOrderType,
+  isLimitExecutionOrderType,
+  getTriggerExecution,
+  getTriggerDirection,
+  normalizeExecutionOrderType,
+  buildTriggerOrderType,
+  buildPositionTriggerOrderFromOrder,
+} from './utils/index.js';
+export {
+  adaptTriggerOrderTypeFromSDK,
+  adaptPositionTriggerOrderFromSDK,
 } from './utils/index.js';
 export {
   generatePerpsId,

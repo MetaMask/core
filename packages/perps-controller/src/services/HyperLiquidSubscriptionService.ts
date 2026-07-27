@@ -47,6 +47,7 @@ import type {
   OrderBookLevel,
   PerpsPlatformDependencies,
   PerpsLogger,
+  PositionTriggerOrder,
 } from '../types/index.js';
 import {
   addSpotBalanceToAccountState,
@@ -65,8 +66,20 @@ import {
   calculateOpenInterestUSD,
   isMarketTradable,
 } from '../utils/marketDataTransform.js';
+import { buildPositionTriggerOrderFromOrder } from '../utils/orderTypes.js';
 import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
+
+/**
+ * Per-symbol view of the trigger orders attached to a position, keyed by symbol.
+ */
+type PositionTriggerOrderMap = Map<
+  string,
+  {
+    takeProfitOrders: PositionTriggerOrder[];
+    stopLossOrders: PositionTriggerOrder[];
+  }
+>;
 
 /**
  * Service for managing HyperLiquid WebSocket subscriptions
@@ -849,6 +862,7 @@ export class HyperLiquidSubscriptionService {
       string,
       { takeProfitCount?: number; stopLossCount?: number }
     >;
+    triggerOrderMap: PositionTriggerOrderMap;
     processedOrders: Order[];
   } {
     const tpslMap = new Map<
@@ -861,12 +875,53 @@ export class HyperLiquidSubscriptionService {
       { takeProfitCount?: number; stopLossCount?: number }
     >();
 
+    // Complete per-symbol trigger order view, including quantity-scoped (partial)
+    // TP/SL orders that the scalar tpslMap prices cannot represent.
+    const triggerOrderMap: PositionTriggerOrderMap = new Map();
+
+    const addTriggerOrder = (
+      symbol: string,
+      triggerOrder: PositionTriggerOrder | undefined,
+    ): void => {
+      if (!triggerOrder) {
+        return;
+      }
+
+      const existing = triggerOrderMap.get(symbol) ?? {
+        takeProfitOrders: [],
+        stopLossOrders: [],
+      };
+
+      if (triggerOrder.orderType.startsWith('take_profit')) {
+        existing.takeProfitOrders.push(triggerOrder);
+      } else {
+        existing.stopLossOrders.push(triggerOrder);
+      }
+
+      triggerOrderMap.set(symbol, existing);
+    };
+
     // If cached processed orders provided, extract TP/SL from them directly
     if (cachedProcessedOrders) {
       cachedProcessedOrders.forEach((order) => {
         // Use triggerPrice for TP/SL (trigger condition price), falling back to price
         // This ensures consistency with raw SDK order processing which uses triggerPx
         const tpslPrice = order.triggerPrice ?? order.price;
+
+        // Collected before the position-bound filter below: partial TP/SL orders
+        // are standalone (not position-bound) and still belong to this view.
+        if (order.isTrigger && order.reduceOnly) {
+          addTriggerOrder(
+            order.symbol,
+            buildPositionTriggerOrderFromOrder({
+              order,
+              positionSize:
+                positions.find((pos) => pos.symbol === order.symbol)?.size ??
+                '0',
+            }),
+          );
+        }
+
         if (order.isTrigger && tpslPrice) {
           // When UsePositionBoundTpsl is enabled, only position-bound TP/SL orders
           // should be shown on positions — skip normalTpsl children of limit orders
@@ -935,7 +990,12 @@ export class HyperLiquidSubscriptionService {
         }
       });
 
-      return { tpslMap, tpslCountMap, processedOrders: cachedProcessedOrders };
+      return {
+        tpslMap,
+        tpslCountMap,
+        triggerOrderMap,
+        processedOrders: cachedProcessedOrders,
+      };
     }
 
     // Process raw SDK orders
@@ -1031,9 +1091,19 @@ export class HyperLiquidSubscriptionService {
         position ?? positionForCoin,
       );
       processedOrders.push(convertedOrder);
+
+      if (convertedOrder.isTrigger && convertedOrder.reduceOnly) {
+        addTriggerOrder(
+          convertedOrder.symbol,
+          buildPositionTriggerOrderFromOrder({
+            order: convertedOrder,
+            positionSize: (position ?? positionForCoin)?.size ?? '0',
+          }),
+        );
+      }
     });
 
-    return { tpslMap, tpslCountMap, processedOrders };
+    return { tpslMap, tpslCountMap, triggerOrderMap, processedOrders };
   }
 
   /**
@@ -1043,6 +1113,7 @@ export class HyperLiquidSubscriptionService {
    * @param positions - Base positions without TP/SL
    * @param tpslMap - Map of coin -> TP/SL prices
    * @param tpslCountMap - Map of coin -> TP/SL counts
+   * @param triggerOrderMap - Map of coin -> attached trigger orders (including partial TP/SL)
    * @returns Positions enhanced with TP/SL data
    */
   #mergeTPSLIntoPositions(
@@ -1052,16 +1123,20 @@ export class HyperLiquidSubscriptionService {
       string,
       { takeProfitCount?: number; stopLossCount?: number }
     >,
+    triggerOrderMap?: PositionTriggerOrderMap,
   ): Position[] {
     return positions.map((position) => {
       const tpsl = tpslMap.get(position.symbol) ?? {};
       const tpslCount = tpslCountMap.get(position.symbol) ?? {};
+      const triggerOrders = triggerOrderMap?.get(position.symbol);
       return {
         ...position,
         takeProfitPrice: tpsl.takeProfitPrice ?? undefined,
         stopLossPrice: tpsl.stopLossPrice ?? undefined,
         takeProfitCount: tpslCount.takeProfitCount ?? 0,
         stopLossCount: tpslCount.stopLossCount ?? 0,
+        takeProfitOrders: triggerOrders?.takeProfitOrders ?? [],
+        stopLossOrders: triggerOrders?.stopLossOrders ?? [],
       };
     });
   }
@@ -2011,16 +2086,14 @@ export class HyperLiquidSubscriptionService {
             // This ensures TP/SL data persists across clearinghouseState updates
             let positionsWithTPSL = positions;
             if (cachedOrders.length > 0) {
-              const { tpslMap, tpslCountMap } = this.#extractTPSLFromOrders(
-                [],
-                positions,
-                cachedOrders,
-              );
+              const { tpslMap, tpslCountMap, triggerOrderMap } =
+                this.#extractTPSLFromOrders([], positions, cachedOrders);
 
               positionsWithTPSL = this.#mergeTPSLIntoPositions(
                 positions,
                 tpslMap,
                 tpslCountMap,
+                triggerOrderMap,
               );
             }
 
@@ -2145,6 +2218,7 @@ export class HyperLiquidSubscriptionService {
             const {
               tpslMap,
               tpslCountMap,
+              triggerOrderMap,
               processedOrders: orders,
             } = this.#extractTPSLFromOrders(data.orders, cachedPositions);
 
@@ -2157,6 +2231,7 @@ export class HyperLiquidSubscriptionService {
                 cachedPositions,
                 tpslMap,
                 tpslCountMap,
+                triggerOrderMap,
               );
               this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
             }

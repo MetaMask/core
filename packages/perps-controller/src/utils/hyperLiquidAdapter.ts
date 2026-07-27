@@ -2,6 +2,7 @@ import { hasProperty, Hex, isHexString } from '@metamask/utils';
 
 import { HIP3_ASSET_ID_CONFIG } from '../constants/hyperLiquidConfig.js';
 import { DECIMAL_PRECISION_CONFIG } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   AssetPosition,
   FrontendOrder,
@@ -15,9 +16,18 @@ import type {
   Order,
   OrderParams as PerpsOrderParams,
   Position,
+  PositionTriggerOrder,
   RawLedgerUpdate,
   UserHistoryItem,
 } from '../types/index.js';
+import type { TriggerOrderType } from '../types/perps-types.js';
+import {
+  buildTriggerOrderType,
+  getTriggerDirection,
+  getTriggerExecution,
+  isLimitExecutionOrderType,
+  isTriggerOrderType,
+} from './orderTypes.js';
 import {
   countSignificantFigures,
   roundToSignificantFigures,
@@ -97,19 +107,38 @@ export function adaptOrderToSDK(
     p: order.price ?? '0',
     s: order.size,
     r: order.reduceOnly ?? false,
-    t:
-      order.orderType === 'limit'
-        ? {
-            limit: { tif: 'Gtc' },
-          }
-        : {
-            limit: { tif: 'FrontendMarket' },
-          },
+    t: adaptOrderTypeToSDK(order),
     c:
       order.clientOrderId && isHexString(order.clientOrderId)
         ? (order.clientOrderId as Hex)
         : undefined,
   };
+}
+
+/**
+ * Map a placement type onto the SDK's order-type field.
+ *
+ * @param order - Order params carrying the placement type and trigger price
+ * @returns The SDK order-type field
+ */
+function adaptOrderTypeToSDK(order: PerpsOrderParams): SDKOrderParams['t'] {
+  if (isTriggerOrderType(order.orderType)) {
+    if (!order.triggerPrice) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
+    }
+
+    return {
+      trigger: {
+        isMarket: !isLimitExecutionOrderType(order.orderType),
+        triggerPx: order.triggerPrice,
+        tpsl: getTriggerDirection(order.orderType) === 'stop' ? 'sl' : 'tp',
+      },
+    };
+  }
+
+  return order.orderType === 'limit'
+    ? { limit: { tif: 'Gtc' } }
+    : { limit: { tif: 'FrontendMarket' } };
 }
 
 export function adaptPositionFromSDK(assetPosition: AssetPosition): Position {
@@ -154,8 +183,18 @@ export function adaptOrderFromSDK(
   const { isTrigger } = rawOrder;
   const { reduceOnly } = rawOrder;
 
+  const triggerOrderType = adaptTriggerOrderTypeFromSDK(detailedOrderType);
+
   let orderType: 'limit' | 'market' = 'market';
-  if (detailedOrderType.toLowerCase().includes('limit') || rawOrder.limitPx) {
+  if (triggerOrderType) {
+    // Trigger orders always carry a limitPx (the slippage cap for
+    // market-on-trigger execution), so the placement type is the only reliable
+    // source for how the order actually executes.
+    orderType = getTriggerExecution(triggerOrderType);
+  } else if (
+    detailedOrderType.toLowerCase().includes('limit') ||
+    rawOrder.limitPx
+  ) {
     orderType = 'limit';
   }
 
@@ -240,7 +279,82 @@ export function adaptOrderFromSDK(
     order.triggerPrice = rawOrder.triggerPx;
   }
 
+  if (triggerOrderType) {
+    order.triggerOrderType = triggerOrderType;
+  }
+
   return order;
+}
+
+/**
+ * Map HyperLiquid's human-readable order type string onto the provider-agnostic
+ * trigger placement type.
+ *
+ * @param detailedOrderType - HyperLiquid `orderType` string (e.g. `'Stop Limit'`)
+ * @returns The normalized trigger placement type, or undefined for non-trigger orders
+ */
+export function adaptTriggerOrderTypeFromSDK(
+  detailedOrderType: string | undefined,
+): TriggerOrderType | undefined {
+  if (!detailedOrderType) {
+    return undefined;
+  }
+
+  const isTakeProfit = detailedOrderType.includes('Take Profit');
+  const isStop = detailedOrderType.includes('Stop');
+
+  if (!isTakeProfit && !isStop) {
+    return undefined;
+  }
+
+  return buildTriggerOrderType({
+    direction: isTakeProfit ? 'take_profit' : 'stop',
+    execution: detailedOrderType.includes('Limit') ? 'limit' : 'market',
+  });
+}
+
+/**
+ * Build the position-state view of a trigger order attached to a position.
+ *
+ * HyperLiquid encodes "the whole position" as size `0` for position-bound TP/SL,
+ * which is resolved here against the position size so consumers always see a
+ * concrete quantity and can tell partial triggers apart.
+ *
+ * @param params - Mapping parameters
+ * @param params.rawOrder - Raw HyperLiquid frontend order
+ * @param params.positionSize - Signed or unsigned position size
+ * @returns The normalized trigger order, or undefined when the order is not a trigger
+ */
+export function adaptPositionTriggerOrderFromSDK(params: {
+  rawOrder: Pick<
+    FrontendOrder,
+    'oid' | 'orderType' | 'triggerPx' | 'limitPx' | 'sz' | 'reduceOnly'
+  >;
+  positionSize: string;
+}): PositionTriggerOrder | undefined {
+  const { rawOrder, positionSize } = params;
+
+  const orderType = adaptTriggerOrderTypeFromSDK(rawOrder.orderType);
+  if (!orderType) {
+    return undefined;
+  }
+
+  // HyperLiquid uses '' for "no trigger price", so `||` (not `??`) is required.
+  const triggerPrice = rawOrder.triggerPx || rawOrder.limitPx || '0';
+  const absolutePositionSize = Math.abs(parseFloat(positionSize || '0'));
+  const rawSize = Math.abs(parseFloat(rawOrder.sz || '0'));
+
+  // Position-bound TP/SL carries size 0, meaning the whole position.
+  const size = rawSize > 0 ? rawSize : absolutePositionSize;
+
+  return {
+    orderId: rawOrder.oid.toString(),
+    orderType,
+    triggerPrice,
+    size: size.toString(),
+    isPartial: rawSize > 0 && absolutePositionSize > 0 && rawSize < absolutePositionSize,
+    reduceOnly: Boolean(rawOrder.reduceOnly),
+  };
 }
 
 export function adaptMarketFromSDK(

@@ -102,6 +102,7 @@ import type {
   OrderResult,
   PerpsMarketData,
   Position,
+  PositionTriggerOrder,
   ReadyToTradeResult,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -123,6 +124,7 @@ import type {
   PerpsReadOptions,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
+import type { OrderType } from '../types/perps-types.js';
 import type {
   ExtendedAssetMeta,
   ExtendedPerpDex,
@@ -143,6 +145,7 @@ import {
   adaptMarketFromSDK,
   adaptOrderFromSDK,
   adaptPositionFromSDK,
+  adaptPositionTriggerOrderFromSDK,
   buildAssetMapping,
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
@@ -170,6 +173,11 @@ import {
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
 } from '../utils/orderCalculations.js';
+import {
+  isLimitExecutionOrderType,
+  isTriggerOrderType,
+  normalizeExecutionOrderType,
+} from '../utils/orderTypes.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -265,7 +273,7 @@ type SubmitOrderWithRollbackParams = {
 type HandleOrderErrorParams = {
   error: unknown;
   symbol: string;
-  orderType: 'market' | 'limit';
+  orderType: OrderType;
   isBuy: boolean;
 };
 
@@ -3354,6 +3362,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         size: params.size,
         price: params.price,
         orderType: params.orderType,
+        triggerPrice: params.triggerPrice,
+        takeProfitPrice: params.takeProfitPrice,
+        stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
@@ -3437,6 +3450,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           finalPositionSize,
           currentPrice: effectivePrice,
           limitPrice: params.price,
+          triggerPrice: params.triggerPrice,
           maxSlippageBps: normalizedMaxSlippageBps,
           szDecimals: assetInfo.szDecimals,
         });
@@ -3488,8 +3502,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         reduceOnly: params.reduceOnly ?? false,
         orderType: params.orderType,
         clientOrderId: params.clientOrderId,
+        triggerPrice: params.triggerPrice,
         takeProfitPrice: params.takeProfitPrice,
         stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
         szDecimals: assetInfo.szDecimals,
         grouping: params.grouping,
       });
@@ -3593,12 +3610,27 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
+      // Modifying a resting order into a trigger placement is not supported:
+      // `modify` rebuilds the order as a plain limit/market order, which would
+      // silently drop the trigger. Cancel and re-place instead.
+      if (isTriggerOrderType(params.newOrder.orderType)) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+        };
+      }
+
       // Validate new order parameters
       const validation = validateOrderParams({
         coin: params.newOrder.symbol,
         size: params.newOrder.size,
         price: params.newOrder.price,
         orderType: params.newOrder.orderType,
+        triggerPrice: params.newOrder.triggerPrice,
+        takeProfitPrice: params.newOrder.takeProfitPrice,
+        stopLossPrice: params.newOrder.stopLossPrice,
+        takeProfitSize: params.newOrder.takeProfitSize,
+        stopLossSize: params.newOrder.stopLossSize,
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
@@ -4090,10 +4122,17 @@ export class HyperLiquidProvider implements PerpsProvider {
    * 1. 'normalTpsl' - Tied to a parent order (set when placing the order)
    * 2. 'positionTpsl' - Tied to a position (can be set/modified after fill)
    *
+   * Partial TP/SL: when `takeProfitSize` or `stopLossSize` is supplied, the
+   * orders cannot use 'positionTpsl' (which always covers the whole position and
+   * requires size 0). They are submitted as standalone reduce-only trigger orders
+   * with 'na' grouping and explicit sizes instead.
+   *
    * @param params - The operation parameters.
    * @param params.symbol - Asset symbol of the position
    * @param params.takeProfitPrice - TP price (undefined to remove)
    * @param params.stopLossPrice - SL price (undefined to remove)
+   * @param params.takeProfitSize - Partial TP size (undefined for the whole position)
+   * @param params.stopLossSize - Partial SL size (undefined for the whole position)
    * @returns A promise that resolves to the result.
    */
   async updatePositionTPSL(
@@ -4106,8 +4145,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         symbol,
         takeProfitPrice,
         stopLossPrice,
+        takeProfitSize,
+        stopLossSize,
         position: livePosition,
       } = params;
+
+      const isPartialTpsl =
+        takeProfitSize !== undefined || stopLossSize !== undefined;
 
       // Ensure provider is ready for trading (includes signing operations)
       await this.#ensureReadyForTrading();
@@ -4148,6 +4192,23 @@ export class HyperLiquidProvider implements PerpsProvider {
       const positionSize = Math.abs(parseFloat(position.size));
       const isLong = parseFloat(position.size) > 0;
 
+      // Partial TP/SL sizes must be positive, paired with their price, and no
+      // larger than the position they close.
+      const tpslSizeValidation = validateOrderParams({
+        coin: symbol,
+        size: positionSize.toString(),
+        takeProfitPrice,
+        stopLossPrice,
+        takeProfitSize,
+        stopLossSize,
+      });
+      if (!tpslSizeValidation.isValid) {
+        return {
+          success: false,
+          error: tpslSizeValidation.error,
+        };
+      }
+
       // Get clients for API calls (ensureReady already called at method start)
       const infoClient = this.#clientService.getInfoClient();
       const exchangeClient = this.#clientService.getExchangeClient();
@@ -4187,8 +4248,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           (order) =>
             order.coin === symbol &&
             order.reduceOnly &&
-            order.isPositionTpsl ===
-              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
+            // Partial TP/SL orders are standalone ('na' grouping), so they are
+            // not position-bound; include them too when replacing partial TP/SL
+            // so the operation stays idempotent.
+            (order.isPositionTpsl ===
+              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) ||
+              isPartialTpsl) &&
             order.isTrigger &&
             (order.orderType.includes('Take Profit') ||
               order.orderType.includes('Stop')),
@@ -4217,8 +4282,11 @@ export class HyperLiquidProvider implements PerpsProvider {
             order.symbol === symbol &&
             order.reduceOnly === true &&
             order.isTrigger === true &&
-            order.isPositionTpsl ===
-              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
+            // See the REST branch: standalone partial TP/SL orders are not
+            // position-bound, so include them when replacing partial TP/SL.
+            (order.isPositionTpsl ===
+              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) ||
+              isPartialTpsl) &&
             order.detailedOrderType &&
             (order.detailedOrderType.includes('Take Profit') ||
               order.detailedOrderType.includes('Stop')),
@@ -4275,12 +4343,23 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Build orders array for TP/SL
       const orders: SDKOrderParams[] = [];
 
-      const size = TP_SL_CONFIG.UsePositionBoundTpsl
-        ? '0'
-        : formatHyperLiquidSize({
-            size: positionSize,
-            szDecimals: assetInfo.szDecimals,
-          });
+      const fullSize =
+        TP_SL_CONFIG.UsePositionBoundTpsl && !isPartialTpsl
+          ? '0'
+          : formatHyperLiquidSize({
+              size: positionSize,
+              szDecimals: assetInfo.szDecimals,
+            });
+
+      // Partial TP/SL orders carry their own size; the rest cover the position.
+      const resolveTpslSize = (tpslSize?: string): string =>
+        tpslSize === undefined
+          ? fullSize
+          : formatHyperLiquidSize({
+              size: parseFloat(tpslSize),
+              szDecimals: assetInfo.szDecimals,
+            });
+
       // Take Profit order
       if (takeProfitPrice) {
         const tpOrder: SDKOrderParams = {
@@ -4290,7 +4369,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             price: parseFloat(takeProfitPrice),
             szDecimals: assetInfo.szDecimals,
           }),
-          s: size,
+          s: resolveTpslSize(takeProfitSize),
           r: true, // Always reduce-only for position TP
           t: {
             trigger: {
@@ -4315,7 +4394,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             price: parseFloat(stopLossPrice),
             szDecimals: assetInfo.szDecimals,
           }),
-          s: size,
+          s: resolveTpslSize(stopLossSize),
           r: true, // Always reduce-only for position SL
           t: {
             trigger: {
@@ -4358,10 +4437,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
-      // Submit via SDK exchange client with positionTpsl grouping
+      // Submit via SDK exchange client. Position-bound TP/SL uses 'positionTpsl';
+      // partial TP/SL must be standalone reduce-only triggers ('na'), since a
+      // position-bound TP/SL always closes the whole position.
       const result = await exchangeClient.order({
         orders,
-        grouping: 'positionTpsl',
+        grouping: isPartialTpsl ? 'na' : 'positionTpsl',
         builder: {
           b: this.#getBuilderAddress(this.#clientService.isTestnetMode()),
           f: builderFee,
@@ -4826,6 +4907,42 @@ export class HyperLiquidProvider implements PerpsProvider {
             // Look for TP and SL trigger orders
             let takeProfitPrice: string | undefined;
             let stopLossPrice: string | undefined;
+            const takeProfitOrders: PositionTriggerOrder[] = [];
+            const stopLossOrders: PositionTriggerOrder[] = [];
+
+            // Record every trigger order attached to the position, including
+            // quantity-scoped (partial) ones the scalar fields cannot express.
+            const collectTriggerOrder = (
+              rawOrder: Parameters<
+                typeof adaptPositionTriggerOrderFromSDK
+              >[0]['rawOrder'],
+            ): void => {
+              const triggerOrder = adaptPositionTriggerOrderFromSDK({
+                rawOrder,
+                positionSize: position.size,
+              });
+              if (!triggerOrder) {
+                return;
+              }
+
+              if (triggerOrder.orderType.startsWith('take_profit')) {
+                takeProfitOrders.push(triggerOrder);
+              } else {
+                stopLossOrders.push(triggerOrder);
+              }
+            };
+
+            // Every reduce-only trigger order on this market belongs in the
+            // position's trigger view, including partial TP/SL, which is placed
+            // as a standalone ('na' grouping) order and so is not position-bound.
+            allOrders
+              .filter(
+                (order) =>
+                  order.coin === position.symbol &&
+                  order.isTrigger &&
+                  order.reduceOnly,
+              )
+              .forEach(collectTriggerOrder);
 
             // Check direct trigger orders
             positionOrders.forEach((order) => {
@@ -4873,6 +4990,8 @@ export class HyperLiquidProvider implements PerpsProvider {
 
               parentOrder.children.forEach((childOrder) => {
                 if (childOrder.isTrigger && childOrder.reduceOnly) {
+                  collectTriggerOrder(childOrder);
+
                   if (
                     childOrder.orderType === 'Take Profit Market' ||
                     childOrder.orderType === 'Take Profit Limit'
@@ -4908,6 +5027,10 @@ export class HyperLiquidProvider implements PerpsProvider {
               ...position,
               takeProfitPrice,
               stopLossPrice,
+              takeProfitCount: takeProfitOrders.length,
+              stopLossCount: stopLossOrders.length,
+              takeProfitOrders,
+              stopLossOrders,
             };
           }),
       );
@@ -6585,6 +6708,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         size: params.size,
         price: params.price,
         orderType: params.orderType,
+        triggerPrice: params.triggerPrice,
+        takeProfitPrice: params.takeProfitPrice,
+        stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
       });
       if (!basicValidation.isValid) {
         return basicValidation;
@@ -6621,11 +6749,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           const size = parseFloat(params.size || '0');
           let priceForValidation = params.currentPrice;
 
-          // For limit orders without currentPrice, use limit price as fallback
+          // For limit-executing orders without currentPrice, use limit price as
+          // fallback (plain limit, stop_limit, take_profit_limit)
           if (
             !priceForValidation &&
             params.price &&
-            params.orderType === 'limit'
+            isLimitExecutionOrderType(params.orderType)
           ) {
             priceForValidation = parseFloat(params.price);
             this.#deps.debugLogger.log(
@@ -6633,6 +6762,24 @@ export class HyperLiquidProvider implements PerpsProvider {
               {
                 size,
                 limitPrice: priceForValidation,
+              },
+            );
+          }
+
+          // Market-executing trigger orders (stop_market, take_profit_market)
+          // have no limit price; the trigger price is the best notional estimate.
+          if (
+            !priceForValidation &&
+            params.triggerPrice &&
+            isTriggerOrderType(params.orderType)
+          ) {
+            priceForValidation = parseFloat(params.triggerPrice);
+            this.#deps.debugLogger.log(
+              'Using trigger price for order validation (trigger order):',
+              {
+                size,
+                triggerPrice: priceForValidation,
+                orderType: params.orderType,
               },
             );
           }
@@ -7600,9 +7747,13 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<FeeCalculationResult> {
     const { orderType, isMaker = false, amount, symbol } = params;
 
+    // Trigger placements are charged as their execution kind: a stop_market fills
+    // as a market order (taker), a stop_limit as a limit order.
+    const isMarketExecution =
+      normalizeExecutionOrderType(orderType) === 'market';
+
     // Start with base rates from config
-    let feeRate =
-      orderType === 'market' || !isMaker ? FEE_RATES.taker : FEE_RATES.maker;
+    let feeRate = isMarketExecution || !isMaker ? FEE_RATES.taker : FEE_RATES.maker;
 
     // Parse symbol to detect HIP-3 DEX (e.g., "xyz:TSLA" → dex="xyz", parsedSymbol="TSLA")
     const { dex, symbol: parsedSymbol } = parseAssetName(symbol);
@@ -7655,7 +7806,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (cached) {
           // Market orders always use taker rate, limit orders check isMaker
           let userFeeRate =
-            orderType === 'market' || !isMaker
+            isMarketExecution || !isMaker
               ? cached.perpsTakerRate
               : cached.perpsMakerRate;
 
@@ -7785,7 +7936,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#userFeeCache.set(userAddress, rates);
         // Market orders always use taker rate, limit orders check isMaker
         let userFeeRate =
-          orderType === 'market' || !isMaker
+          isMarketExecution || !isMaker
             ? rates.perpsTakerRate
             : rates.perpsMakerRate;
 
