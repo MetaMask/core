@@ -323,8 +323,11 @@ describe('BackendWebsocketDataSource', () => {
 
   describe('gate migration networks', () => {
     it('filters out migration networks from active chains when the FF is unset', async () => {
-      const { controller, triggerConnectionStateChange, fetchV2SupportedNetworksMock } =
-        setupController();
+      const {
+        controller,
+        triggerConnectionStateChange,
+        fetchV2SupportedNetworksMock,
+      } = setupController();
 
       triggerConnectionStateChange(WebSocketState.CONNECTED);
 
@@ -339,17 +342,20 @@ describe('BackendWebsocketDataSource', () => {
     });
 
     it('gates migration networks independently per namespace', async () => {
-      const { controller, triggerConnectionStateChange, fetchV2SupportedNetworksMock } =
-        setupController({
-          remoteFeatureFlags: {
-            [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
-              stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
-            },
-            [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
-              stage: SnapsAssetsMigrationStage.Off,
-            },
+      const {
+        controller,
+        triggerConnectionStateChange,
+        fetchV2SupportedNetworksMock,
+      } = setupController({
+        remoteFeatureFlags: {
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+            stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
           },
-        });
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+            stage: SnapsAssetsMigrationStage.Off,
+          },
+        },
+      });
 
       triggerConnectionStateChange(WebSocketState.CONNECTED);
 
