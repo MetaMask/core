@@ -8,7 +8,7 @@ import type {
   MultichainNetworkControllerState,
   MultichainNetworkMetadata,
   SupportedCaipChainId,
-} from './types';
+} from './types.js';
 
 export const BTC_NATIVE_ASSET = `${BtcScope.Mainnet}/slip44:0`;
 export const BTC_TESTNET_NATIVE_ASSET = `${BtcScope.Testnet}/slip44:0`;

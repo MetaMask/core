@@ -8,26 +8,26 @@ import type { CaipChainId } from '@metamask/utils';
 import {
   toAllowedCaipAccountIds,
   toActiveNetworksByAddress,
-} from '../api/accounts-api';
-import type { ActiveNetworksByAddress } from '../api/accounts-api';
+} from '../api/accounts-api.js';
+import type { ActiveNetworksByAddress } from '../api/accounts-api.js';
 import {
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
-} from '../constants';
-import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
-import { MULTICHAIN_NETWORK_CONTROLLER_NAME } from '../types';
+} from '../constants.js';
+import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService.js';
+import { MULTICHAIN_NETWORK_CONTROLLER_NAME } from '../types.js';
 import type {
   MultichainNetworkControllerState,
   MultichainNetworkControllerMessenger,
   SupportedCaipChainId,
-} from '../types';
+} from '../types.js';
 import {
   checkIfSupportedCaipChainId,
   getChainIdForNonEvm,
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
-} from '../utils';
+} from '../utils.js';
 
 const MESSENGER_EXPOSED_METHODS = [
   'setActiveNetwork',

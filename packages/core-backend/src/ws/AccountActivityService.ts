@@ -19,19 +19,19 @@ import type {
 } from '@metamask/remote-feature-flag-controller';
 import { isObject } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from '../logger';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   Transaction,
   AccountActivityMessage,
   BalanceUpdate,
-} from '../types';
+} from '../types.js';
+import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types.js';
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
   ServerNotificationMessage,
-} from './BackendWebSocketService';
-import { WebSocketState } from './BackendWebSocketService';
-import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
+} from './BackendWebSocketService.js';
+import { WebSocketState } from './BackendWebSocketService.js';
 
 // =============================================================================
 // Types and Constants

@@ -6,15 +6,15 @@ import {
   CLAIMS_API_URL_MAP,
   ClaimsServiceErrorMessages,
   SERVICE_NAME,
-} from './constants';
-import type { Env } from './constants';
-import { createModuleLogger, projectLogger } from './logger';
+} from './constants.js';
+import type { Env } from './constants.js';
+import { createModuleLogger, projectLogger } from './logger.js';
 import type {
   Claim,
   ClaimsConfigurationsResponse,
   GenerateSignatureMessageResponse,
-} from './types';
-import { createSentryError, getErrorFromResponse } from './utils';
+} from './types.js';
+import { createSentryError, getErrorFromResponse } from './utils.js';
 
 export type ClaimsServiceFetchClaimsConfigurationsAction = {
   type: `${typeof SERVICE_NAME}:fetchClaimsConfigurations`;
