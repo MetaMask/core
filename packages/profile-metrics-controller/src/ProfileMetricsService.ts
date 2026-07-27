@@ -189,6 +189,9 @@ export class ProfileMetricsService {
    * `node-fetch`).
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
+   * Retries default to `0`: proof-of-ownership nonces are single-use, and
+   * `ProfileMetricsController`'s poll already re-fetches nonces and retries
+   * failed batches, so in-request retries would resubmit spent nonces.
    * @param args.env - The environment to determine the correct API endpoints.
    */
   constructor({
@@ -205,7 +208,7 @@ export class ProfileMetricsService {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
-    this.#policy = createServicePolicy(policyOptions);
+    this.#policy = createServicePolicy({ maxRetries: 0, ...policyOptions });
     this.#baseURL = getAuthUrl(env);
 
     this.#messenger.registerMethodActionHandlers(
