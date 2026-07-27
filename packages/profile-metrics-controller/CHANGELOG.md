@@ -13,11 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Disable in-request retries on `ProfileMetricsService:submitMetrics` by
-  default (`maxRetries: 0`) ([#9667](https://github.com/MetaMask/core/pull/9667))
-  - Proof nonces are single-use, so retrying a spent `submitMetrics` payload
-    caused `PUT /profile/accounts` 400s; `fetchNonces` still retries because a
-    failed fetch soft-degrades to a proof-less submit that clears the queue.
+- Disable in-request retries on `ProfileMetricsService:submitMetrics` by default (`maxRetries: 0`) ([#9667](https://github.com/MetaMask/core/pull/9667))
+  - Proof nonces are single-use, so retrying a spent `submitMetrics` payload caused `PUT /profile/accounts` 400s; `fetchNonces` still retries because a failed fetch soft-degrades to a proof-less submit that clears the queue.
 
 ## [4.0.2]
 
