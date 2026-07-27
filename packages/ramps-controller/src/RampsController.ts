@@ -3097,7 +3097,8 @@ export class RampsController extends BaseController<
           this.#orderSyncQueued = false;
           await syncOrdersWithUserStorageInternal(
             {
-              onOrderSyncErroneousSituation: this.#onOrderSyncErroneousSituation,
+              onOrderSyncErroneousSituation:
+                this.#onOrderSyncErroneousSituation,
             },
             {
               getRampsControllerInstance: () => this,
