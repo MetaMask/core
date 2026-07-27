@@ -6,7 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { ClientControllerMethodActions } from './ClientController-method-action-types';
+import type { ClientControllerMethodActions } from './ClientController-method-action-types.js';
 
 // === GENERAL ===
 

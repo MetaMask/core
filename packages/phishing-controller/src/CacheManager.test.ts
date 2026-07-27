@@ -1,5 +1,5 @@
-import { CacheManager } from './CacheManager';
-import * as utils from './utils';
+import { CacheManager } from './CacheManager.js';
+import * as utils from './utils.js';
 
 describe('CacheManager', () => {
   let updateStateSpy: jest.Mock;

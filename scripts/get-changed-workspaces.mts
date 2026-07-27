@@ -1,12 +1,7 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
-import {
-  getAllWorkspaces,
-  checkRootChange,
-  computeChangedWorkspaces,
-  getChangedFiles,
-} from './lib/workspaces.mjs';
+import { computeChangedWorkspaces } from './lib/workspaces.mjs';
 
 /**
  * List workspaces that need to be checked given a merge base.
@@ -39,23 +34,17 @@ const argv = await yargs(hideBin(process.argv))
   .parseAsync();
 
 const { mergeBase, headRef = 'HEAD', includeDependencies } = argv;
-const workspaces = await getAllWorkspaces();
 
-const changedFiles = await getChangedFiles(mergeBase, headRef);
-const hasRootChange = checkRootChange(workspaces, changedFiles);
-
-const changed = await computeChangedWorkspaces(
-  workspaces,
-  changedFiles,
+const { workspaces, hasRootChange } = await computeChangedWorkspaces({
   includeDependencies,
-);
-
-const changedWorkspaces = workspaces.filter(({ name }) => changed.has(name));
+  mergeBase,
+  headRef,
+});
 
 console.log(
   JSON.stringify({
-    names: changedWorkspaces.map(({ name }) => name),
-    locations: changedWorkspaces.map(({ location }) => location),
+    names: workspaces.map(({ name }) => name),
+    locations: workspaces.map(({ location }) => location),
     hasRootChange,
   }),
 );
