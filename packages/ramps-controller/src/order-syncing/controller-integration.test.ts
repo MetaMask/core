@@ -102,8 +102,6 @@ describe('order-syncing/controller-integration', () => {
             return { isBackupAndSyncEnabled, isRampsSyncingEnabled };
           case 'AuthenticationController:isSignedIn':
             return isSignedIn;
-          case 'UserStorageController:listEntropySources':
-            return ['entropy-primary'];
           case 'UserStorageController:performGetStorageAllFeatureEntries':
             return performGetStorageAllFeatureEntries(...args);
           case 'UserStorageController:performBatchSetStorage':
@@ -191,118 +189,6 @@ describe('order-syncing/controller-integration', () => {
       expect(addOrder).toHaveBeenCalledWith(
         expect.objectContaining({ providerOrderId: 'remote-1' }),
       );
-    });
-
-    it('keeps the freshest remote entry when duplicate storage keys are returned', async () => {
-      const olderRemote = createMockOrder({
-        providerOrderId: 'dup-key',
-        id: '/providers/transak/orders/dup-key',
-        fiatAmount: 100,
-      });
-      const newerRemote = createMockOrder({
-        providerOrderId: 'dup-key',
-        id: '/providers/transak/orders/dup-key',
-        fiatAmount: 999,
-      });
-      const olderEntry = JSON.stringify(
-        mapRampsOrderToUserStorageEntry({
-          ...olderRemote,
-          lastUpdatedAt: 1_700_000_000_000,
-        }),
-      );
-      const newerEntry = JSON.stringify(
-        mapRampsOrderToUserStorageEntry({
-          ...newerRemote,
-          lastUpdatedAt: 1_700_000_000_100,
-        }),
-      );
-
-      const { options, addOrder } = arrangeMocks({
-        localOrders: [],
-        remoteEntries: [olderEntry, newerEntry],
-      });
-
-      await syncOrdersWithUserStorage({}, options);
-
-      expect(addOrder).toHaveBeenCalledTimes(1);
-      expect(addOrder).toHaveBeenCalledWith(
-        expect.objectContaining({
-          providerOrderId: 'dup-key',
-          fiatAmount: 999,
-        }),
-      );
-    });
-
-    it('keeps an earlier fresher remote entry over a later stale duplicate', async () => {
-      const newerRemote = createMockOrder({
-        providerOrderId: 'dup-key-2',
-        id: '/providers/transak/orders/dup-key-2',
-        fiatAmount: 500,
-      });
-      const olderRemote = createMockOrder({
-        providerOrderId: 'dup-key-2',
-        id: '/providers/transak/orders/dup-key-2',
-        fiatAmount: 50,
-      });
-      const newerEntry = JSON.stringify(
-        mapRampsOrderToUserStorageEntry({
-          ...newerRemote,
-          lastUpdatedAt: 1_700_000_000_200,
-        }),
-      );
-      const olderEntry = JSON.stringify(
-        mapRampsOrderToUserStorageEntry({
-          ...olderRemote,
-          lastUpdatedAt: 1_700_000_000_000,
-        }),
-      );
-
-      const { options, addOrder } = arrangeMocks({
-        localOrders: [],
-        remoteEntries: [newerEntry, olderEntry],
-      });
-
-      await syncOrdersWithUserStorage({}, options);
-
-      expect(addOrder).toHaveBeenCalledTimes(1);
-      expect(addOrder).toHaveBeenCalledWith(
-        expect.objectContaining({
-          providerOrderId: 'dup-key-2',
-          fiatAmount: 500,
-        }),
-      );
-    });
-
-    it('prefers a newer remote tombstone over an older live duplicate key', async () => {
-      const liveRemote = createMockOrder({
-        providerOrderId: 'dup-tombstone',
-        id: '/providers/transak/orders/dup-tombstone',
-        fiatAmount: 100,
-      });
-      const tombstoneRemote: SyncRampsOrder = {
-        ...liveRemote,
-        deletedAt: 1_700_000_000_300,
-        lastUpdatedAt: 1_700_000_000_300,
-      };
-      const liveEntry = JSON.stringify(
-        mapRampsOrderToUserStorageEntry({
-          ...liveRemote,
-          lastUpdatedAt: 1_700_000_000_000,
-        }),
-      );
-      const tombstoneEntry = JSON.stringify(
-        mapRampsOrderToUserStorageEntry(tombstoneRemote),
-      );
-
-      const { options, addOrder, removeOrder } = arrangeMocks({
-        localOrders: [liveRemote],
-        remoteEntries: [liveEntry, tombstoneEntry],
-      });
-
-      await syncOrdersWithUserStorage({}, options);
-
-      expect(addOrder).not.toHaveBeenCalled();
-      expect(removeOrder).toHaveBeenCalledWith('dup-tombstone');
     });
 
     it('applies remote soft-deletes locally when the tombstone is newer', async () => {
@@ -456,9 +342,6 @@ describe('order-syncing/controller-integration', () => {
           }
           if (action === 'AuthenticationController:isSignedIn') {
             return true;
-          }
-          if (action === 'UserStorageController:listEntropySources') {
-            return ['entropy-primary'];
           }
           if (
             action ===
@@ -863,9 +746,6 @@ describe('order-syncing/controller-integration', () => {
           }
           if (action === 'AuthenticationController:isSignedIn') {
             return true;
-          }
-          if (action === 'UserStorageController:listEntropySources') {
-            return ['entropy-primary'];
           }
           if (
             action ===

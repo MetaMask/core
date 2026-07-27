@@ -805,7 +805,6 @@ type AllowedActions =
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
-  | UserStorageController.UserStorageControllerListEntropySourcesAction
   | AuthenticationController.AuthenticationControllerIsSignedInAction;
 
 /**
