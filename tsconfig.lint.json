@@ -19,6 +19,39 @@
     },
     {
       "path": "./packages/platform-api-docs/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/analytics-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/announcement-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/app-metadata-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/build-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/client-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/foundryup/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/local-node-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/preferences-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/rate-limit-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/stellar-quickstart-up/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/storage-service/tsconfig.lint.json"
     }
   ]
 }
