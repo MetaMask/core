@@ -12,6 +12,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `NeoBankService` for MetaMask Ramp API neo-bank-proxy endpoints under the `/neobank` prefix on the Ramp API host, including messenger actions for `getAutoramp`, `registerPixAddress`, `getAutorampQuote`, `createAutoramp`, `getAutorampQuoteForAutoramp`, `attachAutorampQuote`, `getCustomerByExternalId`, `getMoonpayCustomerId`, `getWalletRegistrationStatus`, and `registerSelfHostedWallet`. Mutating POSTs do not retry (to avoid duplicate Pix/autoramp creates without a stable `Idempotency-Key`); GETs still retry 429/5xx/network errors. Optional `Idempotency-Key` is forwarded when callers supply one. Also exports `mapNeoBankAutorampToRemoteSnapshot`, `AutorampRemoteSnapshot`, and wallet-registration HTTP types (`WalletRegistrationError`, `RegistrationStatus`, `RegistrationOutcome`). ([#10031](https://github.com/MetaMask/core/pull/10031))
 
 - Add `RampsController` autoramp last-seen cursor and Money Account wallet registration: persisted `autoramps` state, `createAutoramp` / `refreshAutoramp(s)` / `applyAutorampStatusFromPush`, `registerMoneyAccountWallet`, and `RampsController:autorampStatusChanged`. MoonPay remains the source of truth; hosts should call `refreshAutoramps` on resume to catch webhooks missed while the app was closed. Hosts must delegate `RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS` (`AuthenticationController:getSessionProfile`, `KeyringController:signPersonalMessage`, `RemoteFeatureFlagController:getState`) plus the NeoBank actions listed in `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS`. ([#10032](https://github.com/MetaMask/core/pull/10032))
+- Add V2 ramps order syncing with User Storage ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - New `order-syncing/` module stores `RampsOrder` objects (without `paymentDetails`) as per-order User Storage entries under the `rampsOrders` feature
+  - `RampsController.syncOrdersWithUserStorage()` performs bidirectional sync with timestamp-based conflict resolution and soft deletes
+  - `addOrder` / `removeOrder` incrementally push local changes to User Storage when Backup & Sync and `isRampsSyncingEnabled` are on
+  - Messenger action `RampsController:syncOrdersWithUserStorage` for hosts to trigger a full sync on unlock / feature enable
+  - Optional constructor `onOrderSyncErroneousSituation` and `trace` callbacks for host observability
+
+### Changed
+
+- **BREAKING:** `RampsControllerMessenger` now requires `UserStorageController` storage actions and `AuthenticationController:isSignedIn` to be delegated so order syncing can run ([#9474](https://github.com/MetaMask/core/pull/9474))
+
+### Fixed
+
+- Preserve remote `createdAt` as `lastUpdatedAt` when importing legacy records without an update timestamp ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Queue local deletes that occur during a full sync and write their tombstones before the sync completes ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Re-read local orders before upload so orders added while the remote fetch is in flight are included ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Route incremental writes through `performBatchSetStorage` so provider order IDs containing hyphens are stored without validation failures ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Coalesce overlapping full order sync calls so only one merge/upload worker runs at a time ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Default `isRampsSyncingEnabled` to `true` when hydrating older `UserStorageController` state ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Apply last-write-wins rules to remote soft-deletes so newer local orders can restore over older tombstones ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Surface remote fetch/parse failures via `onOrderSyncErroneousSituation` without attaching raw order JSON ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Honor newer remote tombstones during full sync even when local order content differs ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Trim `providerOrderId` when deriving User Storage keys so syncability checks and storage keys stay aligned ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Clear order polling metadata for stored `providerOrderId` and internal order codes when `removeOrder` is called with either identifier ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Persist `lastUpdatedAt` on local orders and bump it on every non-sync `addOrder` so last-write-wins prefers fresher local edits over stale remote copies ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Set `isOrderSyncingInProgress` before the remote fetch so overlapping full syncs cannot race merge/upload ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Trim `providerOrderId` in `getInternalOrderCode` to match User Storage key derivation ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Prefer the freshest remote copy when the same order key appears under multiple entropy profiles during order sync ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Prefer newer remote tombstones over older live duplicates across entropy profiles ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Re-check the sync queue after awaiting an in-flight `syncOrdersWithUserStorage` worker so coalesced requests cannot be skipped ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Report via `onOrderSyncErroneousSituation` when `addOrder` cannot derive an internal order code ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ## [20.2.0]
 

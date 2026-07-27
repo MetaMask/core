@@ -327,6 +327,46 @@ describe('RampsController order syncing', () => {
     expect(callCount).toBe(2);
   });
 
+  it('restarts sync when a request arrives after the worker exits its loop', async () => {
+    const { controller, performGetStorageAllFeatureEntries } =
+      setupControllerWithOrderSyncingMocks();
+
+    let releaseFirstFetch: (() => void) | undefined;
+    const firstFetchBlocked = new Promise<void>((resolve) => {
+      releaseFirstFetch = resolve;
+    });
+    let firstFetchResolved: (() => void) | undefined;
+    const firstFetchResolvedPromise = new Promise<void>((resolve) => {
+      firstFetchResolved = resolve;
+    });
+
+    let fetchCount = 0;
+    performGetStorageAllFeatureEntries.mockImplementation(async () => {
+      fetchCount += 1;
+      if (fetchCount === 1) {
+        await firstFetchBlocked;
+        firstFetchResolved?.();
+      }
+      return [];
+    });
+
+    const firstSync = controller.syncOrdersWithUserStorage();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+
+    // Unblock the in-flight fetch. The worker then exits its while-loop and
+    // yields; attach as a waiter in that window so the post-await re-check
+    // starts a follow-up sync.
+    releaseFirstFetch?.();
+    await firstFetchResolvedPromise;
+    const lateSync = controller.syncOrdersWithUserStorage();
+
+    await Promise.all([firstSync, lateSync]);
+
+    expect(fetchCount).toBe(2);
+  });
+
   it('preserves createdAt as lastUpdatedAt when syncing remotes without lu', () => {
     const { controller } = setupControllerWithOrderSyncingMocks();
 
@@ -372,6 +412,62 @@ describe('RampsController order syncing', () => {
       providerOrderId: '',
     } as never);
 
+    expect(controller.state.orders).toHaveLength(0);
+  });
+
+  it('reports when addOrder cannot derive an internal order code', () => {
+    const onOrderSyncErroneousSituation = jest.fn();
+    const rootMessenger: RootMessenger = new Messenger({
+      namespace: MOCK_ANY_NAMESPACE,
+    });
+    rootMessenger.registerActionHandler(
+      'UserStorageController:getState',
+      () => ({
+        isBackupAndSyncEnabled: true,
+        isRampsSyncingEnabled: true,
+      }),
+    );
+    rootMessenger.registerActionHandler(
+      'UserStorageController:performGetStorageAllFeatureEntries',
+      async () => [],
+    );
+    rootMessenger.registerActionHandler(
+      'UserStorageController:performBatchSetStorage',
+      async () => undefined,
+    );
+    rootMessenger.registerActionHandler(
+      'AuthenticationController:isSignedIn',
+      () => true,
+    );
+    const messenger: RampsControllerMessenger = new Messenger({
+      namespace: 'RampsController',
+      parent: rootMessenger,
+    });
+    rootMessenger.delegate({
+      messenger,
+      actions: [
+        ...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+        'UserStorageController:getState',
+        'UserStorageController:performGetStorageAllFeatureEntries',
+        'UserStorageController:performBatchSetStorage',
+        'AuthenticationController:isSignedIn',
+      ],
+    });
+
+    const controller = new RampsController({
+      messenger,
+      onOrderSyncErroneousSituation,
+    });
+
+    controller.addOrder({
+      id: '/providers/transak/orders/',
+      providerOrderId: '',
+    } as never);
+
+    expect(onOrderSyncErroneousSituation).toHaveBeenCalledWith(
+      'Unable to derive internal order code for addOrder',
+      {},
+    );
     expect(controller.state.orders).toHaveLength(0);
   });
 });
