@@ -144,19 +144,31 @@ function stableStringify(value: unknown): string {
 }
 
 /**
- * Deep-compares two ramps orders by stable JSON serialization of their order
- * bodies (sync metadata excluded).
+ * Deep-compares two ramps orders by stable JSON serialization of their
+ * syncable bodies. Sync metadata (`lastUpdatedAt` / `deletedAt`) and
+ * local-only `paymentDetails` are excluded: `paymentDetails` is never persisted
+ * remotely, so a local order that carries it must still compare equal to its
+ * remote copy. Otherwise such orders would look changed on every sync and, with
+ * local-wins-on-tie conflict resolution, be re-uploaded indefinitely.
  *
  * @param a - First order.
  * @param b - Second order.
- * @returns True when the order payloads are equal.
+ * @returns True when the syncable order payloads are equal.
  */
 export function areOrdersEqual(
   a: SyncRampsOrder | RampsOrder,
   b: SyncRampsOrder | RampsOrder,
 ): boolean {
   return (
-    stableStringify(stripSyncMetadata(a as SyncRampsOrder)) ===
-    stableStringify(stripSyncMetadata(b as SyncRampsOrder))
+    stableStringify(
+      stripPaymentDetailsForRemoteStorage(
+        stripSyncMetadata(a as SyncRampsOrder),
+      ),
+    ) ===
+    stableStringify(
+      stripPaymentDetailsForRemoteStorage(
+        stripSyncMetadata(b as SyncRampsOrder),
+      ),
+    )
   );
 }
