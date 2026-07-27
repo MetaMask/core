@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Social AI packages ([#9623](https://github.com/MetaMask/core/pull/9623))
-
 ## [2.6.0]
 
 ### Added
