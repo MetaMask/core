@@ -15,13 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Disable in-request retries on `ProfileMetricsService:submitMetrics` by
   default (`maxRetries: 0`) ([#9667](https://github.com/MetaMask/core/pull/9667))
-  - Proof-of-ownership nonces are single-use; retrying the same signed payload
-    after a spent nonce caused `PUT /profile/accounts` 400s (`nonce-session`
-    key not found). The controller poll already re-fetches nonces and retries
-    failed submits.
-  - `fetchNonces` keeps the normal retry defaults: a failed nonce fetch
-    soft-degrades to a proof-less submit that clears the queue, so in-request
-    retries are what preserve proofs across transient errors.
+  - Proof nonces are single-use, so retrying a spent `submitMetrics` payload
+    caused `PUT /profile/accounts` 400s; `fetchNonces` still retries because a
+    failed fetch soft-degrades to a proof-less submit that clears the queue.
 
 ## [4.0.2]
 
