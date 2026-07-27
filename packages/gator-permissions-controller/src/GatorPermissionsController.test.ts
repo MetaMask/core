@@ -2356,8 +2356,67 @@ describe('GatorPermissionsController', () => {
       });
       const messenger = getMessenger(rootMessenger);
 
-      // eslint-disable-next-line no-new
-      new GatorPermissionsController({
+      const controller = new GatorPermissionsController({
+        messenger,
+        config: {
+          ...DEFAULT_TEST_CONFIG,
+          gatorPermissionsProviderSnapId:
+            MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        },
+      });
+
+      const txId = 'test-tx-id';
+      const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
+      const differentTxId = 'different-tx-id';
+
+      await rootMessenger.call(
+        'GatorPermissionsController:addPendingRevocation',
+        { txId, permissionContext },
+      );
+
+      // Emit transaction approved event for different transaction
+      rootMessenger.publish('TransactionController:transactionApproved', {
+        transactionMeta: { id: differentTxId } as TransactionMeta,
+      });
+
+      // Emit transaction rejected event for different transaction
+      rootMessenger.publish('TransactionController:transactionRejected', {
+        transactionMeta: { id: differentTxId } as TransactionMeta,
+      });
+
+      // Emit transaction confirmed event for different transaction
+      rootMessenger.publish('TransactionController:transactionConfirmed', {
+        id: differentTxId,
+        status: TransactionStatus.confirmed,
+      } as TransactionMeta);
+
+      // Emit transaction failed event for different transaction
+      rootMessenger.publish('TransactionController:transactionFailed', {
+        transactionMeta: { id: differentTxId } as TransactionMeta,
+        error: 'Transaction failed',
+      });
+
+      // Emit transaction dropped event for different transaction
+      rootMessenger.publish('TransactionController:transactionDropped', {
+        transactionMeta: { id: differentTxId } as TransactionMeta,
+      });
+
+      // Wait for async operations
+      await Promise.resolve();
+
+      // Should not call submitRevocation or add to pending revocations
+      expect(mockHandleRequestHandler).not.toHaveBeenCalled();
+      expect(controller.state.pendingRevocations).toStrictEqual([]);
+    });
+
+    it('should cleanup listeners before timeout is set when transaction fails during subscription', async () => {
+      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
+
+      const controller = new GatorPermissionsController({
         messenger,
         config: {
           ...DEFAULT_TEST_CONFIG,
@@ -2369,27 +2428,36 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
+      const originalSubscribe = messenger.subscribe.bind(messenger);
+      jest.spyOn(messenger, 'subscribe').mockImplementation((event, handler) => {
+        const subscription = originalSubscribe(event, handler);
+        if (event === 'TransactionController:transactionDropped') {
+          rootMessenger.publish('TransactionController:transactionFailed', {
+            transactionMeta: { id: txId } as TransactionMeta,
+            error: 'Transaction failed during subscription',
+          });
+        }
+        return subscription;
+      });
+
       await rootMessenger.call(
         'GatorPermissionsController:addPendingRevocation',
         { txId, permissionContext },
       );
 
-      // Emit transaction approved event for our transaction
-      rootMessenger.publish('TransactionController:transactionApproved', {
-        transactionMeta: { id: txId } as TransactionMeta,
+      await flushPromises();
+
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        handler: 'onRpcRequest',
+        origin: 'metamask',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_getGrantedPermissions',
+          params: { isRevoked: false },
+        },
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
       });
-
-      // Emit transaction confirmed event for different transaction
-      rootMessenger.publish('TransactionController:transactionConfirmed', {
-        id: 'different-tx-id',
-        status: TransactionStatus.confirmed,
-      } as TransactionMeta);
-
-      // Wait for async operations
-      await Promise.resolve();
-
-      // Should not call submitRevocation for different transaction
-      expect(mockHandleRequestHandler).not.toHaveBeenCalled();
+      expect(controller.state.pendingRevocations).toStrictEqual([]);
     });
 
     it('should handle revocation submission errors gracefully', async () => {
