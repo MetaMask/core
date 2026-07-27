@@ -1,4 +1,4 @@
-import type { DeepPartial } from '../../types.js';
+import type { DeepPartial, NonEvmBalanceError } from '../../types.js';
 
 /**
  * The types of values for the token amount and its values when converted to the user's selected currency and USD
@@ -30,6 +30,10 @@ export type TokenAmountValues = {
  * @deprecated Avoid introducing new usages and use the QuoteResponse V2 type instead
  */
 type QuoteMetadataV1 = {
+  /**
+   * A structured balance error returned while computing fees for a non-EVM quote.
+   */
+  nonEvmBalanceError?: NonEvmBalanceError;
   /**
    * If gas is included, this is the value of the src or dest token that was used to pay for the gas.
    * Show this value to indicate transaction fees for gasless quotes.
