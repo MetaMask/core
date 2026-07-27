@@ -253,5 +253,16 @@ describe('order-syncing/utils', () => {
       const b = { providerOrderId: 'x', fiatAmount: 100 } as RampsOrder;
       expect(areOrdersEqual(a, b)).toBe(true);
     });
+
+    it('ignores local-only paymentDetails so remote copies compare equal', () => {
+      const local = {
+        ...createMockOrder(),
+        paymentDetails: [
+          { label: 'IBAN', value: 'DE00 0000 0000 0000 0000 00' },
+        ],
+      } as RampsOrder;
+      const remote = createMockOrder();
+      expect(areOrdersEqual(local, remote)).toBe(true);
+    });
   });
 });

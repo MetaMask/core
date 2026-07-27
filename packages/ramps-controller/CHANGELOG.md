@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prefer newer remote tombstones over older live duplicates across entropy profiles ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Re-check the sync queue after awaiting an in-flight `syncOrdersWithUserStorage` worker so coalesced requests cannot be skipped ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Report via `onOrderSyncErroneousSituation` when `addOrder` cannot derive an internal order code ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Exclude local-only `paymentDetails` from `areOrdersEqual` so orders carrying local payment details are not re-uploaded on every sync ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ## [17.2.0]
 
