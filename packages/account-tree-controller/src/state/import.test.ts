@@ -7,6 +7,7 @@ import {
 } from '@metamask/account-api';
 import { AccountGroupType } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
+import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type {
@@ -764,6 +765,72 @@ describe('importState', () => {
           ],
         }),
       ).rejects.toThrow('Failed to import private key for account');
+    });
+
+    it('skips a private-key group whose value carries a non-EVM type', async () => {
+      const { context, mocks } = setup();
+
+      const payload: AccountTreePayload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+        wallets: [
+          {
+            id: 'wallet:private-key',
+            type: 'private-key',
+            metadata: { name: 'Imported Accounts' },
+            groups: [
+              {
+                id: `wallet:private-key/${ADDR_A}`,
+                value: {
+                  privateKey: '5Kb8kLf9z...',
+                  encoding: 'base58',
+                  type: 'bip122:p2wpkh',
+                },
+                metadata: { name: 'Bitcoin Account', pinned: false, hidden: false },
+              },
+            ],
+          },
+        ],
+      };
+
+      await importState(context, payload);
+      expect(mocks.KeyringController.withKeyringV2).not.toHaveBeenCalled();
+      expect(mocks.setters.setGroupName).not.toHaveBeenCalled();
+    });
+
+    it('does not skip a private-key group whose value type is eip155:eoa', async () => {
+      const { context, mocks } = setup();
+      mocks.KeyringController.withKeyringV2 = makeWithKeyringV2Mock(
+        { createAccounts: jest.fn() },
+        [],
+      );
+
+      const payload: AccountTreePayload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+        wallets: [
+          {
+            id: 'wallet:private-key',
+            type: 'private-key',
+            metadata: { name: 'Imported Accounts' },
+            groups: [
+              {
+                id: `wallet:private-key/${ADDR_A}`,
+                value: {
+                  privateKey: '0xdeadbeef',
+                  encoding: 'hexadecimal',
+                  type: EthAccountType.Eoa,
+                },
+                metadata: { name: 'EVM Account', pinned: false, hidden: false },
+              },
+            ],
+          },
+        ],
+      };
+
+      // withKeyringV2 is called (not skipped), but returns [] so it throws.
+      await expect(importState(context, payload)).rejects.toThrow(
+        'Failed to import private key for account',
+      );
+      expect(mocks.KeyringController.withKeyringV2).toHaveBeenCalled();
     });
 
     it('skips a private-key group that has no value and account does not exist locally', async () => {

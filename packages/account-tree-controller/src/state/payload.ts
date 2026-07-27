@@ -1,3 +1,5 @@
+import type { KeyringAccount } from '@metamask/keyring-api';
+
 /** Stable cross-device wallet identifier. Format: `wallet:<entropySourceId>`. */
 export type AccountWalletPayloadId = `wallet:${string}`;
 
@@ -70,6 +72,12 @@ export type AccountWalletPrivateKeyGroupEntry = {
   value?: {
     privateKey: string;
     encoding: 'hexadecimal' | 'base58' | 'base32';
+    /**
+     * Account type from `KeyringAccountType` (e.g. `'eip155:eoa'`, `'bip122:p2wpkh'`).
+     * Absent for EVM accounts -- import via `SimpleKeyring`.
+     * Present for non-EVM accounts -- routing to the BIP-44 Snap handling this type is not yet implemented.
+     */
+    type?: KeyringAccount['type'];
   };
   metadata: AccountWalletGroupPayloadMetadata;
 };

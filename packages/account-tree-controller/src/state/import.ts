@@ -7,7 +7,7 @@ import {
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
-import { KeyringAccount } from '@metamask/keyring-api';
+import { EthAccountType, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
@@ -244,6 +244,17 @@ async function importPrivateKeyWallet(
   payloadGroups: AccountWalletPrivateKeyGroupEntry[],
 ): Promise<void> {
   for (const payloadGroup of payloadGroups) {
+    // Only EVM EOA accounts are supported for now. Non-EVM private keys require
+    // Snap-based import routing (ADR-0007), which is not yet implemented. Skip the
+    // entire entry so payloads from future clients are accepted without crashing.
+    const privateKeyType = payloadGroup.value?.type;
+    if (
+      privateKeyType !== undefined &&
+      privateKeyType !== EthAccountType.Eoa
+    ) {
+      continue;
+    }
+
     // Payload group ID format: "wallet:private-key/<address>"
     const payloadAccountAddress = parsePayloadGroupId(payloadGroup.id).subId;
     const payloadAccountId = getUUIDFromAddressOfNormalAccount(

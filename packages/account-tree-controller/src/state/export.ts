@@ -1,5 +1,6 @@
 import { AccountWalletType } from '@metamask/account-api';
 import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
+import { EthAccountType } from '@metamask/keyring-api';
 import { PrivateKeyExportedAccount } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { encodeMnemonic } from '@metamask/keyring-sdk';
@@ -230,6 +231,7 @@ async function exportPrivateKeyWalletObject(
       group.value = {
         privateKey: exported.privateKey,
         encoding: exported.encoding,
+        type: EthAccountType.Eoa,
       };
     }
 
