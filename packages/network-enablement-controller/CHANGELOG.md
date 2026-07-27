@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `NetworkEnablementController` method through its messenger ([#9660](https://github.com/MetaMask/core/pull/9660))
+  - The following action is now available:
+    - `NetworkEnablementController:restoreEnabledNetworkMap`
+  - Corresponding action type (`NetworkEnablementControllerRestoreEnabledNetworkMapAction`) is available as well.
+
 ### Changed
 
 - **BREAKING:** Popular-network classification is now augmented by `ConfigRegistryController` ([#9611](https://github.com/MetaMask/core/pull/9611))
