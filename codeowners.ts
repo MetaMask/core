@@ -4,6 +4,70 @@ import type {
 } from './scripts/manage-codeowners/types.js';
 
 /**
+ * The GitHub teams that may own packages in this monorepo.
+ */
+type Team =
+  | '@MetaMask/accounts-engineers'
+  | '@MetaMask/auth-engineers'
+  | '@MetaMask/confirmations'
+  | '@MetaMask/core-extension-ux'
+  | '@MetaMask/core-platform'
+  | '@MetaMask/delegation'
+  | '@MetaMask/earn'
+  | '@MetaMask/engagement'
+  | '@MetaMask/extension-platform'
+  | '@MetaMask/metamask-assets'
+  | '@MetaMask/mobile-core-ux'
+  | '@MetaMask/mobile-platform'
+  | '@MetaMask/money-movement'
+  | '@MetaMask/networks'
+  | '@MetaMask/ocap-kernel'
+  | '@MetaMask/perps'
+  | '@MetaMask/product-safety'
+  | '@MetaMask/social-ai'
+  | '@MetaMask/swaps-engineers'
+  | '@MetaMask/transactions'
+  | '@MetaMask/web3auth';
+
+/**
+ * The title of the CODEOWNERS section for each team that is the sole owner of
+ * at least one package, in the order the sections should appear in the
+ * generated `.github/CODEOWNERS` file.
+ */
+const TEAM_SECTION_TITLES = {
+  '@MetaMask/accounts-engineers': 'Accounts Team',
+  '@MetaMask/auth-engineers': 'Auth Team',
+  '@MetaMask/metamask-assets': 'Assets Team',
+  '@MetaMask/confirmations': 'Confirmations Team',
+  '@MetaMask/transactions': 'Transactions Team',
+  '@MetaMask/delegation': 'Delegation Team',
+  '@MetaMask/earn': 'Earn Team',
+  '@MetaMask/social-ai': 'Social AI Team',
+  '@MetaMask/money-movement': 'Money Movement Team',
+  '@MetaMask/networks': 'Networks Team',
+  '@MetaMask/engagement': 'Engagement Team',
+  '@MetaMask/perps': 'Perps Team',
+  '@MetaMask/product-safety': 'Product Safety Team',
+  '@MetaMask/swaps-engineers': 'Swaps-Bridge Team',
+  '@MetaMask/mobile-platform': 'Mobile Platform Team',
+  '@MetaMask/core-platform': 'Core Platform Team',
+  '@MetaMask/web3auth': 'Web3Auth Team',
+} as const satisfies Partial<Record<Team, string>>;
+
+/**
+ * The title of the CODEOWNERS section for packages owned by multiple teams.
+ */
+const JOINT_SECTION_TITLE = 'Joint team ownership';
+
+/**
+ * The title of a CODEOWNERS section that a package's directory rule can be
+ * listed under.
+ */
+type SectionTitle =
+  | (typeof TEAM_SECTION_TITLES)[keyof typeof TEAM_SECTION_TITLES]
+  | typeof JOINT_SECTION_TITLE;
+
+/**
  * Metadata about a package in the monorepo, used to generate CODEOWNERS
  * rules for it.
  */
@@ -11,7 +75,15 @@ type PackageInfo = {
   /**
    * The GitHub team(s) that own this package's top-level directory.
    */
-  teams: string[];
+  teams: [Team, ...Team[]];
+
+  /**
+   * The section that the package's directory rule is listed under. Defaults
+   * to the sole owning team's section, or to "Joint team ownership" when the
+   * package is owned by multiple teams. Set this to keep a multi-team package
+   * under a specific team's section.
+   */
+  section?: SectionTitle;
 
   /**
    * The package's directory name under
@@ -25,8 +97,8 @@ type PackageInfo = {
 /**
  * Metadata about each package in the monorepo that has a CODEOWNERS entry,
  * keyed by its directory name under `/packages`. This is the single source
- * of truth for which team(s) own a package, and is used to populate the
- * sections in `codeownersSections` below.
+ * of truth from which every package-level rule is derived; adding a package
+ * to CODEOWNERS only requires adding an entry here.
  */
 const PACKAGES: Record<string, PackageInfo> = {
   'account-tree-controller': {
@@ -45,9 +117,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'analytics-controller': {
     teams: ['@MetaMask/mobile-platform', '@MetaMask/extension-platform'],
+    section: 'Mobile Platform Team',
   },
   'analytics-data-regulation-controller': {
     teams: ['@MetaMask/mobile-platform', '@MetaMask/extension-platform'],
+    section: 'Mobile Platform Team',
   },
   'announcement-controller': {
     teams: ['@MetaMask/core-extension-ux', '@MetaMask/mobile-core-ux'],
@@ -95,6 +169,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'chomp-api-service': {
     teams: ['@MetaMask/earn', '@MetaMask/delegation'],
+    section: 'Earn Team',
   },
   'claims-controller': {
     teams: ['@MetaMask/web3auth'],
@@ -139,6 +214,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'eip-7702-internal-rpc-middleware': {
     teams: ['@MetaMask/delegation', '@MetaMask/core-platform'],
+    section: 'Delegation Team',
   },
   'eip1193-permission-middleware': {
     teams: ['@MetaMask/core-platform'],
@@ -215,6 +291,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'money-account-upgrade-controller': {
     teams: ['@MetaMask/earn', '@MetaMask/delegation'],
+    section: 'Earn Team',
   },
   'multichain-account-service': {
     teams: ['@MetaMask/accounts-engineers'],
@@ -363,6 +440,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'wallet-cli': {
     teams: ['@MetaMask/core-platform', '@MetaMask/ocap-kernel'],
+    section: 'Core Platform Team',
   },
   'wallet-framework-docs': {
     teams: ['@MetaMask/core-platform'],
@@ -370,16 +448,81 @@ const PACKAGES: Record<string, PackageInfo> = {
 };
 
 /**
+ * Rules that live in the "Joint team ownership" section but cover paths
+ * within a package rather than a whole package, so they cannot be derived
+ * from `PACKAGES`.
+ */
+const ADDITIONAL_JOINT_RULES: CodeownersRule[] = [
+  {
+    pattern: '/packages/eth-json-rpc-middleware/src/methods',
+    owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+  },
+  {
+    pattern: '/packages/eth-json-rpc-middleware/src/wallet.*',
+    owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+  },
+];
+
+/**
  * The CODEOWNERS sections, in the order they should appear in the generated
  * `.github/CODEOWNERS` file.
  */
 const codeownersSections: CodeownersSection[] = [
   buildFirstSection(),
-  ...buildTeamSections(),
-  buildJointTeamOwnershipSection(),
+  ...buildTeamAndJointSections(),
   buildInitializationSection(),
   buildPackageReleaseSection(),
 ];
+
+/**
+ * Lists the entries in `PACKAGES`, sorted by package name.
+ *
+ * @returns The sorted package entries.
+ */
+function sortedPackageEntries(): [string, PackageInfo][] {
+  return Object.entries(PACKAGES).sort(([nameA], [nameB]) =>
+    nameA.localeCompare(nameB),
+  );
+}
+
+/**
+ * Determines whether a team has its own section in CODEOWNERS.
+ *
+ * @param team - The team to check.
+ * @returns Whether the team has an entry in `TEAM_SECTION_TITLES`.
+ */
+function hasOwnSection(team: Team): team is keyof typeof TEAM_SECTION_TITLES {
+  return Object.prototype.hasOwnProperty.call(TEAM_SECTION_TITLES, team);
+}
+
+/**
+ * Determines the section that a package's directory rule is listed under: the
+ * explicitly configured section if present, otherwise the sole owning team's
+ * section, or the "Joint team ownership" section for packages owned by
+ * multiple teams.
+ *
+ * @param name - The package's directory name under `/packages`.
+ * @param packageInfo - The package's metadata.
+ * @returns The title of the section for the package.
+ */
+function sectionTitleForPackage(
+  name: string,
+  packageInfo: PackageInfo,
+): SectionTitle {
+  if (packageInfo.section !== undefined) {
+    return packageInfo.section;
+  }
+  if (packageInfo.teams.length > 1) {
+    return JOINT_SECTION_TITLE;
+  }
+  const [team] = packageInfo.teams;
+  if (hasOwnSection(team)) {
+    return TEAM_SECTION_TITLES[team];
+  }
+  throw new Error(
+    `Package "${name}" is solely owned by "${team}", which has no section. Add the team to TEAM_SECTION_TITLES, or set an explicit \`section\` on the package.`,
+  );
+}
 
 /**
  * Builds the section at the top of CODEOWNERS that is reserved for files that
@@ -394,204 +537,43 @@ function buildFirstSection(): CodeownersSection {
 }
 
 /**
- * Build sections within CODEOWNERS that define teams and the packages they own.
+ * Builds the sections that map each package's directory to the team(s) that
+ * own it: one section per team in `TEAM_SECTION_TITLES`, followed by the
+ * "Joint team ownership" section. Each package is placed in the section
+ * determined by `sectionTitleForPackage`, and rules are sorted by pattern
+ * within each section.
  *
- * @returns The team sections.
+ * @returns The team sections and the "Joint team ownership" section.
  */
-function buildTeamSections(): CodeownersSection[] {
-  return [
-    {
-      title: 'Accounts Team',
-      rules: [
-        buildRuleForPackage('accounts-controller'),
-        buildRuleForPackage('multichain-transactions-controller'),
-        buildRuleForPackage('multichain-account-service'),
-        buildRuleForPackage('account-tree-controller'),
-        buildRuleForPackage('profile-sync-controller'),
-        buildRuleForPackage('money-account-controller'),
-        buildRuleForPackage('snap-account-service'),
-      ],
-    },
-    {
-      title: 'Auth Team',
-      rules: [buildRuleForPackage('authenticated-user-storage')],
-    },
-    {
-      title: 'Assets Team',
-      rules: [
-        buildRuleForPackage('assets-controllers'),
-        buildRuleForPackage('network-enablement-controller'),
-        buildRuleForPackage('assets-controller'),
-      ],
-    },
-    {
-      title: 'Confirmations Team',
-      rules: [
-        buildRuleForPackage('address-book-controller'),
-        buildRuleForPackage('approval-controller'),
-        buildRuleForPackage('ens-controller'),
-        buildRuleForPackage('gas-fee-controller'),
-        buildRuleForPackage('logging-controller'),
-        buildRuleForPackage('message-manager'),
-        buildRuleForPackage('name-controller'),
-        buildRuleForPackage('signature-controller'),
-        buildRuleForPackage('transaction-controller'),
-        buildRuleForPackage('transaction-pay-controller'),
-        buildRuleForPackage('user-operation-controller'),
-      ],
-    },
-    {
-      title: 'Transactions Team',
-      rules: [buildRuleForPackage('smart-transactions-controller')],
-    },
-    {
-      title: 'Delegation Team',
-      rules: [
-        buildRuleForPackage('delegation-controller'),
-        buildRuleForPackage('gator-permissions-controller'),
-        buildRuleForPackage('eip-7702-internal-rpc-middleware'),
-      ],
-    },
-    {
-      title: 'Earn Team',
-      rules: [
-        buildRuleForPackage('earn-controller'),
-        buildRuleForPackage('money-account-balance-service'),
-        buildRuleForPackage('money-account-api-data-service'),
-        buildRuleForPackage('chomp-api-service'),
-        buildRuleForPackage('money-account-upgrade-controller'),
-      ],
-    },
-    {
-      title: 'Social AI Team',
-      rules: [
-        buildRuleForPackage('ai-controllers'),
-        buildRuleForPackage('social-controllers'),
-      ],
-    },
-    {
-      title: 'Money Movement Team',
-      rules: [buildRuleForPackage('ramps-controller')],
-    },
-    {
-      title: 'Networks Team',
-      rules: [buildRuleForPackage('config-registry-controller')],
-    },
-    {
-      title: 'Engagement Team',
-      rules: [buildRuleForPackage('notification-services-controller')],
-    },
-    {
-      title: 'Perps Team',
-      rules: [
-        buildRuleForPackage('compliance-controller'),
-        buildRuleForPackage('perps-controller'),
-      ],
-    },
-    {
-      title: 'Product Safety Team',
-      rules: [buildRuleForPackage('phishing-controller')],
-    },
-    {
-      title: 'Swaps-Bridge Team',
-      rules: [
-        buildRuleForPackage('bridge-controller'),
-        buildRuleForPackage('bridge-status-controller'),
-      ],
-    },
-    {
-      title: 'Mobile Platform Team',
-      rules: [
-        buildRuleForPackage('app-metadata-controller'),
-        buildRuleForPackage('analytics-controller'),
-        buildRuleForPackage('analytics-data-regulation-controller'),
-        buildRuleForPackage('geolocation-controller'),
-      ],
-    },
-    {
-      title: 'Core Platform Team',
-      rules: [
-        buildRuleForPackage('base-controller'),
-        buildRuleForPackage('base-data-service'),
-        buildRuleForPackage('build-utils'),
-        buildRuleForPackage('chain-agnostic-permission'),
-        buildRuleForPackage('composable-controller'),
-        buildRuleForPackage('connectivity-controller'),
-        buildRuleForPackage('controller-utils'),
-        buildRuleForPackage('eip-5792-middleware'),
-        buildRuleForPackage('eip1193-permission-middleware'),
-        buildRuleForPackage('eth-block-tracker'),
-        buildRuleForPackage('eth-json-rpc-middleware'),
-        buildRuleForPackage('eth-json-rpc-provider'),
-        buildRuleForPackage('json-rpc-engine'),
-        buildRuleForPackage('json-rpc-middleware-stream'),
-        buildRuleForPackage('messenger'),
-        buildRuleForPackage('messenger-cli'),
-        buildRuleForPackage('multichain-api-middleware'),
-        buildRuleForPackage('network-connection-banner-controller'),
-        buildRuleForPackage('permission-controller'),
-        buildRuleForPackage('permission-log-controller'),
-        buildRuleForPackage('platform-api-docs'),
-        buildRuleForPackage('polling-controller'),
-        buildRuleForPackage('preferences-controller'),
-        buildRuleForPackage('rate-limit-controller'),
-        buildRuleForPackage('react-data-query'),
-        buildRuleForPackage('sample-controllers'),
-        buildRuleForPackage('selected-network-controller'),
-        buildRuleForPackage('wallet'),
-        buildRuleForPackage('wallet-cli'),
-        buildRuleForPackage('wallet-framework-docs'),
-      ],
-    },
-    {
-      title: 'Web3Auth Team',
-      rules: [
-        buildRuleForPackage('seedless-onboarding-controller'),
-        buildRuleForPackage('passkey-controller'),
-        buildRuleForPackage('shield-controller'),
-        buildRuleForPackage('subscription-controller'),
-        buildRuleForPackage('claims-controller'),
-      ],
-    },
-  ];
-}
+function buildTeamAndJointSections(): CodeownersSection[] {
+  const rulesBySection = new Map<SectionTitle, CodeownersRule[]>([
+    [JOINT_SECTION_TITLE, [...ADDITIONAL_JOINT_RULES]],
+  ]);
+  for (const [name, packageInfo] of sortedPackageEntries()) {
+    const title = sectionTitleForPackage(name, packageInfo);
+    rulesBySection.set(title, [
+      ...(rulesBySection.get(title) ?? []),
+      { pattern: `/packages/${name}`, owners: [...packageInfo.teams] },
+    ]);
+  }
 
-/**
- * Builds the section that defines packages owned by multiple teams.
- *
- * @returns The "Joint team ownership" section.
- */
-function buildJointTeamOwnershipSection(): CodeownersSection {
-  return {
-    title: 'Joint team ownership',
-    rules: [
-      buildRuleForPackage('announcement-controller'),
-      buildRuleForPackage('client-utils'),
-      buildRuleForPackage('core-backend'),
-      {
-        pattern: '/packages/eth-json-rpc-middleware/src/methods',
-        owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
-      },
-      {
-        pattern: '/packages/eth-json-rpc-middleware/src/wallet.*',
-        owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
-      },
-      buildRuleForPackage('foundryup'),
-      buildRuleForPackage('bitcoin-regtest-up'),
-      buildRuleForPackage('java-tron-up'),
-      buildRuleForPackage('local-node-utils'),
-      buildRuleForPackage('solana-test-validator-up'),
-      buildRuleForPackage('stellar-quickstart-up'),
-      buildRuleForPackage('keyring-controller'),
-      buildRuleForPackage('multichain-network-controller'),
-      buildRuleForPackage('network-controller'),
-      buildRuleForPackage('remote-feature-flag-controller'),
-      buildRuleForPackage('sentinel-api-service'),
-      buildRuleForPackage('storage-service'),
-      buildRuleForPackage('client-controller'),
-      buildRuleForPackage('profile-metrics-controller'),
-    ],
-  };
+  const sectionTitles: SectionTitle[] = [
+    ...Object.values(TEAM_SECTION_TITLES),
+    JOINT_SECTION_TITLE,
+  ];
+  return sectionTitles.flatMap((title) => {
+    const rules = rulesBySection.get(title) ?? [];
+    return rules.length === 0
+      ? []
+      : [
+          {
+            title,
+            rules: rules.sort((ruleA, ruleB) =>
+              ruleA.pattern.localeCompare(ruleB.pattern),
+            ),
+          },
+        ];
+  });
 }
 
 /**
@@ -603,16 +585,17 @@ function buildJointTeamOwnershipSection(): CodeownersSection {
 function buildInitializationSection(): CodeownersSection {
   return {
     title: 'Initialization',
-    rules: Object.keys(PACKAGES)
-      .filter((name) => PACKAGES[name].initializationPath !== undefined)
-      .sort()
-      .map((name) => {
-        const { teams, initializationPath } = PACKAGES[name];
-        return {
-          pattern: `/packages/wallet/src/initialization/instances/${initializationPath}/`,
-          owners: teams,
-        };
-      }),
+    rules: sortedPackageEntries().flatMap(
+      ([, { teams, initializationPath }]) =>
+        initializationPath === undefined
+          ? []
+          : [
+              {
+                pattern: `/packages/wallet/src/initialization/instances/${initializationPath}/`,
+                owners: [...teams],
+              },
+            ],
+    ),
   };
 }
 
@@ -624,81 +607,12 @@ function buildInitializationSection(): CodeownersSection {
  * @returns The "Package Release related" CODEOWNERS section.
  */
 function buildPackageReleaseSection(): CodeownersSection {
-  // These packages are currently not alphabetized.
-  const packageNames = [
-    'account-tree-controller',
-    'accounts-controller',
-    'analytics-controller',
-    'analytics-data-regulation-controller',
-    'address-book-controller',
-    'announcement-controller',
-    'client-utils',
-    'approval-controller',
-    'assets-controllers',
-    'assets-controller',
-    'config-registry-controller',
-    'delegation-controller',
-    'earn-controller',
-    'money-account-balance-service',
-    'money-account-api-data-service',
-    'ens-controller',
-    'gas-fee-controller',
-    'gator-permissions-controller',
-    'geolocation-controller',
-    'keyring-controller',
-    'passkey-controller',
-    'logging-controller',
-    'message-manager',
-    'multichain-account-service',
-    'name-controller',
-    'notification-services-controller',
-    'compliance-controller',
-    'perps-controller',
-    'phishing-controller',
-    'ramps-controller',
-    'authenticated-user-storage',
-    'profile-metrics-controller',
-    'profile-sync-controller',
-    'signature-controller',
-    'smart-transactions-controller',
-    'sentinel-api-service',
-    'transaction-controller',
-    'transaction-pay-controller',
-    'user-operation-controller',
-    'multichain-transactions-controller',
-    'bridge-controller',
-    'remote-feature-flag-controller',
-    'storage-service',
-    'bridge-status-controller',
-    'app-metadata-controller',
-    'foundryup',
-    'bitcoin-regtest-up',
-    'java-tron-up',
-    'local-node-utils',
-    'solana-test-validator-up',
-    'stellar-quickstart-up',
-    'seedless-onboarding-controller',
-    'shield-controller',
-    'network-enablement-controller',
-    'subscription-controller',
-    'core-backend',
-    'claims-controller',
-    'ai-controllers',
-    'client-controller',
-    'social-controllers',
-    'money-account-controller',
-    'chomp-api-service',
-    'money-account-upgrade-controller',
-    'snap-account-service',
-  ] as const satisfies (keyof typeof PACKAGES)[];
-
   return {
     title: 'Package Release related',
-    rules: packageNames.flatMap((name) => {
-      const { teams } = PACKAGES[name];
+    rules: sortedPackageEntries().flatMap(([name, { teams }]) => {
       const workspacePath = `/packages/${name}`;
-      const owners = teams.includes('@MetaMask/core-platform')
-        ? teams
+      const owners: Team[] = teams.includes('@MetaMask/core-platform')
+        ? [...teams]
         : [...teams, '@MetaMask/core-platform'];
       return [
         { pattern: `${workspacePath}/package.json`, owners },
@@ -706,16 +620,6 @@ function buildPackageReleaseSection(): CodeownersSection {
       ];
     }),
   };
-}
-
-/**
- * Builds the rule that maps a package's directory to the team(s) that own it.
- *
- * @param name - The package's directory name under `/packages`.
- * @returns The rule for the package.
- */
-function buildRuleForPackage(name: keyof typeof PACKAGES): CodeownersRule {
-  return { pattern: `/packages/${name}`, owners: PACKAGES[name].teams };
 }
 
 export default codeownersSections;

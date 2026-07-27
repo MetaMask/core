@@ -34,7 +34,7 @@ scripts/coverage
 !.yarn/versions
 
 # typescript
-packages/*/*.tsbuildinfo
+*.tsbuildinfo
 
 # AI
 .sisyphus/
