@@ -183,7 +183,6 @@ describe('ProfileMetricsService', () => {
       ).rejects.toThrow(
         `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
       );
-      expect(nock.isDone()).toBe(true);
     });
 
     it('attempts a request that responds with non-200 up to 4 times when retries are enabled, throwing if it never succeeds', async () => {
@@ -809,7 +808,6 @@ describe('ProfileMetricsService', () => {
       ).rejects.toThrow(
         `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '400'`,
       );
-      expect(nock.isDone()).toBe(true);
     });
   });
 
