@@ -25,17 +25,18 @@ export function mergeQuoteMetadata<
     return merge({}, quoteResponse, legacyQuoteMetadata);
   }
 
-  const legacyQuoteMetadatV2 = toQuoteMetadataV2(
+  const legacyQuoteMetadataV2 = toQuoteMetadataV2(
     legacyQuoteMetadata,
     quoteResponse,
   );
   const normalizedAmountsV2 = toNormalizedAmounts(quoteResponse);
+
   // Phase 1 of migration uses calcQuoteMetadata's results
   return merge(
     {},
     quoteResponse,
     normalizedAmountsV2,
-    legacyQuoteMetadatV2,
+    legacyQuoteMetadataV2,
     legacyQuoteMetadata, // return for client testing
   );
 }

@@ -71,7 +71,7 @@ export const sumAmounts = (
     .flat()
     .flat()
     .filter(
-      (value): value is DeepPartial<QuoteResponse['quote']['dest']> =>
+      (value): value is Partial<QuoteResponse['quote']['dest']> =>
         value !== undefined && value !== null,
     );
 
@@ -80,7 +80,7 @@ export const sumAmounts = (
   }
 
   const isSameAssetForAllFees =
-    new Set(fees.map((fee) => fee?.asset?.assetId?.toLowerCase())).size === 1;
+    new Set(fees.map((fee) => fee.asset?.assetId?.toLowerCase())).size === 1;
 
   const aggregatedFee = fees.reduce(
     (acc, fee) => {

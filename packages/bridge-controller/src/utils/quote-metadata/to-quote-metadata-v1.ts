@@ -54,5 +54,5 @@ export const toQuoteMetadataV1 = (
   // );
 
   // TODO Phase 2 only uses metadata from the API response
-  // return quoteResponse;
+  // return toQuoteMetadataV1(quoteResponse);
 };
