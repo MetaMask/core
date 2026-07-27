@@ -9,13 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [26.0.1]
 
-### Uncategorized
-
-- Release 1149.0.0 ([#9657](https://github.com/MetaMask/core/pull/9657))
-
 ### Changed
 
-- Bump `@metamask/ramps-controller` from `^17.0.0` to `^17.1.0` ([#9646](https://github.com/MetaMask/core/pull/9646))
+- Bump `@metamask/ramps-controller` from `^17.0.0` to `^18.0.0` ([#9646](https://github.com/MetaMask/core/pull/9646))
 - Bump `@metamask/assets-controller` from `^11.2.0` to `^11.2.1` ([#9648](https://github.com/MetaMask/core/pull/9648))
 
 ## [26.0.0]
