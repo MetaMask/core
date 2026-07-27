@@ -11,6 +11,11 @@ import { makePermissionDecoder } from './makePermissionDecoder.js';
  * and provides `caveatAddressesMatch` and `validateAndDecodePermission` so the
  * entire decode flow can be driven by the decoders.
  *
+ * `contracts` should already be checksummed (see {@link toEnforcerAddressesByName}).
+ * `makePermissionDecoderConfigs` checksums them again, and {@link makePermissionDecoder}
+ * normalizes enforcer sets once more — see the module comment in
+ * `makePermissionDecoder.ts` for why checksumming is layered this way.
+ *
  * @param contracts - The deployed enforcer addresses for the chain.
  * @returns A list of permission decoders used to identify and decode permission types.
  * @throws Propagates any errors from resolving enforcer addresses.

@@ -11,6 +11,33 @@ import type { PermissionDecoder, ValidateAndDecodeResult } from '../types.js';
 import { buildEnforcerCountsAndSet, enforcersMatchRule } from '../utils.js';
 
 /**
+ * Address checksumming in the permission decode flow.
+ *
+ * Enforcer addresses come from three sources, each of which may use a
+ * different hex encoding (EIP-55 checksummed vs lowercase). Comparisons rely
+ * on strict equality, so we normalize at function boundaries instead of
+ * requiring callers to pass a specific encoding. `getChecksumAddress` is
+ * idempotent, so repeated normalization is intentional and cheap.
+ *
+ * 1. **Canonical contract addresses** (`EnforcerAddressesByName`): normalized
+ *    in {@link toEnforcerAddressesByName}, again in
+ *    `makePermissionDecoderConfigs` (`checksumEnforcerAddresses` in
+ *    `@metamask/7715-permission-types`), and once more below when building
+ *    each decoder's required/optional enforcer sets.
+ *
+ * 2. **Delegation caveat enforcers**: read from the encoded permission
+ *    context with unpredictable casing. Normalized in
+ *    {@link buildEnforcerCountsAndSet} during address matching and again in
+ *    `validateAndDecodePermission` before term decoding (rule decoders and
+ *    `getTermsByEnforcer` compare enforcer addresses with `===`).
+ *
+ * 3. **Decoder required/optional enforcers**: populated from contract
+ *    addresses by `makePermissionDecoderConfigs`; normalized at decoder
+ *    construction so `caveatAddressesMatch` compares like-for-like with
+ *    caveat addresses from source (2).
+ */
+
+/**
  * Creates a single {@link PermissionDecoder} with the given type, enforcer
  * sets, rule decoders, and decode/validate callback.
  *
