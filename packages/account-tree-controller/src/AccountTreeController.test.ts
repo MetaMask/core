@@ -6206,7 +6206,7 @@ describe('AccountTreeController', () => {
       expect((payload.wallets[0] as { value?: string }).value).toBeUndefined();
 
       // Reimport is a no-op for metadata when nothing changed.
-      await expect(controller.importState(payload)).resolves.toBeUndefined();
+      expect(await controller.importState(payload)).toBeUndefined();
     });
 
     it('throws when exporting with includeSecrets: true and the vault is locked', async () => {

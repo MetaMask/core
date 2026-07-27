@@ -101,12 +101,36 @@ function makeHdWalletState(): AccountTreeControllerState['accountTree']['wallets
  * `walletsRef.current` can be mutated by tests to simulate state changes that
  * happen during an import (e.g., wallet creation events updating the tree).
  *
+ * @param options - Setup options.
  * @param options.wallets - Initial wallet state (default: empty).
  * @returns context, mocks (per-action jest.fn()s), and the mutable walletsRef.
  */
 function setup({
   wallets = {} as AccountTreeControllerState['accountTree']['wallets'],
-} = {}) {
+}: {
+  wallets?: AccountTreeControllerState['accountTree']['wallets'];
+} = {}): {
+  context: ImportContext;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  mocks: {
+    KeyringController: {
+      withKeyringV2Unsafe: jest.Mock;
+      withKeyringV2: jest.Mock;
+    };
+    MultichainAccountService: {
+      createMultichainAccountWallet: jest.Mock;
+      createMultichainAccountGroups: jest.Mock;
+    };
+    setters: {
+      setWalletName: jest.Mock;
+      setGroupName: jest.Mock;
+      setGroupPinned: jest.Mock;
+      setGroupHidden: jest.Mock;
+    };
+  };
+  /* eslint-enable @typescript-eslint/naming-convention */
+  walletsRef: { current: AccountTreeControllerState['accountTree']['wallets'] };
+} {
   const walletsRef = { current: wallets };
 
   const mocks = {
@@ -166,28 +190,27 @@ function setup({
   return { context, mocks, walletsRef };
 }
 
-/** Returns a withKeyringV2Unsafe mock that calls `callback({ keyring })`. */
-function makeWithKeyringV2UnsafeMock(keyring: unknown) {
+function makeWithKeyringV2UnsafeMock(keyring: unknown): jest.Mock {
   return jest
     .fn()
     .mockImplementation(
-      async (
-        _selector: unknown,
-        callback: (ctx: { keyring: unknown }) => unknown,
-      ) => callback({ keyring }),
+      async (_selector: unknown, fn: (ctx: { keyring: unknown }) => unknown) =>
+        fn({ keyring }),
     );
 }
 
-/** Returns a withKeyringV2 mock that calls `callback({ keyring })` and returns `result`. */
-function makeWithKeyringV2Mock(keyring: unknown, result: unknown = undefined) {
+function makeWithKeyringV2Mock(
+  keyring: unknown,
+  result: unknown = undefined,
+): jest.Mock {
   return jest
     .fn()
     .mockImplementation(
       async (
         _selector: unknown,
-        callback: (ctx: { keyring: unknown }) => unknown,
+        fn: (ctx: { keyring: unknown }) => unknown,
       ) => {
-        await callback({ keyring });
+        await fn({ keyring });
         return result;
       },
     );
@@ -213,7 +236,7 @@ describe('importState', () => {
           },
         ],
       };
-      await expect(importState(context, payload)).resolves.toBeUndefined();
+      expect(await importState(context, payload)).toBeUndefined();
       expect(mocks.setters.setWalletName).not.toHaveBeenCalled();
     });
   });
@@ -678,7 +701,7 @@ describe('importState', () => {
       mocks.KeyringController.withKeyringV2.mockImplementation(
         async (
           _selector: unknown,
-          callback: (ctx: { keyring: unknown }) => unknown,
+          fn: (ctx: { keyring: unknown }) => unknown,
         ) => {
           walletsRef.current = {
             [MOCK_PK_WALLET_ID]: {
@@ -704,7 +727,7 @@ describe('importState', () => {
               },
             },
           };
-          await callback({ keyring: { createAccounts: jest.fn() } });
+          await fn({ keyring: { createAccounts: jest.fn() } });
           return [{ id: newAccountId }];
         },
       );
@@ -785,7 +808,11 @@ describe('importState', () => {
                   encoding: 'base58',
                   type: 'bip122:p2wpkh',
                 },
-                metadata: { name: 'Bitcoin Account', pinned: false, hidden: false },
+                metadata: {
+                  name: 'Bitcoin Account',
+                  pinned: false,
+                  hidden: false,
+                },
               },
             ],
           },

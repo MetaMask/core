@@ -171,8 +171,8 @@ export function migrate(raw: unknown): AccountTreePayload {
   }
 
   let result: unknown = raw;
-  for (let v = version; v <= ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION; v++) {
-    const migrator = MIGRATORS[v];
+  for (let ver = version; ver <= ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION; ver++) {
+    const migrator = MIGRATORS[ver];
     if (migrator) {
       result = migrator(result);
     }

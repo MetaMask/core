@@ -54,7 +54,7 @@ describe('AccountTreeSnapshot', () => {
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
         null,
       );
-      const filtered = snapshot.filter((e) => e.type === 'mnemonic');
+      const filtered = snapshot.filter((entry) => entry.type === 'mnemonic');
       expect(filtered.serialize().wallets).toHaveLength(1);
       expect(filtered.serialize().wallets[0]?.id).toBe(
         'wallet:entropy-source-1',
@@ -77,7 +77,7 @@ describe('AccountTreeSnapshot', () => {
         map,
       );
 
-      const filtered = snapshot.filter((e) => e.type === 'mnemonic');
+      const filtered = snapshot.filter((entry) => entry.type === 'mnemonic');
 
       expect(filtered.toLocalId('wallet:entropy-source-1')).toBe(
         'entropy:wallet-1',

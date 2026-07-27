@@ -248,10 +248,7 @@ async function importPrivateKeyWallet(
     // Snap-based import routing (ADR-0007), which is not yet implemented. Skip the
     // entire entry so payloads from future clients are accepted without crashing.
     const privateKeyType = payloadGroup.value?.type;
-    if (
-      privateKeyType !== undefined &&
-      privateKeyType !== EthAccountType.Eoa
-    ) {
+    if (privateKeyType !== undefined && privateKeyType !== EthAccountType.Eoa) {
       continue;
     }
 

@@ -85,6 +85,7 @@ const MOCK_PK_WALLET_STATE: AccountTreeControllerState['accountTree']['wallets']
  * Creates an ExportContext with individual jest mocks per action so tests can
  * configure them with `.mockReturnValue` / `.mockImplementation`.
  *
+ * @param options - Setup options.
  * @param options.wallets - Initial wallet state.
  * @param options.isUnlocked - Whether the vault reports as unlocked (default: true).
  * @returns context, mocks (per-action jest.fn()s), and the raw messenger mock.
@@ -92,7 +93,23 @@ const MOCK_PK_WALLET_STATE: AccountTreeControllerState['accountTree']['wallets']
 function setup({
   wallets = {} as AccountTreeControllerState['accountTree']['wallets'],
   isUnlocked = true,
-} = {}) {
+}: {
+  wallets?: AccountTreeControllerState['accountTree']['wallets'];
+  isUnlocked?: boolean;
+} = {}): {
+  context: ExportContext;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  mocks: {
+    KeyringController: {
+      getState: jest.Mock;
+      withKeyringV2Unsafe: jest.Mock;
+      withKeyringV2: jest.Mock;
+    };
+    AccountsController: { getAccount: jest.Mock };
+  };
+  /* eslint-enable @typescript-eslint/naming-convention */
+  messenger: AccountTreeControllerMessenger;
+} {
   const mocks = {
     KeyringController: {
       getState: jest.fn().mockReturnValue({ isUnlocked, keyrings: [] }),
@@ -138,11 +155,10 @@ function setup({
   return { context, mocks, messenger };
 }
 
-/** Returns a mock withKeyringV2Unsafe implementation for an HD keyring. */
 function makeHdKeyringHandler(
   entropySourceId: string,
   mnemonic: Uint8Array | null = null,
-) {
+): jest.Mock {
   return jest
     .fn()
     .mockImplementation(
@@ -159,10 +175,9 @@ function makeHdKeyringHandler(
     );
 }
 
-/** Returns a mock withKeyringV2 implementation for a private-key keyring. */
 function makePrivateKeyExportHandler(
   result: { privateKey: string; encoding: string } | undefined,
-) {
+): jest.Mock {
   return jest
     .fn()
     .mockImplementation(
@@ -248,7 +263,7 @@ describe('exportState', () => {
 
     it('does not throw when includeSecrets is false and vault is locked', async () => {
       const { context } = setup({ isUnlocked: false });
-      await expect(exportState(context)).resolves.toBeDefined();
+      expect(await exportState(context)).toBeDefined();
     });
   });
 
