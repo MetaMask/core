@@ -386,7 +386,9 @@ async function resolveSettledAmount({
     });
 
     if (!onChainAmount) {
-      throw new Error('Cannot resolve settled amount from on-chain transaction');
+      throw new Error(
+        'Cannot resolve settled amount from on-chain transaction',
+      );
     }
 
     log('Resolved settled amount from on-chain transaction', {
