@@ -2429,16 +2429,18 @@ describe('GatorPermissionsController', () => {
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
       const originalSubscribe = messenger.subscribe.bind(messenger);
-      jest.spyOn(messenger, 'subscribe').mockImplementation((event, handler) => {
-        const subscription = originalSubscribe(event, handler);
-        if (event === 'TransactionController:transactionDropped') {
-          rootMessenger.publish('TransactionController:transactionFailed', {
-            transactionMeta: { id: txId } as TransactionMeta,
-            error: 'Transaction failed during subscription',
-          });
-        }
-        return subscription;
-      });
+      jest
+        .spyOn(messenger, 'subscribe')
+        .mockImplementation((event, handler) => {
+          const subscription = originalSubscribe(event, handler);
+          if (event === 'TransactionController:transactionDropped') {
+            rootMessenger.publish('TransactionController:transactionFailed', {
+              transactionMeta: { id: txId } as TransactionMeta,
+              error: 'Transaction failed during subscription',
+            });
+          }
+          return subscription;
+        });
 
       await rootMessenger.call(
         'GatorPermissionsController:addPendingRevocation',

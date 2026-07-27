@@ -104,12 +104,9 @@ export function getExpiryFromDelegation(
   leaf: Delegation<Hex>,
   contracts: EnforcerAddressesByName,
 ): number | null {
-  const targetEnforcer = getChecksumAddress(
-    contracts.timestampEnforcer,
-  );
+  const targetEnforcer = getChecksumAddress(contracts.timestampEnforcer);
   const timestampCaveat = leaf.caveats.find(
-    (caveat) =>
-      getChecksumAddress(caveat.enforcer) === targetEnforcer,
+    (caveat) => getChecksumAddress(caveat.enforcer) === targetEnforcer,
   );
   if (!timestampCaveat?.terms) {
     return null;

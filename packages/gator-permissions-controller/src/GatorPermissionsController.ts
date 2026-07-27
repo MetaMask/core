@@ -26,17 +26,17 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import { createPermissionDecodersForContracts } from './decodePermission/decoders/index.js';
+import {
+  delegationContractsByChainId,
+  toEnforcerAddressesByName,
+} from './decodePermission/enforcerAddresses.js';
 import type { DecodedPermission } from './decodePermission/index.js';
 import {
   findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
 } from './decodePermission/index.js';
-import { createPermissionDecodersForContracts } from './decodePermission/decoders/index.js';
-import {
-  delegationContractsByChainId,
-  toEnforcerAddressesByName,
-} from './decodePermission/enforcerAddresses.js';
 import {
   GatorPermissionsFetchError,
   GatorPermissionsProviderError,
