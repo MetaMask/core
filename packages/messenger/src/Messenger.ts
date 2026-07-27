@@ -1179,6 +1179,11 @@ export class Messenger<
    * from outside its own namespace is included. If any are missing, TypeScript
    * produces a type error showing the missing items.
    *
+   * The source messenger's action/event types must include every required
+   * external item. Items the source cannot provide still appear in the
+   * missing set, so incomplete source typing fails loudly instead of being
+   * silently skipped.
+   *
    * Use this when a single source messenger provides all external
    * actions/events for a child messenger (the common pattern in controller
    * initialisation).
@@ -1209,14 +1214,14 @@ export class Messenger<
     actions: RequireExhaustive<
       NotNamespacedBy<
         MessengerNamespace<Delegatee>,
-        MessengerActions<Delegatee>['type'] & Action['type']
+        MessengerActions<Delegatee>['type']
       >,
       DelegatedActions
     >;
     events: RequireExhaustive<
       NotNamespacedBy<
         MessengerNamespace<Delegatee>,
-        MessengerEvents<Delegatee>['type'] & Event['type']
+        MessengerEvents<Delegatee>['type']
       >,
       DelegatedEvents
     >;
