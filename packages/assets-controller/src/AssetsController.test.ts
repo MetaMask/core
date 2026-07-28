@@ -1705,7 +1705,6 @@ describe('AssetsController', () => {
         },
       );
     });
-
   });
 
   describe('handleAssetsUpdate - state updates', () => {

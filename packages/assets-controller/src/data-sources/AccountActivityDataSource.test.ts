@@ -710,6 +710,43 @@ describe('AccountActivityDataSource', () => {
 
       cleanup();
     });
+
+    it('stops handling balanceUpdated events once destroyed', () => {
+      const { dataSource, onAssetsUpdate, triggerBalanceUpdated, cleanup } =
+        setup({ groupAccounts: [createMockAccount()] });
+
+      dataSource.destroy();
+
+      triggerBalanceUpdated({
+        address: EVM_ADDRESS,
+        chain: CHAIN_MAINNET,
+        updates: [createBalanceUpdate()],
+      });
+
+      expect(onAssetsUpdate).not.toHaveBeenCalled();
+
+      cleanup();
+    });
+
+    it('stops handling statusChanged events once destroyed', () => {
+      const {
+        dataSource,
+        onActiveChainsUpdated,
+        triggerStatusChanged,
+        cleanup,
+      } = setup();
+
+      dataSource.destroy();
+
+      triggerStatusChanged({
+        chainIds: [CHAIN_MAINNET],
+        status: 'up',
+      });
+
+      expect(onActiveChainsUpdated).not.toHaveBeenCalled();
+
+      cleanup();
+    });
   });
 
   describe('createAccountActivityDataSource', () => {

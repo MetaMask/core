@@ -205,8 +205,11 @@ export class AccountActivityDataSource extends AbstractDataSource<
     request?: DataRequest,
   ) => void | Promise<void>;
 
-  /** Unsubscribe handles for messenger event subscriptions. */
-  readonly #eventUnsubscribes: (() => void)[] = [];
+  readonly #onBalanceUpdatedBound: (event: {
+    address: string;
+    chain: string;
+    updates: BalanceUpdate[];
+  }) => void;
 
   constructor(options: AccountActivityDataSourceOptions) {
     super(CONTROLLER_NAME, {
@@ -218,6 +221,7 @@ export class AccountActivityDataSource extends AbstractDataSource<
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#getAssetType = options.getAssetType;
     this.#onAssetsUpdate = options.onAssetsUpdate;
+    this.#onBalanceUpdatedBound = this.#onBalanceUpdated.bind(this);
 
     this.#subscribeToEvents();
   }
@@ -227,21 +231,14 @@ export class AccountActivityDataSource extends AbstractDataSource<
   // ============================================================================
 
   #subscribeToEvents(): void {
-    const unsubscribeBalance = this.#messenger.subscribe(
+    this.#messenger.subscribe(
       'AccountActivityService:balanceUpdated',
-      (event) => this.#onBalanceUpdated(event),
+      this.#onBalanceUpdatedBound,
     );
-    const unsubscribeStatus = this.#messenger.subscribe(
+    this.#messenger.subscribe(
       'AccountActivityService:statusChanged',
       this.#onAccountActivityStatusChanged,
     );
-
-    if (typeof unsubscribeBalance === 'function') {
-      this.#eventUnsubscribes.push(unsubscribeBalance);
-    }
-    if (typeof unsubscribeStatus === 'function') {
-      this.#eventUnsubscribes.push(unsubscribeStatus);
-    }
   }
 
   // ============================================================================
@@ -413,10 +410,23 @@ export class AccountActivityDataSource extends AbstractDataSource<
   // ============================================================================
 
   destroy(): void {
-    for (const unsubscribe of this.#eventUnsubscribes) {
-      unsubscribe();
+    try {
+      this.#messenger.unsubscribe(
+        'AccountActivityService:balanceUpdated',
+        this.#onBalanceUpdatedBound,
+      );
+    } catch (error) {
+      log('Failed to unsubscribe from balanceUpdated', { error });
     }
-    this.#eventUnsubscribes.length = 0;
+
+    try {
+      this.#messenger.unsubscribe(
+        'AccountActivityService:statusChanged',
+        this.#onAccountActivityStatusChanged,
+      );
+    } catch (error) {
+      log('Failed to unsubscribe from statusChanged', { error });
+    }
 
     super.destroy();
   }

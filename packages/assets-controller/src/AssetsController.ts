@@ -926,6 +926,8 @@ export class AssetsController extends BaseController<
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
+      onAssetsUpdate: (response): Promise<void> =>
+        this.handleAssetsUpdate(response, 'SnapDataSource'),
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,

@@ -8,10 +8,9 @@ import type { Json } from '@metamask/utils';
  * - The literal boolean `true` widens the headless fiat quote path to every
  *   provider class (native, in-app WebView aggregator, and external-browser /
  *   custom-action) with no provider restriction.
- * - An object payload `{ enabled: true, providerIds?: string[], surfaces?:
- *   Record<string, string[]> }` widens the same way, and additionally
- *   restricts the widened quote pick to the listed provider ids (see
- *   {@link getHeadlessProviderAllowlist}).
+ * - An object payload `{ enabled: true, featureVersion: "1", providerIds?: string[] }`
+ *   widens the same way, and additionally restricts the widened quote pick to
+ *   the listed provider ids (see {@link getHeadlessProviderAllowlist}).
  *
  * `false`, a missing flag, or any other value keeps the native-only default.
  * Clients that only understand the boolean form coerce the object payload to
@@ -81,30 +80,6 @@ function isEnabledPayload(value: Json | undefined): value is {
     value.enabled === true &&
     value.featureVersion === HEADLESS_ALL_PROVIDERS_FEATURE_VERSION
   );
-}
-
-/**
- * The `minimumVersion` carried by an enabled payload, or `undefined` for the
- * boolean form, a disabled payload, or a malformed field. This package cannot
- * compare app versions itself; mobile validates the value through its shared
- * `validatedVersionGatedFeatureFlag` util, and the LaunchDarkly `versions`
- * wrapper provides the server-side gate.
- *
- * @param remoteFeatureFlagState - `RemoteFeatureFlagController` state (or the
- * relevant subset of it).
- * @returns The minimum app version the payload declares, or `undefined`.
- */
-export function getHeadlessAllProvidersMinimumVersion(
-  remoteFeatureFlagState: HeadlessFeatureFlagsLookup | null | undefined,
-): string | undefined {
-  const value = resolveFlagValue(remoteFeatureFlagState);
-  if (!isEnabledPayload(value)) {
-    return undefined;
-  }
-  const { minimumVersion } = value;
-  return typeof minimumVersion === 'string' && minimumVersion.trim() !== ''
-    ? minimumVersion
-    : undefined;
 }
 
 /**

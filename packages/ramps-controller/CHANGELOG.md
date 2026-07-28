@@ -7,16 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+
+### Removed
+
+- **BREAKING:** Remove `getHeadlessAllProvidersMinimumVersion`; app-version gating for `moneyHeadlessAllProviders` is owned by the LaunchDarkly `versions` wrapper (processed by `RemoteFeatureFlagController`), not a payload `minimumVersion` field. `featureVersion` fail-closed enablement and `providerIds` allowlisting are unchanged. ([#9668](https://github.com/MetaMask/core/pull/9668))
+
+## [17.2.0]
+
 ### Added
 
-- Add the pure `getHeadlessProviderAllowlist(remoteFeatureFlagState, surface?)` helper plus the `HEADLESS_ALLOWLIST_SURFACES` constant and `HeadlessAllowlistSurface` type, resolving the provider-id allowlist carried by the `moneyHeadlessAllProviders` flag's object payload (`surfaces[surface]` overrides the top-level `providerIds`; absent, empty, or malformed levels fall through to no restriction) ([#9524](https://github.com/MetaMask/core/pull/9524))
-- Add the `HEADLESS_ALL_PROVIDERS_FEATURE_VERSION` constant (currently `'1'`) and the `getHeadlessAllProvidersMinimumVersion(remoteFeatureFlagState)` helper, exposing the version-gating fields of the `moneyHeadlessAllProviders` payload; an enabled object payload must now carry `featureVersion: '1'` or it resolves to disabled, and `minimumVersion` is surfaced for clients to validate against their app version (the boolean `true` form is unchanged) ([#9524](https://github.com/MetaMask/core/pull/9524))
-- Add an optional `surface` option to `RampsController.getQuotes` (canonical values `money` | `perps` | `predictions`) selecting the per-surface allowlist from the flag payload on the widened all-providers path; it does not affect fetching or caching ([#9524](https://github.com/MetaMask/core/pull/9524))
+- Add the pure `getHeadlessProviderAllowlist(remoteFeatureFlagState)` helper resolving the provider-id allowlist carried by the `moneyHeadlessAllProviders` flag's object payload; empty or malformed `providerIds` resolve to `undefined` (no restriction), unknown keys and non-string entries are ignored ([#9524](https://github.com/MetaMask/core/pull/9524))
+- Add the `HEADLESS_ALL_PROVIDERS_FEATURE_VERSION` constant (currently `'1'`) and the `getHeadlessAllProvidersMinimumVersion(remoteFeatureFlagState)` helper; an enabled object payload must carry `featureVersion: '1'` or it resolves to disabled, and `minimumVersion` is exposed for clients to validate against the app version ([#9524](https://github.com/MetaMask/core/pull/9524))
 
 ### Changed
 
-- Widen the `moneyHeadlessAllProviders` flag value contract to accept an object payload `{ enabled: true, providerIds?: string[], surfaces?: Record<string, string[]> }` alongside the boolean form ([#9524](https://github.com/MetaMask/core/pull/9524))
-  - `isHeadlessAllProvidersEnabled` now returns `true` for an object payload whose `enabled` is the literal `true`; every other previously-false value (strings, numbers, arrays, disabled or malformed payloads) still resolves to `false`, and the boolean forms behave exactly as before, so boolean-only configurations see no behavior change
+- Widen the `moneyHeadlessAllProviders` flag value contract to accept an object payload `{ enabled: true, featureVersion: "1", providerIds?: string[] }` alongside the boolean form ([#9524](https://github.com/MetaMask/core/pull/9524))
+  - `isHeadlessAllProvidersEnabled` now returns `true` for an object payload whose `enabled` is the literal `true` and `featureVersion` is `"1"`; every other previously-false value still resolves to `false`, so boolean-only configurations see no behavior change
   - When the payload lists provider ids, the widened quote pick drops candidates whose provider is not listed (ids match in prefixed `/providers/x` or bare form, case-insensitively); if nothing survives, `getQuotes` returns an empty `success[]` with `sorted` / `error` / `customActions` preserved
   - Clients on earlier versions coerce the object payload to `false` (native-only), so serving it cannot enable widening for a client that cannot parse it
 
@@ -467,7 +474,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.2.0...@metamask/ramps-controller@18.0.0
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.1.0...@metamask/ramps-controller@17.2.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.0.0...@metamask/ramps-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@16.0.0...@metamask/ramps-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.1.0...@metamask/ramps-controller@16.0.0

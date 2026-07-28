@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `SnapDataSource` now preserves optional balance `metadata` from snap keyrings into `assetsBalance` when handling `AccountsController:accountBalancesUpdated` and `getAccountBalances` results ([#9564](https://github.com/MetaMask/core/pull/9564))
+
 ### Changed
 
+- Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-internal-api` from `^11.0.1` to `^11.0.2` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-snap-client` from `^9.2.0` to `^9.2.1` ([#9676](https://github.com/MetaMask/core/pull/9676))
 - `AccountActivityDataSource` is now the highest-priority balance data source and participates in chain-claiming: chains it reports as "up" (from `AccountActivityService:statusChanged`) are claimed first so the polling data sources (`AccountsApiDataSource`/`RpcDataSource`) do not also poll them ([#9517](https://github.com/MetaMask/core/pull/9517))
   - `AssetsController` no longer references `BackendWebSocketService` actions/events; real-time balances and chain status are consumed exclusively from `AccountActivityService`
 
@@ -18,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The coalesced re-subscribe scheduled by `AssetsController` now re-checks the run guards (UI open, keyring unlocked, and `isEnabled`) when its debounce/jitter timer fires. Previously a re-subscribe scheduled while tracking was allowed could still run after the controller was disabled or tracking was stopped (e.g. UI closed or keyring locked), inappropriately restarting polling subscriptions ([#9517](https://github.com/MetaMask/core/pull/9517))
+- `SnapDataSource` now delivers snap-sourced balance updates directly to `AssetsController` via a constructor-supplied `onAssetsUpdate` callback instead of fanning out to `activeSubscriptions`, so updates (e.g. Tron energy/bandwidth) are no longer dropped when no active subscription is tracked for the chain in the SnapDataSource ([#9656](https://github.com/MetaMask/core/pull/9656))
 
 ## [11.2.1]
 
