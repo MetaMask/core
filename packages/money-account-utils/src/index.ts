@@ -11,3 +11,19 @@ export {
   isMusdTokenOnChain,
   isMusdOnMoneyAccountChain,
 } from './musd.js';
+export {
+  TELLER_ABI,
+  applySlippage,
+  buildMoneyAccountDepositBatch,
+  buildMoneyAccountWithdrawBatch,
+  getMoneyAccountDepositAssetAddress,
+  getMoneyAccountDepositAssetId,
+  getSharesForWithdrawal,
+} from './transactions.js';
+export type {
+  BuildMoneyAccountDepositBatchOptions,
+  BuildMoneyAccountWithdrawBatchOptions,
+  MoneyAccountDepositBatchResult,
+  MoneyAccountTxParams,
+  MoneyAccountWithdrawBatchResult,
+} from './transactions.js';
