@@ -47,7 +47,6 @@ function mapStatus(status: RampsOrderStatusLike): Status {
     case 'COMPLETED':
       return 'success';
     case 'FAILED':
-    case 'ID_EXPIRED':
       return 'failed';
     case 'CANCELLED':
       return 'cancelled';
@@ -56,13 +55,23 @@ function mapStatus(status: RampsOrderStatusLike): Status {
   }
 }
 
+// `UNKNOWN` and `ID_EXPIRED` represent background checkout attempts (e.g.
+// precreated orders that never matched a real order) that the user never
+// knowingly initiated as a distinct order and shouldn't see in their history.
+const HIDDEN_STATUSES = new Set<RampsOrderStatusLike>(['UNKNOWN', 'ID_EXPIRED']);
+
 /**
  * Maps a ramps order into the shared activity item shape.
  *
  * @param order - The ramps order to map.
- * @returns The normalized activity item.
+ * @returns The normalized activity item, or `null` if the order's status
+ * should not be surfaced in the activity list.
  */
-export function mapRampsOrder(order: RampsOrderLike): ActivityItem {
+export function mapRampsOrder(order: RampsOrderLike): ActivityItem | null {
+  if (HIDDEN_STATUSES.has(order.status)) {
+    return null;
+  }
+
   // The V2 API returns `orderType` uppercased (e.g. `'BUY'`); normalize since
   // some call sites (e.g. locally-created stub orders) use lowercase.
   const isBuy = order.orderType.toUpperCase() === 'BUY';

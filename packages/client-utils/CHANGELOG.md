@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `mapRampsOrder` for mapping ramps buy/sell orders into the shared activity item shape, and add `rampBuy`/`rampSell` to `ActivityKind` and `ActivityItem` ([#9650](https://github.com/MetaMask/core/pull/9650))
+  - `mapRampsOrder` returns `null` for orders with an `UNKNOWN` or `ID_EXPIRED` status, since these represent background checkout attempts that should not appear in the activity list ([#9650](https://github.com/MetaMask/core/pull/9650))
 
 ### Changed
 

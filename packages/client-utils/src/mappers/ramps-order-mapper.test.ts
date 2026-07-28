@@ -65,7 +65,7 @@ describe('mapRampsOrder', () => {
       network: { chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' },
     });
 
-    expect(item.chainId).toBe('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+    expect(item?.chainId).toBe('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
   });
 
   it('maps a sell order to a rampSell activity item with an outbound token direction', () => {
@@ -98,34 +98,41 @@ describe('mapRampsOrder', () => {
   it('maps an empty txHash to an undefined hash while keeping the provider order id', () => {
     const item = mapRampsOrder({ ...baseOrder, txHash: '', status: 'PENDING' });
 
-    expect(item.hash).toBeUndefined();
-    expect(item.type === 'rampBuy' ? item.data.id : 'unset').toBe(
+    expect(item?.hash).toBeUndefined();
+    expect(item?.type === 'rampBuy' ? item.data.id : 'unset').toBe(
       'order-123',
     );
-    expect(item.status).toBe('pending');
+    expect(item?.status).toBe('pending');
   });
 
   it('maps a precreated stub order with an empty chain id to an undefined chainId, not eip155:0', () => {
     const item = mapRampsOrder({ ...baseOrder, network: { chainId: '' } });
 
-    expect(item.chainId).toBeUndefined();
+    expect(item?.chainId).toBeUndefined();
   });
 
   it.each([
-    ['UNKNOWN', 'pending'],
     ['PRECREATED', 'pending'],
     ['CREATED', 'pending'],
     ['PENDING', 'pending'],
     ['COMPLETED', 'success'],
     ['FAILED', 'failed'],
-    ['ID_EXPIRED', 'failed'],
     ['CANCELLED', 'cancelled'],
   ] as const)(
     'maps RampsOrderStatus %s to Status %s',
     (rampsStatus, expectedStatus) => {
       const item = mapRampsOrder({ ...baseOrder, status: rampsStatus });
 
-      expect(item.status).toBe(expectedStatus);
+      expect(item?.status).toBe(expectedStatus);
+    },
+  );
+
+  it.each(['UNKNOWN', 'ID_EXPIRED'] as const)(
+    'hides orders with RampsOrderStatus %s from the activity list',
+    (rampsStatus) => {
+      const item = mapRampsOrder({ ...baseOrder, status: rampsStatus });
+
+      expect(item).toBeNull();
     },
   );
 
