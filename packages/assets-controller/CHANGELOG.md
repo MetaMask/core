@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `#withTrace` now treats a rejected parent `#trace` promise as best-effort (like `#emitTrace`), so Sentry/adapter failures cannot fail full fetches or `handleAssetsUpdate` enrichment ([#9672](https://github.com/MetaMask/core/pull/9672))
+- `SnapDataSource` now delivers snap-sourced balance updates directly to `AssetsController` via a constructor-supplied `onAssetsUpdate` callback instead of fanning out to `activeSubscriptions`, so updates (e.g. Tron energy/bandwidth) are no longer dropped when no active subscription is tracked for the chain in the SnapDataSource ([#9656](https://github.com/MetaMask/core/pull/9656))
 
 ## [11.2.1]
 
