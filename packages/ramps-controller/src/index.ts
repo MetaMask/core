@@ -145,7 +145,6 @@ export type { HeadlessFeatureFlagsLookup } from './featureFlags.js';
 export {
   HEADLESS_ALL_PROVIDERS_FEATURE_VERSION,
   MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
-  getHeadlessAllProvidersMinimumVersion,
   getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
 } from './featureFlags.js';
