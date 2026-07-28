@@ -59,14 +59,9 @@ type PullRequestSnapshot = {
   headRepository: { isFork: boolean } | null;
 };
 
-type ListedPullRequest = {
-  number: number;
-  head: {
-    ref: string;
-    repo: { fork: boolean } | null;
-  };
-  labels: { name: string }[];
-};
+type ListedPullRequest = Awaited<
+  ReturnType<Octokit['rest']['pulls']['list']>
+>['data'][number];
 
 type BranchDeleteOutcome = {
   outcome:
@@ -533,12 +528,15 @@ async function main(): Promise<void> {
   const staleBefore = Date.now() - STALE_DURATION_MS;
   const { owner, repo } = context.repo;
 
-  const pullRequests = (await octokit.paginate(octokit.rest.pulls.list, {
-    owner,
-    repo,
-    state: 'open',
-    per_page: 100,
-  })) as ListedPullRequest[];
+  const pullRequests: ListedPullRequest[] = await octokit.paginate(
+    octokit.rest.pulls.list,
+    {
+      owner,
+      repo,
+      state: 'open',
+      per_page: 100,
+    },
+  );
 
   const releasePrs = pullRequests.filter((pullRequest) =>
     isReleasePrCandidate(pullRequest),
