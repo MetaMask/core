@@ -307,6 +307,29 @@ function collectChildOrderIds(orders: FrontendOrder[]): Set<number> {
 }
 
 /**
+ * Group orders by market, so a per-position pass does not rescan every order.
+ *
+ * @param orders - Raw frontend open orders across all DEXs.
+ * @returns Orders keyed by market symbol.
+ */
+function groupOrdersBySymbol(
+  orders: FrontendOrder[],
+): Map<string, FrontendOrder[]> {
+  const bySymbol = new Map<string, FrontendOrder[]>();
+
+  orders.forEach((order) => {
+    const existing = bySymbol.get(order.coin);
+    if (existing) {
+      existing.push(order);
+    } else {
+      bySymbol.set(order.coin, [order]);
+    }
+  });
+
+  return bySymbol;
+}
+
+/**
  * Build the trigger-order view of a position: position-bound TP/SL plus
  * standalone (partial) reduce-only triggers on the same market, de-duplicated by
  * order ID and excluding children of pending parent orders.
@@ -3448,6 +3471,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         stopLossSize: params.stopLossSize,
         tpslLinkage: params.tpslLinkage,
         grouping: params.grouping,
+        timeInForce: params.timeInForce,
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
@@ -3719,6 +3743,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         stopLossSize: params.newOrder.stopLossSize,
         tpslLinkage: params.newOrder.tpslLinkage,
         grouping: params.newOrder.grouping,
+        timeInForce: params.newOrder.timeInForce,
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
@@ -4962,6 +4987,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       // they belong to that order, not to a position.
       const allOrdersChildIds = collectChildOrderIds(allOrders);
 
+      // Grouped once here rather than rescanned per position, mirroring the
+      // positionsBySymbol map on the WebSocket path.
+      const ordersBySymbol = groupOrdersBySymbol(allOrders);
+
       this.#deps.debugLogger.log('Frontend open orders (all DEXs):', {
         count: allOrders.length,
         orders: allOrders.map((ord) => ({
@@ -5016,7 +5045,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             // the positionOrders filter above).
             const { takeProfitOrders, stopLossOrders } =
               collectPositionTriggerOrders({
-                orders: allOrders,
+                orders: ordersBySymbol.get(position.symbol) ?? [],
                 position,
                 childOrderIds: allOrdersChildIds,
               });
@@ -6790,6 +6819,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         stopLossSize: params.stopLossSize,
         tpslLinkage: params.tpslLinkage,
         grouping: params.grouping,
+        timeInForce: params.timeInForce,
       });
       if (!basicValidation.isValid) {
         return basicValidation;

@@ -513,6 +513,7 @@ const TPSL_LINKAGE_GROUPING: Record<
  * @param params.stopLossSize - Partial stop loss size
  * @param params.tpslLinkage - How an attached TP/SL is linked
  * @param params.grouping - Deprecated protocol-shaped spelling of `tpslLinkage`
+ * @param params.timeInForce - Time in force; only a plain limit order can carry one
  * @returns Validation result with isValid flag and optional error message
  */
 export function validateOrderParams(params: {
@@ -527,6 +528,7 @@ export function validateOrderParams(params: {
   stopLossSize?: string;
   tpslLinkage?: TpslLinkage;
   grouping?: 'na' | 'normalTpsl' | 'positionTpsl';
+  timeInForce?: 'GTC' | 'IOC' | 'ALO';
 }): { isValid: boolean; error?: string } {
   if (!params.coin) {
     return {
@@ -607,6 +609,17 @@ export function validateOrderParams(params: {
         error: PERPS_ERROR_CODES.ORDER_TPSL_LINKAGE_CONFLICT,
       };
     }
+  }
+
+  // Only a plain limit order rests on the book long enough for a time in force to
+  // mean anything: a market order fills immediately and a trigger order's
+  // execution is decided when it fires. Rejected here, at step 1 of placement, so
+  // it cannot fire after leverage changes or a HIP-3 margin transfer.
+  if (params.timeInForce !== undefined && orderType !== 'limit') {
+    return {
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED,
+    };
   }
 
   const partialTpslValidation = validatePartialTpslSizes(params);

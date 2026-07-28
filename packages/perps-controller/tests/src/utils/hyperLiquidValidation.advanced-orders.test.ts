@@ -5,6 +5,7 @@ import {
   getMaxOrderValue,
   validateOrderParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
+import { isTriggerOrderType } from '../../../src/utils/orderTypes.js';
 
 describe('hyperLiquidValidation - advanced order types', () => {
   describe('validateOrderParams', () => {
@@ -310,6 +311,52 @@ describe('hyperLiquidValidation - advanced order types', () => {
         isValid: false,
         error: PERPS_ERROR_CODES.ORDER_TPSL_LINKAGE_CONFLICT,
       });
+    });
+  });
+
+  describe('time in force', () => {
+    it('accepts a time in force on a plain limit order', () => {
+      expect(
+        validateOrderParams({
+          coin: 'BTC',
+          size: '1',
+          price: '50000',
+          orderType: 'limit',
+          timeInForce: 'ALO',
+        }),
+      ).toStrictEqual({ isValid: true });
+    });
+
+    it.each([
+      'market',
+      'stop_market',
+      'stop_limit',
+      'take_profit_market',
+      'take_profit_limit',
+    ] as OrderType[])('rejects a time in force on %s', (orderType) => {
+      expect(
+        validateOrderParams({
+          coin: 'BTC',
+          size: '1',
+          price: '50000',
+          orderType,
+          triggerPrice: isTriggerOrderType(orderType) ? '45000' : undefined,
+          timeInForce: 'IOC',
+        }),
+      ).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED,
+      });
+    });
+
+    it('leaves orders without a time in force untouched', () => {
+      expect(
+        validateOrderParams({
+          coin: 'BTC',
+          size: '1',
+          orderType: 'market',
+        }),
+      ).toStrictEqual({ isValid: true });
     });
   });
 

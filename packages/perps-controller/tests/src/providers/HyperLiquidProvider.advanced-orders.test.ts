@@ -577,6 +577,59 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it.each([
+      [
+        'market',
+        {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market' as const,
+        },
+      ],
+      [
+        'stop_limit',
+        {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'stop_limit' as const,
+          price: '44500',
+          triggerPrice: '45000',
+        },
+      ],
+    ])(
+      'rejects time in force on a %s order before any on-chain side effect',
+      async (_label, orderParams) => {
+        // Real validation, so the rejection happens at step 1 of placeOrder
+        // rather than while the exchange payload is being built.
+        mockValidateOrderParams.mockImplementation(
+          jest.requireActual('../../../src/utils/hyperLiquidValidation.js')
+            .validateOrderParams,
+        );
+
+        const result = await provider.placeOrder({
+          ...orderParams,
+          // Leverage is what makes the ordering matter: #prepareAssetForTrading
+          // sends updateLeverage on-chain, and there is no rollback for it.
+          leverage: 10,
+          timeInForce: 'IOC',
+          currentPrice: 50000,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(
+          PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED,
+        );
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
     it('rejects time in force on a trigger order', async () => {
       const result = await provider.placeOrder({
         symbol: 'BTC',

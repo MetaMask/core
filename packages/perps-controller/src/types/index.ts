@@ -315,8 +315,20 @@ export type Position = {
     sinceOpen: string; // Funding since position opened
     sinceChange: string; // Funding since last size change
   };
-  takeProfitPrice?: string; // Take profit price (if set)
-  stopLossPrice?: string; // Stop loss price (if set)
+  /**
+   * Take profit price (if set).
+   *
+   * Legacy summary field: it may also reflect a TP/SL child of a *pending* order
+   * on this market, which `takeProfitOrders` and `takeProfitCount` deliberately
+   * exclude because such a child protects that order rather than the position.
+   * A position can therefore report a price here with an empty array and a count
+   * of `0`. Prefer `takeProfitOrders` for anything that must be exact.
+   */
+  takeProfitPrice?: string;
+  /**
+   * Stop loss price (if set). Same caveat as `takeProfitPrice`.
+   */
+  stopLossPrice?: string;
   takeProfitCount: number; // Take profit count, how many tps can affect the position
   stopLossCount: number; // Stop loss count, how many sls can affect the position
   // Full view of the trigger orders attached to this position, including
