@@ -4351,8 +4351,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       const isPartialTpsl =
         takeProfitSize !== undefined || stopLossSize !== undefined;
 
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
+      // Basic initialization only. The trading setup that can prompt a hardware
+      // wallet and write the referral / builder-fee approvals is deferred until
+      // every validation below has passed, so a rejected update leaves nothing
+      // behind.
+      await this.#ensureReady();
 
       // Use live position (from WebSocket) if available, otherwise fetch via REST
       // Preferring WebSocket data avoids rate limiting issues with the REST API
@@ -4407,7 +4410,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // Get clients for API calls (ensureReady already called at method start)
+      // Get clients for API calls (#ensureReady already called at method start).
+      // Holding the exchange client reference is not itself a write; it is only
+      // used below, after the trading setup has run.
       const infoClient = this.#clientService.getInfoClient();
       const exchangeClient = this.#clientService.getExchangeClient();
       const userAddress = await this.#walletService.getUserAddressWithDefault();
@@ -4459,6 +4464,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           error: tpslPrecision.error,
         };
       }
+
+      // Everything is validated: only now run the trading setup that can prompt
+      // for signatures and write the referral / builder-fee approvals.
+      await this.#ensureReadyForTrading();
 
       // Cancel existing TP/SL orders for this position
       // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)

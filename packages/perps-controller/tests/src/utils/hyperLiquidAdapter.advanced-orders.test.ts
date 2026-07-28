@@ -185,9 +185,37 @@ describe('hyperLiquidAdapter - advanced order types', () => {
           symbolToAssetId,
         );
 
-        expect(parseFloat(result.p)).toBeCloseTo(expectedCap, 6);
+        expect(parseFloat(String(result.p))).toBeCloseTo(expectedCap, 6);
       },
     );
+
+    it('caps a market-on-trigger order at the requested slippage tolerance', () => {
+      const result = adaptOrderToSDK(
+        buildOrderParams({
+          orderType: 'stop_market',
+          isBuy: false,
+          triggerPrice: '45000',
+          maxSlippageBps: 50,
+        }),
+        symbolToAssetId,
+      );
+
+      expect(parseFloat(String(result.p))).toBeCloseTo(45000 * (1 - 0.005), 6);
+    });
+
+    it('honours the deprecated decimal slippage when no bps tolerance is set', () => {
+      const result = adaptOrderToSDK(
+        buildOrderParams({
+          orderType: 'stop_market',
+          isBuy: false,
+          triggerPrice: '45000',
+          slippage: 0.005,
+        }),
+        symbolToAssetId,
+      );
+
+      expect(parseFloat(String(result.p))).toBeCloseTo(45000 * (1 - 0.005), 6);
+    });
 
     it('keeps an explicit price on a market-on-trigger order', () => {
       const result = adaptOrderToSDK(

@@ -613,18 +613,33 @@ export function validateOrderParams(params: {
     }
   }
 
+  const hasAttachedTpsl =
+    params.takeProfitPrice !== undefined || params.stopLossPrice !== undefined;
+
   // Every order in a `positionTpsl` batch has to be a trigger order, but an
   // attached TP/SL is submitted alongside the ordinary parent order it protects
   // — HyperLiquid rejects the whole batch. Position-linked TP/SL belongs to
   // `updatePositionTPSL`, applied to the position once the parent has filled.
   const requestsPositionLinkage =
     params.tpslLinkage === 'position' || params.grouping === 'positionTpsl';
-  const hasAttachedTpsl =
-    params.takeProfitPrice !== undefined || params.stopLossPrice !== undefined;
   if (requestsPositionLinkage && hasAttachedTpsl) {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED,
+    };
+  }
+
+  // `na` grouping submits the attached TP/SL as standalone triggers, bound to
+  // neither the parent order nor the resulting position. An unfilled parent
+  // then leaves them behind as orphan reduce-only triggers that fire against
+  // whatever position happens to exist. An attached TP/SL needs a linkage that
+  // links it, so the combination is a caller mistake rather than a mode.
+  const requestsNoLinkage =
+    params.tpslLinkage === 'none' || params.grouping === 'na';
+  if (requestsNoLinkage && hasAttachedTpsl) {
+    return {
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_TPSL_LINKAGE_REQUIRED,
     };
   }
 

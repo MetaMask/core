@@ -1708,6 +1708,36 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ['a size larger than the position', '0.5'],
+      ['a size that rounds to zero', '0.0004'],
+      ['a non-positive size', '0'],
+    ])(
+      'rejects %s without running trading setup',
+      async (_label, takeProfitSize) => {
+        // Trading setup can prompt a hardware wallet and write the referral /
+        // builder-fee approvals on-chain. None of that should happen for an
+        // update that is rejected outright.
+        mockValidateOrderParams.mockImplementation(
+          jest.requireActual('../../../src/utils/hyperLiquidValidation.js')
+            .validateOrderParams,
+        );
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize,
+          position,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+        expect(
+          mockClientService.getExchangeClient().setReferrer,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
     it('leaves the position protected when a partial size rounds to zero', async () => {
       // The position already has a whole-position TP/SL the sweep would cancel.
       // Rejecting the update after that sweep would strip the protection and

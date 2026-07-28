@@ -1,6 +1,9 @@
 import { hasProperty, Hex, isHexString } from '@metamask/utils';
 
-import { HIP3_ASSET_ID_CONFIG } from '../constants/hyperLiquidConfig.js';
+import {
+  BASIS_POINTS_DIVISOR,
+  HIP3_ASSET_ID_CONFIG,
+} from '../constants/hyperLiquidConfig.js';
 import {
   DECIMAL_PRECISION_CONFIG,
   ORDER_SLIPPAGE_CONFIG,
@@ -127,7 +130,12 @@ export function adaptOrderToSDK(
  * fills against once the trigger fires, not a resting price. Sending `'0'`
  * fails SDK validation before the request is ever made.
  *
- * @param order - Order params carrying the placement type and trigger price.
+ * The cap follows the order's own tolerance, matching `calculateOrderPriceAndSize`
+ * on the `placeOrder` path, so the same order priced through either route gets
+ * the same execution bound.
+ *
+ * @param order - Order params carrying the placement type, trigger price, and
+ * slippage tolerance.
  * @returns The formatted cap price, or undefined when the order needs no cap.
  */
 function resolveTriggerCapPrice(order: PerpsOrderParams): string | undefined {
@@ -144,8 +152,17 @@ function resolveTriggerCapPrice(order: PerpsOrderParams): string | undefined {
     return undefined;
   }
 
+  // Accept the deprecated decimal `slippage` too, normalizing it to bps the way
+  // `placeOrder` does, so neither spelling silently falls back to the default.
+  const effectiveBps =
+    order.maxSlippageBps ??
+    (typeof order.slippage === 'number'
+      ? Math.round(order.slippage * BASIS_POINTS_DIVISOR)
+      : undefined) ??
+    ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps;
+
   // Buying pays up to the cap, selling accepts down to it.
-  const slippage = ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / 10000;
+  const slippage = effectiveBps / BASIS_POINTS_DIVISOR;
   const capPrice = order.isBuy
     ? triggerPrice * (1 + slippage)
     : triggerPrice * (1 - slippage);

@@ -317,6 +317,41 @@ describe('hyperLiquidValidation - advanced order types', () => {
       },
     );
 
+    it.each([
+      { tpslLinkage: 'none' as TpslLinkage },
+      { grouping: 'na' as const },
+    ])(
+      'rejects an order that carries its own TP/SL with no linkage (%o)',
+      (linkage) => {
+        // 'na' grouping submits the TP/SL as standalone triggers tied to
+        // neither the parent order nor the resulting position, so they outlive
+        // an unfilled parent as orphan reduce-only triggers.
+        expect(
+          validateOrderParams({
+            coin: 'BTC',
+            size: '1',
+            orderType: 'market',
+            takeProfitPrice: '60000',
+            ...linkage,
+          }),
+        ).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_TPSL_LINKAGE_REQUIRED,
+        });
+      },
+    );
+
+    it('accepts no linkage when no TP/SL is attached to the order', () => {
+      expect(
+        validateOrderParams({
+          coin: 'BTC',
+          size: '1',
+          orderType: 'market',
+          tpslLinkage: 'none',
+        }),
+      ).toStrictEqual({ isValid: true });
+    });
+
     it('accepts position linkage when no TP/SL is attached to the order', () => {
       expect(
         validateOrderParams({

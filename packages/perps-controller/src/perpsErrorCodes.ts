@@ -53,6 +53,7 @@ export const PERPS_ERROR_CODES = {
   ORDER_TPSL_LINKAGE_CONFLICT: 'ORDER_TPSL_LINKAGE_CONFLICT', // tpslLinkage and the deprecated grouping disagree
   ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED:
     'ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED', // Position-linked TP/SL attached to an ordinary parent order
+  ORDER_TPSL_LINKAGE_REQUIRED: 'ORDER_TPSL_LINKAGE_REQUIRED', // Attached TP/SL requested with no linkage to parent or position
   ORDER_EDIT_ORDER_UNVERIFIABLE: 'ORDER_EDIT_ORDER_UNVERIFIABLE', // editOrder cannot confirm the resting order's placement type
   ORDER_TIME_IN_FORCE_NOT_SUPPORTED: 'ORDER_TIME_IN_FORCE_NOT_SUPPORTED', // Time in force supplied for an order shape that cannot carry one
   // HyperLiquid client/service errors
