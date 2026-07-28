@@ -73,16 +73,6 @@ type BranchDeleteOutcome = {
 };
 
 /**
- * Stable fingerprint of a PR's label set for equality checks.
- *
- * @param labels - Label names.
- * @returns Sorted, joined label names.
- */
-function labelKey(labels: string[]): string {
-  return [...labels].sort().join('\0');
-}
-
-/**
  * Label names from a GraphQL PR snapshot.
  *
  * @param snapshot - GraphQL pull request snapshot.
@@ -159,99 +149,54 @@ function isMergeInProgress(snapshot: PullRequestSnapshot): boolean {
 /**
  * Evaluate whether a PR snapshot is eligible to close as stale.
  *
- * Skip-label is re-checked on refreshed snapshots so a label added after the
- * initial list filter still prevents auto-close.
+ * Skip-label is re-checked so a label added after the initial list filter still
+ * prevents auto-close.
  *
  * @param options - Evaluation inputs.
  * @param options.snapshot - Fresh GraphQL pull request snapshot.
  * @param options.staleBefore - Epoch ms; PRs updated at/after this are kept.
- * @param options.phase - Optional log suffix describing the check phase.
  * @returns Eligibility result.
  */
 function evaluateStaleEligibility({
   snapshot,
   staleBefore,
-  phase = '',
 }: {
   snapshot: PullRequestSnapshot;
   staleBefore: number;
-  phase?: string;
 }): { eligible: boolean; ageMs?: number } {
-  const suffix = phase ? ` ${phase}` : '';
   const ref = snapshot.headRefName;
 
   if (snapshot.state !== 'OPEN') {
-    core.info(`Skipping #${snapshot.number} (${ref}): no longer open${suffix}`);
+    core.info(`Skipping #${snapshot.number} (${ref}): no longer open`);
     return { eligible: false };
   }
 
   if (snapshotLabelNames(snapshot).includes(SKIP_LABEL)) {
     core.info(
-      `Skipping #${snapshot.number} (${ref}): skip label "${SKIP_LABEL}"${suffix}`,
+      `Skipping #${snapshot.number} (${ref}): skip label "${SKIP_LABEL}"`,
     );
     return { eligible: false };
   }
 
   if (snapshot.headRepository?.isFork) {
-    core.info(`Skipping #${snapshot.number} (${ref}): fork head${suffix}`);
+    core.info(`Skipping #${snapshot.number} (${ref}): fork head`);
     return { eligible: false };
   }
 
   const updatedAtMs = Date.parse(snapshot.updatedAt);
   if (updatedAtMs >= staleBefore) {
     core.info(
-      `Skipping #${snapshot.number} (${ref}): updated ${Math.round((Date.now() - updatedAtMs) / 60000)}m ago${suffix}`,
+      `Skipping #${snapshot.number} (${ref}): updated ${Math.round((Date.now() - updatedAtMs) / 60000)}m ago`,
     );
     return { eligible: false };
   }
 
   if (isMergeInProgress(snapshot)) {
-    core.info(
-      `Skipping #${snapshot.number} (${ref}): merge in progress${suffix}`,
-    );
+    core.info(`Skipping #${snapshot.number} (${ref}): merge in progress`);
     return { eligible: false };
   }
 
   return { eligible: true, ageMs: Date.now() - updatedAtMs };
-}
-
-/**
- * Confirm the PR snapshot has not changed since the pre-close checks.
- *
- * @param options - Comparison inputs.
- * @param options.latest - Most recent GraphQL snapshot.
- * @param options.expected - Snapshot captured before the final refresh.
- * @returns True when the snapshot is unchanged.
- */
-function isUnchangedBeforeClose({
-  latest,
-  expected,
-}: {
-  latest: PullRequestSnapshot;
-  expected: PullRequestSnapshot;
-}): boolean {
-  if (
-    labelKey(snapshotLabelNames(latest)) !==
-    labelKey(snapshotLabelNames(expected))
-  ) {
-    core.info(
-      `Skipping #${latest.number} (${latest.headRefName}): labels changed before close`,
-    );
-    return false;
-  }
-
-  if (
-    latest.updatedAt !== expected.updatedAt ||
-    latest.headRefOid !== expected.headRefOid ||
-    latest.headRefName !== expected.headRefName
-  ) {
-    core.info(
-      `Skipping #${latest.number} (${latest.headRefName}): activity or head changed before close`,
-    );
-    return false;
-  }
-
-  return true;
 }
 
 /**
@@ -460,38 +405,12 @@ async function processReleasePr({
   }
 
   const inactiveHours = (eligibility.ageMs / (60 * 60 * 1000)).toFixed(1);
-  const expected = snapshot;
-
-  let latest: PullRequestSnapshot;
-  try {
-    latest = await getPullRequestSnapshot(octokit, expected.number);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    core.warning(
-      `Failed final refresh for #${expected.number} (${expected.headRefName}): ${message}`,
-    );
-    return;
-  }
-
-  // Final pass uses a live cutoff so a PR that just became active is not closed.
-  const finalEligibility = evaluateStaleEligibility({
-    snapshot: latest,
-    staleBefore: Date.now() - STALE_DURATION_MS,
-    phase: 'before close',
-  });
-  if (!finalEligibility.eligible) {
-    return;
-  }
-
-  if (!isUnchangedBeforeClose({ latest, expected })) {
-    return;
-  }
 
   // Close before commenting so a failed close does not bump updatedAt.
   const closed = await closePullRequest(
     octokit,
-    latest.number,
-    latest.headRefName,
+    snapshot.number,
+    snapshot.headRefName,
   );
   if (!closed) {
     return;
@@ -499,9 +418,9 @@ async function processReleasePr({
 
   const branchResult = await deleteBranchIfUnchanged({
     octokit,
-    pullNumber: latest.number,
-    expectedHeadRef: expected.headRefName,
-    expectedHeadSha: expected.headRefOid,
+    pullNumber: snapshot.number,
+    expectedHeadRef: snapshot.headRefName,
+    expectedHeadSha: snapshot.headRefOid,
   });
 
   const body = buildCloseComment({
@@ -509,7 +428,7 @@ async function processReleasePr({
     outcome: branchResult.outcome,
   });
 
-  await commentOnPullRequest(octokit, latest.number, body);
+  await commentOnPullRequest(octokit, snapshot.number, body);
 }
 
 /**
