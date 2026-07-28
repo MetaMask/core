@@ -4925,7 +4925,7 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('updateTransactionCallback', () => {
+  describe('updateTransactionMetadata', () => {
     it('updates multiple properties using a callback and returns the updated transaction', () => {
       const { controller } = setupController({
         options: {
@@ -4935,7 +4935,7 @@ describe('TransactionController', () => {
         },
       });
 
-      const result = controller.updateTransactionCallback(
+      const result = controller.updateTransactionMetadata(
         TRANSACTION_META_MOCK.id,
         (transactionMeta) => {
           transactionMeta.requiredAssets = [
@@ -4973,7 +4973,7 @@ describe('TransactionController', () => {
         txParams: { ...TRANSACTION_META_MOCK.txParams, value: '0x3' },
       };
 
-      const result = controller.updateTransactionCallback(
+      const result = controller.updateTransactionMetadata(
         TRANSACTION_META_MOCK.id,
         () => updatedTransaction,
       );
@@ -4985,7 +4985,7 @@ describe('TransactionController', () => {
       const { controller } = setupController();
 
       expect(() =>
-        controller.updateTransactionCallback('missing-id', () => undefined),
+        controller.updateTransactionMetadata('missing-id', () => undefined),
       ).toThrow('Cannot update transaction as ID not found - missing-id');
     });
   });
@@ -8557,8 +8557,8 @@ describe('TransactionController', () => {
       });
     });
 
-    describe('TransactionController:updateTransactionCallback', () => {
-      it('calls updateTransactionCallback via messenger', () => {
+    describe('TransactionController:updateTransactionMetadata', () => {
+      it('calls updateTransactionMetadata via messenger', () => {
         const { controller, messenger } = setupController({
           options: {
             state: {
@@ -8568,7 +8568,7 @@ describe('TransactionController', () => {
         });
 
         const result = messenger.call(
-          'TransactionController:updateTransactionCallback',
+          'TransactionController:updateTransactionMetadata',
           TRANSACTION_META_MOCK.id,
           (transactionMeta) => {
             transactionMeta.txParams.value = '0x1';

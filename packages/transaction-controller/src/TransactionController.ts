@@ -701,7 +701,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateSecurityAlertResponse',
   'updateSelectedGasFeeToken',
   'updateTransaction',
-  'updateTransactionCallback',
+  'updateTransactionMetadata',
   'updateTransactionGasFees',
   'wipeTransactions',
 ] as const;
@@ -1630,7 +1630,7 @@ export class TransactionController extends BaseController<
    * @param callback - Function that mutates the transaction metadata.
    * @returns The updated transaction metadata.
    */
-  updateTransactionCallback(
+  updateTransactionMetadata(
     transactionId: string,
     callback: (transactionMeta: TransactionMeta) => void,
   ): Readonly<TransactionMeta> {

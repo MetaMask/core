@@ -308,7 +308,7 @@ export class TransactionPayController extends BaseController<
 
     try {
       this.messenger.call(
-        'TransactionController:updateTransactionCallback',
+        'TransactionController:updateTransactionMetadata',
         transactionId,
         (transactionMeta) => {
           const { nestedTransactions, transactionData } =

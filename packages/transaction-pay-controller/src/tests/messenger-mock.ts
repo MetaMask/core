@@ -18,7 +18,7 @@ import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
   TransactionControllerEstimateGasAction,
-  TransactionControllerUpdateTransactionCallbackAction,
+  TransactionControllerUpdateTransactionMetadataAction,
   TransactionControllerEstimateGasBatchAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
@@ -72,7 +72,7 @@ export function getMessengerMock({
   > = jest.fn();
 
   const updateTransactionCallbackMock: jest.MockedFn<
-    TransactionControllerUpdateTransactionCallbackAction['handler']
+    TransactionControllerUpdateTransactionMetadataAction['handler']
   > = jest.fn();
 
   const findNetworkClientIdByChainIdMock: jest.MockedFn<
@@ -303,7 +303,7 @@ export function getMessengerMock({
   }
 
   messenger.registerActionHandler(
-    'TransactionController:updateTransactionCallback',
+    'TransactionController:updateTransactionMetadata',
     updateTransactionCallbackMock,
   );
 
