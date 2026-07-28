@@ -645,6 +645,51 @@ describe('HyperLiquidProvider', () => {
       expect(request.orders[2].r).toBe(true);
     });
 
+    it('maps the provider-agnostic TP/SL linkage onto the exchange grouping', async () => {
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+        takeProfitPrice: '60000',
+        tpslLinkage: 'position',
+      });
+
+      expect(getSubmittedOrderRequest().grouping).toBe('positionTpsl');
+    });
+
+    it('lets the linkage win over the deprecated grouping spelling', async () => {
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+        takeProfitPrice: '60000',
+        tpslLinkage: 'position',
+        // Deprecated spelling of the same option; validation rejects a genuine
+        // disagreement, so this only proves which field the mapping reads.
+        grouping: 'positionTpsl',
+      });
+
+      expect(getSubmittedOrderRequest().grouping).toBe('positionTpsl');
+    });
+
+    it('still honours the deprecated grouping when no linkage is given', async () => {
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+        takeProfitPrice: '60000',
+        grouping: 'positionTpsl',
+      });
+
+      expect(getSubmittedOrderRequest().grouping).toBe('positionTpsl');
+    });
+
     it('returns a typed error when a trigger placement has no trigger price', async () => {
       const result = await provider.placeOrder({
         symbol: 'BTC',

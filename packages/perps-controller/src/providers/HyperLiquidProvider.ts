@@ -147,6 +147,7 @@ import {
   adaptOrderFromSDK,
   adaptPositionFromSDK,
   adaptPositionTriggerOrderFromSDK,
+  adaptTpslLinkageToGrouping,
   buildAssetMapping,
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
@@ -3445,6 +3446,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         stopLossPrice: params.stopLossPrice,
         takeProfitSize: params.takeProfitSize,
         stopLossSize: params.stopLossSize,
+        tpslLinkage: params.tpslLinkage,
+        grouping: params.grouping,
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
@@ -3586,7 +3589,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         takeProfitSize: params.takeProfitSize,
         stopLossSize: params.stopLossSize,
         szDecimals: assetInfo.szDecimals,
-        grouping: params.grouping,
+        // The provider-agnostic linkage wins; `grouping` is the deprecated
+        // HyperLiquid-shaped spelling kept for existing callers.
+        grouping: params.tpslLinkage
+          ? adaptTpslLinkageToGrouping(params.tpslLinkage)
+          : params.grouping,
       });
 
       // 8. Submit order with atomic rollback
@@ -3709,6 +3716,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         stopLossPrice: params.newOrder.stopLossPrice,
         takeProfitSize: params.newOrder.takeProfitSize,
         stopLossSize: params.newOrder.stopLossSize,
+        tpslLinkage: params.newOrder.tpslLinkage,
+        grouping: params.newOrder.grouping,
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
@@ -6778,6 +6787,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         stopLossPrice: params.stopLossPrice,
         takeProfitSize: params.takeProfitSize,
         stopLossSize: params.stopLossSize,
+        tpslLinkage: params.tpslLinkage,
+        grouping: params.grouping,
       });
       if (!basicValidation.isValid) {
         return basicValidation;

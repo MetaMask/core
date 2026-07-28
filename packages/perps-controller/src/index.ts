@@ -160,6 +160,7 @@ export type {
   TriggerOrderType,
   OrderExecution,
   TriggerDirection,
+  TpslLinkage,
   PositionTriggerOrder,
   MarketType,
   MarketTypeFilter,
@@ -491,6 +492,7 @@ export {
 export {
   adaptTriggerOrderTypeFromSDK,
   adaptPositionTriggerOrderFromSDK,
+  adaptTpslLinkageToGrouping,
 } from './utils/index.js';
 export {
   generatePerpsId,

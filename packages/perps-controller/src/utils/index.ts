@@ -12,6 +12,7 @@ export {
   adaptPositionFromSDK,
   adaptOrderFromSDK,
   adaptPositionTriggerOrderFromSDK,
+  adaptTpslLinkageToGrouping,
   adaptTriggerOrderTypeFromSDK,
   adaptMarketFromSDK,
   adaptAccountStateFromSDK,

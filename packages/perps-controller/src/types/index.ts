@@ -7,7 +7,12 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
-import type { CandleData, OrderType, TriggerOrderType } from './perps-types.js';
+import type {
+  CandleData,
+  OrderType,
+  TpslLinkage,
+  TriggerOrderType,
+} from './perps-types.js';
 
 /**
  * Connection states for WebSocket management.
@@ -252,6 +257,17 @@ export type OrderParams = {
   takeProfitSize?: string; // Quantity covered by the attached take profit
   stopLossSize?: string; // Quantity covered by the attached stop loss
   clientOrderId?: string; // Optional client-provided order ID
+  /**
+   * How an attached TP/SL is linked: to this order (`order`), to the resulting
+   * position (`position`), or absent (`none`). Defaults to `none` without TP/SL
+   * and `order` with TP/SL. Takes precedence over the deprecated `grouping`.
+   */
+  tpslLinkage?: TpslLinkage;
+  /**
+   * @deprecated Use `tpslLinkage`. This field carries HyperLiquid's own grouping
+   * vocabulary; it is honoured for existing callers but a provider-agnostic
+   * placement should not depend on protocol wording.
+   */
   grouping?: 'na' | 'normalTpsl' | 'positionTpsl'; // Override grouping (defaults: 'na' without TP/SL, 'normalTpsl' with TP/SL)
   currentPrice?: number; // Current market price (avoids extra API call if provided)
   leverage?: number; // Leverage to apply for the order (e.g., 10 for 10x leverage)

@@ -17,9 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - On HyperLiquid, a size cannot be expressed under `positionTpsl` grouping, so `updatePositionTPSL` submits partial TP/SL as standalone reduce-only trigger orders with `na` grouping and explicit sizes. In that path the pre-cancel sweep also clears previously placed standalone reduce-only triggers for the symbol so repeated calls stay idempotent, but never a TP/SL child of another pending order; the whole-position path is unchanged.
 - Add `Position.takeProfitOrders` and `Position.stopLossOrders` (`PositionTriggerOrder[]`), the complete view of the trigger orders attached to a position — including partial ones, which the scalar `takeProfitPrice`/`stopLossPrice` fields cannot represent. Each entry carries `orderId`, `orderType`, `triggerPrice`, `size` (resolved to the position size when the protocol encodes "whole position"), `isPartial`, and `reduceOnly`
 - Add `Order.triggerOrderType`, the normalized placement type of an open trigger order, so open-orders state round-trips the placement type alongside the existing `triggerPrice`, `reduceOnly`, and size fields
-- Add the `TriggerOrderType`, `OrderExecution`, `TriggerDirection`, and `PositionTriggerOrder` types
+- Add `OrderParams.tpslLinkage` (`'none' | 'order' | 'position'`), a provider-agnostic way to say how an attached TP/SL is linked — to this order, to the resulting position, or absent — replacing the HyperLiquid-shaped `grouping` without removing it
+  - `grouping` (`'na' | 'normalTpsl' | 'positionTpsl'`) is deprecated but still honoured, so existing callers keep working. `tpslLinkage` takes precedence; supplying both with different meanings is rejected with the new `ORDER_TPSL_LINKAGE_CONFLICT` error rather than silently resolved.
+  - `adaptTpslLinkageToGrouping` maps the linkage onto HyperLiquid's grouping inside the adapter layer, keeping protocol wording out of `OrderParams`.
+- Add the `TriggerOrderType`, `OrderExecution`, `TriggerDirection`, `TpslLinkage`, and `PositionTriggerOrder` types
 - Add order-type helpers `TRIGGER_ORDER_TYPES`, `isTriggerOrderType`, `isLimitExecutionOrderType`, `getTriggerExecution`, `getTriggerDirection`, `buildTriggerOrderType`, and `buildPositionTriggerOrderFromOrder`, plus the HyperLiquid mappers `adaptTriggerOrderTypeFromSDK` and `adaptPositionTriggerOrderFromSDK`
-- Add order validation error codes `ORDER_TRIGGER_PRICE_REQUIRED`, `ORDER_TRIGGER_PRICE_POSITIVE`, `ORDER_TRIGGER_PRICE_NOT_SUPPORTED`, `ORDER_TRIGGER_TPSL_UNSUPPORTED`, `ORDER_TPSL_SIZE_INVALID`, and `ORDER_EDIT_TRIGGER_UNSUPPORTED`
+- Add order validation error codes `ORDER_TRIGGER_PRICE_REQUIRED`, `ORDER_TRIGGER_PRICE_POSITIVE`, `ORDER_TRIGGER_PRICE_NOT_SUPPORTED`, `ORDER_TRIGGER_TPSL_UNSUPPORTED`, `ORDER_TPSL_SIZE_INVALID`, `ORDER_EDIT_TRIGGER_UNSUPPORTED`, and `ORDER_TPSL_LINKAGE_CONFLICT`
 
 ### Changed
 

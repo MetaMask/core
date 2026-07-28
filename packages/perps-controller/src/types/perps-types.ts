@@ -33,6 +33,17 @@ export type TriggerOrderType = Exclude<OrderType, 'market' | 'limit'>;
 export type OrderExecution = 'market' | 'limit';
 
 /**
+ * How an attached TP/SL relates to what it protects.
+ *
+ * - `none`: the order carries no attached TP/SL.
+ * - `order`: the TP/SL belongs to this order and is cancelled with it.
+ * - `position`: the TP/SL belongs to the resulting position and covers all of it.
+ *
+ * Provider-agnostic replacement for the HyperLiquid-shaped `OrderParams.grouping`.
+ */
+export type TpslLinkage = 'none' | 'order' | 'position';
+
+/**
  * Which side of the mark price a trigger order fires on.
  * `stop` protects against adverse moves, `take_profit` realizes gains.
  */

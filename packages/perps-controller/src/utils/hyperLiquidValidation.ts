@@ -12,7 +12,7 @@ import type {
   GetSupportedPathsParams,
   PerpsDebugLogger,
 } from '../types/index.js';
-import type { OrderType } from '../types/perps-types.js';
+import type { OrderType, TpslLinkage } from '../types/perps-types.js';
 import { isLimitExecutionOrderType, isTriggerOrderType } from './orderTypes.js';
 
 /**
@@ -483,6 +483,19 @@ export function getMaxOrderValue(
 }
 
 /**
+ * The `grouping` value each provider-agnostic linkage corresponds to, used to
+ * detect a caller supplying both spellings with different meanings.
+ */
+const TPSL_LINKAGE_GROUPING: Record<
+  TpslLinkage,
+  'na' | 'normalTpsl' | 'positionTpsl'
+> = {
+  none: 'na',
+  order: 'normalTpsl',
+  position: 'positionTpsl',
+};
+
+/**
  * Validate order parameters.
  * Basic validation - checks required fields are present.
  * Amount validation (size/USD) is handled by validateOrder.
@@ -498,6 +511,8 @@ export function getMaxOrderValue(
  * @param params.stopLossPrice - Attached stop loss price
  * @param params.takeProfitSize - Partial take profit size
  * @param params.stopLossSize - Partial stop loss size
+ * @param params.tpslLinkage - How an attached TP/SL is linked
+ * @param params.grouping - Deprecated protocol-shaped spelling of `tpslLinkage`
  * @returns Validation result with isValid flag and optional error message
  */
 export function validateOrderParams(params: {
@@ -510,6 +525,8 @@ export function validateOrderParams(params: {
   stopLossPrice?: string;
   takeProfitSize?: string;
   stopLossSize?: string;
+  tpslLinkage?: TpslLinkage;
+  grouping?: 'na' | 'normalTpsl' | 'positionTpsl';
 }): { isValid: boolean; error?: string } {
   if (!params.coin) {
     return {
@@ -578,6 +595,18 @@ export function validateOrderParams(params: {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_NOT_SUPPORTED,
     };
+  }
+
+  // `tpslLinkage` supersedes `grouping`, but two spellings that disagree are a
+  // caller mistake — resolving one silently would hide it.
+  if (params.tpslLinkage !== undefined && params.grouping !== undefined) {
+    const expectedGrouping = TPSL_LINKAGE_GROUPING[params.tpslLinkage];
+    if (expectedGrouping !== params.grouping) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_LINKAGE_CONFLICT,
+      };
+    }
   }
 
   const partialTpslValidation = validatePartialTpslSizes(params);

@@ -50,6 +50,7 @@ export const PERPS_ERROR_CODES = {
   ORDER_TRIGGER_TPSL_UNSUPPORTED: 'ORDER_TRIGGER_TPSL_UNSUPPORTED', // Attached TP/SL on a trigger placement
   ORDER_TPSL_SIZE_INVALID: 'ORDER_TPSL_SIZE_INVALID', // Partial TP/SL size non-positive, larger than the order, or missing its price
   ORDER_EDIT_TRIGGER_UNSUPPORTED: 'ORDER_EDIT_TRIGGER_UNSUPPORTED', // editOrder cannot turn a resting order into a trigger placement
+  ORDER_TPSL_LINKAGE_CONFLICT: 'ORDER_TPSL_LINKAGE_CONFLICT', // tpslLinkage and the deprecated grouping disagree
   // HyperLiquid client/service errors
   EXCHANGE_CLIENT_NOT_AVAILABLE: 'EXCHANGE_CLIENT_NOT_AVAILABLE',
   INFO_CLIENT_NOT_AVAILABLE: 'INFO_CLIENT_NOT_AVAILABLE',

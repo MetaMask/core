@@ -20,7 +20,7 @@ import type {
   RawLedgerUpdate,
   UserHistoryItem,
 } from '../types/index.js';
-import type { TriggerOrderType } from '../types/perps-types.js';
+import type { TpslLinkage, TriggerOrderType } from '../types/perps-types.js';
 import {
   buildTriggerOrderType,
   getTriggerDirection,
@@ -139,6 +139,25 @@ function adaptOrderTypeToSDK(order: PerpsOrderParams): SDKOrderParams['t'] {
   return order.orderType === 'limit'
     ? { limit: { tif: 'Gtc' } }
     : { limit: { tif: 'FrontendMarket' } };
+}
+
+/**
+ * Map the provider-agnostic TP/SL linkage onto HyperLiquid's grouping vocabulary.
+ *
+ * @param linkage - How the attached TP/SL is linked.
+ * @returns The HyperLiquid grouping value.
+ */
+export function adaptTpslLinkageToGrouping(
+  linkage: TpslLinkage,
+): 'na' | 'normalTpsl' | 'positionTpsl' {
+  switch (linkage) {
+    case 'position':
+      return 'positionTpsl';
+    case 'order':
+      return 'normalTpsl';
+    default:
+      return 'na';
+  }
 }
 
 export function adaptPositionFromSDK(assetPosition: AssetPosition): Position {

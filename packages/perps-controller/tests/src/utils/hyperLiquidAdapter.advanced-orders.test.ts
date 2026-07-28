@@ -1,11 +1,15 @@
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { FrontendOrder } from '../../../src/types/hyperliquid-types.js';
 import type { OrderParams } from '../../../src/types/index.js';
-import type { TriggerOrderType } from '../../../src/types/perps-types.js';
+import type {
+  TpslLinkage,
+  TriggerOrderType,
+} from '../../../src/types/perps-types.js';
 import {
   adaptOrderFromSDK,
   adaptOrderToSDK,
   adaptPositionTriggerOrderFromSDK,
+  adaptTpslLinkageToGrouping,
   adaptTriggerOrderTypeFromSDK,
 } from '../../../src/utils/hyperLiquidAdapter.js';
 
@@ -219,6 +223,16 @@ describe('hyperLiquidAdapter - advanced order types', () => {
           positionSize: '1',
         }),
       ).toBeUndefined();
+    });
+  });
+
+  describe('adaptTpslLinkageToGrouping', () => {
+    it.each([
+      ['none', 'na'],
+      ['order', 'normalTpsl'],
+      ['position', 'positionTpsl'],
+    ] as [TpslLinkage, string][])('maps %s to %s', (linkage, expected) => {
+      expect(adaptTpslLinkageToGrouping(linkage)).toBe(expected);
     });
   });
 });

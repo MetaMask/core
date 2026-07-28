@@ -1,6 +1,6 @@
 import { HYPERLIQUID_ORDER_LIMITS } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
-import type { OrderType } from '../../../src/types/perps-types.js';
+import type { OrderType, TpslLinkage } from '../../../src/types/perps-types.js';
 import {
   getMaxOrderValue,
   validateOrderParams,
@@ -249,6 +249,66 @@ describe('hyperLiquidValidation - advanced order types', () => {
             takeProfitSize: '99',
           }),
         ).toStrictEqual({ isValid: true });
+      });
+    });
+  });
+
+  describe('TP/SL linkage', () => {
+    it('accepts the provider-agnostic linkage on its own', () => {
+      expect(
+        validateOrderParams({
+          coin: 'BTC',
+          size: '1',
+          orderType: 'market',
+          takeProfitPrice: '60000',
+          tpslLinkage: 'position',
+        }),
+      ).toStrictEqual({ isValid: true });
+    });
+
+    it('accepts the deprecated grouping on its own', () => {
+      expect(
+        validateOrderParams({
+          coin: 'BTC',
+          size: '1',
+          orderType: 'market',
+          takeProfitPrice: '60000',
+          grouping: 'positionTpsl',
+        }),
+      ).toStrictEqual({ isValid: true });
+    });
+
+    it.each([
+      ['none', 'na'],
+      ['order', 'normalTpsl'],
+      ['position', 'positionTpsl'],
+    ] as [TpslLinkage, 'na' | 'normalTpsl' | 'positionTpsl'][])(
+      'accepts %s alongside the equivalent grouping %s',
+      (tpslLinkage, grouping) => {
+        expect(
+          validateOrderParams({
+            coin: 'BTC',
+            size: '1',
+            orderType: 'market',
+            tpslLinkage,
+            grouping,
+          }),
+        ).toStrictEqual({ isValid: true });
+      },
+    );
+
+    it('rejects a linkage that disagrees with the deprecated grouping', () => {
+      expect(
+        validateOrderParams({
+          coin: 'BTC',
+          size: '1',
+          orderType: 'market',
+          tpslLinkage: 'position',
+          grouping: 'normalTpsl',
+        }),
+      ).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_LINKAGE_CONFLICT,
       });
     });
   });
