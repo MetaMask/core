@@ -194,7 +194,7 @@ function evaluateStaleEligibility({
   const updatedAtMs = Date.parse(pullRequest.updatedAt);
   if (updatedAtMs >= staleBefore) {
     core.info(
-      `Skipping #${pullRequest.number} (${ref}): updated ${Math.round((Date.now() - updatedAtMs) / Duration.Minute)}m ago`,
+      `Skipping #${pullRequest.number} (${ref}): has not reached stale age of ${STALE_DURATION_HOURS}h yet (updated ${Math.round((Date.now() - updatedAtMs) / Duration.Minute)}m ago)`,
     );
     return { eligible: false };
   }
