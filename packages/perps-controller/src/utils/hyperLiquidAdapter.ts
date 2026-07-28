@@ -27,6 +27,7 @@ import {
   getTriggerExecution,
   isLimitExecutionOrderType,
   isTriggerOrderType,
+  toSDKTimeInForce,
 } from './orderTypes.js';
 import {
   countSignificantFigures,
@@ -116,25 +117,6 @@ export function adaptOrderToSDK(
 }
 
 /**
- * Map the controller's time in force onto the SDK's spelling.
- *
- * @param timeInForce - Requested time in force; defaults to GTC.
- * @returns The SDK time-in-force value.
- */
-function adaptTimeInForceToSDK(
-  timeInForce: PerpsOrderParams['timeInForce'],
-): 'Gtc' | 'Ioc' | 'Alo' {
-  switch (timeInForce) {
-    case 'IOC':
-      return 'Ioc';
-    case 'ALO':
-      return 'Alo';
-    default:
-      return 'Gtc';
-  }
-}
-
-/**
  * Map a placement type onto the SDK's order-type field.
  *
  * @param order - Order params carrying the placement type and trigger price
@@ -159,7 +141,7 @@ function adaptOrderTypeToSDK(order: PerpsOrderParams): SDKOrderParams['t'] {
   }
 
   if (order.orderType === 'limit') {
-    return { limit: { tif: adaptTimeInForceToSDK(order.timeInForce) } };
+    return { limit: { tif: toSDKTimeInForce(order.timeInForce) } };
   }
   if (order.timeInForce !== undefined) {
     throw new Error(PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED);

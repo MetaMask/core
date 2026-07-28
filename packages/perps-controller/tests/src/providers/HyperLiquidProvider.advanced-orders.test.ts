@@ -895,6 +895,49 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it('rejects editing a resting trigger order into a plain one', async () => {
+      // The dangerous direction: `modify` would rebuild the protective stop as
+      // an immediately-resting limit order and report success.
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([
+        {
+          orderId: '123',
+          symbol: 'BTC',
+          side: 'sell',
+          orderType: 'market',
+          size: '0.1',
+          originalSize: '0.1',
+          price: '40500',
+          filledSize: '0',
+          remainingSize: '0.1',
+          status: 'open',
+          timestamp: 1_700_000_000_000,
+          isTrigger: true,
+          triggerOrderType: 'stop_market',
+          triggerPrice: '44000',
+          reduceOnly: true,
+        },
+      ] as never);
+
+      const result = await provider.editOrder({
+        orderId: '123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'limit',
+          price: '45000',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+      );
+      expect(
+        mockClientService.getExchangeClient().modify,
+      ).not.toHaveBeenCalled();
+    });
+
     it('rejects editing a resting order into a trigger placement', async () => {
       const result = await provider.editOrder({
         orderId: '123',

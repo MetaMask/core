@@ -174,12 +174,12 @@ import {
   buildOrdersArray,
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
-  toSDKTimeInForce,
 } from '../utils/orderCalculations.js';
 import {
   getTriggerExecution,
   isLimitExecutionOrderType,
   isTriggerOrderType,
+  toSDKTimeInForce,
 } from '../utils/orderTypes.js';
 import {
   createStandaloneInfoClient,
@@ -3721,9 +3721,21 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // Modifying a resting order into a trigger placement is not supported:
-      // `modify` rebuilds the order as a plain limit/market order, which would
-      // silently drop the trigger. Cancel and re-place instead.
+      // `modify` rebuilds an order as a plain limit/market order, so a trigger
+      // on either side of the edit would be silently dropped. Reject a resting
+      // trigger order as well as an edit *into* one; cancel and re-place instead.
+      // The resting side can only be checked when the WebSocket order cache is
+      // warm — it is the only local source that knows an order's placement type.
+      const restingOrder = this.#subscriptionService
+        .getOrdersCacheIfInitialized()
+        ?.find((order) => order.orderId === params.orderId.toString());
+      if (restingOrder?.isTrigger === true) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+        };
+      }
+
       if (isTriggerOrderType(params.newOrder.orderType)) {
         return {
           success: false,

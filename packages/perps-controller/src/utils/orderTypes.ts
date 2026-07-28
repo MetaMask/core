@@ -137,3 +137,46 @@ export function buildTriggerOrderType(params: {
 
   return execution === 'limit' ? 'take_profit_limit' : 'take_profit_market';
 }
+
+/**
+ * Map the controller's time in force onto the exchange's spelling.
+ *
+ * Shared by the two order-building paths so they cannot drift apart.
+ *
+ * @param timeInForce - Requested time in force; defaults to GTC.
+ * @returns The SDK time-in-force value.
+ */
+export function toSDKTimeInForce(
+  timeInForce?: 'GTC' | 'IOC' | 'ALO',
+): 'Gtc' | 'Ioc' | 'Alo' {
+  switch (timeInForce) {
+    case 'IOC':
+      return 'Ioc';
+    case 'ALO':
+      return 'Alo';
+    default:
+      return 'Gtc';
+  }
+}
+
+/**
+ * Hash the identity of a position's trigger orders for change detection.
+ *
+ * Streamed positions only re-emit when their hash changes, so this has to move
+ * when a trigger is added, removed, repriced, or resized — otherwise subscribers
+ * never receive the updated arrays.
+ *
+ * @param orders - Trigger orders attached to a position, if any.
+ * @returns A stable string; `'0'` for both empty and absent.
+ */
+export function hashTriggerOrders(orders?: PositionTriggerOrder[]): string {
+  if (!orders || orders.length === 0) {
+    return '0';
+  }
+  return orders
+    .map(
+      (order) =>
+        `${order.orderId}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}`,
+    )
+    .join(',');
+}

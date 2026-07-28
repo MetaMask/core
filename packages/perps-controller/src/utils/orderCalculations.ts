@@ -17,6 +17,7 @@ import {
   getTriggerDirection,
   isLimitExecutionOrderType,
   isTriggerOrderType,
+  toSDKTimeInForce,
 } from './orderTypes.js';
 
 /**
@@ -412,25 +413,6 @@ export function calculateOrderPriceAndSize(
 }
 
 /**
- * Map the controller's time in force onto the SDK's spelling.
- *
- * @param timeInForce - Requested time in force; defaults to GTC.
- * @returns The SDK time-in-force value.
- */
-export function toSDKTimeInForce(
-  timeInForce?: 'GTC' | 'IOC' | 'ALO',
-): 'Gtc' | 'Ioc' | 'Alo' {
-  switch (timeInForce) {
-    case 'IOC':
-      return 'Ioc';
-    case 'ALO':
-      return 'Alo';
-    default:
-      return 'Gtc';
-  }
-}
-
-/**
  * Build the SDK order-type field for the main order.
  *
  * Trigger placements map to the SDK's trigger shape; everything else keeps the
@@ -501,10 +483,18 @@ function formatTpslSize(params: {
     return formattedSize;
   }
 
-  return formatHyperLiquidSize({
-    size: parseFloat(tpslSize),
-    szDecimals,
-  });
+  // Validation compares the requested size against `params.size`, but a
+  // usdAmount-based order is finally sized from a fresher price, so the parent
+  // can end up smaller than the child that validated cleanly. Clamp so the
+  // attached TP/SL never exceeds the order it protects.
+  const requested = parseFloat(tpslSize);
+  const parentSize = parseFloat(formattedSize);
+  const size =
+    Number.isFinite(parentSize) && Number.isFinite(requested)
+      ? Math.min(requested, parentSize)
+      : requested;
+
+  return formatHyperLiquidSize({ size, szDecimals });
 }
 
 /**

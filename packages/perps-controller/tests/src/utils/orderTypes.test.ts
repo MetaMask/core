@@ -5,6 +5,8 @@ import type {
 } from '../../../src/types/perps-types.js';
 import {
   TRIGGER_ORDER_TYPES,
+  hashTriggerOrders,
+  toSDKTimeInForce,
   buildPositionTriggerOrderFromOrder,
   buildTriggerOrderType,
   getTriggerDirection,
@@ -103,6 +105,54 @@ describe('orderTypes', () => {
       'builds %o into %s',
       (params, expected) => {
         expect(buildTriggerOrderType(params)).toBe(expected);
+      },
+    );
+  });
+
+  describe('hashTriggerOrders', () => {
+    const trigger = {
+      orderId: '1',
+      orderType: 'stop_market' as const,
+      triggerPrice: '45000',
+      size: '0.5',
+      isPartial: false,
+      reduceOnly: true,
+    };
+
+    it('treats empty and absent the same', () => {
+      expect(hashTriggerOrders([])).toBe('0');
+      expect(hashTriggerOrders(undefined)).toBe('0');
+    });
+
+    it('changes the hash when a trigger is added', () => {
+      // Streamed positions only re-emit when this string moves.
+      expect(hashTriggerOrders([trigger])).not.toBe('0');
+    });
+
+    it.each([
+      ['repriced', [{ ...trigger, triggerPrice: '46000' }]],
+      ['resized', [{ ...trigger, size: '0.25' }]],
+      ['partial', [{ ...trigger, isPartial: true }]],
+      ['replaced', [{ ...trigger, orderId: '2' }]],
+    ])('changes the hash when a trigger is %s', (_label, orders) => {
+      expect(hashTriggerOrders(orders)).not.toBe(hashTriggerOrders([trigger]));
+    });
+
+    it('is stable for unchanged input', () => {
+      expect(hashTriggerOrders([trigger])).toBe(hashTriggerOrders([trigger]));
+    });
+  });
+
+  describe('toSDKTimeInForce', () => {
+    it.each([
+      ['GTC', 'Gtc'],
+      ['IOC', 'Ioc'],
+      ['ALO', 'Alo'],
+      [undefined, 'Gtc'],
+    ] as [('GTC' | 'IOC' | 'ALO') | undefined, string][])(
+      'maps %s to %s',
+      (timeInForce, expected) => {
+        expect(toSDKTimeInForce(timeInForce)).toBe(expected);
       },
     );
   });

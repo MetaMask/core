@@ -66,27 +66,12 @@ import {
   calculateOpenInterestUSD,
   isMarketTradable,
 } from '../utils/marketDataTransform.js';
-import { buildPositionTriggerOrderFromOrder } from '../utils/orderTypes.js';
+import {
+  buildPositionTriggerOrderFromOrder,
+  hashTriggerOrders,
+} from '../utils/orderTypes.js';
 import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
-
-/**
- * Hash the identity of a position's trigger orders for change detection.
- *
- * @param orders - Trigger orders attached to a position, if any.
- * @returns A stable string that changes when a trigger is added, removed, or repriced.
- */
-function hashTriggerOrders(orders?: PositionTriggerOrder[]): string {
-  if (!orders || orders.length === 0) {
-    return '0';
-  }
-  return orders
-    .map(
-      (order) =>
-        `${order.orderId}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}`,
-    )
-    .join(',');
-}
 
 /**
  * Per-symbol view of the trigger orders attached to a position, keyed by symbol.
@@ -2143,7 +2128,13 @@ export class HyperLiquidSubscriptionService {
 
             // Re-extract TP/SL from cached orders for the new positions
             // This ensures TP/SL data persists across clearinghouseState updates
-            let positionsWithTPSL = positions;
+            // Default the trigger arrays so "no triggers" and "not streamed yet"
+            // look the same to consumers as they do on the REST path.
+            let positionsWithTPSL = positions.map((position) => ({
+              ...position,
+              takeProfitOrders: position.takeProfitOrders ?? [],
+              stopLossOrders: position.stopLossOrders ?? [],
+            }));
             if (cachedOrders.length > 0) {
               const { tpslMap, tpslCountMap, triggerOrderMap } =
                 this.#extractTPSLFromOrders([], positions, cachedOrders);
