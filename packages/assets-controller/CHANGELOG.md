@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-internal-api` from `^11.0.1` to `^11.0.2` ([#9676](https://github.com/MetaMask/core/pull/9676))
 - Bump `@metamask/keyring-snap-client` from `^9.2.0` to `^9.2.1` ([#9676](https://github.com/MetaMask/core/pull/9676))
 
+### Fixed
+
+- `#withTrace` now treats a rejected parent `#trace` promise as best-effort (like `#emitTrace`), so Sentry/adapter failures cannot fail full fetches or `handleAssetsUpdate` enrichment ([#9672](https://github.com/MetaMask/core/pull/9672))
+
 ## [11.2.1]
 
 ### Fixed

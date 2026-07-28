@@ -1049,6 +1049,52 @@ describe('AssetsController', () => {
       });
     });
 
+    it('does not fail forceUpdate when parent trace rejects after work completes', async () => {
+      const traceMock = jest.fn().mockImplementation(
+        async (
+          _request: TraceRequest,
+          fn?: (context?: unknown) => unknown,
+        ) => {
+          if (fn) {
+            await fn({ id: 'parent' });
+            // Simulate Sentry/adapter failure after the span callback finishes.
+            throw new Error('telemetry failed');
+          }
+          return undefined;
+        },
+      );
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          await expect(
+            controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            }),
+          ).resolves.toBeDefined();
+        },
+      );
+    });
+
+    it('still runs forceUpdate when parent trace rejects before invoking work', async () => {
+      const traceMock = jest
+        .fn()
+        .mockRejectedValue(new Error('telemetry failed'));
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          await expect(
+            controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            }),
+          ).resolves.toBeDefined();
+        },
+      );
+    });
+
     // Endpoint selection from the flag is unit-tested in AccountsApiDataSource;
     // this asserts the controller wires its messenger through so the
     // `assetsAccountsApiV6` flag drives endpoint selection end-to-end.
@@ -1395,6 +1441,44 @@ describe('AssetsController', () => {
   });
 
   describe('handleAssetsUpdate', () => {
+    it('does not fail when parent trace rejects after enrichment completes', async () => {
+      const traceMock = jest.fn().mockImplementation(
+        async (
+          _request: TraceRequest,
+          fn?: (context?: unknown) => unknown,
+        ) => {
+          if (fn) {
+            await fn({ id: 'parent' });
+            throw new Error('telemetry failed');
+          }
+          return undefined;
+        },
+      );
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          await expect(
+            controller.handleAssetsUpdate(
+              {
+                updateMode: 'merge',
+                assetsBalance: {
+                  [MOCK_ACCOUNT_ID]: {
+                    [MOCK_ASSET_ID]: { amount: '1' },
+                  },
+                },
+              },
+              'test-source',
+            ),
+          ).resolves.toBeUndefined();
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+          ).toStrictEqual({ amount: '1' });
+        },
+      );
+    });
+
     it('preserves existing rich metadata when the API response has empty symbol and name', async () => {
       const richMetadata: FungibleAssetMetadata = {
         type: 'erc20',

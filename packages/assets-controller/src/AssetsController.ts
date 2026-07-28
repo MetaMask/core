@@ -735,6 +735,11 @@ export class AssetsController extends BaseController<
    * Run work inside a parent Sentry span and pass its context so callers can
    * emit nested subspans via {@link #emitTrace}.
    *
+   * Telemetry failures are swallowed (same contract as {@link #emitTrace}): a
+   * rejected `#trace` promise must not fail balance fetches or enrichment.
+   * Errors thrown by `fn` still propagate. If `#trace` never runs `fn`, work
+   * falls back to running without a parent context.
+   *
    * @param name - Parent span name.
    * @param data - Key-value pairs attached as span data.
    * @param fn - Work to run; receives the parent span context.
@@ -752,9 +757,35 @@ export class AssetsController extends BaseController<
     if (!this.#trace) {
       return fn(undefined);
     }
-    return await this.#trace({ name, data, tags }, (parentContext) =>
-      fn(parentContext),
-    );
+
+    let workResult:
+      | { ok: true; value: Result }
+      | { ok: false; error: unknown }
+      | undefined;
+
+    try {
+      await this.#trace({ name, data, tags }, async (parentContext) => {
+        try {
+          const value = await fn(parentContext);
+          workResult = { ok: true, value };
+          return value;
+        } catch (error) {
+          workResult = { ok: false, error };
+          throw error;
+        }
+      });
+    } catch {
+      // Telemetry failure must not break — unless the work itself failed.
+    }
+
+    if (workResult === undefined) {
+      // `#trace` failed before invoking `fn` (or never called it).
+      return fn(undefined);
+    }
+    if (workResult.ok) {
+      return workResult.value;
+    }
+    throw workResult.error;
   }
 
   /**
