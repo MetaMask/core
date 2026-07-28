@@ -585,13 +585,13 @@ export class GatorPermissionsController extends BaseController<
 
     const deploymentContracts = delegationContractsByChainId[chainId];
 
-    if (!deploymentContracts) {
-      throw new Error(`Contracts not found for chainId: ${chainId}`);
-    }
-
-    const contracts = toEnforcerAddressesByName(deploymentContracts);
-
     try {
+      if (!deploymentContracts) {
+        throw new Error(`Contracts not found for chainId: ${chainId}`);
+      }
+
+      const contracts = toEnforcerAddressesByName(deploymentContracts);
+
       const enforcers = caveats.map((caveat) => caveat.enforcer);
       const permissionDecoders =
         createPermissionDecodersForContracts(contracts);

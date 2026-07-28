@@ -36,7 +36,11 @@ import {
   mockNativeTokenStreamStorageEntry,
 } from '../tests/mocks.js';
 import { DELEGATION_FRAMEWORK_VERSION } from './constants.js';
-import { GatorPermissionsFetchError } from './errors.js';
+import * as enforcerAddressesModule from './decodePermission/enforcerAddresses.js';
+import {
+  GatorPermissionsFetchError,
+  PermissionDecodingError,
+} from './errors.js';
 import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController.js';
 import { GatorPermissionsController } from './GatorPermissionsController.js';
 import type {
@@ -46,6 +50,11 @@ import type {
   RevocationParams,
   SupportedPermissionType,
 } from './types.js';
+
+jest.mock('./decodePermission/enforcerAddresses.js', () => ({
+  ...jest.requireActual('./decodePermission/enforcerAddresses.js'),
+  __esModule: true,
+}));
 
 const PERMISSION_STATUSES: GatorPermissionStatus[] = [
   'Active',
@@ -401,7 +410,7 @@ describe('GatorPermissionsController', () => {
           delegationManager: DelegationManager,
         },
         siteOrigin: storedEntry.siteOrigin,
-      } as PermissionInfoWithMetadata;
+      } as unknown as PermissionInfoWithMetadata;
 
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: jest
@@ -766,8 +775,9 @@ describe('GatorPermissionsController', () => {
       });
     });
 
-    it('throws if contracts are not found', () => {
-      expect(() =>
+    it('throws PermissionDecodingError if contracts are not found', () => {
+      let error: unknown;
+      try {
         rootMessenger.call(
           'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
           {
@@ -781,8 +791,59 @@ describe('GatorPermissionsController', () => {
             },
             metadata: buildMetadata(''),
           },
-        ),
-      ).toThrow('Contracts not found for chainId: 999999');
+        );
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error).toBeInstanceOf(PermissionDecodingError);
+      expect((error as PermissionDecodingError).message).toBe(
+        'Failed to decode permission',
+      );
+      expect((error as PermissionDecodingError).cause).toBeInstanceOf(Error);
+      expect((error as PermissionDecodingError).cause.message).toBe(
+        'Contracts not found for chainId: 999999',
+      );
+    });
+
+    it('throws PermissionDecodingError when toEnforcerAddressesByName throws', () => {
+      const toEnforcerAddressesByNameSpy = jest
+        .spyOn(enforcerAddressesModule, 'toEnforcerAddressesByName')
+        .mockImplementation(() => {
+          throw new Error('Failed to checksum enforcer addresses');
+        });
+
+      let error: unknown;
+      try {
+        rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId,
+            delegation: {
+              caveats: [],
+              delegator: '0x1111111111111111111111111111111111111111',
+              delegate: '0x2222222222222222222222222222222222222222',
+              authority: ROOT_AUTHORITY,
+            },
+            metadata: buildMetadata(''),
+          },
+        );
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error).toBeInstanceOf(PermissionDecodingError);
+      expect((error as PermissionDecodingError).message).toBe(
+        'Failed to decode permission',
+      );
+      expect((error as PermissionDecodingError).cause).toBeInstanceOf(Error);
+      expect((error as PermissionDecodingError).cause.message).toBe(
+        'Failed to checksum enforcer addresses',
+      );
+      expect(toEnforcerAddressesByNameSpy).toHaveBeenCalledTimes(1);
+
+      toEnforcerAddressesByNameSpy.mockRestore();
     });
 
     it('throws when origin does not match permissions provider', () => {
