@@ -213,6 +213,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'unfollow',
   'optOutOfLeaderboard',
   'optInToLeaderboard',
+  'refreshNotificationPreferencesCache',
 ] as const;
 
 export type SocialServiceActions =
@@ -716,6 +717,42 @@ export class SocialService extends BaseDataService<
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.LEADERBOARD_OPT_IN_FAILED,
+        );
+        return null;
+      },
+    });
+  }
+
+  /**
+   * Asks the social-api to refresh its cached copy of the current user's
+   * notification preferences.
+   *
+   * Calls `POST ${baseUrl}/notifications/preferences/cache-refresh`. The caller
+   * is identified server-side from the JWT sub claim carried in the
+   * Authorization header, so it can only ever refresh its own entry.
+   *
+   * The client calls this immediately after writing a preference change to
+   * Authenticated User Storage (AUS), which is the source of truth. The social
+   * api re-reads from AUS and repopulates its cache so the change is honoured
+   * near-instantly rather than after the cache TTL lapses. It is a pure
+   * optimisation on top of that bounded TTL: the write has already succeeded by
+   * the time this runs, so callers should treat it as best-effort and must not
+   * roll back the AUS write if it fails.
+   */
+  async refreshNotificationPreferencesCache(): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:refreshNotificationPreferencesCache`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/notifications/preferences/cache-refresh`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED,
         );
         return null;
       },

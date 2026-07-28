@@ -39,6 +39,7 @@ export type {
   SocialServiceFollowAction,
   SocialServiceOptInToLeaderboardAction,
   SocialServiceOptOutOfLeaderboardAction,
+  SocialServiceRefreshNotificationPreferencesCacheAction,
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types.js';
 
