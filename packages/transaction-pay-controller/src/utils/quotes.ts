@@ -1,8 +1,6 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
-import type {
-  BatchTransaction,
-  TransactionMeta,
-} from '@metamask/transaction-controller';
+import type { BatchTransaction } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
@@ -46,7 +44,6 @@ const inFlightQuoteRequests = new Map<string, AbortController>();
 export type UpdateQuotesRequest = {
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
   messenger: TransactionPayControllerMessenger;
-  signal?: AbortSignal;
   transactionData: TransactionData | undefined;
   transactionId: string;
   updateTransactionData: UpdateTransactionDataCallback;
@@ -69,7 +66,6 @@ export async function updateQuotes(
   const {
     getStrategies,
     messenger,
-    signal: externalSignal,
     transactionData,
     transactionId,
     updateTransactionData,
@@ -106,16 +102,6 @@ export async function updateQuotes(
 
   const controller = abortPreviousAndCreateController(transactionId);
   const { signal } = controller;
-  const abortFromExternalSignal = (): void =>
-    controller.abort(externalSignal?.reason);
-
-  if (externalSignal?.aborted) {
-    abortFromExternalSignal();
-  } else {
-    externalSignal?.addEventListener('abort', abortFromExternalSignal, {
-      once: true,
-    });
-  }
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
@@ -218,7 +204,6 @@ export async function updateQuotes(
         data.isLoading = false;
       });
     }
-    externalSignal?.removeEventListener('abort', abortFromExternalSignal);
     clearControllerIfCurrent(transactionId, controller);
   }
 
@@ -359,24 +344,15 @@ export async function refreshQuotes(
   }
 }
 
-/**
- * Abort the active quote request for a transaction.
- *
- * @param transactionId - ID of the transaction whose quote should be aborted.
- */
-export function abortQuotes(transactionId: string): void {
-  const request = inFlightQuoteRequests.get(transactionId);
-
-  if (request && !request.signal.aborted) {
-    log('Aborting quote request', { transactionId });
-    request.abort(new Error('Superseded by newer quote request'));
-  }
-}
-
 function abortPreviousAndCreateController(
   transactionId: string,
 ): AbortController {
-  abortQuotes(transactionId);
+  const previous = inFlightQuoteRequests.get(transactionId);
+
+  if (previous && !previous.signal.aborted) {
+    log('Aborting previous quote request', { transactionId });
+    previous.abort(new Error('Superseded by newer quote request'));
+  }
 
   const controller = new AbortController();
   inFlightQuoteRequests.set(transactionId, controller);

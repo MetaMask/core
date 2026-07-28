@@ -15,7 +15,7 @@ import type {
   TransactionPayRequiredToken,
 } from '../types.js';
 import type { UpdateQuotesRequest } from './quotes.js';
-import { abortQuotes, refreshQuotes, updateQuotes } from './quotes.js';
+import { refreshQuotes, updateQuotes } from './quotes.js';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
@@ -200,18 +200,6 @@ describe('Quotes Utils', () => {
   });
 
   describe('updateQuotes', () => {
-    it('aborts immediately when the external signal is already aborted', async () => {
-      const externalController = new AbortController();
-      externalController.abort();
-
-      const result = await run({
-        signal: externalController.signal,
-      });
-
-      expect(result).toBe(false);
-      expect(calculateTotalsMock).not.toHaveBeenCalled();
-    });
-
     it('updates quotes in state', async () => {
       await run();
 
@@ -1113,17 +1101,6 @@ describe('Quotes Utils', () => {
         promise.reject = rejectFn;
         return promise;
       }
-
-      it('aborts the active call explicitly', async () => {
-        const balance = deferred<string>();
-        getLiveTokenBalanceMock.mockReturnValueOnce(balance);
-
-        const resultPromise = run();
-        abortQuotes(TRANSACTION_ID_MOCK);
-        balance.resolve('5000000');
-
-        expect(await resultPromise).toBe(false);
-      });
 
       it('aborts the previous call so its results are not written to state', async () => {
         const firstBalance = deferred<string>();
