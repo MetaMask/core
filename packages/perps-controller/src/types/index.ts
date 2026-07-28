@@ -408,7 +408,12 @@ export type AccountState = {
 export type ClosePositionParams = {
   symbol: string; // Asset identifier to close (e.g., 'ETH', 'BTC', 'xyz:TSLA')
   size?: string; // Size to close (omit for full close)
-  orderType?: OrderType; // Close order type (default: market)
+  /**
+   * Close order type (default: market). Only `market` and `limit` are meaningful
+   * here: `ClosePositionParams` carries no trigger price, so a trigger-based
+   * close is not expressible and would be rejected during placement.
+   */
+  orderType?: OrderType;
   price?: string; // Limit price (required for limit close)
   currentPrice?: number; // Current market price for validation
 

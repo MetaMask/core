@@ -868,6 +868,33 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
+    it.each([
+      ['GTC', 'Gtc'],
+      ['IOC', 'Ioc'],
+      ['ALO', 'Alo'],
+    ] as const)(
+      'honours %s time in force when editing a limit order',
+      async (timeInForce, tif) => {
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'limit',
+            price: '49000',
+            timeInForce,
+          },
+        });
+
+        expect(result.success).toBe(true);
+        const modifyCall = (
+          mockClientService.getExchangeClient().modify as jest.Mock
+        ).mock.calls[0][0];
+        expect(modifyCall.order.t).toStrictEqual({ limit: { tif } });
+      },
+    );
+
     it('rejects editing a resting order into a trigger placement', async () => {
       const result = await provider.editOrder({
         orderId: '123',

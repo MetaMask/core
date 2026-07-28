@@ -417,7 +417,7 @@ export function calculateOrderPriceAndSize(
  * @param timeInForce - Requested time in force; defaults to GTC.
  * @returns The SDK time-in-force value.
  */
-function toSDKTimeInForce(
+export function toSDKTimeInForce(
   timeInForce?: 'GTC' | 'IOC' | 'ALO',
 ): 'Gtc' | 'Ioc' | 'Alo' {
   switch (timeInForce) {

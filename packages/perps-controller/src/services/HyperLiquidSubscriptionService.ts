@@ -71,6 +71,24 @@ import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
 
 /**
+ * Hash the identity of a position's trigger orders for change detection.
+ *
+ * @param orders - Trigger orders attached to a position, if any.
+ * @returns A stable string that changes when a trigger is added, removed, or repriced.
+ */
+function hashTriggerOrders(orders?: PositionTriggerOrder[]): string {
+  if (!orders || orders.length === 0) {
+    return '0';
+  }
+  return orders
+    .map(
+      (order) =>
+        `${order.orderId}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}`,
+    )
+    .join(',');
+}
+
+/**
  * Per-symbol view of the trigger orders attached to a position, keyed by symbol.
  */
 type PositionTriggerOrderMap = Map<
@@ -815,7 +833,12 @@ export class HyperLiquidSubscriptionService {
             pos.takeProfitPrice ?? ''
           }:${pos.stopLossPrice ?? ''}:${pos.takeProfitCount}:${pos.stopLossCount}:${
             pos.unrealizedPnl
-          }:${pos.returnOnEquity}:${pos.liquidationPrice ?? ''}:${pos.marginUsed || ''}`,
+          }:${pos.returnOnEquity}:${pos.liquidationPrice ?? ''}:${pos.marginUsed || ''}:${
+            // Trigger arrays are part of the emitted shape, so a standalone or
+            // partial trigger appearing/disappearing has to change the hash —
+            // otherwise subscribers never receive the updated arrays.
+            hashTriggerOrders(pos.takeProfitOrders)
+          }:${hashTriggerOrders(pos.stopLossOrders)}`,
       )
       .join('|');
   }
@@ -1154,14 +1177,25 @@ export class HyperLiquidSubscriptionService {
       const tpsl = tpslMap.get(position.symbol) ?? {};
       const tpslCount = tpslCountMap.get(position.symbol) ?? {};
       const triggerOrders = triggerOrderMap?.get(position.symbol);
+      const takeProfitOrders = triggerOrders?.takeProfitOrders ?? [];
+      const stopLossOrders = triggerOrders?.stopLossOrders ?? [];
+
       return {
         ...position,
         takeProfitPrice: tpsl.takeProfitPrice ?? undefined,
         stopLossPrice: tpsl.stopLossPrice ?? undefined,
-        takeProfitCount: tpslCount.takeProfitCount ?? 0,
-        stopLossCount: tpslCount.stopLossCount ?? 0,
-        takeProfitOrders: triggerOrders?.takeProfitOrders ?? [],
-        stopLossOrders: triggerOrders?.stopLossOrders ?? [],
+        // Counts come from the same arrays as the REST path, so both transports
+        // report one definition. Orders whose placement type the exchange did
+        // not name (HyperLiquid's ambiguous 'Trigger') are absent from both,
+        // where the legacy count included them.
+        takeProfitCount: triggerOrders
+          ? takeProfitOrders.length
+          : (tpslCount.takeProfitCount ?? 0),
+        stopLossCount: triggerOrders
+          ? stopLossOrders.length
+          : (tpslCount.stopLossCount ?? 0),
+        takeProfitOrders,
+        stopLossOrders,
       };
     });
   }

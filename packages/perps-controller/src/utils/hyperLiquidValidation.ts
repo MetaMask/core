@@ -592,7 +592,9 @@ export function validateOrderParams(params: {
         error: PERPS_ERROR_CODES.ORDER_TRIGGER_TPSL_UNSUPPORTED,
       };
     }
-  } else if (params.triggerPrice) {
+    // Consistent with the attached-TP/SL check above: a falsy-but-present value
+    // (e.g. '') is still a request to place a trigger, not an absent field.
+  } else if (params.triggerPrice !== undefined) {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_NOT_SUPPORTED,

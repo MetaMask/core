@@ -94,6 +94,20 @@ describe('hyperLiquidValidation - advanced order types', () => {
       },
     );
 
+    it('rejects a falsy-but-present trigger price on a market order', () => {
+      expect(
+        validateOrderParams({
+          coin: 'BTC',
+          size: '0.1',
+          orderType: 'market',
+          triggerPrice: '',
+        }),
+      ).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_NOT_SUPPORTED,
+      });
+    });
+
     it('rejects attached TP/SL on a trigger placement', () => {
       expect(
         validateOrderParams({

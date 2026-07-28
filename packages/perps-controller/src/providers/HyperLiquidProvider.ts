@@ -174,6 +174,7 @@ import {
   buildOrdersArray,
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
+  toSDKTimeInForce,
 } from '../utils/orderCalculations.js';
 import {
   getTriggerExecution,
@@ -3805,10 +3806,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         p: formattedPrice,
         s: formattedSize,
         r: params.newOrder.reduceOnly ?? false,
-        // Same TIF logic as placeOrder - see documentation above for details
+        // Same TIF logic as placeOrder - see documentation above for details.
+        // A limit order honours the caller's time in force; validation above has
+        // already rejected one on any other order shape.
         t:
           params.newOrder.orderType === 'limit'
-            ? { limit: { tif: 'Gtc' } } // Standard limit order
+            ? { limit: { tif: toSDKTimeInForce(params.newOrder.timeInForce) } }
             : { limit: { tif: 'FrontendMarket' } }, // True market order
         c: params.newOrder.clientOrderId
           ? (params.newOrder.clientOrderId as Hex)
@@ -4239,6 +4242,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * orders cannot use 'positionTpsl' (which always covers the whole position and
    * requires size 0). They are submitted as standalone reduce-only trigger orders
    * with 'na' grouping and explicit sizes instead.
+   *
+   * Note that in the partial path the pre-cancel sweep clears every standalone
+   * reduce-only trigger on the symbol, not only the ones this method placed. A
+   * trigger the caller placed independently through `placeOrder` (for example a
+   * manual reduce-only stop) is therefore cancelled too. Only TP/SL children of
+   * another pending order are protected.
    *
    * @param params - The operation parameters.
    * @param params.symbol - Asset symbol of the position
