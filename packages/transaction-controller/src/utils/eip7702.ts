@@ -154,9 +154,10 @@ export async function isAccountUpgradedToEIP7702(
 
   const isSupported = Boolean(
     delegationAddress &&
-    contractAddresses.some(
-      (contract) => contract.toLowerCase() === delegationAddress.toLowerCase(),
-    ),
+      contractAddresses.some(
+        (contract) =>
+          contract.toLowerCase() === delegationAddress.toLowerCase(),
+      ),
   );
 
   return {
@@ -168,16 +169,21 @@ export async function isAccountUpgradedToEIP7702(
 /**
  * Update indexed transactions in an EIP-7702 batch and regenerate its calldata.
  *
- * @param from - The sender address.
- * @param transactions - The existing nested transactions.
- * @param updates - Indexed calldata updates.
+ * @param options - Update options.
+ * @param options.from - The sender address.
+ * @param options.transactions - The existing nested transactions.
+ * @param options.updates - Indexed calldata updates.
  * @returns Updated nested transactions and regenerated batch calldata.
  */
-export function updateEIP7702BatchData(
-  from: Hex,
-  transactions: BatchTransactionParams[],
-  updates: NestedTransactionUpdate[],
-): {
+export function updateEIP7702BatchData({
+  from,
+  transactions,
+  updates,
+}: {
+  from: Hex;
+  transactions: BatchTransactionParams[];
+  updates: NestedTransactionUpdate[];
+}): {
   nestedTransactions: BatchTransactionParams[];
   transactionData: Hex;
 } {

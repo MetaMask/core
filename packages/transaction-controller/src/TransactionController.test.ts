@@ -4935,9 +4935,9 @@ describe('TransactionController', () => {
         },
       });
 
-      const result = controller.updateTransactionMetadata(
-        TRANSACTION_META_MOCK.id,
-        (transactionMeta) => {
+      const result = controller.updateTransactionMetadata({
+        transactionId: TRANSACTION_META_MOCK.id,
+        callback: (transactionMeta) => {
           transactionMeta.requiredAssets = [
             {
               address: ACCOUNT_2_MOCK,
@@ -4947,7 +4947,7 @@ describe('TransactionController', () => {
           ];
           transactionMeta.txParams.value = '0x2';
         },
-      );
+      });
 
       expect(result).toStrictEqual(controller.state.transactions[0]);
       expect(result.requiredAssets).toStrictEqual([
@@ -4973,10 +4973,10 @@ describe('TransactionController', () => {
         txParams: { ...TRANSACTION_META_MOCK.txParams, value: '0x3' },
       };
 
-      const result = controller.updateTransactionMetadata(
-        TRANSACTION_META_MOCK.id,
-        () => updatedTransaction,
-      );
+      const result = controller.updateTransactionMetadata({
+        transactionId: TRANSACTION_META_MOCK.id,
+        callback: () => updatedTransaction,
+      });
 
       expect(result).toStrictEqual(TRANSACTION_META_MOCK);
     });
@@ -4985,7 +4985,10 @@ describe('TransactionController', () => {
       const { controller } = setupController();
 
       expect(() =>
-        controller.updateTransactionMetadata('missing-id', () => undefined),
+        controller.updateTransactionMetadata({
+          transactionId: 'missing-id',
+          callback: () => undefined,
+        }),
       ).toThrow('Cannot update transaction as ID not found - missing-id');
     });
   });
@@ -8569,9 +8572,11 @@ describe('TransactionController', () => {
 
         const result = messenger.call(
           'TransactionController:updateTransactionMetadata',
-          TRANSACTION_META_MOCK.id,
-          (transactionMeta) => {
-            transactionMeta.txParams.value = '0x1';
+          {
+            transactionId: TRANSACTION_META_MOCK.id,
+            callback: (transactionMeta) => {
+              transactionMeta.txParams.value = '0x1';
+            },
           },
         );
 

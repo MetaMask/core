@@ -1626,14 +1626,18 @@ export class TransactionController extends BaseController<
   /**
    * Updates an existing transaction using a callback.
    *
-   * @param transactionId - ID of the transaction to update.
-   * @param callback - Function that mutates the transaction metadata.
+   * @param options - Update options.
+   * @param options.transactionId - ID of the transaction to update.
+   * @param options.callback - Function that mutates the transaction metadata.
    * @returns The updated transaction metadata.
    */
-  updateTransactionMetadata(
-    transactionId: string,
-    callback: (transactionMeta: TransactionMeta) => void,
-  ): Readonly<TransactionMeta> {
+  updateTransactionMetadata({
+    transactionId,
+    callback,
+  }: {
+    transactionId: string;
+    callback: (transactionMeta: TransactionMeta) => void;
+  }): Readonly<TransactionMeta> {
     return this.#updateTransactionInternal(
       { transactionId },
       (transactionMeta) => {
@@ -2609,11 +2613,11 @@ export class TransactionController extends BaseController<
     }
 
     const { nestedTransactions, transactionData: updatedTransactionData } =
-      updateEIP7702BatchData(
-        currentTransaction.txParams.from as Hex,
-        currentTransaction.nestedTransactions ?? [],
-        [{ transactionIndex, transactionData }],
-      );
+      updateEIP7702BatchData({
+        from: currentTransaction.txParams.from as Hex,
+        transactions: currentTransaction.nestedTransactions ?? [],
+        updates: [{ transactionIndex, transactionData }],
+      });
     const updatedTransactionMeta = this.#updateTransactionInternal(
       { transactionId },
       (transactionMeta) => {

@@ -625,10 +625,14 @@ describe('EIP-7702 Utils', () => {
         },
       ];
 
-      const result = updateEIP7702BatchData(ADDRESS_MOCK, nestedTransactions, [
-        { transactionIndex: 0, transactionData: '0x1234' },
-        { transactionIndex: 1, transactionData: '0x9abc' },
-      ]);
+      const result = updateEIP7702BatchData({
+        from: ADDRESS_MOCK,
+        transactions: nestedTransactions,
+        updates: [
+          { transactionIndex: 0, transactionData: '0x1234' },
+          { transactionIndex: 1, transactionData: '0x9abc' },
+        ],
+      });
 
       expect(result).toStrictEqual({
         nestedTransactions: [
@@ -653,24 +657,24 @@ describe('EIP-7702 Utils', () => {
 
     it('throws if an update index is duplicated', () => {
       expect(() =>
-        updateEIP7702BatchData(
-          ADDRESS_MOCK,
-          [{ data: '0xaaaa' }],
-          [
+        updateEIP7702BatchData({
+          from: ADDRESS_MOCK,
+          transactions: [{ data: '0xaaaa' }],
+          updates: [
             { transactionIndex: 0, transactionData: '0x1234' },
             { transactionIndex: 0, transactionData: '0x5678' },
           ],
-        ),
+        }),
       ).toThrow('Duplicate nested transaction index - 0');
     });
 
     it('throws if an update index does not exist', () => {
       expect(() =>
-        updateEIP7702BatchData(
-          ADDRESS_MOCK,
-          [{ data: '0xaaaa' }],
-          [{ transactionIndex: 1, transactionData: '0x1234' }],
-        ),
+        updateEIP7702BatchData({
+          from: ADDRESS_MOCK,
+          transactions: [{ data: '0xaaaa' }],
+          updates: [{ transactionIndex: 1, transactionData: '0x1234' }],
+        }),
       ).toThrow('Nested transaction not found with index - 1');
     });
   });

@@ -137,8 +137,9 @@ export type TransactionControllerUpdateTransactionAction = {
 /**
  * Updates an existing transaction using a callback.
  *
- * @param transactionId - ID of the transaction to update.
- * @param callback - Function that mutates the transaction metadata.
+ * @param options - Update options.
+ * @param options.transactionId - ID of the transaction to update.
+ * @param options.callback - Function that mutates the transaction metadata.
  * @returns The updated transaction metadata.
  */
 export type TransactionControllerUpdateTransactionMetadataAction = {

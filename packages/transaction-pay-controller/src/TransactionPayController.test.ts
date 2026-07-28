@@ -142,12 +142,10 @@ describe('TransactionPayController', () => {
         ),
         txParams: { ...transaction.txParams },
       };
-      updateTransactionCallbackMock.mockImplementation(
-        (_transactionId, callback) => {
-          callback(updatedTransaction);
-          return updatedTransaction;
-        },
-      );
+      updateTransactionCallbackMock.mockImplementation(({ callback }) => {
+        callback(updatedTransaction);
+        return updatedTransaction;
+      });
       return updatedTransaction;
     }
 
@@ -267,10 +265,10 @@ describe('TransactionPayController', () => {
       expect(abortQuotesMock.mock.invocationCallOrder[0]).toBeLessThan(
         prepareTransactionAmount.mock.invocationCallOrder[0],
       );
-      expect(updateTransactionCallbackMock).toHaveBeenCalledWith(
-        TRANSACTION_ID_MOCK,
-        expect.any(Function),
-      );
+      expect(updateTransactionCallbackMock).toHaveBeenCalledWith({
+        transactionId: TRANSACTION_ID_MOCK,
+        callback: expect.any(Function),
+      });
       expect(updatedTransaction.requiredAssets).toStrictEqual(requiredAssets);
       expect(
         updatedTransaction.nestedTransactions?.map(({ data }) => data),
@@ -462,17 +460,15 @@ describe('TransactionPayController', () => {
         requiredNestedTransactionIndexes: [0, 1],
       });
       getTransactionMock.mockReturnValue(transaction);
-      updateTransactionCallbackMock.mockImplementation(
-        (_transactionId, callback) => {
-          const currentTransaction = {
-            ...transaction,
-            nestedTransactions: undefined,
-            txParams: { ...transaction.txParams },
-          };
-          callback(currentTransaction);
-          return currentTransaction;
-        },
-      );
+      updateTransactionCallbackMock.mockImplementation(({ callback }) => {
+        const currentTransaction = {
+          ...transaction,
+          nestedTransactions: undefined,
+          txParams: { ...transaction.txParams },
+        };
+        callback(currentTransaction);
+        return currentTransaction;
+      });
       const controller = createController({
         prepareTransactionAmount,
         state: {
@@ -532,7 +528,7 @@ describe('TransactionPayController', () => {
         subscribeTransactionChangesMock.mock.calls[0][1];
       const updatedTransaction = mockTransactionUpdateCallback();
       updateTransactionCallbackMock.mockImplementationOnce(
-        (transactionId, callback) => {
+        ({ transactionId, callback }) => {
           listenerUpdateTransactionData(transactionId, (data) => {
             data.tokens = [{ address: TOKEN_ADDRESS_MOCK }] as never;
           });

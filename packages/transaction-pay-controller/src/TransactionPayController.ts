@@ -307,16 +307,15 @@ export class TransactionPayController extends BaseController<
     this.#quoteSuppressedTransactionIds.add(transactionId);
 
     try {
-      this.messenger.call(
-        'TransactionController:updateTransactionMetadata',
+      this.messenger.call('TransactionController:updateTransactionMetadata', {
         transactionId,
-        (transactionMeta) => {
+        callback: (transactionMeta) => {
           const { nestedTransactions, transactionData } =
-            updateEIP7702BatchData(
-              transactionMeta.txParams.from as Hex,
-              transactionMeta.nestedTransactions ?? [],
-              amountPreparation.nestedTransactionUpdates,
-            );
+            updateEIP7702BatchData({
+              from: transactionMeta.txParams.from as Hex,
+              transactions: transactionMeta.nestedTransactions ?? [],
+              updates: amountPreparation.nestedTransactionUpdates,
+            });
 
           transactionMeta.nestedTransactions = nestedTransactions;
           transactionMeta.requiredAssets = amountPreparation.requiredAssets;
@@ -339,7 +338,7 @@ export class TransactionPayController extends BaseController<
             }
           }
         },
-      );
+      });
     } finally {
       this.#quoteSuppressedTransactionIds.delete(transactionId);
     }
