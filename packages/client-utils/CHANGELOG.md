@@ -10,7 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `mapRampsOrder` for mapping ramps buy/sell orders into the shared activity item shape, and add `rampBuy`/`rampSell` to `ActivityKind` and `ActivityItem` ([#9650](https://github.com/MetaMask/core/pull/9650))
-  - Add an optional `id` field to activity items for items (like pending ramp orders) that may not yet have an on-chain `hash`.
+- Add an optional `id` field to activity items for items (like pending ramp orders) that may not yet have an on-chain `hash`. ([#9650](https://github.com/MetaMask/core/pull/9650))
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
 
 ## [1.2.1]
 

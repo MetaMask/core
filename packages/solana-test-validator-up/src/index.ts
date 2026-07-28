@@ -5,11 +5,11 @@ export {
   installSolanaTestValidator,
   parseSolanaTestValidatorInstallCliOptions,
   readSolanaTestValidatorInstallOptionsFromPackageJson,
-} from './install';
+} from './install.js';
 export type {
   SolanaTestValidatorArtifactConfig,
   SolanaTestValidatorArtifactPlatformConfig,
   SolanaTestValidatorInstallDependencies,
   SolanaTestValidatorInstallOptions,
   SolanaTestValidatorInstallResult,
-} from './install';
+} from './install.js';

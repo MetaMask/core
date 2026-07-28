@@ -58,7 +58,7 @@
     "@metamask/contract-metadata": "^2.4.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/core-backend": "^7.0.0",
-    "@metamask/keyring-api": "^23.5.0",
+    "@metamask/keyring-api": "^23.7.0",
     "@metamask/transaction-controller": "^69.2.1",
     "@metamask/utils": "^11.11.0"
   },

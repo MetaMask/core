@@ -101,7 +101,12 @@ export type MoneyAccountApiDataServiceActions =
 /**
  * Actions from other messengers that {@link MoneyAccountApiDataService} calls.
  */
-type AllowedActions = never;
+type AuthenticationControllerGetBearerTokenAction = {
+  type: 'AuthenticationController:getBearerToken';
+  handler: (entropySourceId?: string) => Promise<string>;
+};
+
+type AllowedActions = AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Published when {@link MoneyAccountApiDataService}'s cache is updated.
@@ -185,7 +190,9 @@ export class MoneyAccountApiDataService extends BaseDataService<
       queryClientConfig,
       policyOptions: {
         retryFilterPolicy: handleWhen(
-          (error) => !(error instanceof MoneyAccountApiResponseValidationError),
+          (error) =>
+            !(error instanceof MoneyAccountApiResponseValidationError) &&
+            !(error instanceof HttpError && error.httpStatus === 403),
         ),
         ...policyOptions,
       },
@@ -211,6 +218,27 @@ export class MoneyAccountApiDataService extends BaseDataService<
   }
 
   /**
+   * Builds best-effort authentication headers for a Money Account API request.
+   *
+   * Requests proceed without authentication when the wallet is locked, the
+   * user is signed out, or the token is otherwise unavailable. The API edge
+   * rate limiter falls back to IP-based limiting when the header is omitted.
+   *
+   * @returns The Authorization header when a profile token is available.
+   */
+  async #getRequestHeaders(): Promise<Record<string, string>> {
+    try {
+      const token = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch (error: unknown) {
+      log('Auth token unavailable, proceeding unauthenticated', error);
+      return {};
+    }
+  }
+
+  /**
    * Fetches the current vault positions for a given user address.
    *
    * @param address - The user's Ethereum address.
@@ -233,7 +261,9 @@ export class MoneyAccountApiDataService extends BaseDataService<
             data: { operation: 'fetchPositions' },
           },
           async () => {
-            const response = await fetch(url);
+            const response = await fetch(url, {
+              headers: await this.#getRequestHeaders(),
+            });
 
             if (!response.ok) {
               throw new HttpError(
@@ -299,7 +329,9 @@ export class MoneyAccountApiDataService extends BaseDataService<
             data: { operation: 'fetchInterest' },
           },
           async () => {
-            const response = await fetch(url);
+            const response = await fetch(url, {
+              headers: await this.#getRequestHeaders(),
+            });
 
             if (!response.ok) {
               throw new HttpError(
@@ -380,7 +412,9 @@ export class MoneyAccountApiDataService extends BaseDataService<
               data: { operation: 'fetchHistory' },
             },
             async () => {
-              const response = await fetch(url);
+              const response = await fetch(url, {
+                headers: await this.#getRequestHeaders(),
+              });
 
               if (!response.ok) {
                 throw new HttpError(
@@ -448,7 +482,9 @@ export class MoneyAccountApiDataService extends BaseDataService<
             data: { operation: 'fetchRateHistory' },
           },
           async () => {
-            const response = await fetch(url);
+            const response = await fetch(url, {
+              headers: await this.#getRequestHeaders(),
+            });
 
             if (!response.ok) {
               throw new HttpError(
