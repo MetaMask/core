@@ -388,8 +388,13 @@ function buildCloseComment({
   ];
 
   // GitHub already surfaces successful branch deletion on the closed PR.
-  // Only call out failures / intentional skips.
-  if (outcome !== 'deleted') {
+  // Call out real failures and intentional tip move skips separately.
+  if (outcome === 'kept-head-moved') {
+    lines.push(
+      '',
+      `> (Branch was left in place because its tip changed after close. See more details here: ${getWorkflowRunUrl()})`,
+    );
+  } else if (outcome !== 'deleted') {
     lines.push(
       '',
       `> (A failed attempt was made to delete this branch. See more details here: ${getWorkflowRunUrl()})`,
@@ -407,7 +412,7 @@ function buildCloseComment({
  * @param pullNumber - Pull request number.
  * @param body - Markdown comment body.
  */
-async function commentOnPull(
+async function commentOnPullRequest(
   octokit: Octokit,
   pullNumber: number,
   body: string,
@@ -509,7 +514,7 @@ async function processReleasePr({
     outcome: branchResult.outcome,
   });
 
-  await commentOnPull(octokit, latest.number, body);
+  await commentOnPullRequest(octokit, latest.number, body);
 }
 
 /**
