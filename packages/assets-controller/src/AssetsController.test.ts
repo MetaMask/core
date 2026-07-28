@@ -1068,11 +1068,11 @@ describe('AssetsController', () => {
       await withController(
         { controllerOptions: { trace } },
         async ({ controller }) => {
-          await expect(
-            controller.getAssets([createMockInternalAccount()], {
+          expect(
+            await controller.getAssets([createMockInternalAccount()], {
               forceUpdate: true,
             }),
-          ).resolves.toBeDefined();
+          ).toBeDefined();
         },
       );
     });
@@ -1086,11 +1086,11 @@ describe('AssetsController', () => {
       await withController(
         { controllerOptions: { trace } },
         async ({ controller }) => {
-          await expect(
-            controller.getAssets([createMockInternalAccount()], {
+          expect(
+            await controller.getAssets([createMockInternalAccount()], {
               forceUpdate: true,
             }),
-          ).resolves.toBeDefined();
+          ).toBeDefined();
         },
       );
     });
@@ -1459,8 +1459,8 @@ describe('AssetsController', () => {
       await withController(
         { controllerOptions: { trace } },
         async ({ controller }) => {
-          await expect(
-            controller.handleAssetsUpdate(
+          expect(
+            await controller.handleAssetsUpdate(
               {
                 updateMode: 'merge',
                 assetsBalance: {
@@ -1471,7 +1471,7 @@ describe('AssetsController', () => {
               },
               'test-source',
             ),
-          ).resolves.toBeUndefined();
+          ).toBeUndefined();
           expect(
             controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
           ).toStrictEqual({ amount: '1' });

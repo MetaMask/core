@@ -1778,7 +1778,9 @@ export class AssetsController extends BaseController<
       // tracing so polling does not flood Sentry.
       const shouldTrace = !this.#firstInitFetchReported;
 
-      const runFullFetch = async (parentContext?: TraceContext) => {
+      const runFullFetch = async (
+        parentContext?: TraceContext,
+      ): Promise<void> => {
         const startTime = performance.now();
         const request = this.#buildDataRequest(accounts, chainIds, {
           assetTypes,
@@ -1845,7 +1847,9 @@ export class AssetsController extends BaseController<
 
           const slowRequest = { ...request, chainIds: slowPipelineChainIds };
 
-          const runBackground = async (slowParentContext?: TraceContext) => {
+          const runBackground = async (
+            slowParentContext?: TraceContext,
+          ): Promise<void> => {
             const { response: slowResponse } = await this.#executeMiddlewares(
               [
                 createParallelBalanceMiddleware(slowSources),
@@ -3870,7 +3874,7 @@ export class AssetsController extends BaseController<
     // Enrichment spans only before unlock/first-init fetch completes.
     const shouldTrace = !this.#firstInitFetchReported;
 
-    const runUpdate = async (parentContext?: TraceContext) => {
+    const runUpdate = async (parentContext?: TraceContext): Promise<void> => {
       const updateStart = performance.now();
 
       const resolvedRequest: DataRequest = request ?? {
