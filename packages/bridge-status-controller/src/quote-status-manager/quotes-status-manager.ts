@@ -165,7 +165,6 @@ export class QuoteStatusManager {
 
     const entries = this.#quoteStatusEntryStore.getAllByTxMetaId(txMetaId);
 
-    console.log('dwfwfw', { quoteId: '', txMetaId, srcChainId, srcTxHash })
     if (entries.length === 0) {
       this.#onError?.(
         new QuoteStatusUpdateError(
