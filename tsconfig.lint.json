@@ -1,0 +1,24 @@
+{
+  /**
+   * This configuration incrementally enables repository-wide type checking.
+   */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "tsBuildInfoFile": "./.tsc-lint-cache/lint.tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "./packages/base-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/messenger-cli/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/platform-api-docs/tsconfig.lint.json"
+    }
+  ]
+}

@@ -2,7 +2,6 @@ import type { Json } from '@metamask/utils';
 
 import {
   HEADLESS_ALL_PROVIDERS_FEATURE_VERSION,
-  getHeadlessAllProvidersMinimumVersion,
   MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
   getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
@@ -325,55 +324,6 @@ describe('featureVersion gating', () => {
         },
       }),
     ).toBe(true);
-  });
-});
-
-describe('getHeadlessAllProvidersMinimumVersion', () => {
-  it('returns the minimumVersion carried by an enabled payload', () => {
-    expect(
-      getHeadlessAllProvidersMinimumVersion({
-        remoteFeatureFlags: {
-          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
-            enabled: true,
-            featureVersion: '1',
-            minimumVersion: '8.6.0',
-          } as Json,
-        },
-      }),
-    ).toBe('8.6.0');
-  });
-
-  it('returns undefined for the boolean form, disabled payloads, and blank values', () => {
-    expect(
-      getHeadlessAllProvidersMinimumVersion({
-        remoteFeatureFlags: {
-          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: true,
-        },
-      }),
-    ).toBeUndefined();
-    expect(
-      getHeadlessAllProvidersMinimumVersion({
-        remoteFeatureFlags: {
-          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
-            enabled: false,
-            featureVersion: '1',
-            minimumVersion: '8.6.0',
-          } as Json,
-        },
-      }),
-    ).toBeUndefined();
-    expect(
-      getHeadlessAllProvidersMinimumVersion({
-        remoteFeatureFlags: {
-          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
-            enabled: true,
-            featureVersion: '1',
-            minimumVersion: '   ',
-          } as Json,
-        },
-      }),
-    ).toBeUndefined();
-    expect(getHeadlessAllProvidersMinimumVersion(null)).toBeUndefined();
   });
 });
 
