@@ -75,16 +75,16 @@ export type Fee = {
   assetId?: string;
 };
 
-type ActivityData<Type extends ActivityKind, Data> = {
+type ActivityData<
+  Type extends ActivityKind,
+  Data,
+  ChainId = CaipChainId,
+> = {
   type: Type;
-  chainId: CaipChainId;
+  chainId: ChainId;
   status: Status;
   timestamp: number;
   hash?: string;
-  // Stable identifier for items that may not have a hash yet (e.g. a ramp
-  // order pending fiat settlement, where `hash` is empty until it settles
-  // on-chain).
-  id?: string;
   data: Data;
 };
 
@@ -190,7 +190,15 @@ export type ActivityItem =
         };
         statusDescription?: string;
         paymentDetails?: RampOrderPaymentDetail[];
-      }
+        // Stable identifier for orders that may not have a hash yet (e.g. a
+        // ramp order pending fiat settlement, where `hash` is empty until it
+        // settles on-chain).
+        id?: string;
+      },
+      // Precreated stub orders (see `RampsController.addPrecreatedOrder`) may
+      // not have an assigned network yet, so unlike every other activity
+      // kind, a ramp order's chain id isn't guaranteed.
+      CaipChainId | undefined
     >;
 
 // Note: Update core-backend

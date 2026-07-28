@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `mapRampsOrder` for mapping ramps buy/sell orders into the shared activity item shape, and add `rampBuy`/`rampSell` to `ActivityKind` and `ActivityItem` ([#9650](https://github.com/MetaMask/core/pull/9650))
-- Add an optional `id` field to activity items for items (like pending ramp orders) that may not yet have an on-chain `hash`. ([#9650](https://github.com/MetaMask/core/pull/9650))
+  - `rampBuy`/`rampSell` activity items carry an optional `data.id` for orders (like pending ramp orders) that may not yet have an on-chain `hash`, and an optional `chainId` for precreated orders with no network assigned yet.
 
 ### Changed
 

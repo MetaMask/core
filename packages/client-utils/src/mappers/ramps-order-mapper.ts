@@ -1,5 +1,3 @@
-import type { CaipChainId } from '@metamask/utils';
-
 import type {
   ActivityItem,
   Fee,
@@ -93,10 +91,11 @@ export function mapRampsOrder(order: RampsOrderLike): ActivityItem {
     },
   ];
 
-  // `network.chainId` may already be CAIP-2 (non-EVM orders) or a bare
-  // numeric/hex reference (today's only observed EVM format) — normalize
-  // without assuming a namespace.
-  const chainId = formatChainIdToCaip(order.network.chainId) as CaipChainId;
+  // `network.chainId` may already be CAIP-2 (non-EVM orders), a bare
+  // numeric/hex reference (today's only observed EVM format), or empty (a
+  // precreated stub order awaiting provider assignment) — normalize without
+  // assuming a namespace.
+  const chainId = formatChainIdToCaip(order.network.chainId);
 
   return {
     type: isBuy ? 'rampBuy' : 'rampSell',
@@ -104,7 +103,6 @@ export function mapRampsOrder(order: RampsOrderLike): ActivityItem {
     status: mapStatus(order.status),
     timestamp: order.createdAt,
     hash: order.txHash || undefined,
-    id: order.providerOrderId,
     data: {
       from: order.walletAddress,
       fiat,
@@ -117,6 +115,7 @@ export function mapRampsOrder(order: RampsOrderLike): ActivityItem {
       },
       statusDescription: order.statusDescription,
       paymentDetails: order.paymentDetails,
+      id: order.providerOrderId,
     },
   };
 }

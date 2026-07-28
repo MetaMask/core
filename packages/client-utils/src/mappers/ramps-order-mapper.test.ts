@@ -34,9 +34,9 @@ describe('mapRampsOrder', () => {
       status: 'success',
       timestamp: 1716367781000,
       hash: '0xabc',
-      id: 'order-123',
       data: {
         from: '0xwallet',
+        id: 'order-123',
         fiat: { amount: '100', currency: 'USD' },
         token: {
           amount: '0.05',
@@ -99,8 +99,16 @@ describe('mapRampsOrder', () => {
     const item = mapRampsOrder({ ...baseOrder, txHash: '', status: 'PENDING' });
 
     expect(item.hash).toBeUndefined();
-    expect(item.id).toBe('order-123');
+    expect(item.type === 'rampBuy' ? item.data.id : 'unset').toBe(
+      'order-123',
+    );
     expect(item.status).toBe('pending');
+  });
+
+  it('maps a precreated stub order with an empty chain id to an undefined chainId, not eip155:0', () => {
+    const item = mapRampsOrder({ ...baseOrder, network: { chainId: '' } });
+
+    expect(item.chainId).toBeUndefined();
   });
 
   it.each([

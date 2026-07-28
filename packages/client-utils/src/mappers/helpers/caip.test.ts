@@ -29,6 +29,10 @@ describe('caip helpers', () => {
     it('returns undefined for invalid decimal chain ids', () => {
       expect(formatChainIdToCaip('not-a-number')).toBeUndefined();
     });
+
+    it('returns undefined for an empty chain id instead of eip155:0', () => {
+      expect(formatChainIdToCaip('')).toBeUndefined();
+    });
   });
 
   describe('getNativeAsset', () => {
