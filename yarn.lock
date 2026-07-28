@@ -7740,6 +7740,7 @@ __metadata:
     immer: "npm:^9.0.6"
     jest: "npm:^30.4.2"
     ts-jest: "npm:^29.4.11"
+    tstyche: "npm:5.0.2"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -26508,6 +26509,20 @@ __metadata:
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: 10/3e2e043d5c2316461cb54e5c7fe02c30ef6dccb3384717ca22ae5c6b5bc95232a6241df19c622d9c73b809bea33b187f6dbc73030963e29950c2141bc32a79f7
+  languageName: node
+  linkType: hard
+
+"tstyche@npm:5.0.2":
+  version: 5.0.2
+  resolution: "tstyche@npm:5.0.2"
+  peerDependencies:
+    typescript: ">=5.0"
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+  bin:
+    tstyche: ./build/bin.js
+  checksum: 10/bbc11c2f7c5c1cbf4f848a9af1eef947cf9b2643491a59fb7dbaa903bb15bba620dad24904c3db6279f206a23599d97d47f9d9e00473c54f6bb9375a7dc26178
   languageName: node
   linkType: hard
 
