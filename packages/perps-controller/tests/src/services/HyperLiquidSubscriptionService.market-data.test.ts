@@ -1491,6 +1491,125 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('keeps streamed TP/SL counts consistent with the trigger arrays for standalone partial triggers', async () => {
+      const mockCallback = jest.fn();
+
+      // The suite's adapter mock omits triggerOrderType, which the trigger
+      // arrays are built from; extend it the way the real adapter fills it.
+      const mockAdapter = jest.requireMock(
+        '../../../src/utils/hyperLiquidAdapter',
+      );
+      const baseAdaptOrder =
+        mockAdapter.adaptOrderFromSDK.getMockImplementation();
+      mockAdapter.adaptOrderFromSDK.mockImplementation((order: any) => ({
+        ...baseAdaptOrder(order),
+        triggerOrderType: order.orderType.includes('Limit')
+          ? 'take_profit_limit'
+          : 'take_profit_market',
+      }));
+
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              dex: _params.dex || '',
+              clearinghouseState: {
+                assetPositions: [
+                  {
+                    position: { szi: '1.0', coin: 'BTC' },
+                    coin: 'BTC',
+                  },
+                ],
+                marginSummary: {
+                  accountValue: '10000',
+                  totalMarginUsed: '500',
+                },
+                withdrawable: '9500',
+              },
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              dex: _params.dex || '',
+              orders: [
+                {
+                  // Whole-position TP
+                  oid: 134,
+                  coin: 'BTC',
+                  side: 'S',
+                  sz: '1.0',
+                  triggerPx: '55000',
+                  orderType: 'Take Profit',
+                  reduceOnly: true,
+                  isPositionTpsl: true,
+                  limitPx: '55000',
+                  origSz: '1.0',
+                  timestamp: Date.now(),
+                  isTrigger: true,
+                  triggerCondition: '',
+                  children: [],
+                  tif: null,
+                  cloid: null,
+                },
+                {
+                  // Standalone partial TP: not position-bound, owned by no
+                  // other order
+                  oid: 135,
+                  coin: 'BTC',
+                  side: 'S',
+                  sz: '0.4',
+                  triggerPx: '58000',
+                  orderType: 'Take Profit Limit',
+                  reduceOnly: true,
+                  isPositionTpsl: false,
+                  limitPx: '58000',
+                  origSz: '0.4',
+                  timestamp: Date.now(),
+                  isTrigger: true,
+                  triggerCondition: '',
+                  children: [],
+                  tif: null,
+                  cloid: null,
+                },
+              ],
+            });
+          }, 5);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const unsubscribe = service.subscribeToPositions({
+        callback: mockCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      const lastCall =
+        mockCallback.mock.calls[mockCallback.mock.calls.length - 1];
+      const btcPosition = lastCall[0].find(
+        (pos: { symbol: string }) => pos.symbol === 'BTC',
+      );
+
+      // Counts must agree with the arrays: both triggers are the position's,
+      // even though only one is position-bound.
+      expect(btcPosition.takeProfitOrders).toHaveLength(2);
+      expect(btcPosition.takeProfitCount).toBe(2);
+      expect(btcPosition.stopLossOrders).toHaveLength(0);
+      expect(btcPosition.stopLossCount).toBe(0);
+
+      unsubscribe();
+    });
+
     it('should re-extract TP/SL from cached orders when clearinghouseState updates', async () => {
       // Arrange
       const mockCallback = jest.fn();
