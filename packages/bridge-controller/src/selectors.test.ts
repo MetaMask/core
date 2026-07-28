@@ -11,7 +11,10 @@ import { BigNumber } from 'bignumber.js';
 import { merge } from 'lodash';
 
 import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
+import {
+  getMockBridgeQuotesNativeErc20V2,
+  mockBridgeQuotesNativeErc20V1,
+} from '../tests/mock-quotes-native-erc20.js';
 import { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
 import { toBridgeAssetV2 } from './coercers/quote-response-v1-to-v2.js';
 import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge.js';
@@ -2110,7 +2113,7 @@ describe('Bridge Selectors', () => {
       const { recommendedQuotes } = selectBatchSellQuotes(
         {
           ...mockState,
-          quotes: mockBridgeQuotesNativeErc20V1.map((quote) => ({
+          quotes: getMockBridgeQuotesNativeErc20V2().map((quote) => ({
             ...quote,
             quoteRequestIndex: undefined,
           })),
