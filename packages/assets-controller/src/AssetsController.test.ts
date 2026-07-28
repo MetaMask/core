@@ -1395,6 +1395,98 @@ describe('AssetsController', () => {
   });
 
   describe('handleAssetsUpdate', () => {
+    it('nests the update pipeline record under an AssetsUpdateEnrichment root', async () => {
+      const enrichmentContext = { id: 'assets-update-enrichment' };
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (
+            request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            return fn?.(
+              request.parentContext === undefined
+                ? enrichmentContext
+                : undefined,
+            );
+          },
+        );
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              updateMode: 'merge',
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1' } },
+              },
+            },
+            'test-source',
+          );
+
+          const requests = traceMock.mock.calls.map(
+            ([request]) => request as TraceRequest,
+          );
+          const byName = (name: string): TraceRequest[] =>
+            requests.filter((request) => request.name === name);
+
+          expect(byName('AssetsUpdateEnrichment')).toMatchObject([
+            { parentContext: undefined },
+          ]);
+          expect(byName('AssetsUpdatePipeline')).toMatchObject([
+            {
+              parentContext: enrichmentContext,
+              data: expect.objectContaining({
+                source: 'test-source',
+                duration_ms: expect.any(Number),
+                has_balance: true,
+              }),
+              startTime: expect.any(Number),
+            },
+          ]);
+        },
+      );
+    });
+
+    it('does not fail when the tracer rejects after enrichment completes', async () => {
+      const trace = jest
+        .fn()
+        .mockImplementation(
+          async (
+            _request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              await fn({ id: 'parent' });
+              throw new Error('telemetry failed');
+            }
+            return undefined;
+          },
+        ) as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          expect(
+            await controller.handleAssetsUpdate(
+              {
+                updateMode: 'merge',
+                assetsBalance: {
+                  [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1' } },
+                },
+              },
+              'test-source',
+            ),
+          ).toBeUndefined();
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+          ).toStrictEqual({ amount: '1' });
+        },
+      );
+    });
+
     it('preserves existing rich metadata when the API response has empty symbol and name', async () => {
       const richMetadata: FungibleAssetMetadata = {
         type: 'erc20',
@@ -2519,7 +2611,13 @@ describe('AssetsController', () => {
               duration_ms: expect.any(Number),
               chain_ids: expect.any(String),
             }),
-            tags: { controller: 'AssetsController' },
+            // Numeric data is mirrored into tags so the Sentry adapter records
+            // it as a measurement, and the span is backdated to match.
+            tags: expect.objectContaining({
+              controller: 'AssetsController',
+              duration_ms: expect.any(Number),
+            }),
+            startTime: expect.any(Number),
           });
           const {
             duration_ms: durationMs,
@@ -2529,6 +2627,112 @@ describe('AssetsController', () => {
           expect(durationMs).toBeGreaterThanOrEqual(0);
           expect(typeof chainIds).toBe('string');
           expect(typeof durationByDataSource).toBe('object');
+        },
+      );
+    });
+
+    it('nests fetch spans under a single AssetsFetchPipeline root on unlock', async () => {
+      const pipelineContext = { id: 'assets-fetch-pipeline' };
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (
+            request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            // Only the root span (no parent of its own) hands out a context.
+            return fn?.(
+              request.parentContext === undefined ? pipelineContext : undefined,
+            );
+          },
+        );
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        {
+          clientControllerState: { isUiOpen: true },
+          controllerOptions: { trace },
+        },
+        async ({ messenger }) => {
+          (
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
+          messenger.publish('KeyringController:unlock');
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          const requests = traceMock.mock.calls.map(
+            ([request]) => request as TraceRequest,
+          );
+          const byName = (name: string): TraceRequest[] =>
+            requests.filter((request) => request.name === name);
+
+          expect(byName('AssetsFetchPipeline')).toHaveLength(1);
+          expect(byName('AssetsFetchPipeline')[0]).toMatchObject({
+            parentContext: undefined,
+            tags: { controller: 'AssetsController' },
+          });
+
+          for (const name of [
+            'AssetsFullFetch',
+            'AssetsControllerFirstInitFetch',
+            'AssetsDataSourceTiming',
+          ]) {
+            const nested = byName(name);
+            expect(nested.length).toBeGreaterThan(0);
+            for (const request of nested) {
+              expect(request.parentContext).toBe(pipelineContext);
+            }
+          }
+        },
+      );
+    });
+
+    it('does not fail a force update when the tracer rejects after the work completes', async () => {
+      const trace = jest
+        .fn()
+        .mockImplementation(
+          async (
+            _request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              await fn({ id: 'parent' });
+              // Simulate a Sentry adapter failing once the span closes.
+              throw new Error('telemetry failed');
+            }
+            return undefined;
+          },
+        ) as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          expect(
+            await controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            }),
+          ).toBeDefined();
+        },
+      );
+    });
+
+    it('still runs a force update when the tracer rejects before invoking the work', async () => {
+      const trace = jest
+        .fn()
+        .mockRejectedValue(
+          new Error('telemetry failed'),
+        ) as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          expect(
+            await controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            }),
+          ).toBeDefined();
         },
       );
     });
@@ -2624,6 +2828,49 @@ describe('AssetsController', () => {
               'AssetsControllerFirstInitFetch',
           );
           expect(firstInitFetchCalls).toHaveLength(1);
+        },
+      );
+    });
+
+    it('stops emitting pipeline spans once the first-init fetch has reported', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
+            fn?.(),
+        );
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        {
+          clientControllerState: { isUiOpen: true },
+          controllerOptions: { trace },
+        },
+        async ({ controller, messenger }) => {
+          (
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
+          messenger.publish('KeyringController:unlock');
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          const countSpans = (): Record<string, number> => {
+            const counts: Record<string, number> = {};
+            for (const [request] of traceMock.mock.calls) {
+              const { name } = request as TraceRequest;
+              counts[name] = (counts[name] ?? 0) + 1;
+            }
+            return counts;
+          };
+          const before = countSpans();
+
+          // Steady-state polling must not keep paying for spans.
+          await controller.getAssets([createMockInternalAccount()], {
+            forceUpdate: true,
+          });
+
+          expect(countSpans()).toStrictEqual(before);
         },
       );
     });

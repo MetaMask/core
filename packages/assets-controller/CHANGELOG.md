@@ -13,12 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Nest the Sentry spans emitted while fetching assets under one root span per pipeline, so that a fetch costs a single Sentry transaction instead of one per measurement ([#9672](https://github.com/MetaMask/core/pull/9672))
+  - `AssetsFullFetch`, `AssetsControllerFirstInitFetch`, `AssetsDataSourceTiming` and `AssetsDataSourceError` are now recorded as subspans of `AssetsFetchPipeline` (fast lane) or `AssetsBackgroundFetch` (background lane), and `AssetsUpdatePipeline` as a subspan of `AssetsUpdateEnrichment`.
+  - Pipeline spans are emitted only on the unlock (first-init) fetch of a session. Later polls, force updates and subscription-driven enrichment no longer emit them. `AssetsFullFetch` previously fired on every force update.
+  - `AssetsFullFetch.duration_ms` now measures middleware execution only, and no longer includes building the data request or committing the result to state.
+  - Dashboard-facing spans copy numeric span data into tags and backdate `startTime`, so Sentry records them as measurements that Spans widgets charting `p95(duration_ms)` can read.
+  - `calculateBalanceForAllWallets` emits a single `AggregatedBalanceSelector` subspan under an `AggregatedBalance` parent, instead of one root span per account group.
 - Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
 - Bump `@metamask/keyring-internal-api` from `^11.0.1` to `^11.0.2` ([#9676](https://github.com/MetaMask/core/pull/9676))
 - Bump `@metamask/keyring-snap-client` from `^9.2.0` to `^9.2.1` ([#9676](https://github.com/MetaMask/core/pull/9676))
 
 ### Fixed
 
+- A rejected `trace` promise can no longer fail a full fetch or `handleAssetsUpdate` enrichment; tracing is now best-effort throughout, and the underlying work still runs exactly once ([#9672](https://github.com/MetaMask/core/pull/9672))
 - `SnapDataSource` now delivers snap-sourced balance updates directly to `AssetsController` via a constructor-supplied `onAssetsUpdate` callback instead of fanning out to `activeSubscriptions`, so updates (e.g. Tron energy/bandwidth) are no longer dropped when no active subscription is tracked for the chain in the SnapDataSource ([#9656](https://github.com/MetaMask/core/pull/9656))
 
 ## [11.2.1]
