@@ -68,6 +68,17 @@ export const SendTransactionParamsStruct = refine(
     ) {
       return 'Exactly one of `networkClientId` or `chainId` must be provided';
     }
+    // `gasPrice` (legacy) and the EIP-1559 fields are mutually exclusive:
+    // `TransactionController` rejects the combination at broadcast, so reject
+    // it here at the boundary instead — otherwise a dry-run and the
+    // confirmation preview would show a plan that always fails at send.
+    if (
+      value.gasPrice !== undefined &&
+      (value.maxFeePerGas !== undefined ||
+        value.maxPriorityFeePerGas !== undefined)
+    ) {
+      return '`gasPrice` cannot be combined with `maxFeePerGas` or `maxPriorityFeePerGas`';
+    }
     return true;
   },
 );

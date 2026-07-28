@@ -74,7 +74,7 @@ describe('SendTransactionParamsStruct', () => {
     expect(error).toBeUndefined();
   });
 
-  it('accepts a fully-specified params object', () => {
+  it('accepts a fully-specified EIP-1559 params object', () => {
     const [error] = validate(
       {
         to: TO,
@@ -84,10 +84,17 @@ describe('SendTransactionParamsStruct', () => {
         gas: '0x5208',
         maxFeePerGas: '0x1',
         maxPriorityFeePerGas: '0x1',
-        gasPrice: '0x1',
         chainId: '0x1',
         dryRun: true,
       },
+      SendTransactionParamsStruct,
+    );
+    expect(error).toBeUndefined();
+  });
+
+  it('accepts a legacy `gasPrice` on its own', () => {
+    const [error] = validate(
+      { ...base, gas: '0x5208', gasPrice: '0x1' },
       SendTransactionParamsStruct,
     );
     expect(error).toBeUndefined();
@@ -123,6 +130,26 @@ describe('SendTransactionParamsStruct', () => {
     const [error] = validate({ to: TO }, SendTransactionParamsStruct);
     expect(error?.message).toContain(
       'Exactly one of `networkClientId` or `chainId`',
+    );
+  });
+
+  it('rejects `gasPrice` combined with `maxFeePerGas`', () => {
+    const [error] = validate(
+      { ...base, gasPrice: '0x1', maxFeePerGas: '0x1' },
+      SendTransactionParamsStruct,
+    );
+    expect(error?.message).toContain(
+      '`gasPrice` cannot be combined with `maxFeePerGas` or `maxPriorityFeePerGas`',
+    );
+  });
+
+  it('rejects `gasPrice` combined with `maxPriorityFeePerGas`', () => {
+    const [error] = validate(
+      { ...base, gasPrice: '0x1', maxPriorityFeePerGas: '0x1' },
+      SendTransactionParamsStruct,
+    );
+    expect(error?.message).toContain(
+      '`gasPrice` cannot be combined with `maxFeePerGas` or `maxPriorityFeePerGas`',
     );
   });
 
