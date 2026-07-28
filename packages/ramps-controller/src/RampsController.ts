@@ -2860,20 +2860,8 @@ export class RampsController extends BaseController<
       providerOrderId: internalOrderCode,
     };
 
-    this.update((state) => {
-      const idx = state.orders.findIndex(
-        (existing: RampsOrder) =>
-          getInternalOrderCode(existing) === internalOrderCode,
-      );
-      if (idx === -1) {
-        state.orders.push(healedOrder as Draft<RampsOrder>);
-      } else {
-        state.orders[idx] = {
-          ...state.orders[idx],
-          ...healedOrder,
-        } as Draft<RampsOrder>;
-      }
-    });
+    // Use addOrder to ensure lastUpdatedAt is bumped and incremental sync is triggered
+    this.addOrder(healedOrder);
 
     return healedOrder;
   }
