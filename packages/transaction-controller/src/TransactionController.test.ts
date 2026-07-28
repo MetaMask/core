@@ -4960,7 +4960,7 @@ describe('TransactionController', () => {
       expect(result.txParams.value).toBe('0x2');
     });
 
-    it('uses a transaction returned by the callback', () => {
+    it('ignores a transaction returned by the callback', () => {
       const { controller } = setupController({
         options: {
           state: {
@@ -4978,7 +4978,7 @@ describe('TransactionController', () => {
         () => updatedTransaction,
       );
 
-      expect(result.txParams.value).toBe('0x3');
+      expect(result).toStrictEqual(TRANSACTION_META_MOCK);
     });
 
     it('throws if the transaction does not exist', () => {

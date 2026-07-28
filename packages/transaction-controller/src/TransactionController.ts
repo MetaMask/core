@@ -1627,14 +1627,19 @@ export class TransactionController extends BaseController<
    * Updates an existing transaction using a callback.
    *
    * @param transactionId - ID of the transaction to update.
-   * @param callback - Function that updates the transaction metadata.
+   * @param callback - Function that mutates the transaction metadata.
    * @returns The updated transaction metadata.
    */
   updateTransactionCallback(
     transactionId: string,
-    callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
+    callback: (transactionMeta: TransactionMeta) => void,
   ): Readonly<TransactionMeta> {
-    return this.#updateTransactionInternal({ transactionId }, callback);
+    return this.#updateTransactionInternal(
+      { transactionId },
+      (transactionMeta) => {
+        callback(transactionMeta);
+      },
+    );
   }
 
   /**
