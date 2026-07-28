@@ -99,9 +99,7 @@ describe('mapRampsOrder', () => {
     const item = mapRampsOrder({ ...baseOrder, txHash: '', status: 'PENDING' });
 
     expect(item?.hash).toBeUndefined();
-    expect(item?.type === 'rampBuy' ? item.data.id : 'unset').toBe(
-      'order-123',
-    );
+    expect(item?.type === 'rampBuy' ? item.data.id : 'unset').toBe('order-123');
     expect(item?.status).toBe('pending');
   });
 

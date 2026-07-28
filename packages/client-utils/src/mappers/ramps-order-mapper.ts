@@ -58,7 +58,10 @@ function mapStatus(status: RampsOrderStatusLike): Status {
 // `UNKNOWN` and `ID_EXPIRED` represent background checkout attempts (e.g.
 // precreated orders that never matched a real order) that the user never
 // knowingly initiated as a distinct order and shouldn't see in their history.
-const HIDDEN_STATUSES = new Set<RampsOrderStatusLike>(['UNKNOWN', 'ID_EXPIRED']);
+const HIDDEN_STATUSES = new Set<RampsOrderStatusLike>([
+  'UNKNOWN',
+  'ID_EXPIRED',
+]);
 
 /**
  * Maps a ramps order into the shared activity item shape.

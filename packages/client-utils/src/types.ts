@@ -75,11 +75,7 @@ export type Fee = {
   assetId?: string;
 };
 
-type ActivityData<
-  Type extends ActivityKind,
-  Data,
-  ChainId = CaipChainId,
-> = {
+type ActivityData<Type extends ActivityKind, Data, ChainId = CaipChainId> = {
   type: Type;
   chainId: ChainId;
   status: Status;
