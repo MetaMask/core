@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Register no-op `AnalyticsController` handlers on the daemon wallet so `NetworkController`'s RPC service analytics calls resolve; the daemon does not report analytics ([#9270](https://github.com/MetaMask/core/pull/9270))
+
 - Auto-accept pending approval requests in the daemon so a transaction or signature flow resolves instead of hanging on the headless no-op `showApprovalRequest`; the subscription is torn down on `dispose` ([#9612](https://github.com/MetaMask/core/pull/9612))
   - **Security note:** the daemon approves every request without a per-request prompt; the trust boundary is its `0600`, same-user Unix socket.
 - Wire the `transactionController` slot in the daemon wallet's instance options, so the daemon runs the `TransactionController` with an explicit CLI-appropriate configuration (swaps processing disabled, no client hooks) rather than relying on the controller's implicit defaults ([#9509](https://github.com/MetaMask/core/pull/9509))

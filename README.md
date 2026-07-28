@@ -648,7 +648,6 @@ linkStyle default opacity:0.5
   user_operation_controller --> eth_block_tracker;
   wallet --> accounts_controller;
   wallet --> address_book_controller;
-  wallet --> analytics_controller;
   wallet --> approval_controller;
   wallet --> base_controller;
   wallet --> connectivity_controller;
