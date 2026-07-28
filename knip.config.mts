@@ -217,6 +217,10 @@ const config: KnipConfig = {
       ignoreDependencies: ['immer'],
     },
     'packages/wallet-cli': {
+      // `anvil` (from Foundry) is an external system binary the real-chain send
+      // e2e probes and spawns; it's installed via `foundryup`, not an npm
+      // package, so knip can't tie the invocation to a dependency.
+      ignoreBinaries: ['anvil'],
       // `tsx` is the dev-mode loader: it's referenced only as a `node --import`
       // argument string (in `daemon-spawn`'s source-entry path and `bin/dev`),
       // never as a traceable import, so knip can't see it.
