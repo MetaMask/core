@@ -1478,6 +1478,72 @@ describe('HyperLiquidProvider', () => {
       expect(infoClient.frontendOpenOrders).toHaveBeenCalled();
     });
 
+    it('cancels standalone partial leftovers on a later whole-position update', async () => {
+      // Warm cache showing a standalone (not position-bound) reduce-only
+      // trigger left over from an earlier partial update.
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([
+        {
+          orderId: '901',
+          symbol: 'BTC',
+          side: 'sell',
+          orderType: 'limit',
+          size: '0.04',
+          originalSize: '0.04',
+          price: '60000',
+          filledSize: '0',
+          remainingSize: '0.04',
+          status: 'open',
+          timestamp: 1_700_000_000_000,
+          detailedOrderType: 'Take Profit Limit',
+          isTrigger: true,
+          reduceOnly: true,
+          isPositionTpsl: false,
+          triggerPrice: '60000',
+        },
+      ]);
+      const infoClient = createMockInfoClient({
+        frontendOpenOrders: jest.fn().mockResolvedValue([
+          {
+            coin: 'BTC',
+            side: 'A',
+            limitPx: '60000',
+            sz: '0.04',
+            origSz: '0.04',
+            oid: 901,
+            timestamp: 1_700_000_000_000,
+            triggerCondition: 'Price above 60000',
+            isTrigger: true,
+            triggerPx: '60000',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: true,
+            orderType: 'Take Profit Limit',
+          },
+        ]),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        infoClient as unknown as ReturnType<
+          typeof mockClientService.getInfoClient
+        >,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '61000',
+        stopLossPrice: '45000',
+        position,
+      });
+
+      expect(result.success).toBe(true);
+      // The leftover standalone trigger must not survive beside the new
+      // whole-position TP/SL orders — it would fire independently.
+      expect(mockClientService.getExchangeClient().cancel).toHaveBeenCalledWith(
+        {
+          cancels: [{ a: 0, o: 901 }],
+        },
+      );
+    });
+
     it('returns a typed error when a partial size exceeds the position', async () => {
       mockValidateOrderParams.mockImplementation(
         jest.requireActual('../../../src/utils/hyperLiquidValidation.js')

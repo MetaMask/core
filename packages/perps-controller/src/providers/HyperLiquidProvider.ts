@@ -4255,11 +4255,11 @@ export class HyperLiquidProvider implements PerpsProvider {
    * requires size 0). They are submitted as standalone reduce-only trigger orders
    * with 'na' grouping and explicit sizes instead.
    *
-   * Note that in the partial path the pre-cancel sweep clears every standalone
-   * reduce-only trigger on the symbol, not only the ones this method placed. A
-   * trigger the caller placed independently through `placeOrder` (for example a
-   * manual reduce-only stop) is therefore cancelled too. Only TP/SL children of
-   * another pending order are protected.
+   * Note that the pre-cancel sweep clears every standalone reduce-only trigger
+   * on the symbol — whether this update is partial or whole-position — not only
+   * the ones this method placed. A trigger the caller placed independently
+   * through `placeOrder` (for example a manual reduce-only stop) is therefore
+   * cancelled too. Only TP/SL children of another pending order are protected.
    *
    * @param params - The operation parameters.
    * @param params.symbol - Asset symbol of the position
@@ -4365,18 +4365,36 @@ export class HyperLiquidProvider implements PerpsProvider {
       const cachedOrders =
         this.#subscriptionService.getOrdersCacheIfInitialized();
 
-      // Replacing partial TP/SL has to consider standalone ('na' grouping)
-      // triggers, which are not position-bound. Telling those apart from a
-      // pending order's normalTpsl child requires the parent/child relationship,
-      // which only the REST payload carries — so that path is used even when the
-      // WebSocket cache is warm.
-      if (cachedOrders === null || isPartialTpsl) {
+      // Replacing TP/SL has to consider standalone ('na' grouping) triggers —
+      // left by a partial update or placed independently — which are not
+      // position-bound. Telling those apart from a pending order's normalTpsl
+      // child requires the parent/child relationship, which only the REST
+      // payload carries. The cache path is therefore only safe when the cache
+      // shows no such trigger on this market: a partial update always places
+      // standalone triggers, and a whole-position update must still clear any
+      // standalone leftovers instead of letting them fire beside the new
+      // position-bound orders.
+      const cacheShowsStandaloneTriggers = Boolean(
+        cachedOrders?.some(
+          (order) =>
+            order.symbol === symbol &&
+            order.reduceOnly === true &&
+            order.isTrigger === true &&
+            order.isPositionTpsl !==
+              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
+            order.detailedOrderType &&
+            (order.detailedOrderType.includes('Take Profit') ||
+              order.detailedOrderType.includes('Stop')),
+        ),
+      );
+
+      if (cachedOrders === null || isPartialTpsl || cacheShowsStandaloneTriggers) {
         // Fallback: Query only the specific DEX (20 weight instead of 40+)
         this.#deps.debugLogger.log(
-          isPartialTpsl
-            ? 'Partial TP/SL update: using single-DEX REST query for parent/child order context'
-            : 'WebSocket cache not initialized, falling back to single-DEX REST query',
-          { dex: dexName ?? 'main' },
+          cachedOrders === null
+            ? 'WebSocket cache not initialized, falling back to single-DEX REST query'
+            : 'TP/SL update needs parent/child order context: using single-DEX REST query',
+          { dex: dexName ?? 'main', isPartialTpsl },
         );
 
         const orders = await infoClient.frontendOpenOrders({
@@ -4394,12 +4412,13 @@ export class HyperLiquidProvider implements PerpsProvider {
           (order) =>
             order.coin === symbol &&
             order.reduceOnly &&
-            // Position-bound TP/SL always qualifies. When replacing partial
-            // TP/SL, standalone triggers on this market qualify too — but never
-            // another order's TP/SL children.
+            // Position-bound TP/SL always qualifies, and so do standalone
+            // triggers on this market (they belong to the position too, whether
+            // this update is partial or whole) — but never another order's
+            // TP/SL children.
             (order.isPositionTpsl ===
               Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) ||
-              (isPartialTpsl && !childOrderIds.has(order.oid))) &&
+              !childOrderIds.has(order.oid)) &&
             order.isTrigger &&
             (order.orderType.includes('Take Profit') ||
               order.orderType.includes('Stop')),
