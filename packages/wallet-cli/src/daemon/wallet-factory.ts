@@ -155,9 +155,9 @@ function buildInstanceOptions(
  * @param messenger - The wallet's root messenger.
  */
 function registerAnalyticsStubHandlers(messenger: Wallet['messenger']): void {
-  // Actions can only be registered under a messenger of their own namespace,
-  // and registering them delegates them up to the root automatically, so
-  // `NetworkController` (delegated the same actions) can call them.
+  // Register on an `AnalyticsController`-namespaced messenger, not the root: a
+  // messenger can only register handlers for its own namespace, and doing so
+  // delegates them up to the root, where `NetworkController` can reach them.
   const analyticsMessenger = new Messenger<
     'AnalyticsController',
     AnalyticsControllerGetStateAction | AnalyticsControllerTrackEventAction,
