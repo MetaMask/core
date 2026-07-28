@@ -31,7 +31,7 @@
     "lint:dependencies": "knip --config knip.config.mts --dependencies && yarn dedupe --check",
     "lint:dependencies:fix": "knip --config knip.config.mts --dependencies && yarn dedupe",
     "lint:eslint": "yarn build:only-clean && NODE_OPTIONS='--max-old-space-size=8192' yarn eslint",
-    "lint:fix": "yarn lint:eslint --fix --prune-suppressions && echo && yarn lint:misc --write && yarn constraints --fix && yarn lint:dependencies:fix && yarn messenger-action-types:generate && yarn readme-content:update && yarn codeowners:generate",
+    "lint:fix": "yarn lint:eslint --fix --prune-suppressions && echo && yarn lint:misc --write && yarn constraints --fix && yarn lint:dependencies:fix && yarn messenger-action-types:generate && yarn readme-content:update && yarn lint:tsconfigs:fix:all && yarn codeowners:generate",
     "lint:misc": "oxfmt --ignore-path .gitignore",
     "lint:misc:check": "yarn lint:misc --check",
     "lint:teams": "tsx scripts/lint-teams-json.ts",

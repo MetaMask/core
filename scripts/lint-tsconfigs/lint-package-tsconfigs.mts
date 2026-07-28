@@ -1,5 +1,3 @@
-import * as path from 'path';
-
 import type {
   PackageManifest,
   TsconfigLintMetaReport,
@@ -53,13 +51,12 @@ export async function lintPackageTsconfigs({
   const lintReport = await lintPackageLintOnlyTsconfigs({
     packageRoot,
     repoRoot,
-    manifest,
     workspaces,
     expectedPackageNames,
     shouldFix,
   });
 
-  return devAndBuildReport.didPass && lintReport.didPass;
+  return devAndBuildReport.didPass && (!lintReport || lintReport.didPass);
 }
 
 /**
@@ -88,7 +85,7 @@ export async function lintPackageDevAndBuildOnlyTsconfigs({
   expectedPackageNames: Set<string>;
   shouldFix: boolean;
 }): Promise<TsconfigLintMetaReport> {
-  const devAndBuildTsconfigs = await Promise.all([
+  const devAndBuildOnlyTsconfigs = await Promise.all([
     readTsconfig(packageRoot, 'tsconfig.json'),
     readTsconfig(packageRoot, 'tsconfig.build.json'),
   ]);
@@ -100,12 +97,12 @@ export async function lintPackageDevAndBuildOnlyTsconfigs({
   const report = shouldFix
     ? await ensureTsconfigsUpdated({
         workspaces: expectedWorkspaces,
-        tsconfigs: devAndBuildTsconfigs,
+        tsconfigs: devAndBuildOnlyTsconfigs,
         repoRoot,
         currentWorkspaceRoot: packageRoot,
       })
     : await lintTsconfigs({
-        tsconfigs: devAndBuildTsconfigs,
+        tsconfigs: devAndBuildOnlyTsconfigs,
         expectedPackageNames,
         workspaces,
         repoRoot,
@@ -124,7 +121,6 @@ export async function lintPackageDevAndBuildOnlyTsconfigs({
  * @param options - The options object.
  * @param options.packageRoot - The root directory of the package.
  * @param options.repoRoot - The root directory of the repository.
- * @param options.manifest - Contents of the package's `package.json` file.
  * @param options.workspaces - The workspaces in the repository.
  * @param options.expectedPackageNames - Workspace dependencies to reference.
  * @param options.shouldFix - Whether to automatically fix issues.
@@ -133,55 +129,49 @@ export async function lintPackageDevAndBuildOnlyTsconfigs({
 export async function lintPackageLintOnlyTsconfigs({
   packageRoot,
   repoRoot,
-  manifest,
   workspaces,
   expectedPackageNames,
   shouldFix,
 }: {
   packageRoot: string;
   repoRoot: string;
-  manifest: PackageManifest;
   workspaces: Workspaces;
   expectedPackageNames: Set<string>;
   shouldFix: boolean;
-}): Promise<TsconfigLintMetaReport> {
+}): Promise<TsconfigLintMetaReport | undefined> {
   const expectedWorkspaces = getSortedWorkspaces({
     packageNames: expectedPackageNames,
     workspaces,
   });
-  const lintWorkspaces = await filterWorkspacesWithTsconfig({
-    workspaces: expectedWorkspaces,
-    repoRoot,
-    fileName: 'tsconfig.lint.json',
-  });
-  // This allows us to increase linting for the whole repo incrementally.
-  const packageLintWorkspaces = await filterWorkspacesWithTsconfig({
-    workspaces: [
-      {
-        name: manifest.name,
-        location: path.relative(repoRoot, packageRoot),
-      },
-    ],
-    repoRoot,
-    fileName: 'tsconfig.lint.json',
-  });
-  const lintTsconfigsToCheck =
-    packageLintWorkspaces.length === 0
-      ? []
-      : [await readTsconfig(packageRoot, 'tsconfig.lint.json')];
+
+  // Only lint `tsconfig.lint.json` for packages that have this file.
+  // (We assume that if a package has a `tsconfig.lint.json` file, that package
+  // has also been added to the root `tsconfig.lint.json`.)
+  // Filtering the workspaces here allows us to increase typechecking for
+  // packages within this monorepo.
+  let lintOnlyTsconfig;
+  try {
+    lintOnlyTsconfig = await readTsconfig(packageRoot, 'tsconfig.lint.json');
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes('Could not read file')
+    ) {
+      return undefined;
+    }
+    throw error;
+  }
 
   const report = shouldFix
     ? await ensureTsconfigsUpdated({
-        workspaces: lintWorkspaces,
-        tsconfigs: lintTsconfigsToCheck,
+        workspaces: expectedWorkspaces,
+        tsconfigs: [lintOnlyTsconfig],
         repoRoot,
         currentWorkspaceRoot: packageRoot,
       })
     : await lintTsconfigs({
-        tsconfigs: lintTsconfigsToCheck,
-        expectedPackageNames: new Set(
-          lintWorkspaces.map((workspace) => workspace.name),
-        ),
+        tsconfigs: [lintOnlyTsconfig],
+        expectedPackageNames,
         workspaces,
         repoRoot,
         currentWorkspaceRoot: packageRoot,
