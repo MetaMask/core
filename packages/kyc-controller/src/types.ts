@@ -46,6 +46,10 @@ export type KycPhase =
 
 /**
  * Progress of the SumSub document-verification sub-flow.
+ *
+ * - `polling` — the SDK finished and the controller is polling the UKYC
+ *   backend for the session's final decision (see `KycSessionStatus`). The
+ *   sub-flow resolves to `complete` or `failed` once a terminal status arrives.
  */
 export type KycSumSubStatus =
   | 'idle'
@@ -53,8 +57,33 @@ export type KycSumSubStatus =
   | 'fetchingToken'
   | 'launching'
   | 'inProgress'
+  | 'polling'
   | 'complete'
   | 'failed';
+
+/**
+ * The status of a UKYC session, returned by the `GET /sessions/{id}/status`
+ * endpoint and polled after the SumSub SDK completes to determine the final
+ * verification decision.
+ */
+export type KycSessionStatus = {
+  /**
+   * The overall status of the session. Terminal values (e.g. `approved`,
+   * `completed`, `rejected`, `failed`, `blocked`) end polling; any other value
+   * keeps polling.
+   */
+  finalStatus: string;
+  /** Optional human-readable message describing the status. */
+  statusMessage?: string;
+  /** The vendor-agnostic external user id associated with the session. */
+  externalUserId: string;
+  /** The KYC decision status. */
+  kycStatus: string;
+  /** The identity vendor that handled the session. */
+  vendor: string;
+  /** The vendor-specific status. */
+  vendorStatus: string;
+};
 
 /**
  * A single disclaimer/term the customer must accept before a session is

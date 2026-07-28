@@ -354,6 +354,63 @@ describe('KycService', () => {
     });
   });
 
+  describe('getSessionStatus', () => {
+    it('returns the session status', async () => {
+      const response = {
+        finalStatus: 'approved',
+        statusMessage: 'All good',
+        externalUserId: 'ext-1',
+        kycStatus: 'approved',
+        vendor: 'sumsub',
+        vendorStatus: 'GREEN',
+      };
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getSessionStatus({ sessionId: 'sid' }),
+      ).toStrictEqual(response);
+    });
+
+    it('url-encodes the session id', async () => {
+      const response = {
+        finalStatus: 'pending',
+        externalUserId: 'ext-1',
+        kycStatus: 'pending',
+        vendor: 'sumsub',
+        vendorStatus: 'YELLOW',
+      };
+      nock(MOCK_API_URL)
+        .get('/sessions/a%2Fb/status')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getSessionStatus({ sessionId: 'a/b' }),
+      ).toStrictEqual(response);
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid/status')
+        .reply(200, { finalStatus: 'approved' });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toThrow(/Malformed response received from session status API/u);
+    });
+
+    it('throws an HttpError on a non-ok response', async () => {
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(404);
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toThrow(/failed with status '404'/u);
+    });
+  });
+
   describe('baseUrl override', () => {
     it('uses the provided baseUrl instead of the env-derived URL', async () => {
       const customUrl = 'https://kyc-api.local.test';

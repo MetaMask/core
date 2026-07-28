@@ -20,6 +20,7 @@ export type {
   KycControllerCheckKycRequiredAction,
   KycControllerClearSavedTermsAction,
   KycControllerGetKycStatusAction,
+  KycControllerGetSessionStatusAction,
   KycControllerHandleFrameMessageAction,
   KycControllerInitializeAction,
   KycControllerLoadDisclaimersAction,
@@ -34,6 +35,7 @@ export type {
   CreateSessionParams,
   CreateUkycSessionParams,
   FetchApplicantAccessTokenParams,
+  GetSessionStatusParams,
   GetWrappingKeyParams,
   JwksResponse,
   KycServiceActions,
@@ -53,6 +55,7 @@ export type {
   KycServiceFetchDisclaimersAction,
   KycServiceFetchJwksAction,
   KycServiceGetGeoCountryAction,
+  KycServiceGetSessionStatusAction,
   KycServiceGetWrappingKeyAction,
 } from './KycService-method-action-types';
 
@@ -75,6 +78,7 @@ export type {
   KycDisclaimer,
   KycPhase,
   KycProduct,
+  KycSessionStatus,
   KycSumSubLaunchParams,
   KycSumSubLauncher,
   KycSumSubStatus,
