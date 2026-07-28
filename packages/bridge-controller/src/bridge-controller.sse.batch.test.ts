@@ -19,7 +19,6 @@ import {
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
 } from './constants/bridge.js';
-import * as selectors from './selectors.js';
 import { ChainId, RequestStatus } from './types.js';
 import type { BridgeControllerMessenger } from './types.js';
 import * as balanceUtils from './utils/balance.js';

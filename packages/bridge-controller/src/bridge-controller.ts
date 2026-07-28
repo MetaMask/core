@@ -21,10 +21,6 @@ import {
 import { CHAIN_IDS } from './constants/chains.js';
 import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps.js';
 import { TraceName } from './constants/traces.js';
-import {
-  ExchangeRateSourcesForLookup,
-  selectIsAssetExchangeRateInState,
-} from './selectors.js';
 import { RequestStatus } from './types.js';
 import type {
   L1GasFees,
