@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `adaptTpslLinkageToGrouping` maps the linkage onto HyperLiquid's grouping inside the adapter layer, keeping protocol wording out of `OrderParams`.
 - Add the `TriggerOrderType`, `OrderExecution`, `TriggerDirection`, `TpslLinkage`, and `PositionTriggerOrder` types ([#9674](https://github.com/MetaMask/core/pull/9674))
 - Add order-type helpers `TRIGGER_ORDER_TYPES`, `isTriggerOrderType`, `isLimitExecutionOrderType`, `getTriggerExecution`, `getTriggerDirection`, `buildTriggerOrderType`, and `buildPositionTriggerOrderFromOrder`, plus the HyperLiquid mappers `adaptTriggerOrderTypeFromSDK` and `adaptPositionTriggerOrderFromSDK` ([#9674](https://github.com/MetaMask/core/pull/9674))
-- Add order validation error codes `ORDER_TRIGGER_PRICE_REQUIRED`, `ORDER_TRIGGER_PRICE_POSITIVE`, `ORDER_TRIGGER_PRICE_NOT_SUPPORTED`, `ORDER_TRIGGER_TPSL_UNSUPPORTED`, `ORDER_TPSL_SIZE_INVALID`, `ORDER_EDIT_TRIGGER_UNSUPPORTED`, and `ORDER_TPSL_LINKAGE_CONFLICT` ([#9674](https://github.com/MetaMask/core/pull/9674))
+- Add order validation error codes `ORDER_TRIGGER_PRICE_REQUIRED`, `ORDER_TRIGGER_PRICE_POSITIVE`, `ORDER_TRIGGER_PRICE_NOT_SUPPORTED`, `ORDER_TRIGGER_TPSL_UNSUPPORTED`, `ORDER_TPSL_SIZE_INVALID`, `ORDER_EDIT_TRIGGER_UNSUPPORTED`, `ORDER_TPSL_LINKAGE_CONFLICT`, and `ORDER_TIME_IN_FORCE_NOT_SUPPORTED` ([#9674](https://github.com/MetaMask/core/pull/9674))
 
 ### Changed
 
@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `OrderParams.timeInForce` now controls the HyperLiquid time-in-force for plain limit orders instead of being ignored; `GTC`, `IOC`, and post-only `ALO` map to their corresponding SDK values, while order shapes that cannot carry time in force reject it ([#9674](https://github.com/MetaMask/core/pull/9674))
+- `OrderParams.timeInForce` now controls the HyperLiquid time-in-force for plain limit orders instead of being ignored; `GTC`, `IOC`, and post-only `ALO` map to their corresponding SDK values, while order shapes that cannot carry time in force reject it with `ORDER_TIME_IN_FORCE_NOT_SUPPORTED` ([#9674](https://github.com/MetaMask/core/pull/9674))
 - `getPositions` now populates `takeProfitCount` / `stopLossCount` on the REST path, which previously always reported `0` there while the WebSocket path counted them. Both counts and the new trigger arrays use one definition on both transports: reduce-only triggers on the market that are not a child of another pending order, de-duplicated by order ID ([#9674](https://github.com/MetaMask/core/pull/9674))
 - `Order.orderType` now reports how a trigger order executes rather than always reporting `limit`: HyperLiquid sets `limitPx` on trigger orders as a slippage cap, so a `Stop Market`/`Take Profit Market` order was previously read back as a limit order ([#9674](https://github.com/MetaMask/core/pull/9674))
 

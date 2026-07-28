@@ -412,6 +412,25 @@ export function calculateOrderPriceAndSize(
 }
 
 /**
+ * Map the controller's time in force onto the SDK's spelling.
+ *
+ * @param timeInForce - Requested time in force; defaults to GTC.
+ * @returns The SDK time-in-force value.
+ */
+function toSDKTimeInForce(
+  timeInForce?: 'GTC' | 'IOC' | 'ALO',
+): 'Gtc' | 'Ioc' | 'Alo' {
+  switch (timeInForce) {
+    case 'IOC':
+      return 'Ioc';
+    case 'ALO':
+      return 'Alo';
+    default:
+      return 'Gtc';
+  }
+}
+
+/**
  * Build the SDK order-type field for the main order.
  *
  * Trigger placements map to the SDK's trigger shape; everything else keeps the
@@ -419,6 +438,7 @@ export function calculateOrderPriceAndSize(
  *
  * @param params - Order type parameters
  * @param params.orderType - Placement type
+ * @param params.timeInForce - Time in force; only limit orders may carry one
  * @param params.triggerPrice - Trigger price (required for trigger placements)
  * @param params.szDecimals - Asset size decimals, for price formatting
  * @returns The SDK `t` field for the main order
@@ -433,18 +453,16 @@ function buildMainOrderTypeField(params: {
 
   if (!isTriggerOrderType(orderType)) {
     if (orderType === 'limit') {
-      const tif =
-        timeInForce === 'IOC' ? 'Ioc' : timeInForce === 'ALO' ? 'Alo' : 'Gtc';
-      return { limit: { tif } };
+      return { limit: { tif: toSDKTimeInForce(timeInForce) } };
     }
     if (timeInForce !== undefined) {
-      throw new Error('timeInForce is only supported for limit orders');
+      throw new Error(PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED);
     }
     return { limit: { tif: 'FrontendMarket' } };
   }
 
   if (timeInForce !== undefined) {
-    throw new Error('timeInForce is only supported for limit orders');
+    throw new Error(PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED);
   }
 
   if (!triggerPrice) {

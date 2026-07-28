@@ -591,7 +591,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(
-        'timeInForce is only supported for limit orders',
+        PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED,
       );
       expect(
         mockClientService.getExchangeClient().order,

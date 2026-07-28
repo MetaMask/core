@@ -116,6 +116,25 @@ export function adaptOrderToSDK(
 }
 
 /**
+ * Map the controller's time in force onto the SDK's spelling.
+ *
+ * @param timeInForce - Requested time in force; defaults to GTC.
+ * @returns The SDK time-in-force value.
+ */
+function adaptTimeInForceToSDK(
+  timeInForce: PerpsOrderParams['timeInForce'],
+): 'Gtc' | 'Ioc' | 'Alo' {
+  switch (timeInForce) {
+    case 'IOC':
+      return 'Ioc';
+    case 'ALO':
+      return 'Alo';
+    default:
+      return 'Gtc';
+  }
+}
+
+/**
  * Map a placement type onto the SDK's order-type field.
  *
  * @param order - Order params carrying the placement type and trigger price
@@ -124,7 +143,7 @@ export function adaptOrderToSDK(
 function adaptOrderTypeToSDK(order: PerpsOrderParams): SDKOrderParams['t'] {
   if (isTriggerOrderType(order.orderType)) {
     if (order.timeInForce !== undefined) {
-      throw new Error('timeInForce is only supported for limit orders');
+      throw new Error(PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED);
     }
     if (!order.triggerPrice) {
       throw new Error(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
@@ -140,16 +159,10 @@ function adaptOrderTypeToSDK(order: PerpsOrderParams): SDKOrderParams['t'] {
   }
 
   if (order.orderType === 'limit') {
-    const tif =
-      order.timeInForce === 'IOC'
-        ? 'Ioc'
-        : order.timeInForce === 'ALO'
-          ? 'Alo'
-          : 'Gtc';
-    return { limit: { tif } };
+    return { limit: { tif: adaptTimeInForceToSDK(order.timeInForce) } };
   }
   if (order.timeInForce !== undefined) {
-    throw new Error('timeInForce is only supported for limit orders');
+    throw new Error(PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED);
   }
   return { limit: { tif: 'FrontendMarket' } };
 }

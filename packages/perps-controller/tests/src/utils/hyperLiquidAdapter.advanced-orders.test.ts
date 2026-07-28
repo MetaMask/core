@@ -123,14 +123,17 @@ describe('hyperLiquidAdapter - advanced order types', () => {
       ['GTC', 'Gtc'],
       ['IOC', 'Ioc'],
       ['ALO', 'Alo'],
-    ] as const)('maps %s time in force onto a limit order', (timeInForce, tif) => {
-      const result = adaptOrderToSDK(
-        buildOrderParams({ orderType: 'limit', timeInForce }),
-        symbolToAssetId,
-      );
+    ] as const)(
+      'maps %s time in force onto a limit order',
+      (timeInForce, tif) => {
+        const result = adaptOrderToSDK(
+          buildOrderParams({ orderType: 'limit', timeInForce }),
+          symbolToAssetId,
+        );
 
-      expect(result.t).toStrictEqual({ limit: { tif } });
-    });
+        expect(result.t).toStrictEqual({ limit: { tif } });
+      },
+    );
 
     it.each([
       ['stop_market', { isMarket: true, tpsl: 'sl' }],
