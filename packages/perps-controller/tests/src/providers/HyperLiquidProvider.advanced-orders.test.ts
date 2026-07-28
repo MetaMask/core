@@ -205,7 +205,26 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
   ]),
   perpDexs: jest.fn().mockResolvedValue([null]),
   allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
-  frontendOpenOrders: jest.fn().mockResolvedValue([]),
+  // editOrder verifies the resting order's placement type before modifying it,
+  // so the account lists the plain limit order the edit tests target.
+  frontendOpenOrders: jest.fn().mockResolvedValue([
+    {
+      coin: 'BTC',
+      side: 'B',
+      limitPx: '50000',
+      sz: '0.1',
+      origSz: '0.1',
+      oid: 123,
+      timestamp: 1_700_000_000_000,
+      isTrigger: false,
+      triggerCondition: 'N/A',
+      triggerPx: '0',
+      children: [],
+      isPositionTpsl: false,
+      reduceOnly: false,
+      orderType: 'Limit',
+    },
+  ]),
   referral: jest.fn().mockResolvedValue({
     referrerState: {
       stage: 'ready',
@@ -938,6 +957,79 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('rejects editing a resting trigger order the cold cache cannot see', async () => {
+      // Cache is cold, so the placement type comes from REST instead. Without
+      // that lookup the edit would rebuild the protective stop as a plain order.
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '40500',
+              sz: '0.1',
+              origSz: '0.1',
+              oid: 123,
+              timestamp: 1_700_000_000_000,
+              isTrigger: true,
+              triggerCondition: 'Price below 44000',
+              triggerPx: '44000',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: true,
+              orderType: 'Stop Market',
+            },
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const result = await provider.editOrder({
+        orderId: '123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'limit',
+          price: '45000',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+      );
+      expect(
+        mockClientService.getExchangeClient().modify,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects an edit when the resting order cannot be verified at all', async () => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const result = await provider.editOrder({
+        orderId: '123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'limit',
+          price: '45000',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_EDIT_ORDER_UNVERIFIABLE,
+      );
+      expect(
+        mockClientService.getExchangeClient().modify,
+      ).not.toHaveBeenCalled();
+    });
+
     it('rejects editing a resting order into a trigger placement', async () => {
       const result = await provider.editOrder({
         orderId: '123',
@@ -1554,6 +1646,29 @@ describe('HyperLiquidProvider', () => {
         symbol: 'BTC',
         takeProfitPrice: '60000',
         takeProfitSize: '0.5',
+        position,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('returns a typed error when a partial size rounds to zero', async () => {
+      // 0.0004 is positive and below the position, so validation passes, but it
+      // formats to '0' at szDecimals: 3 — which HyperLiquid reads as a
+      // whole-position trigger, silently closing the entire position.
+      mockValidateOrderParams.mockImplementation(
+        jest.requireActual('../../../src/utils/hyperLiquidValidation.js')
+          .validateOrderParams,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.0004',
         position,
       });
 

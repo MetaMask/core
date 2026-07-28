@@ -174,6 +174,7 @@ import {
   buildOrdersArray,
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
+  formatPartialTpslSize,
 } from '../utils/orderCalculations.js';
 import {
   getTriggerExecution,
@@ -3698,6 +3699,31 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Look up a resting order by id in the account's open orders.
+   *
+   * @param params - The lookup parameters.
+   * @param params.orderId - The order ID to look up.
+   * @param params.dexName - DEX to query, or null for the main DEX.
+   * @returns The raw open order, or undefined when it is no longer resting.
+   */
+  async #findRestingOrder(params: {
+    orderId: string | number;
+    dexName: string | null;
+  }): Promise<FrontendOrder | undefined> {
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const orders = await this.#clientService
+      .getInfoClient()
+      .frontendOpenOrders({
+        user: userAddress,
+        dex: params.dexName ?? undefined,
+      });
+
+    return orders.find(
+      (order) => order.oid.toString() === params.orderId.toString(),
+    );
+  }
+
+  /**
    * Edit an existing order (pending/unfilled order)
    *
    * Note: This modifies price/size of a pending order. It CANNOT add TP/SL to an existing order.
@@ -3724,19 +3750,19 @@ export class HyperLiquidProvider implements PerpsProvider {
       // `modify` rebuilds an order as a plain limit/market order, so a trigger
       // on either side of the edit would be silently dropped. Reject a resting
       // trigger order as well as an edit *into* one; cancel and re-place instead.
-      // The resting side can only be checked when the WebSocket order cache is
-      // warm — it is the only local source that knows an order's placement type.
-      const restingOrder = this.#subscriptionService
-        .getOrdersCacheIfInitialized()
-        ?.find((order) => order.orderId === params.orderId.toString());
-      if (restingOrder?.isTrigger === true) {
+      if (isTriggerOrderType(params.newOrder.orderType)) {
         return {
           success: false,
           error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
         };
       }
 
-      if (isTriggerOrderType(params.newOrder.orderType)) {
+      // The WebSocket order cache is the cheap source for the resting order's
+      // placement type, but it may be cold or stale.
+      const cachedRestingOrder = this.#subscriptionService
+        .getOrdersCacheIfInitialized()
+        ?.find((order) => order.orderId === params.orderId.toString());
+      if (cachedRestingOrder?.isTrigger === true) {
         return {
           success: false,
           error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
@@ -3767,6 +3793,30 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(params.newOrder.symbol);
+
+      // Fail closed when the cache could not confirm the resting order: an
+      // unverified edit can rebuild a protective stop as a plain order and
+      // report success. REST carries the placement type the cache lacked.
+      if (cachedRestingOrder === undefined) {
+        const restingOrder = await this.#findRestingOrder({
+          orderId: params.orderId,
+          dexName,
+        });
+
+        if (!restingOrder) {
+          return {
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_EDIT_ORDER_UNVERIFIABLE,
+          };
+        }
+
+        if (restingOrder.isTrigger) {
+          return {
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+          };
+        }
+      }
 
       // Get asset info and prices (uses cache to avoid redundant API calls)
       const meta = await this.#getCachedMeta({ dexName });
@@ -4518,10 +4568,12 @@ export class HyperLiquidProvider implements PerpsProvider {
             });
 
       // Partial TP/SL orders carry their own size; the rest cover the position.
+      // A partial size that rounds away at the asset precision is rejected
+      // rather than sent as '0', which the exchange reads as whole-position.
       const resolveTpslSize = (tpslSize?: string): string =>
         tpslSize === undefined
           ? fullSize
-          : formatHyperLiquidSize({
+          : formatPartialTpslSize({
               size: parseFloat(tpslSize),
               szDecimals: assetInfo.szDecimals,
             });

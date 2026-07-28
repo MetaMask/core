@@ -1,7 +1,10 @@
 import { hasProperty, Hex, isHexString } from '@metamask/utils';
 
 import { HIP3_ASSET_ID_CONFIG } from '../constants/hyperLiquidConfig.js';
-import { DECIMAL_PRECISION_CONFIG } from '../constants/perpsConfig.js';
+import {
+  DECIMAL_PRECISION_CONFIG,
+  ORDER_SLIPPAGE_CONFIG,
+} from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   AssetPosition,
@@ -105,7 +108,7 @@ export function adaptOrderToSDK(
   return {
     a: assetId,
     b: order.isBuy,
-    p: order.price ?? '0',
+    p: order.price ?? resolveTriggerCapPrice(order) ?? '0',
     s: order.size,
     r: order.reduceOnly ?? false,
     t: adaptOrderTypeToSDK(order),
@@ -114,6 +117,40 @@ export function adaptOrderToSDK(
         ? (order.clientOrderId as Hex)
         : undefined,
   };
+}
+
+/**
+ * Derive the slippage cap a market-on-trigger order submits as its price.
+ *
+ * A `stop_market` / `take_profit_market` order legitimately carries no limit
+ * price, but the SDK still requires a positive `p` — it is the cap the order
+ * fills against once the trigger fires, not a resting price. Sending `'0'`
+ * fails SDK validation before the request is ever made.
+ *
+ * @param order - Order params carrying the placement type and trigger price.
+ * @returns The formatted cap price, or undefined when the order needs no cap.
+ */
+function resolveTriggerCapPrice(order: PerpsOrderParams): string | undefined {
+  if (
+    !isTriggerOrderType(order.orderType) ||
+    isLimitExecutionOrderType(order.orderType) ||
+    !order.triggerPrice
+  ) {
+    return undefined;
+  }
+
+  const triggerPrice = parseFloat(order.triggerPrice);
+  if (!Number.isFinite(triggerPrice)) {
+    return undefined;
+  }
+
+  // Buying pays up to the cap, selling accepts down to it.
+  const slippage = ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / 10000;
+  const capPrice = order.isBuy
+    ? triggerPrice * (1 + slippage)
+    : triggerPrice * (1 - slippage);
+
+  return capPrice.toString();
 }
 
 /**

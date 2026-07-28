@@ -494,7 +494,34 @@ function formatTpslSize(params: {
       ? Math.min(requested, parentSize)
       : requested;
 
-  return formatHyperLiquidSize({ size, szDecimals });
+  return formatPartialTpslSize({ size, szDecimals });
+}
+
+/**
+ * Format a partial TP/SL size, rejecting one that disappears at the asset
+ * precision.
+ *
+ * Validation only sees the requested size, so a positive value below the
+ * asset's precision (0.0004 against `szDecimals: 3`) passes and then formats to
+ * `'0'`. HyperLiquid reads a zero-sized trigger as covering the whole position,
+ * which would silently turn a partial TP/SL into a full close.
+ *
+ * @param params - Size parameters
+ * @param params.size - The requested partial size
+ * @param params.szDecimals - Asset size decimals
+ * @returns The exchange-formatted size, guaranteed positive.
+ */
+export function formatPartialTpslSize(params: {
+  size: string | number;
+  szDecimals: number;
+}): string {
+  const formatted = formatHyperLiquidSize(params);
+
+  if (parseFloat(formatted) <= 0) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+  }
+
+  return formatted;
 }
 
 /**

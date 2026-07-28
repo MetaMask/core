@@ -1,3 +1,4 @@
+import { ORDER_SLIPPAGE_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { FrontendOrder } from '../../../src/types/hyperliquid-types.js';
 import type { OrderParams } from '../../../src/types/index.js';
@@ -40,6 +41,8 @@ function buildFrontendOrder(
     ...overrides,
   } as FrontendOrder;
 }
+
+const TPSL_SLIPPAGE = ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / 10_000;
 
 const buildOrderParams = (
   overrides: Partial<OrderParams> = {},
@@ -165,6 +168,38 @@ describe('hyperLiquidAdapter - advanced order types', () => {
           symbolToAssetId,
         ),
       ).toThrow(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
+    });
+
+    it.each([
+      // A market-on-trigger order carries no limit price, but `p` is the
+      // slippage cap the SDK still requires — sending '0' fails validation.
+      ['stop_market', true, 45000 * (1 + TPSL_SLIPPAGE)],
+      ['stop_market', false, 45000 * (1 - TPSL_SLIPPAGE)],
+      ['take_profit_market', true, 45000 * (1 + TPSL_SLIPPAGE)],
+      ['take_profit_market', false, 45000 * (1 - TPSL_SLIPPAGE)],
+    ] as [TriggerOrderType, boolean, number][])(
+      'caps %s (isBuy: %s) at the trigger price adjusted for slippage',
+      (orderType, isBuy, expectedCap) => {
+        const result = adaptOrderToSDK(
+          buildOrderParams({ orderType, isBuy, triggerPrice: '45000' }),
+          symbolToAssetId,
+        );
+
+        expect(parseFloat(result.p)).toBeCloseTo(expectedCap, 6);
+      },
+    );
+
+    it('keeps an explicit price on a market-on-trigger order', () => {
+      const result = adaptOrderToSDK(
+        buildOrderParams({
+          orderType: 'stop_market',
+          triggerPrice: '45000',
+          price: '44000',
+        }),
+        symbolToAssetId,
+      );
+
+      expect(result.p).toBe('44000');
     });
 
     it('keeps the existing mapping for market and limit orders', () => {

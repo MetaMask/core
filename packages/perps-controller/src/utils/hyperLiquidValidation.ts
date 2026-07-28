@@ -613,6 +613,21 @@ export function validateOrderParams(params: {
     }
   }
 
+  // Every order in a `positionTpsl` batch has to be a trigger order, but an
+  // attached TP/SL is submitted alongside the ordinary parent order it protects
+  // — HyperLiquid rejects the whole batch. Position-linked TP/SL belongs to
+  // `updatePositionTPSL`, applied to the position once the parent has filled.
+  const requestsPositionLinkage =
+    params.tpslLinkage === 'position' || params.grouping === 'positionTpsl';
+  const hasAttachedTpsl =
+    params.takeProfitPrice !== undefined || params.stopLossPrice !== undefined;
+  if (requestsPositionLinkage && hasAttachedTpsl) {
+    return {
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED,
+    };
+  }
+
   // Only a plain limit order rests on the book long enough for a time in force to
   // mean anything: a market order fills immediately and a trigger order's
   // execution is decided when it fires. Rejected here, at step 1 of placement, so

@@ -236,6 +236,33 @@ describe('orderCalculations - advanced order types', () => {
       ).toThrow(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
     });
 
+    it.each(['takeProfitSize', 'stopLossSize'] as const)(
+      'throws a typed error when %s rounds to zero at the asset precision',
+      (sizeField) => {
+        // 0.0004 is positive but below szDecimals: 3, so it formats to '0'.
+        // A zero-sized trigger reads as whole-position on HyperLiquid, which
+        // would turn a partial TP/SL into a full close.
+        expect(() =>
+          buildOrdersArray({
+            ...baseBuildParams,
+            takeProfitPrice: '60000',
+            stopLossPrice: '40000',
+            [sizeField]: '0.0004',
+          }),
+        ).toThrow(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+      },
+    );
+
+    it('keeps a partial TP/SL size that survives the asset precision', () => {
+      const { orders } = buildOrdersArray({
+        ...baseBuildParams,
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.004',
+      });
+
+      expect(orders[1].s).toBe('0.004');
+    });
+
     it('maps each public limit time-in-force value to the SDK', () => {
       expect(
         buildOrdersArray({ ...baseBuildParams, orderType: 'market' }).orders[0]

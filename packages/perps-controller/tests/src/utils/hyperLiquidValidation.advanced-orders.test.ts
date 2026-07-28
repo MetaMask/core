@@ -276,7 +276,7 @@ describe('hyperLiquidValidation - advanced order types', () => {
           size: '1',
           orderType: 'market',
           takeProfitPrice: '60000',
-          tpslLinkage: 'position',
+          tpslLinkage: 'order',
         }),
       ).toStrictEqual({ isValid: true });
     });
@@ -288,7 +288,42 @@ describe('hyperLiquidValidation - advanced order types', () => {
           size: '1',
           orderType: 'market',
           takeProfitPrice: '60000',
-          grouping: 'positionTpsl',
+          grouping: 'normalTpsl',
+        }),
+      ).toStrictEqual({ isValid: true });
+    });
+
+    it.each([
+      { tpslLinkage: 'position' as TpslLinkage },
+      { grouping: 'positionTpsl' as const },
+    ])(
+      'rejects position linkage on an order that carries its own TP/SL (%o)',
+      (linkage) => {
+        // A positionTpsl batch may only contain trigger orders, but the parent
+        // being placed is an ordinary market/limit order — HyperLiquid rejects
+        // the whole batch, so the combination is refused up front.
+        expect(
+          validateOrderParams({
+            coin: 'BTC',
+            size: '1',
+            orderType: 'market',
+            takeProfitPrice: '60000',
+            ...linkage,
+          }),
+        ).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED,
+        });
+      },
+    );
+
+    it('accepts position linkage when no TP/SL is attached to the order', () => {
+      expect(
+        validateOrderParams({
+          coin: 'BTC',
+          size: '1',
+          orderType: 'market',
+          tpslLinkage: 'position',
         }),
       ).toStrictEqual({ isValid: true });
     });
