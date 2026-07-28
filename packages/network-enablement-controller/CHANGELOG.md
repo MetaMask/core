@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Assets packages ([#9580](https://github.com/MetaMask/core/pull/9580))
-- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-
 ### Added
 
 - Expose missing public `NetworkEnablementController` method through its messenger ([#9660](https://github.com/MetaMask/core/pull/9660))
