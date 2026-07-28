@@ -7,8 +7,8 @@ import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { cleanupDaemon } from './helpers.js';
 import { getDaemonPaths } from '../src/daemon/paths.js';
+import { cleanupDaemon } from './helpers.js';
 
 // True end-to-end test for `mm wallet send`: it drives the BUILT `mm` CLI
 // against a REAL local EVM chain (anvil, from Foundry) and asserts that a
