@@ -21,8 +21,8 @@ import {
   UserFeeLevel,
 } from '../types.js';
 import { getGasFeeFlow } from './gas-flow.js';
-import { SWAP_TRANSACTION_TYPES } from './swaps.js';
 import { rpcRequest } from './provider.js';
+import { SWAP_TRANSACTION_TYPES } from './swaps.js';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
