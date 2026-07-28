@@ -546,7 +546,26 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
-    const response = await controller.fetch(createDataRequest());
+    const response = await controller.fetch(
+      createDataRequest({
+        chainIds: [STELLAR_MAINNET],
+        accounts: [
+          createMockAccount({
+            metadata: {
+              name: 'Test Account',
+              keyring: { type: 'HD Key Tree' },
+              importTime: Date.now(),
+              lastSelected: Date.now(),
+              snap: {
+                id: STELLAR_SNAP_ID,
+                name: 'Stellar Snap',
+                enabled: true,
+              },
+            },
+          }),
+        ],
+      }),
+    );
 
     expect(
       response.assetsBalance?.['mock-account-id']?.[MOCK_STELLAR_ASSET],
