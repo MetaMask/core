@@ -199,18 +199,26 @@ export function buildRpcServiceDegradedAnalyticsTrackingEvent(
  * users without an analytics ID, and events that fall outside the configured
  * sample. Failures never propagate to the caller.
  *
- * @param messenger - The controller messenger.
- * @param analyticsOptions - The analytics configuration.
- * @param error - The error encountered, used to skip local connection errors.
- * @param buildTrackingEvent - Builds the event to deliver (only called when the
- * event passes the sampling and analytics-ID checks).
+ * @param args - The arguments.
+ * @param args.messenger - The controller messenger.
+ * @param args.analyticsOptions - The analytics configuration.
+ * @param args.error - The error encountered, used to skip local connection errors.
+ * @param args.buildTrackingEvent - Builds the event to deliver. Called lazily
+ * inside the `try` so that a throw from the client's `isRpcEndpointUrlPublic` is
+ * captured rather than propagated, and so the event is not built when it will
+ * not be sent.
  */
-function trackRpcServiceEvent(
-  messenger: NetworkControllerMessenger,
-  analyticsOptions: NetworkControllerAnalyticsOptions,
-  error: unknown,
-  buildTrackingEvent: () => AnalyticsTrackingEvent,
-): void {
+function trackRpcServiceEvent({
+  messenger,
+  analyticsOptions,
+  error,
+  buildTrackingEvent,
+}: {
+  messenger: NetworkControllerMessenger;
+  analyticsOptions: NetworkControllerAnalyticsOptions;
+  error: unknown;
+  buildTrackingEvent: () => AnalyticsTrackingEvent;
+}): void {
   try {
     if (isConnectionError(error)) {
       return;
@@ -248,12 +256,16 @@ export function trackRpcServiceUnavailable(
   analyticsOptions: NetworkControllerAnalyticsOptions,
   payload: RpcEndpointUnavailablePayload,
 ): void {
-  trackRpcServiceEvent(messenger, analyticsOptions, payload.error, () =>
-    buildRpcServiceUnavailableAnalyticsTrackingEvent(
-      payload,
-      analyticsOptions.isRpcEndpointUrlPublic,
-    ),
-  );
+  trackRpcServiceEvent({
+    messenger,
+    analyticsOptions,
+    error: payload.error,
+    buildTrackingEvent: () =>
+      buildRpcServiceUnavailableAnalyticsTrackingEvent(
+        payload,
+        analyticsOptions.isRpcEndpointUrlPublic,
+      ),
+  });
 }
 
 /**
@@ -268,10 +280,14 @@ export function trackRpcServiceDegraded(
   analyticsOptions: NetworkControllerAnalyticsOptions,
   payload: RpcEndpointDegradedPayload,
 ): void {
-  trackRpcServiceEvent(messenger, analyticsOptions, payload.error, () =>
-    buildRpcServiceDegradedAnalyticsTrackingEvent(
-      payload,
-      analyticsOptions.isRpcEndpointUrlPublic,
-    ),
-  );
+  trackRpcServiceEvent({
+    messenger,
+    analyticsOptions,
+    error: payload.error,
+    buildTrackingEvent: () =>
+      buildRpcServiceDegradedAnalyticsTrackingEvent(
+        payload,
+        analyticsOptions.isRpcEndpointUrlPublic,
+      ),
+  });
 }
