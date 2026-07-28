@@ -812,14 +812,10 @@ export function calculateBalanceForAllWallets(
   }
 
   if (trace) {
-    emitAggregatedBalanceSelectorTrace(
-      trace,
-      performance.now() - startTime,
-      {
-        wallet_count: Object.keys(wallets).length,
-        group_count: groupCount,
-      },
-    );
+    emitAggregatedBalanceSelectorTrace(trace, performance.now() - startTime, {
+      wallet_count: Object.keys(wallets).length,
+      group_count: groupCount,
+    });
   }
 
   return { wallets, totalBalanceInUserCurrency, userCurrency };

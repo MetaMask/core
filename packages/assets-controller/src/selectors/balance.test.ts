@@ -727,19 +727,21 @@ describe('wallet-balance selectors', () => {
 
     it('emits AggregatedBalanceSelector as a subspan under AggregatedBalance', () => {
       const parentSpan = { id: 'aggregated-balance' };
-      const trace = jest.fn().mockImplementation(
-        async (
-          request: { parentContext?: unknown },
-          fn?: (context?: unknown) => unknown,
-        ) => {
-          if (fn) {
-            return fn(
-              request.parentContext === undefined ? parentSpan : undefined,
-            );
-          }
-          return undefined;
-        },
-      );
+      const trace = jest
+        .fn()
+        .mockImplementation(
+          async (
+            request: { parentContext?: unknown },
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              return fn(
+                request.parentContext === undefined ? parentSpan : undefined,
+              );
+            }
+            return undefined;
+          },
+        );
 
       calculateBalanceForAllWallets(
         buildState(),
