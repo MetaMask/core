@@ -1,11 +1,9 @@
-#!/usr/bin/env yarn tsx
-
 /**
  * Close inactive same-repo `release/*` PRs, comment with the outcome, and
  * delete the branch when the tip is unchanged.
  *
  * Usage (from GitHub Actions):
- *   GITHUB_TOKEN=... yarn tsx scripts/close-stale-release-prs.ts
+ *   GITHUB_TOKEN=... yarn tsx scripts/close-stale-release-prs.mts
  */
 
 import * as core from '@actions/core';
