@@ -371,8 +371,6 @@ export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | CurrencyRateControllerGetStateAction
-  | TokenRatesControllerGetStateAction
-  | MultichainAssetsRatesControllerGetStateAction
   | SnapControllerHandleRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction

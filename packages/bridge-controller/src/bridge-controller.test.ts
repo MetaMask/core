@@ -256,11 +256,6 @@ describe('BridgeController', function () {
           },
         );
 
-        const selectIsAssetExchangeRateInStateSpy = jest.spyOn(
-          selectors,
-          'selectIsAssetExchangeRateInState',
-        );
-
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
           {
@@ -278,29 +273,7 @@ describe('BridgeController', function () {
         jest.advanceTimersToNextTimer();
         await flushPromises();
 
-        expect(messengerCallMock).toHaveBeenCalledWith(
-          'MultichainAssetsRatesController:getState',
-        );
-        expect(messengerCallMock).toHaveBeenCalledWith(
-          'CurrencyRateController:getState',
-        );
-        expect(messengerCallMock).toHaveBeenCalledWith(
-          'TokenRatesController:getState',
-        );
-        expect(messengerCallMock).not.toHaveBeenCalledWith(
-          'AssetsController:getExchangeRatesForBridge',
-        );
-
-        expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalled();
-        const [firstCallSources] =
-          selectIsAssetExchangeRateInStateSpy.mock.calls[0];
-        expect(firstCallSources).toHaveProperty('assetExchangeRates');
-        expect(firstCallSources).toHaveProperty('conversionRates');
-        expect(firstCallSources).toHaveProperty('currencyRates');
-        expect(firstCallSources).toHaveProperty('marketData');
-
         hasSufficientBalanceSpy.mockRestore();
-        selectIsAssetExchangeRateInStateSpy.mockRestore();
       });
     });
 
@@ -337,11 +310,6 @@ describe('BridgeController', function () {
             },
           );
 
-          const selectIsAssetExchangeRateInStateSpy = jest.spyOn(
-            selectors,
-            'selectIsAssetExchangeRateInState',
-          );
-
           await assetsRatesRootMessenger.call(
             'BridgeController:updateBridgeQuoteRequestParams',
             {
@@ -366,14 +334,7 @@ describe('BridgeController', function () {
             'MultichainAssetsRatesController:getState',
           );
 
-          expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalled();
-          const [firstCallSources] =
-            selectIsAssetExchangeRateInStateSpy.mock.calls[0];
-          expect(firstCallSources).toHaveProperty('assetExchangeRates');
-          expect(firstCallSources).toHaveProperty('currentCurrency', 'EUR');
-
           hasSufficientBalanceSpy.mockRestore();
-          selectIsAssetExchangeRateInStateSpy.mockRestore();
         },
       );
     });
@@ -412,11 +373,6 @@ describe('BridgeController', function () {
           },
         );
 
-        const selectIsAssetExchangeRateInStateSpy = jest.spyOn(
-          selectors,
-          'selectIsAssetExchangeRateInState',
-        );
-
         const quoteParams = {
           srcChainId: '0x1',
           destChainId: '0xa',
@@ -435,28 +391,7 @@ describe('BridgeController', function () {
 
         jest.advanceTimersToNextTimer();
         await flushPromises();
-
-        expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            assetExchangeRates: expect.any(Object),
-          }),
-          formatAddressToAssetId(
-            quoteParams.srcTokenAddress,
-            quoteParams.srcChainId,
-          ),
-        );
-        expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            assetExchangeRates: expect.any(Object),
-          }),
-          formatAddressToAssetId(
-            quoteParams.destTokenAddress,
-            quoteParams.destChainId,
-          ),
-        );
-
         hasSufficientBalanceSpy.mockRestore();
-        selectIsAssetExchangeRateInStateSpy.mockRestore();
       });
     });
   });
