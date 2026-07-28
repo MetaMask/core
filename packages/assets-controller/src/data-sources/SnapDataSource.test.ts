@@ -1,4 +1,5 @@
 /* eslint-disable jest/unbound-method */
+import type { Balance } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
@@ -28,10 +29,12 @@ import {
 const SOLANA_MAINNET = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;
 const BITCOIN_MAINNET = 'bip122:000000000019d6689c085ae165831e93' as ChainId;
 const TRON_MAINNET = 'tron:728126428' as ChainId;
+const STELLAR_MAINNET = 'stellar:pubnet' as ChainId;
 
 // Test snap IDs
 const SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap';
 const BITCOIN_SNAP_ID = 'npm:@metamask/bitcoin-wallet-snap';
+const STELLAR_SNAP_ID = 'npm:@metamask/stellar-wallet-snap';
 
 type AllActions = SnapDataSourceAllowedActions;
 type AllEvents = SnapDataSourceAllowedEvents;
@@ -40,6 +43,7 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const MOCK_SOL_ASSET =
   'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as Caip19AssetId;
+const MOCK_STELLAR_ASSET = 'stellar:pubnet/slip44:148' as Caip19AssetId;
 const MOCK_BTC_ASSET =
   'bip122:000000000019d6689c085ae165831e93/slip44:0' as Caip19AssetId;
 const MOCK_TRON_ASSET = 'tron:728126428/slip44:195' as Caip19AssetId;
@@ -155,7 +159,7 @@ function createMockPermissions(
  */
 function createMockHandleRequest(
   accountAssets: string[] = [],
-  balances: Record<string, { amount: string; unit: string }> = {},
+  balances: Record<string, Balance> = {},
 ): jest.Mock {
   return jest.fn().mockImplementation((params) => {
     const { request } = params;
@@ -173,7 +177,7 @@ function setupController(
   options: {
     installedSnaps?: Record<string, { version: string; chainIds?: ChainId[] }>;
     accountAssets?: string[];
-    balances?: Record<string, { amount: string; unit: string }>;
+    balances?: Record<string, Balance>;
     configuredNetworks?: ChainId[];
   } = {},
 ): SetupResult {
@@ -521,6 +525,39 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
+  it('fetch includes balance metadata when provided by the snap', async () => {
+    const balanceMetadata = {
+      spendable: '900000000',
+      trustline: true,
+    };
+
+    const { controller, cleanup } = setupController({
+      installedSnaps: {
+        [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_MAINNET] },
+      },
+      accountAssets: [MOCK_STELLAR_ASSET],
+      balances: {
+        [MOCK_STELLAR_ASSET]: {
+          amount: '1000000000',
+          unit: 'XLM',
+          metadata: balanceMetadata,
+        },
+      },
+    });
+    await new Promise(process.nextTick);
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(
+      response.assetsBalance?.['mock-account-id']?.[MOCK_STELLAR_ASSET],
+    ).toStrictEqual({
+      amount: '1000000000',
+      metadata: balanceMetadata,
+    });
+
+    cleanup();
+  });
+
   it('fetch handles empty account assets gracefully', async () => {
     const { controller, mockHandleRequest, cleanup } = setupController({
       installedSnaps: {
@@ -592,6 +629,50 @@ describe('SnapDataSource', () => {
         assetsBalance: {
           'account-1': {
             [MOCK_SOL_ASSET]: { amount: '1000000000' },
+          },
+        },
+      }),
+    );
+
+    cleanup();
+  });
+
+  it('includes balance metadata from snap balances updated event', async () => {
+    const balanceMetadata = {
+      spendable: '900000000',
+      trustline: true,
+    };
+
+    const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
+      setupController({
+        installedSnaps: {
+          [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_MAINNET] },
+        },
+      });
+    await new Promise(process.nextTick);
+
+    triggerBalancesUpdated({
+      balances: {
+        'account-1': {
+          [MOCK_STELLAR_ASSET]: {
+            amount: '1000000000',
+            unit: 'XLM',
+            metadata: balanceMetadata,
+          },
+        },
+      },
+    });
+
+    await new Promise(process.nextTick);
+
+    expect(assetsUpdateHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetsBalance: {
+          'account-1': {
+            [MOCK_STELLAR_ASSET]: {
+              amount: '1000000000',
+              metadata: balanceMetadata,
+            },
           },
         },
       }),

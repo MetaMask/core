@@ -485,7 +485,7 @@ export class SnapDataSource extends AbstractDataSource<
         }
 
         // Step 2: Get balances for those specific assets
-        const balances: Record<CaipAssetType, Balance & { metadata?: Json }> =
+        const balances: Record<CaipAssetType, Balance> =
           await client.getAccountBalances(
             accountId,
             accountAssets as CaipAssetType[],
