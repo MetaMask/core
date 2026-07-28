@@ -44,50 +44,23 @@ jobs:
       pull-requests: read
     outputs:
       is-release: ${{ steps.is-release.outputs.IS_RELEASE }}
-      head-sha: ${{ steps.pr-info.outputs.pr-head-sha }}
-      head-ref: ${{ steps.pr-info.outputs.pr-head-ref }}
-      base-ref: ${{ steps.pr-info.outputs.pr-base-ref }}
-      merge-base: ${{ steps.merge-base.outputs.merge-base }}
+      head-sha: ${{ steps.is-release.outputs.head-sha }}
+      head-ref: ${{ steps.is-release.outputs.head-ref }}
+      base-ref: ${{ steps.is-release.outputs.base-ref }}
+      merge-base: ${{ steps.is-release.outputs.merge-base }}
     steps:
-      - name: Get pull request info
-        id: pr-info
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
-        run: |
-          gh pr view "$PR_NUMBER" \
-            --repo "$GITHUB_REPOSITORY" \
-            --json baseRefName,headRefOid,headRefName,title \
-            --jq '"pr-base-ref=\(.baseRefName)\npr-head-sha=\(.headRefOid)\npr-head-ref=\(.headRefName)\npr-title=\(.title)"' \
-            >> "$GITHUB_OUTPUT"
-
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
           persist-credentials: false
-          ref: ${{ steps.pr-info.outputs.pr-head-sha }}
-
-      - name: Get merge base
-        id: merge-base
-        shell: bash
-        env:
-          BASE_REF: ${{ steps.pr-info.outputs.pr-base-ref }}
-        run: |
-          set -euo pipefail
-
-          MERGE_BASE=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")
-          echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
 
       - name: Check if the pull request is a release
         id: is-release
-        uses: MetaMask/action-is-release@v2
+        uses: ./.github/actions/is-release-pr
         with:
+          pr-number: ${{ github.event.issue.number || github.event.pull_request.number }}
           commit-starts-with: ${{ vars.RELEASE_COMMIT_PREFIX }}
-          commit-message: ${{ steps.pr-info.outputs.pr-title }}
-          before: ${{ steps.merge-base.outputs.merge-base }}
-          skip-checkout: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   react-to-comment:
     name: React to the comment

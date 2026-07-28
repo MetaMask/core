@@ -1,0 +1,79 @@
+name: Is release PR
+description: >
+  Determine whether a pull request is a release PR using the same check as
+  update-changelogs (checkout head, merge-base, MetaMask/action-is-release).
+
+inputs:
+  pr-number:
+    description: Pull request number to evaluate.
+    required: true
+  commit-starts-with:
+    description: >
+      Comma-separated commit/PR title prefixes. Use `[version]` for the new root
+      package version (same as vars.RELEASE_COMMIT_PREFIX).
+    required: true
+  token:
+    description: GitHub token for gh/API access.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  IS_RELEASE:
+    description: '"true" when the PR is a release PR, otherwise "false".'
+    value: ${{ steps.is-release.outputs.IS_RELEASE }}
+  head-sha:
+    description: Head commit SHA of the pull request.
+    value: ${{ steps.pr-info.outputs.pr-head-sha }}
+  head-ref:
+    description: Head branch name of the pull request.
+    value: ${{ steps.pr-info.outputs.pr-head-ref }}
+  base-ref:
+    description: Base branch name of the pull request.
+    value: ${{ steps.pr-info.outputs.pr-base-ref }}
+  merge-base:
+    description: Merge-base SHA between the PR head and base branch.
+    value: ${{ steps.merge-base.outputs.merge-base }}
+
+runs:
+  using: composite
+  steps:
+    - name: Get pull request info
+      id: pr-info
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+      run: |
+        set -euo pipefail
+        gh pr view "$PR_NUMBER" \
+          --repo "$GITHUB_REPOSITORY" \
+          --json baseRefName,headRefOid,headRefName,title \
+          --jq '"pr-base-ref=\(.baseRefName)\npr-head-sha=\(.headRefOid)\npr-head-ref=\(.headRefName)\npr-title=\(.title)"' \
+          >> "$GITHUB_OUTPUT"
+
+    - name: Checkout repository
+      uses: actions/checkout@v7
+      with:
+        token: ${{ inputs.token }}
+        fetch-depth: 0
+        persist-credentials: false
+        ref: ${{ steps.pr-info.outputs.pr-head-sha }}
+
+    - name: Get merge base
+      id: merge-base
+      shell: bash
+      env:
+        BASE_REF: ${{ steps.pr-info.outputs.pr-base-ref }}
+      run: |
+        set -euo pipefail
+        MERGE_BASE=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")
+        echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
+
+    - name: Check if the pull request is a release
+      id: is-release
+      uses: MetaMask/action-is-release@v2
+      with:
+        commit-starts-with: ${{ inputs.commit-starts-with }}
+        commit-message: ${{ steps.pr-info.outputs.pr-title }}
+        before: ${{ steps.merge-base.outputs.merge-base }}
+        skip-checkout: true

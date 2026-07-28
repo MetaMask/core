@@ -1,8 +1,12 @@
 name: Close Stale Release PRs
 
-# Release PRs on `release/*` branches are expected to merge quickly. Abandoned
-# ones block other engineers from starting a new release. This workflow closes
-# inactive release PRs, leaves a comment, and deletes the branch.
+# Release PRs are expected to merge quickly. Abandoned ones block other engineers
+# from starting a new release. This workflow closes inactive release PRs, leaves a
+# comment, and deletes the branch.
+#
+# Release PR detection is shared with update-changelogs via
+# `.github/actions/is-release-pr` (root version bump + RELEASE_COMMIT_PREFIX).
+# `release/*` is only a cheap prefilter before that shared check.
 on:
   schedule:
     # Check twice an hour so the 3h window is reasonably precise.
@@ -17,8 +21,75 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  find-candidates:
+    name: Find release/* PR candidates
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      prs: ${{ steps.list.outputs.prs }}
+    steps:
+      - name: List same-repo open release/* PRs
+        id: list
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          PRS="$(
+            gh pr list \
+              --repo "$GITHUB_REPOSITORY" \
+              --state open \
+              --limit 100 \
+              --json number,headRefName,isCrossRepository \
+              --jq '[.[] | select(.isCrossRepository == false and (.headRefName | startswith("release/"))) | .number]'
+          )"
+          echo "prs=$PRS" >> "$GITHUB_OUTPUT"
+          echo "Candidate PR numbers: $PRS"
+
+  filter-release-prs:
+    name: Confirm release PR #${{ matrix.pr }}
+    needs: find-candidates
+    if: needs.find-candidates.outputs.prs != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        pr: ${{ fromJson(needs.find-candidates.outputs.prs) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check if the pull request is a release
+        id: is-release
+        uses: ./.github/actions/is-release-pr
+        with:
+          pr-number: ${{ matrix.pr }}
+          commit-starts-with: ${{ vars.RELEASE_COMMIT_PREFIX }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record confirmed release PR
+        if: steps.is-release.outputs.IS_RELEASE == 'true'
+        run: |
+          set -euo pipefail
+          echo '${{ matrix.pr }}' > release-pr.txt
+
+      - name: Upload confirmed release PR
+        if: steps.is-release.outputs.IS_RELEASE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-pr-${{ matrix.pr }}
+          path: release-pr.txt
+          if-no-files-found: ignore
+
   close-stale-release-prs:
     name: Close stale release PRs
+    needs: [find-candidates, filter-release-prs]
+    if: always() && needs.find-candidates.result == 'success' && needs.find-candidates.outputs.prs != '[]' && needs.filter-release-prs.result != 'failure'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -30,7 +101,34 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           cache-node-modules: true
+
+      - name: Download confirmed release PR numbers
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: release-pr-*
+          merge-multiple: true
+          path: release-pr-numbers
+
+      - name: Build RELEASE_PR_NUMBERS
+        id: numbers
+        run: |
+          set -euo pipefail
+          if [ -d release-pr-numbers ]; then
+            NUMBERS="$(find release-pr-numbers -type f -print0 | xargs -0 cat | sort -n -u | paste -sd, -)"
+          else
+            NUMBERS=''
+          fi
+          echo "numbers=$NUMBERS" >> "$GITHUB_OUTPUT"
+          echo "Confirmed release PR numbers: ${NUMBERS:-<none>}"
+
       - name: Close inactive release PRs
+        if: steps.numbers.outputs.numbers != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_PR_NUMBERS: ${{ steps.numbers.outputs.numbers }}
         run: yarn tsx scripts/close-stale-release-prs.mts
+
+      - name: No confirmed release PRs
+        if: steps.numbers.outputs.numbers == ''
+        run: echo 'No confirmed release PRs to evaluate.'

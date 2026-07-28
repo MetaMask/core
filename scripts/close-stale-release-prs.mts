@@ -1,9 +1,13 @@
 /**
- * Close inactive same-repo `release/*` PRs, comment with the outcome, and
- * delete the branch when the tip is unchanged.
+ * Close inactive release PRs, comment with the outcome, and delete the branch
+ * when the tip is unchanged.
+ *
+ * Release PR detection is performed by `.github/actions/is-release-pr` in the
+ * workflow. This script expects `RELEASE_PR_NUMBERS` (comma-separated) and
+ * only evaluates staleness / close / branch delete for those PRs.
  *
  * Usage (from GitHub Actions):
- *   GITHUB_TOKEN=... yarn tsx scripts/close-stale-release-prs.mts
+ *   GITHUB_TOKEN=... RELEASE_PR_NUMBERS=1,2 yarn tsx scripts/close-stale-release-prs.mts
  */
 
 import * as core from '@actions/core';
@@ -66,8 +70,8 @@ type PullRequestSnapshot = {
 };
 
 type ListedPullRequest = Awaited<
-  ReturnType<Octokit['rest']['pulls']['list']>
->['data'][number];
+  ReturnType<Octokit['rest']['pulls']['get']>
+>['data'];
 
 type BranchDeleteOutcome = {
   outcome:
@@ -119,18 +123,18 @@ async function getPullRequestSnapshot(
 }
 
 /**
- * Whether a listed PR head is a same-repo `release/*` branch that is not skipped.
+ * Whether a listed PR should be considered for stale close.
  *
- * @param pullRequest - Pull request from `pulls.list`.
- * @returns True when the PR is a candidate for stale close.
+ * Release detection happens in `.github/actions/is-release-pr`; this only
+ * applies same-repo and skip-label guards.
+ *
+ * @param pullRequest - Pull request from `pulls.get`.
+ * @returns True when the PR may be closed if stale.
  */
-function isReleasePrCandidate(pullRequest: ListedPullRequest): boolean {
-  if (!pullRequest.head.ref.startsWith('release/')) {
-    return false;
-  }
-
+function isCloseableReleasePr(pullRequest: ListedPullRequest): boolean {
   // Only manage same-repo release branches (never forks).
   if (!pullRequest.head.repo || pullRequest.head.repo.fork) {
+    core.info(`Skipping #${pullRequest.number}: fork head`);
     return false;
   }
 
@@ -440,10 +444,27 @@ async function processReleasePr({
 }
 
 /**
- * Close inactive same-repo `release/*` PRs.
+ * Parse the comma-separated PR numbers supplied by the workflow.
+ *
+ * @param raw - `RELEASE_PR_NUMBERS` env value.
+ * @returns PR numbers.
+ */
+function parseReleasePrNumbers(raw: string): number[] {
+  if (raw.trim() === '') {
+    return [];
+  }
+
+  return raw
+    .split(',')
+    .map((part) => Number(part.trim()))
+    .filter((value) => Number.isSafeInteger(value) && value > 0);
+}
+
+/**
+ * Close inactive release PRs confirmed by `.github/actions/is-release-pr`.
  */
 async function main(): Promise<void> {
-  // GitHub Actions provides the token via the environment for this workflow.
+  // GitHub Actions provides these via the environment for this workflow.
   // eslint-disable-next-line n/no-process-env
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
@@ -451,28 +472,41 @@ async function main(): Promise<void> {
     return;
   }
 
+  // eslint-disable-next-line n/no-process-env
+  const releasePrNumbersRaw = process.env.RELEASE_PR_NUMBERS;
+  if (releasePrNumbersRaw === undefined) {
+    core.setFailed('RELEASE_PR_NUMBERS is required');
+    return;
+  }
+
+  const pullNumbers = parseReleasePrNumbers(releasePrNumbersRaw);
+  if (pullNumbers.length === 0) {
+    core.info('No release PRs to evaluate.');
+    return;
+  }
+
   const octokit = getOctokit(token);
   const staleBefore = Date.now() - STALE_DURATION_MS;
   const { owner, repo } = context.repo;
 
-  const pullRequests: ListedPullRequest[] = await octokit.paginate(
-    octokit.rest.pulls.list,
-    {
-      owner,
-      repo,
-      state: 'open',
-      per_page: 100,
-    },
-  );
+  for (const pullNumber of pullNumbers) {
+    let candidate: ListedPullRequest;
+    try {
+      const { data } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pullNumber,
+      });
+      candidate = data;
+    } catch (error) {
+      core.warning(`Failed to load #${pullNumber}: ${getErrorMessage(error)}`);
+      continue;
+    }
 
-  const releasePrs = pullRequests.filter(isReleasePrCandidate);
+    if (!isCloseableReleasePr(candidate)) {
+      continue;
+    }
 
-  if (releasePrs.length === 0) {
-    core.info('No open release PRs to evaluate.');
-    return;
-  }
-
-  for (const candidate of releasePrs) {
     await processReleasePr({
       octokit,
       candidate,
