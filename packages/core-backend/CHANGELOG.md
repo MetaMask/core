@@ -10,8 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Align `V6_DEFI_POSITION_TYPES` (and inferred `V6DeFiPositionType`) with Accounts API / Zerion wallet fungible position types: `deposit`, `loan`, `locked`, `staked`, `reward`, `wallet`, `investment` ([#9683](https://github.com/MetaMask/core/pull/9683))
-  - Removes incorrect values such as `lending`, `yield`, `liquidity_pool`, `leveraged_farming`, `nft_staked`, `farming`, `vesting`, and `rewards`
-  - Consumers that switch on or compare `positionType` must update to the corrected set
 
 ## [7.0.0]
 
