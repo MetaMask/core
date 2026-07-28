@@ -1050,19 +1050,21 @@ describe('AssetsController', () => {
     });
 
     it('does not fail forceUpdate when parent trace rejects after work completes', async () => {
-      const traceMock = jest.fn().mockImplementation(
-        async (
-          _request: TraceRequest,
-          fn?: (context?: unknown) => unknown,
-        ) => {
-          if (fn) {
-            await fn({ id: 'parent' });
-            // Simulate Sentry/adapter failure after the span callback finishes.
-            throw new Error('telemetry failed');
-          }
-          return undefined;
-        },
-      );
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (
+            _request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              await fn({ id: 'parent' });
+              // Simulate Sentry/adapter failure after the span callback finishes.
+              throw new Error('telemetry failed');
+            }
+            return undefined;
+          },
+        );
       const trace = traceMock as unknown as TraceCallback;
 
       await withController(
@@ -1442,18 +1444,20 @@ describe('AssetsController', () => {
 
   describe('handleAssetsUpdate', () => {
     it('does not fail when parent trace rejects after enrichment completes', async () => {
-      const traceMock = jest.fn().mockImplementation(
-        async (
-          _request: TraceRequest,
-          fn?: (context?: unknown) => unknown,
-        ) => {
-          if (fn) {
-            await fn({ id: 'parent' });
-            throw new Error('telemetry failed');
-          }
-          return undefined;
-        },
-      );
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (
+            _request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              await fn({ id: 'parent' });
+              throw new Error('telemetry failed');
+            }
+            return undefined;
+          },
+        );
       const trace = traceMock as unknown as TraceCallback;
 
       await withController(
