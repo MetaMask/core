@@ -2130,7 +2130,7 @@ export class HyperLiquidSubscriptionService {
             // This ensures TP/SL data persists across clearinghouseState updates
             // Default the trigger arrays so "no triggers" and "not streamed yet"
             // look the same to consumers as they do on the REST path.
-            let positionsWithTPSL = positions.map((position) => ({
+            let positionsWithTPSL: Position[] = positions.map((position) => ({
               ...position,
               takeProfitOrders: position.takeProfitOrders ?? [],
               stopLossOrders: position.stopLossOrders ?? [],
