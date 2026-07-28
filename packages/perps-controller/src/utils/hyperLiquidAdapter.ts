@@ -123,6 +123,9 @@ export function adaptOrderToSDK(
  */
 function adaptOrderTypeToSDK(order: PerpsOrderParams): SDKOrderParams['t'] {
   if (isTriggerOrderType(order.orderType)) {
+    if (order.timeInForce !== undefined) {
+      throw new Error('timeInForce is only supported for limit orders');
+    }
     if (!order.triggerPrice) {
       throw new Error(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
     }
@@ -136,9 +139,19 @@ function adaptOrderTypeToSDK(order: PerpsOrderParams): SDKOrderParams['t'] {
     };
   }
 
-  return order.orderType === 'limit'
-    ? { limit: { tif: 'Gtc' } }
-    : { limit: { tif: 'FrontendMarket' } };
+  if (order.orderType === 'limit') {
+    const tif =
+      order.timeInForce === 'IOC'
+        ? 'Ioc'
+        : order.timeInForce === 'ALO'
+          ? 'Alo'
+          : 'Gtc';
+    return { limit: { tif } };
+  }
+  if (order.timeInForce !== undefined) {
+    throw new Error('timeInForce is only supported for limit orders');
+  }
+  return { limit: { tif: 'FrontendMarket' } };
 }
 
 /**

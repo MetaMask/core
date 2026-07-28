@@ -231,7 +231,7 @@ export type OrderParams = {
   price?: string; // Limit price (required for limit orders)
   reduceOnly?: boolean; // Reduce-only flag
   isFullClose?: boolean; // Indicates closing 100% of position (skips $10 minimum validation)
-  timeInForce?: 'GTC' | 'IOC' | 'ALO'; // Time in force
+  timeInForce?: 'GTC' | 'IOC' | 'ALO'; // Time in force for plain limit orders
 
   // USD as source of truth (hybrid approach)
   usdAmount?: string; // USD amount (primary source of truth, provider calculates size from this)

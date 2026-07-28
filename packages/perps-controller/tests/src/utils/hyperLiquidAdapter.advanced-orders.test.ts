@@ -120,6 +120,19 @@ describe('hyperLiquidAdapter - advanced order types', () => {
     const symbolToAssetId = new Map([['BTC', 0]]);
 
     it.each([
+      ['GTC', 'Gtc'],
+      ['IOC', 'Ioc'],
+      ['ALO', 'Alo'],
+    ] as const)('maps %s time in force onto a limit order', (timeInForce, tif) => {
+      const result = adaptOrderToSDK(
+        buildOrderParams({ orderType: 'limit', timeInForce }),
+        symbolToAssetId,
+      );
+
+      expect(result.t).toStrictEqual({ limit: { tif } });
+    });
+
+    it.each([
       ['stop_market', { isMarket: true, tpsl: 'sl' }],
       ['stop_limit', { isMarket: false, tpsl: 'sl' }],
       ['take_profit_market', { isMarket: true, tpsl: 'tp' }],

@@ -236,15 +236,35 @@ describe('orderCalculations - advanced order types', () => {
       ).toThrow(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
     });
 
-    it('keeps market and limit orders on the existing TIF mapping', () => {
+    it('maps each public limit time-in-force value to the SDK', () => {
       expect(
         buildOrdersArray({ ...baseBuildParams, orderType: 'market' }).orders[0]
           .t,
       ).toStrictEqual({ limit: { tif: 'FrontendMarket' } });
-      expect(
-        buildOrdersArray({ ...baseBuildParams, orderType: 'limit' }).orders[0]
-          .t,
-      ).toStrictEqual({ limit: { tif: 'Gtc' } });
+      expect(buildOrdersArray({
+        ...baseBuildParams,
+        orderType: 'limit',
+        timeInForce: 'GTC',
+      }).orders[0].t).toStrictEqual({ limit: { tif: 'Gtc' } });
+      expect(buildOrdersArray({
+        ...baseBuildParams,
+        orderType: 'limit',
+        timeInForce: 'IOC',
+      }).orders[0].t).toStrictEqual({ limit: { tif: 'Ioc' } });
+      expect(buildOrdersArray({
+        ...baseBuildParams,
+        orderType: 'limit',
+        timeInForce: 'ALO',
+      }).orders[0].t).toStrictEqual({ limit: { tif: 'Alo' } });
+    });
+
+    it('rejects time in force where the SDK order shape cannot carry it', () => {
+      expect(() => buildOrdersArray({
+        ...baseBuildParams,
+        orderType: 'stop_limit',
+        triggerPrice: '45000',
+        timeInForce: 'ALO',
+      })).toThrow('timeInForce is only supported for limit orders');
     });
 
     it('scopes attached TP/SL orders to their partial sizes', () => {

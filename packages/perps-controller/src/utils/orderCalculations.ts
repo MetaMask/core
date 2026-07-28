@@ -91,6 +91,7 @@ export type BuildOrdersArrayParams = {
   formattedSize: string;
   reduceOnly: boolean;
   orderType: OrderType;
+  timeInForce?: 'GTC' | 'IOC' | 'ALO';
   clientOrderId?: string;
   // Trigger price for stop_*/take_profit_* placements (required for those types)
   triggerPrice?: string;
@@ -424,15 +425,26 @@ export function calculateOrderPriceAndSize(
  */
 function buildMainOrderTypeField(params: {
   orderType: OrderType;
+  timeInForce?: 'GTC' | 'IOC' | 'ALO';
   triggerPrice?: string;
   szDecimals: number;
 }): SDKOrderParams['t'] {
-  const { orderType, triggerPrice, szDecimals } = params;
+  const { orderType, timeInForce, triggerPrice, szDecimals } = params;
 
   if (!isTriggerOrderType(orderType)) {
-    return orderType === 'limit'
-      ? { limit: { tif: 'Gtc' } }
-      : { limit: { tif: 'FrontendMarket' } };
+    if (orderType === 'limit') {
+      const tif =
+        timeInForce === 'IOC' ? 'Ioc' : timeInForce === 'ALO' ? 'Alo' : 'Gtc';
+      return { limit: { tif } };
+    }
+    if (timeInForce !== undefined) {
+      throw new Error('timeInForce is only supported for limit orders');
+    }
+    return { limit: { tif: 'FrontendMarket' } };
+  }
+
+  if (timeInForce !== undefined) {
+    throw new Error('timeInForce is only supported for limit orders');
   }
 
   if (!triggerPrice) {
@@ -493,6 +505,7 @@ export function buildOrdersArray(
     formattedSize,
     reduceOnly,
     orderType,
+    timeInForce,
     clientOrderId,
     triggerPrice,
     takeProfitPrice,
@@ -514,6 +527,7 @@ export function buildOrdersArray(
     r: reduceOnly || false,
     t: buildMainOrderTypeField({
       orderType,
+      timeInForce,
       triggerPrice,
       szDecimals,
     }),

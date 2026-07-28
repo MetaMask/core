@@ -553,6 +553,51 @@ describe('HyperLiquidProvider', () => {
       expect(request.orders[0].p).toBe('44500');
     });
 
+    it.each([
+      ['GTC', 'Gtc'],
+      ['IOC', 'Ioc'],
+      ['ALO', 'Alo'],
+    ] as const)(
+      'submits %s time in force to the exchange for a limit order',
+      async (timeInForce, tif) => {
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'limit',
+          price: '49000',
+          timeInForce,
+          currentPrice: 50000,
+        });
+
+        expect(result.success).toBe(true);
+        expect(getSubmittedOrderRequest().orders[0].t).toStrictEqual({
+          limit: { tif },
+        });
+      },
+    );
+
+    it('rejects time in force on a trigger order', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_limit',
+        price: '44500',
+        triggerPrice: '45000',
+        timeInForce: 'ALO',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        'timeInForce is only supported for limit orders',
+      );
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
     it('places a take profit market order as a market-on-trigger take profit', async () => {
       const result = await provider.placeOrder({
         symbol: 'BTC',

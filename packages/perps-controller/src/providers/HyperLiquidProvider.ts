@@ -3582,6 +3582,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         formattedSize,
         reduceOnly: params.reduceOnly ?? false,
         orderType: params.orderType,
+        timeInForce: params.timeInForce,
         clientOrderId: params.clientOrderId,
         triggerPrice: params.triggerPrice,
         takeProfitPrice: params.takeProfitPrice,
