@@ -78,8 +78,6 @@ export const V6_DEFI_POSITION_TYPES = [
   'investment',
 ] as const;
 
-// deposit, loan, locked, staked, reward, wallet, investment
-
 /**
  * The specific module or functionality within a DeFi protocol where a position
  * is held.
