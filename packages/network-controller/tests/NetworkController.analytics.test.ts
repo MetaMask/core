@@ -42,22 +42,30 @@ const DEGRADED_PAYLOAD = {
  *
  * @param args - The arguments.
  * @param args.analyticsOptions - The analytics options to pass.
- * @param args.rootMessenger - The root messenger to use.
- * @returns The controller and messengers.
+ * @param args.analyticsId - The analytics ID that `AnalyticsController:getState`
+ * returns.
+ * @returns The controller, messengers, and the `AnalyticsController:trackEvent`
+ * mock.
  */
 function buildController({
   analyticsOptions = DEFAULT_ANALYTICS_OPTIONS,
-  rootMessenger = buildRootMessenger(),
+  analyticsId,
 }: {
   analyticsOptions?: NetworkControllerAnalyticsOptions;
-  rootMessenger?: RootMessenger;
+  analyticsId?: string;
 } = {}): {
   controller: NetworkController;
   rootMessenger: RootMessenger;
   networkControllerMessenger: ReturnType<
     typeof buildNetworkControllerMessenger
   >;
+  trackEvent: jest.Mock;
 } {
+  const trackEvent = jest.fn();
+  const rootMessenger = buildRootMessenger({
+    trackEvent,
+    ...(analyticsId === undefined ? {} : { analyticsId }),
+  });
   const networkControllerMessenger =
     buildNetworkControllerMessenger(rootMessenger);
   const controller = new NetworkController({
@@ -65,28 +73,25 @@ function buildController({
     infuraProjectId: 'infura-project-id',
     analyticsOptions,
   });
-  return { controller, rootMessenger, networkControllerMessenger };
+  return { controller, rootMessenger, networkControllerMessenger, trackEvent };
 }
 
 describe('NetworkController analytics', () => {
   it('emits "RPC Service Unavailable" when an endpoint becomes unavailable', () => {
-    const { networkControllerMessenger } = buildController({
+    const { networkControllerMessenger, trackEvent } = buildController({
       analyticsOptions: DEFAULT_ANALYTICS_OPTIONS,
     });
-    const callSpy = jest.spyOn(networkControllerMessenger, 'call');
 
     networkControllerMessenger.publish(
       'NetworkController:rpcEndpointUnavailable',
       UNAVAILABLE_PAYLOAD,
     );
 
-    expect(callSpy).toHaveBeenCalledWith('AnalyticsController:trackEvent', {
+    expect(trackEvent).toHaveBeenCalledWith({
       name: 'RPC Service Unavailable',
       properties: {
         chain_id_caip: 'eip155:1',
-
         rpc_domain: 'mainnet.infura.io',
-
         rpc_endpoint_url: 'mainnet.infura.io',
       },
       sensitiveProperties: {},
@@ -96,34 +101,26 @@ describe('NetworkController analytics', () => {
   });
 
   it('emits "RPC Service Degraded" with the degraded-specific properties', () => {
-    const { networkControllerMessenger } = buildController({
+    const { networkControllerMessenger, trackEvent } = buildController({
       analyticsOptions: DEFAULT_ANALYTICS_OPTIONS,
     });
-    const callSpy = jest.spyOn(networkControllerMessenger, 'call');
 
     networkControllerMessenger.publish(
       'NetworkController:rpcEndpointDegraded',
       DEGRADED_PAYLOAD,
     );
 
-    expect(callSpy).toHaveBeenCalledWith('AnalyticsController:trackEvent', {
+    expect(trackEvent).toHaveBeenCalledWith({
       name: 'RPC Service Degraded',
       properties: {
         chain_id_caip: 'eip155:1',
-
         rpc_domain: 'mainnet.infura.io',
-
         rpc_endpoint_url: 'mainnet.infura.io',
-
         rpc_method_name: 'eth_blockNumber',
         type: 'retries_exhausted',
-
         retry_reason: 'connection_failed',
-
         duration_ms: 1234,
-
         trace_id: 'trace-1',
-
         http_status: 503,
       },
       sensitiveProperties: {},
@@ -133,58 +130,46 @@ describe('NetworkController analytics', () => {
   });
 
   it('does not emit when the error is a local connection error', () => {
-    const { networkControllerMessenger } = buildController({
+    const { networkControllerMessenger, trackEvent } = buildController({
       analyticsOptions: DEFAULT_ANALYTICS_OPTIONS,
     });
-    const callSpy = jest.spyOn(networkControllerMessenger, 'call');
 
     networkControllerMessenger.publish(
       'NetworkController:rpcEndpointUnavailable',
       { ...UNAVAILABLE_PAYLOAD, error: new TypeError('network error') },
     );
 
-    expect(callSpy).not.toHaveBeenCalledWith(
-      'AnalyticsController:trackEvent',
-      expect.anything(),
-    );
+    expect(trackEvent).not.toHaveBeenCalled();
   });
 
   it('does not emit when there is no analytics ID', () => {
-    const { networkControllerMessenger } = buildController({
+    const { networkControllerMessenger, trackEvent } = buildController({
       analyticsOptions: DEFAULT_ANALYTICS_OPTIONS,
-      rootMessenger: buildRootMessenger({ analyticsId: '' }),
+      analyticsId: '',
     });
-    const callSpy = jest.spyOn(networkControllerMessenger, 'call');
 
     networkControllerMessenger.publish(
       'NetworkController:rpcEndpointUnavailable',
       UNAVAILABLE_PAYLOAD,
     );
 
-    expect(callSpy).not.toHaveBeenCalledWith(
-      'AnalyticsController:trackEvent',
-      expect.anything(),
-    );
+    expect(trackEvent).not.toHaveBeenCalled();
   });
 
   it('does not emit when the event falls outside the sample', () => {
-    const { networkControllerMessenger } = buildController({
+    const { networkControllerMessenger, trackEvent } = buildController({
       analyticsOptions: {
         isRpcEndpointUrlPublic: () => true,
         rpcServiceEventsSampleRate: 0,
       },
     });
-    const callSpy = jest.spyOn(networkControllerMessenger, 'call');
 
     networkControllerMessenger.publish(
       'NetworkController:rpcEndpointUnavailable',
       UNAVAILABLE_PAYLOAD,
     );
 
-    expect(callSpy).not.toHaveBeenCalledWith(
-      'AnalyticsController:trackEvent',
-      expect.anything(),
-    );
+    expect(trackEvent).not.toHaveBeenCalled();
   });
 
   it('captures the exception when delivering the event throws', () => {

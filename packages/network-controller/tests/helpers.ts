@@ -104,16 +104,21 @@ export const MOCK_ANALYTICS_OPTIONS: NetworkControllerAnalyticsOptions = {
  * @param options.rpcFailoverMode - The RPC failover mode to return, defaults to `disabled`.
  * @param options.analyticsId - The analytics ID that `AnalyticsController:getState`
  * returns by default. Defaults to a fixed valid UUIDv4.
+ * @param options.trackEvent - The handler registered for
+ * `AnalyticsController:trackEvent`. Defaults to a Jest mock so tests can assert
+ * on it.
  * @returns The messenger.
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
   rpcFailoverMode = 'disabled',
   analyticsId = '11111111-1111-4111-8111-111111111111',
+  trackEvent = jest.fn(),
 }: {
   connectivityStatus?: ConnectivityStatus;
   rpcFailoverMode?: RpcFailoverMode;
   analyticsId?: string;
+  trackEvent?: jest.Mock;
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
@@ -145,7 +150,7 @@ export function buildRootMessenger({
 
   rootMessenger.registerActionHandler(
     'AnalyticsController:trackEvent',
-    jest.fn(),
+    trackEvent,
   );
 
   return rootMessenger;
