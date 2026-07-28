@@ -1,6 +1,6 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import { toHex } from '@metamask/controller-utils';
-import type { TraceCallback } from '@metamask/controller-utils';
+import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import {
@@ -23,7 +23,65 @@ import type {
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)
 // ============================================================================
+/** Parent span that nests {@link TRACE_AGGREGATED_BALANCE_SELECTOR}. */
+const TRACE_AGGREGATED_BALANCE = 'AggregatedBalance';
 const TRACE_AGGREGATED_BALANCE_SELECTOR = 'AggregatedBalanceSelector';
+
+/**
+ * Emit `AggregatedBalanceSelector` as a **subspan** under an `AggregatedBalance`
+ * parent (via `parentContext`).
+ *
+ * Work is timed outside the callback (selectors are sync), so we backdate
+ * `startTime` and set numeric `duration_ms` on tags — MetaMask's Sentry adapter
+ * promotes numeric tags to measurements, which Spans dashboard widgets chart as
+ * `duration_ms`.
+ *
+ * @param trace - Trace callback from the client.
+ * @param durationMs - Measured compute time in milliseconds.
+ * @param data - Additional span attributes (counts, etc.).
+ */
+function emitAggregatedBalanceSelectorTrace(
+  trace: TraceCallback,
+  durationMs: number,
+  data: Record<string, number | string | boolean>,
+): void {
+  const endTime = performance.timeOrigin + performance.now();
+  const startTime = endTime - durationMs;
+  const spanData = {
+    duration_ms: durationMs,
+    ...data,
+  };
+  const spanTags = {
+    controller: 'AssetsController',
+    duration_ms: durationMs,
+  };
+
+  trace(
+    {
+      name: TRACE_AGGREGATED_BALANCE,
+      data: spanData,
+      tags: spanTags,
+      startTime,
+    },
+    (parentContext?: TraceContext) => {
+      trace(
+        {
+          name: TRACE_AGGREGATED_BALANCE_SELECTOR,
+          data: spanData,
+          tags: spanTags,
+          parentContext,
+          startTime,
+        },
+        () => undefined,
+      ).catch(() => {
+        // Telemetry failure must not break.
+      });
+      return undefined;
+    },
+  ).catch(() => {
+    // Telemetry failure must not break.
+  });
+}
 
 export type EnabledNetworkMap =
   | Record<string, Record<string, boolean>>
@@ -523,20 +581,10 @@ function aggregateBalances(
       const info = getAssetInfo(assetInfoCache, assetId);
       uniqueNetworks.add(info.chainId);
     }
-    trace(
-      {
-        name: TRACE_AGGREGATED_BALANCE_SELECTOR,
-        data: {
-          duration_ms: durationMs,
-          asset_count: merged.size,
-          network_count: uniqueNetworks.size,
-          account_count: accountsToAggregate.length,
-        },
-        tags: { controller: 'AssetsController' },
-      },
-      () => undefined,
-    ).catch(() => {
-      // Telemetry failure must not break.
+    emitAggregatedBalanceSelectorTrace(trace, durationMs, {
+      asset_count: merged.size,
+      network_count: uniqueNetworks.size,
+      account_count: accountsToAggregate.length,
     });
   }
 
@@ -764,20 +812,14 @@ export function calculateBalanceForAllWallets(
   }
 
   if (trace) {
-    trace(
+    emitAggregatedBalanceSelectorTrace(
+      trace,
+      performance.now() - startTime,
       {
-        name: TRACE_AGGREGATED_BALANCE_SELECTOR,
-        data: {
-          duration_ms: performance.now() - startTime,
-          wallet_count: Object.keys(wallets).length,
-          group_count: groupCount,
-        },
-        tags: { controller: 'AssetsController' },
+        wallet_count: Object.keys(wallets).length,
+        group_count: groupCount,
       },
-      () => undefined,
-    ).catch(() => {
-      // Telemetry failure must not break.
-    });
+    );
   }
 
   return { wallets, totalBalanceInUserCurrency, userCurrency };

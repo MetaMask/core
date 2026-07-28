@@ -2530,7 +2530,11 @@ describe('AssetsController', () => {
               duration_ms: expect.any(Number),
               chain_ids: expect.any(String),
             }),
-            tags: { controller: 'AssetsController' },
+            tags: expect.objectContaining({
+              controller: 'AssetsController',
+              duration_ms: expect.any(Number),
+            }),
+            startTime: expect.any(Number),
             parentContext: parentSpan,
           });
           const {
@@ -2541,6 +2545,21 @@ describe('AssetsController', () => {
           expect(durationMs).toBeGreaterThanOrEqual(0);
           expect(typeof chainIds).toBe('string');
           expect(typeof durationByDataSource).toBe('object');
+
+          const fullFetchCalls = traceMock.mock.calls.filter(
+            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+          );
+          expect(fullFetchCalls.length).toBeGreaterThan(0);
+          expect(fullFetchCalls[0][0]).toMatchObject({
+            data: expect.objectContaining({
+              duration_ms: expect.any(Number),
+            }),
+            tags: expect.objectContaining({
+              duration_ms: expect.any(Number),
+            }),
+            startTime: expect.any(Number),
+            parentContext: parentSpan,
+          });
 
           const timingCalls = traceMock.mock.calls.filter(
             (call) =>
@@ -2614,7 +2633,7 @@ describe('AssetsController', () => {
       );
     });
 
-    it('invokes trace only once per session until lock', async () => {
+    it('invokes first-init fetch trace only once per session until lock', async () => {
       const traceMock = jest
         .fn()
         .mockImplementation(
@@ -2648,34 +2667,20 @@ describe('AssetsController', () => {
           );
           expect(firstInitFetchCalls).toHaveLength(1);
 
-          const fullFetchParentCallsBefore = traceMock.mock.calls.filter(
-            (call) => {
-              const request = call[0] as TraceRequest;
-              return (
-                request.name === 'AssetsFullFetch' &&
-                request.parentContext === undefined &&
-                typeof call[1] === 'function'
-              );
-            },
+          const fullFetchCallsBefore = traceMock.mock.calls.filter(
+            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
           ).length;
 
-          // Later force updates must not open new parent Sentry spans.
+          // Later force updates still emit AssetsFullFetch summary spans.
           await controller.getAssets([createMockInternalAccount()], {
             forceUpdate: true,
           });
 
-          const fullFetchParentCallsAfter = traceMock.mock.calls.filter(
-            (call) => {
-              const request = call[0] as TraceRequest;
-              return (
-                request.name === 'AssetsFullFetch' &&
-                request.parentContext === undefined &&
-                typeof call[1] === 'function'
-              );
-            },
+          const fullFetchCallsAfter = traceMock.mock.calls.filter(
+            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
           ).length;
 
-          expect(fullFetchParentCallsAfter).toBe(fullFetchParentCallsBefore);
+          expect(fullFetchCallsAfter).toBeGreaterThan(fullFetchCallsBefore);
         },
       );
     });

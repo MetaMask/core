@@ -211,10 +211,14 @@ const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 // ============================================================================
 const TRACE_FIRST_INIT_FETCH = 'AssetsControllerFirstInitFetch';
 const TRACE_FULL_FETCH = 'AssetsFullFetch';
+/** Parent span that nests per-source timings; dashboard charts {@link TRACE_FULL_FETCH}. */
+const TRACE_FETCH_PIPELINE = 'AssetsFetchPipeline';
 const TRACE_BACKGROUND_FETCH = 'AssetsBackgroundFetch';
 const TRACE_DATA_SOURCE_TIMING = 'AssetsDataSourceTiming';
 const TRACE_DATA_SOURCE_ERROR = 'AssetsDataSourceError';
 const TRACE_UPDATE_PIPELINE = 'AssetsUpdatePipeline';
+/** Parent span that nests update enrichment; dashboard charts {@link TRACE_UPDATE_PIPELINE}. */
+const TRACE_UPDATE_PARENT = 'AssetsUpdateEnrichment';
 const TRACE_SUBSCRIPTION_ERROR = 'AssetsSubscriptionError';
 const TRACE_STATE_SIZE = 'AssetsStateSize';
 
@@ -670,9 +674,9 @@ export class AssetsController extends BaseController<
    * Pass `parentContext` to record a Sentry **subspan** instead of a new root transaction
    * (avoids rate-limiting when many timings fire per fetch).
    *
-   * After the cold-start fetch has been reported, only nested spans (with
-   * `parentContext`) and always-on traces are emitted — subsequent fetches/updates
-   * do not create new Sentry transactions.
+   * When `data.duration_ms` is set, it is also copied to tags (so MetaMask's Sentry
+   * adapter records a `duration_ms` measurement for Spans dashboard widgets) and
+   * `startTime` is backdated so `span.duration` matches the measured work.
    *
    * @param name - Trace / span name visible in Sentry.
    * @param data - Key-value pairs attached as span data.
@@ -690,29 +694,46 @@ export class AssetsController extends BaseController<
     if (!this.#trace) {
       return;
     }
-    // Cold-start only: skip root spans after the first init fetch. Nested
-    // subspans (parentContext set) and error/state-size traces still allowed.
-    if (
-      this.#firstInitFetchReported &&
-      parentContext === undefined &&
-      name !== TRACE_SUBSCRIPTION_ERROR &&
-      name !== TRACE_STATE_SIZE
-    ) {
-      return;
+
+    const durationMs =
+      typeof data.duration_ms === 'number' ? data.duration_ms : undefined;
+
+    // Numeric `data` fields become tags so MetaMask's Sentry adapter records
+    // them as measurements (dashboard fields like `tags[duration_ms,number]` /
+    // `measurements.duration_ms`). String data stays attributes-only unless
+    // callers put them in `tags` (e.g. `source` for group-by).
+    const numericFromData: Record<string, number> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === 'number') {
+        numericFromData[key] = value;
+      }
     }
-    this.#trace({ name, data, tags, parentContext }, () => undefined)?.catch(
-      () => {
-        // Telemetry failure must not break.
+    const requestTags = {
+      ...tags,
+      ...numericFromData,
+    };
+    const startTime =
+      durationMs === undefined
+        ? undefined
+        : performance.timeOrigin + performance.now() - durationMs;
+
+    this.#trace(
+      {
+        name,
+        data,
+        tags: requestTags,
+        parentContext,
+        ...(startTime === undefined ? {} : { startTime }),
       },
-    );
+      () => undefined,
+    )?.catch(() => {
+      // Telemetry failure must not break.
+    });
   }
 
   /**
    * Run work inside a parent Sentry span and pass its context so callers can
    * emit nested subspans via {@link #emitTrace}.
-   *
-   * Only wraps work on cold start (before the first init fetch is reported).
-   * Later calls still run `fn`, but without creating a Sentry parent span.
    *
    * @param name - Parent span name.
    * @param data - Key-value pairs attached as span data.
@@ -728,7 +749,7 @@ export class AssetsController extends BaseController<
       controller: 'AssetsController',
     },
   ): Promise<Result> {
-    if (!this.#trace || this.#firstInitFetchReported) {
+    if (!this.#trace) {
       return fn(undefined);
     }
     return await this.#trace({ name, data, tags }, (parentContext) =>
@@ -780,6 +801,8 @@ export class AssetsController extends BaseController<
     this.#emitTrace(TRACE_STATE_SIZE, {
       balance_entries: balanceEntries,
       balance_accounts: Object.keys(balances).length,
+      // `asset_count` matches the Assets Health dashboard widget field name.
+      asset_count: uniqueAssets.size,
       unique_asset_count: uniqueAssets.size,
       network_count: uniqueNetworks.size,
       metadata_entries: Object.keys(assetsInfo).length,
@@ -1638,7 +1661,11 @@ export class AssetsController extends BaseController<
           chain_count: request.chainIds.length,
           account_count: request.accountsWithSupportedChains.length,
         },
-        { controller: 'AssetsController' },
+        {
+          controller: 'AssetsController',
+          // String tag so Spans widgets can group by `source`.
+          source: sourceName,
+        },
         parentContext,
       );
     }
@@ -1708,7 +1735,7 @@ export class AssetsController extends BaseController<
 
     if (options?.forceUpdate) {
       await this.#withTrace(
-        TRACE_FULL_FETCH,
+        TRACE_FETCH_PIPELINE,
         {
           chain_count: chainIds.length,
           account_count: accounts.length,
@@ -1850,7 +1877,7 @@ export class AssetsController extends BaseController<
               { controller: 'AssetsController' },
               parentContext,
             );
-            // Mark after emitting so the first-init span itself is not gated.
+            // Mark after emitting so a concurrent path cannot skip this report.
             this.#firstInitFetchReported = true;
           }
         },
@@ -3780,7 +3807,7 @@ export class AssetsController extends BaseController<
     });
 
     await this.#withTrace(
-      TRACE_UPDATE_PIPELINE,
+      TRACE_UPDATE_PARENT,
       {
         source: sourceId,
         has_balance: Boolean(response.assetsBalance),
