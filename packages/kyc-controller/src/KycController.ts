@@ -26,6 +26,7 @@ import type {
 import {
   deriveClientMaterial,
   getOrCreateLocalUserSecret,
+  signStorageAccessToken,
   toBase64Url,
   verifyJwtChain,
   wrapEncryptionKey,
@@ -44,6 +45,12 @@ const CHANNEL_RESET = 'ch_reset';
 // Placeholder credentials for the SumSub sub-flow. These are demo values that
 // must be replaced with real UKYC-issued material before production use.
 const MOCK_JWT_TOKEN = 'mock-jwt-token';
+
+// Lifetime of the read-only `ukyc_capability_token` minted when creating a
+// UKYC session. The storage-and-auth spec requires the token's `expires_at` to
+// cover the KYC session's expected lifetime — including the provider journey —
+// rather than a fixed short window, so this is a session-scoped window.
+const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
 
 // The SumSub SDK status that signals the applicant finished the flow
 // successfully. Any other resolution (abandonment, failure, or a non-success
@@ -960,7 +967,8 @@ export class KycController extends BaseController<
    *     attested session server public key;
    *  3. derives the `data_encryption_key` from the wallet's UKYC
    *     `local_user_secret` and wraps it for the session server;
-   *  4. creates the UKYC session (handing over the wrapped key);
+   *  4. mints a client-signed, read-only `ukyc_capability_token` and creates
+   *     the UKYC session (handing over the wrapped key and the token);
    *  5. fetches the SumSub applicant access token; and
    *  6. presents the SDK via the injected launcher.
    *
@@ -1027,15 +1035,25 @@ export class KycController extends BaseController<
       const localUserSecret = await getOrCreateLocalUserSecret(
         this.#localUserSecretStore(),
       );
-      const { dataEncryptionKey } = deriveClientMaterial(localUserSecret);
+      const clientMaterial = deriveClientMaterial(localUserSecret);
       const wrappedEncryptionKey = {
         sessionId: wrappingKey.id,
         ...wrapEncryptionKey(
           sessionClientPrivateKey,
           wrappingKey.sessionServerPublicKey.x,
-          dataEncryptionKey,
+          clientMaterial.dataEncryptionKey,
         ),
       };
+
+      // Mint a read-only `ukyc_capability_token` for the session. Only the
+      // client holds the signing key derived from `local_user_secret`, so only
+      // the client can mint it; scoping it to `read` means it authorizes later
+      // storage reads without granting write or delete access.
+      const ukycCapabilityToken = signStorageAccessToken({
+        material: clientMaterial,
+        operations: ['read'],
+        expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
+      });
 
       const { sessionId, idosSessionId } = await this.messenger.call(
         'KycService:createUkycSession',
@@ -1046,6 +1064,7 @@ export class KycController extends BaseController<
             moonPayUserId: this.state.moonpayCustomerId,
           },
           wrappedEncryptionKey,
+          ukycCapabilityToken,
         },
       );
 

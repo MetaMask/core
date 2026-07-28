@@ -1239,12 +1239,20 @@ describe('KycController', () => {
         expect(result).toStrictEqual({ ok: true });
         expect(controller.state.sumsub.status).toBe('complete');
         expect(controller.state.sumsub.applicantAccessToken).toBe('aat');
-        // The wrapped key is handed over once at session creation.
+        // The wrapped key and a read-only capability token are handed over
+        // once at session creation.
         expect(handlers.createUkycSession).toHaveBeenCalledWith(
           expect.objectContaining({
             wrappedEncryptionKey: expect.objectContaining({
               sessionId: 'wk',
               encryptedKey: 'enc',
+            }),
+            ukycCapabilityToken: expect.objectContaining({
+              payload: expect.objectContaining({
+                operations: ['read'],
+                presenter: 'client',
+              }),
+              signature: expect.any(String),
             }),
           }),
         );

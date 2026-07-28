@@ -8,6 +8,12 @@ import nock, { cleanAll } from 'nock';
 
 import type { KycServiceMessenger } from './KycService';
 import { KycService } from './KycService';
+import {
+  deriveClientMaterial,
+  encodeStorageAccessTokenForHeader,
+  signStorageAccessToken,
+  UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
+} from './ukyc';
 
 const MOCK_API_URL = 'https://kyc-api.dev-api.cx.metamask.io';
 const MOCK_FRACTAL_URL = 'https://fractal.dev-api.cx.metamask.io';
@@ -260,13 +266,35 @@ describe('KycService', () => {
       nonce: 'nonce',
     };
 
-    it('creates a UKYC session and forwards the wrapped key', async () => {
+    // A genuinely signed, read-only capability token: minted from real derived
+    // client material and signed with the Ed25519 `signingKey`, not a
+    // hand-written plain object.
+    const material = deriveClientMaterial(
+      new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(42),
+    );
+    const ukycCapabilityToken = signStorageAccessToken({
+      material,
+      operations: ['read'],
+      issuedAt: new Date('2026-07-07T00:00:00.000Z'),
+      expiresAt: new Date('2026-07-07T04:00:00.000Z'),
+    });
+    // The service base64url-encodes the envelope into a compact string before
+    // sending it in the request body.
+    const encodedCapabilityToken =
+      encodeStorageAccessTokenForHeader(ukycCapabilityToken);
+
+    it('creates a UKYC session and forwards the wrapped key and capability token', async () => {
       const response = {
         sessionId: 'sid',
         idosSessionId: 'iss',
       };
       nock(MOCK_API_URL)
-        .post('/sessions', (body) => body.wrappedEncryptionKey !== undefined)
+        .post(
+          '/sessions',
+          (body) =>
+            body.wrappedEncryptionKey !== undefined &&
+            body.ukycCapabilityToken === encodedCapabilityToken,
+        )
         .reply(200, response);
       const { service } = getService();
 
@@ -275,6 +303,7 @@ describe('KycService', () => {
           jwtToken: 'jwt',
           vendorMetadata: { foo: 'bar' },
           wrappedEncryptionKey,
+          ukycCapabilityToken,
         }),
       ).toStrictEqual(response);
     });
@@ -288,6 +317,7 @@ describe('KycService', () => {
           jwtToken: 'jwt',
           vendorMetadata: {},
           wrappedEncryptionKey,
+          ukycCapabilityToken,
         }),
       ).rejects.toThrow(/Malformed response received from UKYC sessions API/u);
     });

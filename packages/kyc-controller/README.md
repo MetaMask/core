@@ -155,7 +155,7 @@ Endpoints:
 | `fetchDisclaimers`  | `GET`  | `/vendors/moonpay/disclaimers?country=` | Terms to accept                                          |
 | `createSession`     | `POST` | `/vendors/moonpay/sessions`             | Create vendor session                                    |
 | `checkKycRequired`  | `POST` | `/vendors/moonpay/kyc-required`         | Is KYC required? (normalizes `required` → `kycRequired`) |
-| `createUkycSession` | `POST` | `/sessions`                             | Start SumSub sub-flow                                    |
+| `createUkycSession` | `POST` | `/sessions`                             | Start SumSub sub-flow (wrapped key + read-only `ukyc_capability_token`) |
 | `submitWrappedKey`  | `POST` | `/sessions/{id}/wrapped-key`            | Exchange wrapped key → applicant token                   |
 
 ### 2.3 `crypto.ts`
@@ -354,7 +354,7 @@ sequenceDiagram
     Ctrl-->>UI: phase = done (kycRequiredByProduct[product])
 
     opt kycRequired === true → auto-launch document verification
-        Ctrl->>Svc: createUkycSession({ jwtToken, vendorMetadata })
+        Ctrl->>Svc: createUkycSession({ jwtToken, vendorMetadata, wrappedEncryptionKey, ukycCapabilityToken })
         Svc->>API: POST /sessions
         Ctrl->>Svc: submitWrappedKey({ sessionId, wrappedUserKey, ... })
         Svc->>API: POST /sessions/{id}/wrapped-key

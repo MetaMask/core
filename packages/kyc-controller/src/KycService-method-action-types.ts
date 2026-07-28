@@ -88,7 +88,8 @@ export type KycServiceFetchJwksAction = {
 
 /**
  * Creates a UKYC session for the SumSub document-verification sub-flow,
- * handing over the wrapped `data_encryption_key`.
+ * handing over the wrapped `data_encryption_key` and a client-signed,
+ * read-only `ukyc_capability_token`.
  *
  * @param params - The session parameters.
  * @returns The UKYC session identifiers.

@@ -19,7 +19,8 @@ import {
 import { alpha2ToAlpha3 } from './countryCodes';
 import type { KycServiceMethodActions } from './KycService-method-action-types';
 import type { KycDisclaimer } from './types';
-import { UKYC_JWKS_PATH } from './ukyc';
+import { encodeStorageAccessTokenForHeader, UKYC_JWKS_PATH } from './ukyc';
+import type { UkycStorageAccessToken } from './ukyc';
 
 // === GENERAL ===
 
@@ -194,6 +195,15 @@ export type CreateUkycSessionParams = {
   jwtToken: string;
   vendorMetadata: Record<string, unknown>;
   wrappedEncryptionKey: WrappedEncryptionKey;
+  /**
+   * The client-signed `ukyc_capability_token` (envelope: payload + Ed25519
+   * signature) authorizing later storage access for this session. It is minted
+   * by the client with `read`-only scope — see the UKYC storage-and-auth spec
+   * for how it is formed. Only the client holds the signing key, so only the
+   * client can mint it. The envelope is base64url-encoded into a compact string
+   * before it is sent to the backend.
+   */
+  ukycCapabilityToken: UkycStorageAccessToken;
 };
 
 export type FetchApplicantAccessTokenParams = {
@@ -416,7 +426,9 @@ export class KycService {
 
   /**
    * Creates a UKYC session for the SumSub document-verification sub-flow,
-   * handing over the wrapped `data_encryption_key`.
+   * handing over the wrapped `data_encryption_key` and the client-signed,
+   * read-only `ukyc_capability_token` that authorizes later storage access for
+   * the session.
    *
    * @param params - The session parameters.
    * @returns The UKYC session identifiers.
@@ -433,6 +445,9 @@ export class KycService {
         jwtToken: params.jwtToken,
         vendorMetadata: params.vendorMetadata,
         wrappedEncryptionKey: params.wrappedEncryptionKey,
+        ukycCapabilityToken: encodeStorageAccessTokenForHeader(
+          params.ukycCapabilityToken,
+        ),
       }),
     });
     return this.#validateResponse(
