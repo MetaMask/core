@@ -6,10 +6,15 @@
  * `await require('./.github/scripts/close-stale-release-prs.cjs')({ github, context, core });`
  */
 
-// Optional escape hatch for long-running releases that must stay open.
-const STALE_HOURS = 3;
-const EXEMPT_LABEL = 'release:keep-open';
-const STALE_MS = STALE_HOURS * 60 * 60 * 1000;
+/**
+ * The label users can use to prevent stale release PRs from being auto-closed.
+ */
+const SKIP_LABEL = 'release:keep-open';
+
+/**
+ * How long inactive release PRs stay open before auto-close (milliseconds).
+ */
+const STALE_DURATION_MS = 3 * 60 * 60 * 1000;
 
 const MERGE_STATE_QUERY = `
   query ($owner: String!, $repo: String!, $number: Int!) {
@@ -65,7 +70,7 @@ async function getMergeState(github, owner, repo, pullNumber) {
  * @param {number} pullNumber - Pull request number.
  * @returns {Promise<object>} Pull request payload.
  */
-async function getPull(github, owner, repo, pullNumber) {
+async function getPullRequest(github, owner, repo, pullNumber) {
   const { data } = await github.rest.pulls.get({
     owner,
     repo,
@@ -75,27 +80,25 @@ async function getPull(github, owner, repo, pullNumber) {
 }
 
 /**
- * Whether a PR head is a same-repo `release/*` branch that is not exempt.
+ * Whether a PR head is a same-repo `release/*` branch that is not skipped.
  *
  * @param {object} pr - Pull request payload.
- * @param {string} owner - Repository owner.
- * @param {string} repo - Repository name.
  * @param {object} core - `@actions/core` helpers.
  * @returns {boolean} True when the PR is a candidate for stale close.
  */
-function isReleasePrCandidate(pr, owner, repo, core) {
+function isReleasePrCandidate(pr, core) {
   if (!pr.head.ref.startsWith('release/')) {
     return false;
   }
 
   // Only manage same-repo release branches (never forks).
-  if (pr.head.repo?.full_name !== `${owner}/${repo}`) {
+  if (!pr.head.repo || pr.head.repo.fork) {
     return false;
   }
 
-  if (pr.labels.some((label) => label.name === EXEMPT_LABEL)) {
+  if (pr.labels.some((label) => label.name === SKIP_LABEL)) {
     core.info(
-      `Skipping #${pr.number} (${pr.head.ref}): exempt label "${EXEMPT_LABEL}"`,
+      `Skipping #${pr.number} (${pr.head.ref}): skip label "${SKIP_LABEL}"`,
     );
     return false;
   }
@@ -134,15 +137,15 @@ function evaluateStaleEligibility({ pr, now, core, phase = '' }) {
     return { eligible: false };
   }
 
-  if (pr.labels.some((label) => label.name === EXEMPT_LABEL)) {
+  if (pr.labels.some((label) => label.name === SKIP_LABEL)) {
     core.info(
-      `Skipping #${pr.number} (${pr.head.ref}): exempt label "${EXEMPT_LABEL}"${suffix}`,
+      `Skipping #${pr.number} (${pr.head.ref}): skip label "${SKIP_LABEL}"${suffix}`,
     );
     return { eligible: false };
   }
 
   const ageMs = now - Date.parse(pr.updated_at);
-  if (ageMs < STALE_MS) {
+  if (ageMs < STALE_DURATION_MS) {
     core.info(
       `Skipping #${pr.number} (${pr.head.ref}): updated ${Math.round(ageMs / 60000)}m ago${suffix}`,
     );
@@ -190,7 +193,7 @@ function isUnchangedBeforeClose({
     return false;
   }
 
-  if (Date.now() - Date.parse(latestPr.updated_at) < STALE_MS) {
+  if (Date.now() - Date.parse(latestPr.updated_at) < STALE_DURATION_MS) {
     core.info(
       `Skipping #${latestPr.number} (${latestPr.head.ref}): no longer stale before close`,
     );
@@ -291,57 +294,47 @@ async function deleteBranchIfUnchanged({
 }
 
 /**
+ * Build a link to the current workflow run.
+ *
+ * @param {object} context - GitHub Actions context.
+ * @returns {string} Workflow run URL.
+ */
+function getWorkflowRunUrl(context) {
+  return `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+}
+
+/**
  * Build the PR comment body for a completed stale close.
  *
  * @param {object} options - Comment inputs.
  * @param {string} options.inactiveHours - Formatted inactivity duration.
- * @param {string} options.expectedHeadRef - Release branch name.
- * @param {string} options.expectedHeadSha - Head SHA at close time.
  * @param {string} options.outcome - Branch deletion outcome key.
- * @param {string} options.detail - Extra outcome detail.
- * @param {string} [options.branchSha] - Current branch tip when kept.
+ * @param {string} options.workflowRunUrl - Link to this workflow run.
  * @returns {string} Markdown comment body.
  */
-function buildCloseComment({
-  inactiveHours,
-  expectedHeadRef,
-  expectedHeadSha,
-  outcome,
-  detail,
-  branchSha,
-}) {
-  let branchStatusLines;
-  if (outcome === 'deleted') {
-    branchStatusLines = [
-      `The release branch \`${expectedHeadRef}\` has been deleted. If you still need to publish these packages, start a fresh release with \`yarn create-release-branch\`.`,
-    ];
-  } else if (outcome === 'kept-head-moved') {
-    branchStatusLines = [
-      `The release branch \`${expectedHeadRef}\` was **not** deleted because its tip changed after close (\`${expectedHeadSha}\` → \`${branchSha}\`).`,
+function buildCloseComment({ inactiveHours, outcome, workflowRunUrl }) {
+  const staleHours = STALE_DURATION_MS / (60 * 60 * 1000);
+  const lines = [
+    '## This pull request has been closed',
+    '',
+    `This release PR was automatically closed because it had no activity for ${staleHours} hours (last updated ${inactiveHours}h ago).`,
+    '',
+    'Open release PRs are expected to merge promptly so they do not block others from starting a new release.',
+    '',
+    `To keep a release PR open longer in exceptional cases, add the \`${SKIP_LABEL}\` label.`,
+  ];
+
+  // GitHub already surfaces successful branch deletion on the closed PR.
+  // Only call out failures / intentional skips.
+  if (outcome !== 'deleted') {
+    lines.push(
       '',
-      'Delete the branch manually if it is no longer needed, or open a new release PR from the updated tip.',
-    ];
-  } else {
-    branchStatusLines = [
-      `The release branch \`${expectedHeadRef}\` was **not** deleted (${detail}).`,
-      '',
-      'Delete the branch manually if it is no longer needed, or start a fresh release with `yarn create-release-branch`.',
-    ];
+      `> (A failed attempt was made to delete this branch. See more details here: ${workflowRunUrl})`,
+    );
   }
 
-  return [
-    '## Stale release PR closed',
-    '',
-    `This release PR was automatically closed because it had no activity for ${STALE_HOURS} hours (last updated ${inactiveHours}h ago).`,
-    '',
-    'Open release PRs on `release/*` branches are expected to merge promptly so they do not block others from starting a new release.',
-    '',
-    ...branchStatusLines,
-    '',
-    `To keep a release PR open longer in exceptional cases, add the \`${EXEMPT_LABEL}\` label.`,
-    '',
-    '<!-- stale-release-pr-comment -->',
-  ].join('\n');
+  lines.push('', '<!-- stale-release-pr-comment -->');
+  return lines.join('\n');
 }
 
 /**
@@ -376,6 +369,7 @@ async function commentOnPull(github, owner, repo, pullNumber, body, core) {
  *
  * @param {object} options - Processing inputs.
  * @param {object} options.github - Octokit client from `actions/github-script`.
+ * @param {object} options.context - GitHub Actions context.
  * @param {string} options.owner - Repository owner.
  * @param {string} options.repo - Repository name.
  * @param {object} options.candidate - Candidate from the initial open-PR list.
@@ -383,10 +377,18 @@ async function commentOnPull(github, owner, repo, pullNumber, body, core) {
  * @param {object} options.core - `@actions/core` helpers.
  * @returns {Promise<void>}
  */
-async function processReleasePr({ github, owner, repo, candidate, now, core }) {
+async function processReleasePr({
+  github,
+  context,
+  owner,
+  repo,
+  candidate,
+  now,
+  core,
+}) {
   let pr;
   try {
-    pr = await getPull(github, owner, repo, candidate.number);
+    pr = await getPullRequest(github, owner, repo, candidate.number);
   } catch (error) {
     core.warning(
       `Failed to refresh #${candidate.number} (${candidate.head.ref}): ${error.message}`,
@@ -422,7 +424,7 @@ async function processReleasePr({ github, owner, repo, candidate, now, core }) {
 
   let latestPr;
   try {
-    latestPr = await getPull(github, owner, repo, pr.number);
+    latestPr = await getPullRequest(github, owner, repo, pr.number);
   } catch (error) {
     core.warning(
       `Failed final refresh for #${pr.number} (${expectedHeadRef}): ${error.message}`,
@@ -493,11 +495,8 @@ async function processReleasePr({ github, owner, repo, candidate, now, core }) {
 
   const body = buildCloseComment({
     inactiveHours,
-    expectedHeadRef,
-    expectedHeadSha,
     outcome: branchResult.outcome,
-    detail: branchResult.detail,
-    branchSha: branchResult.branchSha,
+    workflowRunUrl: getWorkflowRunUrl(context),
   });
 
   await commentOnPull(github, owner, repo, latestPr.number, body, core);
@@ -520,15 +519,15 @@ module.exports = async function closeStaleReleasePrs({
   const now = Date.now();
   const { owner, repo } = context.repo;
 
-  const pulls = await github.paginate(github.rest.pulls.list, {
+  const pullRequests = await github.paginate(github.rest.pulls.list, {
     owner,
     repo,
     state: 'open',
     per_page: 100,
   });
 
-  const releasePrs = pulls.filter((pr) =>
-    isReleasePrCandidate(pr, owner, repo, core),
+  const releasePrs = pullRequests.filter((pr) =>
+    isReleasePrCandidate(pr, core),
   );
 
   if (releasePrs.length === 0) {
@@ -539,6 +538,7 @@ module.exports = async function closeStaleReleasePrs({
   for (const candidate of releasePrs) {
     await processReleasePr({
       github,
+      context,
       owner,
       repo,
       candidate,
