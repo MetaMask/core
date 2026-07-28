@@ -438,6 +438,52 @@ describe('OHLCVService', () => {
       });
     });
 
+    it('should flush other grace channels when re-subscribing to the same channel during grace', async () => {
+      const opts1h: OHLCVSubscriptionOptions = {
+        ...SUB_OPTS,
+        interval: '1h',
+      };
+      const channel1h =
+        'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
+
+      await withService(async ({ service, mocks }) => {
+        const mockUnsub1m = jest.fn().mockResolvedValue(undefined);
+        const mockUnsub1h = jest.fn().mockResolvedValue(undefined);
+
+        mocks.getSubscriptionsByChannel.mockImplementation(
+          (channel: string) => {
+            if (channel === EXPECTED_CHANNEL) {
+              throw new Error('flush unsub failed');
+            }
+            if (channel === channel1h) {
+              return [{ unsubscribe: mockUnsub1h }];
+            }
+            return [{ unsubscribe: mockUnsub1m }];
+          },
+        );
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+        await service.subscribe(opts1h);
+        await service.unsubscribe(opts1h);
+
+        mocks.getSubscriptionsByChannel.mockClear();
+        mockUnsub1h.mockClear();
+        mocks.channelHasSubscription.mockReturnValue(true);
+        mocks.connect.mockClear();
+        mocks.subscribe.mockClear();
+
+        await service.subscribe(opts1h);
+
+        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
+          EXPECTED_CHANNEL,
+        );
+        expect(mockUnsub1h).not.toHaveBeenCalled();
+        expect(mocks.connect).not.toHaveBeenCalled();
+        expect(mocks.subscribe).not.toHaveBeenCalled();
+      });
+    });
+
     it('should flush the old channel immediately when subscribing to a different interval', async () => {
       const opts1m = SUB_OPTS;
       const opts1h: OHLCVSubscriptionOptions = {
@@ -1225,6 +1271,54 @@ describe('OHLCVService', () => {
         jest.advanceTimersByTime(7000);
         await completeAsyncOperations();
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should flush other grace channels when reusing a channel pending unsubscribe retry', async () => {
+      const opts1h: OHLCVSubscriptionOptions = {
+        ...SUB_OPTS,
+        interval: '1h',
+      };
+      const channel1h =
+        'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
+
+      await withService(async ({ service, mocks }) => {
+        const mockUnsub1h = jest.fn().mockResolvedValue(undefined);
+
+        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+          throw new Error('ws gone');
+        });
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+
+        mocks.getSubscriptionsByChannel.mockImplementation(
+          (channel: string) => {
+            if (channel === channel1h) {
+              return [{ unsubscribe: mockUnsub1h }];
+            }
+            throw new Error('ws gone');
+          },
+        );
+
+        await service.subscribe(opts1h);
+        await service.unsubscribe(opts1h);
+
+        mocks.getSubscriptionsByChannel.mockClear();
+        mockUnsub1h.mockClear();
+        mocks.channelHasSubscription.mockReturnValue(true);
+        mocks.connect.mockClear();
+        mocks.subscribe.mockClear();
+
+        await service.subscribe(SUB_OPTS);
+
+        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(channel1h);
+        expect(mockUnsub1h).toHaveBeenCalledTimes(1);
+        expect(mocks.connect).not.toHaveBeenCalled();
+        expect(mocks.subscribe).not.toHaveBeenCalled();
       });
     });
 

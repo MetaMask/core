@@ -250,6 +250,7 @@ export class OHLCVService {
           channel,
         )
       ) {
+        await this.#flushOtherChannels(channel);
         log('OHLCV-WS: Cancelled unsubscribe retry — reusing WS subscription', {
           channel,
         });
@@ -269,6 +270,7 @@ export class OHLCVService {
           channel,
         )
       ) {
+        await this.#flushOtherChannels(channel);
         entry.refCount += 1;
         log('OHLCV-WS: WS subscription still alive, bumped refCount', {
           channel,
