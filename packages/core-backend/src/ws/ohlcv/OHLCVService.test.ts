@@ -438,12 +438,14 @@ describe('OHLCVService', () => {
       });
     });
 
-    it('should unsubscribe old channel after grace period during time-range switching', async () => {
+    it('should flush the old channel immediately when subscribing to a different interval', async () => {
       const opts1m = SUB_OPTS;
       const opts1h: OHLCVSubscriptionOptions = {
         ...SUB_OPTS,
         interval: '1h',
       };
+      const channel1h =
+        'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
 
       await withService(async ({ service, mocks }) => {
         const mockUnsub = jest.fn().mockResolvedValue(undefined);
@@ -451,17 +453,23 @@ describe('OHLCVService', () => {
           { unsubscribe: mockUnsub },
         ]);
 
-        // Subscribe 1m → unsubscribe → subscribe 1h
         await service.subscribe(opts1m);
         await service.unsubscribe(opts1m);
         await service.subscribe(opts1h);
 
-        // 1m is in grace period, not yet unsubscribed
-        expect(mockUnsub).not.toHaveBeenCalled();
+        expect(mockUnsub).toHaveBeenCalledTimes(1);
+        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
+          EXPECTED_CHANNEL,
+        );
+        expect(mocks.subscribe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            channels: [channel1h],
+          }),
+        );
 
-        // Grace period expires — old channel cleaned up
         jest.advanceTimersByTime(3000);
         await completeAsyncOperations();
+
         expect(mockUnsub).toHaveBeenCalledTimes(1);
       });
     });
@@ -938,7 +946,7 @@ describe('OHLCVService', () => {
   // ===========================================================================
 
   describe('error paths', () => {
-    it('should publish subscriptionError when unsubscribe fails', async () => {
+    it('should publish subscriptionError and retry when unsubscribe fails', async () => {
       await withService(async ({ service, mocks, messenger }) => {
         mocks.getSubscriptionsByChannel.mockImplementation(() => {
           throw new Error('ws gone');
@@ -959,6 +967,73 @@ describe('OHLCVService', () => {
           operation: 'unsubscribe',
         });
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(1000);
+        await completeAsyncOperations();
+        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(2);
+
+        jest.advanceTimersByTime(2000);
+        await completeAsyncOperations();
+        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(3);
+
+        jest.advanceTimersByTime(4000);
+        await completeAsyncOperations();
+        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(4);
+        expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should cancel unsubscribe retry when the same channel is subscribed again', async () => {
+      await withService(async ({ service, mocks }) => {
+        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+          throw new Error('ws gone');
+        });
+        mocks.channelHasSubscription.mockReturnValue(true);
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+
+        mocks.subscribe.mockClear();
+        mocks.connect.mockClear();
+        await service.subscribe(SUB_OPTS);
+
+        expect(mocks.connect).not.toHaveBeenCalled();
+        expect(mocks.subscribe).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(7000);
+        await completeAsyncOperations();
+        expect(mocks.forceReconnection).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should delete failed-cleanup channels on reconnect', async () => {
+      await withService(async ({ service, mocks, rootMessenger }) => {
+        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+          throw new Error('ws gone');
+        });
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+
+        mocks.subscribe.mockClear();
+        rootMessenger.publish(
+          'BackendWebSocketService:connectionStateChanged',
+          {
+            ...BASE_CONNECTION_INFO,
+            state: WebSocketState.CONNECTED,
+            connectedAt: Date.now(),
+            reconnectAttempts: 1,
+          },
+        );
+        await completeAsyncOperations();
+
+        expect(mocks.subscribe).not.toHaveBeenCalled();
       });
     });
 
@@ -1096,7 +1171,7 @@ describe('OHLCVService', () => {
   // ===========================================================================
 
   describe('destroy', () => {
-    it('should clear grace-period timers and remove channel callback', async () => {
+    it('should clear grace-period and retry timers and remove channel callback', async () => {
       await withService(async ({ service, mocks }) => {
         const mockUnsub = jest.fn();
         mocks.getSubscriptionsByChannel.mockReturnValue([
@@ -1106,14 +1181,13 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        // Grace timer is running — destroy should clear it
         service.destroy();
 
-        jest.advanceTimersByTime(5000);
+        jest.advanceTimersByTime(10000);
         await completeAsyncOperations();
 
-        // Timer was cleared so the actual unsubscribe should NOT have fired
         expect(mockUnsub).not.toHaveBeenCalled();
+        expect(mocks.forceReconnection).not.toHaveBeenCalled();
 
         expect(mocks.removeChannelCallback).toHaveBeenCalledWith(
           'system-notifications.v1.market-data.v1',

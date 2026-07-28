@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `OHLCVService` now flushes grace-period channels when subscribing to a different asset/interval, retries failed WebSocket unsubscribes with backoff before forcing reconnection, and only removes channel tracking after a successful unsubscribe ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [7.0.0]
 
 ### Added
