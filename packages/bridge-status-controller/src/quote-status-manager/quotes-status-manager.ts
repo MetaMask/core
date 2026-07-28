@@ -527,8 +527,8 @@ export class QuoteStatusManager {
       );
       return Boolean(
         live &&
-          live.status.state === sentStatus &&
-          live.acknowledgedState !== sentStatus,
+        live.status.state === sentStatus &&
+        live.acknowledgedState !== sentStatus,
       );
     };
 
