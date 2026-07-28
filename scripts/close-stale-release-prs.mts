@@ -151,7 +151,7 @@ function isReleasePrCandidate(pullRequest: ListedPullRequest): boolean {
  * @returns True when a merge is already in progress.
  */
 function isMergeInProgress(pullRequest: PullRequestSnapshot): boolean {
-  return Boolean(pullRequest.isInMergeQueue || pullRequest.autoMergeRequest);
+  return pullRequest.isInMergeQueue || pullRequest.autoMergeRequest !== null;
 }
 
 /**
