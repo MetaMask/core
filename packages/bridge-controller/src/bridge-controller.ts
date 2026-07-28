@@ -22,10 +22,6 @@ import {
 import { CHAIN_IDS } from './constants/chains.js';
 import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps.js';
 import { TraceName } from './constants/traces.js';
-import {
-  ExchangeRateSourcesForLookup,
-  selectIsAssetExchangeRateInState,
-} from './selectors.js';
 import { RequestStatus } from './types.js';
 import type {
   L1GasFees,
@@ -536,21 +532,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   };
 
-  readonly #getExchangeRateSources = (): ExchangeRateSourcesForLookup => {
-    if (this.#getUseAssetsControllerForRates()) {
-      return {
-        ...this.messenger.call('AssetsController:getExchangeRatesForBridge'),
-        ...this.state,
-      };
-    }
-    return {
-      ...this.messenger.call('MultichainAssetsRatesController:getState'),
-      ...this.messenger.call('CurrencyRateController:getState'),
-      ...this.messenger.call('TokenRatesController:getState'),
-      ...this.state,
-    };
-  };
-
   /**
    * Fetches the exchange rates for the assets in the quote request if they are not already in the state
    * In addition to the selected tokens, this also fetches the native asset for the source and destination chains
@@ -560,27 +541,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #fetchAssetExchangeRates = async (
     quoteRequests: GenericQuoteRequest[],
   ) => {
-    const exchangeRateSources = this.#getExchangeRateSources();
-
     // Get unique assetIds for all quote requests
     const assetIds = new Set<CaipAssetType>(
-      quoteRequests
-        .flatMap((quoteRequest) =>
-          [
-            getAssetIdsForToken(
-              quoteRequest.srcTokenAddress,
-              quoteRequest.srcChainId,
-            ),
-            getAssetIdsForToken(
-              quoteRequest.destTokenAddress,
-              quoteRequest.destChainId,
-            ),
-          ].flat(),
-        )
-        .filter(
-          (assetId: CaipAssetType | undefined): assetId is CaipAssetType =>
-            !selectIsAssetExchangeRateInState(exchangeRateSources, assetId),
-        ),
+      quoteRequests.flatMap((quoteRequest) =>
+        [
+          getAssetIdsForToken(
+            quoteRequest.srcTokenAddress,
+            quoteRequest.srcChainId,
+          ),
+          getAssetIdsForToken(
+            quoteRequest.destTokenAddress,
+            quoteRequest.destChainId,
+          ),
+        ].flat(),
+      ),
     );
 
     const currency = this.#getUseAssetsControllerForRates()
@@ -594,7 +568,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const pricesByAssetId = await fetchAssetPrices({
       assetIds,
-      currencies: new Set([currency]),
+      currencies: new Set([currency, 'usd']),
       clientId: this.#clientId,
       clientVersion: this.#clientVersion,
       fetchFn: this.#fetchFn,

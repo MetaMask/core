@@ -1202,4 +1202,48 @@ describe('SocialService', () => {
       );
     });
   });
+
+  describe('refreshNotificationPreferencesCache', () => {
+    it('sends POST to /notifications/preferences/cache-refresh with the bearer token and resolves to void', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      const result = await service.refreshNotificationPreferencesCache();
+
+      expect(result).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/notifications/preferences/cache-refresh`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+        },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 503 });
+
+      const service = createService();
+
+      await expect(
+        service.refreshNotificationPreferencesCache(),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED}: 503`,
+      );
+    });
+
+    it('is callable via messenger action', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const messenger = createMessenger();
+      // eslint-disable-next-line no-new
+      new SocialService({ messenger, baseUrl: BASE_URL });
+
+      const result = await messenger.call(
+        'SocialService:refreshNotificationPreferencesCache',
+      );
+
+      expect(result).toBeUndefined();
+    });
+  });
 });

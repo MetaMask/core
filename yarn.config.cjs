@@ -180,7 +180,14 @@ module.exports = defineConfig({
         // @metamask/wallet-cli prepends a better-sqlite3 prebuild fetch to its
         // "test" script because the native addon isn't built during
         // `yarn install` (Yarn runs with `enableScripts: false`).
-        if (workspace.ident !== '@metamask/wallet-cli') {
+        // @metamask/messenger also runs TSTyche compile-time tests after Jest.
+        if (workspace.ident === '@metamask/messenger') {
+          expectWorkspaceField(
+            workspace,
+            'scripts.test',
+            'yarn test:unit && yarn test:types',
+          );
+        } else if (workspace.ident !== '@metamask/wallet-cli') {
           expectWorkspaceField(
             workspace,
             'scripts.test',
