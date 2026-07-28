@@ -156,6 +156,39 @@ describe('NetworkController analytics', () => {
     expect(trackEvent).not.toHaveBeenCalled();
   });
 
+  it('defaults isRpcEndpointUrlPublic to reporting the endpoint as "custom"', () => {
+    const { networkControllerMessenger, trackEvent } = buildController({
+      analyticsOptions: { rpcServiceEventsSampleRate: 1 },
+    });
+
+    networkControllerMessenger.publish(
+      'NetworkController:rpcEndpointUnavailable',
+      UNAVAILABLE_PAYLOAD,
+    );
+
+    expect(trackEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        properties: expect.objectContaining({
+          rpc_domain: 'custom',
+          rpc_endpoint_url: 'custom',
+        }),
+      }),
+    );
+  });
+
+  it('defaults the sample rate to 0, emitting nothing', () => {
+    const { networkControllerMessenger, trackEvent } = buildController({
+      analyticsOptions: { isRpcEndpointUrlPublic: () => true },
+    });
+
+    networkControllerMessenger.publish(
+      'NetworkController:rpcEndpointUnavailable',
+      UNAVAILABLE_PAYLOAD,
+    );
+
+    expect(trackEvent).not.toHaveBeenCalled();
+  });
+
   it('does not emit when the event falls outside the sample', () => {
     const { networkControllerMessenger, trackEvent } = buildController({
       analyticsOptions: {

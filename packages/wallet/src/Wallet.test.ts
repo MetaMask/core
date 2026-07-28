@@ -33,10 +33,6 @@ async function setupWallet(): Promise<Wallet> {
         clientId: 'test',
       },
       networkController: {
-        analyticsOptions: {
-          isRpcEndpointUrlPublic: (): boolean => false,
-          rpcServiceEventsSampleRate: 0,
-        },
         infuraProjectId: 'fake-infura-project-id',
       },
       storageService: {
@@ -103,10 +99,6 @@ describe('Wallet', () => {
           encryptor: new MockEncryptor(),
         },
         networkController: {
-          analyticsOptions: {
-            isRpcEndpointUrlPublic: (): boolean => false,
-            rpcServiceEventsSampleRate: 0,
-          },
           infuraProjectId: 'fake-infura-project-id',
         },
         storageService: {
@@ -159,10 +151,6 @@ describe('Wallet', () => {
           clientId: 'test',
         },
         networkController: {
-          analyticsOptions: {
-            isRpcEndpointUrlPublic: (): boolean => false,
-            rpcServiceEventsSampleRate: 0,
-          },
           infuraProjectId: 'fake-infura-project-id',
         },
         storageService: {
@@ -209,10 +197,6 @@ describe('Wallet', () => {
           clientId: 'test',
         },
         networkController: {
-          analyticsOptions: {
-            isRpcEndpointUrlPublic: (): boolean => false,
-            rpcServiceEventsSampleRate: 0,
-          },
           infuraProjectId: 'fake-infura-project-id',
         },
         storageService: {
@@ -326,10 +310,6 @@ describe('Wallet', () => {
             clientId: 'test',
           },
           networkController: {
-            analyticsOptions: {
-              isRpcEndpointUrlPublic: (): boolean => false,
-              rpcServiceEventsSampleRate: 0,
-            },
             infuraProjectId: 'fake-infura-project-id',
           },
           storageService: {
@@ -365,10 +345,6 @@ describe('Wallet', () => {
             clientId: 'test',
           },
           networkController: {
-            analyticsOptions: {
-              isRpcEndpointUrlPublic: (): boolean => false,
-              rpcServiceEventsSampleRate: 0,
-            },
             infuraProjectId: 'fake-infura-project-id',
           },
           storageService: {
@@ -412,10 +388,6 @@ describe('Wallet', () => {
             clientId: 'test',
           },
           networkController: {
-            analyticsOptions: {
-              isRpcEndpointUrlPublic: (): boolean => false,
-              rpcServiceEventsSampleRate: 0,
-            },
             infuraProjectId: 'fake-infura-project-id',
           },
           storageService: {
@@ -507,10 +479,6 @@ describe('Wallet', () => {
             clientId: 'test',
           },
           networkController: {
-            analyticsOptions: {
-              isRpcEndpointUrlPublic: (): boolean => false,
-              rpcServiceEventsSampleRate: 0,
-            },
             infuraProjectId: 'fake-infura-project-id',
           },
           keyringController: { encryptor: new MockEncryptor() },

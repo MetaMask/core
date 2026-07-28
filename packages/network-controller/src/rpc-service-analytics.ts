@@ -43,16 +43,24 @@ export type NetworkControllerAnalyticsOptions = {
   /**
    * Returns `true` if the given RPC endpoint URL is safe to report verbatim (a
    * "public" endpoint), or `false` if it must be reported as the literal string
-   * `'custom'` to avoid leaking private servers.
+   * `'custom'` to avoid leaking private servers. Defaults to `() => false`.
    */
-  isRpcEndpointUrlPublic: (endpointUrl: string) => boolean;
+  isRpcEndpointUrlPublic?: (endpointUrl: string) => boolean;
   /**
    * The proportion of events to emit, between 0 and 1. `1` emits every event,
    * `0` emits none. Clients typically use a small value (e.g. `0.01`) in
    * production to stay within their analytics quota, and `1` in development.
+   * Defaults to `0`.
    */
-  rpcServiceEventsSampleRate: number;
+  rpcServiceEventsSampleRate?: number;
 };
+
+/**
+ * {@link NetworkControllerAnalyticsOptions} with defaults applied, as used
+ * internally once the controller has filled in any omitted properties.
+ */
+export type ResolvedNetworkControllerAnalyticsOptions =
+  Required<NetworkControllerAnalyticsOptions>;
 
 /**
  * Hides any API key contained in an RPC endpoint URL by reducing it to its
@@ -215,7 +223,7 @@ function trackRpcServiceEvent({
   buildTrackingEvent,
 }: {
   messenger: NetworkControllerMessenger;
-  analyticsOptions: NetworkControllerAnalyticsOptions;
+  analyticsOptions: ResolvedNetworkControllerAnalyticsOptions;
   error: unknown;
   buildTrackingEvent: () => AnalyticsTrackingEvent;
 }): void {
@@ -253,7 +261,7 @@ function trackRpcServiceEvent({
  */
 export function trackRpcServiceUnavailable(
   messenger: NetworkControllerMessenger,
-  analyticsOptions: NetworkControllerAnalyticsOptions,
+  analyticsOptions: ResolvedNetworkControllerAnalyticsOptions,
   payload: RpcEndpointUnavailablePayload,
 ): void {
   trackRpcServiceEvent({
@@ -277,7 +285,7 @@ export function trackRpcServiceUnavailable(
  */
 export function trackRpcServiceDegraded(
   messenger: NetworkControllerMessenger,
-  analyticsOptions: NetworkControllerAnalyticsOptions,
+  analyticsOptions: ResolvedNetworkControllerAnalyticsOptions,
   payload: RpcEndpointDegradedPayload,
 ): void {
   trackRpcServiceEvent({

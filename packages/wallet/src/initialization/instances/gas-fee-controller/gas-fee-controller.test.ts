@@ -211,10 +211,6 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       clientId: 'test',
     },
     networkController: {
-      analyticsOptions: {
-        isRpcEndpointUrlPublic: (): boolean => false,
-        rpcServiceEventsSampleRate: 0,
-      },
       infuraProjectId: 'test-infura-project-id',
     },
     storageService: {

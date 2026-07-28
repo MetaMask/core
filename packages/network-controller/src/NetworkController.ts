@@ -66,7 +66,10 @@ import {
   trackRpcServiceDegraded,
   trackRpcServiceUnavailable,
 } from './rpc-service-analytics.js';
-import type { NetworkControllerAnalyticsOptions } from './rpc-service-analytics.js';
+import type {
+  NetworkControllerAnalyticsOptions,
+  ResolvedNetworkControllerAnalyticsOptions,
+} from './rpc-service-analytics.js';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
 import { getRpcFailoverMode } from './selectors.js';
 import type { RpcFailoverMode } from './selectors.js';
@@ -777,12 +780,15 @@ export type NetworkControllerOptions = {
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   /**
-   * Configuration that makes the controller emit "RPC Service Unavailable" and
-   * "RPC Service Degraded" analytics events via the `AnalyticsController:trackEvent`
-   * action whenever an RPC endpoint becomes unavailable or degraded. The messenger
-   * must allow `AnalyticsController:getState` and `AnalyticsController:trackEvent`.
+   * Configuration for the "RPC Service Unavailable" and "RPC Service Degraded"
+   * analytics events the controller emits via the `AnalyticsController:trackEvent`
+   * action when an RPC endpoint becomes unavailable or degraded. Both the option
+   * and its properties are optional; omitted properties default to
+   * `isRpcEndpointUrlPublic: () => false` and `rpcServiceEventsSampleRate: 0`
+   * (which emits nothing). The messenger must allow `AnalyticsController:getState`
+   * and `AnalyticsController:trackEvent` regardless.
    */
-  analyticsOptions: NetworkControllerAnalyticsOptions;
+  analyticsOptions?: NetworkControllerAnalyticsOptions;
 };
 
 /**
@@ -1283,7 +1289,7 @@ export class NetworkController extends BaseController<
 
   readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
 
-  readonly #analyticsOptions: NetworkControllerAnalyticsOptions;
+  readonly #analyticsOptions: ResolvedNetworkControllerAnalyticsOptions;
 
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
@@ -1350,7 +1356,11 @@ export class NetworkController extends BaseController<
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
     this.#getBlockTrackerOptions = getBlockTrackerOptions;
-    this.#analyticsOptions = analyticsOptions;
+    this.#analyticsOptions = {
+      isRpcEndpointUrlPublic: (): boolean => false,
+      rpcServiceEventsSampleRate: 0,
+      ...analyticsOptions,
+    };
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;

@@ -15,7 +15,8 @@ export type NetworkControllerInstanceOptions = {
   failoverUrls?: Record<Hex, string[]>;
   /**
    * Configuration for the analytics events the controller emits when an RPC
-   * endpoint becomes unavailable or degraded.
+   * endpoint becomes unavailable or degraded. Optional; omitted properties fall
+   * back to the controller's defaults (which emit nothing).
    */
-  analyticsOptions: NetworkControllerAnalyticsOptions;
+  analyticsOptions?: NetworkControllerAnalyticsOptions;
 };
