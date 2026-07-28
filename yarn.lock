@@ -6149,7 +6149,7 @@ __metadata:
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/storage-service": "npm:^1.0.2"
     "@metamask/utils": "npm:^11.11.0"
-    "@tanstack/query-core": "npm:^4.43.0"
+    "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash": "npm:^4.14.191"
@@ -6332,7 +6332,7 @@ __metadata:
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.11.0"
-    "@tanstack/query-core": "npm:^4.43.0"
+    "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"
@@ -7767,7 +7767,7 @@ __metadata:
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.11.0"
-    "@tanstack/query-core": "npm:^4.43.0"
+    "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"
@@ -8687,7 +8687,7 @@ __metadata:
     "@metamask/network-controller": "npm:^34.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.11.0"
-    "@tanstack/query-core": "npm:^4.43.0"
+    "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"
@@ -8783,7 +8783,7 @@ __metadata:
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.11.0"
-    "@tanstack/query-core": "npm:^4.43.0"
+    "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"
@@ -9415,7 +9415,7 @@ __metadata:
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.11.0"
-    "@tanstack/query-core": "npm:^4.43.0"
+    "@tanstack/query-core": "npm:^5.62.16"
     "@types/jest": "npm:^30.0.0"
     "@types/react": "npm:^19.0.0"
     deepmerge: "npm:^4.2.2"
@@ -11302,13 +11302,6 @@ __metadata:
   version: 5.101.2
   resolution: "@tanstack/query-core@npm:5.101.2"
   checksum: 10/567af5e3c21628745a08c1a5054d838597bc620dcbbeabe20cdd6ccffdcca85a8d38128f6e80829b6e04d10f79ca793a7dd8fddc8a3d6bef10c2d580ae214c7d
-  languageName: node
-  linkType: hard
-
-"@tanstack/query-core@npm:^4.43.0":
-  version: 4.43.0
-  resolution: "@tanstack/query-core@npm:4.43.0"
-  checksum: 10/c2a5a151c7adaea8311e01a643255f31946ae3164a71567ba80048242821ae14043f13f5516b695baebe5ea7e4b2cf717fd60908a929d18a5c5125fee925ff67
   languageName: node
   linkType: hard
 
