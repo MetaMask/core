@@ -55,12 +55,6 @@ export type DefaultInstances = {
   >]: ExtractInstance<DefaultConfigs[Key]>;
 };
 
-// `NetworkController` calls `AnalyticsController:getState` and
-// `AnalyticsController:trackEvent`, which `NetworkControllerMessenger` declares,
-// so they are already part of `DefaultActions`. `Wallet` does not own an
-// `AnalyticsController`, so any consumer that constructs a `Wallet` must
-// register handlers for them on the root messenger (a consumer that does not
-// use analytics can register handlers that do nothing).
 export type DefaultActions = MessengerActions<AllDefaultMessengers>;
 
 export type DefaultEvents = MessengerEvents<AllDefaultMessengers>;
