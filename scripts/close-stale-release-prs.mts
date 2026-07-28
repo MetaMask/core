@@ -86,7 +86,7 @@ type StaleEligibility = { eligible: true; ageMs: number } | { eligible: false };
  * @param pullRequest - GraphQL pull request snapshot.
  * @returns Label name list.
  */
-function snapshotLabelNames(pullRequest: PullRequestSnapshot): string[] {
+function pullRequestLabelNames(pullRequest: PullRequestSnapshot): string[] {
   return pullRequest.labels.nodes.map((label) => label.name);
 }
 
@@ -179,7 +179,7 @@ function evaluateStaleEligibility({
     return { eligible: false };
   }
 
-  if (snapshotLabelNames(pullRequest).includes(SKIP_LABEL)) {
+  if (pullRequestLabelNames(pullRequest).includes(SKIP_LABEL)) {
     core.info(
       `Skipping #${pullRequest.number} (${ref}): skip label "${SKIP_LABEL}"`,
     );
