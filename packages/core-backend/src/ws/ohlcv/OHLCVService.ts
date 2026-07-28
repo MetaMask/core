@@ -437,14 +437,16 @@ export class OHLCVService {
       this.#channels.set(channel, entry);
     }
 
-    const retryCount = (entry.retryCount ?? 0) + 1;
-    entry.retryCount = retryCount;
+    const channelEntry = entry;
+
+    const retryCount = (channelEntry.retryCount ?? 0) + 1;
+    channelEntry.retryCount = retryCount;
 
     if (retryCount > MAX_UNSUB_RETRIES) {
       log('OHLCV-WS: Unsubscribe retries exhausted — forcing reconnection', {
         channel,
       });
-      this.#clearChannelTimers(entry);
+      this.#clearChannelTimers(channelEntry);
       this.#channels.delete(channel);
       this.#messenger
         .call('BackendWebSocketService:forceReconnection')
@@ -461,8 +463,8 @@ export class OHLCVService {
       delayMs,
     });
 
-    entry.retryTimer = setTimeout(() => {
-      entry.retryTimer = undefined;
+    channelEntry.retryTimer = setTimeout(() => {
+      channelEntry.retryTimer = undefined;
       this.#performUnsubscribe(channel).catch(() => {
         // no-op
       });
