@@ -11,6 +11,10 @@ import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import { isHeadlessAllProvidersEnabled } from './featureFlags.js';
+import {
+  PENDING_ORDER_STATUSES,
+  TERMINAL_ORDER_STATUSES,
+} from './orderStatus.js';
 import { getProvidersServingAsset } from './providerAvailability.js';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
 import type { RampsErrorCode } from './rampsErrorCodes.js';
@@ -780,20 +784,6 @@ export function getInternalOrderCode(
 }
 
 // === ORDER POLLING CONSTANTS ===
-
-const TERMINAL_ORDER_STATUSES = new Set<RampsOrderStatus>([
-  RampsOrderStatus.Completed,
-  RampsOrderStatus.Failed,
-  RampsOrderStatus.Cancelled,
-  RampsOrderStatus.IdExpired,
-]);
-
-const PENDING_ORDER_STATUSES = new Set<RampsOrderStatus>([
-  RampsOrderStatus.Pending,
-  RampsOrderStatus.Created,
-  RampsOrderStatus.Unknown,
-  RampsOrderStatus.Precreated,
-]);
 
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 const MAX_ERROR_COUNT = 5;
