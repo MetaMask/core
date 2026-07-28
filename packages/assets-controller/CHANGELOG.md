@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Nest AssetsController Sentry spans (`AssetsDataSourceTiming`, `AssetsDataSourceError`, `AssetsControllerFirstInitFetch`, pipeline summaries) as subspans under parent `AssetsFullFetch` / `AssetsUpdatePipeline` / `AssetsBackgroundFetch` traces, and emit a single `AggregatedBalanceSelector` span for `calculateBalanceForAllWallets` instead of one root span per account group, to avoid Sentry rate limits ([#9672](https://github.com/MetaMask/core/pull/9672))
-  - `AssetsControllerFirstInitFetch` remains once per unlock session; other pipeline parent traces continue to emit on each full fetch / update.
+  - Pipeline / data-source / update enrichment spans emit only on the unlock (first-init) fetch per session; later polls, force updates, and subscription enrichment skip tracing.
   - Dashboard-facing spans (`AssetsFullFetch`, `AssetsUpdatePipeline`, `AggregatedBalanceSelector`, etc.) record `duration_ms` as a Sentry measurement (and backdate `startTime`) so Spans widgets charting `p95(duration_ms)` receive data. Nesting parents use `AssetsFetchPipeline` / `AssetsUpdateEnrichment` / `AssetsBackgroundFetch` / `AggregatedBalance`.
   - `AggregatedBalanceSelector` is nested under an `AggregatedBalance` parent span via `parentContext`.
 - Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))

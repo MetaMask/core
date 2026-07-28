@@ -2754,8 +2754,12 @@ describe('AssetsController', () => {
           const fullFetchCallsBefore = traceMock.mock.calls.filter(
             (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
           ).length;
+          const timingCallsBefore = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+          ).length;
 
-          // Later force updates still emit AssetsFullFetch summary spans.
+          // Later force updates must not emit pipeline spans (unlock-only tracing).
           await controller.getAssets([createMockInternalAccount()], {
             forceUpdate: true,
           });
@@ -2763,8 +2767,13 @@ describe('AssetsController', () => {
           const fullFetchCallsAfter = traceMock.mock.calls.filter(
             (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
           ).length;
+          const timingCallsAfter = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+          ).length;
 
-          expect(fullFetchCallsAfter).toBeGreaterThan(fullFetchCallsBefore);
+          expect(fullFetchCallsAfter).toBe(fullFetchCallsBefore);
+          expect(timingCallsAfter).toBe(timingCallsBefore);
         },
       );
     });
