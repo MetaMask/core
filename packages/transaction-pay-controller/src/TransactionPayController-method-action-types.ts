@@ -20,20 +20,6 @@ export type TransactionPayControllerSetTransactionConfigAction = {
 };
 
 /**
- * Prepares and atomically commits an exact transaction amount, then launches
- * one quote generation for the updated transaction.
- * Identical in-flight intents share the same promise; different intents
- * supersede and abort earlier work.
- *
- * @param request - Exact amount and transaction ID.
- * @returns Whether the matching quote generation was published.
- */
-export type TransactionPayControllerUpdateAmountAction = {
-  type: `TransactionPayController:updateAmount`;
-  handler: TransactionPayController['updateAmount'];
-};
-
-/**
  * Updates the payment token for a transaction.
  *
  * Resolves token metadata and balances, then stores the new payment token
@@ -156,7 +142,6 @@ export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
  */
 export type TransactionPayControllerMethodActions =
   | TransactionPayControllerSetTransactionConfigAction
-  | TransactionPayControllerUpdateAmountAction
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerGetDelegationTransactionAction

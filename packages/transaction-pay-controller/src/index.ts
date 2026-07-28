@@ -4,9 +4,6 @@ export type {
   GetAmountDataResponse,
   GetPaymentOverrideDataRequest,
   GetPaymentOverrideDataResponse,
-  PrepareTransactionAmountCallback,
-  PrepareTransactionAmountRequest,
-  PrepareTransactionAmountResult,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -28,7 +25,6 @@ export type {
   TransactionPayRequiredToken,
   TransactionPaySourceAmount,
   TransactionPayTotals,
-  UpdateAmountRequest,
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types.js';
@@ -40,7 +36,6 @@ export type {
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
   TransactionPayControllerSetTransactionConfigAction,
-  TransactionPayControllerUpdateAmountAction,
   TransactionPayControllerUpdatePaymentTokenAction,
   TransactionPayControllerUpdateFiatPaymentAction,
 } from './TransactionPayController-method-action-types.js';

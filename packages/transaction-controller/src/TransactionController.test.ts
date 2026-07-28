@@ -4925,7 +4925,7 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('updateTransactionMetadata', () => {
+  describe('updateTransactionMetadataWithoutResimulation', () => {
     it('updates multiple properties using a callback and returns the updated transaction', () => {
       const { controller } = setupController({
         options: {
@@ -4935,7 +4935,7 @@ describe('TransactionController', () => {
         },
       });
 
-      const result = controller.updateTransactionMetadata({
+      const result = controller.updateTransactionMetadataWithoutResimulation({
         transactionId: TRANSACTION_META_MOCK.id,
         callback: (transactionMeta) => {
           transactionMeta.requiredAssets = [
@@ -4960,6 +4960,25 @@ describe('TransactionController', () => {
       expect(result.txParams.value).toBe('0x2');
     });
 
+    it('does not check whether the update should trigger re-simulation', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      controller.updateTransactionMetadataWithoutResimulation({
+        transactionId: TRANSACTION_META_MOCK.id,
+        callback: (transactionMeta) => {
+          transactionMeta.txParams.data = '0x1234';
+        },
+      });
+
+      expect(shouldResimulateMock).not.toHaveBeenCalled();
+    });
+
     it('ignores a transaction returned by the callback', () => {
       const { controller } = setupController({
         options: {
@@ -4973,7 +4992,7 @@ describe('TransactionController', () => {
         txParams: { ...TRANSACTION_META_MOCK.txParams, value: '0x3' },
       };
 
-      const result = controller.updateTransactionMetadata({
+      const result = controller.updateTransactionMetadataWithoutResimulation({
         transactionId: TRANSACTION_META_MOCK.id,
         callback: () => updatedTransaction,
       });
@@ -4985,7 +5004,7 @@ describe('TransactionController', () => {
       const { controller } = setupController();
 
       expect(() =>
-        controller.updateTransactionMetadata({
+        controller.updateTransactionMetadataWithoutResimulation({
           transactionId: 'missing-id',
           callback: () => undefined,
         }),
@@ -8560,8 +8579,8 @@ describe('TransactionController', () => {
       });
     });
 
-    describe('TransactionController:updateTransactionMetadata', () => {
-      it('calls updateTransactionMetadata via messenger', () => {
+    describe('TransactionController:updateTransactionMetadataWithoutResimulation', () => {
+      it('calls updateTransactionMetadataWithoutResimulation via messenger', () => {
         const { controller, messenger } = setupController({
           options: {
             state: {
@@ -8571,7 +8590,7 @@ describe('TransactionController', () => {
         });
 
         const result = messenger.call(
-          'TransactionController:updateTransactionMetadata',
+          'TransactionController:updateTransactionMetadataWithoutResimulation',
           {
             transactionId: TRANSACTION_META_MOCK.id,
             callback: (transactionMeta) => {

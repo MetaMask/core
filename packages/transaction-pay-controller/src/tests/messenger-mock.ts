@@ -18,7 +18,6 @@ import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
   TransactionControllerEstimateGasAction,
-  TransactionControllerUpdateTransactionMetadataAction,
   TransactionControllerEstimateGasBatchAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
@@ -69,10 +68,6 @@ export function getMessengerMock({
 
   const addTransactionBatchMock: jest.MockedFn<
     TransactionControllerAddTransactionBatchAction['handler']
-  > = jest.fn();
-
-  const updateTransactionCallbackMock: jest.MockedFn<
-    TransactionControllerUpdateTransactionMetadataAction['handler']
   > = jest.fn();
 
   const findNetworkClientIdByChainIdMock: jest.MockedFn<
@@ -303,11 +298,6 @@ export function getMessengerMock({
   }
 
   messenger.registerActionHandler(
-    'TransactionController:updateTransactionMetadata',
-    updateTransactionCallbackMock,
-  );
-
-  messenger.registerActionHandler(
     'KeyringController:getState',
     getKeyringControllerStateMock,
   );
@@ -343,7 +333,6 @@ export function getMessengerMock({
     polymarketSubmitDepositWalletBatchMock,
     publish,
     simulateTransactionsMock,
-    updateTransactionCallbackMock,
     updateTransactionMock,
   };
 }
