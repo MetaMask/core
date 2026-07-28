@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: add `.js` import extensions to Swaps-Bridge packages ([#9624](https://github.com/MetaMask/core/pull/9624))
+
 ### Added
 
 - Populate `srcTxHash` in the `QuoteStatusUpdateError` when a finalization is reported for a transaction that has no tracked quote-status entry, so the error details identify the source transaction alongside `txMetaId` and `srcChainId` ([#9673](https://github.com/MetaMask/core/pull/9673))
@@ -17,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use `gasFee.total` instead of `gasFee.effective` to calculate gas metrics properties ([#9507](https://github.com/MetaMask/core/pull/9507))
 - Update utils to use `mergeQuoteMetadata` and handle optional QuoteMetadata values. ([#9507](https://github.com/MetaMask/core/pull/9507))
-- Bump `@metamask/bridge-controller` from `^77.7.0` to `^78.0.0` ([#9614](https://github.com/MetaMask/core/pull/9614)), ([#9637](https://github.com/MetaMask/core/pull/9637))
+- Bump `@metamask/bridge-controller` from `^77.7.0` to `^78.0.0` ([#9614](https://github.com/MetaMask/core/pull/9614), [#9637](https://github.com/MetaMask/core/pull/9637))
 - Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
 
 ## [74.4.0]
