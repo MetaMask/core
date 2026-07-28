@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
 
+### Fixed
+
+- Fix Arc (`5042`/`0x13b2`) native asset ID in `codefi-v2.ts`, from the `erc20:0x0` zero-address placeholder to `slip44:5042` now that Arc has a real SLIP-44 registry entry for its native USDC ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+
 ## [110.0.0]
 
 ### Added
