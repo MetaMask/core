@@ -8,6 +8,7 @@
 
 import * as core from '@actions/core';
 import { context, getOctokit } from '@actions/github';
+import { Duration, getErrorMessage, inMilliseconds } from '@metamask/utils';
 
 /**
  * The label users can use to prevent stale release PRs from being auto-closed.
@@ -15,9 +16,14 @@ import { context, getOctokit } from '@actions/github';
 const SKIP_LABEL = 'release:keep-open';
 
 /**
+ * How long inactive release PRs stay open before auto-close.
+ */
+const STALE_DURATION_HOURS = 3;
+
+/**
  * How long inactive release PRs stay open before auto-close (milliseconds).
  */
-const STALE_DURATION_MS = 3 * 60 * 60 * 1000;
+const STALE_DURATION_MS = inMilliseconds(STALE_DURATION_HOURS, Duration.Hour);
 
 const PULL_REQUEST_SNAPSHOT_QUERY = `
   query ($owner: String!, $repo: String!, $number: Int!) {
@@ -72,14 +78,16 @@ type BranchDeleteOutcome = {
   detail: string;
 };
 
+type StaleEligibility = { eligible: true; ageMs: number } | { eligible: false };
+
 /**
  * Label names from a GraphQL PR snapshot.
  *
- * @param snapshot - GraphQL pull request snapshot.
+ * @param pullRequest - GraphQL pull request snapshot.
  * @returns Label name list.
  */
-function snapshotLabelNames(snapshot: PullRequestSnapshot): string[] {
-  return snapshot.labels.nodes.map((label) => label.name);
+function snapshotLabelNames(pullRequest: PullRequestSnapshot): string[] {
+  return pullRequest.labels.nodes.map((label) => label.name);
 }
 
 /**
@@ -139,11 +147,11 @@ function isReleasePrCandidate(pullRequest: ListedPullRequest): boolean {
 /**
  * Whether merge-queue or auto-merge is active for the PR.
  *
- * @param snapshot - GraphQL pull request snapshot.
+ * @param pullRequest - GraphQL pull request snapshot.
  * @returns True when a merge is already in progress.
  */
-function isMergeInProgress(snapshot: PullRequestSnapshot): boolean {
-  return Boolean(snapshot.isInMergeQueue || snapshot.autoMergeRequest);
+function isMergeInProgress(pullRequest: PullRequestSnapshot): boolean {
+  return Boolean(pullRequest.isInMergeQueue || pullRequest.autoMergeRequest);
 }
 
 /**
@@ -153,46 +161,46 @@ function isMergeInProgress(snapshot: PullRequestSnapshot): boolean {
  * prevents auto-close.
  *
  * @param options - Evaluation inputs.
- * @param options.snapshot - Fresh GraphQL pull request snapshot.
+ * @param options.pullRequest - Fresh GraphQL pull request snapshot.
  * @param options.staleBefore - Epoch ms; PRs updated at/after this are kept.
  * @returns Eligibility result.
  */
 function evaluateStaleEligibility({
-  snapshot,
+  pullRequest,
   staleBefore,
 }: {
-  snapshot: PullRequestSnapshot;
+  pullRequest: PullRequestSnapshot;
   staleBefore: number;
-}): { eligible: boolean; ageMs?: number } {
-  const ref = snapshot.headRefName;
+}): StaleEligibility {
+  const ref = pullRequest.headRefName;
 
-  if (snapshot.state !== 'OPEN') {
-    core.info(`Skipping #${snapshot.number} (${ref}): no longer open`);
+  if (pullRequest.state !== 'OPEN') {
+    core.info(`Skipping #${pullRequest.number} (${ref}): no longer open`);
     return { eligible: false };
   }
 
-  if (snapshotLabelNames(snapshot).includes(SKIP_LABEL)) {
+  if (snapshotLabelNames(pullRequest).includes(SKIP_LABEL)) {
     core.info(
-      `Skipping #${snapshot.number} (${ref}): skip label "${SKIP_LABEL}"`,
+      `Skipping #${pullRequest.number} (${ref}): skip label "${SKIP_LABEL}"`,
     );
     return { eligible: false };
   }
 
-  if (snapshot.headRepository?.isFork) {
-    core.info(`Skipping #${snapshot.number} (${ref}): fork head`);
+  if (pullRequest.headRepository?.isFork) {
+    core.info(`Skipping #${pullRequest.number} (${ref}): fork head`);
     return { eligible: false };
   }
 
-  const updatedAtMs = Date.parse(snapshot.updatedAt);
+  const updatedAtMs = Date.parse(pullRequest.updatedAt);
   if (updatedAtMs >= staleBefore) {
     core.info(
-      `Skipping #${snapshot.number} (${ref}): updated ${Math.round((Date.now() - updatedAtMs) / 60000)}m ago`,
+      `Skipping #${pullRequest.number} (${ref}): updated ${Math.round((Date.now() - updatedAtMs) / Duration.Minute)}m ago`,
     );
     return { eligible: false };
   }
 
-  if (isMergeInProgress(snapshot)) {
-    core.info(`Skipping #${snapshot.number} (${ref}): merge in progress`);
+  if (isMergeInProgress(pullRequest)) {
+    core.info(`Skipping #${pullRequest.number} (${ref}): merge in progress`);
     return { eligible: false };
   }
 
@@ -222,8 +230,9 @@ async function closePullRequest(
     });
     return true;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    core.warning(`Failed to close #${pullNumber} (${headRef}): ${message}`);
+    core.warning(
+      `Failed to close #${pullNumber} (${headRef}): ${getErrorMessage(error)}`,
+    );
     return false;
   }
 }
@@ -260,7 +269,7 @@ async function deleteBranchIfUnchanged({
     });
     branchSha = branchRef.object.sha;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     core.warning(
       `Closed #${pullNumber} but failed to refresh ${expectedHeadRef} before delete: ${message}`,
     );
@@ -284,7 +293,7 @@ async function deleteBranchIfUnchanged({
     core.info(`Closed #${pullNumber} and deleted branch ${expectedHeadRef}`);
     return { outcome: 'deleted', detail: '' };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     core.warning(
       `Closed #${pullNumber} but failed to delete ${expectedHeadRef}: ${message}`,
     );
@@ -316,11 +325,10 @@ function buildCloseComment({
   inactiveHours: string;
   outcome: BranchDeleteOutcome['outcome'];
 }): string {
-  const staleHours = STALE_DURATION_MS / (60 * 60 * 1000);
   const lines = [
     '## This pull request has been closed',
     '',
-    `This release PR was automatically closed because it had no activity for ${staleHours} hours (last updated ${inactiveHours}h ago).`,
+    `This release PR was automatically closed because it had no activity for ${STALE_DURATION_HOURS} hours (last updated ${inactiveHours}h ago).`,
     '',
     'Open release PRs are expected to merge promptly so they do not block others from starting a new release.',
     '',
@@ -366,8 +374,9 @@ async function commentOnPullRequest(
       body,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    core.warning(`Closed #${pullNumber} but failed to comment: ${message}`);
+    core.warning(
+      `Closed #${pullNumber} but failed to comment: ${getErrorMessage(error)}`,
+    );
   }
 }
 
@@ -388,29 +397,28 @@ async function processReleasePr({
   candidate: ListedPullRequest;
   staleBefore: number;
 }): Promise<void> {
-  let snapshot: PullRequestSnapshot;
+  let pullRequest: PullRequestSnapshot;
   try {
-    snapshot = await getPullRequestSnapshot(octokit, candidate.number);
+    pullRequest = await getPullRequestSnapshot(octokit, candidate.number);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
     core.warning(
-      `Failed to refresh #${candidate.number} (${candidate.head.ref}): ${message}`,
+      `Failed to refresh #${candidate.number} (${candidate.head.ref}): ${getErrorMessage(error)}`,
     );
     return;
   }
 
-  const eligibility = evaluateStaleEligibility({ snapshot, staleBefore });
-  if (!eligibility.eligible || eligibility.ageMs === undefined) {
+  const eligibility = evaluateStaleEligibility({ pullRequest, staleBefore });
+  if (!eligibility.eligible) {
     return;
   }
 
-  const inactiveHours = (eligibility.ageMs / (60 * 60 * 1000)).toFixed(1);
+  const inactiveHours = (eligibility.ageMs / Duration.Hour).toFixed(1);
 
   // Close before commenting so a failed close does not bump updatedAt.
   const closed = await closePullRequest(
     octokit,
-    snapshot.number,
-    snapshot.headRefName,
+    pullRequest.number,
+    pullRequest.headRefName,
   );
   if (!closed) {
     return;
@@ -418,9 +426,9 @@ async function processReleasePr({
 
   const branchResult = await deleteBranchIfUnchanged({
     octokit,
-    pullNumber: snapshot.number,
-    expectedHeadRef: snapshot.headRefName,
-    expectedHeadSha: snapshot.headRefOid,
+    pullNumber: pullRequest.number,
+    expectedHeadRef: pullRequest.headRefName,
+    expectedHeadSha: pullRequest.headRefOid,
   });
 
   const body = buildCloseComment({
@@ -428,7 +436,7 @@ async function processReleasePr({
     outcome: branchResult.outcome,
   });
 
-  await commentOnPullRequest(octokit, snapshot.number, body);
+  await commentOnPullRequest(octokit, pullRequest.number, body);
 }
 
 /**
@@ -457,9 +465,7 @@ async function main(): Promise<void> {
     },
   );
 
-  const releasePrs = pullRequests.filter((pullRequest) =>
-    isReleasePrCandidate(pullRequest),
-  );
+  const releasePrs = pullRequests.filter(isReleasePrCandidate);
 
   if (releasePrs.length === 0) {
     core.info('No open release PRs to evaluate.');
@@ -476,7 +482,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  core.setFailed(message);
+  core.setFailed(getErrorMessage(error));
   process.exitCode = 1;
 });
