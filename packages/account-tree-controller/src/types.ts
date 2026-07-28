@@ -16,7 +16,6 @@ import type {
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
-  KeyringControllerImportAccountWithStrategyAction,
   KeyringControllerWithKeyringV2Action,
   KeyringControllerWithKeyringV2UnsafeAction,
 } from '@metamask/keyring-controller';
@@ -104,7 +103,6 @@ export type AllowedActions =
   | MultichainAccountServiceCreateMultichainAccountWalletAction
   | KeyringControllerWithKeyringV2Action
   | KeyringControllerWithKeyringV2UnsafeAction
-  | KeyringControllerImportAccountWithStrategyAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
