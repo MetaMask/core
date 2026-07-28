@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/money-account-api-data-service` from `^0.3.0` to `^0.4.0` ([#9677](https://github.com/MetaMask/core/pull/9677))
 - Bump `@metamask/money-account-api-data-service` from `^0.2.0` to `^0.3.0` ([#9592](https://github.com/MetaMask/core/pull/9592))
 
 ## [2.3.0]
