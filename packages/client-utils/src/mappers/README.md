@@ -2,11 +2,19 @@
 
 These mappers normalize different shapes from various data sources, currently:
 
-- EVM transactions from the Accounts REST endpoint
-- Non-EVM transactions from the multichain / keyring transaction model
-- Local transaction state from `TransactionController`
+- EVM transactions from the Metamask Account Transactions REST endpoint
+- Non-EVM transactions
+- Local transaction state
 
 Each mapper is a pure function that returns the shared `ActivityItem` shape consumed by MetaMask clients (extension and mobile) for activity lists and transaction details.
+
+Ultimately, the goal is for the MetaMask API to provide both EVM and non-EVM data in a shape closer to what the UI needs. Until then, we adapt these different data sources.
+
+> ### A note on local transaction mapping
+>
+> Mapping local transaction state is only meant to support rendering while a transaction is pending and has not been indexed by the API, or in special cases where we want to enrich the UI with local-only data.
+>
+> Do **not** rely on it for primary rendering. Activity opened on another instance will not be consistent, since that instance will not have the local-only state.
 
 ---
 
@@ -35,12 +43,13 @@ flowchart LR
   nonEvmMapper --> items
   localMapper --> items
 
-  items --> list["Activity list<br/>(dedupe + group + virtualized list)"]
-  items --> details["Transaction details<br/>(single item lookup by hash)"]
+  items --> list["Activity list"]
+  items --> details["Transaction details"]
+  items --> toast["Transaction toast"]
 ```
 
 1. **Single output type** — every mapper returns `ActivityItem`
-2. **Pure functions** — mappers do not touch Redux or client stores. Clients fetch/join state before calling these functions.
+2. **Pure functions** — mappers do not touch Redux or client stores. Clients fetch state before calling these functions
 
 ---
 
@@ -80,18 +89,6 @@ File: `local-transaction-mapper.ts`
 Input: a `TransactionGroup` from `helpers/transactions.ts` — the shape the EVM `TransactionController` produces after grouping by nonce (`initialTransaction`, `primaryTransaction`, plus cancel/retry siblings), optionally enriched by the client (`sourceToken`, `destinationToken`, fees, etc.)
 
 This mapper only classifies `ActivityKind`. It is a stand-in until the indexed API picks up the transaction; clients should defer accurate token/amount/asset details to the API mapper on refetch.
-
----
-
-## Where mappers are used
-
-| Client concern | Mapper used |
-| -------------- | ----------- |
-| Local pending / confirmed EVM groups | `mapLocalTransaction` per `TransactionGroup`, after computing enrichments |
-| Non-EVM keyring history | `mapKeyringTransaction` per keyring `Transaction`, after patching missing units |
-| Indexed EVM history / details | `mapApiTransaction` per API response |
-
-Exact selector / hook names live in each client; this package only owns the pure mapping layer.
 
 ---
 
