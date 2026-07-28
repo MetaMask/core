@@ -309,6 +309,6 @@
     "./types",
     "./scripts",
     "./codeowners.ts",
-    "./knip.config.ts"
+    "./knip.config.mts"
   ]
 }

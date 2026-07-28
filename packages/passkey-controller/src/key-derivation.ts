@@ -1,12 +1,12 @@
 import {
   PasskeyControllerErrorCode,
   PasskeyControllerErrorMessage,
-} from './constants';
-import { PasskeyControllerError } from './errors';
-import type { PasskeyRecord, PrfClientExtensionResults } from './types';
-import { deriveEncryptionKey } from './utils/crypto';
-import { base64URLToBytes } from './utils/encoding';
-import type { PasskeyAuthenticationResponse } from './webauthn/types';
+} from './constants.js';
+import { PasskeyControllerError } from './errors.js';
+import type { PasskeyRecord, PrfClientExtensionResults } from './types.js';
+import { deriveEncryptionKey } from './utils/crypto.js';
+import { base64URLToBytes } from './utils/encoding.js';
+import type { PasskeyAuthenticationResponse } from './webauthn/types.js';
 
 /**
  * Derives an AES-256 wrapping key from a WebAuthn authentication ceremony

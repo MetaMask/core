@@ -2,14 +2,14 @@ import {
   getEnvUrls,
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
-} from './constants';
-import type { Env } from './constants';
+} from './constants.js';
+import type { Env } from './constants.js';
 import {
   createSentryError,
   getSubscriptionErrorFromResponse,
   SubscriptionServiceError,
-} from './errors';
-import { createModuleLogger, projectLogger } from './logger';
+} from './errors.js';
+import { createModuleLogger, projectLogger } from './logger.js';
 import type {
   AssignCohortRequest,
   AuthUtils,
@@ -32,7 +32,7 @@ import type {
   LinkRewardsRequest,
   SubscriptionApiGeneralResponse,
   CancelSubscriptionRequest,
-} from './types';
+} from './types.js';
 
 export type SubscriptionServiceConfig = {
   env: Env;

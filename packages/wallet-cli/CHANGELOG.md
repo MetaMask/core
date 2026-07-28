@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Auto-accept pending approval requests in the daemon so a transaction or signature flow resolves instead of hanging on the headless no-op `showApprovalRequest`; the subscription is torn down on `dispose` ([#9612](https://github.com/MetaMask/core/pull/9612))
+  - **Security note:** the daemon approves every request without a per-request prompt; the trust boundary is its `0600`, same-user Unix socket.
 - Wire the `transactionController` slot in the daemon wallet's instance options, so the daemon runs the `TransactionController` with an explicit CLI-appropriate configuration (swaps processing disabled, no client hooks) rather than relying on the controller's implicit defaults ([#9509](https://github.com/MetaMask/core/pull/9509))
 - Wire the `gasFeeController` slot in the daemon wallet's instance options, passing `clientId: 'cli'` so the CLI identifies itself to the gas estimation API, now that `@metamask/wallet` requires this option ([#9527](https://github.com/MetaMask/core/pull/9527))
 - Add the `mm wallet unlock` command, which dispatches `KeyringController:submitPassword` over the daemon socket, allowing the keyring to be unlocked after a daemon start with no password or after a `mm daemon call KeyringController:setLocked` ([#8821](https://github.com/MetaMask/core/pull/8821))
@@ -25,8 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--password` / `MM_WALLET_PASSWORD` is now optional on `mm daemon start`; on subsequent runs, omitting it starts the daemon with a locked keyring, and the persisted vault is auto-unlocked when a password is supplied ([#8821](https://github.com/MetaMask/core/pull/8821))
 - The daemon RPC server now validates `params` against each handler's superstruct before dispatch, returning a `-32602 invalidParams` error on mismatch instead of passing raw params to the handler ([#8846](https://github.com/MetaMask/core/pull/8846))
 - Report daemon socket connection errors consistently across `mm daemon call` and `mm daemon list` ([#9339](https://github.com/MetaMask/core/pull/9339))
-- Bump `@metamask/wallet` from `^3.0.0` to `^8.1.0` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9263](https://github.com/MetaMask/core/pull/9263), [#9349](https://github.com/MetaMask/core/pull/9349), [#9396](https://github.com/MetaMask/core/pull/9396), [#9470](https://github.com/MetaMask/core/pull/9470), [#9629](https://github.com/MetaMask/core/pull/9629))
+- Bump `@metamask/wallet` from `^3.0.0` to `^8.1.0` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9263](https://github.com/MetaMask/core/pull/9263), [#9349](https://github.com/MetaMask/core/pull/9349), [#9396](https://github.com/MetaMask/core/pull/9396), [#9470](https://github.com/MetaMask/core/pull/9470), [#9609](https://github.com/MetaMask/core/pull/9609), [#9629](https://github.com/MetaMask/core/pull/9629))
 - Wrap daemon password and SRP in opaque `Password` and `Srp` types that redact on logging; validated and unwrapped only at trust boundaries ([#8863](https://github.com/MetaMask/core/pull/8863))
-- Bump `@metamask/wallet` from `^7.0.1` to `8.0.0`. ([#9609](https://github.com/MetaMask/core/pull/9609))
 
 [Unreleased]: https://github.com/MetaMask/core/
