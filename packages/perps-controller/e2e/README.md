@@ -49,11 +49,11 @@ case. Sizes must clear HyperLiquid's $10 minimum notional.
 
 ### Options
 
-| Flag | Default | Meaning |
-| --- | --- | --- |
-| `--mode` | `simulated` | `simulated` or `testnet` |
-| `--out` | `e2e/artifacts` (or `PERPS_E2E_OUT`) | Evidence output directory |
-| `--symbol` | `BTC` (or `PERPS_E2E_SYMBOL`) | Market to trade |
+| Flag       | Default                              | Meaning                   |
+| ---------- | ------------------------------------ | ------------------------- |
+| `--mode`   | `simulated`                          | `simulated` or `testnet`  |
+| `--out`    | `e2e/artifacts` (or `PERPS_E2E_OUT`) | Evidence output directory |
+| `--symbol` | `BTC` (or `PERPS_E2E_SYMBOL`)        | Market to trade           |
 
 ### Regression guard
 

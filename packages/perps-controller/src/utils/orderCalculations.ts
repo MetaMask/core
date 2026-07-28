@@ -69,9 +69,11 @@ export type CalculateOrderPriceAndSizeParams = {
   // `*_limit` executes at `limitPrice`, `*_market` derives a slippage-capped
   // limit price from this trigger price.
   triggerPrice?: string;
-  // Max slippage in basis points (e.g. 300 = 3%). Only applied to market orders;
-  // limit orders use limitPrice directly. Falls back to ORDER_SLIPPAGE_CONFIG
-  // .DefaultMarketSlippageBps when omitted on a market order.
+  // Max slippage in basis points (e.g. 300 = 3%). Applied to market orders and to
+  // market-executing trigger orders (where it caps the limit price derived from
+  // the trigger price); limit orders use limitPrice directly. Falls back to
+  // ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps for market orders and
+  // .DefaultTpslSlippageBps for market-executing triggers.
   maxSlippageBps?: number;
   szDecimals: number;
 };
@@ -360,9 +362,11 @@ export function calculateOrderPriceAndSize(
       orderPrice = parseFloat(limitPrice);
     } else {
       // Market execution on trigger: HyperLiquid still needs a limit price, used
-      // as a slippage cap. Same 10% convention as the existing TP/SL children.
-      const slippageValue =
-        ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / BASIS_POINTS_DIVISOR;
+      // as a slippage cap. The caller's tolerance wins when supplied; otherwise
+      // the 10% convention of the existing TP/SL children applies.
+      const effectiveBps =
+        maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps;
+      const slippageValue = effectiveBps / BASIS_POINTS_DIVISOR;
       orderPrice = isBuy
         ? triggerPriceNum * (1 + slippageValue)
         : triggerPriceNum * (1 - slippageValue);
@@ -526,7 +530,11 @@ export function buildOrdersArray(
         price: parseFloat(takeProfitPrice),
         szDecimals,
       }),
-      s: formatTpslSize({ tpslSize: takeProfitSize, formattedSize, szDecimals }),
+      s: formatTpslSize({
+        tpslSize: takeProfitSize,
+        formattedSize,
+        szDecimals,
+      }),
       r: true,
       t: {
         trigger: {

@@ -11,7 +11,6 @@ import {
   getTriggerExecution,
   isLimitExecutionOrderType,
   isTriggerOrderType,
-  normalizeExecutionOrderType,
 } from '../../../src/utils/orderTypes.js';
 
 const createOrder = (overrides: Partial<Order> = {}): Order => ({
@@ -94,21 +93,11 @@ describe('orderTypes', () => {
     );
   });
 
-  describe('normalizeExecutionOrderType', () => {
-    it('reduces trigger placements to their execution kind', () => {
-      expect(normalizeExecutionOrderType('stop_limit')).toBe('limit');
-      expect(normalizeExecutionOrderType('take_profit_market')).toBe('market');
-    });
-  });
-
   describe('buildTriggerOrderType', () => {
     it.each([
       [{ direction: 'stop', execution: 'market' }, 'stop_market'],
       [{ direction: 'stop', execution: 'limit' }, 'stop_limit'],
-      [
-        { direction: 'take_profit', execution: 'market' },
-        'take_profit_market',
-      ],
+      [{ direction: 'take_profit', execution: 'market' }, 'take_profit_market'],
       [{ direction: 'take_profit', execution: 'limit' }, 'take_profit_limit'],
     ] as [Parameters<typeof buildTriggerOrderType>[0], TriggerOrderType][])(
       'builds %o into %s',

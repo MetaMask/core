@@ -485,7 +485,6 @@ export {
   isLimitExecutionOrderType,
   getTriggerExecution,
   getTriggerDirection,
-  normalizeExecutionOrderType,
   buildTriggerOrderType,
   buildPositionTriggerOrderFromOrder,
 } from './utils/index.js';

@@ -7,11 +7,7 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
-import type {
-  CandleData,
-  OrderType,
-  TriggerOrderType,
-} from './perps-types.js';
+import type { CandleData, OrderType, TriggerOrderType } from './perps-types.js';
 
 /**
  * Connection states for WebSocket management.

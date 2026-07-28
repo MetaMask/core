@@ -57,6 +57,9 @@ export function isLimitExecutionOrderType(orderType: OrderType): boolean {
 /**
  * Get how an order executes, ignoring whether it is trigger-gated.
  *
+ * This is also the coarse execution type that consumers predating trigger orders
+ * understand (fee tiers, max order value, analytics).
+ *
  * @param orderType - Order type to inspect.
  * @returns `'limit'` for limit and `*_limit` types, `'market'` otherwise.
  */
@@ -76,19 +79,6 @@ export function getTriggerDirection(
   return orderType === 'stop_market' || orderType === 'stop_limit'
     ? 'stop'
     : 'take_profit';
-}
-
-/**
- * Reduce a placement type to the coarse execution type consumers that predate
- * trigger orders understand (fee tiers, max order value, analytics).
- *
- * @param orderType - Order type to normalize.
- * @returns `'market'` or `'limit'`.
- */
-export function normalizeExecutionOrderType(
-  orderType: OrderType,
-): OrderExecution {
-  return getTriggerExecution(orderType);
 }
 
 /**
@@ -122,9 +112,7 @@ export function buildPositionTriggerOrderFromOrder(params: {
     triggerPrice: order.triggerPrice ?? order.price,
     size: size.toString(),
     isPartial:
-      rawSize > 0 &&
-      absolutePositionSize > 0 &&
-      rawSize < absolutePositionSize,
+      rawSize > 0 && absolutePositionSize > 0 && rawSize < absolutePositionSize,
     reduceOnly: Boolean(order.reduceOnly),
   };
 }

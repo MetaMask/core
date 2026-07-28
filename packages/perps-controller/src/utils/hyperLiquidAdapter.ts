@@ -352,7 +352,8 @@ export function adaptPositionTriggerOrderFromSDK(params: {
     orderType,
     triggerPrice,
     size: size.toString(),
-    isPartial: rawSize > 0 && absolutePositionSize > 0 && rawSize < absolutePositionSize,
+    isPartial:
+      rawSize > 0 && absolutePositionSize > 0 && rawSize < absolutePositionSize,
     reduceOnly: Boolean(rawOrder.reduceOnly),
   };
 }

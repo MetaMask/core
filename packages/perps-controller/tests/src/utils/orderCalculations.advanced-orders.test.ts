@@ -36,8 +36,7 @@ describe('orderCalculations - advanced order types', () => {
     });
 
     it('caps a stop market sell at the trigger price minus TP/SL slippage', () => {
-      const slippage =
-        ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / 10_000;
+      const slippage = ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / 10_000;
 
       const result = calculateOrderPriceAndSize({
         orderType: 'stop_market',
@@ -52,8 +51,7 @@ describe('orderCalculations - advanced order types', () => {
     });
 
     it('caps a take profit market buy at the trigger price plus TP/SL slippage', () => {
-      const slippage =
-        ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / 10_000;
+      const slippage = ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / 10_000;
 
       const result = calculateOrderPriceAndSize({
         orderType: 'take_profit_market',
@@ -67,26 +65,49 @@ describe('orderCalculations - advanced order types', () => {
       expect(result.orderPrice).toBeCloseTo(55000 * (1 + slippage), 6);
     });
 
-    it('ignores the market slippage setting for trigger placements', () => {
-      const withSlippageOverride = calculateOrderPriceAndSize({
+    it('honours the caller slippage tolerance on a market-executing trigger', () => {
+      const result = calculateOrderPriceAndSize({
         orderType: 'stop_market',
         isBuy: false,
         finalPositionSize: 0.1,
         currentPrice: 50000,
         triggerPrice: '45000',
-        maxSlippageBps: 10,
-        szDecimals: SZ_DECIMALS,
-      });
-      const withoutOverride = calculateOrderPriceAndSize({
-        orderType: 'stop_market',
-        isBuy: false,
-        finalPositionSize: 0.1,
-        currentPrice: 50000,
-        triggerPrice: '45000',
+        maxSlippageBps: 100,
         szDecimals: SZ_DECIMALS,
       });
 
-      expect(withSlippageOverride.orderPrice).toBe(withoutOverride.orderPrice);
+      // 100 bps below the trigger, not the 10% TP/SL default
+      expect(result.orderPrice).toBeCloseTo(45000 * (1 - 0.01), 6);
+    });
+
+    it('falls back to the TP/SL slippage default when none is supplied', () => {
+      const slippage = ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / 10_000;
+
+      const result = calculateOrderPriceAndSize({
+        orderType: 'take_profit_market',
+        isBuy: true,
+        finalPositionSize: 0.1,
+        currentPrice: 50000,
+        triggerPrice: '55000',
+        szDecimals: SZ_DECIMALS,
+      });
+
+      expect(result.orderPrice).toBeCloseTo(55000 * (1 + slippage), 6);
+    });
+
+    it('ignores the slippage setting for limit-executing triggers', () => {
+      const result = calculateOrderPriceAndSize({
+        orderType: 'stop_limit',
+        isBuy: false,
+        finalPositionSize: 0.1,
+        currentPrice: 50000,
+        limitPrice: '44500',
+        triggerPrice: '45000',
+        maxSlippageBps: 100,
+        szDecimals: SZ_DECIMALS,
+      });
+
+      expect(result.orderPrice).toBe(44500);
     });
 
     it('throws a typed error when a trigger placement has no trigger price', () => {
@@ -221,7 +242,8 @@ describe('orderCalculations - advanced order types', () => {
           .t,
       ).toStrictEqual({ limit: { tif: 'FrontendMarket' } });
       expect(
-        buildOrdersArray({ ...baseBuildParams, orderType: 'limit' }).orders[0].t,
+        buildOrdersArray({ ...baseBuildParams, orderType: 'limit' }).orders[0]
+          .t,
       ).toStrictEqual({ limit: { tif: 'Gtc' } });
     });
 

@@ -655,10 +655,10 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe(
-        PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED,
-      );
-      expect(mockClientService.getExchangeClient().order).not.toHaveBeenCalled();
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
     });
 
     it('returns a typed error when a trigger placement fails validation', async () => {
@@ -718,9 +718,11 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(cancelled.success).toBe(true);
-      expect(mockClientService.getExchangeClient().cancel).toHaveBeenCalledWith({
-        cancels: [{ a: 0, o: 123 }],
-      });
+      expect(mockClientService.getExchangeClient().cancel).toHaveBeenCalledWith(
+        {
+          cancels: [{ a: 0, o: 123 }],
+        },
+      );
     });
 
     it('rejects editing a resting order into a trigger placement', async () => {
@@ -814,9 +816,7 @@ describe('HyperLiquidProvider', () => {
               orderType: 'Take Profit Limit',
             },
           ]),
-        }) as unknown as ReturnType<
-          typeof mockClientService.getInfoClient
-        >,
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
       );
 
       const orders = await provider.getOpenOrders({ skipCache: true });
@@ -908,9 +908,7 @@ describe('HyperLiquidProvider', () => {
               orderType: 'Stop Market',
             },
           ]),
-        }) as unknown as ReturnType<
-          typeof mockClientService.getInfoClient
-        >,
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
       );
 
       const positions = await provider.getPositions({ skipCache: true });
@@ -939,6 +937,90 @@ describe('HyperLiquidProvider', () => {
       ]);
       expect(position?.takeProfitCount).toBe(1);
       expect(position?.stopLossCount).toBe(1);
+    });
+
+    it('excludes a pending order TP/SL child and never double-counts it', async () => {
+      // HyperLiquid lists a normalTpsl child both nested under its parent and as
+      // a top-level entry. It protects the pending order, not the position.
+      const takeProfitChild = {
+        coin: 'BTC',
+        side: 'A',
+        limitPx: '60000',
+        sz: '0.05',
+        origSz: '0.05',
+        oid: 802,
+        timestamp: 1_700_000_000_000,
+        triggerCondition: 'Price above 60000',
+        isTrigger: true,
+        triggerPx: '60000',
+        children: [],
+        isPositionTpsl: false,
+        reduceOnly: true,
+        orderType: 'Take Profit Limit',
+      };
+
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+            crossMarginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '10500',
+            },
+            withdrawable: '9500',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              // Pending entry order carrying the TP child
+              coin: 'BTC',
+              side: 'B',
+              limitPx: '40000',
+              sz: '0.05',
+              origSz: '0.05',
+              oid: 801,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'N/A',
+              isTrigger: false,
+              triggerPx: '',
+              children: [takeProfitChild],
+              isPositionTpsl: false,
+              reduceOnly: false,
+              orderType: 'Limit',
+            },
+            takeProfitChild,
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const positions = await provider.getPositions({ skipCache: true });
+      const position = positions.find((pos) => pos.symbol === 'BTC');
+
+      expect(position?.takeProfitOrders).toStrictEqual([]);
+      expect(position?.stopLossOrders).toStrictEqual([]);
+      expect(position?.takeProfitCount).toBe(0);
+      expect(position?.stopLossCount).toBe(0);
     });
 
     it('includes standalone partial triggers that are not position-bound', async () => {
@@ -994,9 +1076,7 @@ describe('HyperLiquidProvider', () => {
               orderType: 'Take Profit Limit',
             },
           ]),
-        }) as unknown as ReturnType<
-          typeof mockClientService.getInfoClient
-        >,
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
       );
 
       const positions = await provider.getPositions({ skipCache: true });
@@ -1046,9 +1126,8 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(true);
-      const request = (
-        mockClientService.getExchangeClient().order as jest.Mock
-      ).mock.calls[0][0];
+      const request = (mockClientService.getExchangeClient().order as jest.Mock)
+        .mock.calls[0][0];
       // A quantity cannot be expressed under positionTpsl grouping
       expect(request.grouping).toBe('na');
       expect(request.orders).toHaveLength(2);
@@ -1067,9 +1146,8 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(true);
-      const request = (
-        mockClientService.getExchangeClient().order as jest.Mock
-      ).mock.calls[0][0];
+      const request = (mockClientService.getExchangeClient().order as jest.Mock)
+        .mock.calls[0][0];
       expect(request.grouping).toBe('positionTpsl');
       expect(request.orders[0].s).toBe('0');
       expect(request.orders[1].s).toBe('0');
@@ -1084,13 +1162,107 @@ describe('HyperLiquidProvider', () => {
         position,
       });
 
-      const request = (
-        mockClientService.getExchangeClient().order as jest.Mock
-      ).mock.calls[0][0];
+      const request = (mockClientService.getExchangeClient().order as jest.Mock)
+        .mock.calls[0][0];
       expect(request.grouping).toBe('na');
       expect(request.orders[0].s).toBe('0.04');
       // The stop loss without an explicit size covers the full position size
       expect(request.orders[1].s).toBe('0.1');
+    });
+
+    it('cancels standalone partial triggers but never another order TP/SL child', async () => {
+      const takeProfitChild = {
+        coin: 'BTC',
+        side: 'A',
+        limitPx: '65000',
+        sz: '0.05',
+        origSz: '0.05',
+        oid: 902,
+        timestamp: 1_700_000_000_000,
+        triggerCondition: 'Price above 65000',
+        isTrigger: true,
+        triggerPx: '65000',
+        children: [],
+        isPositionTpsl: false,
+        reduceOnly: true,
+        orderType: 'Take Profit Limit',
+      };
+
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              // Standalone partial TP previously placed for this position
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '60000',
+              sz: '0.04',
+              origSz: '0.04',
+              oid: 901,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price above 60000',
+              isTrigger: true,
+              triggerPx: '60000',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: true,
+              orderType: 'Take Profit Limit',
+            },
+            {
+              // Unrelated pending entry order with its own TP child
+              coin: 'BTC',
+              side: 'B',
+              limitPx: '40000',
+              sz: '0.05',
+              origSz: '0.05',
+              oid: 903,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'N/A',
+              isTrigger: false,
+              triggerPx: '',
+              children: [takeProfitChild],
+              isPositionTpsl: false,
+              reduceOnly: false,
+              orderType: 'Limit',
+            },
+            takeProfitChild,
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '61000',
+        takeProfitSize: '0.04',
+        position,
+      });
+
+      expect(mockClientService.getExchangeClient().cancel).toHaveBeenCalledWith(
+        {
+          cancels: [{ a: 0, o: 901 }],
+        },
+      );
+    });
+
+    it('uses the REST order payload for partial updates even with a warm cache', async () => {
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([]);
+      const infoClient = createMockInfoClient();
+      mockClientService.getInfoClient.mockReturnValue(
+        infoClient as unknown as ReturnType<
+          typeof mockClientService.getInfoClient
+        >,
+      );
+
+      await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.04',
+        position,
+      });
+
+      // The cache cannot express the parent/child relationship a partial update
+      // needs, so the REST payload is fetched even though the cache is warm.
+      expect(infoClient.frontendOpenOrders).toHaveBeenCalled();
     });
 
     it('returns a typed error when a partial size exceeds the position', async () => {
@@ -1108,7 +1280,9 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
-      expect(mockClientService.getExchangeClient().order).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
     });
   });
 });

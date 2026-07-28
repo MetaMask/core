@@ -89,7 +89,12 @@ export function buildCases(symbol: string): E2ECase[] {
     {
       name: 'stop_market',
       description: 'Stop market: rests until the trigger, then takes liquidity',
-      params: { ...base, isBuy: false, orderType: 'stop_market', triggerPrice: '45000' },
+      params: {
+        ...base,
+        isBuy: false,
+        orderType: 'stop_market',
+        triggerPrice: '45000',
+      },
       orderIndex: 0,
       expected: {
         triggerOrderType: 'stop_market',
@@ -101,7 +106,8 @@ export function buildCases(symbol: string): E2ECase[] {
     },
     {
       name: 'stop_limit',
-      description: 'Stop limit: rests until the trigger, then posts a limit order',
+      description:
+        'Stop limit: rests until the trigger, then posts a limit order',
       params: {
         ...base,
         isBuy: false,
@@ -120,7 +126,8 @@ export function buildCases(symbol: string): E2ECase[] {
     },
     {
       name: 'take_profit_market',
-      description: 'Take profit market: fires above the mark and takes liquidity',
+      description:
+        'Take profit market: fires above the mark and takes liquidity',
       params: {
         ...base,
         isBuy: false,
@@ -138,7 +145,8 @@ export function buildCases(symbol: string): E2ECase[] {
     },
     {
       name: 'take_profit_limit',
-      description: 'Take profit limit: fires above the mark and posts a limit order',
+      description:
+        'Take profit limit: fires above the mark and posts a limit order',
       params: {
         ...base,
         isBuy: false,
@@ -157,7 +165,8 @@ export function buildCases(symbol: string): E2ECase[] {
     },
     {
       name: 'reduce_only',
-      description: 'Reduce-only as a first-class placement flag on a trigger order',
+      description:
+        'Reduce-only as a first-class placement flag on a trigger order',
       params: {
         ...base,
         isBuy: false,
@@ -177,7 +186,8 @@ export function buildCases(symbol: string): E2ECase[] {
     },
     {
       name: 'partial_take_profit',
-      description: 'Partial TP/SL: quantity-scoped take profit attached to the order',
+      description:
+        'Partial TP/SL: quantity-scoped take profit attached to the order',
       params: {
         ...base,
         isBuy: true,
@@ -438,10 +448,10 @@ export async function runCase(params: {
   );
   const readBack = rawOrder ? adaptOrderFromSDK(rawOrder) : null;
   const positionTriggerView = rawOrder
-    ? adaptPositionTriggerOrderFromSDK({
+    ? (adaptPositionTriggerOrderFromSDK({
         rawOrder,
         positionSize: POSITION_SIZE,
-      }) ?? null
+      }) ?? null)
     : null;
 
   const checks: CaseEvidence['checks'] = [

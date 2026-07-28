@@ -26,6 +26,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 
+import { isTriggerOrderType } from '../src/utils/orderTypes.js';
 import type { CaseEvidence, Mode } from './lib/advancedOrders.js';
 import {
   buildCases,
@@ -34,7 +35,6 @@ import {
   runCase,
   runTypedErrorCase,
 } from './lib/advancedOrders.js';
-import { isTriggerOrderType } from '../src/utils/orderTypes.js';
 
 /**
  * Parses `--key=value` CLI arguments.
@@ -48,12 +48,14 @@ function parseArgs(argv: string[]): {
   symbol: string;
 } {
   const read = (key: string): string | undefined =>
-    argv
-      .find((arg) => arg.startsWith(`--${key}=`))
-      ?.slice(`--${key}=`.length);
+    argv.find((arg) => arg.startsWith(`--${key}=`))?.slice(`--${key}=`.length);
 
   const requestedMode = read('mode');
-  if (requestedMode && requestedMode !== 'simulated' && requestedMode !== 'testnet') {
+  if (
+    requestedMode &&
+    requestedMode !== 'simulated' &&
+    requestedMode !== 'testnet'
+  ) {
     throw new Error(`Unknown --mode: ${requestedMode}`);
   }
 

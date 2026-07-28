@@ -903,6 +903,11 @@ export class HyperLiquidSubscriptionService {
 
     // If cached processed orders provided, extract TP/SL from them directly
     if (cachedProcessedOrders) {
+      // Hoisted out of the per-order loop: this runs on every order-update tick.
+      const positionsBySymbol = new Map(
+        positions.map((position) => [position.symbol, position]),
+      );
+
       cachedProcessedOrders.forEach((order) => {
         // Use triggerPrice for TP/SL (trigger condition price), falling back to price
         // This ensures consistency with raw SDK order processing which uses triggerPx
@@ -910,14 +915,14 @@ export class HyperLiquidSubscriptionService {
 
         // Collected before the position-bound filter below: partial TP/SL orders
         // are standalone (not position-bound) and still belong to this view.
-        if (order.isTrigger && order.reduceOnly) {
+        // A trigger that is another order's child does not — same rule as the
+        // REST path in HyperLiquidProvider.getPositions.
+        if (order.isTrigger && order.reduceOnly && !order.parentOrderId) {
           addTriggerOrder(
             order.symbol,
             buildPositionTriggerOrderFromOrder({
               order,
-              positionSize:
-                positions.find((pos) => pos.symbol === order.symbol)?.size ??
-                '0',
+              positionSize: positionsBySymbol.get(order.symbol)?.size ?? '0',
             }),
           );
         }
@@ -1000,6 +1005,17 @@ export class HyperLiquidSubscriptionService {
 
     // Process raw SDK orders
     const processedOrders: Order[] = [];
+
+    // TP/SL children of a pending parent order are listed both nested under the
+    // parent and as top-level entries. Map each child back to its parent so the
+    // converted order carries the link and the position trigger view can exclude
+    // them: they protect that order, not a position.
+    const parentIdByChildId = new Map<number, number>();
+    orders.forEach((order) => {
+      order.children?.forEach((child) => {
+        parentIdByChildId.set(child.oid, order.oid);
+      });
+    });
 
     orders.forEach((order) => {
       let position: Position | undefined;
@@ -1090,9 +1106,18 @@ export class HyperLiquidSubscriptionService {
         order,
         position ?? positionForCoin,
       );
+      const parentOrderId = parentIdByChildId.get(order.oid);
+      if (parentOrderId !== undefined) {
+        convertedOrder.parentOrderId = parentOrderId.toString();
+      }
+
       processedOrders.push(convertedOrder);
 
-      if (convertedOrder.isTrigger && convertedOrder.reduceOnly) {
+      if (
+        convertedOrder.isTrigger &&
+        convertedOrder.reduceOnly &&
+        !convertedOrder.parentOrderId
+      ) {
         addTriggerOrder(
           convertedOrder.symbol,
           buildPositionTriggerOrderFromOrder({

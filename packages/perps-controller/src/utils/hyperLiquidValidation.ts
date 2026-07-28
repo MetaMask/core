@@ -13,10 +13,7 @@ import type {
   PerpsDebugLogger,
 } from '../types/index.js';
 import type { OrderType } from '../types/perps-types.js';
-import {
-  isLimitExecutionOrderType,
-  isTriggerOrderType,
-} from './orderTypes.js';
+import { isLimitExecutionOrderType, isTriggerOrderType } from './orderTypes.js';
 
 /**
  * Optional debug logger for validation functions.
@@ -565,7 +562,12 @@ export function validateOrderParams(params: {
     // A trigger placement combined with attached TP/SL children is rejected
     // rather than silently reshaped: the exchange semantics of a triggered
     // parent owning triggered children are not part of this contract.
-    if (params.takeProfitPrice ?? params.stopLossPrice) {
+    // Each field is checked explicitly: a falsy-but-present price (e.g. '') is
+    // still an attached TP/SL request and must be rejected, not skipped.
+    if (
+      params.takeProfitPrice !== undefined ||
+      params.stopLossPrice !== undefined
+    ) {
       return {
         isValid: false,
         error: PERPS_ERROR_CODES.ORDER_TRIGGER_TPSL_UNSUPPORTED,

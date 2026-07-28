@@ -37,7 +37,9 @@ function buildFrontendOrder(
   } as FrontendOrder;
 }
 
-const buildOrderParams = (overrides: Partial<OrderParams> = {}): OrderParams => ({
+const buildOrderParams = (
+  overrides: Partial<OrderParams> = {},
+): OrderParams => ({
   symbol: 'BTC',
   isBuy: true,
   size: '0.1',

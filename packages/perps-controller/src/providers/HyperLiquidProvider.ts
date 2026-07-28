@@ -49,6 +49,7 @@ import {
   PerpsSigningCache,
 } from '../services/TradingReadinessCache.js';
 import type {
+  FrontendOrder,
   SDKOrderParams,
   MetaResponse,
   PerpsAssetCtx,
@@ -174,9 +175,9 @@ import {
   calculateOrderPriceAndSize,
 } from '../utils/orderCalculations.js';
 import {
+  getTriggerExecution,
   isLimitExecutionOrderType,
   isTriggerOrderType,
-  normalizeExecutionOrderType,
 } from '../utils/orderTypes.js';
 import {
   createStandaloneInfoClient,
@@ -281,6 +282,83 @@ type GetOrFetchPriceParams = {
   symbol: string;
   dexName: string | null;
 };
+
+/**
+ * Collect the order IDs of every TP/SL child carried by a parent order.
+ *
+ * HyperLiquid lists `normalTpsl` children both nested under their parent and as
+ * top-level entries in `frontendOpenOrders`. Those children protect the pending
+ * parent order rather than the position, so callers use this set to exclude them.
+ *
+ * @param orders - Raw frontend open orders for the account.
+ * @returns The set of child order IDs.
+ */
+function collectChildOrderIds(orders: FrontendOrder[]): Set<number> {
+  const childOrderIds = new Set<number>();
+
+  orders.forEach((order) => {
+    order.children?.forEach((child) => {
+      childOrderIds.add(child.oid);
+    });
+  });
+
+  return childOrderIds;
+}
+
+/**
+ * Build the trigger-order view of a position: position-bound TP/SL plus
+ * standalone (partial) reduce-only triggers on the same market, de-duplicated by
+ * order ID and excluding children of pending parent orders.
+ *
+ * @param params - Collection parameters.
+ * @param params.orders - Raw frontend open orders across all DEXs.
+ * @param params.position - Position the triggers are attached to.
+ * @param params.childOrderIds - Order IDs that belong to a pending parent order.
+ * @returns The take profit and stop loss trigger orders for the position.
+ */
+function collectPositionTriggerOrders(params: {
+  orders: FrontendOrder[];
+  position: Position;
+  childOrderIds: Set<number>;
+}): {
+  takeProfitOrders: PositionTriggerOrder[];
+  stopLossOrders: PositionTriggerOrder[];
+} {
+  const { orders, position, childOrderIds } = params;
+
+  const byOrderId = new Map<string, PositionTriggerOrder>();
+
+  orders.forEach((rawOrder) => {
+    if (
+      rawOrder.coin !== position.symbol ||
+      !rawOrder.isTrigger ||
+      !rawOrder.reduceOnly ||
+      childOrderIds.has(rawOrder.oid)
+    ) {
+      return;
+    }
+
+    const triggerOrder = adaptPositionTriggerOrderFromSDK({
+      rawOrder,
+      positionSize: position.size,
+    });
+
+    if (triggerOrder && !byOrderId.has(triggerOrder.orderId)) {
+      byOrderId.set(triggerOrder.orderId, triggerOrder);
+    }
+  });
+
+  const triggerOrders = Array.from(byOrderId.values());
+
+  return {
+    takeProfitOrders: triggerOrders.filter((order) =>
+      order.orderType.startsWith('take_profit'),
+    ),
+    stopLossOrders: triggerOrders.filter(
+      (order) => !order.orderType.startsWith('take_profit'),
+    ),
+  };
+}
 
 /**
  * HyperLiquid provider implementation
@@ -4231,10 +4309,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       const cachedOrders =
         this.#subscriptionService.getOrdersCacheIfInitialized();
 
-      if (cachedOrders === null) {
+      // Replacing partial TP/SL has to consider standalone ('na' grouping)
+      // triggers, which are not position-bound. Telling those apart from a
+      // pending order's normalTpsl child requires the parent/child relationship,
+      // which only the REST payload carries — so that path is used even when the
+      // WebSocket cache is warm.
+      if (cachedOrders === null || isPartialTpsl) {
         // Fallback: Query only the specific DEX (20 weight instead of 40+)
         this.#deps.debugLogger.log(
-          'WebSocket cache not initialized, falling back to single-DEX REST query',
+          isPartialTpsl
+            ? 'Partial TP/SL update: using single-DEX REST query for parent/child order context'
+            : 'WebSocket cache not initialized, falling back to single-DEX REST query',
           { dex: dexName ?? 'main' },
         );
 
@@ -4243,17 +4328,22 @@ export class HyperLiquidProvider implements PerpsProvider {
           dex: dexName ?? undefined,
         });
 
+        // Orders that belong to a pending parent order (normalTpsl children) are
+        // also listed at the top level, so collect their IDs to exclude them:
+        // they protect that pending order, not this position.
+        const childOrderIds = collectChildOrderIds(orders);
+
         // Filter using raw SDK response properties
         const tpslOrders = orders.filter(
           (order) =>
             order.coin === symbol &&
             order.reduceOnly &&
-            // Partial TP/SL orders are standalone ('na' grouping), so they are
-            // not position-bound; include them too when replacing partial TP/SL
-            // so the operation stays idempotent.
+            // Position-bound TP/SL always qualifies. When replacing partial
+            // TP/SL, standalone triggers on this market qualify too — but never
+            // another order's TP/SL children.
             (order.isPositionTpsl ===
               Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) ||
-              isPartialTpsl) &&
+              (isPartialTpsl && !childOrderIds.has(order.oid))) &&
             order.isTrigger &&
             (order.orderType.includes('Take Profit') ||
               order.orderType.includes('Stop')),
@@ -4282,11 +4372,8 @@ export class HyperLiquidProvider implements PerpsProvider {
             order.symbol === symbol &&
             order.reduceOnly === true &&
             order.isTrigger === true &&
-            // See the REST branch: standalone partial TP/SL orders are not
-            // position-bound, so include them when replacing partial TP/SL.
-            (order.isPositionTpsl ===
-              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) ||
-              isPartialTpsl) &&
+            order.isPositionTpsl ===
+              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
             order.detailedOrderType &&
             (order.detailedOrderType.includes('Take Profit') ||
               order.detailedOrderType.includes('Stop')),
@@ -4861,6 +4948,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Combine all orders from all DEXs for TP/SL lookup
       const allOrders = orderResults.flatMap((result) => result.data);
 
+      // TP/SL children of pending parent orders are listed at the top level too;
+      // they belong to that order, not to a position.
+      const allOrdersChildIds = collectChildOrderIds(allOrders);
+
       this.#deps.debugLogger.log('Frontend open orders (all DEXs):', {
         count: allOrders.length,
         orders: allOrders.map((ord) => ({
@@ -4907,42 +4998,18 @@ export class HyperLiquidProvider implements PerpsProvider {
             // Look for TP and SL trigger orders
             let takeProfitPrice: string | undefined;
             let stopLossPrice: string | undefined;
-            const takeProfitOrders: PositionTriggerOrder[] = [];
-            const stopLossOrders: PositionTriggerOrder[] = [];
 
-            // Record every trigger order attached to the position, including
-            // quantity-scoped (partial) ones the scalar fields cannot express.
-            const collectTriggerOrder = (
-              rawOrder: Parameters<
-                typeof adaptPositionTriggerOrderFromSDK
-              >[0]['rawOrder'],
-            ): void => {
-              const triggerOrder = adaptPositionTriggerOrderFromSDK({
-                rawOrder,
-                positionSize: position.size,
+            // Trigger orders attached to this position: position-bound TP/SL plus
+            // standalone ('na' grouping) partial TP/SL. A pending order's
+            // normalTpsl children are excluded — they are also listed at the top
+            // level, but they protect that order, not this position (same rule as
+            // the positionOrders filter above).
+            const { takeProfitOrders, stopLossOrders } =
+              collectPositionTriggerOrders({
+                orders: allOrders,
+                position,
+                childOrderIds: allOrdersChildIds,
               });
-              if (!triggerOrder) {
-                return;
-              }
-
-              if (triggerOrder.orderType.startsWith('take_profit')) {
-                takeProfitOrders.push(triggerOrder);
-              } else {
-                stopLossOrders.push(triggerOrder);
-              }
-            };
-
-            // Every reduce-only trigger order on this market belongs in the
-            // position's trigger view, including partial TP/SL, which is placed
-            // as a standalone ('na' grouping) order and so is not position-bound.
-            allOrders
-              .filter(
-                (order) =>
-                  order.coin === position.symbol &&
-                  order.isTrigger &&
-                  order.reduceOnly,
-              )
-              .forEach(collectTriggerOrder);
 
             // Check direct trigger orders
             positionOrders.forEach((order) => {
@@ -4990,8 +5057,6 @@ export class HyperLiquidProvider implements PerpsProvider {
 
               parentOrder.children.forEach((childOrder) => {
                 if (childOrder.isTrigger && childOrder.reduceOnly) {
-                  collectTriggerOrder(childOrder);
-
                   if (
                     childOrder.orderType === 'Take Profit Market' ||
                     childOrder.orderType === 'Take Profit Limit'
@@ -7749,11 +7814,11 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // Trigger placements are charged as their execution kind: a stop_market fills
     // as a market order (taker), a stop_limit as a limit order.
-    const isMarketExecution =
-      normalizeExecutionOrderType(orderType) === 'market';
+    const isMarketExecution = getTriggerExecution(orderType) === 'market';
 
     // Start with base rates from config
-    let feeRate = isMarketExecution || !isMaker ? FEE_RATES.taker : FEE_RATES.maker;
+    let feeRate =
+      isMarketExecution || !isMaker ? FEE_RATES.taker : FEE_RATES.maker;
 
     // Parse symbol to detect HIP-3 DEX (e.g., "xyz:TSLA" → dex="xyz", parsedSymbol="TSLA")
     const { dex, symbol: parsedSymbol } = parseAssetName(symbol);
