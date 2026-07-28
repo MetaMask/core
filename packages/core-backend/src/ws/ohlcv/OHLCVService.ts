@@ -480,9 +480,7 @@ export class OHLCVService {
         channel,
       });
 
-      this.#clearChannelTimers(
-        this.#channels.get(channel) ?? { refCount: 0 },
-      );
+      this.#clearChannelTimers(this.#channels.get(channel) ?? { refCount: 0 });
 
       const success = await this.#unsubscribeChannelOnServer(channel);
       if (success) {

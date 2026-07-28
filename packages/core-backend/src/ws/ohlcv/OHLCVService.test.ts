@@ -483,12 +483,14 @@ describe('OHLCVService', () => {
         const errorListener = jest.fn();
         messenger.subscribe('OHLCVService:subscriptionError', errorListener);
 
-        mocks.getSubscriptionsByChannel.mockImplementation((channel: string) => {
-          if (channel === EXPECTED_CHANNEL) {
-            throw new Error('flush unsub failed');
-          }
-          return [{ unsubscribe: jest.fn().mockResolvedValue(undefined) }];
-        });
+        mocks.getSubscriptionsByChannel.mockImplementation(
+          (channel: string) => {
+            if (channel === EXPECTED_CHANNEL) {
+              throw new Error('flush unsub failed');
+            }
+            return [{ unsubscribe: jest.fn().mockResolvedValue(undefined) }];
+          },
+        );
 
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
@@ -503,9 +505,9 @@ describe('OHLCVService', () => {
         jest.advanceTimersByTime(1000);
         await completeAsyncOperations();
 
-        expect(mocks.getSubscriptionsByChannel.mock.calls.length).toBeGreaterThan(
-          1,
-        );
+        expect(
+          mocks.getSubscriptionsByChannel.mock.calls.length,
+        ).toBeGreaterThan(1);
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
       });
     });
@@ -579,7 +581,7 @@ describe('OHLCVService', () => {
         let releaseUnsub!: (error?: Error) => void;
         mocks.getSubscriptionsByChannel.mockReturnValue([
           {
-            unsubscribe: () =>
+            unsubscribe: (): Promise<void> =>
               new Promise((_resolve, reject) => {
                 releaseUnsub = reject;
               }),
@@ -599,9 +601,9 @@ describe('OHLCVService', () => {
         jest.advanceTimersByTime(1000);
         await completeAsyncOperations();
 
-        expect(mocks.getSubscriptionsByChannel.mock.calls.length).toBeGreaterThan(
-          1,
-        );
+        expect(
+          mocks.getSubscriptionsByChannel.mock.calls.length,
+        ).toBeGreaterThan(1);
       });
     });
 
@@ -610,7 +612,9 @@ describe('OHLCVService', () => {
         mocks.getSubscriptionsByChannel.mockImplementation(() => {
           throw new Error('ws gone');
         });
-        mocks.forceReconnection.mockRejectedValue(new Error('reconnect failed'));
+        mocks.forceReconnection.mockRejectedValue(
+          new Error('reconnect failed'),
+        );
 
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
