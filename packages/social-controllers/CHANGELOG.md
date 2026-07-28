@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0]
+
 ### Added
 
 - Add `refreshNotificationPreferencesCache` method to `SocialService` (and the `SocialService:refreshNotificationPreferencesCache` messenger action). Calls `POST /notifications/preferences/cache-refresh` so the social api re-reads the JWT-identified user's notification preferences from Authenticated User Storage and repopulates its cache. Intended as a best-effort call right after a preference write to AUS, so the change is honoured near-instantly rather than after the social api's cache TTL lapses ([#9662](https://github.com/MetaMask/core/pull/9662))
@@ -128,7 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.0...HEAD
+[2.7.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.6.0...@metamask/social-controllers@2.7.0
 [2.6.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.5.0...@metamask/social-controllers@2.6.0
 [2.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.4.0...@metamask/social-controllers@2.5.0
 [2.4.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.3.1...@metamask/social-controllers@2.4.0
