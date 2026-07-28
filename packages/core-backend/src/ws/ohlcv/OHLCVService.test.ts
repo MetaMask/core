@@ -84,7 +84,7 @@ const getMessenger = (): {
   });
 
   const mockConnect = jest.fn();
-  const mockForceReconnection = jest.fn();
+  const mockForceReconnection = jest.fn().mockResolvedValue(undefined);
   const mockSubscribe = jest.fn();
   const mockChannelHasSubscription = jest.fn().mockReturnValue(false);
   const mockGetSubscriptionsByChannel = jest.fn().mockReturnValue([]);
@@ -471,6 +471,181 @@ describe('OHLCVService', () => {
         await completeAsyncOperations();
 
         expect(mockUnsub).toHaveBeenCalledTimes(1);
+      });
+    });
+    it('should schedule unsubscribe retry when flush fails during channel switch', async () => {
+      const opts1h: OHLCVSubscriptionOptions = {
+        ...SUB_OPTS,
+        interval: '1h',
+      };
+
+      await withService(async ({ service, mocks, messenger }) => {
+        const errorListener = jest.fn();
+        messenger.subscribe('OHLCVService:subscriptionError', errorListener);
+
+        mocks.getSubscriptionsByChannel.mockImplementation((channel: string) => {
+          if (channel === EXPECTED_CHANNEL) {
+            throw new Error('flush unsub failed');
+          }
+          return [{ unsubscribe: jest.fn().mockResolvedValue(undefined) }];
+        });
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+        await service.subscribe(opts1h);
+
+        expect(errorListener).toHaveBeenCalledWith({
+          channel: EXPECTED_CHANNEL,
+          error: expect.stringContaining('flush unsub failed'),
+          operation: 'unsubscribe',
+        });
+
+        jest.advanceTimersByTime(1000);
+        await completeAsyncOperations();
+
+        expect(mocks.getSubscriptionsByChannel.mock.calls.length).toBeGreaterThan(
+          1,
+        );
+        expect(mocks.forceReconnection).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should skip grace-period unsubscribe when a new subscriber arrives first', async () => {
+      await withService(async ({ service, mocks }) => {
+        const mockUnsub = jest.fn().mockResolvedValue(undefined);
+        mocks.getSubscriptionsByChannel.mockReturnValue([
+          { unsubscribe: mockUnsub },
+        ]);
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        let releaseConnect!: () => void;
+        mocks.connect.mockImplementation(
+          () =>
+            new Promise<void>((resolve) => {
+              releaseConnect = resolve;
+            }),
+        );
+        mocks.channelHasSubscription.mockReturnValue(true);
+
+        const subscribePromise = service.subscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await flushPromises();
+
+        releaseConnect();
+        mocks.connect.mockResolvedValue(undefined);
+        await subscribePromise;
+        await completeAsyncOperations();
+
+        expect(mockUnsub).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  // ===========================================================================
+  // Unsubscribe retry
+  // ===========================================================================
+
+  describe('unsubscribe retry', () => {
+    it('should succeed on a later retry without forcing reconnection', async () => {
+      await withService(async ({ service, mocks }) => {
+        const mockUnsub = jest
+          .fn()
+          .mockRejectedValueOnce(new Error('transient'))
+          .mockResolvedValue(undefined);
+
+        mocks.getSubscriptionsByChannel.mockReturnValue([
+          { unsubscribe: mockUnsub },
+        ]);
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+
+        jest.advanceTimersByTime(1000);
+        await completeAsyncOperations();
+
+        expect(mockUnsub).toHaveBeenCalledTimes(2);
+        expect(mocks.forceReconnection).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should recreate channel tracking when unsubscribe fails after tracking was cleared', async () => {
+      await withService(async ({ service, mocks }) => {
+        let releaseUnsub!: (error?: Error) => void;
+        mocks.getSubscriptionsByChannel.mockReturnValue([
+          {
+            unsubscribe: () =>
+              new Promise((_resolve, reject) => {
+                releaseUnsub = reject;
+              }),
+          },
+        ]);
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await flushPromises();
+
+        service.destroy();
+        releaseUnsub(new Error('ws gone'));
+        await completeAsyncOperations();
+
+        jest.advanceTimersByTime(1000);
+        await completeAsyncOperations();
+
+        expect(mocks.getSubscriptionsByChannel.mock.calls.length).toBeGreaterThan(
+          1,
+        );
+      });
+    });
+
+    it('should force reconnection when unsubscribe retries are exhausted', async () => {
+      await withService(async ({ service, mocks }) => {
+        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+          throw new Error('ws gone');
+        });
+        mocks.forceReconnection.mockRejectedValue(new Error('reconnect failed'));
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+        jest.advanceTimersByTime(1000);
+        await completeAsyncOperations();
+        jest.advanceTimersByTime(2000);
+        await completeAsyncOperations();
+        jest.advanceTimersByTime(4000);
+        await completeAsyncOperations();
+
+        expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should clear retry timers when destroy is called during retry backoff', async () => {
+      await withService(async ({ service, mocks }) => {
+        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+          throw new Error('ws gone');
+        });
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+
+        service.destroy();
+
+        jest.advanceTimersByTime(10000);
+        await completeAsyncOperations();
+
+        expect(mocks.forceReconnection).not.toHaveBeenCalled();
       });
     });
   });
@@ -876,6 +1051,46 @@ describe('OHLCVService', () => {
         );
       });
     });
+
+    it('should not publish chainStatusChanged down when no chains are tracked', async () => {
+      await withService(async ({ messenger, rootMessenger }) => {
+        const statusListener = jest.fn();
+        messenger.subscribe('OHLCVService:chainStatusChanged', statusListener);
+
+        rootMessenger.publish(
+          'BackendWebSocketService:connectionStateChanged',
+          {
+            ...BASE_CONNECTION_INFO,
+            state: WebSocketState.DISCONNECTED,
+            connectedAt: undefined,
+            reconnectAttempts: 0,
+          },
+        );
+        await completeAsyncOperations();
+
+        expect(statusListener).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should ignore non-terminal connection states', async () => {
+      await withService(async ({ service, mocks, rootMessenger }) => {
+        await service.subscribe(SUB_OPTS);
+        mocks.connect.mockClear();
+        mocks.subscribe.mockClear();
+
+        rootMessenger.publish(
+          'BackendWebSocketService:connectionStateChanged',
+          {
+            ...BASE_CONNECTION_INFO,
+            state: WebSocketState.CONNECTING,
+          },
+        );
+        await completeAsyncOperations();
+
+        expect(mocks.connect).not.toHaveBeenCalled();
+        expect(mocks.subscribe).not.toHaveBeenCalled();
+      });
+    });
   });
 
   // ===========================================================================
@@ -1006,6 +1221,32 @@ describe('OHLCVService', () => {
         jest.advanceTimersByTime(7000);
         await completeAsyncOperations();
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should recreate WS subscription when retry is cancelled but server subscription is gone', async () => {
+      await withService(async ({ service, mocks }) => {
+        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+          throw new Error('ws gone');
+        });
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+
+        mocks.channelHasSubscription.mockReturnValue(false);
+        mocks.getSubscriptionsByChannel.mockReturnValue([
+          { unsubscribe: jest.fn().mockResolvedValue(undefined) },
+        ]);
+        mocks.subscribe.mockClear();
+        mocks.connect.mockClear();
+
+        await service.subscribe(SUB_OPTS);
+
+        expect(mocks.connect).toHaveBeenCalledTimes(1);
+        expect(mocks.subscribe).toHaveBeenCalledTimes(1);
       });
     });
 

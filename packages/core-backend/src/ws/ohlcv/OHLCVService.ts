@@ -360,9 +360,8 @@ export class OHLCVService {
 
     entry.gracePeriodTimer = setTimeout(() => {
       entry.gracePeriodTimer = undefined;
-      this.#performUnsubscribe(channel).catch(() => {
-        // no-op
-      });
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#performUnsubscribe(channel);
     }, GRACE_PERIOD_MS);
   }
 
@@ -431,13 +430,8 @@ export class OHLCVService {
   }
 
   #scheduleUnsubscribeRetry(channel: string): void {
-    let entry = this.#channels.get(channel);
-    if (!entry) {
-      entry = { refCount: 0 };
-      this.#channels.set(channel, entry);
-    }
-
-    const channelEntry = entry;
+    const channelEntry = this.#channels.get(channel) ?? { refCount: 0 };
+    this.#channels.set(channel, channelEntry);
 
     const retryCount = (channelEntry.retryCount ?? 0) + 1;
     channelEntry.retryCount = retryCount;
@@ -465,9 +459,8 @@ export class OHLCVService {
 
     channelEntry.retryTimer = setTimeout(() => {
       channelEntry.retryTimer = undefined;
-      this.#performUnsubscribe(channel).catch(() => {
-        // no-op
-      });
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#performUnsubscribe(channel);
     }, delayMs);
   }
 
@@ -487,7 +480,9 @@ export class OHLCVService {
         channel,
       });
 
-      this.#clearChannelTimers(entry ?? { refCount: 0 });
+      this.#clearChannelTimers(
+        this.#channels.get(channel) ?? { refCount: 0 },
+      );
 
       const success = await this.#unsubscribeChannelOnServer(channel);
       if (success) {
