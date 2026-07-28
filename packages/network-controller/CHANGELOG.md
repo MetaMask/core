@@ -9,14 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add required `analyticsOptions` constructor option that makes `NetworkController` emit `RPC Service Unavailable` and `RPC Service Degraded` analytics events via the `AnalyticsController:trackEvent` action when an RPC endpoint becomes unavailable or degraded ([#9270](https://github.com/MetaMask/core/pull/9270))
+- **BREAKING:** Add required `analyticsOptions` constructor option that makes `NetworkController` emit `RPC Service Unavailable` and `RPC Service Degraded` analytics events via the `AnalyticsController:trackEvent` action when an RPC endpoint becomes unavailable or degraded ([#9270](https://github.com/MetaMask/core/pull/9270))
   - The option takes `isRpcEndpointUrlPublic` (decides whether an endpoint URL is safe to report verbatim or as `'custom'`) and `rpcServiceEventsSampleRate` (the proportion of events to emit, between `0` and `1`).
+  - `NetworkControllerMessenger` now requires the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions, which consumers must delegate to the network controller messenger.
   - Adds the `NetworkControllerAnalyticsOptions` and `RpcServiceEventName` types.
 
 ### Changed
-
-- **BREAKING:** `NetworkControllerMessenger` now requires the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions ([#9270](https://github.com/MetaMask/core/pull/9270))
-  - Consumers must delegate these actions to the network controller messenger and pass the new required `analyticsOptions` constructor option.
 
 - **BREAKING:** `BuiltInNetworkClientId` is now `string` instead of `InfuraNetworkType` ([#9432](https://github.com/MetaMask/core/pull/9432))
   - This type was previously constrained to known Infura network names (e.g. `"mainnet"`, `"sepolia"`). It is now `string` to allow dynamically configured Infura networks whose names are not bundled into the package.
