@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Populate `srcTxHash` in the `QuoteStatusUpdateError` when a finalization is reported for a transaction that has no tracked quote-status entry, so the error details identify the source transaction alongside `txMetaId` and `srcChainId` ([#9671](https://github.com/MetaMask/core/pull/9671))
+
 ## [74.5.0]
 
 ### Changed

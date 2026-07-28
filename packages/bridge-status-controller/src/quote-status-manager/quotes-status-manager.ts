@@ -150,11 +150,14 @@ export class QuoteStatusManager {
    * @param success - Whether the transaction finalized successfully.
    * @param srcChainId - Optional source-chain id, forwarded to error reporting
    * to aid debugging when no matching entry is found.
+   * @param srcTxHash - Optional source-chain transaction hash, forwarded to
+   * error reporting to aid debugging when no matching entry is found.
    */
   reportFinalised(
     txMetaId: string,
     success: boolean,
     srcChainId?: string | number,
+    srcTxHash?: string,
   ): void {
     if (!this.#isEnabled?.()) {
       return;
@@ -162,11 +165,12 @@ export class QuoteStatusManager {
 
     const entries = this.#quoteStatusEntryStore.getAllByTxMetaId(txMetaId);
 
+    console.log('dwfwfw', { quoteId: '', txMetaId, srcChainId, srcTxHash })
     if (entries.length === 0) {
       this.#onError?.(
         new QuoteStatusUpdateError(
           'reporting finalization status but entry was not found',
-          { quoteId: '', txMetaId, srcChainId },
+          { quoteId: '', txMetaId, srcChainId, srcTxHash },
         ),
       );
       return;
@@ -311,12 +315,22 @@ export class QuoteStatusManager {
       }
 
       if (txMeta.status === TransactionStatus.confirmed) {
-        this.reportFinalised(entry.txMetaId, true, entry.srcChainId);
+        this.reportFinalised(
+          entry.txMetaId,
+          true,
+          entry.srcChainId,
+          entry.srcTxHash,
+        );
       } else if (
         txMeta.status === TransactionStatus.failed ||
         txMeta.status === TransactionStatus.dropped
       ) {
-        this.reportFinalised(entry.txMetaId, false, entry.srcChainId);
+        this.reportFinalised(
+          entry.txMetaId,
+          false,
+          entry.srcChainId,
+          entry.srcTxHash,
+        );
       }
     }
   }
@@ -514,8 +528,8 @@ export class QuoteStatusManager {
       );
       return Boolean(
         live &&
-        live.status.state === sentStatus &&
-        live.acknowledgedState !== sentStatus,
+          live.status.state === sentStatus &&
+          live.acknowledgedState !== sentStatus,
       );
     };
 
