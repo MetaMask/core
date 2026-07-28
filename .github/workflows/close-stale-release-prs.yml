@@ -35,13 +35,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # Paginate all open PRs; --limit 100 would miss older release/* heads
+          # once the repo has many open PRs.
           PRS="$(
-            gh pr list \
-              --repo "$GITHUB_REPOSITORY" \
-              --state open \
-              --limit 100 \
-              --json number,headRefName,isCrossRepository \
-              --jq '[.[] | select(.isCrossRepository == false and (.headRefName | startswith("release/"))) | .number]'
+            gh api --paginate \
+              "/repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
+              --jq '.[] | select(.head.repo != null and .head.repo.fork == false and (.head.ref | startswith("release/"))) | .number' \
+            | jq --compact-output --slurp '.'
           )"
           echo "prs=$PRS" >> "$GITHUB_OUTPUT"
           echo "Candidate PR numbers: $PRS"
@@ -74,22 +74,29 @@ jobs:
 
       - name: Record confirmed release PR
         if: steps.is-release.outputs.IS_RELEASE == 'true'
+        env:
+          # Pass via env so the value is not expanded into the script text
+          # (zizmor template-injection). PR numbers come from open same-repo
+          # release/* PRs; write access is enough to create those.
+          PR_NUMBER: ${{ matrix.pr }}
         run: |
           set -euo pipefail
-          echo '${{ matrix.pr }}' > release-pr.txt
+          # Unique filename per matrix leg so merge-multiple keeps every PR.
+          echo "$PR_NUMBER" > "release-pr-${PR_NUMBER}.txt"
 
-      - name: Upload confirmed release PR
+      - name: Upload confirmed release PR artifact
         if: steps.is-release.outputs.IS_RELEASE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: release-pr-${{ matrix.pr }}
-          path: release-pr.txt
+          path: release-pr-${{ matrix.pr }}.txt
           if-no-files-found: ignore
 
   close-stale-release-prs:
     name: Close stale release PRs
     needs: [find-candidates, filter-release-prs]
-    if: always() && needs.find-candidates.result == 'success' && needs.find-candidates.outputs.prs != '[]' && needs.filter-release-prs.result != 'failure'
+    # Still close any PRs that were confirmed even if some matrix legs failed.
+    if: always() && needs.find-candidates.result == 'success' && needs.find-candidates.outputs.prs != '[]' && needs.filter-release-prs.result != 'cancelled'
     runs-on: ubuntu-latest
     permissions:
       contents: write
