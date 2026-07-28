@@ -1,7 +1,7 @@
 import type {
   PasskeyAuthenticationCeremony,
   PasskeyRegistrationCeremony,
-} from './types';
+} from './types.js';
 
 /** WebAuthn `timeout` for credential creation and assertion (ms). */
 export const WEBAUTHN_TIMEOUT_MS = 60_000;

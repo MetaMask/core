@@ -8,8 +8,15 @@ import nock, { cleanAll } from 'nock';
 
 import type { KycServiceMessenger } from './KycService';
 import { KycService } from './KycService';
+import {
+  deriveClientMaterial,
+  encodeStorageAccessTokenForHeader,
+  signStorageAccessToken,
+  UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
+} from './ukyc';
 
 const MOCK_API_URL = 'https://kyc-api.dev-api.cx.metamask.io';
+const MOCK_FRACTAL_URL = 'https://fractal.dev-api.cx.metamask.io';
 
 describe('KycService', () => {
   afterEach(() => {
@@ -191,20 +198,112 @@ describe('KycService', () => {
     });
   });
 
+  describe('getWrappingKey', () => {
+    it('requests a wrapping key and returns the attested server key', async () => {
+      const response = {
+        id: 'wk',
+        jwtChain: 'jwt.chain.sig',
+        sessionServerPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+      };
+      nock(MOCK_API_URL)
+        .post('/wrapping-key', { sessionClientPublicKey: 'cpk' })
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getWrappingKey({ sessionClientPublicKey: 'cpk' }),
+      ).toStrictEqual(response);
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL).post('/wrapping-key').reply(200, { id: 'wk' });
+      const { service } = getService();
+
+      await expect(
+        service.getWrappingKey({ sessionClientPublicKey: 'cpk' }),
+      ).rejects.toThrow(/Malformed response received from wrapping-key API/u);
+    });
+  });
+
+  describe('fetchJwks', () => {
+    it('fetches the JWKS from the Fractal well-known path', async () => {
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
+      };
+      nock(MOCK_FRACTAL_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(await service.fetchJwks()).toStrictEqual(response);
+    });
+
+    it('throws when no Fractal base URL is configured', async () => {
+      // Omit the option entirely so the constructor falls back to ''.
+      const { service } = getService({ fractalEncryptionBaseUrl: null });
+
+      await expect(service.fetchJwks()).rejects.toThrow(
+        /fractalEncryptionBaseUrl is not configured/u,
+      );
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_FRACTAL_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, { keys: [{ kty: 'OKP' }] });
+      const { service } = getService();
+
+      await expect(service.fetchJwks()).rejects.toThrow(
+        /Malformed response received from JWKS API/u,
+      );
+    });
+  });
+
   describe('createUkycSession', () => {
-    it('creates a UKYC session', async () => {
+    const wrappedEncryptionKey = {
+      sessionId: 'wk',
+      encryptedKey: 'enc',
+      nonce: 'nonce',
+    };
+
+    // A genuinely signed, read-only capability token: minted from real derived
+    // client material and signed with the Ed25519 `signingKey`, not a
+    // hand-written plain object.
+    const material = deriveClientMaterial(
+      new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(42),
+    );
+    const ukycCapabilityToken = signStorageAccessToken({
+      material,
+      operations: ['read'],
+      issuedAt: new Date('2026-07-07T00:00:00.000Z'),
+      expiresAt: new Date('2026-07-07T04:00:00.000Z'),
+    });
+    // The service base64url-encodes the envelope into a compact string before
+    // sending it in the request body.
+    const encodedCapabilityToken =
+      encodeStorageAccessTokenForHeader(ukycCapabilityToken);
+
+    it('creates a UKYC session and forwards the wrapped key and capability token', async () => {
       const response = {
         sessionId: 'sid',
-        wrappingPublicKey: 'wpk',
-        idosSessionId: 'idos',
+        idosSessionId: 'iss',
       };
-      nock(MOCK_API_URL).post('/sessions').reply(200, response);
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body) =>
+            body.wrappedEncryptionKey !== undefined &&
+            body.ukycCapabilityToken === encodedCapabilityToken,
+        )
+        .reply(200, response);
       const { service } = getService();
 
       expect(
         await service.createUkycSession({
           jwtToken: 'jwt',
           vendorMetadata: { foo: 'bar' },
+          wrappedEncryptionKey,
+          ukycCapabilityToken,
         }),
       ).toStrictEqual(response);
     });
@@ -214,23 +313,28 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.createUkycSession({ jwtToken: 'jwt', vendorMetadata: {} }),
+        service.createUkycSession({
+          jwtToken: 'jwt',
+          vendorMetadata: {},
+          wrappedEncryptionKey,
+          ukycCapabilityToken,
+        }),
       ).rejects.toThrow(/Malformed response received from UKYC sessions API/u);
     });
   });
 
-  describe('submitWrappedKey', () => {
-    it('exchanges the wrapped key for an applicant access token', async () => {
+  describe('fetchApplicantAccessToken', () => {
+    it('fetches the applicant access token for a session', async () => {
       const response = { status: 'ok', applicantAccessToken: 'aat' };
-      nock(MOCK_API_URL).post('/sessions/sid/wrapped-key').reply(200, response);
+      nock(MOCK_API_URL)
+        .post('/sessions/sid/wrapped-key', { idosSessionId: 'iss' })
+        .reply(200, response);
       const { service } = getService();
 
       expect(
-        await service.submitWrappedKey({
+        await service.fetchApplicantAccessToken({
           sessionId: 'sid',
-          wrappedUserKey: 'wuk',
-          idosSessionId: 'idos',
-          jwtToken: 'jwt',
+          idosSessionId: 'iss',
         }),
       ).toStrictEqual(response);
     });
@@ -242,11 +346,9 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.submitWrappedKey({
+        service.fetchApplicantAccessToken({
           sessionId: 'sid',
-          wrappedUserKey: 'wuk',
-          idosSessionId: 'idos',
-          jwtToken: 'jwt',
+          idosSessionId: 'iss',
         }),
       ).rejects.toThrow(/Malformed response received from wrapped-key API/u);
     });
@@ -358,6 +460,8 @@ type RootMessenger = Messenger<
  * @param args.geolocation - The location the geolocation handler returns.
  * @param args.defaultPolicy - When true, omit `policyOptions` to use defaults.
  * @param args.baseUrl - When provided, overrides the env-derived base URL.
+ * @param args.fractalEncryptionBaseUrl - Fractal base URL; `null` omits the
+ * option so the service falls back to an empty string.
  * @returns The service, root messenger, and service messenger.
  */
 function getService({
@@ -365,11 +469,15 @@ function getService({
   geolocation = 'US-NY',
   defaultPolicy = false,
   baseUrl,
+  // `null` means "omit the option entirely" (exercises the constructor's
+  // `?? ''` fallback); omitting the field defaults to the mock Fractal URL.
+  fractalEncryptionBaseUrl = MOCK_FRACTAL_URL,
 }: {
   bearerToken?: string;
   geolocation?: string | null;
   defaultPolicy?: boolean;
   baseUrl?: string;
+  fractalEncryptionBaseUrl?: string | null;
 } = {}): {
   service: KycService;
   rootMessenger: RootMessenger;
@@ -403,6 +511,7 @@ function getService({
     fetch,
     messenger,
     env: 'development',
+    ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
     ...(baseUrl ? { baseUrl } : {}),
     ...(defaultPolicy ? {} : { policyOptions: { maxRetries: 0 } }),
   });

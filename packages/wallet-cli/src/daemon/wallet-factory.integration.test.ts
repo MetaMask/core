@@ -64,6 +64,36 @@ describe('createWallet (real Wallet, in-memory)', () => {
       await dispose();
     }
   });
+
+  // Short timeout: auto-approval must resolve in milliseconds once the wallet
+  // is up. A regression hangs, so fail fast rather than waiting the file-wide
+  // 30 s (set for KDF/SQLite-heavy tests).
+  it('auto-accepts a pending approval request instead of hanging', async () => {
+    const { wallet, dispose } = await createWallet({
+      databasePath: ':memory:',
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
+      infuraProjectId: INFURA_PROJECT_ID,
+      log: () => undefined,
+    });
+
+    try {
+      // `shouldShowRequest: false` bypasses the no-op `showApprovalRequest` hook —
+      // acceptance must come purely from the auto-approval subscription.
+      const accepted = await wallet.messenger.call(
+        'ApprovalController:addRequest',
+        { origin: 'https://example.com', type: 'test:approval' },
+        false,
+      );
+      expect(accepted).toBeUndefined();
+
+      expect(
+        wallet.messenger.call('ApprovalController:getState').pendingApprovals,
+      ).toStrictEqual({});
+    } finally {
+      await dispose();
+    }
+  }, 5_000);
 });
 
 describe('createWallet (integration)', () => {

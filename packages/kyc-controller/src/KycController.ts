@@ -5,7 +5,12 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  UserStorageControllerPerformGetStorageAction,
+  UserStorageControllerPerformSetStorageAction,
+} from '@metamask/profile-sync-controller/user-storage';
 import type { Json } from '@metamask/utils';
+import { x25519 } from '@noble/curves/ed25519';
 
 import { decryptCredentials, generateKeyPair } from './crypto';
 import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto';
@@ -19,6 +24,15 @@ import type {
   KycSumSubLauncher,
   KycSumSubStatus,
 } from './types';
+import {
+  deriveClientMaterial,
+  getOrCreateLocalUserSecret,
+  signStorageAccessToken,
+  toBase64Url,
+  verifyJwtChain,
+  wrapEncryptionKey,
+} from './ukyc';
+import type { UkycLocalUserSecretStore } from './ukyc';
 
 // === GENERAL ===
 
@@ -32,6 +46,12 @@ const CHANNEL_RESET = 'ch_reset';
 // Placeholder credentials for the SumSub sub-flow. These are demo values that
 // must be replaced with real UKYC-issued material before production use.
 const MOCK_JWT_TOKEN = 'mock-jwt-token';
+
+// Lifetime of the read-only `ukyc_capability_token` minted when creating a
+// UKYC session. The storage-and-auth spec requires the token's `expires_at` to
+// cover the KYC session's expected lifetime — including the provider journey —
+// rather than a fixed short window, so this is a session-scoped window.
+const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
 
 // The SumSub SDK status that signals the applicant finished the flow
 // successfully. Any other resolution (abandonment, failure, or a non-success
@@ -291,7 +311,10 @@ export type KycControllerActions =
   | KycControllerGetStateAction
   | KycControllerMethodActions;
 
-type AllowedActions = KycServiceMethodActions;
+type AllowedActions =
+  | KycServiceMethodActions
+  | UserStorageControllerPerformGetStorageAction
+  | UserStorageControllerPerformSetStorageAction;
 
 export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -421,6 +444,38 @@ export class KycController extends BaseController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Builds an adapter over `UserStorageController` that the platform-agnostic
+   * `getOrCreateLocalUserSecret` helper uses to persist/load the UKYC
+   * `local_user_secret`.
+   *
+   * @returns The Encrypted User Storage adapter.
+   */
+  #localUserSecretStore(): UkycLocalUserSecretStore {
+    return {
+      get: async (
+        path: string,
+        entropySourceId?: string,
+      ): Promise<string | null> =>
+        this.messenger.call(
+          'UserStorageController:performGetStorage',
+          path as `${string}.${string}`,
+          entropySourceId,
+        ),
+      set: async (
+        path: string,
+        value: string,
+        entropySourceId?: string,
+      ): Promise<void> =>
+        this.messenger.call(
+          'UserStorageController:performSetStorage',
+          path as `${string}.${string}`,
+          value,
+          entropySourceId,
+        ),
+    };
   }
 
   /**
@@ -604,6 +659,7 @@ export class KycController extends BaseController<
         state.statusMessage = 'Authenticating via Check frame...';
       });
     } catch (error) {
+      console.error('Session creation failed:', error);
       // A reset() superseded this flow while the request was in flight; leave
       // the idle controller alone rather than forcing it back to `terms`.
       if (this.#generation !== generation) {
@@ -961,9 +1017,17 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Runs the SumSub document-verification sub-flow: creates a UKYC session,
-   * exchanges the wrapped key for an applicant access token, and presents the
-   * SDK via the injected launcher.
+   * Runs the SumSub document-verification sub-flow end to end:
+   *
+   *  1. requests a per-session wrapping key from the UKYC backend;
+   *  2. verifies its `jwtChain` against the Fractal JWKS and confirms the
+   *     attested session server public key;
+   *  3. derives the `data_encryption_key` from the wallet's UKYC
+   *     `local_user_secret` and wraps it for the session server;
+   *  4. mints a client-signed, read-only `ukyc_capability_token` and creates
+   *     the UKYC session (handing over the wrapped key and the token);
+   *  5. fetches the SumSub applicant access token; and
+   *  6. presents the SDK via the injected launcher.
    *
    * @param params - Optional parameters.
    * @param params.locale - BCP-47 locale for the SDK UI.
@@ -999,23 +1063,74 @@ export class KycController extends BaseController<
       });
 
       const jwtToken = MOCK_JWT_TOKEN;
-      const { sessionId, wrappingPublicKey, idosSessionId } =
-        await this.messenger.call('KycService:createUkycSession', {
+
+      // Establish a per-session X25519 keypair and exchange our public half for
+      // the server's wrapping key. The private half stays on the device and is
+      // used to derive the shared secret that seals the data_encryption_key.
+      const sessionClientPrivateKey = x25519.utils.randomSecretKey();
+      const sessionClientPublicKey = x25519.getPublicKey(
+        sessionClientPrivateKey,
+      );
+      const wrappingKey = await this.messenger.call(
+        'KycService:getWrappingKey',
+        { sessionClientPublicKey: toBase64Url(sessionClientPublicKey) },
+      );
+
+      // Verify the jwtChain against Fractal's JWKS, then confirm the returned
+      // sessionServerPublicKey matches the value attested inside the verified
+      // JWT payload before trusting it for key wrapping.
+      const { keys } = await this.messenger.call('KycService:fetchJwks');
+      const jwtChainPayload = verifyJwtChain(keys, wrappingKey.jwtChain);
+      if (
+        jwtChainPayload.sessionServerPublicKeyX !==
+        wrappingKey.sessionServerPublicKey.x
+      ) {
+        throw new Error(
+          'sessionServerPublicKey does not match the verified jwtChain payload (sessionServerPublicKeyX).',
+        );
+      }
+
+      // Derive the data_encryption_key from the local_user_secret and wrap it
+      // for the session server. Only the wrapped (encrypted) key ever leaves
+      // the device.
+      const localUserSecret = await getOrCreateLocalUserSecret(
+        this.#localUserSecretStore(),
+      );
+      const clientMaterial = deriveClientMaterial(localUserSecret);
+      const wrappedEncryptionKey = {
+        sessionId: wrappingKey.id,
+        ...wrapEncryptionKey(
+          sessionClientPrivateKey,
+          wrappingKey.sessionServerPublicKey.x,
+          clientMaterial.dataEncryptionKey,
+        ),
+      };
+
+      // Mint a read-only `ukyc_capability_token` for the session. Only the
+      // client holds the signing key derived from `local_user_secret`, so only
+      // the client can mint it; scoping it to `read` means it authorizes later
+      // storage reads without granting write or delete access.
+      const ukycCapabilityToken = signStorageAccessToken({
+        material: clientMaterial,
+        operations: ['read'],
+        expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
+      });
+
+      const { sessionId, idosSessionId } = await this.messenger.call(
+        'KycService:createUkycSession',
+        {
           jwtToken,
           vendorMetadata: {
             moonPayAccessToken: this.state.accessToken,
             moonPayUserId: this.state.moonpayCustomerId,
           },
-        });
-      // Retain the exchange material so the SDK can refresh its token. The
-      // session's `wrappingPublicKey` is forwarded opaquely as the request's
-      // `wrappedUserKey` field (the /wrapped-key endpoint's body is unchanged).
-      const exchange = {
-        sessionId,
-        wrappedUserKey: wrappingPublicKey,
-        idosSessionId,
-        jwtToken,
-      };
+          wrappedEncryptionKey,
+          ukycCapabilityToken,
+        },
+      );
+
+      // Retain the session identifiers so the SDK can refresh its token.
+      const exchange = { sessionId, idosSessionId };
 
       this.#updateIfCurrent(generation, (state) => {
         state.sumsub.status = 'fetchingToken';
@@ -1023,7 +1138,7 @@ export class KycController extends BaseController<
       });
 
       const { applicantAccessToken } = await this.messenger.call(
-        'KycService:submitWrappedKey',
+        'KycService:fetchApplicantAccessToken',
         exchange,
       );
 
@@ -1058,7 +1173,7 @@ export class KycController extends BaseController<
             );
           }
           const refreshed = await this.messenger.call(
-            'KycService:submitWrappedKey',
+            'KycService:fetchApplicantAccessToken',
             exchange,
           );
           return refreshed.applicantAccessToken;

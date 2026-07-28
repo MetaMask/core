@@ -126,6 +126,21 @@ export type NetworkEnablementControllerDisableNetworkAction = {
 };
 
 /**
+ * Restores the enabled network map to a previously snapshotted state.
+ *
+ * Not a general merge API: only updates keys already present in the current
+ * map. Missing snapshot values default to `false`. Intended for callers with
+ * direct controller access (e.g. extension) to undo `#onAddNetwork` filter
+ * switches when adding a network without changing the active selection.
+ *
+ * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
+ */
+export type NetworkEnablementControllerRestoreEnabledNetworkMapAction = {
+  type: `NetworkEnablementController:restoreEnabledNetworkMap`;
+  handler: NetworkEnablementController['restoreEnabledNetworkMap'];
+};
+
+/**
  * Checks if a network is enabled.
  *
  * @param chainId - The chain ID of the network to check. Can be either:
@@ -186,6 +201,7 @@ export type NetworkEnablementControllerMethodActions =
   | NetworkEnablementControllerInitAction
   | NetworkEnablementControllerInitNativeAssetIdentifiersAction
   | NetworkEnablementControllerDisableNetworkAction
+  | NetworkEnablementControllerRestoreEnabledNetworkMapAction
   | NetworkEnablementControllerIsNetworkEnabledAction
   | NetworkEnablementControllerListPopularEvmNetworksAction
   | NetworkEnablementControllerListPopularMultichainNetworksAction

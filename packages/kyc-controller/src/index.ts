@@ -30,27 +30,33 @@ export type {
 
 export { KycService, serviceName } from './KycService';
 export type {
+  ApplicantAccessTokenResponse,
   CheckKycRequiredParams,
   CreateSessionParams,
   CreateUkycSessionParams,
+  FetchApplicantAccessTokenParams,
   GetSessionStatusParams,
+  GetWrappingKeyParams,
+  JwksResponse,
   KycServiceActions,
   KycServiceEnvironment,
   KycServiceEvents,
   KycServiceMessenger,
   KycServiceOptions,
-  SubmitWrappedKeyParams,
   UkycSessionResponse,
-  WrappedKeyResponse,
+  WrappedEncryptionKey,
+  WrappingKeyResponse,
 } from './KycService';
 export type {
   KycServiceCheckKycRequiredAction,
   KycServiceCreateSessionAction,
   KycServiceCreateUkycSessionAction,
+  KycServiceFetchApplicantAccessTokenAction,
   KycServiceFetchDisclaimersAction,
+  KycServiceFetchJwksAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
-  KycServiceSubmitWrappedKeyAction,
+  KycServiceGetWrappingKeyAction,
 } from './KycService-method-action-types';
 
 export {
@@ -78,3 +84,41 @@ export type {
   KycSumSubStatus,
   KycVendor,
 } from './types';
+
+export {
+  base64UrlToBytes,
+  buildWrappedRelayPayload,
+  canonicalizeJson,
+  deriveClientMaterial,
+  encodeClientMaterial,
+  encodeStorageAccessTokenForHeader,
+  getOrCreateLocalUserSecret,
+  hasLocalUserSecret,
+  loadLocalUserSecret,
+  signStorageAccessToken,
+  toBase64Url,
+  UKYC_DERIVED_KEY_SIZES,
+  UKYC_JWKS_PATH,
+  UKYC_KDF_INFO,
+  UKYC_LOCAL_USER_SECRET_PATH,
+  UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
+  UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
+  UKYC_STORAGE_ACCESS_TOKEN_VERSION,
+  verifyJwtChain,
+  wrapEncryptionKey,
+  wrapUserKey,
+} from './ukyc';
+export type {
+  EncodedUkycClientMaterial,
+  Jwk,
+  JwtChainPayload,
+  SignStorageAccessTokenParams,
+  UkycClientMaterial,
+  UkycLocalUserSecretStore,
+  UkycStorageAccessToken,
+  UkycStorageAccessTokenPayload,
+  UkycStorageOperation,
+  UkycTokenPresenter,
+  UkycWrappedRelayPayload,
+  WrappedEncryptionKeyParts,
+} from './ukyc';

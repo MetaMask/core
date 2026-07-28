@@ -13,6 +13,29 @@ import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { KycController } from './KycController';
 import type { KycControllerMessenger } from './KycController';
 import type { KycSumSubLauncher } from './types';
+import { verifyJwtChain, wrapEncryptionKey } from './ukyc';
+
+// `verifyJwtChain` (JWKS attestation) and `wrapEncryptionKey` (X25519 sealing)
+// need a real signed chain / valid keys, so they are stubbed here; the rest of
+// the UKYC layer (local-user-secret storage adapter, client-material
+// derivation) runs for real so the controller's messenger wiring is exercised.
+// Return values are (re)configured per test in `withController` because the
+// shared jest config enables `resetMocks`.
+jest.mock('./ukyc', () => {
+  const actual = jest.requireActual('./ukyc');
+  return {
+    ...actual,
+    verifyJwtChain: jest.fn(),
+    wrapEncryptionKey: jest.fn(),
+  };
+});
+
+const mockVerifyJwtChain = verifyJwtChain as jest.MockedFunction<
+  typeof verifyJwtChain
+>;
+const mockWrapEncryptionKey = wrapEncryptionKey as jest.MockedFunction<
+  typeof wrapEncryptionKey
+>;
 
 /**
  * Builds an encrypted envelope for a recipient's X25519 public key.
@@ -1199,15 +1222,6 @@ describe('KycController', () => {
 
     it('runs the full sub-flow and completes', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
-        handlers.createUkycSession.mockResolvedValue({
-          sessionId: 'sid',
-          wrappingPublicKey: 'wpk',
-          idosSessionId: 'idos',
-        });
-        handlers.submitWrappedKey.mockResolvedValue({
-          status: 'ok',
-          applicantAccessToken: 'aat',
-        });
         launcher.launch.mockImplementation(
           async ({ onStatusChange, onTokenExpiration }) => {
             onStatusChange?.('idle', 'InProgress');
@@ -1225,8 +1239,43 @@ describe('KycController', () => {
         expect(result).toStrictEqual({ ok: true });
         expect(controller.state.sumsub.status).toBe('complete');
         expect(controller.state.sumsub.applicantAccessToken).toBe('aat');
-        // onTokenExpiration re-invokes the exchange.
-        expect(handlers.submitWrappedKey).toHaveBeenCalledTimes(2);
+        // The wrapped key and a read-only capability token are handed over
+        // once at session creation.
+        expect(handlers.createUkycSession).toHaveBeenCalledWith(
+          expect.objectContaining({
+            wrappedEncryptionKey: expect.objectContaining({
+              sessionId: 'wk',
+              encryptedKey: 'enc',
+            }),
+            ukycCapabilityToken: expect.objectContaining({
+              payload: expect.objectContaining({
+                operations: ['read'],
+                presenter: 'client',
+              }),
+              signature: expect.any(String),
+            }),
+          }),
+        );
+        // onTokenExpiration re-fetches the applicant access token.
+        expect(handlers.fetchApplicantAccessToken).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('aborts when the attested session server public key does not match', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.getWrappingKey.mockResolvedValue({
+          id: 'wk',
+          jwtChain: 'jwt.chain.sig',
+          sessionServerPublicKey: { kty: 'OKP', crv: 'X25519', x: 'tampered' },
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toMatchObject({
+          error: expect.stringContaining('sessionServerPublicKey does not match'),
+        });
+        expect(controller.state.sumsub.status).toBe('failed');
+        expect(launcher.launch).not.toHaveBeenCalled();
       });
     });
 
@@ -1283,8 +1332,7 @@ describe('KycController', () => {
           controller.reset();
           return {
             sessionId: 'sid',
-            wrappingPublicKey: 'wpk',
-            idosSessionId: 'idos',
+            idosSessionId: 'iss',
           };
         });
 
@@ -1303,7 +1351,7 @@ describe('KycController', () => {
       await withController(async ({ controller, handlers, launcher }) => {
         // A reset() lands during the final token exchange, i.e. after the
         // session is prepared but before the SDK is presented.
-        handlers.submitWrappedKey.mockImplementation(async () => {
+        handlers.fetchApplicantAccessToken.mockImplementation(async () => {
           controller.reset();
           return { status: 'ok', applicantAccessToken: 'aat' };
         });
@@ -1326,16 +1374,17 @@ describe('KycController', () => {
         launcher.launch.mockImplementation(async ({ onTokenExpiration }) => {
           // The SDK stays open across a reset, then asks for a fresh token.
           controller.reset();
-          // Only the initial submitWrappedKey (session setup) should have run.
+          // Only the initial fetchApplicantAccessToken (session setup) should
+          // have run.
           const callsBeforeRefresh =
-            handlers.submitWrappedKey.mock.calls.length;
+            handlers.fetchApplicantAccessToken.mock.calls.length;
           try {
             await onTokenExpiration();
           } catch (error) {
             refreshError = error;
           }
           // The refresh must not hit the stale UKYC session.
-          expect(handlers.submitWrappedKey.mock.calls).toHaveLength(
+          expect(handlers.fetchApplicantAccessToken.mock.calls).toHaveLength(
             callsBeforeRefresh,
           );
           return { ok: true };
@@ -1668,9 +1717,13 @@ type ServiceHandlers = {
   fetchDisclaimers: jest.Mock;
   createSession: jest.Mock;
   checkKycRequired: jest.Mock;
+  getWrappingKey: jest.Mock;
+  fetchJwks: jest.Mock;
   createUkycSession: jest.Mock;
-  submitWrappedKey: jest.Mock;
+  fetchApplicantAccessToken: jest.Mock;
   getSessionStatus: jest.Mock;
+  performGetStorage: jest.Mock;
+  performSetStorage: jest.Mock;
 };
 
 type Launcher = {
@@ -1694,9 +1747,13 @@ const SERVICE_ACTIONS = [
   'KycService:fetchDisclaimers',
   'KycService:createSession',
   'KycService:checkKycRequired',
+  'KycService:getWrappingKey',
+  'KycService:fetchJwks',
   'KycService:createUkycSession',
-  'KycService:submitWrappedKey',
+  'KycService:fetchApplicantAccessToken',
   'KycService:getSessionStatus',
+  'UserStorageController:performGetStorage',
+  'UserStorageController:performSetStorage',
 ] as const;
 
 /**
@@ -1755,15 +1812,24 @@ function withController<ReturnValue>(
     fetchDisclaimers: jest.fn().mockResolvedValue([]),
     createSession: jest.fn().mockResolvedValue({ sessionToken: 'sess' }),
     checkKycRequired: jest.fn().mockResolvedValue({ kycRequired: false }),
+    getWrappingKey: jest.fn().mockResolvedValue({
+      id: 'wk',
+      jwtChain: 'jwt.chain.sig',
+      // Matches the `sessionServerPublicKeyX` returned by the mocked
+      // `verifyJwtChain`, so the attestation check passes.
+      sessionServerPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+    }),
+    fetchJwks: jest.fn().mockResolvedValue({ keys: [] }),
     createUkycSession: jest.fn().mockResolvedValue({
       sessionId: 'sid',
-      wrappingPublicKey: 'wpk',
-      idosSessionId: 'idos',
+      idosSessionId: 'iss',
     }),
-    submitWrappedKey: jest
+    fetchApplicantAccessToken: jest
       .fn()
       .mockResolvedValue({ status: 'ok', applicantAccessToken: 'aat' }),
     getSessionStatus: jest.fn().mockResolvedValue(sessionStatus('approved')),
+    performGetStorage: jest.fn().mockResolvedValue(null),
+    performSetStorage: jest.fn().mockResolvedValue(undefined),
   };
   rootMessenger.registerActionHandler(
     'KycService:getGeoCountry',
@@ -1782,17 +1848,41 @@ function withController<ReturnValue>(
     handlers.checkKycRequired,
   );
   rootMessenger.registerActionHandler(
+    'KycService:getWrappingKey',
+    handlers.getWrappingKey,
+  );
+  rootMessenger.registerActionHandler('KycService:fetchJwks', handlers.fetchJwks);
+  rootMessenger.registerActionHandler(
     'KycService:createUkycSession',
     handlers.createUkycSession,
   );
   rootMessenger.registerActionHandler(
-    'KycService:submitWrappedKey',
-    handlers.submitWrappedKey,
+    'KycService:fetchApplicantAccessToken',
+    handlers.fetchApplicantAccessToken,
   );
   rootMessenger.registerActionHandler(
     'KycService:getSessionStatus',
     handlers.getSessionStatus,
   );
+  rootMessenger.registerActionHandler(
+    'UserStorageController:performGetStorage',
+    handlers.performGetStorage,
+  );
+  rootMessenger.registerActionHandler(
+    'UserStorageController:performSetStorage',
+    handlers.performSetStorage,
+  );
+
+  // Configure the mocked UKYC crypto for this test (reset before each test by
+  // the shared jest config).
+  mockVerifyJwtChain.mockReturnValue({
+    sessionServerPublicKeyX: 'spk-x',
+    nonce: 'n',
+  });
+  mockWrapEncryptionKey.mockReturnValue({
+    encryptedKey: 'enc',
+    nonce: 'nonce',
+  });
 
   const launcher: Launcher = {
     isAvailable: jest.fn().mockReturnValue(true),

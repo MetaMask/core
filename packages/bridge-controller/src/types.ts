@@ -1,11 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
-import type {
-  CurrencyRateControllerGetStateAction,
-  MultichainAssetsRatesControllerGetStateAction,
-  TokenRatesControllerGetStateAction,
-} from '@metamask/assets-controllers';
+import type { CurrencyRateControllerGetStateAction } from '@metamask/assets-controllers';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -371,8 +367,6 @@ export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | CurrencyRateControllerGetStateAction
-  | TokenRatesControllerGetStateAction
-  | MultichainAssetsRatesControllerGetStateAction
   | SnapControllerHandleRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
