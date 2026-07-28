@@ -498,6 +498,43 @@ function formatTpslSize(params: {
 }
 
 /**
+ * Check that partial TP/SL sizes survive the asset's precision.
+ *
+ * Callers run this before taking any side effect — cancelling the position's
+ * existing triggers, changing leverage, moving HIP-3 margin — so a size that
+ * would only fail once the orders are built cannot leave a position stripped of
+ * its protection with nothing put back.
+ *
+ * @param params - Size parameters
+ * @param params.takeProfitSize - Requested partial take profit size, if any
+ * @param params.stopLossSize - Requested partial stop loss size, if any
+ * @param params.szDecimals - Asset size decimals
+ * @returns Validation result with isValid flag and optional error message
+ */
+export function validatePartialTpslSizePrecision(params: {
+  takeProfitSize?: string;
+  stopLossSize?: string;
+  szDecimals: number;
+}): { isValid: boolean; error?: string } {
+  const { takeProfitSize, stopLossSize, szDecimals } = params;
+
+  for (const size of [takeProfitSize, stopLossSize]) {
+    if (size === undefined) {
+      continue;
+    }
+
+    if (parseFloat(formatHyperLiquidSize({ size, szDecimals })) <= 0) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+      };
+    }
+  }
+
+  return { isValid: true };
+}
+
+/**
  * Format a partial TP/SL size, rejecting one that disappears at the asset
  * precision.
  *

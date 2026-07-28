@@ -527,6 +527,35 @@ describe('HyperLiquidProvider', () => {
       (mockClientService.getExchangeClient().order as jest.Mock).mock
         .calls[0][0];
 
+    it('rejects an attached TP/SL size that rounds to zero before changing leverage', async () => {
+      // The leverage change is on-chain and not undone by a later rejection, so
+      // a size that disappears at szDecimals: 3 has to be caught before it.
+      mockValidateOrderParams.mockImplementation(
+        jest.requireActual('../../../src/utils/hyperLiquidValidation.js')
+          .validateOrderParams,
+      );
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+        leverage: 5,
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.0004',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
     it('places a stop market order as a market-on-trigger stop', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
@@ -1674,6 +1703,56 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('leaves the position protected when a partial size rounds to zero', async () => {
+      // The position already has a whole-position TP/SL the sweep would cancel.
+      // Rejecting the update after that sweep would strip the protection and
+      // put nothing back, so the rejection has to come first.
+      mockValidateOrderParams.mockImplementation(
+        jest.requireActual('../../../src/utils/hyperLiquidValidation.js')
+          .validateOrderParams,
+      );
+      // A partial update always reads the REST payload for parent/child links,
+      // so that is where the sweep finds the trigger it would cancel.
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '58000',
+              sz: '0',
+              origSz: '0',
+              oid: 777,
+              timestamp: 1_700_000_000_000,
+              isTrigger: true,
+              triggerCondition: 'Price above 58000',
+              triggerPx: '58000',
+              children: [],
+              isPositionTpsl: true,
+              reduceOnly: true,
+              orderType: 'Take Profit Limit',
+            },
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.0004',
+        position,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+      expect(
+        mockClientService.getExchangeClient().cancel,
+      ).not.toHaveBeenCalled();
       expect(
         mockClientService.getExchangeClient().order,
       ).not.toHaveBeenCalled();

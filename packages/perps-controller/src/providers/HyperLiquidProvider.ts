@@ -175,6 +175,7 @@ import {
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
   formatPartialTpslSize,
+  validatePartialTpslSizePrecision,
 } from '../utils/orderCalculations.js';
 import {
   getTriggerExecution,
@@ -3489,6 +3490,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         dexName,
       });
 
+      // A partial TP/SL size that rounds away at the asset precision is caught
+      // here, as soon as szDecimals is known and before anything is committed:
+      // the signing prompts in #ensureReadyForTrading, the leverage change in
+      // #prepareAssetForTrading, and the HIP-3 margin transfer all come later.
+      const tpslPrecision = validatePartialTpslSizePrecision({
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
+        szDecimals: assetInfo.szDecimals,
+      });
+      if (!tpslPrecision.isValid) {
+        throw new Error(tpslPrecision.error);
+      }
+
       // Allow override with UI-provided price (optimization to avoid API call).
       effectivePrice =
         params.currentPrice && params.currentPrice > 0
@@ -4401,6 +4415,51 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(symbol);
 
+      // Asset info is resolved before the pre-cancel sweep so a partial size
+      // that rounds away at the asset precision is rejected while the
+      // position's existing triggers are still in place. Rejecting it after the
+      // sweep would leave the position unprotected with nothing put back.
+      const meta = await this.#getCachedMeta({ dexName });
+
+      // Check if meta is an error response (string) or doesn't have universe property
+      if (
+        !meta ||
+        typeof meta === 'string' ||
+        !meta.universe ||
+        !Array.isArray(meta.universe)
+      ) {
+        this.#deps.debugLogger.log(
+          'Failed to fetch metadata for asset mapping',
+          {
+            meta,
+            dex: dexName ?? 'main',
+          },
+        );
+        throw new Error(
+          `Failed to fetch market metadata for DEX ${dexName ?? 'main'}`,
+        );
+      }
+
+      // asset.name format: "BTC" for main DEX, "xyz:XYZ100" for HIP-3
+      const assetInfo = meta.universe.find((asset) => asset.name === symbol);
+      if (!assetInfo) {
+        throw new Error(
+          `Asset ${symbol} not found in ${dexName ?? 'main'} DEX universe`,
+        );
+      }
+
+      const tpslPrecision = validatePartialTpslSizePrecision({
+        takeProfitSize,
+        stopLossSize,
+        szDecimals: assetInfo.szDecimals,
+      });
+      if (!tpslPrecision.isValid) {
+        return {
+          success: false,
+          error: tpslPrecision.error,
+        };
+      }
+
       // Cancel existing TP/SL orders for this position
       // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
       // Previously: queryUserDataAcrossDexs queried ALL DEXs (20 weight × N DEXs = 40+ weight)
@@ -4522,36 +4581,6 @@ export class HyperLiquidProvider implements PerpsProvider {
           cancels: cancelRequests,
         });
         this.#deps.debugLogger.log('Cancel result:', cancelResult);
-      }
-
-      // Get asset info (dexName already extracted above) - uses cache
-      const meta = await this.#getCachedMeta({ dexName });
-
-      // Check if meta is an error response (string) or doesn't have universe property
-      if (
-        !meta ||
-        typeof meta === 'string' ||
-        !meta.universe ||
-        !Array.isArray(meta.universe)
-      ) {
-        this.#deps.debugLogger.log(
-          'Failed to fetch metadata for asset mapping',
-          {
-            meta,
-            dex: dexName ?? 'main',
-          },
-        );
-        throw new Error(
-          `Failed to fetch market metadata for DEX ${dexName ?? 'main'}`,
-        );
-      }
-
-      // asset.name format: "BTC" for main DEX, "xyz:XYZ100" for HIP-3
-      const assetInfo = meta.universe.find((asset) => asset.name === symbol);
-      if (!assetInfo) {
-        throw new Error(
-          `Asset ${symbol} not found in ${dexName ?? 'main'} DEX universe`,
-        );
       }
 
       // assetId already validated above when building cancelRequests
