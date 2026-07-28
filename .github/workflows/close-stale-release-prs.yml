@@ -24,13 +24,13 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
+          is-high-risk-environment: false
           persist-credentials: false
+          cache-node-modules: true
       - name: Close inactive release PRs
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const closeStaleReleasePrs = require('./.github/scripts/close-stale-release-prs.cjs');
-            await closeStaleReleasePrs({ github, context, core });
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: yarn tsx scripts/close-stale-release-prs.ts
