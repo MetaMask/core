@@ -2,13 +2,13 @@ import { disableNetConnect, enableNetConnect } from 'nock';
 import type { ChildProcess } from 'node:child_process';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { cleanupDaemon } from './helpers.js';
 import { getDaemonPaths } from '../src/daemon/paths.js';
-import { isProcessAlive, readPidFile } from '../src/daemon/utils.js';
 
 // True end-to-end test for `mm wallet send`: it drives the BUILT `mm` CLI
 // against a REAL local EVM chain (anvil, from Foundry) and asserts that a
@@ -252,24 +252,6 @@ async function startAnvil(port: number): Promise<ChildProcess> {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
   }
-}
-
-/**
- * Kill any daemon recorded in the data dir and remove the temp directory.
- *
- * @param dataDir - The temp data directory to tear down.
- */
-async function cleanupDaemon(dataDir: string): Promise<void> {
-  const { pidPath } = getDaemonPaths(dataDir);
-  const pid = await readPidFile(pidPath).catch(() => undefined);
-  if (pid !== undefined && isProcessAlive(pid)) {
-    try {
-      process.kill(pid, 'SIGKILL');
-    } catch {
-      // Already gone.
-    }
-  }
-  await rm(dataDir, { recursive: true, force: true });
 }
 
 // `resolveAnvilPath` only returns a value once it has confirmed the binary is
