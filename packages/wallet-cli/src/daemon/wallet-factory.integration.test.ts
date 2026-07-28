@@ -60,9 +60,23 @@ describe('createWallet (real Wallet, in-memory)', () => {
 
       const { keyrings } = wallet.messenger.call('KeyringController:getState');
       expect(keyrings[0]?.accounts[0]).toMatch(/^0x[0-9a-fA-F]{40}$/u);
+    } finally {
+      await dispose();
+    }
+  });
 
-      // The daemon registers stub `AnalyticsController` handlers (it does not
-      // report analytics); `getState` returns an empty analytics ID and
+  it('registers stub AnalyticsController handlers that do nothing', async () => {
+    const { wallet, dispose } = await createWallet({
+      databasePath: ':memory:',
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
+      infuraProjectId: INFURA_PROJECT_ID,
+      log: () => undefined,
+    });
+
+    try {
+      // The daemon does not report analytics, so `getState` returns an empty
+      // analytics ID (which stops `NetworkController` before it tracks) and
       // `trackEvent` does nothing.
       expect(
         wallet.messenger.call('AnalyticsController:getState').analyticsId,
