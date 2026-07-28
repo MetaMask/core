@@ -5,7 +5,7 @@ import {
   installJavaTron,
   parseJavaTronInstallCliOptions,
   readJavaTronInstallOptionsFromPackageJson,
-} from '../install';
+} from '../install.js';
 
 async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2);

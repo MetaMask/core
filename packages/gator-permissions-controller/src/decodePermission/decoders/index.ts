@@ -1,14 +1,8 @@
-import type { DeployedContractsByName, PermissionDecoder } from '../types.js';
-import { getChecksumEnforcersByChainId } from '../utils.js';
-import { makeErc20TokenAllowanceDecoderConfig } from './erc20TokenAllowance.js';
-import { makeErc20TokenPeriodicDecoderConfig } from './erc20TokenPeriodic.js';
-import { makeErc20TokenRevocationDecoderConfig } from './erc20TokenRevocation.js';
-import { makeErc20TokenStreamDecoderConfig } from './erc20TokenStream.js';
+import { makePermissionDecoderConfigs } from '@metamask/7715-permission-types';
+import type { EnforcerAddressesByName } from '@metamask/7715-permission-types';
+
+import type { PermissionDecoder } from '../types.js';
 import { makePermissionDecoder } from './makePermissionDecoder.js';
-import { makeNativeTokenAllowanceDecoderConfig } from './nativeTokenAllowance.js';
-import { makeNativeTokenPeriodicDecoderConfig } from './nativeTokenPeriodic.js';
-import { makeNativeTokenStreamDecoderConfig } from './nativeTokenStream.js';
-import { makeTokenApprovalRevocationDecoderConfig } from './tokenApprovalRevocation.js';
 
 /**
  * Builds the canonical set of permission decoders for a chain.
@@ -17,22 +11,17 @@ import { makeTokenApprovalRevocationDecoderConfig } from './tokenApprovalRevocat
  * and provides `caveatAddressesMatch` and `validateAndDecodePermission` so the
  * entire decode flow can be driven by the decoders.
  *
- * @param contracts - The deployed contracts for the chain.
+ * `contracts` should already be checksummed (see {@link toEnforcerAddressesByName}).
+ * `makePermissionDecoderConfigs` checksums them again, and {@link makePermissionDecoder}
+ * normalizes enforcer sets once more — see the module comment in
+ * `makePermissionDecoder.ts` for why checksumming is layered this way.
+ *
+ * @param contracts - The deployed enforcer addresses for the chain.
  * @returns A list of permission decoders used to identify and decode permission types.
  * @throws Propagates any errors from resolving enforcer addresses.
  */
 export const createPermissionDecodersForContracts = (
-  contracts: DeployedContractsByName,
+  contracts: EnforcerAddressesByName,
 ): PermissionDecoder[] => {
-  const contractAddresses = getChecksumEnforcersByChainId(contracts);
-  return [
-    makeNativeTokenStreamDecoderConfig(contractAddresses),
-    makeNativeTokenPeriodicDecoderConfig(contractAddresses),
-    makeNativeTokenAllowanceDecoderConfig(contractAddresses),
-    makeErc20TokenStreamDecoderConfig(contractAddresses),
-    makeErc20TokenPeriodicDecoderConfig(contractAddresses),
-    makeErc20TokenAllowanceDecoderConfig(contractAddresses),
-    makeErc20TokenRevocationDecoderConfig(contractAddresses),
-    makeTokenApprovalRevocationDecoderConfig(contractAddresses),
-  ].map(makePermissionDecoder);
+  return makePermissionDecoderConfigs(contracts).map(makePermissionDecoder);
 };
