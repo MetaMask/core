@@ -220,64 +220,6 @@ describe('BridgeController', function () {
     });
   });
 
-  describe('getExchangeRateSources and fetchAssetExchangeRates', function () {
-    it('calls MultichainAssetsRatesController, CurrencyRateController, and TokenRatesController when useAssetsControllerForRates is false', async function () {
-      jest.useFakeTimers();
-      await withController(async ({ rootMessenger }) => {
-        const hasSufficientBalanceSpy = jest
-          .spyOn(balanceUtils, 'hasSufficientBalance')
-          .mockResolvedValue(true);
-
-        const getStateReturn = {
-          conversionRates: {},
-          currencyRates: {},
-          marketData: {},
-          currentCurrency: 'USD',
-        };
-        messengerCallMock.mockImplementation(
-          (
-            actionType: string,
-          ): ReturnType<BridgeControllerMessenger['call']> => {
-            if (actionType === 'AuthenticationController:getBearerToken') {
-              return 'AUTH_TOKEN';
-            }
-            if (
-              actionType === 'MultichainAssetsRatesController:getState' ||
-              actionType === 'CurrencyRateController:getState' ||
-              actionType === 'TokenRatesController:getState'
-            ) {
-              return getStateReturn as never;
-            }
-            return {
-              remoteFeatureFlags: { bridgeConfig: { ...bridgeConfig } },
-              address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-              provider: jest.fn(),
-            } as never;
-          },
-        );
-
-        await rootMessenger.call(
-          'BridgeController:updateBridgeQuoteRequestParams',
-          {
-            srcChainId: '0x1',
-            destChainId: '0xa',
-            srcTokenAddress: '0x0000000000000000000000000000000000000000',
-            destTokenAddress: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
-            srcTokenAmount: '1000000000000000000',
-            walletAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-            slippage: 0.5,
-          },
-          metricsContext,
-        );
-
-        jest.advanceTimersToNextTimer();
-        await flushPromises();
-
-        hasSufficientBalanceSpy.mockRestore();
-      });
-    });
-  });
-
   it('setBridgeFeatureFlags should fetch and set the bridge feature flags', async function () {
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
