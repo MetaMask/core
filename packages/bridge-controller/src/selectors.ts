@@ -442,7 +442,9 @@ const selectSortedBridgeQuotes = createBridgeSelector(
         }
         if (
           quotesWithMetadata.every(
-            (quote) => quote.quote.priceData?.priceImpact?.amount,
+            (quote) =>
+              quote.quote.priceData?.priceImpact?.amount &&
+              quote.quote.priceData?.priceImpact?.amount !== '0',
           )
         ) {
           return orderBy(
