@@ -1,4 +1,4 @@
-import { readJsonFile, readFile } from '@metamask/utils/node';
+import { readJsonFile, readFile, fileExists } from '@metamask/utils/node';
 import * as commentJson from 'comment-json';
 import execa from 'execa';
 import fs from 'fs';
@@ -114,6 +114,39 @@ export async function getAllNonRootWorkspaces(
     byName: workspacesByName,
     byAbsolutePath: workspacesByAbsolutePath,
   };
+}
+
+/**
+ * Filters workspaces to those that contain a particular TypeScript config.
+ *
+ * @param args - The arguments to this function.
+ * @param args.workspaces - The workspaces to filter.
+ * @param args.repoRoot - The root directory of the repository.
+ * @param args.fileName - The TypeScript config filename to look for.
+ * @returns The workspaces containing the requested TypeScript config.
+ */
+export async function filterWorkspacesWithTsconfig({
+  workspaces,
+  repoRoot,
+  fileName,
+}: {
+  workspaces: readonly Workspace[];
+  repoRoot: string;
+  fileName: string;
+}): Promise<Workspace[]> {
+  const results = await Promise.all(
+    workspaces.map(async (workspace) => {
+      const filePath = path.resolve(repoRoot, workspace.location, fileName);
+      if (await fileExists(filePath)) {
+        return workspace;
+      }
+      return undefined;
+    }),
+  );
+
+  return results.filter(
+    (workspace): workspace is Workspace => workspace !== undefined,
+  );
 }
 
 /**
