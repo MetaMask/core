@@ -12,7 +12,7 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
-import type { TraceCallback } from '@metamask/controller-utils';
+import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
   AccountActivityServiceBalanceUpdatedEvent,
@@ -211,6 +211,7 @@ const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 // ============================================================================
 const TRACE_FIRST_INIT_FETCH = 'AssetsControllerFirstInitFetch';
 const TRACE_FULL_FETCH = 'AssetsFullFetch';
+const TRACE_BACKGROUND_FETCH = 'AssetsBackgroundFetch';
 const TRACE_DATA_SOURCE_TIMING = 'AssetsDataSourceTiming';
 const TRACE_DATA_SOURCE_ERROR = 'AssetsDataSourceError';
 const TRACE_UPDATE_PIPELINE = 'AssetsUpdatePipeline';
@@ -666,10 +667,17 @@ export class AssetsController extends BaseController<
 
   /**
    * Fire-and-forget trace helper. Swallows errors so telemetry never breaks the controller.
+   * Pass `parentContext` to record a Sentry **subspan** instead of a new root transaction
+   * (avoids rate-limiting when many timings fire per fetch).
+   *
+   * After the cold-start fetch has been reported, only nested spans (with
+   * `parentContext`) and always-on traces are emitted — subsequent fetches/updates
+   * do not create new Sentry transactions.
    *
    * @param name - Trace / span name visible in Sentry.
    * @param data - Key-value pairs attached as span data.
    * @param tags - Key-value pairs used for Sentry filtering.
+   * @param parentContext - Optional parent span context for nesting as a subspan.
    */
   #emitTrace(
     name: string,
@@ -677,13 +685,55 @@ export class AssetsController extends BaseController<
     tags: Record<string, number | string | boolean> = {
       controller: 'AssetsController',
     },
+    parentContext?: TraceContext,
   ): void {
     if (!this.#trace) {
       return;
     }
-    this.#trace({ name, data, tags }, () => undefined)?.catch(() => {
-      // Telemetry failure must not break.
-    });
+    // Cold-start only: skip root spans after the first init fetch. Nested
+    // subspans (parentContext set) and error/state-size traces still allowed.
+    if (
+      this.#firstInitFetchReported &&
+      parentContext === undefined &&
+      name !== TRACE_SUBSCRIPTION_ERROR &&
+      name !== TRACE_STATE_SIZE
+    ) {
+      return;
+    }
+    this.#trace({ name, data, tags, parentContext }, () => undefined)?.catch(
+      () => {
+        // Telemetry failure must not break.
+      },
+    );
+  }
+
+  /**
+   * Run work inside a parent Sentry span and pass its context so callers can
+   * emit nested subspans via {@link #emitTrace}.
+   *
+   * Only wraps work on cold start (before the first init fetch is reported).
+   * Later calls still run `fn`, but without creating a Sentry parent span.
+   *
+   * @param name - Parent span name.
+   * @param data - Key-value pairs attached as span data.
+   * @param fn - Work to run; receives the parent span context.
+   * @param tags - Key-value pairs used for Sentry filtering.
+   * @returns The result of `fn`.
+   */
+  async #withTrace<Result>(
+    name: string,
+    data: Record<string, number | string | boolean>,
+    fn: (parentContext?: TraceContext) => Promise<Result>,
+    tags: Record<string, number | string | boolean> = {
+      controller: 'AssetsController',
+    },
+  ): Promise<Result> {
+    if (!this.#trace || this.#firstInitFetchReported) {
+      return fn(undefined);
+    }
+    return await this.#trace({ name, data, tags }, (parentContext) =>
+      fn(parentContext),
+    );
   }
 
   /**
@@ -1499,12 +1549,14 @@ export class AssetsController extends BaseController<
    * @param sources - Data sources or middlewares with getName() and assetsMiddleware (executed in order).
    * @param request - The data request.
    * @param initialResponse - Optional initial response (for enriching existing data).
+   * @param parentContext - Optional parent Sentry span; per-source timings nest under it.
    * @returns Response and durationByDataSource (exclusive ms per source name).
    */
   async #executeMiddlewares(
     sources: AssetsDataSource[],
     request: DataRequest,
     initialResponse: DataResponse = {},
+    parentContext?: TraceContext,
   ): Promise<{
     response: DataResponse;
     durationByDataSource: Record<string, number>;
@@ -1574,16 +1626,21 @@ export class AssetsController extends BaseController<
       }
     }
 
-    // Emit per-source timing traces for the Assets Health dashboard
+    // Emit per-source timing as subspans under the parent fetch/update span
     for (const [sourceName, durationMs] of Object.entries(
       durationByDataSource,
     )) {
-      this.#emitTrace(TRACE_DATA_SOURCE_TIMING, {
-        source: sourceName,
-        duration_ms: durationMs,
-        chain_count: request.chainIds.length,
-        account_count: request.accountsWithSupportedChains.length,
-      });
+      this.#emitTrace(
+        TRACE_DATA_SOURCE_TIMING,
+        {
+          source: sourceName,
+          duration_ms: durationMs,
+          chain_count: request.chainIds.length,
+          account_count: request.accountsWithSupportedChains.length,
+        },
+        { controller: 'AssetsController' },
+        parentContext,
+      );
     }
 
     // Failed middlewares: Issues (optional) + perf/Dashboard spans
@@ -1611,6 +1668,7 @@ export class AssetsController extends BaseController<
           severity: 'error',
           error_type: assetsError.name,
         },
+        parentContext,
       );
     }
 
@@ -1649,115 +1707,154 @@ export class AssetsController extends BaseController<
     }
 
     if (options?.forceUpdate) {
-      const startTime = performance.now();
-      const request = this.#buildDataRequest(accounts, chainIds, {
-        assetTypes,
-        dataTypes,
-        customAssets: customAssets.length > 0 ? customAssets : undefined,
-        forceUpdate: true,
-        assetsForPriceUpdate: options?.assetsForPriceUpdate,
-      });
-      // Fast pipeline: accountsApi + stakedBalance → detection → token + price.
-      // Snap and RPC are excluded here due to their latency (snap triggers account
-      // creation, RPC is slow on many chains). Results are committed to state
-      // immediately so the UI can display balances without waiting for them.
-      //
-      // Fast/slow pipelines use merge so partial API snapshots cannot wipe
-      // tokens missing from the response (e.g. USDC when only native balance
-      // is returned). Balances present in the response are still refreshed.
-      const fastSources = this.#isBasicFunctionality()
-        ? [
-            createParallelBalanceMiddleware([
-              this.#accountsApiDataSource,
-              this.#stakedBalanceDataSource,
-            ]),
-            // Graduation must run BEFORE the RPC fallback so it only sees
-            // AccountsApi/Websocket balances. RPC intentionally carries
-            // custom assets and must never trigger graduation.
-            this.#customAssetGraduationMiddleware,
-            this.#rpcFallbackMiddleware,
-            this.#detectionMiddleware,
-            createParallelMiddleware([
-              this.#tokenDataSource,
-              this.#priceDataSource,
-            ]),
-          ]
-        : [this.#stakedBalanceDataSource, this.#detectionMiddleware];
-      const { response, durationByDataSource } = await this.#executeMiddlewares(
-        fastSources,
-        request,
+      await this.#withTrace(
+        TRACE_FULL_FETCH,
+        {
+          chain_count: chainIds.length,
+          account_count: accounts.length,
+          basic_functionality: this.#isBasicFunctionality(),
+        },
+        async (parentContext) => {
+          const startTime = performance.now();
+          const request = this.#buildDataRequest(accounts, chainIds, {
+            assetTypes,
+            dataTypes,
+            customAssets: customAssets.length > 0 ? customAssets : undefined,
+            forceUpdate: true,
+            assetsForPriceUpdate: options?.assetsForPriceUpdate,
+          });
+          // Fast pipeline: accountsApi + stakedBalance → detection → token + price.
+          // Snap and RPC are excluded here due to their latency (snap triggers account
+          // creation, RPC is slow on many chains). Results are committed to state
+          // immediately so the UI can display balances without waiting for them.
+          //
+          // Fast/slow pipelines use merge so partial API snapshots cannot wipe
+          // tokens missing from the response (e.g. USDC when only native balance
+          // is returned). Balances present in the response are still refreshed.
+          const fastSources = this.#isBasicFunctionality()
+            ? [
+                createParallelBalanceMiddleware([
+                  this.#accountsApiDataSource,
+                  this.#stakedBalanceDataSource,
+                ]),
+                // Graduation must run BEFORE the RPC fallback so it only sees
+                // AccountsApi/Websocket balances. RPC intentionally carries
+                // custom assets and must never trigger graduation.
+                this.#customAssetGraduationMiddleware,
+                this.#rpcFallbackMiddleware,
+                this.#detectionMiddleware,
+                createParallelMiddleware([
+                  this.#tokenDataSource,
+                  this.#priceDataSource,
+                ]),
+              ]
+            : [this.#stakedBalanceDataSource, this.#detectionMiddleware];
+          const { response, durationByDataSource } =
+            await this.#executeMiddlewares(
+              fastSources,
+              request,
+              {},
+              parentContext,
+            );
+          await this.#updateState({
+            ...response,
+            updateMode: 'merge',
+            replaceCoveredChainBalances: true,
+          });
+
+          // Background pipeline: snap and RPC run in parallel after the fast path
+          // commits to state. Their balances are merged together before detection.
+          // Token + price enrichment matches the pre-split behavior: only when basic
+          // functionality is on (RPC-only mode must not call token/price APIs).
+          // Own parent span so timings nest instead of becoming extra root traces
+          // after the fast-path parent has ended.
+          const slowPipelineChainIds = this.#getSlowPipelineChainIds(
+            chainIds,
+            response,
+          );
+
+          if (slowPipelineChainIds.length > 0) {
+            const slowSources = this.#isBasicFunctionality()
+              ? [this.#snapDataSource, this.#rpcDataSource]
+              : [this.#rpcDataSource];
+
+            const slowRequest = { ...request, chainIds: slowPipelineChainIds };
+
+            this.#withTrace(
+              TRACE_BACKGROUND_FETCH,
+              {
+                chain_count: slowPipelineChainIds.length,
+                account_count: accounts.length,
+              },
+              async (slowParentContext) => {
+                const { response: slowResponse } =
+                  await this.#executeMiddlewares(
+                    [
+                      createParallelBalanceMiddleware(slowSources),
+                      this.#detectionMiddleware,
+                      ...(this.#isBasicFunctionality()
+                        ? [
+                            createParallelMiddleware([
+                              this.#tokenDataSource,
+                              this.#priceDataSource,
+                            ]),
+                          ]
+                        : []),
+                    ],
+                    slowRequest,
+                    {},
+                    slowParentContext,
+                  );
+                await this.#updateState({
+                  ...slowResponse,
+                  updateMode: 'merge',
+                });
+              },
+            ).catch((error) => log('Background pipeline failed', { error }));
+          }
+
+          const durationMs = performance.now() - startTime;
+
+          // Summary fields for Assets Health (nested under the parent span so
+          // they do not create additional root transactions).
+          this.#emitTrace(
+            TRACE_FULL_FETCH,
+            {
+              duration_ms: durationMs,
+              chain_count: chainIds.length,
+              account_count: accounts.length,
+              basic_functionality: this.#isBasicFunctionality(),
+              asset_count: response.assetsBalance
+                ? Object.values(response.assetsBalance).reduce(
+                    (sum, acct) => sum + Object.keys(acct).length,
+                    0,
+                  )
+                : 0,
+              price_count: response.assetsPrice
+                ? Object.keys(response.assetsPrice).length
+                : 0,
+              ...durationByDataSource,
+            },
+            { controller: 'AssetsController' },
+            parentContext,
+          );
+
+          if (!this.#firstInitFetchReported) {
+            this.#emitTrace(
+              TRACE_FIRST_INIT_FETCH,
+              {
+                duration_ms: durationMs,
+                chain_ids: JSON.stringify(chainIds),
+                ...durationByDataSource,
+              },
+              { controller: 'AssetsController' },
+              parentContext,
+            );
+            // Mark after emitting so the first-init span itself is not gated.
+            this.#firstInitFetchReported = true;
+          }
+        },
       );
-      await this.#updateState({
-        ...response,
-        updateMode: 'merge',
-        replaceCoveredChainBalances: true,
-      });
-
-      // Background pipeline: snap and RPC run in parallel after the fast path
-      // commits to state. Their balances are merged together before detection.
-      // Token + price enrichment matches the pre-split behavior: only when basic
-      // functionality is on (RPC-only mode must not call token/price APIs).
-      const slowPipelineChainIds = this.#getSlowPipelineChainIds(
-        chainIds,
-        response,
-      );
-
-      if (slowPipelineChainIds.length > 0) {
-        const slowSources = this.#isBasicFunctionality()
-          ? [this.#snapDataSource, this.#rpcDataSource]
-          : [this.#rpcDataSource];
-
-        const slowRequest = { ...request, chainIds: slowPipelineChainIds };
-
-        this.#executeMiddlewares(
-          [
-            createParallelBalanceMiddleware(slowSources),
-            this.#detectionMiddleware,
-            ...(this.#isBasicFunctionality()
-              ? [
-                  createParallelMiddleware([
-                    this.#tokenDataSource,
-                    this.#priceDataSource,
-                  ]),
-                ]
-              : []),
-          ],
-          slowRequest,
-        )
-          .then(({ response: slowResponse }) =>
-            this.#updateState({ ...slowResponse, updateMode: 'merge' }),
-          )
-          .catch((error) => log('Background pipeline failed', { error }));
-      }
-
-      const durationMs = performance.now() - startTime;
-
-      // Emit trace for every full fetch (Assets Health dashboard)
-      this.#emitTrace(TRACE_FULL_FETCH, {
-        duration_ms: durationMs,
-        chain_count: chainIds.length,
-        account_count: accounts.length,
-        basic_functionality: this.#isBasicFunctionality(),
-        asset_count: response.assetsBalance
-          ? Object.values(response.assetsBalance).reduce(
-              (sum, acct) => sum + Object.keys(acct).length,
-              0,
-            )
-          : 0,
-        price_count: response.assetsPrice
-          ? Object.keys(response.assetsPrice).length
-          : 0,
-        ...durationByDataSource,
-      });
-
-      if (!this.#firstInitFetchReported) {
-        this.#firstInitFetchReported = true;
-        this.#emitTrace(TRACE_FIRST_INIT_FETCH, {
-          duration_ms: durationMs,
-          chain_ids: JSON.stringify(chainIds),
-          ...durationByDataSource,
-        });
-      }
     }
 
     const result = this.#getAssetsFromState(accounts, chainIds, assetTypes);
@@ -3676,75 +3773,95 @@ export class AssetsController extends BaseController<
     sourceId: string,
     request?: DataRequest,
   ): Promise<void> {
-    const updateStart = performance.now();
-
     log('Assets updated from data source', {
       sourceId,
       hasBalance: Boolean(response.assetsBalance),
       hasPrice: Boolean(response.assetsPrice),
     });
 
-    const resolvedRequest: DataRequest = request ?? {
-      accountsWithSupportedChains: [],
-      chainIds: [],
-      dataTypes: ['balance', 'metadata', 'price'],
-    };
+    await this.#withTrace(
+      TRACE_UPDATE_PIPELINE,
+      {
+        source: sourceId,
+        has_balance: Boolean(response.assetsBalance),
+        has_price: Boolean(response.assetsPrice),
+        balance_account_count: response.assetsBalance
+          ? Object.keys(response.assetsBalance).length
+          : 0,
+      },
+      async (parentContext) => {
+        const updateStart = performance.now();
 
-    // RPC-only mode (basic functionality off): never run token/price APIs. Strip
-    // those data types so downstream middleware cannot treat them as requested.
-    const pipelineRequest: DataRequest = this.#isBasicFunctionality()
-      ? resolvedRequest
-      : {
-          ...resolvedRequest,
-          dataTypes: resolvedRequest.dataTypes.filter(
-            (dt) => dt !== 'metadata' && dt !== 'price',
-          ),
+        const resolvedRequest: DataRequest = request ?? {
+          accountsWithSupportedChains: [],
+          chainIds: [],
+          dataTypes: ['balance', 'metadata', 'price'],
         };
 
-    // Graduate custom assets only when AccountsAPI / Websocket reports them.
-    // RPC already fetches custom assets on purpose, and Snap handles non-EVM
-    // chains the rule does not apply to, so skip the middleware for those.
-    const shouldGraduateCustomAssets =
-      sourceId === 'AccountsApiDataSource' ||
-      sourceId === 'BackendWebsocketDataSource' ||
-      sourceId === 'AccountActivityService';
+        // RPC-only mode (basic functionality off): never run token/price APIs. Strip
+        // those data types so downstream middleware cannot treat them as requested.
+        const pipelineRequest: DataRequest = this.#isBasicFunctionality()
+          ? resolvedRequest
+          : {
+              ...resolvedRequest,
+              dataTypes: resolvedRequest.dataTypes.filter(
+                (dt) => dt !== 'metadata' && dt !== 'price',
+              ),
+            };
 
-    const enrichmentSources: AssetsDataSource[] = [
-      ...(shouldGraduateCustomAssets
-        ? [this.#customAssetGraduationMiddleware]
-        : []),
-      this.#detectionMiddleware,
-    ];
-    if (this.#isBasicFunctionality()) {
-      enrichmentSources.push(
-        createParallelMiddleware([
-          this.#tokenDataSource,
-          this.#priceDataSource,
-        ]),
-      );
-    }
+        // Graduate custom assets only when AccountsAPI / Websocket reports them.
+        // RPC already fetches custom assets on purpose, and Snap handles non-EVM
+        // chains the rule does not apply to, so skip the middleware for those.
+        const shouldGraduateCustomAssets =
+          sourceId === 'AccountsApiDataSource' ||
+          sourceId === 'BackendWebsocketDataSource' ||
+          sourceId === 'AccountActivityService';
 
-    const { response: enrichedResponse } = await this.#executeMiddlewares(
-      enrichmentSources,
-      pipelineRequest,
-      response,
+        const enrichmentSources: AssetsDataSource[] = [
+          ...(shouldGraduateCustomAssets
+            ? [this.#customAssetGraduationMiddleware]
+            : []),
+          this.#detectionMiddleware,
+        ];
+        if (this.#isBasicFunctionality()) {
+          enrichmentSources.push(
+            createParallelMiddleware([
+              this.#tokenDataSource,
+              this.#priceDataSource,
+            ]),
+          );
+        }
+
+        const { response: enrichedResponse } = await this.#executeMiddlewares(
+          enrichmentSources,
+          pipelineRequest,
+          response,
+          parentContext,
+        );
+
+        await this.#updateState({
+          ...enrichedResponse,
+          replaceCoveredChainBalances: response.replaceCoveredChainBalances,
+        });
+
+        // Summary fields for Assets Health (nested under the parent span).
+        this.#emitTrace(
+          TRACE_UPDATE_PIPELINE,
+          {
+            source: sourceId,
+            duration_ms: performance.now() - updateStart,
+            has_balance: Boolean(response.assetsBalance),
+            has_price: Boolean(response.assetsPrice),
+            has_metadata: Boolean(enrichedResponse.assetsInfo),
+            balance_account_count: response.assetsBalance
+              ? Object.keys(response.assetsBalance).length
+              : 0,
+          },
+          { controller: 'AssetsController' },
+          parentContext,
+        );
+      },
     );
-
-    await this.#updateState({
-      ...enrichedResponse,
-      replaceCoveredChainBalances: response.replaceCoveredChainBalances,
-    });
-
-    this.#emitTrace(TRACE_UPDATE_PIPELINE, {
-      source: sourceId,
-      duration_ms: performance.now() - updateStart,
-      has_balance: Boolean(response.assetsBalance),
-      has_price: Boolean(response.assetsPrice),
-      has_metadata: Boolean(enrichedResponse.assetsInfo),
-      balance_account_count: response.assetsBalance
-        ? Object.keys(response.assetsBalance).length
-        : 0,
-    });
   }
 
   // ============================================================================

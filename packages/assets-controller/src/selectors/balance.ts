@@ -721,9 +721,11 @@ export function calculateBalanceForAllWallets(
   enabledNetworkMap?: EnabledNetworkMap,
   trace?: TraceCallback,
 ): AllWalletsBalance {
+  const startTime = performance.now();
   const userCurrency = getUserCurrency(assetsControllerState);
   const wallets: AllWalletsBalance['wallets'] = {};
   let totalBalanceInUserCurrency = 0;
+  let groupCount = 0;
 
   type WalletWithGroups = { groups?: Record<string, unknown> };
   for (const [walletId, wallet] of Object.entries(
@@ -738,12 +740,14 @@ export function calculateBalanceForAllWallets(
 
     const groups = (wallet as WalletWithGroups)?.groups ?? {};
     for (const groupId of Object.keys(groups)) {
+      groupCount += 1;
       const accountIds = getAccountIdsForGroup(accountTreeState, groupId);
+      // Do not forward `trace` per group — that created one root Sentry span
+      // per account group and hit rate limits. Emit a single span below.
       const { totalBalanceInFiat = 0 } = getAggregatedBalanceForAccountIds(
         assetsControllerState,
         accountIds,
         enabledNetworkMap,
-        trace,
       );
 
       walletBalance.groups[groupId] = {
@@ -757,6 +761,23 @@ export function calculateBalanceForAllWallets(
 
     wallets[walletId] = walletBalance;
     totalBalanceInUserCurrency += walletBalance.totalBalanceInUserCurrency;
+  }
+
+  if (trace) {
+    trace(
+      {
+        name: TRACE_AGGREGATED_BALANCE_SELECTOR,
+        data: {
+          duration_ms: performance.now() - startTime,
+          wallet_count: Object.keys(wallets).length,
+          group_count: groupCount,
+        },
+        tags: { controller: 'AssetsController' },
+      },
+      () => undefined,
+    ).catch(() => {
+      // Telemetry failure must not break.
+    });
   }
 
   return { wallets, totalBalanceInUserCurrency, userCurrency };

@@ -2481,11 +2481,22 @@ describe('AssetsController', () => {
     });
 
     it('invokes trace with first init fetch trace request on unlock', async () => {
+      const parentSpan = { id: 'assets-full-fetch' };
       const traceMock = jest
         .fn()
         .mockImplementation(
-          async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
-            fn?.(),
+          async (
+            request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              // Parent spans (with callback work) provide context for nesting.
+              return fn(
+                request.parentContext === undefined ? parentSpan : undefined,
+              );
+            }
+            return undefined;
+          },
         );
       const trace = traceMock as unknown as TraceCallback;
 
@@ -2520,6 +2531,7 @@ describe('AssetsController', () => {
               chain_ids: expect.any(String),
             }),
             tags: { controller: 'AssetsController' },
+            parentContext: parentSpan,
           });
           const {
             duration_ms: durationMs,
@@ -2529,6 +2541,17 @@ describe('AssetsController', () => {
           expect(durationMs).toBeGreaterThanOrEqual(0);
           expect(typeof chainIds).toBe('string');
           expect(typeof durationByDataSource).toBe('object');
+
+          const timingCalls = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+          );
+          expect(timingCalls.length).toBeGreaterThan(0);
+          for (const [timingRequest] of timingCalls) {
+            expect(timingRequest).toMatchObject({
+              parentContext: parentSpan,
+            });
+          }
         },
       );
     });
@@ -2605,7 +2628,7 @@ describe('AssetsController', () => {
           clientControllerState: { isUiOpen: true },
           controllerOptions: { trace },
         },
-        async ({ messenger }) => {
+        async ({ controller, messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
           (
             messenger as unknown as {
@@ -2624,6 +2647,35 @@ describe('AssetsController', () => {
               'AssetsControllerFirstInitFetch',
           );
           expect(firstInitFetchCalls).toHaveLength(1);
+
+          const fullFetchParentCallsBefore = traceMock.mock.calls.filter(
+            (call) => {
+              const request = call[0] as TraceRequest;
+              return (
+                request.name === 'AssetsFullFetch' &&
+                request.parentContext === undefined &&
+                typeof call[1] === 'function'
+              );
+            },
+          ).length;
+
+          // Later force updates must not open new parent Sentry spans.
+          await controller.getAssets([createMockInternalAccount()], {
+            forceUpdate: true,
+          });
+
+          const fullFetchParentCallsAfter = traceMock.mock.calls.filter(
+            (call) => {
+              const request = call[0] as TraceRequest;
+              return (
+                request.name === 'AssetsFullFetch' &&
+                request.parentContext === undefined &&
+                typeof call[1] === 'function'
+              );
+            },
+          ).length;
+
+          expect(fullFetchParentCallsAfter).toBe(fullFetchParentCallsBefore);
         },
       );
     });

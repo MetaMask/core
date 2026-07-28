@@ -724,6 +724,31 @@ describe('wallet-balance selectors', () => {
 
       expect(result.totalBalanceInUserCurrency).toBe(0);
     });
+
+    it('emits a single AggregatedBalanceSelector span for all groups', () => {
+      const trace = jest.fn().mockResolvedValue(undefined);
+
+      calculateBalanceForAllWallets(
+        buildState(),
+        accountTreeState,
+        undefined,
+        trace,
+      );
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expect(trace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'AggregatedBalanceSelector',
+          data: expect.objectContaining({
+            duration_ms: expect.any(Number),
+            wallet_count: 2,
+            group_count: 3,
+          }),
+          tags: { controller: 'AssetsController' },
+        }),
+        expect.any(Function),
+      );
+    });
   });
 
   describe('calculateBalanceChangeForAccountGroup', () => {
