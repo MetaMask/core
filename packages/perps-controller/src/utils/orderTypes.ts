@@ -163,8 +163,13 @@ export function toSDKTimeInForce(
  * Hash the identity of a position's trigger orders for change detection.
  *
  * Streamed positions only re-emit when their hash changes, so this has to move
- * when a trigger is added, removed, repriced, or resized — otherwise subscribers
- * never receive the updated arrays.
+ * when a trigger is added, removed, repriced, resized, or retyped — otherwise
+ * subscribers never receive the updated arrays.
+ *
+ * The placement type is part of the identity because a trigger can be modified
+ * in place: switching a stop from market to limit execution keeps its order ID,
+ * trigger price, and size, so nothing else here would move even though the
+ * execution semantics subscribers rely on have changed.
  *
  * @param orders - Trigger orders attached to a position, if any.
  * @returns A stable string; `'0'` for both empty and absent.
@@ -176,7 +181,7 @@ export function hashTriggerOrders(orders?: PositionTriggerOrder[]): string {
   return orders
     .map(
       (order) =>
-        `${order.orderId}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}`,
+        `${order.orderId}:${order.orderType}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}`,
     )
     .join(',');
 }

@@ -134,6 +134,12 @@ describe('orderTypes', () => {
       ['resized', [{ ...trigger, size: '0.25' }]],
       ['partial', [{ ...trigger, isPartial: true }]],
       ['replaced', [{ ...trigger, orderId: '2' }]],
+      // A trigger modified in place keeps its order ID, price, and size, so
+      // execution semantics are the only thing that moves.
+      [
+        'switched from market to limit execution',
+        [{ ...trigger, orderType: 'stop_limit' as const }],
+      ],
     ])('changes the hash when a trigger is %s', (_label, orders) => {
       expect(hashTriggerOrders(orders)).not.toBe(hashTriggerOrders([trigger]));
     });

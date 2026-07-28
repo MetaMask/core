@@ -352,21 +352,37 @@ describe('hyperLiquidValidation - advanced order types', () => {
       ).toStrictEqual({ isValid: true });
     });
 
-    it('accepts position linkage when no TP/SL is attached to the order', () => {
+    it.each([
+      { tpslLinkage: 'position' as TpslLinkage },
+      { grouping: 'positionTpsl' as const },
+      {
+        tpslLinkage: 'position' as TpslLinkage,
+        grouping: 'positionTpsl' as const,
+      },
+    ])('rejects position linkage with nothing to link (%o)', (linkage) => {
+      // Without an attached TP/SL the batch is just the ordinary parent order
+      // carrying `positionTpsl` grouping, which HyperLiquid rejects for the
+      // same reason as the attached case: every order in that batch must be a
+      // trigger. There is no shape of `placeOrder` request the linkage works
+      // on, so it is refused outright.
       expect(
         validateOrderParams({
           coin: 'BTC',
           size: '1',
           orderType: 'market',
-          tpslLinkage: 'position',
+          ...linkage,
         }),
-      ).toStrictEqual({ isValid: true });
+      ).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED,
+      });
     });
 
+    // 'position'/'positionTpsl' is covered by the rejection cases below: the
+    // spellings agree, but the linkage itself is unsupported on this path.
     it.each([
       ['none', 'na'],
       ['order', 'normalTpsl'],
-      ['position', 'positionTpsl'],
     ] as [TpslLinkage, 'na' | 'normalTpsl' | 'positionTpsl'][])(
       'accepts %s alongside the equivalent grouping %s',
       (tpslLinkage, grouping) => {

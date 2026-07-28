@@ -616,13 +616,15 @@ export function validateOrderParams(params: {
   const hasAttachedTpsl =
     params.takeProfitPrice !== undefined || params.stopLossPrice !== undefined;
 
-  // Every order in a `positionTpsl` batch has to be a trigger order, but an
-  // attached TP/SL is submitted alongside the ordinary parent order it protects
-  // — HyperLiquid rejects the whole batch. Position-linked TP/SL belongs to
-  // `updatePositionTPSL`, applied to the position once the parent has filled.
+  // Every order in a `positionTpsl` batch has to be a trigger order, and no
+  // shape of order placement produces one. With an attached TP/SL the batch
+  // carries the ordinary parent order the TP/SL protects; without one it is
+  // that parent order alone. HyperLiquid rejects both, so the linkage is
+  // refused outright — it belongs to `updatePositionTPSL`, applied to the
+  // position once the parent has filled.
   const requestsPositionLinkage =
     params.tpslLinkage === 'position' || params.grouping === 'positionTpsl';
-  if (requestsPositionLinkage && hasAttachedTpsl) {
+  if (requestsPositionLinkage) {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED,
