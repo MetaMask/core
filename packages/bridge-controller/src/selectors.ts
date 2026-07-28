@@ -375,9 +375,11 @@ export const selectUsdToFiatExchangeRate = createBridgeSelector(
       exchangeRateSources,
       nativeAssetId,
     );
-    return new BigNumber(exchangeRate?.exchangeRate ?? 0).div(
-      exchangeRate?.usdExchangeRate ?? 0,
-    );
+    return exchangeRate?.exchangeRate && exchangeRate?.usdExchangeRate
+      ? new BigNumber(exchangeRate.exchangeRate)
+          .div(exchangeRate.usdExchangeRate)
+          .toFixed()
+      : undefined;
   },
 );
 

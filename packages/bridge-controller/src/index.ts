@@ -212,6 +212,7 @@ export {
 export {
   calcSlippagePercentage,
   calcQuoteMetadata,
+  calcQuoteMetadataV2,
 } from './utils/quote-metadata/calculators.js';
 
 export { calcLatestSrcBalance } from './utils/balance.js';

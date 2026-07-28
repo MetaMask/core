@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Pass migrationPhase to selector, determines how metadata is resolved
 - **BREAKING:** Use QuoteResponse V2 within the BridgeController; this affects the batch-sell, unified swap/bridge and quickBuy experiences ([#9085](https://github.com/MetaMask/core/pull/9085))
   - convert quotes to QuoteResponse v2 in `fetchBridgeQuoteStream`
   - store quotes as QuoteResponse v2 in the BridgeController

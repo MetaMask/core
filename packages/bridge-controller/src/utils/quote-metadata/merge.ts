@@ -43,6 +43,13 @@ export function mergeQuoteMetadata<
   }
 
   if (migrationPhase === '1.5') {
+    // console.log('====', {
+    //   legacyQuoteMetadataV2: legacyQuoteMetadataV2.quote?.priceData,
+    //   quoteResponse: quoteResponse.quote?.priceData,
+    //   normalizedAmountsV2: normalizedAmountsV2.quote?.priceData,
+    //   fiatQuoteMetadata: fiatQuoteMetadata?.quote?.priceData,
+    //   legacyQuoteMetadata: legacyQuoteMetadata?.priceImpact,
+    // });
     return merge(
       {},
       legacyQuoteMetadataV2,
