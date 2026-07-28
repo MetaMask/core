@@ -47,6 +47,7 @@ export type AccountBalancesUpdatedEventPayload = {
       [assetId: string]: {
         amount: string;
         unit: string;
+        metadata?: Record<string, Json>;
       };
     };
   };
@@ -292,6 +293,7 @@ export class SnapDataSource extends AbstractDataSource<
           accountAssets ??= {};
           accountAssets[assetId as Caip19AssetId] = {
             amount: balance.amount,
+            ...(balance.metadata ? { metadata: balance.metadata } : {}),
           };
         }
       }
@@ -497,6 +499,7 @@ export class SnapDataSource extends AbstractDataSource<
             if (accountBalances) {
               (accountBalances as Record<string, unknown>)[assetId] = {
                 amount: balance.amount,
+                ...(balance.metadata ? { metadata: balance.metadata } : {}),
               };
             }
           }
