@@ -115,6 +115,8 @@ import {
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
 import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata.js';
+import type { SpanHandle, SummaryRecord } from './traced.js';
+import { emitTrace, registerTracer, traced } from './traced.js';
 import type {
   AccountId,
   AssetPreferences,
@@ -216,6 +218,159 @@ const TRACE_DATA_SOURCE_ERROR = 'AssetsDataSourceError';
 const TRACE_UPDATE_PIPELINE = 'AssetsUpdatePipeline';
 const TRACE_SUBSCRIPTION_ERROR = 'AssetsSubscriptionError';
 const TRACE_STATE_SIZE = 'AssetsStateSize';
+
+/** Tags applied to every span this controller emits. */
+const TRACE_TAGS = { controller: 'AssetsController' };
+
+/**
+ * Root span names for each pipeline lane. The per-source timings and the
+ * dashboard summary records for a lane nest underneath its root, so a fetch
+ * costs Sentry one transaction instead of one per measurement.
+ */
+const LANE_SPAN_NAMES = {
+  fast: 'AssetsFetchPipeline',
+  background: 'AssetsBackgroundFetch',
+  update: 'AssetsUpdateEnrichment',
+} as const;
+
+/**
+ * Arguments for one `#executeMiddlewares` run. The lane discriminates which
+ * extra values the dashboard records for that pipeline need.
+ */
+type ExecuteMiddlewaresOptions = {
+  /** Data sources or middlewares with `getName()` and `assetsMiddleware`, executed in order. */
+  sources: AssetsDataSource[];
+  /** The data request. */
+  request: DataRequest;
+  /** Initial response, when enriching data that has already been fetched. */
+  initialResponse?: DataResponse;
+} & (
+  | {
+      lane: 'fast';
+      /** Every requested chain, including those left to the background lane. */
+      chainIds: ChainId[];
+      accountCount: number;
+      basicFunctionality: boolean;
+    }
+  | { lane: 'background'; accountCount: number }
+  | { lane: 'update'; sourceId: string }
+);
+
+type ExecuteMiddlewaresResult = {
+  response: DataResponse;
+  durationByDataSource: Record<string, number>;
+};
+
+/**
+ * Count how many balances a response carries across all accounts.
+ *
+ * @param response - The response to measure.
+ * @returns The total number of balance entries.
+ */
+function countBalanceEntries(response: DataResponse): number {
+  return Object.values(response.assetsBalance ?? {}).reduce(
+    (total, account) => total + Object.keys(account).length,
+    0,
+  );
+}
+
+/**
+ * Build the data attached to a lane's root span, from the call's arguments.
+ *
+ * @param options - Arguments the pipeline was invoked with.
+ * @returns Span data for the lane.
+ */
+function buildLaneSpanData(
+  options: ExecuteMiddlewaresOptions,
+): Record<string, number | string | boolean> {
+  switch (options.lane) {
+    case 'fast':
+      return {
+        chain_count: options.chainIds.length,
+        account_count: options.accountCount,
+        basic_functionality: options.basicFunctionality,
+      };
+    case 'background':
+      return {
+        chain_count: options.request.chainIds.length,
+        account_count: options.accountCount,
+      };
+    default:
+      return {
+        source: options.sourceId,
+        has_balance: Boolean(options.initialResponse?.assetsBalance),
+        has_price: Boolean(options.initialResponse?.assetsPrice),
+        balance_account_count: Object.keys(
+          options.initialResponse?.assetsBalance ?? {},
+        ).length,
+      };
+  }
+}
+
+/**
+ * Build the Assets Health dashboard records for a completed pipeline run.
+ *
+ * These are derived from the result, so `traced` emits them while the lane's
+ * root span is still open — a child attached to a finished Sentry transaction
+ * is orphaned and dropped.
+ *
+ * @param result - What the pipeline returned.
+ * @param elapsedMs - How long the pipeline took.
+ * @param options - Arguments the pipeline was invoked with.
+ * @returns Records to emit under the lane's root span.
+ */
+function buildLaneSummaryRecords(
+  result: ExecuteMiddlewaresResult,
+  elapsedMs: number,
+  options: ExecuteMiddlewaresOptions,
+): SummaryRecord[] {
+  switch (options.lane) {
+    case 'fast':
+      return [
+        {
+          name: TRACE_FULL_FETCH,
+          data: {
+            duration_ms: elapsedMs,
+            chain_count: options.chainIds.length,
+            account_count: options.accountCount,
+            basic_functionality: options.basicFunctionality,
+            asset_count: countBalanceEntries(result.response),
+            price_count: Object.keys(result.response.assetsPrice ?? {}).length,
+            ...result.durationByDataSource,
+          },
+          tags: TRACE_TAGS,
+        },
+        {
+          name: TRACE_FIRST_INIT_FETCH,
+          data: {
+            duration_ms: elapsedMs,
+            chain_ids: JSON.stringify(options.chainIds),
+            ...result.durationByDataSource,
+          },
+          tags: TRACE_TAGS,
+        },
+      ];
+    case 'background':
+      return [];
+    default:
+      return [
+        {
+          name: TRACE_UPDATE_PIPELINE,
+          data: {
+            source: options.sourceId,
+            duration_ms: elapsedMs,
+            has_balance: Boolean(options.initialResponse?.assetsBalance),
+            has_price: Boolean(options.initialResponse?.assetsPrice),
+            has_metadata: Boolean(result.response.assetsInfo),
+            balance_account_count: Object.keys(
+              options.initialResponse?.assetsBalance ?? {},
+            ).length,
+          },
+          tags: TRACE_TAGS,
+        },
+      ];
+  }
+}
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -665,28 +820,6 @@ export class AssetsController extends BaseController<
   #stateSizeReported = false;
 
   /**
-   * Fire-and-forget trace helper. Swallows errors so telemetry never breaks the controller.
-   *
-   * @param name - Trace / span name visible in Sentry.
-   * @param data - Key-value pairs attached as span data.
-   * @param tags - Key-value pairs used for Sentry filtering.
-   */
-  #emitTrace(
-    name: string,
-    data: Record<string, number | string | boolean>,
-    tags: Record<string, number | string | boolean> = {
-      controller: 'AssetsController',
-    },
-  ): void {
-    if (!this.#trace) {
-      return;
-    }
-    this.#trace({ name, data, tags }, () => undefined)?.catch(() => {
-      // Telemetry failure must not break.
-    });
-  }
-
-  /**
    * Emit a state-size trace once on app start (first state update after unlock).
    */
   #emitStateSizeTrace(): void {
@@ -727,14 +860,18 @@ export class AssetsController extends BaseController<
       }
     }
 
-    this.#emitTrace(TRACE_STATE_SIZE, {
-      balance_entries: balanceEntries,
-      balance_accounts: Object.keys(balances).length,
-      unique_asset_count: uniqueAssets.size,
-      network_count: uniqueNetworks.size,
-      metadata_entries: Object.keys(assetsInfo).length,
-      price_entries: Object.keys(assetsPrice).length,
-      custom_asset_entries: customAssetEntries,
+    emitTrace(this.#trace, undefined, {
+      name: TRACE_STATE_SIZE,
+      data: {
+        balance_entries: balanceEntries,
+        balance_accounts: Object.keys(balances).length,
+        unique_asset_count: uniqueAssets.size,
+        network_count: uniqueNetworks.size,
+        metadata_entries: Object.keys(assetsInfo).length,
+        price_entries: Object.keys(assetsPrice).length,
+        custom_asset_entries: customAssetEntries,
+      },
+      tags: TRACE_TAGS,
     });
   }
 
@@ -872,6 +1009,9 @@ export class AssetsController extends BaseController<
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
     this.#trace = trace;
+    // `@traced` methods read the tracer from here: a decorator wrapper cannot
+    // reach `this.#trace`, since private names are scoped to the class body.
+    registerTracer(this, trace);
     this.#captureException = captureException;
     this.#queryApiClient = queryApiClient;
     const rpcConfig = rpcDataSourceConfig ?? {};
@@ -1498,19 +1638,27 @@ export class AssetsController extends BaseController<
    * Execute middlewares with request/response context.
    * Returns response and exclusive duration per source (sum ≈ wall time).
    *
-   * @param sources - Data sources or middlewares with getName() and assetsMiddleware (executed in order).
-   * @param request - The data request.
-   * @param initialResponse - Optional initial response (for enriching existing data).
+   * This is the single traced choke point for all three pipelines: `@traced`
+   * opens the lane's root span, and everything this method emits through
+   * `span` nests underneath it. The handle is required rather than optional so
+   * that every call site has to state whether it wants tracing — an accidental
+   * new polling caller cannot silently start flooding Sentry.
+   *
+   * @param span - Handle of the caller's span; see `./traced.ts` for the protocol.
+   * @param options - The lane, sources, request and any initial response.
    * @returns Response and durationByDataSource (exclusive ms per source name).
    */
+  @traced<[ExecuteMiddlewaresOptions], ExecuteMiddlewaresResult>({
+    name: (options) => LANE_SPAN_NAMES[options.lane],
+    tags: TRACE_TAGS,
+    data: buildLaneSpanData,
+    summary: buildLaneSummaryRecords,
+  })
   async #executeMiddlewares(
-    sources: AssetsDataSource[],
-    request: DataRequest,
-    initialResponse: DataResponse = {},
-  ): Promise<{
-    response: DataResponse;
-    durationByDataSource: Record<string, number>;
-  }> {
+    span: SpanHandle,
+    options: ExecuteMiddlewaresOptions,
+  ): Promise<ExecuteMiddlewaresResult> {
+    const { sources, request, initialResponse = {} } = options;
     const names = sources.map((source) => source.getName());
     const middlewares = sources.map((source) => source.assetsMiddleware);
     const inclusive: number[] = [];
@@ -1576,15 +1724,21 @@ export class AssetsController extends BaseController<
       }
     }
 
-    // Emit per-source timing traces for the Assets Health dashboard
+    // Per-source timings for the Assets Health dashboard, nested under this
+    // lane's root span.
     for (const [sourceName, durationMs] of Object.entries(
       durationByDataSource,
     )) {
-      this.#emitTrace(TRACE_DATA_SOURCE_TIMING, {
-        source: sourceName,
-        duration_ms: durationMs,
-        chain_count: request.chainIds.length,
-        account_count: request.accountsWithSupportedChains.length,
+      emitTrace(this.#trace, span, {
+        name: TRACE_DATA_SOURCE_TIMING,
+        data: {
+          source: sourceName,
+          duration_ms: durationMs,
+          chain_count: request.chainIds.length,
+          account_count: request.accountsWithSupportedChains.length,
+        },
+        // String tag so Spans widgets can group by source.
+        tags: { ...TRACE_TAGS, source: sourceName },
       });
     }
 
@@ -1601,19 +1755,19 @@ export class AssetsController extends BaseController<
       } catch {
         // Never let telemetry throw.
       }
-      this.#emitTrace(
-        TRACE_DATA_SOURCE_ERROR,
-        {
+      emitTrace(this.#trace, span, {
+        name: TRACE_DATA_SOURCE_ERROR,
+        data: {
           failed_sources: failedSources,
           error_count: middlewareErrors.length,
           chain_count: request.chainIds.length,
         },
-        {
-          controller: 'AssetsController',
+        tags: {
+          ...TRACE_TAGS,
           severity: 'error',
           error_type: assetsError.name,
         },
-      );
+      });
     }
 
     return { response: result.response, durationByDataSource };
@@ -1651,7 +1805,11 @@ export class AssetsController extends BaseController<
     }
 
     if (options?.forceUpdate) {
-      const startTime = performance.now();
+      // Pipeline spans are emitted only on the unlock/first-init fetch. Later
+      // polls and force updates reuse the same code path with tracing off, so
+      // that steady-state polling cannot flood Sentry.
+      const span: SpanHandle = { enabled: !this.#firstInitFetchReported };
+
       const request = this.#buildDataRequest(accounts, chainIds, {
         assetTypes,
         dataTypes,
@@ -1685,10 +1843,17 @@ export class AssetsController extends BaseController<
             ]),
           ]
         : [this.#stakedBalanceDataSource, this.#detectionMiddleware];
-      const { response, durationByDataSource } = await this.#executeMiddlewares(
-        fastSources,
+      const { response } = await this.#executeMiddlewares(span, {
+        lane: 'fast',
+        sources: fastSources,
         request,
-      );
+        chainIds,
+        accountCount: accounts.length,
+        basicFunctionality: this.#isBasicFunctionality(),
+      });
+      // Mark after the fast lane has reported, so a concurrent path cannot
+      // skip the first-init records.
+      this.#firstInitFetchReported = true;
       await this.#updateState({
         ...response,
         updateMode: 'merge',
@@ -1699,6 +1864,8 @@ export class AssetsController extends BaseController<
       // commits to state. Their balances are merged together before detection.
       // Token + price enrichment matches the pre-split behavior: only when basic
       // functionality is on (RPC-only mode must not call token/price APIs).
+      // It gets its own root span, because by the time it finishes the fast
+      // lane's span has already closed.
       const slowPipelineChainIds = this.#getSlowPipelineChainIds(
         chainIds,
         response,
@@ -1709,56 +1876,30 @@ export class AssetsController extends BaseController<
           ? [this.#snapDataSource, this.#rpcDataSource]
           : [this.#rpcDataSource];
 
-        const slowRequest = { ...request, chainIds: slowPipelineChainIds };
-
         this.#executeMiddlewares(
-          [
-            createParallelBalanceMiddleware(slowSources),
-            this.#detectionMiddleware,
-            ...(this.#isBasicFunctionality()
-              ? [
-                  createParallelMiddleware([
-                    this.#tokenDataSource,
-                    this.#priceDataSource,
-                  ]),
-                ]
-              : []),
-          ],
-          slowRequest,
+          { enabled: span.enabled },
+          {
+            lane: 'background',
+            sources: [
+              createParallelBalanceMiddleware(slowSources),
+              this.#detectionMiddleware,
+              ...(this.#isBasicFunctionality()
+                ? [
+                    createParallelMiddleware([
+                      this.#tokenDataSource,
+                      this.#priceDataSource,
+                    ]),
+                  ]
+                : []),
+            ],
+            request: { ...request, chainIds: slowPipelineChainIds },
+            accountCount: accounts.length,
+          },
         )
           .then(({ response: slowResponse }) =>
             this.#updateState({ ...slowResponse, updateMode: 'merge' }),
           )
           .catch((error) => log('Background pipeline failed', { error }));
-      }
-
-      const durationMs = performance.now() - startTime;
-
-      // Emit trace for every full fetch (Assets Health dashboard)
-      this.#emitTrace(TRACE_FULL_FETCH, {
-        duration_ms: durationMs,
-        chain_count: chainIds.length,
-        account_count: accounts.length,
-        basic_functionality: this.#isBasicFunctionality(),
-        asset_count: response.assetsBalance
-          ? Object.values(response.assetsBalance).reduce(
-              (sum, acct) => sum + Object.keys(acct).length,
-              0,
-            )
-          : 0,
-        price_count: response.assetsPrice
-          ? Object.keys(response.assetsPrice).length
-          : 0,
-        ...durationByDataSource,
-      });
-
-      if (!this.#firstInitFetchReported) {
-        this.#firstInitFetchReported = true;
-        this.#emitTrace(TRACE_FIRST_INIT_FETCH, {
-          duration_ms: durationMs,
-          chain_ids: JSON.stringify(chainIds),
-          ...durationByDataSource,
-        });
       }
     }
 
@@ -3285,9 +3426,13 @@ export class AssetsController extends BaseController<
         `[AssetsController] Failed to subscribe to '${sourceId}':`,
         error,
       );
-      this.#emitTrace(TRACE_SUBSCRIPTION_ERROR, {
-        source: sourceId,
-        error_message: String(error),
+      emitTrace(this.#trace, undefined, {
+        name: TRACE_SUBSCRIPTION_ERROR,
+        data: {
+          source: sourceId,
+          error_message: String(error),
+        },
+        tags: TRACE_TAGS,
       });
     });
 
@@ -3678,13 +3823,15 @@ export class AssetsController extends BaseController<
     sourceId: string,
     request?: DataRequest,
   ): Promise<void> {
-    const updateStart = performance.now();
-
     log('Assets updated from data source', {
       sourceId,
       hasBalance: Boolean(response.assetsBalance),
       hasPrice: Boolean(response.assetsPrice),
     });
+
+    // Enrichment spans only before the unlock/first-init fetch has reported;
+    // steady-state subscription updates would otherwise flood Sentry.
+    const span: SpanHandle = { enabled: !this.#firstInitFetchReported };
 
     const resolvedRequest: DataRequest = request ?? {
       accountsWithSupportedChains: [],
@@ -3727,25 +3874,19 @@ export class AssetsController extends BaseController<
     }
 
     const { response: enrichedResponse } = await this.#executeMiddlewares(
-      enrichmentSources,
-      pipelineRequest,
-      response,
+      span,
+      {
+        lane: 'update',
+        sources: enrichmentSources,
+        request: pipelineRequest,
+        initialResponse: response,
+        sourceId,
+      },
     );
 
     await this.#updateState({
       ...enrichedResponse,
       replaceCoveredChainBalances: response.replaceCoveredChainBalances,
-    });
-
-    this.#emitTrace(TRACE_UPDATE_PIPELINE, {
-      source: sourceId,
-      duration_ms: performance.now() - updateStart,
-      has_balance: Boolean(response.assetsBalance),
-      has_price: Boolean(response.assetsPrice),
-      has_metadata: Boolean(enrichedResponse.assetsInfo),
-      balance_account_count: response.assetsBalance
-        ? Object.keys(response.assetsBalance).length
-        : 0,
     });
   }
 

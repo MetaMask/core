@@ -12,6 +12,7 @@ import {
 import BigNumberJS from 'bignumber.js';
 
 import type { AssetsControllerState } from '../AssetsController.js';
+import { emitTrace } from '../traced.js';
 import type {
   AccountId,
   AssetBalance,
@@ -23,7 +24,54 @@ import type {
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)
 // ============================================================================
+/** Parent span that nests {@link TRACE_AGGREGATED_BALANCE_SELECTOR}. */
+const TRACE_AGGREGATED_BALANCE = 'AggregatedBalance';
 const TRACE_AGGREGATED_BALANCE_SELECTOR = 'AggregatedBalanceSelector';
+
+const TRACE_TAGS = { controller: 'AssetsController' };
+
+/**
+ * Record the aggregation timing as a single subspan under one parent span.
+ *
+ * These selectors are synchronous, so the work is already over by the time the
+ * spans are opened: both are backdated by `durationMs`, and the parent carries
+ * it as a numeric tag so MetaMask's Sentry adapter records the `duration_ms`
+ * measurement the dashboards chart.
+ *
+ * @param trace - Trace callback from the client.
+ * @param durationMs - Measured compute time in milliseconds.
+ * @param data - Additional span attributes, such as counts.
+ */
+function emitAggregatedBalanceTrace(
+  trace: TraceCallback,
+  durationMs: number,
+  data: Record<string, number | string | boolean>,
+): void {
+  const spanData = { duration_ms: durationMs, ...data };
+
+  trace(
+    {
+      name: TRACE_AGGREGATED_BALANCE,
+      data: spanData,
+      tags: { ...TRACE_TAGS, duration_ms: durationMs },
+      startTime: performance.timeOrigin + performance.now() - durationMs,
+    },
+    (parentContext) => {
+      emitTrace(
+        trace,
+        { parent: parentContext },
+        {
+          name: TRACE_AGGREGATED_BALANCE_SELECTOR,
+          data: spanData,
+          tags: TRACE_TAGS,
+        },
+      );
+      return undefined;
+    },
+  ).catch(() => {
+    // Telemetry failure must not break.
+  });
+}
 
 export type EnabledNetworkMap =
   | Record<string, Record<string, boolean>>
@@ -523,20 +571,10 @@ function aggregateBalances(
       const info = getAssetInfo(assetInfoCache, assetId);
       uniqueNetworks.add(info.chainId);
     }
-    trace(
-      {
-        name: TRACE_AGGREGATED_BALANCE_SELECTOR,
-        data: {
-          duration_ms: durationMs,
-          asset_count: merged.size,
-          network_count: uniqueNetworks.size,
-          account_count: accountsToAggregate.length,
-        },
-        tags: { controller: 'AssetsController' },
-      },
-      () => undefined,
-    ).catch(() => {
-      // Telemetry failure must not break.
+    emitAggregatedBalanceTrace(trace, durationMs, {
+      asset_count: merged.size,
+      network_count: uniqueNetworks.size,
+      account_count: accountsToAggregate.length,
     });
   }
 
@@ -721,9 +759,11 @@ export function calculateBalanceForAllWallets(
   enabledNetworkMap?: EnabledNetworkMap,
   trace?: TraceCallback,
 ): AllWalletsBalance {
+  const startTime = performance.now();
   const userCurrency = getUserCurrency(assetsControllerState);
   const wallets: AllWalletsBalance['wallets'] = {};
   let totalBalanceInUserCurrency = 0;
+  let groupCount = 0;
 
   type WalletWithGroups = { groups?: Record<string, unknown> };
   for (const [walletId, wallet] of Object.entries(
@@ -738,12 +778,15 @@ export function calculateBalanceForAllWallets(
 
     const groups = (wallet as WalletWithGroups)?.groups ?? {};
     for (const groupId of Object.keys(groups)) {
+      groupCount += 1;
       const accountIds = getAccountIdsForGroup(accountTreeState, groupId);
+      // `trace` is deliberately not forwarded: doing so opened one root span
+      // per account group and hit Sentry's rate limits. One span for the whole
+      // walk is emitted below instead.
       const { totalBalanceInFiat = 0 } = getAggregatedBalanceForAccountIds(
         assetsControllerState,
         accountIds,
         enabledNetworkMap,
-        trace,
       );
 
       walletBalance.groups[groupId] = {
@@ -757,6 +800,13 @@ export function calculateBalanceForAllWallets(
 
     wallets[walletId] = walletBalance;
     totalBalanceInUserCurrency += walletBalance.totalBalanceInUserCurrency;
+  }
+
+  if (trace) {
+    emitAggregatedBalanceTrace(trace, performance.now() - startTime, {
+      wallet_count: Object.keys(wallets).length,
+      group_count: groupCount,
+    });
   }
 
   return { wallets, totalBalanceInUserCurrency, userCurrency };

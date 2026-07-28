@@ -724,6 +724,58 @@ describe('wallet-balance selectors', () => {
 
       expect(result.totalBalanceInUserCurrency).toBe(0);
     });
+
+    it('emits one AggregatedBalanceSelector subspan for the whole walk', () => {
+      // Forwarding `trace` per group used to open one root span per account
+      // group, which hit Sentry's rate limits.
+      const parentSpan = { id: 'aggregated-balance' };
+      const trace = jest
+        .fn()
+        .mockImplementation(
+          async (
+            request: { parentContext?: unknown },
+            fn?: (context?: unknown) => unknown,
+          ) =>
+            fn?.(request.parentContext === undefined ? parentSpan : undefined),
+        );
+
+      calculateBalanceForAllWallets(
+        buildState(),
+        accountTreeState,
+        undefined,
+        trace,
+      );
+
+      expect(trace).toHaveBeenCalledTimes(2);
+      expect(trace).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          name: 'AggregatedBalance',
+          data: expect.objectContaining({
+            duration_ms: expect.any(Number),
+            wallet_count: 2,
+            group_count: 3,
+          }),
+          tags: expect.objectContaining({
+            controller: 'AssetsController',
+            duration_ms: expect.any(Number),
+          }),
+          startTime: expect.any(Number),
+        }),
+        expect.any(Function),
+      );
+      expect(trace).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          name: 'AggregatedBalanceSelector',
+          parentContext: parentSpan,
+          data: expect.objectContaining({ duration_ms: expect.any(Number) }),
+          tags: expect.objectContaining({ duration_ms: expect.any(Number) }),
+          startTime: expect.any(Number),
+        }),
+        expect.any(Function),
+      );
+    });
   });
 
   describe('calculateBalanceChangeForAccountGroup', () => {
