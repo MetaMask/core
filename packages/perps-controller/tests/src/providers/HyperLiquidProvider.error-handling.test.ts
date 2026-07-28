@@ -872,7 +872,7 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('cache path: only cancels positionTpsl orders, not normalTpsl children of limit orders', async () => {
+      it('falls back to REST when the cache shows standalone-looking triggers, cancelling only positionTpsl orders', async () => {
         provider = createTestProvider({
           initialAssetMapping: [['BTC', 0]],
         });
@@ -969,6 +969,46 @@ describe('HyperLiquidProvider', () => {
         mockSubscriptionService.getOrdersCacheIfInitialized = jest
           .fn()
           .mockReturnValue(cachedOrders);
+
+        // The cache cannot tell a standalone trigger apart from another order's
+        // normalTpsl child, so the update falls back to the REST payload, which
+        // carries the parent/child links.
+        const restTrigger = (
+          oid: number,
+          orderType: string,
+          isPositionTpsl: boolean,
+        ) => ({
+          coin: 'BTC',
+          oid,
+          orderType,
+          isPositionTpsl,
+          reduceOnly: true,
+          isTrigger: true,
+        });
+        const normalTpslChildren = [
+          restTrigger(501, 'Take Profit Limit', false),
+          restTrigger(502, 'Stop Market', false),
+        ];
+        const restOrders = [
+          {
+            coin: 'BTC',
+            oid: 500,
+            orderType: 'Limit',
+            isPositionTpsl: false,
+            reduceOnly: false,
+            isTrigger: false,
+            children: normalTpslChildren,
+          },
+          ...normalTpslChildren,
+          restTrigger(503, 'Take Profit Limit', true),
+          restTrigger(504, 'Stop Market', true),
+        ];
+
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            frontendOpenOrders: jest.fn().mockResolvedValue(restOrders),
+          }),
+        );
 
         const mockCancel = jest.fn().mockResolvedValue({
           status: 'ok',

@@ -118,7 +118,6 @@ const config = createConfig([
       '**/docusaurus.config.ts',
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
-      'packages/perps-controller/e2e/**/*.{js,ts}',
       'scripts/**/*.{ts,mts}',
       'packages/platform-api-docs/**/*.ts',
     ],

@@ -4388,7 +4388,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         ),
       );
 
-      if (cachedOrders === null || isPartialTpsl || cacheShowsStandaloneTriggers) {
+      if (
+        cachedOrders === null ||
+        isPartialTpsl ||
+        cacheShowsStandaloneTriggers
+      ) {
         // Fallback: Query only the specific DEX (20 weight instead of 40+)
         this.#deps.debugLogger.log(
           cachedOrders === null
