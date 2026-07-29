@@ -1,6 +1,6 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import { toHex } from '@metamask/controller-utils';
-import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import {
@@ -19,6 +19,7 @@ import type {
   AssetPreferences,
   Caip19AssetId,
 } from '../types.js';
+import { emitTrace, withTrace } from '../utils/trace.js';
 
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)
@@ -32,9 +33,8 @@ const TRACE_AGGREGATED_BALANCE_SELECTOR = 'AggregatedBalanceSelector';
  * parent (via `parentContext`).
  *
  * Work is timed outside the callback (selectors are sync), so we backdate
- * `startTime` and set numeric `duration_ms` on tags — MetaMask's Sentry adapter
- * promotes numeric tags to measurements, which Spans dashboard widgets chart as
- * `duration_ms`.
+ * `startTime` via `duration_ms` — MetaMask's Sentry adapter promotes numeric
+ * tags to measurements, which Spans dashboard widgets chart as `duration_ms`.
  *
  * @param trace - Trace callback from the client.
  * @param durationMs - Measured compute time in milliseconds.
@@ -45,40 +45,24 @@ function emitAggregatedBalanceSelectorTrace(
   durationMs: number,
   data: Record<string, number | string | boolean>,
 ): void {
-  const endTime = performance.timeOrigin + performance.now();
-  const startTime = endTime - durationMs;
   const spanData = {
     duration_ms: durationMs,
     ...data,
   };
-  const spanTags = {
-    controller: 'AssetsController',
-    duration_ms: durationMs,
-  };
 
-  trace(
-    {
-      name: TRACE_AGGREGATED_BALANCE,
-      data: spanData,
-      tags: spanTags,
-      startTime,
-    },
-    (parentContext?: TraceContext) => {
-      trace(
-        {
-          name: TRACE_AGGREGATED_BALANCE_SELECTOR,
-          data: spanData,
-          tags: spanTags,
-          parentContext,
-          startTime,
-        },
-        () => undefined,
-      ).catch(() => {
-        // Telemetry failure must not break.
+  withTrace({
+    name: TRACE_AGGREGATED_BALANCE,
+    trace,
+    data: spanData,
+    fn: async (parentContext) => {
+      emitTrace({
+        name: TRACE_AGGREGATED_BALANCE_SELECTOR,
+        trace,
+        data: spanData,
+        parentContext,
       });
-      return undefined;
     },
-  ).catch(() => {
+  }).catch(() => {
     // Telemetry failure must not break.
   });
 }
