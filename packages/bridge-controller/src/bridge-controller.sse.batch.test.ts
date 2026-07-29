@@ -19,7 +19,6 @@ import {
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
 } from './constants/bridge.js';
-import * as selectors from './selectors.js';
 import { ChainId, RequestStatus } from './types.js';
 import type { BridgeControllerMessenger } from './types.js';
 import * as balanceUtils from './utils/balance.js';
@@ -236,11 +235,6 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           });
           hasSufficientBalanceSpy.mockResolvedValue(true);
 
-          const selectIsAssetExchangeRateInStateSpy = jest.spyOn(
-            selectors,
-            'selectIsAssetExchangeRateInState',
-          );
-
           const quoteRequest0 = {
             ...quoteRequest,
             srcTokenAddress:
@@ -455,7 +449,6 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(6);
           // eslint-disable-next-line jest/no-restricted-matchers
           expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
-          expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalledTimes(12);
           expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
         },
       );
