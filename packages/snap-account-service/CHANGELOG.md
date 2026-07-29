@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Report migration error in case of failure ([#9696](https://github.com/MetaMask/core/pull/9696))
+  - The migration is now a mandatory step and should never fail, so we want to report this as critical errors if anything goes wrong during that step.
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.5.4` to `^7.5.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
