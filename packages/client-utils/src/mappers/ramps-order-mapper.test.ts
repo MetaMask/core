@@ -139,6 +139,16 @@ describe('mapRampsOrder', () => {
     expect(item?.chainId).toBe('eip155:1');
   });
 
+  it('returns an undefined chainId when cryptoCurrency.assetId has no valid chain segment', () => {
+    const item = mapRampsOrder({
+      ...baseOrder,
+      network: 'ethereum',
+      cryptoCurrency: { assetId: 'not-an-asset-id', symbol: 'ETH' },
+    });
+
+    expect(item?.chainId).toBeUndefined();
+  });
+
   it('returns an undefined chainId when network is an unparseable name and crypto currency has no chain', () => {
     const item = mapRampsOrder({
       ...baseOrder,

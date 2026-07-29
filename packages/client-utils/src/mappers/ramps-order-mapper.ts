@@ -1,12 +1,36 @@
-import type {
-  ActivityItem,
-  Fee,
-  FiatAmount,
-  RampOrderPaymentDetail,
-  Status,
-  TokenAmount,
-} from '../types.js';
-import { caipChainIdFromAssetId, formatChainIdToCaip } from './helpers/caip.js';
+import type { CaipChainId } from '@metamask/utils';
+import { isCaipChainId } from '@metamask/utils';
+
+import type { ActivityItem, Fee, FiatAmount, Status, TokenAmount } from '../types.js';
+import { formatChainIdToCaip } from './helpers/caip.js';
+
+/**
+ * Bank transfer instruction fields attached to a ramp order by providers
+ * that require manual payment (e.g. SEPA, wire transfer).
+ */
+export type RampOrderPaymentDetail = {
+  fiatCurrency: string;
+  paymentMethod: string;
+  fields: { name: string; id: string; value: string }[];
+};
+
+/**
+ * Extracts the CAIP-2 chain id from a CAIP-19 asset id
+ * (`eip155:1/slip44:60` → `eip155:1`).
+ *
+ * @param assetId - CAIP-19 asset id.
+ * @returns The CAIP-2 chain id, or `undefined` when it can't be extracted.
+ */
+function caipChainIdFromAssetId(
+  assetId: string | undefined,
+): CaipChainId | undefined {
+  if (!assetId) {
+    return undefined;
+  }
+  const slash = assetId.indexOf('/');
+  const chainPart = slash === -1 ? assetId : assetId.slice(0, slash);
+  return isCaipChainId(chainPart) ? chainPart : undefined;
+}
 
 type RampsOrderStatusLike =
   | 'UNKNOWN'

@@ -2,7 +2,6 @@ import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
-  isCaipChainId,
   isStrictHexString,
   parseCaipChainId,
   toCaipAssetType,
@@ -84,22 +83,4 @@ export function formatAddressToAssetId(
   const { namespace, reference } = parseCaipChainId(caipChainId);
 
   return toCaipAssetType(namespace, reference, 'erc20', checksummedAddress);
-}
-
-/**
- * Extracts the CAIP-2 chain id from a CAIP-19 asset id
- * (`eip155:1/slip44:60` → `eip155:1`).
- *
- * @param assetId - CAIP-19 asset id.
- * @returns The CAIP-2 chain id, or `undefined` when it can't be extracted.
- */
-export function caipChainIdFromAssetId(
-  assetId: string | undefined,
-): CaipChainId | undefined {
-  if (!assetId) {
-    return undefined;
-  }
-  const slash = assetId.indexOf('/');
-  const chainPart = slash === -1 ? assetId : assetId.slice(0, slash);
-  return isCaipChainId(chainPart) ? chainPart : undefined;
 }

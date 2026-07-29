@@ -1,6 +1,8 @@
 import type { ValueTransfer as _ValueTransfer } from '@metamask/core-backend';
 import type { CaipChainId } from '@metamask/utils';
 
+import type { RampOrderPaymentDetail } from './mappers/ramps-order-mapper.js';
+
 export type ActivityKind =
   | 'receive'
   | 'sell'
@@ -86,16 +88,6 @@ type ActivityData<Type extends ActivityKind, Data> = {
   timestamp: number;
   hash?: string;
   data: Data;
-};
-
-/**
- * Bank transfer instruction fields attached to a ramp order by providers
- * that require manual payment (e.g. SEPA, wire transfer).
- */
-export type RampOrderPaymentDetail = {
-  fiatCurrency: string;
-  paymentMethod: string;
-  fields: { name: string; id: string; value: string }[];
 };
 
 export type ActivityItem =
