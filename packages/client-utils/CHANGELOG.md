@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `@metamask/slip44` dependency for native token symbol lookup ([#9701](https://github.com/MetaMask/core/pull/9701))
+
+### Changed
+
+- Restore native `assetId` on activity tokens and network fees when a symbol is available, using `@metamask/slip44` symbol lookup instead of the removed chain registry ([#9701](https://github.com/MetaMask/core/pull/9701))
+  - Native tokens from indexed value transfers use the transfer symbol
+  - Local native tokens and fees include slip44 `assetId` only when a native symbol is already present on the mapped data
+  - API network fees derive the symbol from native value transfers when present
+  - `assetId` is still omitted when no symbol is available (for example ERC-20-only transactions with no native transfer)
+
 ## [1.4.0]
 
 ### Added
