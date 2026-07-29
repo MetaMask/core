@@ -115,6 +115,7 @@ export {
   isStellarTrade,
 } from './validators/trade.js';
 export type { QuoteResponse } from './validators/quote-response.js';
+export { validateQuoteResponse } from './validators/quote-response.js';
 export type { Quote } from './validators/quote.js';
 export { FeeType, DiscountType } from './validators/quote.js';
 export { ActionTypes } from './validators/step.js';

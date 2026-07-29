@@ -504,7 +504,7 @@ export const calcQuoteMetadata = (
     ...(adjustedReturn && { adjustedReturn }),
     ...(cost && { cost }),
     ...(includedTxFees && { includedTxFees }),
-    ...(relayerFee && { relayerFee }),
+    ...(relayerFee?.amount && { relayerFee }),
     ...((priceImpact?.valueInCurrency ?? priceImpact?.usd) && {
       priceImpact,
     }),

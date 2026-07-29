@@ -69,26 +69,26 @@ export const toQuoteMetadataV2 = (
         network: [
           {
             amount: calcTokenValue(
-              gasFee?.total?.amount ?? totalNetworkFee?.amount,
+              gasFee?.total?.amount,
               nativeAsset?.decimals,
             ),
-            normalizedAmount: gasFee?.total?.amount ?? totalNetworkFee?.amount,
-            valueInCurrency:
-              gasFee?.total?.valueInCurrency ??
-              totalNetworkFee?.valueInCurrency,
-            usd: gasFee?.total?.usd ?? totalNetworkFee?.usd,
+            normalizedAmount: gasFee?.total?.amount,
+            valueInCurrency: gasFee?.total?.valueInCurrency,
+            usd: gasFee?.total?.usd,
             asset: nativeAsset,
           },
         ],
-        relayer: [
-          {
-            amount: calcTokenValue(relayerFee?.amount, nativeAsset?.decimals),
-            normalizedAmount: relayerFee?.amount,
-            valueInCurrency: relayerFee?.valueInCurrency,
-            usd: relayerFee?.usd,
-            asset: nativeAsset,
-          },
-        ],
+        ...(relayerFee?.amount && {
+          relayer: [
+            {
+              amount: calcTokenValue(relayerFee?.amount, nativeAsset?.decimals),
+              normalizedAmount: relayerFee?.amount,
+              valueInCurrency: relayerFee?.valueInCurrency,
+              usd: relayerFee?.usd,
+              asset: nativeAsset,
+            },
+          ],
+        }),
         ...(includedTxFees && {
           txFee: [
             {
