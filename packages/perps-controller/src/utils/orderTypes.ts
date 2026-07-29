@@ -110,14 +110,17 @@ export function classifyTriggerDirection(params: {
   }
 
   // A long takes profit above its entry and stops out below; a short is the
-  // mirror image.
+  // mirror image. A trigger sitting exactly at entry is neither, so both sides
+  // fall to 'stop' — matching the legacy price fallback the scalar
+  // takeProfitPrice/stopLossPrice fields still use. Splitting that tie the
+  // other way would file the order under takeProfitOrders while the scalar
+  // still reported it as a stop.
   const isLong = signedSize > 0;
-  const isAboveEntry = trigger > entry;
 
   if (isLong) {
-    return isAboveEntry ? 'take_profit' : 'stop';
+    return trigger > entry ? 'take_profit' : 'stop';
   }
-  return isAboveEntry ? 'stop' : 'take_profit';
+  return trigger < entry ? 'take_profit' : 'stop';
 }
 
 /**

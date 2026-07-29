@@ -281,6 +281,31 @@ describe('orderTypes', () => {
       },
     );
 
+    it.each([
+      ['long', '1', 'stop'],
+      ['short', '-1', 'stop'],
+    ])(
+      'classifies a %s trigger sitting exactly at entry as a stop',
+      (_side, positionSize, expectedDirection) => {
+        // The legacy price fallback treats trigger == entry as a stop on both
+        // sides. Classifying it as a take profit here would put the order in
+        // takeProfitOrders while the scalar stopLossPrice still called it a
+        // stop — the two disagreeing about the same order.
+        const result = buildPositionTriggerOrderFromOrder({
+          order: createOrder({
+            isTrigger: true,
+            triggerPrice: '50000',
+            size: '1',
+            reduceOnly: true,
+          }),
+          positionSize,
+          entryPrice: '50000',
+        });
+
+        expect(result?.direction).toBe(expectedDirection);
+      },
+    );
+
     it('states the direction alongside a named placement type', () => {
       const result = buildPositionTriggerOrderFromOrder({
         order: createOrder({
