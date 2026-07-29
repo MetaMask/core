@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Register no-op `AnalyticsController` handlers on the daemon wallet so `NetworkController`'s RPC service analytics calls resolve; the daemon does not report analytics ([#9270](https://github.com/MetaMask/core/pull/9270))
-
+- Add the `mm wallet send` command and a dedicated daemon `sendTransaction` RPC handler for sending a transaction through the daemon-hosted `TransactionController` ([#9636](https://github.com/MetaMask/core/pull/9636))
+  - The command converts the ether `--value` to wei, resolves the network client (`--network-client-id` or `--chain-id`) and sender (defaulting to the selected account), previews the resolved plan, and broadcasts after confirmation, printing the resulting transaction hash. `--yes` skips the prompt; `--dry-run` resolves and validates without broadcasting.
+  - The `sendTransaction` handler awaits the broadcast server-side and returns a serializable `{ transactionHash, transactionId, status }`, because `addTransaction`'s `result` promise cannot travel back over the generic `call` dispatch. Transactions are submitted as internal (auto-approved by the daemon).
 - Auto-accept pending approval requests in the daemon so a transaction or signature flow resolves instead of hanging on the headless no-op `showApprovalRequest`; the subscription is torn down on `dispose` ([#9612](https://github.com/MetaMask/core/pull/9612))
   - **Security note:** the daemon approves every request without a per-request prompt; the trust boundary is its `0600`, same-user Unix socket.
 - Wire the `transactionController` slot in the daemon wallet's instance options, so the daemon runs the `TransactionController` with an explicit CLI-appropriate configuration (swaps processing disabled, no client hooks) rather than relying on the controller's implicit defaults ([#9509](https://github.com/MetaMask/core/pull/9509))
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a daemon transport layer: a JSON-RPC client and server over a Unix socket, plus daemon spawn/stop lifecycle helpers ([#9108](https://github.com/MetaMask/core/pull/9108))
 - Add SQLite-backed persistence for wallet controller state ([#9067](https://github.com/MetaMask/core/pull/9067))
 - Initial package scaffold for `@metamask/wallet-cli`, an [oclif](https://oclif.io)-based `mm` CLI for `@metamask/wallet` ([#9065](https://github.com/MetaMask/core/pull/9065)).
+- Register no-op `AnalyticsController` handlers on the daemon wallet so `NetworkController`'s RPC service analytics calls resolve; the daemon does not report analytics ([#9270](https://github.com/MetaMask/core/pull/9270))
 
 ### Changed
 

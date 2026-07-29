@@ -21,6 +21,9 @@
     },
     {
       "path": "../wallet"
+    },
+    {
+      "path": "../foundryup"
     }
   ],
   "include": ["../../types", "./bin", "./src", "./tests"]

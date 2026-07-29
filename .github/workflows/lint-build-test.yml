@@ -87,6 +87,7 @@ jobs:
           - lint:misc:check
           - lint:teams
           - lint:tsconfigs:all
+          - lint:tsc
           - messenger-action-types:check
           - readme-content:check
     steps:
@@ -381,7 +382,11 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Build wallet-cli and its dependencies
         run: yarn workspaces foreach --topological-dev --recursive --from '@metamask/wallet-cli' run build
+      - name: Install anvil for the real-chain e2e
+        run: yarn workspace @metamask/wallet-cli run test:e2e:install-anvil
       - run: yarn workspace @metamask/wallet-cli run test:e2e
+        env:
+          MM_E2E_REQUIRE_ANVIL: 'true'
       - name: Require clean working directory
         shell: bash
         run: |

@@ -96,10 +96,10 @@ describe('mapApiTransaction', () => {
         to: polygonRecipientAddress,
         token: {
           amount: '100000000000000000',
-          assetId: 'eip155:137/slip44:966',
           decimals: 18,
           direction: 'out',
           symbol: 'MATIC',
+          assetType: 'native',
         },
       },
     });
@@ -200,7 +200,7 @@ describe('mapApiTransaction', () => {
     });
   });
 
-  it('maps an exchange transaction with an internal ETH receive transfer to a Swap activity with native destination assetId', () => {
+  it('maps an exchange transaction with an internal ETH receive transfer to a Swap activity with a native destination token', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsAnExchangeTransactionWithAn,
     );
@@ -223,11 +223,8 @@ describe('mapApiTransaction', () => {
           amount: '4894004361763',
           decimals: 18,
           direction: 'in',
-          assetId: formatAddressToAssetId(
-            '0x0000000000000000000000000000000000000000',
-            'eip155:59144',
-          ),
           symbol: 'ETH',
+          assetType: 'native',
         },
       },
     });
@@ -258,11 +255,8 @@ describe('mapApiTransaction', () => {
           amount: '2388594176642019',
           decimals: 18,
           direction: 'in',
-          assetId: formatAddressToAssetId(
-            '0x0000000000000000000000000000000000000000',
-            'eip155:59144',
-          ),
           symbol: 'ETH',
+          assetType: 'native',
         },
       },
     });
@@ -530,10 +524,7 @@ describe('mapApiTransaction', () => {
           decimals: 18,
           direction: 'out',
           symbol: 'ETH',
-          assetId: formatAddressToAssetId(
-            '0x0000000000000000000000000000000000000000',
-            'eip155:1',
-          ),
+          assetType: 'native',
         },
       },
     });
@@ -587,10 +578,7 @@ describe('mapApiTransaction', () => {
           decimals: 18,
           direction: 'out',
           symbol: 'ETH',
-          assetId: formatAddressToAssetId(
-            '0x0000000000000000000000000000000000000000',
-            'eip155:1',
-          ),
+          assetType: 'native',
         },
         destinationToken: {
           amount: '1000000000000',
@@ -669,10 +657,7 @@ describe('mapApiTransaction', () => {
           decimals: 18,
           direction: 'in',
           symbol: 'ETH',
-          assetId: formatAddressToAssetId(
-            '0x0000000000000000000000000000000000000000',
-            'eip155:1',
-          ),
+          assetType: 'native',
         },
       },
     });
@@ -740,13 +725,9 @@ describe('mapApiTransaction', () => {
         fees: [
           {
             amount: String(BigInt('0x24405') * BigInt('0x6fc23ac1d')),
-            assetId: formatAddressToAssetId(
-              '0x0000000000000000000000000000000000000000',
-              'eip155:8453',
-            ),
             decimals: 18,
-            symbol: 'ETH',
             type: 'base',
+            assetType: 'native',
           },
         ],
         sourceToken: {
@@ -860,7 +841,7 @@ describe('mapApiTransaction', () => {
     expect(item.chainId).toBe('eip155:4657');
   });
 
-  it('maps a Standard transaction with a native asset to a send with native token', () => {
+  it('maps a Standard transaction without value transfers to a send without inventing a native token', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsAStandardTransactionWithA,
     );
@@ -869,14 +850,13 @@ describe('mapApiTransaction', () => {
       type: 'send',
       chainId: 'eip155:1',
       data: {
-        token: {
-          amount: '1000000000000000000',
-          symbol: 'ETH',
-          direction: 'out',
-          assetId: 'eip155:1/slip44:60',
-        },
+        from: subjectAddress,
+        to: baseRecipientAddress,
       },
     });
+    expect(
+      (item as { data?: { token?: unknown } }).data?.token,
+    ).toBeUndefined();
   });
 
   it('maps an APPROVE with only an inbound transfer (revoke) to an inbound spending cap', () => {
@@ -914,7 +894,7 @@ describe('mapApiTransaction', () => {
     });
   });
 
-  it('maps a Standard inbound native transfer (no value transfers) to a Receive activity', () => {
+  it('maps a Standard inbound transfer without value transfers to a receive without inventing a native token', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsAStandardInboundNativeTransfer,
     );
@@ -923,14 +903,12 @@ describe('mapApiTransaction', () => {
       type: 'receive',
       chainId: 'eip155:1',
       data: {
-        token: {
-          amount: '1000000000000000000',
-          symbol: 'ETH',
-          direction: 'in',
-          assetId: 'eip155:1/slip44:60',
-        },
+        to: subjectAddress,
       },
     });
+    expect(
+      (item as { data?: { token?: unknown } }).data?.token,
+    ).toBeUndefined();
   });
 
   it('does not map a withdraw without a known method id to a lending withdrawal', () => {
