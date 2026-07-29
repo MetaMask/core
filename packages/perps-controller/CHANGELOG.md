@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Size the max order amount off the price the order is actually submitted at, fixing `order 0: insufficient margin to place order` rejections on max-size market buys (TAT-3344)
+  - `getMaxAllowedAmount` previously derived the maximum from the market price while market buys are submitted as limit orders priced at `market price * (1 + slippage)`; because HyperLiquid charges initial margin against the submitted price, a max-size buy asked for ~3% (up to 10% at the highest slippage setting) more margin than the account had and the exchange rejected it.
+  - `getMaxAllowedAmount` now accepts optional `orderType`, `isBuy`, and `maxSlippageBps` params. The slippage haircut applies to market buys only; sells and limit orders are unchanged. The params default to a market buy at the default slippage, so existing callers get the safe behavior without changes.
+
 ## [10.0.0]
 
 ### Added

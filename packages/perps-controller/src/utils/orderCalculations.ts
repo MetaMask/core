@@ -35,6 +35,16 @@ type MaxAllowedAmountParams = {
   assetPrice: number;
   assetSzDecimals: number;
   leverage: number;
+  // Order type the max is being computed for. Market orders are submitted with a
+  // slippage-adjusted price, which is what the exchange charges margin against.
+  // Defaults to 'market' (the conservative case) when omitted.
+  orderType?: 'market' | 'limit';
+  // Direction of the order. Only buys are priced above the market price, so only
+  // buys need the slippage haircut. Defaults to a buy (the conservative case).
+  isBuy?: boolean;
+  // Max slippage in basis points (e.g. 300 = 3%). Falls back to
+  // ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps.
+  maxSlippageBps?: number;
 };
 
 // Advanced order calculation interfaces
@@ -150,13 +160,37 @@ export function calculateMarginRequired(params: MarginRequiredParams): string {
 }
 
 export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
-  const { spendableBalance, assetPrice, assetSzDecimals, leverage } = params;
+  const {
+    spendableBalance,
+    assetPrice,
+    assetSzDecimals,
+    leverage,
+    orderType = 'market',
+    isBuy = true,
+    maxSlippageBps,
+  } = params;
   if (spendableBalance === 0 || !assetPrice || assetSzDecimals === undefined) {
     return 0;
   }
 
-  // The theoretical maximum is simply spendableBalance * leverage
-  const theoreticalMax = spendableBalance * leverage;
+  // Market buys are sent to HyperLiquid as limit orders priced at
+  // `assetPrice * (1 + slippage)` (see calculateOrderPriceAndSize), and the
+  // exchange charges initial margin against that submitted price - not against
+  // the market price the size was derived from. Sizing the max off the market
+  // price therefore requires ~slippage% more margin than the account has and the
+  // exchange rejects with "insufficient margin to place order". Price the max
+  // off the worst-case execution price instead. Sells are priced below the
+  // market price, so they need no haircut.
+  const slippageMultiplier =
+    orderType === 'market' && isBuy
+      ? 1 +
+        (maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps) /
+          BASIS_POINTS_DIVISOR
+      : 1;
+
+  // The theoretical maximum is spendableBalance * leverage, expressed in the
+  // market-price notional the caller works with.
+  const theoreticalMax = (spendableBalance * leverage) / slippageMultiplier;
 
   // But we need to account for position size rounding
   // Find the largest whole dollar amount that fits within this limit
@@ -169,7 +203,8 @@ export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
     szDecimals: assetSzDecimals,
   });
 
-  const actualNotionalValue = parseFloat(testPositionSize) * assetPrice;
+  const actualNotionalValue =
+    parseFloat(testPositionSize) * assetPrice * slippageMultiplier;
   const requiredMargin = actualNotionalValue / leverage;
 
   // If rounding caused us to exceed available balance, step down by one position increment
