@@ -3,7 +3,7 @@ import {
   isValidHexAddress,
 } from '@metamask/controller-utils';
 
-import type { WalletComplianceStatus } from './types';
+import type { WalletComplianceStatus } from './types.js';
 
 export const getWalletComplianceStatus = (
   statusMap: Record<string, WalletComplianceStatus>,

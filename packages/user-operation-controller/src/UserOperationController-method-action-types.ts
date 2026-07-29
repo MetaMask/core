@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { UserOperationController } from './UserOperationController';
+import type { UserOperationController } from './UserOperationController.js';
 
 /**
  * Create and submit a user operation.

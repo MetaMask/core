@@ -4,13 +4,13 @@ import type { Hex } from '@metamask/utils';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit';
-import { getTransferredAmountFromTxHash } from '../../utils/transaction';
-import { MUSD_MONAD_FIAT_ASSET } from '../fiat/constants';
-import { FALLBACK_HASH } from './constants';
-import { submitPostRelayVaultDeposit } from './relay-post-ma-vault';
-import type { RelayCompletionOutcome, RelayQuote } from './types';
+} from '../../types.js';
+import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
+import { getTransferredAmountFromTxHash } from '../../utils/transaction.js';
+import { MUSD_MONAD_FIAT_ASSET } from '../fiat/constants.js';
+import { FALLBACK_HASH } from './constants.js';
+import { submitPostRelayVaultDeposit } from './relay-post-ma-vault.js';
+import type { RelayCompletionOutcome, RelayQuote } from './types.js';
 
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/ma-vault-deposit');

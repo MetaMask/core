@@ -11,7 +11,7 @@ import {
   controllerName,
   CACHE_DURATION_MS,
   MAX_CACHE_ENTRIES,
-} from './ai-digest-constants';
+} from './ai-digest-constants.js';
 import type {
   AiDigestControllerState,
   DigestService,
@@ -20,8 +20,8 @@ import type {
   MarketOverview,
   MarketOverviewEntry,
   MarketOverviewFrontPage,
-} from './ai-digest-types';
-import type { AiDigestControllerMethodActions } from './AiDigestController-method-action-types';
+} from './ai-digest-types.js';
+import type { AiDigestControllerMethodActions } from './AiDigestController-method-action-types.js';
 
 export type AiDigestControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,

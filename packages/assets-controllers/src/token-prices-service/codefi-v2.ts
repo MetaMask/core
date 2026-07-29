@@ -15,7 +15,7 @@ import {
   toCaipChainId,
 } from '@metamask/utils';
 
-import type { MarketDataDetails } from '../TokenRatesController';
+import type { MarketDataDetails } from '../TokenRatesController.js';
 import type {
   AbstractTokenPricesService,
   EvmAssetAddressWithChain,
@@ -23,7 +23,7 @@ import type {
   EvmAssetWithMarketData,
   ExchangeRatesByCurrency,
   NativeAssetIdentifiersMap,
-} from './abstract-token-prices-service';
+} from './abstract-token-prices-service.js';
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to

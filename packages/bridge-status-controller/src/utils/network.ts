@@ -3,7 +3,7 @@ import { formatChainIdToHex } from '@metamask/bridge-controller';
 import type { GenericQuoteRequest } from '@metamask/bridge-controller';
 import type { NetworkClient } from '@metamask/network-controller';
 
-import type { BridgeStatusControllerMessenger } from '../types';
+import type { BridgeStatusControllerMessenger } from '../types.js';
 
 export const getSelectedChainId = (
   messenger: BridgeStatusControllerMessenger,

@@ -1,9 +1,9 @@
-import { isOnChainRawNotification } from '.';
 import {
   createMockFeatureAnnouncementRaw,
   createMockPlatformNotification,
   createMockNotificationEthSent,
-} from '../NotificationServicesController/mocks';
+} from '../NotificationServicesController/mocks/index.js';
+import { isOnChainRawNotification } from './index.js';
 
 describe('is-onchain-notification - isOnChainRawNotification()', () => {
   it('returns true if OnChainRawNotification', () => {

@@ -5,8 +5,8 @@ import type {
   Caip19AssetId,
   Context,
   DataRequest,
-} from '../types';
-import { CustomAssetGraduationMiddleware } from './CustomAssetGraduationMiddleware';
+} from '../types.js';
+import { CustomAssetGraduationMiddleware } from './CustomAssetGraduationMiddleware.js';
 
 const MOCK_ACCOUNT_ID = 'mock-account-id';
 const OTHER_ACCOUNT_ID = 'other-account-id';

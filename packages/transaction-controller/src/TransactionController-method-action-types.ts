@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TransactionController } from './TransactionController';
+import type { TransactionController } from './TransactionController.js';
 
 /**
  * Handle new method data request.

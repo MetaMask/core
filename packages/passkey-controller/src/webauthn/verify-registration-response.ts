@@ -2,19 +2,19 @@ import { decodePartialCBOR } from '@levischuck/tiny-cbor';
 import { concatBytes } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
 
-import type { AuthenticatorTransportFuture } from '../types';
+import type { AuthenticatorTransportFuture } from '../types.js';
 import {
   base64URLToBytes,
   bytesToBase64URL,
   bytesToHex,
-} from '../utils/encoding';
-import { COSEALG, COSEKEYS } from './constants';
-import { decodeAttestationObject } from './decode-attestation-object';
-import { decodeClientDataJSON } from './decode-client-data-json';
-import { matchExpectedRPID } from './match-expected-rp-id';
-import { parseAuthenticatorData } from './parse-authenticator-data';
-import type { PasskeyRegistrationResponse } from './types';
-import { verifySignature } from './verify-signature';
+} from '../utils/encoding.js';
+import { COSEALG, COSEKEYS } from './constants.js';
+import { decodeAttestationObject } from './decode-attestation-object.js';
+import { decodeClientDataJSON } from './decode-client-data-json.js';
+import { matchExpectedRPID } from './match-expected-rp-id.js';
+import { parseAuthenticatorData } from './parse-authenticator-data.js';
+import type { PasskeyRegistrationResponse } from './types.js';
+import { verifySignature } from './verify-signature.js';
 
 export type VerifiedRegistrationResponse =
   | { verified: false; registrationInfo?: never }

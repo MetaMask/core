@@ -7,18 +7,18 @@ import type { Messenger } from '@metamask/messenger';
 import { isValidSemVerVersion } from '@metamask/utils';
 import type { Json, SemVerVersion } from '@metamask/utils';
 
-import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
-import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types';
+import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service.js';
+import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types.js';
 import type {
   FeatureFlags,
   ServiceResponse,
   FeatureFlagScopeValue,
-} from './remote-feature-flag-controller-types';
+} from './remote-feature-flag-controller-types.js';
 import {
   calculateThresholdForFlag,
   isFeatureFlagWithScopeValue,
-} from './utils/user-segmentation-utils';
-import { isVersionFeatureFlag, getVersionData } from './utils/version';
+} from './utils/user-segmentation-utils.js';
+import { isVersionFeatureFlag, getVersionData } from './utils/version.js';
 
 // === GENERAL ===
 

@@ -16,14 +16,14 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import type nock from 'nock';
 
-import { jestAdvanceTime, flushPromises } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
-import type { RpcEndpoint } from '../../network-controller/src/NetworkController';
-import { mockAPI_accountsAPI_MultichainAccountBalances as mockAPIAccountsAPIMultichainAccountBalancesCamelCase } from './__fixtures__/account-api-v4-mocks';
-import { waitFor } from './__fixtures__/test-utils';
-import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
-import * as multicall from './multicall';
-import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
+import { jestAdvanceTime, flushPromises } from '../../../tests/helpers.js';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
+import type { RpcEndpoint } from '../../network-controller/src/NetworkController.js';
+import { mockAPI_accountsAPI_MultichainAccountBalances as mockAPIAccountsAPIMultichainAccountBalancesCamelCase } from './__fixtures__/account-api-v4-mocks.js';
+import { waitFor } from './__fixtures__/test-utils.js';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher.js';
+import * as multicall from './multicall.js';
+import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher.js';
 import type {
   ChainIdHex,
   TokenBalancesControllerMessenger,
@@ -31,15 +31,15 @@ import type {
   TokenBalancesControllerState,
   TokenBalances,
   UpdateBalancesOptions,
-} from './TokenBalancesController';
+} from './TokenBalancesController.js';
 import {
   TokenBalancesController,
   UPDATE_BALANCES_BATCH_MS,
   caipChainIdToHex,
   mergeUpdateBalancesOptions,
   parseAssetType,
-} from './TokenBalancesController';
-import type { TokensControllerState } from './TokensController';
+} from './TokenBalancesController.js';
+import type { TokensControllerState } from './TokensController.js';
 
 type AllTokenBalancesControllerActions =
   MessengerActions<TokenBalancesControllerMessenger>;

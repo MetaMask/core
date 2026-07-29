@@ -1,37 +1,41 @@
-import type { Rule } from '@metamask/7715-permission-types';
+import type {
+  PermissionDecoderConfig,
+  Rule,
+} from '@metamask/7715-permission-types';
 import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { EXECUTION_PERMISSION_EXPIRY_RULE_TYPE } from '../../constants';
-import type {
-  ChecksumCaveat,
-  ChecksumEnforcersByChainId,
-  DecodedPermission,
-  PermissionDecoder,
-  PermissionType,
-  RuleDecoder,
-  ValidateAndDecodeResult,
-} from '../types';
-import { buildEnforcerCountsAndSet, enforcersMatchRule } from '../utils';
+import { EXECUTION_PERMISSION_EXPIRY_RULE_TYPE } from '../../constants.js';
+import type { PermissionDecoder, ValidateAndDecodeResult } from '../types.js';
+import { buildEnforcerCountsAndSet, enforcersMatchRule } from '../utils.js';
 
 /**
- * Configuration object describing how to decode a single permission type.
+ * Address checksumming in the permission decode flow.
  *
- * Returned by each `make<PermissionType>DecoderConfig` factory and consumed by
- * {@link makePermissionDecoder} to produce a {@link PermissionDecoder}.
+ * Enforcer addresses come from three sources, each of which may use a
+ * different hex encoding (EIP-55 checksummed vs lowercase). Comparisons rely
+ * on strict equality, so we normalize at function boundaries instead of
+ * requiring callers to pass a specific encoding. `getChecksumAddress` is
+ * idempotent, so repeated normalization is intentional and cheap.
+ *
+ * 1. **Canonical contract addresses** (`EnforcerAddressesByName`): normalized
+ *    in {@link toEnforcerAddressesByName}, again in
+ *    `makePermissionDecoderConfigs` (`checksumEnforcerAddresses` in
+ *    `@metamask/7715-permission-types`), and once more below when building
+ *    each decoder's required/optional enforcer sets.
+ *
+ * 2. **Delegation caveat enforcers**: read from the encoded permission
+ *    context with unpredictable casing. Normalized in
+ *    {@link buildEnforcerCountsAndSet} during address matching and again in
+ *    `validateAndDecodePermission` before term decoding (rule decoders and
+ *    `getTermsByEnforcer` compare enforcer addresses with `===`).
+ *
+ * 3. **Decoder required/optional enforcers**: populated from contract
+ *    addresses by `makePermissionDecoderConfigs`; normalized at decoder
+ *    construction so `caveatAddressesMatch` compares like-for-like with
+ *    caveat addresses from source (2).
  */
-export type MakePermissionDecoderConfig = {
-  permissionType: PermissionType;
-  contractAddresses: ChecksumEnforcersByChainId;
-  optionalEnforcers: Hex[];
-  requiredEnforcers: Record<Hex, number>;
-  rules: RuleDecoder[];
-  validateAndDecodeData: (
-    caveats: ChecksumCaveat[],
-    contractAddresses: ChecksumEnforcersByChainId,
-  ) => DecodedPermission['permission']['data'];
-};
 
 /**
  * Creates a single {@link PermissionDecoder} with the given type, enforcer
@@ -39,7 +43,7 @@ export type MakePermissionDecoderConfig = {
  *
  * @param config - The configuration describing the permission type's
  * enforcers, rule decoders, and data decoder. See
- * {@link MakePermissionDecoderConfig} for field documentation.
+ * {@link PermissionDecoderConfig} for field documentation.
  * @param config.permissionType - The type of permission to decode.
  * @param config.contractAddresses - Checksummed enforcer addresses for the chain.
  * @param config.optionalEnforcers - Optional enforcers for the permission.
@@ -56,11 +60,16 @@ export function makePermissionDecoder({
   requiredEnforcers,
   rules,
   validateAndDecodeData,
-}: MakePermissionDecoderConfig): PermissionDecoder {
-  const optionalEnforcersSet = new Set(optionalEnforcers);
+}: PermissionDecoderConfig): PermissionDecoder {
+  const optionalEnforcersSet = new Set(
+    optionalEnforcers.map(getChecksumAddress),
+  );
   const requiredEnforcersMap = new Map(
-    Object.entries(requiredEnforcers),
-  ) as Map<Hex, number>;
+    Object.entries(requiredEnforcers).map(([enforcer, count]) => [
+      getChecksumAddress(enforcer as Hex),
+      count,
+    ]),
+  );
 
   const caveatAddressesMatch = (caveatAddresses: Hex[]): boolean => {
     const { counts, enforcersSet } = buildEnforcerCountsAndSet(caveatAddresses);
@@ -76,7 +85,7 @@ export function makePermissionDecoder({
   const validateAndDecodePermission = (
     caveats: Caveat<Hex>[],
   ): ValidateAndDecodeResult => {
-    const checksumCaveats: ChecksumCaveat[] = caveats.map((caveat) => ({
+    const checksumCaveats: Caveat<Hex>[] = caveats.map((caveat) => ({
       ...caveat,
       enforcer: getChecksumAddress(caveat.enforcer),
     }));

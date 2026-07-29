@@ -2,14 +2,14 @@ import * as FirebaseAppModule from 'firebase/app';
 import * as FirebaseMessagingModule from 'firebase/messaging';
 import * as FirebaseMessagingSWModule from 'firebase/messaging/sw';
 
-import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger';
-import type { PushAnalyticsPayload } from '../types';
+import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger.js';
+import type { PushAnalyticsPayload } from '../types/index.js';
 import {
   createRegToken,
   deleteRegToken,
   createSubscribeToPushNotifications,
-} from './push-utils';
-import * as PushWebModule from './push-utils';
+} from './push-utils.js';
+import * as PushWebModule from './push-utils.js';
 
 jest.mock('firebase/app');
 jest.mock('firebase/messaging');

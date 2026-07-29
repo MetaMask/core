@@ -26,7 +26,7 @@ import { v4 as uuid } from 'uuid';
 import type {
   BridgeStatusControllerMessenger,
   SolanaTransactionMeta,
-} from '../types';
+} from '../types.js';
 
 /**
  * Creates a client request object for signing and sending a transaction
@@ -156,7 +156,7 @@ export const getTxMetaFields = (
     // chainId is now excluded from this function and handled by the caller
     approvalTxId,
     // this is the decimal (non atomic) amount (not USD value) of source token to swap
-    swapTokenValue: quoteResponse.sentAmount.amount,
+    swapTokenValue: quoteResponse?.sentAmount?.amount,
   };
 };
 

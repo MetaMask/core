@@ -9,7 +9,7 @@ import {
   PRICE_RANGES_MINIMAL_VIEW,
   PRICE_RANGES_UNIVERSAL,
   PRICE_THRESHOLD,
-} from '../../../src/utils/perpsFormatters';
+} from '../../../src/utils/perpsFormatters.js';
 
 describe('PRICE_THRESHOLD', () => {
   it('exports expected boundary values', () => {

@@ -1,8 +1,8 @@
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import { parseCaipAssetType } from '@metamask/utils';
 
-import { ZERO_ADDRESS } from '../../../utils/constants';
-import type { MulticallClient } from '../clients';
+import { ZERO_ADDRESS } from '../../../utils/constants.js';
+import type { MulticallClient } from '../clients/index.js';
 import type {
   AccountId,
   Address,
@@ -14,8 +14,8 @@ import type {
   BalanceOfResponse,
   CaipAssetType,
   ChainId,
-} from '../types';
-import { reduceInBatchesSerially } from '../utils';
+} from '../types/index.js';
+import { reduceInBatchesSerially } from '../utils/index.js';
 
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
 

@@ -3,8 +3,8 @@ import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import { add0x, createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   FeeMarketGasFeeEstimateForLevel,
   FeeMarketGasFeeEstimates,
@@ -12,14 +12,14 @@ import type {
   GasFeeFlowRequest,
   GasFeeFlowResponse,
   TransactionMeta,
-} from '../types';
-import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
-import { getGasFeeRandomisation } from '../utils/feature-flags';
+} from '../types.js';
+import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types.js';
+import { getGasFeeRandomisation } from '../utils/feature-flags.js';
 import {
   gweiDecimalToWeiDecimal,
   gweiDecimalToWeiHex,
-} from '../utils/gas-fees';
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
+} from '../utils/gas-fees.js';
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow.js';
 
 const log = createModuleLogger(
   projectLogger,

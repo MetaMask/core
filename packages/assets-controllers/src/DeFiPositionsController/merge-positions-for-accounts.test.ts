@@ -3,8 +3,8 @@ import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 import type {
   DeFiProtocolPositionGroup,
   DeFiUnderlyingPosition,
-} from './group-defi-positions-v6';
-import { mergePositionsForAccounts } from './merge-positions-for-accounts';
+} from './group-defi-positions-v6.js';
+import { mergePositionsForAccounts } from './merge-positions-for-accounts.js';
 
 const ETH_MAINNET = 'eip155:1' as CaipChainId;
 const BASE = 'eip155:8453' as CaipChainId;

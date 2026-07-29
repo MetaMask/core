@@ -1,4 +1,4 @@
-import { validateBridgeStatusResponse } from './validators';
+import { validateBridgeStatusResponse } from './validators.js';
 
 const BridgeTxStatusResponses = {
   STATUS_PENDING_VALID: {

@@ -16,7 +16,7 @@ import {
   getSupportedNetworks,
   resetSupportedNetworksCache,
   getAssetId,
-} from './codefi-v2';
+} from './codefi-v2.js';
 
 // We're not customizing the default max delay
 // The default can be found here: https://github.com/connor4312/cockatiel?tab=readme-ov-file#exponentialbackoff

@@ -3,7 +3,7 @@ import type { CaipChainId } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 import nock, { cleanAll } from 'nock';
 
-import type { SortTrendingBy } from './token-service';
+import type { SortTrendingBy } from './token-service.js';
 import {
   fetchRwas,
   fetchTokenAssets,
@@ -14,7 +14,7 @@ import {
   searchTokens,
   TOKEN_END_POINT_API,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
-} from './token-service';
+} from './token-service.js';
 
 const ONE_MILLISECOND = 1;
 const ONE_SECOND_IN_MILLISECONDS = 1_000;

@@ -5,19 +5,19 @@ export type {
   AiDigestControllerMessenger,
   AiDigestControllerOptions,
   AiDigestControllerStateChangeEvent,
-} from './AiDigestController';
+} from './AiDigestController.js';
 export {
   AiDigestController,
   getDefaultAiDigestControllerState,
-} from './AiDigestController';
+} from './AiDigestController.js';
 export type {
   AiDigestControllerFetchMarketInsightsAction,
   AiDigestControllerFetchMarketOverviewAction,
   AiDigestControllerFetchFrontPageItemAction,
-} from './AiDigestController-method-action-types';
+} from './AiDigestController-method-action-types.js';
 
-export type { AiDigestServiceConfig } from './AiDigestService';
-export { AiDigestService } from './AiDigestService';
+export type { AiDigestServiceConfig } from './AiDigestService.js';
+export { AiDigestService } from './AiDigestService.js';
 
 export type {
   AiDigestControllerState,
@@ -38,11 +38,11 @@ export type {
   RelatedAsset,
   Source,
   Tweet,
-} from './ai-digest-types';
+} from './ai-digest-types.js';
 
 export {
   controllerName as aiDigestControllerName,
   CACHE_DURATION_MS,
   MAX_CACHE_ENTRIES,
   AiDigestControllerErrorMessage,
-} from './ai-digest-constants';
+} from './ai-digest-constants.js';

@@ -7,18 +7,18 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll as nockCleanAll } from 'nock';
 
-import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants';
-import { MoneyAccountApiResponseValidationError } from './errors';
+import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants.js';
+import { MoneyAccountApiResponseValidationError } from './errors.js';
 import type {
   MoneyAccountApiDataServiceMessenger,
   MoneyAccountApiDataServiceTraceCallback,
   MoneyAccountApiDataServiceTraceRequest,
-} from './money-account-api-data-service';
+} from './money-account-api-data-service.js';
 import {
   MoneyAccountApiDataService,
   serviceName,
   TRACES,
-} from './money-account-api-data-service';
+} from './money-account-api-data-service.js';
 
 // ============================================================
 // Fixtures
@@ -153,7 +153,13 @@ function createServiceMessenger(
 
 function createService(
   env: Env = Env.DEV,
-  { trace }: { trace?: MoneyAccountApiDataServiceTraceCallback } = {},
+  {
+    trace,
+    getBearerToken,
+  }: {
+    trace?: MoneyAccountApiDataServiceTraceCallback;
+    getBearerToken?: () => Promise<string>;
+  } = {},
 ): {
   service: MoneyAccountApiDataService;
   rootMessenger: RootMessenger;
@@ -161,6 +167,17 @@ function createService(
 } {
   const rootMessenger = createRootMessenger();
   const messenger = createServiceMessenger(rootMessenger);
+  if (getBearerToken) {
+    rootMessenger.registerActionHandler(
+      'AuthenticationController:getBearerToken',
+      getBearerToken,
+    );
+  }
+  rootMessenger.delegate({
+    messenger,
+    actions: ['AuthenticationController:getBearerToken'],
+    events: [],
+  });
   const service = new MoneyAccountApiDataService({
     messenger,
     env,
@@ -190,6 +207,96 @@ describe('MoneyAccountApiDataService', () => {
     it('initializes with specified environment', () => {
       const { service } = createService(Env.UAT);
       expect(service.name).toBe(serviceName);
+      service.destroy();
+    });
+  });
+
+  describe('authentication headers', () => {
+    it('attaches the profile bearer token to every API request', async () => {
+      const getBearerToken = jest.fn().mockResolvedValue('jwt-token');
+      const { service } = createService(Env.DEV, { getBearerToken });
+      const requestHeaders = {
+        reqheaders: { authorization: 'Bearer jwt-token' },
+      };
+
+      const positionsScope = nock(
+        MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
+        requestHeaders,
+      )
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, MOCK_POSITION_RESPONSE);
+      const interestScope = nock(
+        MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
+        requestHeaders,
+      )
+        .get(`/v1/positions/${MOCK_ADDRESS}/interest`)
+        .query({
+          vault_address: MOCK_VAULT_ADDRESS,
+          window: '7d',
+        })
+        .reply(200, MOCK_INTEREST_RESPONSE);
+      const historyScope = nock(
+        MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
+        requestHeaders,
+      )
+        .get(`/v1/positions/${MOCK_ADDRESS}/history`)
+        .reply(200, MOCK_HISTORY_RESPONSE);
+      const rateHistoryScope = nock(
+        MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
+        requestHeaders,
+      )
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate-history`)
+        .reply(200, MOCK_RATE_HISTORY_RESPONSE);
+
+      await service.fetchPositions(MOCK_ADDRESS);
+      await service.fetchInterest(MOCK_ADDRESS, {
+        vaultAddress: MOCK_VAULT_ADDRESS,
+        window: '7d',
+      });
+      await service.fetchHistory(MOCK_ADDRESS);
+      await service.fetchRateHistory(MOCK_VAULT_ADDRESS);
+
+      expect(getBearerToken).toHaveBeenCalledTimes(4);
+      positionsScope.done();
+      interestScope.done();
+      historyScope.done();
+      rateHistoryScope.done();
+      service.destroy();
+    });
+
+    it('proceeds unauthenticated when token retrieval fails', async () => {
+      const { service } = createService(Env.DEV, {
+        getBearerToken: async () => {
+          throw new Error('wallet is locked');
+        },
+      });
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        badheaders: ['authorization'],
+      })
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, MOCK_POSITION_RESPONSE);
+
+      const result = await service.fetchPositions(MOCK_ADDRESS);
+
+      expect(result).toStrictEqual(MOCK_POSITION_RESPONSE);
+      scope.done();
+      service.destroy();
+    });
+
+    it('omits the authorization header when the token is empty', async () => {
+      const { service } = createService(Env.DEV, {
+        getBearerToken: async () => '',
+      });
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        badheaders: ['authorization'],
+      })
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, MOCK_POSITION_RESPONSE);
+
+      const result = await service.fetchPositions(MOCK_ADDRESS);
+
+      expect(result).toStrictEqual(MOCK_POSITION_RESPONSE);
+      scope.done();
       service.destroy();
     });
   });
@@ -231,6 +338,36 @@ describe('MoneyAccountApiDataService', () => {
       await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toThrow(
         HttpError,
       );
+      service.destroy();
+    });
+
+    it('does not retry an authorization failure', async () => {
+      const { service } = createService(Env.DEV);
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .once()
+        .reply(403);
+
+      await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toThrow(
+        HttpError,
+      );
+
+      scope.done();
+      service.destroy();
+    });
+
+    it('retries a rate-limit response', async () => {
+      const { service } = createService(Env.DEV);
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(429);
+
+      await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toThrow(
+        HttpError,
+      );
+
+      scope.done();
       service.destroy();
     });
 

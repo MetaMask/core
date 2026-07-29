@@ -1,4 +1,4 @@
-import type { RpcServiceRequestable } from './rpc-service-requestable';
+import type { RpcServiceRequestable } from './rpc-service-requestable.js';
 
 /**
  * The interface for a service class responsible for making a request to an RPC

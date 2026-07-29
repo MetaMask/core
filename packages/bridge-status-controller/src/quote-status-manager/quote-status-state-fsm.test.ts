@@ -1,5 +1,5 @@
-import { QuoteStatusState } from './constants';
-import { QuoteStatusStateFsm } from './quote-status-state-fsm';
+import { QuoteStatusState } from './constants.js';
+import { QuoteStatusStateFsm } from './quote-status-state-fsm.js';
 
 describe('QuoteStatusStateFsm', () => {
   describe('constructor', () => {

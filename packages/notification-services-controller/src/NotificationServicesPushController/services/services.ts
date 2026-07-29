@@ -1,10 +1,10 @@
-import type { PushNotificationEnv } from '../types';
+import type { PushNotificationEnv } from '../types/index.js';
 import type {
   CreateRegToken,
   DeleteRegToken,
-} from '../types/push-service-interface';
-import type { ENV } from './endpoints';
-import * as endpoints from './endpoints';
+} from '../types/push-service-interface.js';
+import type { ENV } from './endpoints.js';
+import * as endpoints from './endpoints.js';
 
 export type RegToken = {
   token: string;

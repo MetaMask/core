@@ -6,14 +6,14 @@ import {
   AiDigestControllerErrorMessage,
   CACHE_DURATION_MS,
   MAX_CACHE_ENTRIES,
-} from '.';
+} from './index.js';
 import type {
   AiDigestControllerMessenger,
   DigestService,
   MarketInsightsReport,
   MarketOverview,
   MarketOverviewFrontPage,
-} from '.';
+} from './index.js';
 
 const mockReport: MarketInsightsReport = {
   version: '1.0',

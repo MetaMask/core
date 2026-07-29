@@ -11,10 +11,15 @@ import {
 } from '@metamask/transaction-controller';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
-import type { Fee, Status, TokenAmount, ValueTransfer } from '../../types';
-import { nativeTokenAddress } from '../constants';
-import { formatAddressToAssetId, getNativeAsset } from './caip';
-import { getKnownTokenMetadata } from './token-metadata';
+import type {
+  AssetType,
+  Fee,
+  Status,
+  TokenAmount,
+  ValueTransfer,
+} from '../../types.js';
+import { formatAddressToAssetId } from './caip.js';
+import { getKnownTokenMetadata } from './token-metadata.js';
 
 // Adds optional `isSmartTransaction` to `TransactionMeta`.
 export type TransactionGroup = {
@@ -43,37 +48,52 @@ function toNetworkFeeAmount(
   }
 }
 
-function buildBaseNetworkFee(amount: string, chainId: string | number): Fee {
-  const nativeAsset = getNativeAsset(chainId);
-
+function buildBaseNetworkFee(amount: string): Fee {
   return {
     type: 'base',
     amount,
-    ...(nativeAsset?.decimals === undefined
-      ? { decimals: nativeTokenDecimals }
-      : { decimals: nativeAsset.decimals }),
-    ...(nativeAsset?.symbol ? { symbol: nativeAsset.symbol } : {}),
-    ...(nativeAsset?.assetId ? { assetId: nativeAsset.assetId } : {}),
+    decimals: nativeTokenDecimals,
+    assetType: 'native',
   };
+}
+
+function getAssetTypeFromTransferType(
+  transferType: string | undefined,
+): AssetType | undefined {
+  if (transferType === 'normal' || transferType === 'internal') {
+    return 'native';
+  }
+
+  if (transferType === 'erc20') {
+    return 'erc20';
+  }
+
+  if (transferType === ERC721.toLowerCase() || transferType === 'erc721') {
+    return 'erc721';
+  }
+
+  if (transferType === ERC1155.toLowerCase() || transferType === 'erc1155') {
+    return 'erc1155';
+  }
+
+  return undefined;
 }
 
 function getNetworkFee(
   transaction: V1TransactionByHashResponse,
-  chainId: string,
 ): Fee | undefined {
   const amount = toNetworkFeeAmount(
     transaction.gasUsed,
     transaction.effectiveGasPrice,
   );
 
-  return amount ? buildBaseNetworkFee(amount, chainId) : undefined;
+  return amount ? buildBaseNetworkFee(amount) : undefined;
 }
 
 export function getFees(
   transaction: V1TransactionByHashResponse,
-  chainId: string,
 ): Fee[] | undefined {
-  const networkFee = getNetworkFee(transaction, chainId);
+  const networkFee = getNetworkFee(transaction);
 
   return networkFee ? [networkFee] : undefined;
 }
@@ -88,9 +108,7 @@ export function getLocalTransactionFees(
       primaryTransaction.txParams?.gasPrice,
   );
 
-  return amount
-    ? [buildBaseNetworkFee(amount, primaryTransaction.chainId)]
-    : undefined;
+  return amount ? [buildBaseNetworkFee(amount)] : undefined;
 }
 
 const inProgressTransactionStatuses = [
@@ -244,23 +262,13 @@ export function getNftPaymentTransfer({
 
 const resolveAssetId = (
   chainId: CaipChainId,
-  {
-    contractAddress,
-    transferType,
-  }: {
-    contractAddress?: string;
-    transferType?: string;
-  },
+  contractAddress: string | undefined,
 ): string | undefined => {
-  if (contractAddress) {
-    return formatAddressToAssetId(contractAddress, chainId);
+  if (!contractAddress) {
+    return undefined;
   }
 
-  if (transferType === 'normal' || transferType === 'internal') {
-    return formatAddressToAssetId(nativeTokenAddress, chainId);
-  }
-
-  return undefined;
+  return formatAddressToAssetId(contractAddress, chainId);
 };
 
 /**
@@ -335,14 +343,12 @@ export function getTokenAmountFromTransfer(
 
   const assetId =
     transfer && !isNftTransfer
-      ? resolveAssetId(chainId, {
-          contractAddress: transfer.contractAddress,
-          transferType: transfer.transferType,
-        })
+      ? resolveAssetId(chainId, transfer.contractAddress)
       : undefined;
 
   const hasTransferAmount =
     !isNftTransfer && amount !== null && amount !== undefined;
+  const assetType = getAssetTypeFromTransferType(transferType);
 
   return {
     direction,
@@ -350,6 +356,7 @@ export function getTokenAmountFromTransfer(
     ...(transfer.decimal === undefined ? {} : { decimals: transfer.decimal }),
     ...(symbol ? { symbol } : {}),
     ...(assetId ? { assetId } : {}),
+    ...(assetType ? { assetType } : {}),
   };
 }
 
@@ -366,6 +373,7 @@ export function getTokenMetadataFromKnownToken(
 
   return {
     direction,
+    assetType: 'erc20',
     ...(tokenMetadata.symbol ? { symbol: tokenMetadata.symbol } : {}),
     ...(tokenMetadata.decimals === undefined
       ? {}
@@ -393,6 +401,7 @@ export function withFallbackTokenAssetId(
     !token ||
     token.assetId ||
     transferType === 'normal' ||
+    transferType === 'internal' ||
     !fallbackContractAddress
   ) {
     return token;
@@ -403,5 +412,9 @@ export function withFallbackTokenAssetId(
     return token;
   }
 
-  return { ...token, assetId };
+  return {
+    ...token,
+    assetId,
+    assetType: token.assetType,
+  };
 }

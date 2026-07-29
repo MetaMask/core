@@ -4,7 +4,7 @@
  */
 import { hasProperty } from '@metamask/utils';
 
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 
 /**
  * Detects expected cancellation/abort errors that should not be reported to Sentry.

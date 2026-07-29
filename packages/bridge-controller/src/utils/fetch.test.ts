@@ -1,18 +1,21 @@
 import { AddressZero } from '@ethersproject/constants';
 import type { CaipAssetType } from '@metamask/utils';
 
-import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20';
-import { mockBridgeQuotesNativeErc20V1 } from '../../tests/mock-quotes-native-erc20';
-import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
-import { BatchSellTransactionType } from '../validators/batch-sell';
-import { FeatureId } from '../validators/feature-flags';
+import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../../tests/mock-quotes-native-erc20.js';
+import {
+  BridgeClientId,
+  BRIDGE_PROD_API_BASE_URL,
+} from '../constants/bridge.js';
+import { BatchSellTransactionType } from '../validators/batch-sell.js';
+import { FeatureId } from '../validators/feature-flags.js';
 import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
   fetchAssetPrices,
   fetchBatchSellTrades,
   formatBatchSellTradesRequest,
-} from './fetch';
+} from './fetch.js';
 
 const mockFetchFn = jest.fn();
 
@@ -22,14 +25,14 @@ describe('fetch', () => {
       const mockResponse = [
         {
           address: '0x0000000000000000000000000000000000000000',
-          assetId: 'eip155:10/slip44:614',
+          assetId: 'eip155:10/slip44:60',
           symbol: 'ETH',
           decimals: 18,
           name: 'Ether',
           coingeckoId: 'ethereum',
           aggregators: [],
           iconUrl:
-            'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
+            'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/60.png',
           metadata: {
             honeypotStatus: {},
             isContractVerified: false,
@@ -103,12 +106,12 @@ describe('fetch', () => {
         '0x0000000000000000000000000000000000000000': {
           address: '0x0000000000000000000000000000000000000000',
           aggregators: [],
-          assetId: 'eip155:10/slip44:614',
+          assetId: 'eip155:10/slip44:60',
           chainId: 10,
           coingeckoId: 'ethereum',
           decimals: 18,
           iconUrl:
-            'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
+            'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/60.png',
           metadata: {
             createdAt: '2023-10-31T22:16:37.494Z',
             description: {},

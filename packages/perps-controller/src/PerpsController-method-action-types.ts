@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { PerpsController } from './PerpsController';
+import type { PerpsController } from './PerpsController.js';
 
 /**
  * Read cached market data for the currently active provider (or aggregated).

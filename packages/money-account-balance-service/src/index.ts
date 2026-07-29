@@ -1,4 +1,4 @@
-export { MoneyAccountBalanceService } from './money-account-balance-service';
+export { MoneyAccountBalanceService } from './money-account-balance-service.js';
 export type {
   MoneyAccountBalanceServiceActions,
   MoneyAccountBalanceServiceEvents,
@@ -6,7 +6,7 @@ export type {
   MoneyAccountBalanceServiceOptions,
   MoneyAccountBalanceServiceTraceCallback,
   MoneyAccountBalanceServiceTraceRequest,
-} from './money-account-balance-service';
+} from './money-account-balance-service.js';
 export type {
   MoneyAccountBalanceServiceFetchBalanceWithFallbackAction,
   MoneyAccountBalanceServiceGetMoneyAccountBalanceAction,
@@ -15,7 +15,7 @@ export type {
   MoneyAccountBalanceServiceGetExchangeRateAction,
   MoneyAccountBalanceServiceGetMusdEquivalentValueAction,
   MoneyAccountBalanceServiceGetVaultApyAction,
-} from './money-account-balance-service-method-action-types';
+} from './money-account-balance-service-method-action-types.js';
 export type {
   CanonicalMoneyAccountBalanceResponse,
   ExchangeRateResponse,
@@ -23,17 +23,17 @@ export type {
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
 } from './response.types';
-export type { BalanceSource, BalanceSourcePolicy } from './constants';
+export type { BalanceSource, BalanceSourcePolicy } from './constants.js';
 export {
   BALANCE_SOURCE_POLICIES,
   DEFAULT_BALANCE_SOURCE_POLICY,
   MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY,
-} from './constants';
+} from './constants.js';
 export {
   MoneyAccountBalanceFetchError,
   MoneyAccountBalanceUnavailableError,
   MoneyAccountBalanceValidationError,
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
-} from './errors';
-export type { VaultConfig } from './types';
+} from './errors.js';
+export type { VaultConfig } from './types.js';

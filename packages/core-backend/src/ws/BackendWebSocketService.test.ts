@@ -5,18 +5,18 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import { flushPromises } from '../../../../tests/helpers';
+import { flushPromises } from '../../../../tests/helpers.js';
 import {
   BackendWebSocketService,
   getCloseReason,
   WebSocketState,
   WebSocketSubscription,
-} from './BackendWebSocketService';
+} from './BackendWebSocketService.js';
 import type {
   BackendWebSocketServiceOptions,
   BackendWebSocketServiceMessenger,
   ServerNotificationMessage,
-} from './BackendWebSocketService';
+} from './BackendWebSocketService.js';
 
 // =====================================================
 // TYPES
