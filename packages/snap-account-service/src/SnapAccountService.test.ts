@@ -89,6 +89,7 @@ type Mocks = {
 /**
  * Constructs the root messenger for the service under test.
  *
+ * @param captureException - Optional method to capture exceptions in Sentry.
  * @returns The root messenger.
  */
 function getRootMessenger(
@@ -402,6 +403,7 @@ function mockWithKeyringV2Unsafe(
  * @param args.snapIsReady - Initial value of `SnapController.isReady`.
  * @param args.runnableSnaps - Snaps returned by `SnapController:getRunnableSnaps`.
  * @param args.config - Optional service config.
+ * @param args.captureException - Optional method to capture exceptions in Sentry.
  * @returns The new service, root messenger, service messenger, and mocks.
  */
 async function setup({
