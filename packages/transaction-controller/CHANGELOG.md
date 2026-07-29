@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [69.2.2]
 
+### Added
+
+- Add `updateTransactionMetadata` for applying coherent transaction metadata updates through the messenger, with an option to skip automatic re-simulation ([#9543](https://github.com/MetaMask/core/pull/9543))
+- Export `updateEIP7702BatchData` for updating nested EIP-7702 batch calldata without mutating the input ([#9543](https://github.com/MetaMask/core/pull/9543))
+
 ### Changed
 
 - Bump `@metamask/core-backend` from `^7.0.0` to `^8.0.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
