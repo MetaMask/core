@@ -222,6 +222,34 @@ describe('orderTypes', () => {
       expect(result?.isPartial).toBe(false);
     });
 
+    it.each([
+      ['grown', '2', '2'],
+      ['shrunk', '0.5', '0.5'],
+    ])(
+      're-resolves a position-bound trigger against a position that has %s',
+      (_label, positionSize, expectedSize) => {
+        // adaptOrderFromSDK already collapsed the exchange's size 0 against the
+        // position as it stood then, so the size carried here is stale. The
+        // position-bound flag, not the number, says what the trigger covers.
+        const result = buildPositionTriggerOrderFromOrder({
+          order: createOrder({
+            isTrigger: true,
+            triggerOrderType: 'take_profit_market',
+            triggerPrice: '60000',
+            size: '1',
+            reduceOnly: true,
+            isPositionTpsl: true,
+          }),
+          positionSize,
+        });
+
+        expect(result?.size).toBe(expectedSize);
+        // A position-bound TP/SL always covers the whole position, however it
+        // has been resized.
+        expect(result?.isPartial).toBe(false);
+      },
+    );
+
     it('falls back to the order price when no trigger price is present', () => {
       const result = buildPositionTriggerOrderFromOrder({
         order: createOrder({

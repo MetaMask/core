@@ -104,7 +104,17 @@ export function buildPositionTriggerOrderFromOrder(params: {
 
   const absolutePositionSize = Math.abs(parseFloat(positionSize || '0'));
   const rawSize = Math.abs(parseFloat(order.size || '0'));
-  const size = rawSize > 0 ? rawSize : absolutePositionSize;
+
+  // A position-bound TP/SL covers whatever the position currently is. The
+  // exchange encodes that as size 0, but `adaptOrderFromSDK` has already
+  // resolved it against the position as it stood when the order was adapted,
+  // so the size carried here goes stale as soon as the position is resized.
+  // The flag is the durable statement of what the trigger covers; the number
+  // is not. Reading the number instead would report the old size, and would
+  // call the order partial whenever the position had since grown.
+  const isPositionBound = order.isPositionTpsl === true;
+  const size =
+    isPositionBound || rawSize === 0 ? absolutePositionSize : rawSize;
 
   return {
     orderId: order.orderId,
@@ -112,7 +122,10 @@ export function buildPositionTriggerOrderFromOrder(params: {
     triggerPrice: order.triggerPrice ?? order.price,
     size: size.toString(),
     isPartial:
-      rawSize > 0 && absolutePositionSize > 0 && rawSize < absolutePositionSize,
+      !isPositionBound &&
+      rawSize > 0 &&
+      absolutePositionSize > 0 &&
+      rawSize < absolutePositionSize,
     reduceOnly: Boolean(order.reduceOnly),
   };
 }
