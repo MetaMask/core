@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.1.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
 - Bump `@metamask/core-backend` from `^7.0.0` to `^8.0.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
-- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.2.2` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
 - Nest AssetsController Sentry spans (`AssetsDataSourceTiming`, `AssetsDataSourceError`, `AssetsControllerFirstInitFetch`, pipeline summaries) as subspans under parent `AssetsFullFetch` / `AssetsUpdatePipeline` / `AssetsBackgroundFetch` traces, and emit a single `AggregatedBalanceSelector` span for `calculateBalanceForAllWallets` instead of one root span per account group, to avoid Sentry rate limits ([#9672](https://github.com/MetaMask/core/pull/9672))
   - Pipeline / data-source / update enrichment spans emit only on the unlock (first-init) fetch per session; later polls, force updates, and subscription enrichment skip tracing.
   - Tracing helpers live in `utils/trace.ts` (`emitTrace` / `withTrace`); omit `trace` to no-op so call sites stay free of gating `if`s. Fast and background fetch lanes are sibling `withTrace` calls (not nested).
