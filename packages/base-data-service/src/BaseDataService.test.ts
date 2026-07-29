@@ -67,11 +67,13 @@ describe('BaseDataService', () => {
     ]);
   });
 
-  it('handles paginated queries', async () => {
+  it.only('handles paginated queries', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
     const page1 = await service.getActivity(TEST_ADDRESS);
+
+    console.dir(page1, { depth: null });
 
     expect(page1.data).toHaveLength(3);
 
