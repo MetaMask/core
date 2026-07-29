@@ -52,11 +52,14 @@ export type ActivityKind =
 
 export type Status = 'pending' | 'success' | 'failed' | 'cancelled';
 
+export type AssetType = 'native' | 'erc20' | 'erc721' | 'erc1155';
+
 export type TokenAmount = {
   amount?: string;
   decimals?: number;
   symbol?: string;
   assetId?: string;
+  assetType?: AssetType;
   direction: 'in' | 'out';
 };
 
@@ -71,6 +74,7 @@ export type Fee = {
   decimals?: number;
   symbol?: string;
   assetId?: string;
+  assetType?: AssetType;
 };
 
 type ActivityData<Type extends ActivityKind, Data> = {

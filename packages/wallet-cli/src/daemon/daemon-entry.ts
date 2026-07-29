@@ -9,6 +9,10 @@ import { getDaemonPaths } from './paths.js';
 import { startRpcSocketServer } from './rpc-socket-server.js';
 import type { RpcSocketServerHandle } from './rpc-socket-server.js';
 import { Password, Srp } from './secrets.js';
+import {
+  runSendTransaction,
+  SendTransactionParamsStruct,
+} from './send-transaction.js';
 import { defineHandler } from './types.js';
 import type {
   DaemonStatusInfo,
@@ -160,6 +164,13 @@ async function main(): Promise<void> {
         literal(null),
         async (): Promise<Json> =>
           constructedWallet.messenger.getRegisteredActionTypes(),
+      ),
+      // Dedicated send handler; see `runSendTransaction` for why the generic
+      // `call` dispatch cannot carry a broadcast result.
+      sendTransaction: defineHandler(
+        SendTransactionParamsStruct,
+        async (params) =>
+          runSendTransaction(constructedWallet.messenger, params),
       ),
     };
 
