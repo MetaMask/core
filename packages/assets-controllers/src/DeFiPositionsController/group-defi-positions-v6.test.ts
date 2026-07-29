@@ -266,7 +266,7 @@ describe('groupDeFiPositionsV6', () => {
     expect(group.sections[2].positions[0].marketValue).toBe(5);
   });
 
-  it('subtracts lending positions from the protocol market value', () => {
+  it('subtracts loan positions from the protocol market value', () => {
     const response = buildResponse([
       {
         accountId: 'account-1',
@@ -296,7 +296,7 @@ describe('groupDeFiPositionsV6', () => {
             metadata: {
               ...AAVE_METADATA,
               productName: 'Aave V3 Borrow',
-              positionType: 'lending',
+              positionType: 'loan',
             },
           },
         ],
@@ -308,7 +308,7 @@ describe('groupDeFiPositionsV6', () => {
     expect(group.marketValue).toBe(1500);
     expect(group.sections[0].positions[0].marketValue).toBe(2000);
     expect(group.sections[1].positions[0].marketValue).toBe(500);
-    expect(group.sections[1].positions[0].positionType).toBe('lending');
+    expect(group.sections[1].positions[0].positionType).toBe('loan');
   });
 
   it('creates separate detail sections per productName under one protocolId', () => {
@@ -340,7 +340,7 @@ describe('groupDeFiPositionsV6', () => {
             metadata: {
               ...AAVE_METADATA,
               productName: 'Aave V3 Borrow',
-              positionType: 'lending',
+              positionType: 'loan',
             },
           },
         ],
@@ -365,7 +365,7 @@ describe('groupDeFiPositionsV6', () => {
         positions: [
           expect.objectContaining({
             symbol: 'USDC',
-            positionType: 'lending',
+            positionType: 'loan',
           }),
         ],
       },
@@ -407,7 +407,7 @@ describe('groupDeFiPositionsV6', () => {
             price: '2000',
             metadata: {
               ...AAVE_METADATA,
-              positionType: 'rewards',
+              positionType: 'reward',
             },
           },
         ],

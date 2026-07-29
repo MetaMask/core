@@ -12,7 +12,7 @@ import {
   withdrawMethodIds,
   wrapMethodIds,
 } from './constants.js';
-import { formatAddressToAssetId, getNativeAsset } from './helpers/caip.js';
+import { formatAddressToAssetId } from './helpers/caip.js';
 import { getKnownTokenMetadata } from './helpers/token-metadata.js';
 import {
   getLocalTransactionFees,
@@ -68,26 +68,32 @@ export function mapLocalTransaction(
     KnownCaipNamespace.Eip155,
     Number.parseInt(initialTransaction.chainId, 16).toString(),
   );
-  const nativeAsset = getNativeAsset(initialTransaction.chainId);
-  const nativeSymbol =
-    transactionGroup.nativeAssetSymbol ?? nativeAsset?.symbol;
+  const nativeSymbol = transactionGroup.nativeAssetSymbol;
 
   const getNativeToken = (
     transaction: TransactionGroup['initialTransaction'],
     direction: TokenAmount['direction'],
   ): TokenAmount | undefined => {
-    if (nativeSymbol === undefined) {
+    const rawAmount = transaction.txParams.value;
+    let amount: string | undefined;
+    if (rawAmount) {
+      try {
+        amount = BigInt(rawAmount) > 0n ? rawAmount : undefined;
+      } catch {
+        amount = undefined;
+      }
+    }
+
+    if (!amount && nativeSymbol === undefined) {
       return undefined;
     }
 
     return {
       direction,
-      symbol: nativeSymbol,
-      ...(transaction.txParams.value
-        ? { amount: transaction.txParams.value }
-        : {}),
-      ...(nativeAsset?.assetId ? { assetId: nativeAsset.assetId } : {}),
-      decimals: nativeAsset?.decimals ?? evmNativeDecimals,
+      assetType: 'native',
+      decimals: evmNativeDecimals,
+      ...(amount ? { amount } : {}),
+      ...(nativeSymbol === undefined ? {} : { symbol: nativeSymbol }),
     };
   };
 
@@ -146,7 +152,7 @@ export function mapLocalTransaction(
       ] || '',
     );
     const wrappedNativeTokenDecimals = isWrappedNativeToken
-      ? (nativeAsset?.decimals ?? evmNativeDecimals)
+      ? evmNativeDecimals
       : undefined;
 
     const decimals =
@@ -509,10 +515,16 @@ export function mapLocalTransaction(
                   direction: 'out',
                   contractAddress: wrappedTokenAddress,
                 }),
-                destinationToken:
-                  nativeToken && unwrapAmount
-                    ? { ...nativeToken, amount: unwrapAmount }
-                    : nativeToken,
+                destinationToken: unwrapAmount
+                  ? {
+                      ...(nativeToken ?? {
+                        direction: 'in' as const,
+                        assetType: 'native' as const,
+                        decimals: evmNativeDecimals,
+                      }),
+                      amount: unwrapAmount,
+                    }
+                  : nativeToken,
               },
             };
           }

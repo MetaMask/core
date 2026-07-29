@@ -9,31 +9,6 @@ import {
 
 import { nativeTokenAddress } from '../constants.js';
 
-export type NativeAssetMetadata = {
-  symbol: string;
-  decimals: number;
-  assetId: CaipChainId | string;
-};
-
-type NativeAssetEntry = {
-  symbol: string;
-  decimals: number;
-  slip44: number;
-};
-
-const nativeAssetsByCaipChainId: Record<string, NativeAssetEntry> = {
-  'eip155:1': { symbol: 'ETH', decimals: 18, slip44: 60 },
-  'eip155:10': { symbol: 'ETH', decimals: 18, slip44: 60 },
-  'eip155:56': { symbol: 'BNB', decimals: 18, slip44: 714 },
-  'eip155:137': { symbol: 'POL', decimals: 18, slip44: 966 },
-  'eip155:324': { symbol: 'ETH', decimals: 18, slip44: 60 },
-  'eip155:1329': { symbol: 'SEI', decimals: 18, slip44: 19000118 },
-  'eip155:8453': { symbol: 'ETH', decimals: 18, slip44: 60 },
-  'eip155:42161': { symbol: 'ETH', decimals: 18, slip44: 60 },
-  'eip155:43114': { symbol: 'AVAX', decimals: 18, slip44: 9005 },
-  'eip155:59144': { symbol: 'ETH', decimals: 18, slip44: 60 },
-};
-
 /**
  * Normalizes a hex, decimal, numeric, or CAIP chain id to its CAIP-2 form.
  * Only EVM (eip155) chains are normalized here; CAIP ids are returned as-is.
@@ -57,38 +32,12 @@ export function formatChainIdToCaip(
     return Number.isNaN(reference) ? undefined : `eip155:${reference}`;
   }
 
+  if (chainId === '') {
+    return undefined;
+  }
+
   const reference = Number(chainId);
   return Number.isNaN(reference) ? undefined : `eip155:${reference}`;
-}
-
-/**
- * Looks up the native asset metadata for a chain from the canonical table.
- * Returns `undefined` (never throws) for chains outside the table — callers
- * degrade gracefully, matching the previous bridge-controller behaviour.
- *
- * @param chainId - Hex, numeric, decimal, or CAIP chain id.
- * @returns Native asset symbol/decimals/assetId, or `undefined` if unsupported.
- */
-export function getNativeAsset(
-  chainId: string | number,
-): NativeAssetMetadata | undefined {
-  const caipChainId = formatChainIdToCaip(chainId);
-
-  if (!caipChainId) {
-    return undefined;
-  }
-
-  const entry = nativeAssetsByCaipChainId[caipChainId];
-
-  if (!entry) {
-    return undefined;
-  }
-
-  return {
-    symbol: entry.symbol,
-    decimals: entry.decimals,
-    assetId: `${caipChainId}/slip44:${entry.slip44}`,
-  };
 }
 
 function isNativeAddress(address: string): boolean {
@@ -122,11 +71,7 @@ export function formatAddressToAssetId(
   }
 
   if (isNativeAddress(address)) {
-    const nativeAssetId = getNativeAsset(caipChainId)?.assetId;
-
-    if (nativeAssetId) {
-      return nativeAssetId as CaipAssetType;
-    }
+    return undefined;
   }
 
   const checksummedAddress = toChecksumHexAddress(address);

@@ -1065,6 +1065,54 @@ describe('AssetsController', () => {
       });
     });
 
+    it('does not fail forceUpdate when parent trace rejects after work completes', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (
+            _request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              await fn({ id: 'parent' });
+              // Simulate Sentry/adapter failure after the span callback finishes.
+              throw new Error('telemetry failed');
+            }
+            return undefined;
+          },
+        );
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          expect(
+            await controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            }),
+          ).toBeDefined();
+        },
+      );
+    });
+
+    it('still runs forceUpdate when parent trace rejects before invoking work', async () => {
+      const traceMock = jest
+        .fn()
+        .mockRejectedValue(new Error('telemetry failed'));
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          expect(
+            await controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            }),
+          ).toBeDefined();
+        },
+      );
+    });
+
     // Endpoint selection from the flag is unit-tested in AccountsApiDataSource;
     // this asserts the controller wires its messenger through so the
     // `assetsAccountsApiV6` flag drives endpoint selection end-to-end.
@@ -1411,6 +1459,46 @@ describe('AssetsController', () => {
   });
 
   describe('handleAssetsUpdate', () => {
+    it('does not fail when parent trace rejects after enrichment completes', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (
+            _request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              await fn({ id: 'parent' });
+              throw new Error('telemetry failed');
+            }
+            return undefined;
+          },
+        );
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          expect(
+            await controller.handleAssetsUpdate(
+              {
+                updateMode: 'merge',
+                assetsBalance: {
+                  [MOCK_ACCOUNT_ID]: {
+                    [MOCK_ASSET_ID]: { amount: '1' },
+                  },
+                },
+              },
+              'test-source',
+            ),
+          ).toBeUndefined();
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+          ).toStrictEqual({ amount: '1' });
+        },
+      );
+    });
+
     it('preserves existing rich metadata when the API response has empty symbol and name', async () => {
       const richMetadata: FungibleAssetMetadata = {
         type: 'erc20',
@@ -1668,6 +1756,24 @@ describe('AssetsController', () => {
         onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
 
         expect(subscribeSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not re-subscribe after tracking has stopped', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
+
+        // Lock the keyring so the controller stops and clears subscriptions.
+        messenger.publish('KeyringController:lock');
+        await flushPromises();
+
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+        // Simulate the WebSocket flushing all chains as "down" after stop.
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
+
+        expect(subscribeSpy).not.toHaveBeenCalled();
       });
     });
 
@@ -2510,11 +2616,22 @@ describe('AssetsController', () => {
     });
 
     it('invokes trace with first init fetch trace request on unlock', async () => {
+      const parentSpan = { id: 'assets-full-fetch' };
       const traceMock = jest
         .fn()
         .mockImplementation(
-          async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
-            fn?.(),
+          async (
+            request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              // Parent spans (with callback work) provide context for nesting.
+              return fn(
+                request.parentContext === undefined ? parentSpan : undefined,
+              );
+            }
+            return undefined;
+          },
         );
       const trace = traceMock as unknown as TraceCallback;
 
@@ -2548,7 +2665,12 @@ describe('AssetsController', () => {
               duration_ms: expect.any(Number),
               chain_ids: expect.any(String),
             }),
-            tags: { controller: 'AssetsController' },
+            tags: expect.objectContaining({
+              controller: 'AssetsController',
+              duration_ms: expect.any(Number),
+            }),
+            startTime: expect.any(Number),
+            parentContext: parentSpan,
           });
           const {
             duration_ms: durationMs,
@@ -2558,6 +2680,32 @@ describe('AssetsController', () => {
           expect(durationMs).toBeGreaterThanOrEqual(0);
           expect(typeof chainIds).toBe('string');
           expect(typeof durationByDataSource).toBe('object');
+
+          const fullFetchCalls = traceMock.mock.calls.filter(
+            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+          );
+          expect(fullFetchCalls.length).toBeGreaterThan(0);
+          expect(fullFetchCalls[0][0]).toMatchObject({
+            data: expect.objectContaining({
+              duration_ms: expect.any(Number),
+            }),
+            tags: expect.objectContaining({
+              duration_ms: expect.any(Number),
+            }),
+            startTime: expect.any(Number),
+            parentContext: parentSpan,
+          });
+
+          const timingCalls = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+          );
+          expect(timingCalls.length).toBeGreaterThan(0);
+          for (const [timingRequest] of timingCalls) {
+            expect(timingRequest).toMatchObject({
+              parentContext: parentSpan,
+            });
+          }
         },
       );
     });
@@ -2620,7 +2768,7 @@ describe('AssetsController', () => {
       );
     });
 
-    it('invokes trace only once per session until lock', async () => {
+    it('invokes first-init fetch trace only once per session until lock', async () => {
       const traceMock = jest
         .fn()
         .mockImplementation(
@@ -2634,7 +2782,7 @@ describe('AssetsController', () => {
           clientControllerState: { isUiOpen: true },
           controllerOptions: { trace },
         },
-        async ({ messenger }) => {
+        async ({ controller, messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
           (
             messenger as unknown as {
@@ -2653,6 +2801,30 @@ describe('AssetsController', () => {
               'AssetsControllerFirstInitFetch',
           );
           expect(firstInitFetchCalls).toHaveLength(1);
+
+          const fullFetchCallsBefore = traceMock.mock.calls.filter(
+            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+          ).length;
+          const timingCallsBefore = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+          ).length;
+
+          // Later force updates must not emit pipeline spans (unlock-only tracing).
+          await controller.getAssets([createMockInternalAccount()], {
+            forceUpdate: true,
+          });
+
+          const fullFetchCallsAfter = traceMock.mock.calls.filter(
+            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+          ).length;
+          const timingCallsAfter = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+          ).length;
+
+          expect(fullFetchCallsAfter).toBe(fullFetchCallsBefore);
+          expect(timingCallsAfter).toBe(timingCallsBefore);
         },
       );
     });
