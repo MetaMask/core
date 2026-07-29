@@ -48,11 +48,13 @@ const SYSTEM_NOTIFICATIONS_CHANNEL = `system-notifications.v1.${SUBSCRIPTION_NAM
 /** Delay before actually unsubscribing from a channel after refCount reaches 0. */
 const GRACE_PERIOD_MS = 3_000;
 
-/** Backoff delays for retrying failed WebSocket unsubscribes. */
+/** Backoff delays between failed WebSocket unsubscribe attempts. */
 const UNSUB_RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
 
 const unsubRetryPolicy = retry(handleAll, {
-  maxAttempts: 3,
+  // Cockatiel stops retrying once the failure index reaches `maxAttempts`, so
+  // `length` here yields one initial attempt plus three delayed retries (4 total).
+  maxAttempts: UNSUB_RETRY_DELAYS_MS.length,
   backoff: new IterableBackoff([...UNSUB_RETRY_DELAYS_MS]),
 });
 
