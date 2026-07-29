@@ -48,7 +48,9 @@ export type ActivityKind =
   | 'stopMarketCloseShort'
   | 'marketCloseShort'
   | 'assetActivation'
-  | 'assetDeactivation';
+  | 'assetDeactivation'
+  | 'rampBuy'
+  | 'rampSell';
 
 export type Status = 'pending' | 'success' | 'failed' | 'cancelled';
 
@@ -84,6 +86,16 @@ type ActivityData<Type extends ActivityKind, Data> = {
   timestamp: number;
   hash?: string;
   data: Data;
+};
+
+/**
+ * Bank transfer instruction fields attached to a ramp order by providers
+ * that require manual payment (e.g. SEPA, wire transfer).
+ */
+export type RampOrderPaymentDetail = {
+  fiatCurrency: string;
+  paymentMethod: string;
+  fields: { name: string; id: string; value: string }[];
 };
 
 export type ActivityItem =
@@ -163,7 +175,35 @@ export type ActivityItem =
         transactionCategory?: string;
         transactionProtocol?: string;
       }
-    >;
+    >
+  | (Omit<
+      ActivityData<
+        'rampBuy' | 'rampSell',
+        {
+          from?: string;
+          fiat?: FiatAmount;
+          token?: TokenAmount;
+          fees?: Fee[];
+          provider?: {
+            id?: string;
+            name?: string;
+            orderLink?: string;
+          };
+          statusDescription?: string;
+          paymentDetails?: RampOrderPaymentDetail[];
+          // Stable identifier for orders that may not have a hash yet (e.g. a
+          // ramp order pending fiat settlement, where `hash` is empty until it
+          // settles on-chain). Lives in `data` as a ramp-specific property.
+          id?: string;
+        }
+      >,
+      'chainId'
+    > & {
+      // Precreated stub orders (see `RampsController.addPrecreatedOrder`) may
+      // not have an assigned network yet, so unlike every other activity
+      // kind, a ramp order's chain id isn't guaranteed.
+      chainId?: CaipChainId;
+    });
 
 // Note: Update core-backend
 export type ValueTransfer = _ValueTransfer & {
