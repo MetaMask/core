@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Resolve the user's country, region, and timezone via the `v2` geolocation endpoint through new `GeolocationController:getGeolocationData` and `GeolocationApiService:fetchGeolocationData` actions that return a `GeolocationData` object, along with matching `GeolocationControllerState` fields
+- **BREAKING:** Resolve the user's country, region, and timezone via the `v2` geolocation endpoint through new `GeolocationController:getGeolocationData` and `GeolocationApiService:fetchGeolocationData` actions that return a `GeolocationData` object, along with matching `GeolocationControllerState` fields ([#9691](https://github.com/MetaMask/core/pull/9691))
   - `GeolocationController` now delegates to `GeolocationApiService:fetchGeolocationData`, and location codes carry a region for more countries
 - Point `GeolocationApiService` at API Platform's `geolocation-api` service instead of the legacy Ramps-owned `on-ramp` geolocation endpoint, which is slated for deprecation ([#9417](https://github.com/MetaMask/core/pull/9417))
   - UAT temporarily resolves to the production URL since API Platform has not yet provisioned a dedicated UAT deployment for this service
