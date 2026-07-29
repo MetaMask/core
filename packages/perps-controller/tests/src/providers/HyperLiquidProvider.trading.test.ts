@@ -2034,14 +2034,21 @@ describe('HyperLiquidProvider', () => {
     /**
      * Make the WebSocket position cache serve the given positions.
      * @param positions - Positions the cache should report as live.
+     * @param coveredDexs - DEX identifiers the cache covers ('' is the main DEX).
      */
-    const primePositionsCache = (positions: Position[]) => {
+    const primePositionsCache = (
+      positions: Position[],
+      coveredDexs: string[] = [''],
+    ) => {
       mockSubscriptionService.isPositionsCacheInitialized = jest
         .fn()
         .mockReturnValue(true);
       mockSubscriptionService.getCachedPositions = jest
         .fn()
         .mockReturnValue(positions);
+      mockSubscriptionService.isPositionsCacheCoveringDex = jest
+        .fn()
+        .mockImplementation((dexName: string) => coveredDexs.includes(dexName));
     };
 
     /**
@@ -2211,23 +2218,64 @@ describe('HyperLiquidProvider', () => {
       expect(getPositionsSpy).not.toHaveBeenCalled();
     });
 
-    it('keeps the caller snapshot for a HIP-3 symbol the cache does not cover', async () => {
+    it('fetches live positions for a symbol whose DEX the cache does not cover', async () => {
       // HIP-3 DEXs are only in the cache while their subscriptions are active, so
-      // a missing entry there must not block the close the way a missing main-DEX
-      // entry does
+      // a missing entry there proves nothing: fetch fresh data instead of
+      // blocking the close or trusting the snapshot. The REST position is 8, not
+      // the snapshot's 10.
       const hip3Provider = createTestProvider({
         hip3Enabled: true,
         allowlistMarkets: ['xyz:*'],
         useUnifiedAccount: true,
       });
-      // Cache is initialized and holds only the main-DEX position
-      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+      // Cache is initialized and covers the main DEX only
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })], ['']);
       const mockOrder = jest.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ resting: { oid: 123 } }] } },
       });
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
+          clearinghouseState: jest
+            .fn()
+            .mockImplementation((params?: { user?: string; dex?: string }) =>
+              Promise.resolve({
+                marginSummary: {
+                  totalMarginUsed: '100',
+                  accountValue: '1000',
+                },
+                withdrawable: '900',
+                assetPositions:
+                  params?.dex === 'xyz'
+                    ? [
+                        {
+                          position: {
+                            coin: 'xyz:STOCK1',
+                            szi: '8',
+                            entryPx: '95',
+                            positionValue: '800',
+                            unrealizedPnl: '40',
+                            marginUsed: '80',
+                            leverage: { type: 'isolated', value: 5 },
+                            liquidationPx: '70',
+                            maxLeverage: 20,
+                            returnOnEquity: '10',
+                            cumFunding: {
+                              allTime: '0',
+                              sinceOpen: '0',
+                              sinceChange: '0',
+                            },
+                          },
+                          type: 'oneWay',
+                        },
+                      ]
+                    : [],
+                crossMarginSummary: {
+                  accountValue: '1000',
+                  totalMarginUsed: '100',
+                },
+              }),
+            ),
           perpDexs: jest
             .fn()
             .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
@@ -2311,9 +2359,27 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(true);
       expect(mockOrder).toHaveBeenCalledWith(
         expect.objectContaining({
-          orders: [expect.objectContaining({ s: '10', r: true })],
+          orders: [expect.objectContaining({ s: '8', r: true })],
         }),
       );
+    });
+
+    it('does not block a main-DEX close when the cache does not cover the main DEX', async () => {
+      // A dropped main-DEX re-subscription still leaves the aggregate marked as
+      // initialized, so a cache miss there must not fail a closable position
+      primePositionsCache([], []);
+      const getPositionsSpy = jest.spyOn(provider, 'getPositions');
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.07' }),
+      });
+
+      expect(result.success).toBe(true);
+      // Live REST data (0.1 BTC) is used, not the 0.07 snapshot
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
+      expect(getPositionsSpy).toHaveBeenCalledWith({ skipCache: true });
     });
 
     it('keeps the clamp when a partial close also carries usdAmount', async () => {
@@ -2389,10 +2455,10 @@ describe('HyperLiquidProvider', () => {
       expect(getSubmittedOrder()).toMatchObject({ s: '0.05', r: true });
     });
 
-    it('does not retry a full close rejected for the $10 minimum with a larger size', async () => {
-      // Growing a full close by 1.5% would exceed the position, so the
-      // minimum-value error must surface instead of being masked by a
-      // reduce-only rejection.
+    it('does not retry a close rejected for the $10 minimum with a larger size', async () => {
+      // Growing a close by 1.5% would exceed the position (full close) or the
+      // size the caller asked to close (partial close), so the minimum-value
+      // error must surface instead of being masked by a reduce-only rejection.
       primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
       mockClientService.getExchangeClient = jest.fn().mockReturnValue({
         ...createMockExchangeClient(),
@@ -2414,9 +2480,10 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
-    it('still retries a partial close rejected for the $10 minimum', async () => {
-      // The extra 1.5% stays well inside the position, so the retry that lets a
-      // borderline-$10 partial close succeed must be preserved.
+    it('does not retry a partial close rejected for the $10 minimum either', async () => {
+      // The retry only grows the order, and a partial close is capped at the size
+      // the caller asked to close, so a retry could not change the submitted
+      // size. Surface the minimum-value error rather than resubmitting.
       primePositionsCache([
         createPositionSnapshot({ symbol: 'ETH', size: '1.5' }),
       ]);
@@ -2424,13 +2491,7 @@ describe('HyperLiquidProvider', () => {
         ...createMockExchangeClient(),
         order: jest
           .fn()
-          .mockRejectedValueOnce(
-            new Error('Order must have minimum value of $10'),
-          )
-          .mockResolvedValueOnce({
-            status: 'ok',
-            response: { data: { statuses: [{ resting: { oid: 789 } }] } },
-          }),
+          .mockRejectedValue(new Error('Order must have minimum value of $10')),
       });
 
       const result = await provider.closePosition({
@@ -2442,9 +2503,10 @@ describe('HyperLiquidProvider', () => {
         position: createPositionSnapshot({ symbol: 'ETH', size: '1.5' }),
       });
 
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('minimum value of $10');
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
-        2,
+        1,
       );
     });
 

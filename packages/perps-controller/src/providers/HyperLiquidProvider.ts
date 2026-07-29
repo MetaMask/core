@@ -3517,11 +3517,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         errorMessage.includes('Order must have minimum value of $10') ||
         errorMessage.includes('Order 0: Order must have minimum value');
 
-      // Full closes are excluded: they already submit the entire position, so
-      // retrying 1.5% larger only swaps the minimum-value error for "Reduce only
-      // order would increase position" and hides the real cause. Partial closes
-      // still retry — the extra 1.5% stays inside the position.
-      if (isMinimumOrderError && retryCount === 0 && !params.isFullClose) {
+      // Reduce-only orders are excluded. The retry works by growing the order
+      // 1.5%, which a close cannot do: a full close already submits the whole
+      // position, and a partial close is capped at the size the caller asked to
+      // close, so the retry would either be rejected as "Reduce only order would
+      // increase position" or resubmit an identical order. Surfacing the
+      // minimum-value error names the real problem instead.
+      if (isMinimumOrderError && retryCount === 0 && !params.reduceOnly) {
         let adjustedUsdAmount: string;
         let originalValue: string | undefined;
 
@@ -4429,32 +4431,44 @@ export class HyperLiquidProvider implements PerpsProvider {
           this.#subscriptionService.getCachedPositions() ?? []
         ).find((pos) => pos.symbol === params.symbol);
 
-        if (livePosition && livePosition.size !== position.size) {
-          this.#deps.debugLogger.log(
-            'Stale close position snapshot: using live WebSocket position',
-            {
-              coin: params.symbol,
-              snapshotSize: position.size,
-              liveSize: livePosition.size,
-            },
-          );
-        }
+        if (livePosition) {
+          if (livePosition.size !== position.size) {
+            this.#deps.debugLogger.log(
+              'Stale close position snapshot: using live WebSocket position',
+              {
+                coin: params.symbol,
+                snapshotSize: position.size,
+                liveSize: livePosition.size,
+              },
+            );
+          }
 
-        // An initialized cache with no entry for the symbol means the position is
-        // already closed (e.g. a double-tapped close). Fail here rather than
-        // falling back to REST: the cache is the freshest source, so a REST
-        // lookup can only burn a request that risks 429s and, if it lags, hand
-        // back a position that no longer exists.
-        //
-        // This only holds for the main DEX, which is always subscribed. HIP-3
-        // DEXs are only in the cache while HIP-3 subscriptions are active, so a
-        // missing HIP-3 entry is ambiguous — keep the caller's snapshot there
-        // rather than blocking a close on a position that may well exist.
-        if (!livePosition && !params.symbol.includes(':')) {
+          position = livePosition;
+        } else if (
+          this.#subscriptionService.isPositionsCacheCoveringDex(
+            parseAssetName(params.symbol).dex ?? '',
+          )
+        ) {
+          // The cache covers this symbol's DEX, so a missing entry means the
+          // position is already closed (e.g. a double-tapped close). Fail here
+          // rather than falling back to REST: the cache is the freshest source,
+          // so a REST lookup can only burn a request that risks 429s and, if it
+          // lags, hand back a position that no longer exists.
           throw new Error(`No position found for ${params.symbol}`);
-        }
+        } else {
+          // The cache does not cover this DEX — a HIP-3 DEX whose subscription
+          // is not active, or one dropped after a failed re-subscription — so
+          // the symbol's absence proves nothing. Spend one REST request to get
+          // live data rather than either blocking a closable position or
+          // trusting a snapshot the exchange may have moved past.
+          this.#deps.debugLogger.log(
+            'Position cache does not cover this DEX: fetching live positions',
+            { coin: params.symbol },
+          );
 
-        position = livePosition ?? position;
+          const positions = await this.getPositions({ skipCache: true });
+          position = positions.find((pos) => pos.symbol === params.symbol);
+        }
       }
 
       if (!position) {

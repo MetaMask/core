@@ -2768,6 +2768,22 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Check whether the positions cache covers a specific DEX
+   *
+   * A DEX only enters the aggregate once its `clearinghouseState` subscription
+   * has published data, and a DEX whose subscription throws is dropped from the
+   * expected set while the aggregate is still published. So for an uncovered
+   * DEX the absence of a symbol from the cache proves nothing about whether a
+   * position exists.
+   *
+   * @param dexName - DEX identifier, or '' for the main DEX.
+   * @returns true if the cache holds positions for that DEX
+   */
+  public isPositionsCacheCoveringDex(dexName: string): boolean {
+    return this.#dexPositionsCache.has(dexName);
+  }
+
+  /**
    * Get cached positions from WebSocket subscription
    *
    * @returns Cached positions array, or null if not initialized
