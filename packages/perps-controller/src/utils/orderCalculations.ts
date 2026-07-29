@@ -215,11 +215,17 @@ function floorToSizeDecimals(size: number, szDecimals: number): number {
   const multiplier = Math.pow(10, szDecimals);
   const scaled = size * multiplier;
   const nearest = Math.round(scaled);
+  // The tolerance scales with the magnitude, because double-precision error
+  // does too: a fixed epsilon would stop absorbing representation error for
+  // sizes that scale past ~1e10 and would then shave off a whole increment.
+  const tolerance = Math.max(
+    FLOAT_TOLERANCE,
+    Math.abs(scaled) * Number.EPSILON * 8,
+  );
 
   return (
-    (Math.abs(scaled - nearest) < FLOAT_TOLERANCE
-      ? nearest
-      : Math.floor(scaled)) / multiplier
+    (Math.abs(scaled - nearest) < tolerance ? nearest : Math.floor(scaled)) /
+    multiplier
   );
 }
 
@@ -281,9 +287,17 @@ export function calculateFinalPositionSize(
 
     // 3. Apply size decimals rounding (reduce-only never rounds up)
     const multiplier = Math.pow(10, szDecimals);
+    const sizeBeforeRounding = finalPositionSize;
     finalPositionSize = reduceOnly
       ? floorToSizeDecimals(finalPositionSize, szDecimals)
       : Math.round(finalPositionSize * multiplier) / multiplier;
+
+    // Rounding down can zero out a reduce-only order whose USD value is worth
+    // less than one size increment. Fail with a clear error instead of
+    // submitting a size of "0" the exchange will reject.
+    if (reduceOnly && finalPositionSize <= 0 && sizeBeforeRounding > 0) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+    }
 
     // 4. Ensure rounded size meets requested USD (fix validation gap).
     // Skipped for reduce-only orders: adding an increment there would submit
@@ -335,7 +349,12 @@ export function calculateFinalPositionSize(
     // up; truncate onto the size grid first so a close can never exceed the
     // position it is closing.
     if (reduceOnly) {
+      const sizeBeforeFlooring = finalPositionSize;
       finalPositionSize = floorToSizeDecimals(finalPositionSize, szDecimals);
+
+      if (finalPositionSize <= 0 && sizeBeforeFlooring > 0) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+      }
     }
 
     debugLogger?.log(

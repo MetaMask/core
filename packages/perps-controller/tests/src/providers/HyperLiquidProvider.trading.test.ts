@@ -2088,10 +2088,11 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
-    it('fails fast without submitting an order when the position is already closed', async () => {
+    it('fails fast without submitting an order or a REST lookup when the position is already closed', async () => {
       // Cache is initialized and no longer holds BTC: the position is gone
       // (e.g. a double-tapped close), so the reduce-only order must not be sent
       primePositionsCache([createPositionSnapshot({ symbol: 'ETH' })]);
+      const getPositionsSpy = jest.spyOn(provider, 'getPositions');
 
       const result = await provider.closePosition({
         symbol: 'BTC',
@@ -2104,6 +2105,9 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockClientService.getExchangeClient().order,
       ).not.toHaveBeenCalled();
+      // No REST fallback: the cache is the freshest source, and a request here
+      // is exactly the 429 pressure the snapshot shortcut exists to avoid
+      expect(getPositionsSpy).not.toHaveBeenCalled();
     });
 
     it('clamps a requested close size to the live position size', async () => {
@@ -2113,6 +2117,44 @@ describe('HyperLiquidProvider', () => {
         symbol: 'BTC',
         orderType: 'market',
         size: '0.2', // larger than the position
+        currentPrice: 50000,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
+    });
+
+    it('keeps the clamp when a partial close also carries usdAmount', async () => {
+      // The ticket's scenario for the flow clients actually use: a 50% market
+      // close sends size *and* usdAmount alongside a snapshot that a TP/SL fill
+      // has already invalidated. usdAmount is the source of truth in
+      // placeOrder, so it must not resurrect the pre-clamp size (0.05 > 0.04).
+      primePositionsCache([createPositionSnapshot({ size: '0.04' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        size: '0.05',
+        usdAmount: '2500',
+        currentPrice: 50000,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.04', r: true });
+    });
+
+    it('clamps a close of the entire position requested by explicit size', async () => {
+      // size === position size is a 100% close, so usdAmount must not be able to
+      // recompute it upward either
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        size: '0.1',
+        usdAmount: '5000.5', // would recompute to 0.10001
         currentPrice: 50000,
         position: createPositionSnapshot({ size: '0.1' }),
       });
@@ -2156,9 +2198,10 @@ describe('HyperLiquidProvider', () => {
       expect(getSubmittedOrder()).toMatchObject({ s: '0.05', r: true });
     });
 
-    it('does not retry a reduce-only order rejected for the $10 minimum with a larger size', async () => {
-      // Growing a close by 1.5% would exceed the position, so the minimum-value
-      // error must surface instead of being masked by a reduce-only rejection.
+    it('does not retry a full close rejected for the $10 minimum with a larger size', async () => {
+      // Growing a full close by 1.5% would exceed the position, so the
+      // minimum-value error must surface instead of being masked by a
+      // reduce-only rejection.
       primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
       mockClientService.getExchangeClient = jest.fn().mockReturnValue({
         ...createMockExchangeClient(),
@@ -2178,6 +2221,61 @@ describe('HyperLiquidProvider', () => {
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
         1,
       );
+    });
+
+    it('still retries a partial close rejected for the $10 minimum', async () => {
+      // The extra 1.5% stays well inside the position, so the retry that lets a
+      // borderline-$10 partial close succeed must be preserved.
+      primePositionsCache([
+        createPositionSnapshot({ symbol: 'ETH', size: '1.5' }),
+      ]);
+      mockClientService.getExchangeClient = jest.fn().mockReturnValue({
+        ...createMockExchangeClient(),
+        order: jest
+          .fn()
+          .mockRejectedValueOnce(
+            new Error('Order must have minimum value of $10'),
+          )
+          .mockResolvedValueOnce({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 789 } }] } },
+          }),
+      });
+
+      const result = await provider.closePosition({
+        symbol: 'ETH',
+        orderType: 'market',
+        size: '0.0034', // ~$10 of a $4500 position
+        usdAmount: '10.20',
+        currentPrice: 3000,
+        position: createPositionSnapshot({ symbol: 'ETH', size: '1.5' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
+        2,
+      );
+    });
+
+    it('rejects a reduce-only close whose size floors to zero', async () => {
+      // One BTC size increment (0.001) is worth $50, so a $10 partial close
+      // cannot be expressed; surface a size error rather than submitting "0"
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        size: '0.0002',
+        usdAmount: '10.00',
+        currentPrice: 50000,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
     });
 
     it('keeps a grid-aligned close size intact despite floating point error', async () => {

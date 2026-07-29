@@ -3516,10 +3516,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         errorMessage.includes('Order must have minimum value of $10') ||
         errorMessage.includes('Order 0: Order must have minimum value');
 
-      // Reduce-only orders are excluded: a close is capped by the position
-      // size, so retrying it 1.5% larger only swaps the minimum-value error for
-      // "Reduce only order would increase position" and hides the real cause.
-      if (isMinimumOrderError && retryCount === 0 && !params.reduceOnly) {
+      // Full closes are excluded: they already submit the entire position, so
+      // retrying 1.5% larger only swaps the minimum-value error for "Reduce only
+      // order would increase position" and hides the real cause. Partial closes
+      // still retry — the extra 1.5% stays inside the position.
+      if (isMinimumOrderError && retryCount === 0 && !params.isFullClose) {
         let adjustedUsdAmount: string;
         let originalValue: string | undefined;
 
@@ -4436,9 +4437,15 @@ export class HyperLiquidProvider implements PerpsProvider {
           );
         }
 
-        // No live entry means the position is already closed; fall through to
-        // the lookup below so the standard "no position" error is raised
-        // instead of submitting a doomed reduce-only order.
+        // An initialized cache with no entry for the symbol means the position
+        // is already closed (e.g. a double-tapped close). Fail here rather than
+        // falling back to REST: the cache is the freshest source, so a REST
+        // lookup can only burn a request that risks 429s and, if it lags, hand
+        // back a position that no longer exists.
+        if (!livePosition) {
+          throw new Error(`No position found for ${params.symbol}`);
+        }
+
         position = livePosition;
       }
 
@@ -4457,9 +4464,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Clamp to the live position size: HyperLiquid rejects reduce-only orders
       // that would exceed the position, and a caller-supplied size is computed
       // from a snapshot that may already be larger than the real position.
+      // A non-positive or non-numeric size falls back to closing the position in
+      // full, matching the documented "omit size to close 100%" contract.
       const requestedSize = params.size ? parseFloat(params.size) : NaN;
       const closeSize = (
-        Number.isFinite(requestedSize)
+        Number.isFinite(requestedSize) && requestedSize > 0
           ? Math.min(requestedSize, absPositionSize)
           : absPositionSize
       ).toString();
@@ -4504,7 +4513,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         freedMargin: freedMargin.toFixed(2),
       });
 
-      const isFullClose = !params.size; // True if closing 100% (size not provided)
+      // True when the order closes 100% of the position: either no size was
+      // provided, or the requested size covers (or was clamped to) the whole
+      // position.
+      const isFullClose = closeSizeNum >= absPositionSize;
 
       // Execute position close with consistent slippage handling
       const result = await this.placeOrder({
@@ -4517,11 +4529,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         isFullClose,
         // Pass through price and slippage parameters for consistent validation
         currentPrice,
-        // A full close must submit exactly the live position size. Forwarding
-        // usdAmount would make placeOrder recompute the size from
-        // usdAmount / currentPrice and round it up to meet the requested USD,
-        // which submits more than the position holds and gets rejected with
-        // "Reduce only order would increase position".
+        // A close of the whole position must submit exactly the live position
+        // size. Forwarding usdAmount would make placeOrder recompute the size as
+        // usdAmount / currentPrice — discarding the clamp above, since usdAmount
+        // is the source of truth there — and submit more than the position
+        // holds, which is rejected with "Reduce only order would increase
+        // position". Genuine partial closes keep usdAmount so their size stays
+        // USD-accurate.
         usdAmount: isFullClose ? undefined : params.usdAmount,
         priceAtCalculation: params.priceAtCalculation,
         maxSlippageBps: params.maxSlippageBps,

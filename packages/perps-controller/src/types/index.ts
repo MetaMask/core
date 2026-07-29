@@ -373,6 +373,11 @@ export type ClosePositionParams = {
    * Optional live position data from WebSocket.
    * If provided, skips the REST API position fetch (avoids rate limiting issues).
    * If not provided, falls back to fetching positions via REST API cache.
+   *
+   * Pass a WebSocket-sourced snapshot only. The provider treats its own
+   * WebSocket position cache as fresher than this value and overrides the
+   * snapshot's size and side with it, so a REST-sourced (potentially older)
+   * position gives no benefit here.
    */
   position?: Position;
 };
