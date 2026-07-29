@@ -526,6 +526,13 @@ export class AnalyticsController extends BaseController<
    *
    * Geolocation is resolved before any queued event is replayed so that
    * replayed events carry the same location context as new ones.
+   *
+   * When geolocation enrichment is enabled (`isGeolocationEnabled`), the
+   * `GeolocationController` and its `GeolocationController:getGeolocationData`
+   * action must be registered and initialized *before* this method is called.
+   * Otherwise the resolution fails and events are delivered for the rest of the
+   * session without location (a message is logged, see
+   * {@link #resolveLocationContext}).
    */
   async init(): Promise<void> {
     if (this.#initialized) {
@@ -569,7 +576,13 @@ export class AnalyticsController extends BaseController<
 
       this.#locationContext = buildLocationContext(geolocation);
     } catch (error) {
-      log('Error resolving geolocation for analytics enrichment', error);
+      // A common cause is calling `init()` before the GeolocationController is
+      // registered/initialized. Name it here so the failure is diagnosable,
+      // since enrichment is otherwise skipped silently for the session.
+      log(
+        'Failed to resolve geolocation for analytics enrichment; events will be sent without location. Ensure the GeolocationController is registered and initialized before AnalyticsController.init() when geolocation is enabled.',
+        error,
+      );
     }
   }
 
