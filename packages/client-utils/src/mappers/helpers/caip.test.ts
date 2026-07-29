@@ -1,8 +1,4 @@
-import {
-  formatAddressToAssetId,
-  formatChainIdToCaip,
-  getNativeAsset,
-} from './caip.js';
+import { formatAddressToAssetId, formatChainIdToCaip } from './caip.js';
 
 describe('caip helpers', () => {
   describe('formatChainIdToCaip', () => {
@@ -31,20 +27,6 @@ describe('caip helpers', () => {
     });
   });
 
-  describe('getNativeAsset', () => {
-    it('returns native asset metadata for supported chains', () => {
-      expect(getNativeAsset('0x1')).toStrictEqual({
-        symbol: 'ETH',
-        decimals: 18,
-        assetId: 'eip155:1/slip44:60',
-      });
-    });
-
-    it('returns undefined when the chain id cannot be normalized', () => {
-      expect(getNativeAsset('0xzzzz')).toBeUndefined();
-    });
-  });
-
   describe('formatAddressToAssetId', () => {
     it('returns caip asset ids unchanged', () => {
       expect(
@@ -63,13 +45,14 @@ describe('caip helpers', () => {
       ).toBe('eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48');
     });
 
-    it('encodes native token addresses on supported chains', () => {
+    it('returns undefined for native sentinel addresses instead of erc20:0x0', () => {
       expect(
         formatAddressToAssetId(
           '0x0000000000000000000000000000000000000000',
           'eip155:1',
         ),
-      ).toBe('eip155:1/slip44:60');
+      ).toBeUndefined();
+      expect(formatAddressToAssetId('0x0', 'eip155:4663')).toBeUndefined();
     });
 
     it('returns undefined when chain id is omitted', () => {

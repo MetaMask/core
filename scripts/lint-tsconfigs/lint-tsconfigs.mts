@@ -13,8 +13,8 @@ await main();
  * Detects whether the script is being run from the repository root or from
  * within a package, then lints the appropriate tsconfig files.
  *
- * When run from the root, lints only the root tsconfig pair.
- * When run from a package, lints only that package's tsconfig pair.
+ * When run from the root, lints only the root TypeScript configs.
+ * When run from a package, lints only that package's TypeScript configs.
  */
 async function main(): Promise<void> {
   const cwd = process.cwd();

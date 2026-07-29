@@ -17,6 +17,9 @@ import { getAuthUrl } from './ProfileMetricsService.js';
 
 const defaultBaseEndpoint = getAuthUrl(SDK.Env.DEV);
 
+/** Opt-in retries for tests that exercise the service policy retry path. */
+const RETRY_POLICY = { maxRetries: 3 } as const;
+
 /**
  * Creates a mock request object for testing purposes.
  *
@@ -54,6 +57,16 @@ describe('ProfileMetricsService', () => {
             env: 'invalid-env',
           }),
       ).toThrow('invalid environment configuration');
+    });
+
+    it('allows policy listeners to be disposed', () => {
+      const { service } = getService();
+
+      expect(() => {
+        service.onRetry(() => undefined).dispose();
+        service.onBreak(() => undefined).dispose();
+        service.onDegraded(() => undefined).dispose();
+      }).not.toThrow();
     });
   });
 
@@ -168,9 +181,25 @@ describe('ProfileMetricsService', () => {
       expect(onDegradedListener).toHaveBeenCalled();
     });
 
-    it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
+    it('does not retry by default when a request fails', async () => {
+      nock(defaultBaseEndpoint).put('/profile/accounts').once().reply(500);
+      const { rootMessenger } = getService();
+
+      await expect(
+        rootMessenger.call(
+          'ProfileMetricsService:submitMetrics',
+          createMockRequest(),
+        ),
+      ).rejects.toThrow(
+        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
+      );
+    });
+
+    it('attempts a request that responds with non-200 up to 4 times when retries are enabled, throwing if it never succeeds', async () => {
       nock(defaultBaseEndpoint).put('/profile/accounts').times(4).reply(500);
-      const { service, rootMessenger } = getService();
+      const { service, rootMessenger } = getService({
+        options: { policyOptions: RETRY_POLICY },
+      });
       service.onRetry(({ delay }: { delay: number }) => {
         jest.advanceTimersByTime(delay);
       });
@@ -187,7 +216,9 @@ describe('ProfileMetricsService', () => {
 
     it('calls onDegraded listeners when the maximum number of retries is exceeded', async () => {
       nock(defaultBaseEndpoint).put('/profile/accounts').times(4).reply(500);
-      const { service, rootMessenger } = getService();
+      const { service, rootMessenger } = getService({
+        options: { policyOptions: RETRY_POLICY },
+      });
       service.onRetry(({ delay }: { delay: number }) => {
         jest.advanceTimersByTime(delay);
       });
@@ -207,7 +238,9 @@ describe('ProfileMetricsService', () => {
 
     it('intercepts requests and throws a circuit break error after the 4th failed attempt, running onBreak listeners', async () => {
       nock(defaultBaseEndpoint).put('/profile/accounts').times(12).reply(500);
-      const { service, rootMessenger } = getService();
+      const { service, rootMessenger } = getService({
+        options: { policyOptions: RETRY_POLICY },
+      });
       service.onRetry(({ delay }: { delay: number }) => {
         jest.advanceTimersByTime(delay);
       });
@@ -273,7 +306,7 @@ describe('ProfileMetricsService', () => {
         });
       const { service, rootMessenger } = getService({
         options: {
-          policyOptions: { circuitBreakDuration },
+          policyOptions: { ...RETRY_POLICY, circuitBreakDuration },
         },
       });
       service.onRetry(({ delay }: { delay: number }) => {
