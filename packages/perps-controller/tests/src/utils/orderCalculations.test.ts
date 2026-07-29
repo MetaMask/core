@@ -214,12 +214,32 @@ describe('calculateFinalPositionSize', () => {
       ).toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
     });
 
-    it('leaves a zero size alone', () => {
+    it('throws for a non-positive reduce-only size, matching the USD branch', () => {
+      // formatHyperLiquidSize would otherwise render '0.000' / '-1.000'
+      expect(() =>
+        calculateFinalPositionSize({
+          size: '0',
+          currentPrice: 50000,
+          szDecimals: 3,
+          reduceOnly: true,
+        }),
+      ).toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+
+      expect(() =>
+        calculateFinalPositionSize({
+          size: '-1',
+          currentPrice: 50000,
+          szDecimals: 3,
+          reduceOnly: true,
+        }),
+      ).toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+    });
+
+    it('leaves a zero size alone when the order is not reduce-only', () => {
       const { finalPositionSize } = calculateFinalPositionSize({
         size: '0',
         currentPrice: 50000,
         szDecimals: 3,
-        reduceOnly: true,
       });
 
       expect(finalPositionSize).toBe(0);

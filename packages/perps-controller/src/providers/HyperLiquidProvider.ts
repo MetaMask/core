@@ -3922,6 +3922,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       // statuses stay index-aligned when a position is skipped below
       const orders: SDKOrderParams[] = [];
       const orderedPositions: Position[] = [];
+      // Positions no order could be built for. Reported as failures so a caller
+      // cannot read "closed everything" from a result that left one open.
+      const skippedResults: ClosePositionsResult['results'] = [];
 
       for (const position of positionsToClose) {
         // Extract DEX name for HIP-3 positions
@@ -3965,12 +3968,18 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         // A dust position worth less than one size increment floors to 0, which
         // would submit a zero-size order. Skip it rather than sending an order
-        // the exchange must reject; the remaining positions still close.
+        // the exchange must reject; the remaining positions still close, and the
+        // skip is reported as a failure below.
         if (flooredCloseSize <= 0) {
           this.#deps.debugLogger.log(
             'Skipping position smaller than one size increment',
             { coin: position.symbol, size: position.size },
           );
+          skippedResults.push({
+            symbol: position.symbol,
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+          });
           continue;
         }
 
@@ -4015,13 +4024,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         orderedPositions.push(position);
       }
 
-      // Every position was smaller than one size increment
+      // Every position was smaller than one size increment. Return their
+      // failures rather than an empty result, which would be indistinguishable
+      // from "no positions matched".
       if (orders.length === 0) {
         return {
           success: false,
           successCount: 0,
-          failureCount: 0,
-          results: [],
+          failureCount: skippedResults.length,
+          results: skippedResults,
         };
       }
 
@@ -4050,7 +4061,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           isStatusObject(stat) &&
           (hasProperty(stat, 'filled') || hasProperty(stat, 'resting')),
       ).length;
-      const failureCount = statuses.length - successCount;
+      const failureCount =
+        statuses.length - successCount + skippedResults.length;
 
       // Handle HIP-3 margin transfers for successful closes
       if (!this.#useUnifiedAccount) {
@@ -4080,16 +4092,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: successCount > 0,
         successCount,
         failureCount,
-        results: statuses.map((status, index) => ({
-          symbol: orderedPositions[index].symbol,
-          success:
-            isStatusObject(status) &&
-            (hasProperty(status, 'filled') || hasProperty(status, 'resting')),
-          error:
-            isStatusObject(status) && hasProperty(status, 'error')
-              ? String(status.error)
-              : undefined,
-        })),
+        results: [
+          ...statuses.map((status, index) => ({
+            symbol: orderedPositions[index].symbol,
+            success:
+              isStatusObject(status) &&
+              (hasProperty(status, 'filled') || hasProperty(status, 'resting')),
+            error:
+              isStatusObject(status) && hasProperty(status, 'error')
+                ? String(status.error)
+                : undefined,
+          })),
+          ...skippedResults,
+        ],
       };
     } catch (error) {
       this.#deps.logger.error(
@@ -4494,12 +4509,21 @@ export class HyperLiquidProvider implements PerpsProvider {
             { coin: params.symbol },
           );
 
-          // getPositions() swallows request failures and returns [], so keep the
-          // caller's snapshot when the lookup comes back empty: a rate-limited
-          // request must not block a position that is open and closable.
           const positions = await this.getPositions({ skipCache: true });
-          position =
-            positions.find((pos) => pos.symbol === params.symbol) ?? position;
+          const livePositionFromApi = positions.find(
+            (pos) => pos.symbol === params.symbol,
+          );
+
+          if (livePositionFromApi) {
+            position = livePositionFromApi;
+          } else if (positions.length > 0) {
+            // A non-empty response proves the request worked, so the symbol is
+            // genuinely gone.
+            throw new Error(`No position found for ${params.symbol}`);
+          }
+          // An empty response is ambiguous: getPositions() swallows request
+          // failures and returns [], so keep the caller's snapshot rather than
+          // let a rate-limited lookup block a position that is open and closable.
         }
       }
 

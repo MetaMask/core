@@ -367,9 +367,17 @@ export function calculateFinalPositionSize(
     // up; truncate onto the size grid first so a close can never exceed the
     // position it is closing.
     if (reduceOnly) {
+      // A supplied size must be positive, or formatHyperLiquidSize would render
+      // a zero or negative order size. The USD branch above rejects the same
+      // input.
+      if (size && !(finalPositionSize > 0)) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+      }
+
       const sizeBeforeFlooring = finalPositionSize;
       finalPositionSize = floorToSizeDecimals(finalPositionSize, szDecimals);
 
+      // A positive size that floors to zero is worth less than one increment
       if (finalPositionSize <= 0 && sizeBeforeFlooring > 0) {
         throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
       }

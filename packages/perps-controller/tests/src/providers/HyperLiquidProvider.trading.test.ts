@@ -2383,8 +2383,8 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('falls back to the caller snapshot when the uncovered-DEX lookup returns nothing', async () => {
-      // getPositions() swallows request failures and returns [], so a
-      // rate-limited lookup must not block a position that is open and closable
+      // getPositions() swallows request failures and returns [], so an empty
+      // response is ambiguous and must not block a closable position
       primePositionsCache([], []);
       jest.spyOn(provider, 'getPositions').mockResolvedValue([]);
 
@@ -2396,6 +2396,27 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(true);
       expect(getSubmittedOrder()).toMatchObject({ s: '0.07', r: true });
+    });
+
+    it('fails when the uncovered-DEX lookup succeeds and the position is gone', async () => {
+      // A non-empty response proves the request worked, so the symbol really is
+      // closed — submitting the snapshot here is the bug this ticket is about
+      primePositionsCache([], []);
+      jest
+        .spyOn(provider, 'getPositions')
+        .mockResolvedValue([createPositionSnapshot({ symbol: 'ETH' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.07' }),
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('No position found for BTC');
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
     });
 
     it('keeps the clamp when a partial close also carries usdAmount', async () => {
@@ -2769,10 +2790,11 @@ describe('HyperLiquidProvider', () => {
         );
       });
 
-      it('skips a position smaller than one size increment and still closes the rest', async () => {
+      it('reports a position smaller than one size increment as failed and still closes the rest', async () => {
         // 0.0004 BTC floors to 0 at szDecimals 3; submitting "0" would be
-        // rejected, and the remaining position must still close with its own
-        // status mapped to the right symbol
+        // rejected. The remaining position must still close with its own status
+        // mapped to the right symbol, and the skipped one must surface as a
+        // failure so a caller cannot read "closed everything" from the result
         const mockOrder = jest.fn().mockResolvedValue({
           response: { data: { statuses: [{ filled: {} }] } },
         });
@@ -2822,13 +2844,76 @@ describe('HyperLiquidProvider', () => {
 
         const result = await provider.closePositions({ closeAll: true });
 
-        expect(result.success).toBe(true);
         expect(mockOrder).toHaveBeenCalledWith(
           expect.objectContaining({
             orders: [expect.objectContaining({ s: '1.5', r: true })],
           }),
         );
-        expect(result.results).toEqual([{ symbol: 'ETH', success: true }]);
+        expect(result).toMatchObject({
+          success: true,
+          successCount: 1,
+          failureCount: 1,
+        });
+        expect(result.results).toStrictEqual([
+          { symbol: 'ETH', success: true, error: undefined },
+          {
+            symbol: 'BTC',
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+          },
+        ]);
+      });
+
+      it('reports every position as failed when all of them are dust', async () => {
+        // An empty result here would be indistinguishable from "no positions
+        // matched", so each skipped position carries its own failure
+        const mockOrder = jest.fn();
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '5', accountValue: '10005' },
+              withdrawable: '10000',
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'BTC',
+                    szi: '0.0004',
+                    entryPx: '50000',
+                    positionValue: '20',
+                    unrealizedPnl: '1',
+                    marginUsed: '2',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '45000',
+                  },
+                  type: 'oneWay',
+                },
+              ],
+              crossMarginSummary: {
+                accountValue: '10005',
+                totalMarginUsed: '5',
+              },
+            }),
+          }),
+        );
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+
+        const result = await provider.closePositions({ closeAll: true });
+
+        expect(mockOrder).not.toHaveBeenCalled();
+        expect(result).toMatchObject({
+          success: false,
+          successCount: 0,
+          failureCount: 1,
+        });
+        expect(result.results).toStrictEqual([
+          {
+            symbol: 'BTC',
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+          },
+        ]);
       });
 
       it('handles batch close errors', async () => {
