@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Optionally enrich non-anonymous track, identify, and view payloads with the user's `country_code`, `region`, and `timezone` under `context.location`, gated behind the new `isGeolocationEnabled` constructor option (default `false`)
+  - `AnalyticsController.init` is now asynchronous and returns a `Promise<void>`, so await it before tracking events
+  - When `isGeolocationEnabled` is `true`, the geolocation is resolved during `init` via `GeolocationController:getGeolocationData`, which compositions must then register
+  - Adds `@metamask/geolocation-controller` `^0.1.3` as a dependency
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [1.2.1]

@@ -6,7 +6,11 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service.js';
+import type { GeolocationData } from './geolocation-api-service/geolocation-api-service.js';
+import {
+  getUnknownGeolocationData,
+  UNKNOWN_LOCATION,
+} from './geolocation-api-service/geolocation-api-service.js';
 import type { GeolocationControllerMessenger } from './GeolocationController.js';
 import {
   GeolocationController,
@@ -45,10 +49,13 @@ describe('GeolocationController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "country": null,
             "error": null,
             "lastFetchedAt": null,
             "location": "UNKNOWN",
+            "region": null,
             "status": "idle",
+            "timezone": null,
           }
         `);
       });
@@ -64,10 +71,13 @@ describe('GeolocationController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "country": null,
             "error": null,
             "lastFetchedAt": null,
             "location": "UNKNOWN",
+            "region": null,
             "status": "idle",
+            "timezone": null,
           }
         `);
       });
@@ -95,8 +105,11 @@ describe('GeolocationController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "country": null,
             "location": "UNKNOWN",
+            "region": null,
             "status": "idle",
+            "timezone": null,
           }
         `);
       });
@@ -106,7 +119,7 @@ describe('GeolocationController', () => {
   describe('getGeolocation', () => {
     it('sets location, status to complete, and lastFetchedAt after fetch', async () => {
       await withController(
-        { serviceResponse: 'GB' },
+        { serviceResponse: { country: 'GB' } },
         async ({ controller }) => {
           const now = Date.now();
           const result = await controller.getGeolocation();
@@ -120,14 +133,45 @@ describe('GeolocationController', () => {
       );
     });
 
+    it('joins the country and region into the location code', async () => {
+      await withController(
+        { serviceResponse: { country: 'US', region: 'NY' } },
+        async ({ controller }) => {
+          const result = await controller.getGeolocation();
+
+          expect(result).toBe('US-NY');
+          expect(controller.state.location).toBe('US-NY');
+        },
+      );
+    });
+
+    it('stores the country, region, and timezone in state', async () => {
+      await withController(
+        {
+          serviceResponse: {
+            country: 'US',
+            region: 'WA',
+            timezone: 'America/Los_Angeles',
+          },
+        },
+        async ({ controller }) => {
+          await controller.getGeolocation();
+
+          expect(controller.state.country).toBe('US');
+          expect(controller.state.region).toBe('WA');
+          expect(controller.state.timezone).toBe('America/Los_Angeles');
+        },
+      );
+    });
+
     it('transitions status from idle to loading to complete', async () => {
       const states: string[] = [];
-      let resolveService!: (value: string) => void;
+      let resolveService!: (value: GeolocationData) => void;
 
       await withController(
         {
           serviceHandler: () =>
-            new Promise<string>((resolve) => {
+            new Promise<GeolocationData>((resolve) => {
               resolveService = resolve;
             }),
         },
@@ -142,7 +186,7 @@ describe('GeolocationController', () => {
           const promise = controller.getGeolocation();
           expect(controller.state.status).toBe('loading');
 
-          resolveService('DE');
+          resolveService(buildGeolocationData({ country: 'DE' }));
           await promise;
 
           expect(states).toStrictEqual(['loading', 'complete']);
@@ -175,7 +219,7 @@ describe('GeolocationController', () => {
             serviceHandler: () => {
               callCount += 1;
               if (callCount === 1) {
-                return Promise.resolve('US');
+                return Promise.resolve(buildGeolocationData({ country: 'US' }));
               }
               throw new Error('Network error');
             },
@@ -224,13 +268,88 @@ describe('GeolocationController', () => {
     });
   });
 
+  describe('getGeolocationData', () => {
+    it('returns the country, region, and timezone', async () => {
+      await withController(
+        {
+          serviceResponse: {
+            country: 'FR',
+            region: '75',
+            timezone: 'Europe/Paris',
+          },
+        },
+        async ({ controller }) => {
+          const result = await controller.getGeolocationData();
+
+          expect(result).toStrictEqual({
+            country: 'FR',
+            region: '75',
+            timezone: 'Europe/Paris',
+          });
+          expect(controller.state.status).toBe('complete');
+        },
+      );
+    });
+
+    it('preserves the last known data when the service throws', async () => {
+      let callCount = 0;
+
+      await withController(
+        {
+          serviceHandler: () => {
+            callCount += 1;
+            if (callCount === 1) {
+              return Promise.resolve(
+                buildGeolocationData({
+                  country: 'US',
+                  region: 'WA',
+                  timezone: 'America/Los_Angeles',
+                }),
+              );
+            }
+            throw new Error('Network error');
+          },
+        },
+        async ({ controller }) => {
+          await controller.getGeolocationData();
+
+          const result = await controller.getGeolocationData();
+
+          expect(result).toStrictEqual({
+            country: 'US',
+            region: 'WA',
+            timezone: 'America/Los_Angeles',
+          });
+          expect(controller.state.status).toBe('error');
+        },
+      );
+    });
+
+    it('returns unknown data when no prior value exists', async () => {
+      await withController(
+        {
+          serviceHandler: () => {
+            throw new Error('Network error');
+          },
+        },
+        async ({ controller }) => {
+          const result = await controller.getGeolocationData();
+
+          expect(result).toStrictEqual(getUnknownGeolocationData());
+        },
+      );
+    });
+  });
+
   describe('refreshGeolocation', () => {
     it('resets lastFetchedAt and calls service with bypassCache', async () => {
       let callCount = 0;
       const mockServiceHandler = jest.fn(
         (_options?: { bypassCache?: boolean }) => {
           callCount += 1;
-          return Promise.resolve(callCount === 1 ? 'US' : 'GB');
+          return Promise.resolve(
+            buildGeolocationData({ country: callCount === 1 ? 'US' : 'GB' }),
+          );
         },
       );
 
@@ -262,7 +381,7 @@ describe('GeolocationController', () => {
           serviceHandler: () => {
             callCount += 1;
             if (callCount === 1) {
-              return Promise.resolve('US');
+              return Promise.resolve(buildGeolocationData({ country: 'US' }));
             }
             throw new Error('Refresh failed');
           },
@@ -284,7 +403,7 @@ describe('GeolocationController', () => {
         {
           serviceHandler: jest
             .fn()
-            .mockResolvedValueOnce('US')
+            .mockResolvedValueOnce(buildGeolocationData({ country: 'US' }))
             .mockRejectedValueOnce('string refresh error'),
         },
         async ({ controller }) => {
@@ -301,13 +420,38 @@ describe('GeolocationController', () => {
   describe('GeolocationController:getGeolocation', () => {
     it('resolves with the fetched country code', async () => {
       await withController(
-        { serviceResponse: 'JP' },
+        { serviceResponse: { country: 'JP' } },
         async ({ rootMessenger }) => {
           const result = await rootMessenger.call(
             'GeolocationController:getGeolocation',
           );
 
           expect(result).toBe('JP');
+        },
+      );
+    });
+  });
+
+  describe('GeolocationController:getGeolocationData', () => {
+    it('resolves with the fetched country, region, and timezone', async () => {
+      await withController(
+        {
+          serviceResponse: {
+            country: 'JP',
+            region: '13',
+            timezone: 'Asia/Tokyo',
+          },
+        },
+        async ({ rootMessenger }) => {
+          const result = await rootMessenger.call(
+            'GeolocationController:getGeolocationData',
+          );
+
+          expect(result).toStrictEqual({
+            country: 'JP',
+            region: '13',
+            timezone: 'Asia/Tokyo',
+          });
         },
       );
     });
@@ -321,7 +465,9 @@ describe('GeolocationController', () => {
         {
           serviceHandler: () => {
             callCount += 1;
-            return Promise.resolve(callCount === 1 ? 'US' : 'CA');
+            return Promise.resolve(
+              buildGeolocationData({ country: callCount === 1 ? 'US' : 'CA' }),
+            );
           },
         },
         async ({ rootMessenger }) => {
@@ -364,8 +510,10 @@ type WithControllerOptions = {
   options?: Partial<
     Omit<ConstructorParameters<typeof GeolocationController>[0], 'messenger'>
   >;
-  serviceResponse?: string;
-  serviceHandler?: (options?: { bypassCache?: boolean }) => Promise<string>;
+  serviceResponse?: Partial<GeolocationData>;
+  serviceHandler?: (options?: {
+    bypassCache?: boolean;
+  }) => Promise<GeolocationData>;
 };
 
 /**
@@ -393,11 +541,23 @@ function getMessenger(
     parent: rootMessenger,
   });
   rootMessenger.delegate({
-    actions: ['GeolocationApiService:fetchGeolocation'],
+    actions: ['GeolocationApiService:fetchGeolocationData'],
     events: [],
     messenger,
   });
   return messenger;
+}
+
+/**
+ * Builds complete geolocation data from a partial fixture.
+ *
+ * @param data - The known geolocation fields.
+ * @returns The geolocation data with unknown fields set to null.
+ */
+function buildGeolocationData(
+  data: Partial<GeolocationData> = {},
+): GeolocationData {
+  return { ...getUnknownGeolocationData(), ...data };
 }
 
 /**
@@ -406,8 +566,8 @@ function getMessenger(
  *
  * @param args - Either a function, or an options bag + a function. The options
  * bag contains arguments for the controller constructor and optionally a
- * `serviceResponse` string or a `serviceHandler` function to mock the
- * `GeolocationApiService:fetchGeolocation` action. The function is called
+ * `serviceResponse` fixture or a `serviceHandler` function to mock the
+ * `GeolocationApiService:fetchGeolocationData` action. The function is called
  * with the instantiated controller, root messenger, and controller messenger.
  * @returns The same return value as the given function.
  */
@@ -424,13 +584,15 @@ async function withController<ReturnValue>(
   const rootMessenger = getRootMessenger();
   const controllerMessenger = getMessenger(rootMessenger);
 
-  const handler: (options?: { bypassCache?: boolean }) => Promise<string> =
+  const handler: (options?: {
+    bypassCache?: boolean;
+  }) => Promise<GeolocationData> =
     serviceHandler ??
-    ((): Promise<string> =>
-      Promise.resolve(serviceResponse ?? UNKNOWN_LOCATION));
+    ((): Promise<GeolocationData> =>
+      Promise.resolve(buildGeolocationData(serviceResponse)));
 
   rootMessenger.registerActionHandler(
-    'GeolocationApiService:fetchGeolocation',
+    'GeolocationApiService:fetchGeolocationData',
     handler,
   );
 

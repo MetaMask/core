@@ -4,6 +4,10 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  GeolocationControllerGetGeolocationDataAction,
+  GeolocationData,
+} from '@metamask/geolocation-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
@@ -17,6 +21,7 @@ import type {
   AnalyticsDeliveryOptions,
   AnalyticsContext,
   AnalyticsEventProperties,
+  AnalyticsLocationContext,
   AnalyticsUserTraits,
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
@@ -232,7 +237,7 @@ export type AnalyticsControllerActions =
 /**
  * Actions from other messengers that {@link AnalyticsControllerMessenger} calls.
  */
-type AllowedActions = never;
+type AllowedActions = GeolocationControllerGetGeolocationDataAction;
 
 /**
  * Event emitted when the state of the {@link AnalyticsController} changes.
@@ -311,6 +316,20 @@ export type AnalyticsControllerOptions = {
    * @default false
    */
   isPreConsentQueueEnabled?: boolean;
+
+  /**
+   * Whether geolocation enrichment is enabled.
+   *
+   * When enabled, {@link AnalyticsController.init} resolves the user's
+   * country, region, and timezone via `GeolocationController:getGeolocationData`
+   * and attaches them to `context.location` on non-anonymous payloads.
+   * Compositions must register that action when this is enabled. When disabled,
+   * the controller never calls the geolocation action and events are delivered
+   * without location.
+   *
+   * @default false
+   */
+  isGeolocationEnabled?: boolean;
 };
 
 /**
@@ -321,6 +340,41 @@ export type AnalyticsControllerOptions = {
  */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Returns whether a JSON value is a non-array object.
+ *
+ * @param value - The value to check.
+ * @returns True if the value is a JSON record.
+ */
+function isJsonRecord(value: Json | undefined): value is Record<string, Json> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Builds the analytics location context from geolocation data, keeping only
+ * the fields the geolocation API was able to determine.
+ *
+ * @param geolocation - The geolocation data to convert.
+ * @returns The location context, or `undefined` when no field is known.
+ */
+function buildLocationContext(
+  geolocation: GeolocationData,
+): AnalyticsLocationContext | undefined {
+  const locationContext: AnalyticsLocationContext = {
+    ...(geolocation.country === null
+      ? {}
+      : { country_code: geolocation.country }),
+    ...(geolocation.region === null ? {} : { region: geolocation.region }),
+    ...(geolocation.timezone === null
+      ? {}
+      : { timezone: geolocation.timezone }),
+  };
+
+  return Object.keys(locationContext).length === 0
+    ? undefined
+    : locationContext;
 }
 
 /**
@@ -394,7 +448,11 @@ export class AnalyticsController extends BaseController<
 
   readonly #isPreConsentQueueEnabled: boolean;
 
+  readonly #isGeolocationEnabled: boolean;
+
   #initialized: boolean;
+
+  #locationContext: AnalyticsLocationContext | undefined;
 
   /**
    * Constructs an AnalyticsController instance.
@@ -407,6 +465,7 @@ export class AnalyticsController extends BaseController<
    * @param options.isAnonymousEventsFeatureEnabled - Whether the anonymous events feature is enabled
    * @param options.isEventQueuePersistenceEnabled - Whether analytics event queue persistence is enabled
    * @param options.isPreConsentQueueEnabled - Whether the pre-consent event queue is enabled
+   * @param options.isGeolocationEnabled - Whether geolocation enrichment is enabled
    * @throws Error if state.analyticsId is missing or not a valid UUIDv4
    * @remarks After construction, call {@link AnalyticsController.init} to complete initialization.
    */
@@ -417,6 +476,7 @@ export class AnalyticsController extends BaseController<
     isAnonymousEventsFeatureEnabled = false,
     isEventQueuePersistenceEnabled = false,
     isPreConsentQueueEnabled = false,
+    isGeolocationEnabled = false,
   }: AnalyticsControllerOptions) {
     const initialState: AnalyticsControllerState = {
       ...getDefaultAnalyticsControllerState(),
@@ -438,6 +498,7 @@ export class AnalyticsController extends BaseController<
     this.#isAnonymousEventsFeatureEnabled = isAnonymousEventsFeatureEnabled;
     this.#isEventQueuePersistenceEnabled = isEventQueuePersistenceEnabled;
     this.#isPreConsentQueueEnabled = isPreConsentQueueEnabled;
+    this.#isGeolocationEnabled = isGeolocationEnabled;
     this.#platformAdapter = platformAdapter;
     this.#initialized = false;
 
@@ -453,20 +514,28 @@ export class AnalyticsController extends BaseController<
       analyticsId: this.state.analyticsId,
       eventQueuePersistenceEnabled: this.#isEventQueuePersistenceEnabled,
       preConsentQueueEnabled: this.#isPreConsentQueueEnabled,
+      geolocationEnabled: this.#isGeolocationEnabled,
     });
   }
 
   /**
-   * Initialize the controller by calling the platform adapter's onSetupCompleted lifecycle hook.
-   * This method must be called after construction to complete the setup process.
+   * Initialize the controller by resolving the geolocation used to enrich
+   * events and then calling the platform adapter's onSetupCompleted lifecycle
+   * hook. This method must be called after construction to complete the setup
+   * process.
+   *
+   * Geolocation is resolved before any queued event is replayed so that
+   * replayed events carry the same location context as new ones.
    */
-  init(): void {
+  async init(): Promise<void> {
     if (this.#initialized) {
       log('AnalyticsController already initialized.');
       return;
     }
 
     this.#initialized = true;
+
+    await this.#resolveLocationContext();
 
     // Call onSetupCompleted lifecycle hook after initialization
     // State is already validated, so analyticsId is guaranteed to be a valid UUIDv4
@@ -479,6 +548,57 @@ export class AnalyticsController extends BaseController<
 
     this.#replayQueuedEvents();
     this.#reconcilePreConsentEvents();
+  }
+
+  /**
+   * Resolve the location context used to enrich analytics events.
+   *
+   * No-op unless geolocation enrichment is enabled. Otherwise geolocation is
+   * best-effort: when the GeolocationController is unavailable or fails to
+   * resolve, events are still delivered, just without location.
+   */
+  async #resolveLocationContext(): Promise<void> {
+    if (!this.#isGeolocationEnabled) {
+      return;
+    }
+
+    try {
+      const geolocation = await this.messenger.call(
+        'GeolocationController:getGeolocationData',
+      );
+
+      this.#locationContext = buildLocationContext(geolocation);
+    } catch (error) {
+      log('Error resolving geolocation for analytics enrichment', error);
+    }
+  }
+
+  /**
+   * Merge the resolved location context into a caller-provided context.
+   *
+   * Caller-provided `location` fields are preserved, but the fields the
+   * controller resolves take precedence over them.
+   *
+   * @param context - Optional caller-provided context.
+   * @returns The context enriched with location, or the original context when
+   * no location is known.
+   */
+  #withLocationContext(
+    context?: AnalyticsContext,
+  ): AnalyticsContext | undefined {
+    if (!this.#locationContext) {
+      return context;
+    }
+
+    const callerLocation = context?.location;
+
+    return {
+      ...context,
+      location: {
+        ...(isJsonRecord(callerLocation) ? callerLocation : {}),
+        ...this.#locationContext,
+      },
+    };
   }
 
   /**
@@ -848,7 +968,11 @@ export class AnalyticsController extends BaseController<
     // if event does not have properties, send event without properties
     // and return to prevent any additional processing
     if (!event.hasProperties) {
-      this.#sendOrQueueTrackEvent(event.name, undefined, context);
+      this.#sendOrQueueTrackEvent(
+        event.name,
+        undefined,
+        this.#withLocationContext(context),
+      );
       return;
     }
 
@@ -861,7 +985,7 @@ export class AnalyticsController extends BaseController<
         {
           ...event.properties,
         },
-        context,
+        this.#withLocationContext(context),
       );
     }
 
@@ -876,7 +1000,12 @@ export class AnalyticsController extends BaseController<
           ...event.sensitiveProperties,
           ...(hasSensitiveProperties && { anonymous: true }),
         },
-        context,
+        // When the anonymous events feature is enabled, this payload is the
+        // anonymous one and must carry no geolocation. When the feature is
+        // disabled, this is the single identified payload, so it is enriched.
+        this.#isAnonymousEventsFeatureEnabled
+          ? context
+          : this.#withLocationContext(context),
       );
     }
   }
@@ -893,7 +1022,11 @@ export class AnalyticsController extends BaseController<
     }
 
     // Delegate to platform adapter using the current analytics ID
-    this.#sendOrQueueIdentifyEvent(this.state.analyticsId, traits, context);
+    this.#sendOrQueueIdentifyEvent(
+      this.state.analyticsId,
+      traits,
+      this.#withLocationContext(context),
+    );
   }
 
   /**
@@ -913,7 +1046,11 @@ export class AnalyticsController extends BaseController<
     }
 
     // Delegate to platform adapter
-    this.#sendOrQueueViewEvent(name, properties, context);
+    this.#sendOrQueueViewEvent(
+      name,
+      properties,
+      this.#withLocationContext(context),
+    );
   }
 
   /**

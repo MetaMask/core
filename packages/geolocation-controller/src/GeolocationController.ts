@@ -6,8 +6,13 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { GeolocationApiServiceFetchGeolocationAction } from './geolocation-api-service/geolocation-api-service-method-action-types.js';
-import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service.js';
+import type { GeolocationApiServiceFetchGeolocationDataAction } from './geolocation-api-service/geolocation-api-service-method-action-types.js';
+import type { GeolocationData } from './geolocation-api-service/geolocation-api-service.js';
+import {
+  getUnknownGeolocationData,
+  toLocationCode,
+  UNKNOWN_LOCATION,
+} from './geolocation-api-service/geolocation-api-service.js';
 import type { GeolocationControllerMethodActions } from './GeolocationController-method-action-types.js';
 import type { GeolocationRequestStatus } from './types.js';
 
@@ -24,6 +29,12 @@ export const controllerName = 'GeolocationController';
 export type GeolocationControllerState = {
   /** ISO 3166-2 location code (e.g. "US", "US-NY", "CA-ON"), or "UNKNOWN" if not yet determined. */
   location: string;
+  /** ISO 3166-1 alpha-2 country code (e.g. "US"), or null if not yet determined. */
+  country: string | null;
+  /** ISO 3166-2 subdivision code without the country prefix (e.g. "NY"), or null if not yet determined. */
+  region: string | null;
+  /** IANA time zone name (e.g. "America/Los_Angeles"), or null if not yet determined. */
+  timezone: string | null;
   /** Current status of the geolocation fetch lifecycle. */
   status: GeolocationRequestStatus;
   /** Epoch milliseconds of the last successful fetch, or null if never fetched. */
@@ -37,6 +48,24 @@ export type GeolocationControllerState = {
  */
 const geolocationControllerMetadata = {
   location: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  country: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  region: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  timezone: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -73,6 +102,7 @@ const geolocationControllerMetadata = {
 export function getDefaultGeolocationControllerState(): GeolocationControllerState {
   return {
     location: UNKNOWN_LOCATION,
+    ...getUnknownGeolocationData(),
     status: 'idle',
     lastFetchedAt: null,
     error: null,
@@ -81,6 +111,7 @@ export function getDefaultGeolocationControllerState(): GeolocationControllerSta
 
 const MESSENGER_EXPOSED_METHODS = [
   'getGeolocation',
+  'getGeolocationData',
   'refreshGeolocation',
 ] as const;
 
@@ -102,7 +133,7 @@ export type GeolocationControllerActions =
 /**
  * Actions from other messengers that {@link GeolocationControllerMessenger} calls.
  */
-type AllowedActions = GeolocationApiServiceFetchGeolocationAction;
+type AllowedActions = GeolocationApiServiceFetchGeolocationDataAction;
 
 /**
  * Published when the state of {@link GeolocationController} changes.
@@ -189,6 +220,19 @@ export class GeolocationController extends BaseController<
    * @returns The ISO 3166-2 location code string.
    */
   async getGeolocation(): Promise<string> {
+    await this.#fetchAndUpdate();
+    return this.state.location;
+  }
+
+  /**
+   * Returns the country, region, and timezone for the current client.
+   * Delegates to the {@link GeolocationApiService} for network fetching and
+   * caching, then updates controller state with the result.
+   *
+   * @returns The geolocation data, where each field is `null` when it could
+   * not be determined.
+   */
+  async getGeolocationData(): Promise<GeolocationData> {
     return this.#fetchAndUpdate();
   }
 
@@ -201,7 +245,8 @@ export class GeolocationController extends BaseController<
     this.update((draft) => {
       draft.lastFetchedAt = null;
     });
-    return this.#fetchAndUpdate({ bypassCache: true });
+    await this.#fetchAndUpdate({ bypassCache: true });
+    return this.state.location;
   }
 
   /**
@@ -210,28 +255,34 @@ export class GeolocationController extends BaseController<
    *
    * @param options - Options forwarded to the service.
    * @param options.bypassCache - When true, the service skips its TTL cache.
-   * @returns The ISO 3166-2 location code string.
+   * @returns The geolocation data. When the service throws, the last known
+   * geolocation is returned instead.
    */
-  async #fetchAndUpdate(options?: { bypassCache?: boolean }): Promise<string> {
+  async #fetchAndUpdate(options?: {
+    bypassCache?: boolean;
+  }): Promise<GeolocationData> {
     this.update((draft) => {
       draft.status = 'loading';
       draft.error = null;
     });
 
     try {
-      const location = await this.messenger.call(
-        'GeolocationApiService:fetchGeolocation',
+      const geolocation = await this.messenger.call(
+        'GeolocationApiService:fetchGeolocationData',
         options,
       );
 
       this.update((draft) => {
-        draft.location = location;
+        draft.location = toLocationCode(geolocation);
+        draft.country = geolocation.country;
+        draft.region = geolocation.region;
+        draft.timezone = geolocation.timezone;
         draft.status = 'complete';
         draft.lastFetchedAt = Date.now();
         draft.error = null;
       });
 
-      return location;
+      return geolocation;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
 
@@ -240,7 +291,8 @@ export class GeolocationController extends BaseController<
         draft.error = message;
       });
 
-      return this.state.location;
+      const { country, region, timezone } = this.state;
+      return { country, region, timezone };
     }
   }
 }

@@ -258,6 +258,7 @@ linkStyle default opacity:0.5
   ai_controllers --> base_controller;
   ai_controllers --> messenger;
   analytics_controller --> base_controller;
+  analytics_controller --> geolocation_controller;
   analytics_controller --> messenger;
   analytics_data_regulation_controller --> base_controller;
   analytics_data_regulation_controller --> controller_utils;
