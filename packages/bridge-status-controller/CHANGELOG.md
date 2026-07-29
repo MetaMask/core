@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.2.2` ([#9693](https://github.com/MetaMask/core/pull/9693))
 - Bump `@metamask/bridge-controller` from `^78.0.0` to `^78.0.1` ([#9688](https://github.com/MetaMask/core/pull/9688))
 
 ## [74.5.0]

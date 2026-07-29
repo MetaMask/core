@@ -9,12 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [110.1.0]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Assets packages ([#9580](https://github.com/MetaMask/core/pull/9580))
-
 ### Changed
 
+- Bump `@metamask/core-backend` from `^7.0.0` to `^8.0.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.2.2` ([#9693](https://github.com/MetaMask/core/pull/9693))
 - Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
 
 ### Fixed
