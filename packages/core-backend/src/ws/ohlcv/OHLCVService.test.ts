@@ -622,7 +622,7 @@ describe('OHLCVService', () => {
       });
     });
 
-    it('should recreate channel tracking when unsubscribe fails after tracking was cleared', async () => {
+    it('should not retry after destroy aborts in-flight unsubscribe', async () => {
       await withService(async ({ service, mocks }) => {
         let releaseUnsub!: (error?: Error) => void;
         mocks.getSubscriptionsByChannel.mockReturnValue([
@@ -647,9 +647,8 @@ describe('OHLCVService', () => {
         jest.advanceTimersByTime(1000);
         await completeAsyncOperations();
 
-        expect(
-          mocks.getSubscriptionsByChannel.mock.calls.length,
-        ).toBeGreaterThan(1);
+        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(1);
+        expect(mocks.forceReconnection).not.toHaveBeenCalled();
       });
     });
 
@@ -678,7 +677,7 @@ describe('OHLCVService', () => {
       });
     });
 
-    it('should clear retry timers when destroy is called during retry backoff', async () => {
+    it('should abort in-flight unsubscribe retry when destroy is called during backoff', async () => {
       await withService(async ({ service, mocks }) => {
         mocks.getSubscriptionsByChannel.mockImplementation(() => {
           throw new Error('ws gone');

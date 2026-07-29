@@ -14,6 +14,11 @@ import type {
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { Mutex } from 'async-mutex';
+import {
+  handleAll,
+  IterableBackoff,
+  retry,
+} from 'cockatiel';
 
 import { projectLogger, createModuleLogger } from '../../logger.js';
 import type { BackendWebSocketServiceMethodActions } from '../BackendWebSocketService-method-action-types.js';
@@ -46,8 +51,10 @@ const GRACE_PERIOD_MS = 3_000;
 /** Backoff delays for retrying failed WebSocket unsubscribes. */
 const UNSUB_RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
 
-/** Max unsubscribe retries before forcing a WebSocket reconnection. */
-const MAX_UNSUB_RETRIES = 3;
+const unsubRetryPolicy = retry(handleAll, {
+  maxAttempts: 3,
+  backoff: new IterableBackoff([...UNSUB_RETRY_DELAYS_MS]),
+});
 
 // =============================================================================
 // Types — Channel Tracking
@@ -56,8 +63,7 @@ const MAX_UNSUB_RETRIES = 3;
 type ChannelEntry = {
   refCount: number;
   gracePeriodTimer?: ReturnType<typeof setTimeout>;
-  retryTimer?: ReturnType<typeof setTimeout>;
-  retryCount?: number;
+  retryAbort?: AbortController;
 };
 
 // =============================================================================
@@ -238,10 +244,9 @@ export class OHLCVService {
   async #subscribeInner(channel: string): Promise<void> {
     const entry = this.#channels.get(channel);
 
-    if (entry?.retryTimer) {
-      clearTimeout(entry.retryTimer);
-      entry.retryTimer = undefined;
-      entry.retryCount = 0;
+    if (entry?.retryAbort) {
+      entry.retryAbort.abort();
+      entry.retryAbort = undefined;
       entry.refCount = 1;
 
       if (
@@ -403,10 +408,8 @@ export class OHLCVService {
       clearTimeout(entry.gracePeriodTimer);
       entry.gracePeriodTimer = undefined;
     }
-    if (entry.retryTimer) {
-      clearTimeout(entry.retryTimer);
-      entry.retryTimer = undefined;
-    }
+    entry.retryAbort?.abort();
+    entry.retryAbort = undefined;
   }
 
   async #unsubscribeChannelOnServer(channel: string): Promise<boolean> {
@@ -432,38 +435,59 @@ export class OHLCVService {
   }
 
   #scheduleUnsubscribeRetry(channel: string): void {
-    const channelEntry = this.#channels.get(channel) ?? { refCount: 0 };
-    this.#channels.set(channel, channelEntry);
+    const entry = this.#channels.get(channel) ?? { refCount: 0 };
+    entry.retryAbort?.abort();
+    entry.retryAbort = new AbortController();
+    this.#channels.set(channel, entry);
 
-    const retryCount = (channelEntry.retryCount ?? 0) + 1;
-    channelEntry.retryCount = retryCount;
+    const { signal } = entry.retryAbort;
 
-    if (retryCount > MAX_UNSUB_RETRIES) {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.#runUnsubRetryLoop(channel, signal);
+  }
+
+  async #runUnsubRetryLoop(
+    channel: string,
+    signal: AbortSignal,
+  ): Promise<void> {
+    try {
+      await unsubRetryPolicy.execute(async () => {
+        const releaseLock = await this.#mutex.acquire();
+        try {
+          const current = this.#channels.get(channel);
+          if (current && current.refCount > 0) {
+            return;
+          }
+
+          const success = await this.#unsubscribeChannelOnServer(channel);
+          if (!success) {
+            throw new Error('unsubscribe failed');
+          }
+
+          this.#channels.delete(channel);
+          log('OHLCV-WS: WS unsubscribe completed', { channel });
+        } finally {
+          releaseLock();
+        }
+      }, signal);
+    } catch {
+      if (signal.aborted) {
+        return;
+      }
+
       log('OHLCV-WS: Unsubscribe retries exhausted — forcing reconnection', {
         channel,
       });
-      this.#clearChannelTimers(channelEntry);
       this.#channels.delete(channel);
-      this.#messenger
+      // Last resort: reconnects the shared BackendWebSocketService instance
+      // (AccountActivityService and other consumers share this connection).
+      // They resubscribe on CONNECTED; OHLCV only resubscribes refCount > 0.
+      await this.#messenger
         .call('BackendWebSocketService:forceReconnection')
         .catch(() => {
           // no-op
         });
-      return;
     }
-
-    const delayMs = UNSUB_RETRY_DELAYS_MS[retryCount - 1];
-    log('OHLCV-WS: Scheduling unsubscribe retry', {
-      channel,
-      retryCount,
-      delayMs,
-    });
-
-    channelEntry.retryTimer = setTimeout(() => {
-      channelEntry.retryTimer = undefined;
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#performUnsubscribe(channel);
-    }, delayMs);
   }
 
   async #performUnsubscribe(channel: string): Promise<void> {
@@ -483,17 +507,11 @@ export class OHLCVService {
       });
 
       this.#clearChannelTimers(this.#channels.get(channel) ?? { refCount: 0 });
-
-      const success = await this.#unsubscribeChannelOnServer(channel);
-      if (success) {
-        this.#channels.delete(channel);
-        log('OHLCV-WS: WS unsubscribe completed', { channel });
-      } else {
-        this.#scheduleUnsubscribeRetry(channel);
-      }
     } finally {
       releaseLock();
     }
+
+    this.#scheduleUnsubscribeRetry(channel);
   }
 
   /**
