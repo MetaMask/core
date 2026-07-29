@@ -65,6 +65,7 @@ import { SnapId } from '@metamask/snaps-sdk';
 import type { Json } from '@metamask/utils';
 import { assertStruct } from '@metamask/utils';
 
+import { reportError } from './errors.js';
 import { projectLogger as log } from './logger.js';
 import type {
   SnapAccountServiceEnsureReadyAction,
@@ -343,18 +344,20 @@ export class SnapAccountService {
    */
   #handleUnlock(): void {
     // eslint-disable-next-line no-void
-    void this.ensureMigrated()
-      .then(async () => {
+    void this.ensureMigrated().then(
+      async () => {
         // If the migration is successful, we re-forward the current groups to each new keyrings!
         const groupId = this.#getSelectedAccountGroupId();
+        // NOTE: This cannot fail, all errors are swallowed under the hood.
         return await this.#forwardSelectedAccounts(
           groupId,
           this.#getAccountGroup(groupId)?.accounts,
         );
-      })
-      .catch((error) => {
-        console.error('Migration failed after unlock:', error);
-      });
+      },
+      (error) => {
+        reportError(this.#messenger, 'Migration failed after unlock', error);
+      },
+    );
   }
 
   /**

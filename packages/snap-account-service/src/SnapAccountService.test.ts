@@ -91,8 +91,10 @@ type Mocks = {
  *
  * @returns The root messenger.
  */
-function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+function getRootMessenger(
+  captureException?: (error: Error) => void,
+): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE, captureException });
 }
 
 /**
@@ -406,17 +408,19 @@ async function setup({
   snapIsReady = true,
   runnableSnaps = [],
   config,
+  captureException,
 }: {
   snapIsReady?: boolean;
   runnableSnaps?: TruncatedSnap[];
   config?: SnapAccountServiceOptions['config'];
+  captureException?: (error: Error) => void;
 } = {}): Promise<{
   service: SnapAccountService;
   rootMessenger: RootMessenger;
   messenger: SnapAccountServiceMessenger;
   mocks: Mocks;
 }> {
-  const rootMessenger = getRootMessenger();
+  const rootMessenger = getRootMessenger(captureException);
   const messenger = getMessenger(rootMessenger);
 
   const mocks: Mocks = {
@@ -1390,8 +1394,11 @@ describe('SnapAccountService', () => {
       expect(service).toBeDefined();
     });
 
-    it('logs an error when migration fails', async () => {
-      const { service, rootMessenger, mocks } = await setup();
+    it('logs an error and reports to Sentry when migration fails', async () => {
+      const captureException = jest.fn();
+      const { service, rootMessenger, mocks } = await setup({
+        captureException,
+      });
       const error = new Error('migration boom');
       mocks.KeyringController.withController.mockRejectedValueOnce(error);
       const consoleErrorSpy = jest
@@ -1402,8 +1409,14 @@ describe('SnapAccountService', () => {
       await flushMicrotasks();
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Migration failed after unlock:',
+        'Migration failed after unlock',
         error,
+      );
+      expect(captureException).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Migration failed after unlock',
+          cause: error,
+        }),
       );
       expect(service).toBeDefined();
       consoleErrorSpy.mockRestore();
@@ -1437,7 +1450,7 @@ describe('SnapAccountService', () => {
         mocks.KeyringController.withKeyringV2Unsafe,
       ).not.toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Migration failed after unlock:',
+        'Migration failed after unlock',
         error,
       );
       expect(service).toBeDefined();
