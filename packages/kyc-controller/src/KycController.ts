@@ -1055,7 +1055,7 @@ export class KycController extends BaseController<
         expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
       });
 
-      const { sessionId, idosSessionId } = await this.messenger.call(
+      const { sessionId } = await this.messenger.call(
         'KycService:createUkycSession',
         {
           jwtToken,
@@ -1068,9 +1068,6 @@ export class KycController extends BaseController<
         },
       );
 
-      // Retain the session identifiers so the SDK can refresh its token.
-      const exchange = { sessionId, idosSessionId };
-
       this.#updateIfCurrent(generation, (state) => {
         state.sumsub.status = 'fetchingToken';
         state.sumsub.sessionId = sessionId;
@@ -1078,7 +1075,7 @@ export class KycController extends BaseController<
 
       const { applicantAccessToken } = await this.messenger.call(
         'KycService:fetchApplicantAccessToken',
-        exchange,
+        sessionId,
       );
 
       // A reset() may have landed while the session/token was being prepared.
@@ -1113,7 +1110,7 @@ export class KycController extends BaseController<
           }
           const refreshed = await this.messenger.call(
             'KycService:fetchApplicantAccessToken',
-            exchange,
+            sessionId,
           );
           return refreshed.applicantAccessToken;
         },

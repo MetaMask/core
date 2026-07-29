@@ -1,7 +1,7 @@
-import { areUint8ArraysEqual, base64ToBytes } from '@metamask/utils';
+import { areUint8ArraysEqual } from '@metamask/utils';
 import nacl from 'tweetnacl';
 
-import { toBase64Url } from './encoding';
+import { base64UrlToBytes, toBase64Url } from './encoding';
 import { wrapEncryptionKey } from './wrapEncryptionKey';
 
 const DATA_ENCRYPTION_KEY = new Uint8Array(32).fill(7);
@@ -23,8 +23,8 @@ function unwrap(
   nonce: string,
 ): Uint8Array {
   const recovered = nacl.box.open(
-    base64ToBytes(encryptedKey),
-    base64ToBytes(nonce),
+    base64UrlToBytes(encryptedKey),
+    base64UrlToBytes(nonce),
     clientPublicKey,
     serverPrivateKey,
   );
@@ -54,7 +54,7 @@ describe('UKYC wrapEncryptionKey', () => {
     expect(areUint8ArraysEqual(recovered, DATA_ENCRYPTION_KEY)).toBe(true);
   });
 
-  it('emits standard base64 fields', () => {
+  it('emits base64url fields', () => {
     const serverPublicKey = nacl.box.keyPair().publicKey;
     const clientPrivateKey = nacl.box.keyPair().secretKey;
 
@@ -64,8 +64,8 @@ describe('UKYC wrapEncryptionKey', () => {
       DATA_ENCRYPTION_KEY,
     );
 
-    expect(encryptedKey).toMatch(/^[A-Za-z0-9+/]+={0,2}$/u);
-    expect(nonce).toMatch(/^[A-Za-z0-9+/]+={0,2}$/u);
+    expect(encryptedKey).toMatch(/^[A-Za-z0-9\-_]+$/u);
+    expect(nonce).toMatch(/^[A-Za-z0-9\-_]+$/u);
   });
 
   it('uses a fresh nonce per call', () => {

@@ -1,7 +1,6 @@
-import { bytesToBase64 } from '@metamask/utils';
 import nacl from 'tweetnacl';
 
-import { base64UrlToBytes } from './encoding';
+import { base64UrlToBytes, toBase64Url } from './encoding';
 
 /**
  * Wraps the `data_encryption_key` for the UKYC session server using NaCl's
@@ -18,7 +17,7 @@ import { base64UrlToBytes } from './encoding';
 /**
  * The transmitted portion of a wrapped encryption key: the `crypto_box`
  * ciphertext (which includes the 16-byte Poly1305 auth tag) and the nonce,
- * both standard base64-encoded.
+ * both unpadded base64url-encoded.
  */
 export type WrappedEncryptionKeyParts = {
   encryptedKey: string;
@@ -35,7 +34,7 @@ export type WrappedEncryptionKeyParts = {
  * @param sessionClientPrivateKey - Our session's X25519 private key.
  * @param sessionServerPublicKey - The server's X25519 public key (base64url).
  * @param keyToWrap - The raw symmetric key bytes to encrypt.
- * @returns The base64 `encryptedKey` (ciphertext + tag) and `nonce`.
+ * @returns The base64url `encryptedKey` (ciphertext + tag) and `nonce`.
  */
 export function wrapEncryptionKey(
   sessionClientPrivateKey: Uint8Array,
@@ -51,7 +50,7 @@ export function wrapEncryptionKey(
     sessionClientPrivateKey,
   );
   return {
-    encryptedKey: bytesToBase64(encryptedKey),
-    nonce: bytesToBase64(nonce),
+    encryptedKey: toBase64Url(encryptedKey),
+    nonce: toBase64Url(nonce),
   };
 }
