@@ -14,7 +14,6 @@ permissions:
 
 concurrency:
   group: close-stale-release-prs
-  cancel-in-progress: false
 
 jobs:
   close-stale-release-prs:
@@ -28,7 +27,6 @@ jobs:
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
-          persist-credentials: false
           cache-node-modules: true
       - name: Close inactive release PRs
         env:
