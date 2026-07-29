@@ -3918,8 +3918,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         freedMargin: number;
       }[] = [];
 
-      // Build orders array
+      // Build orders array, plus the positions each order closes so response
+      // statuses stay index-aligned when a position is skipped below
       const orders: SDKOrderParams[] = [];
+      const orderedPositions: Position[] = [];
 
       for (const position of positionsToClose) {
         // Extract DEX name for HIP-3 positions
@@ -3953,6 +3955,25 @@ export class HyperLiquidProvider implements PerpsProvider {
         const closeSize = Math.abs(positionSize);
         const totalMarginUsed = parseFloat(position.marginUsed);
 
+        // formatHyperLiquidSize() below rounds half-up, so floor onto the size
+        // grid first: a reduce-only order rounded above the position is rejected
+        // with "Reduce only order would increase position".
+        const flooredCloseSize = floorToSizeDecimals(
+          closeSize,
+          assetInfo.szDecimals,
+        );
+
+        // A dust position worth less than one size increment floors to 0, which
+        // would submit a zero-size order. Skip it rather than sending an order
+        // the exchange must reject; the remaining positions still close.
+        if (flooredCloseSize <= 0) {
+          this.#deps.debugLogger.log(
+            'Skipping position smaller than one size increment',
+            { coin: position.symbol, size: position.size },
+          );
+          continue;
+        }
+
         // Track HIP-3 transfers (full position close means all margin is freed)
         if (isHip3Position && dexName && !this.#useUnifiedAccount) {
           hip3Transfers.push({
@@ -3972,11 +3993,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           ? currentPrice * (1 + slippage)
           : currentPrice * (1 - slippage);
 
-        // Format size and price. formatHyperLiquidSize() rounds half-up, so floor
-        // onto the size grid first: a reduce-only order rounded above the
-        // position is rejected with "Reduce only order would increase position".
         const formattedSize = formatHyperLiquidSize({
-          size: floorToSizeDecimals(closeSize, assetInfo.szDecimals),
+          size: flooredCloseSize,
           szDecimals: assetInfo.szDecimals,
         });
 
@@ -3994,6 +4012,17 @@ export class HyperLiquidProvider implements PerpsProvider {
           r: true, // reduceOnly
           t: { limit: { tif: 'Ioc' } }, // Immediate or cancel for market-like execution
         });
+        orderedPositions.push(position);
+      }
+
+      // Every position was smaller than one size increment
+      if (orders.length === 0) {
+        return {
+          success: false,
+          successCount: 0,
+          failureCount: 0,
+          results: [],
+        };
       }
 
       // Calculate discounted builder fee if reward discount is active
@@ -4035,7 +4064,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             const { sourceDex, freedMargin } = hip3Transfers[i];
             this.#deps.debugLogger.log(
               'Position closed successfully, initiating manual auto-transfer back',
-              { symbol: positionsToClose[i].symbol, freedMargin },
+              { symbol: orderedPositions[i].symbol, freedMargin },
             );
 
             // Non-blocking: Transfer freed margin back to main DEX
@@ -4052,7 +4081,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         successCount,
         failureCount,
         results: statuses.map((status, index) => ({
-          symbol: positionsToClose[index].symbol,
+          symbol: orderedPositions[index].symbol,
           success:
             isStatusObject(status) &&
             (hasProperty(status, 'filled') || hasProperty(status, 'resting')),
@@ -4456,18 +4485,21 @@ export class HyperLiquidProvider implements PerpsProvider {
           // lags, hand back a position that no longer exists.
           throw new Error(`No position found for ${params.symbol}`);
         } else {
-          // The cache does not cover this DEX — a HIP-3 DEX whose subscription
-          // is not active, or one dropped after a failed re-subscription — so
-          // the symbol's absence proves nothing. Spend one REST request to get
-          // live data rather than either blocking a closable position or
-          // trusting a snapshot the exchange may have moved past.
+          // The cache holds nothing for this symbol's DEX — a HIP-3 DEX whose
+          // subscription has not published this session — so the symbol's
+          // absence proves nothing. Spend one REST request to get live data
+          // rather than trusting a snapshot the exchange may have moved past.
           this.#deps.debugLogger.log(
             'Position cache does not cover this DEX: fetching live positions',
             { coin: params.symbol },
           );
 
+          // getPositions() swallows request failures and returns [], so keep the
+          // caller's snapshot when the lookup comes back empty: a rate-limited
+          // request must not block a position that is open and closable.
           const positions = await this.getPositions({ skipCache: true });
-          position = positions.find((pos) => pos.symbol === params.symbol);
+          position =
+            positions.find((pos) => pos.symbol === params.symbol) ?? position;
         }
       }
 
@@ -4507,7 +4539,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Capture position details BEFORE closing for freed margin calculation
       const totalMarginUsed = parseFloat(position.marginUsed);
       const totalPositionSize = absPositionSize;
-      const closeSizeNum = parseFloat(closeSize);
+      const closeSizeNum = closeSizeNumber;
       const isHip3Position = position.symbol.includes(':');
       const hip3Dex = isHip3Position ? position.symbol.split(':')[0] : null;
 

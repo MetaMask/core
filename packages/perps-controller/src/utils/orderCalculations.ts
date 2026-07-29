@@ -292,9 +292,15 @@ export function calculateFinalPositionSize(
     // the caller's clamp binding.
     if (reduceOnly && size) {
       const requestedSize = parseFloat(size);
-      if (Number.isFinite(requestedSize)) {
-        finalPositionSize = Math.min(finalPositionSize, requestedSize);
+
+      // A supplied size must be positive, or the cap below would submit a
+      // zero/negative order. Reject it rather than silently falling back to the
+      // USD-derived size, matching how closePosition treats the same input.
+      if (!Number.isFinite(requestedSize) || requestedSize <= 0) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
       }
+
+      finalPositionSize = Math.min(finalPositionSize, requestedSize);
     }
 
     // 3. Apply size decimals rounding (reduce-only never rounds up)

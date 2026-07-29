@@ -52,6 +52,55 @@ describe('calculateFinalPositionSize', () => {
       ).toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
     });
 
+    it('throws instead of capping a reduce-only size at a non-positive size', () => {
+      // The cap would make this a zero-size order, which the exchange rejects
+      expect(() =>
+        calculateFinalPositionSize({
+          size: '0',
+          usdAmount: '100',
+          currentPrice: 50000,
+          szDecimals: 3,
+          reduceOnly: true,
+        }),
+      ).toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+    });
+
+    it('throws instead of capping a reduce-only size at a negative size', () => {
+      expect(() =>
+        calculateFinalPositionSize({
+          size: '-1',
+          usdAmount: '100',
+          currentPrice: 50000,
+          szDecimals: 3,
+          reduceOnly: true,
+        }),
+      ).toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+    });
+
+    it('throws instead of capping a reduce-only size at a non-numeric size', () => {
+      expect(() =>
+        calculateFinalPositionSize({
+          size: 'abc',
+          usdAmount: '100',
+          currentPrice: 50000,
+          szDecimals: 3,
+          reduceOnly: true,
+        }),
+      ).toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+    });
+
+    it('leaves a non-positive size alone for orders that are not reduce-only', () => {
+      // Opens still treat usdAmount as the only source of truth
+      const { finalPositionSize } = calculateFinalPositionSize({
+        size: '0',
+        usdAmount: '100',
+        currentPrice: 50000,
+        szDecimals: 3,
+      });
+
+      expect(finalPositionSize).toBeCloseTo(0.002, 10);
+    });
+
     it('ignores the provided size when a USD amount is given', () => {
       const { finalPositionSize } = calculateFinalPositionSize({
         size: '0.04',

@@ -2382,6 +2382,22 @@ describe('HyperLiquidProvider', () => {
       expect(getPositionsSpy).toHaveBeenCalledWith({ skipCache: true });
     });
 
+    it('falls back to the caller snapshot when the uncovered-DEX lookup returns nothing', async () => {
+      // getPositions() swallows request failures and returns [], so a
+      // rate-limited lookup must not block a position that is open and closable
+      primePositionsCache([], []);
+      jest.spyOn(provider, 'getPositions').mockResolvedValue([]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.07' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.07', r: true });
+    });
+
     it('keeps the clamp when a partial close also carries usdAmount', async () => {
       // The ticket's scenario for the flow clients actually use: a 50% market
       // close sends size *and* usdAmount alongside a snapshot that a TP/SL fill
@@ -2751,6 +2767,68 @@ describe('HyperLiquidProvider', () => {
             orders: [expect.objectContaining({ s: '0.1', r: true })],
           }),
         );
+      });
+
+      it('skips a position smaller than one size increment and still closes the rest', async () => {
+        // 0.0004 BTC floors to 0 at szDecimals 3; submitting "0" would be
+        // rejected, and the remaining position must still close with its own
+        // status mapped to the right symbol
+        const mockOrder = jest.fn().mockResolvedValue({
+          response: { data: { statuses: [{ filled: {} }] } },
+        });
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+              withdrawable: '10000',
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'BTC',
+                    szi: '0.0004', // dust
+                    entryPx: '50000',
+                    positionValue: '20',
+                    unrealizedPnl: '1',
+                    marginUsed: '2',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '45000',
+                  },
+                  type: 'oneWay',
+                },
+                {
+                  position: {
+                    coin: 'ETH',
+                    szi: '1.5',
+                    entryPx: '3000',
+                    positionValue: '4500',
+                    unrealizedPnl: '50',
+                    marginUsed: '450',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '2700',
+                  },
+                  type: 'oneWay',
+                },
+              ],
+              crossMarginSummary: {
+                accountValue: '10500',
+                totalMarginUsed: '500',
+              },
+            }),
+          }),
+        );
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+
+        const result = await provider.closePositions({ closeAll: true });
+
+        expect(result.success).toBe(true);
+        expect(mockOrder).toHaveBeenCalledWith(
+          expect.objectContaining({
+            orders: [expect.objectContaining({ s: '1.5', r: true })],
+          }),
+        );
+        expect(result.results).toEqual([{ symbol: 'ETH', success: true }]);
       });
 
       it('handles batch close errors', async () => {
