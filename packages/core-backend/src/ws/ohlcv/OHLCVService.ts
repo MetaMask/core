@@ -14,11 +14,7 @@ import type {
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { Mutex } from 'async-mutex';
-import {
-  handleAll,
-  IterableBackoff,
-  retry,
-} from 'cockatiel';
+import { handleAll, IterableBackoff, retry } from 'cockatiel';
 
 import { projectLogger, createModuleLogger } from '../../logger.js';
 import type { BackendWebSocketServiceMethodActions } from '../BackendWebSocketService-method-action-types.js';
