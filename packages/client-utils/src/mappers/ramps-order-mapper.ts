@@ -24,6 +24,7 @@ type RampsOrderStatusLike =
  * `client-utils` free of a dependency on `ramps-controller`.
  */
 export type RampsOrderLike = {
+  id?: string;
   provider?: { id?: string; name?: string };
   cryptoAmount: string | number;
   fiatAmount: number;
@@ -39,6 +40,7 @@ export type RampsOrderLike = {
   network: { chainId: string };
   statusDescription?: string;
   orderType: string;
+  excludeFromPurchases?: boolean;
   paymentDetails?: RampOrderPaymentDetail[];
 };
 
@@ -55,12 +57,14 @@ function mapStatus(status: RampsOrderStatusLike): Status {
   }
 }
 
-// `UNKNOWN` and `ID_EXPIRED` represent background checkout attempts (e.g.
-// precreated orders that never matched a real order) that the user never
-// knowingly initiated as a distinct order and shouldn't see in their history.
+// `UNKNOWN`, `ID_EXPIRED`, and `PRECREATED` represent background checkout
+// attempts (e.g. precreated orders that never matched a real order, or whose
+// id expired before the provider assigned one) that the user never knowingly
+// initiated as a distinct order and shouldn't see in their history.
 const HIDDEN_STATUSES = new Set<RampsOrderStatusLike>([
   'UNKNOWN',
   'ID_EXPIRED',
+  'PRECREATED',
 ]);
 
 /**
@@ -71,21 +75,27 @@ const HIDDEN_STATUSES = new Set<RampsOrderStatusLike>([
  * should not be surfaced in the activity list.
  */
 export function mapRampsOrder(order: RampsOrderLike): ActivityItem | null {
-  if (HIDDEN_STATUSES.has(order.status)) {
+  if (HIDDEN_STATUSES.has(order.status) || order.excludeFromPurchases) {
     return null;
   }
 
   // The V2 API returns `orderType` uppercased (e.g. `'BUY'`); normalize since
-  // some call sites (e.g. locally-created stub orders) use lowercase.
-  const isBuy = order.orderType.toUpperCase() === 'BUY';
+  // some call sites (e.g. locally-created stub orders) use lowercase. Transak
+  // deposits (`'DEPOSIT'`) are a buy variant, not a sell.
+  const normalizedOrderType = order.orderType.toUpperCase();
+  const isBuy =
+    normalizedOrderType === 'BUY' || normalizedOrderType === 'DEPOSIT';
   const direction: TokenAmount['direction'] = isBuy ? 'in' : 'out';
 
+  // `cryptoAmount`/`fiatAmount` are already human-formatted by the API, unlike
+  // `TokenAmount.decimals` elsewhere in this package, which signals a raw
+  // on-chain amount that still needs scaling. Omit `decimals` so clients don't
+  // wrongly re-scale an already-human amount.
   const token: TokenAmount | undefined = order.cryptoCurrency
     ? {
         amount: String(order.cryptoAmount),
         symbol: order.cryptoCurrency.symbol,
         assetId: order.cryptoCurrency.assetId,
-        decimals: order.cryptoCurrency.decimals,
         direction,
       }
     : undefined;
@@ -115,6 +125,7 @@ export function mapRampsOrder(order: RampsOrderLike): ActivityItem | null {
     status: mapStatus(order.status),
     timestamp: order.createdAt,
     hash: order.txHash || undefined,
+    id: order.id ?? order.providerOrderId,
     data: {
       from: order.walletAddress,
       fiat,
@@ -127,7 +138,6 @@ export function mapRampsOrder(order: RampsOrderLike): ActivityItem | null {
       },
       statusDescription: order.statusDescription,
       paymentDetails: order.paymentDetails,
-      id: order.providerOrderId,
     },
   };
 }

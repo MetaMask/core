@@ -34,15 +34,14 @@ describe('mapRampsOrder', () => {
       status: 'success',
       timestamp: 1716367781000,
       hash: '0xabc',
+      id: 'order-123',
       data: {
         from: '0xwallet',
-        id: 'order-123',
         fiat: { amount: '100', currency: 'USD' },
         token: {
           amount: '0.05',
           symbol: 'ETH',
           assetId: 'eip155:1/slip44:60',
-          decimals: 18,
           direction: 'in',
         },
         fees: [{ type: 'total', amount: '2.5', symbol: 'USD' }],
@@ -99,7 +98,7 @@ describe('mapRampsOrder', () => {
     const item = mapRampsOrder({ ...baseOrder, txHash: '', status: 'PENDING' });
 
     expect(item?.hash).toBeUndefined();
-    expect(item?.type === 'rampBuy' ? item.data.id : 'unset').toBe('order-123');
+    expect(item?.type === 'rampBuy' ? item.id : 'unset').toBe('order-123');
     expect(item?.status).toBe('pending');
   });
 
@@ -110,7 +109,6 @@ describe('mapRampsOrder', () => {
   });
 
   it.each([
-    ['PRECREATED', 'pending'],
     ['CREATED', 'pending'],
     ['PENDING', 'pending'],
     ['COMPLETED', 'success'],
@@ -125,7 +123,7 @@ describe('mapRampsOrder', () => {
     },
   );
 
-  it.each(['UNKNOWN', 'ID_EXPIRED'] as const)(
+  it.each(['UNKNOWN', 'ID_EXPIRED', 'PRECREATED'] as const)(
     'hides orders with RampsOrderStatus %s from the activity list',
     (rampsStatus) => {
       const item = mapRampsOrder({ ...baseOrder, status: rampsStatus });
@@ -133,6 +131,41 @@ describe('mapRampsOrder', () => {
       expect(item).toBeNull();
     },
   );
+
+  it('hides orders excluded from purchases', () => {
+    const item = mapRampsOrder({ ...baseOrder, excludeFromPurchases: true });
+
+    expect(item).toBeNull();
+  });
+
+  it.each(['DEPOSIT', 'deposit'] as const)(
+    'maps an orderType of %s to a rampBuy activity item',
+    (orderType) => {
+      const item = mapRampsOrder({ ...baseOrder, orderType });
+
+      expect(item).toMatchObject({ type: 'rampBuy' });
+    },
+  );
+
+  it('prefers the canonical order id over providerOrderId when present', () => {
+    const item = mapRampsOrder({
+      ...baseOrder,
+      id: 'transak/orders/canonical-id',
+    });
+
+    expect(item).toMatchObject({ id: 'transak/orders/canonical-id' });
+  });
+
+  it('does not report a decimals field on the token amount, since cryptoAmount is already human-formatted', () => {
+    const item = mapRampsOrder(baseOrder);
+
+    expect(item).toMatchObject({
+      data: { token: { amount: '0.05', symbol: 'ETH' } },
+    });
+    expect(
+      item?.type === 'rampBuy' ? item.data.token : undefined,
+    ).not.toHaveProperty('decimals');
+  });
 
   it('degrades gracefully when optional fields are missing', () => {
     const minimalOrder: RampsOrderLike = {

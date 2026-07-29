@@ -172,7 +172,7 @@ export type ActivityItem =
         transactionProtocol?: string;
       }
     >
-  | ActivityData<
+  | (ActivityData<
       'rampBuy' | 'rampSell',
       {
         from?: string;
@@ -186,16 +186,19 @@ export type ActivityItem =
         };
         statusDescription?: string;
         paymentDetails?: RampOrderPaymentDetail[];
-        // Stable identifier for orders that may not have a hash yet (e.g. a
-        // ramp order pending fiat settlement, where `hash` is empty until it
-        // settles on-chain).
-        id?: string;
       },
       // Precreated stub orders (see `RampsController.addPrecreatedOrder`) may
       // not have an assigned network yet, so unlike every other activity
       // kind, a ramp order's chain id isn't guaranteed.
       CaipChainId | undefined
-    >;
+    > & {
+      // Stable identifier for orders that may not have a hash yet (e.g. a
+      // ramp order pending fiat settlement, where `hash` is empty until it
+      // settles on-chain). Sits next to `hash` since, like `hash`, it's a
+      // cross-kind identity concept — scoped to this union arm only, since no
+      // other activity kind needs it today.
+      id?: string;
+    });
 
 // Note: Update core-backend
 export type ValueTransfer = _ValueTransfer & {
