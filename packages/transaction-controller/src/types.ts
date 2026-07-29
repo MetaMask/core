@@ -2331,6 +2331,15 @@ export type RequiredAsset = {
   standard: string;
 };
 
+/** A nested transaction calldata update in an atomic batch. */
+export type NestedTransactionUpdate = {
+  /** Index of the nested transaction to update. */
+  transactionIndex: number;
+
+  /** New calldata for the nested transaction. */
+  transactionData: Hex;
+};
+
 /**
  * Decoded revert from a single lifecycle source.
  */

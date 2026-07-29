@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `toNormalizedAmounts`converts atomic amounts to human-readable values
 - Export `BridgeAsset` and `validateBridgeAsset`, used by QuoteResponse v2, and token endpoints ([#9085](https://github.com/MetaMask/core/pull/9085))
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.1` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/assets-controller` from `^11.2.1` to `^11.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+
 ## [78.0.1]
 
 ### Changed
