@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix Arc (`5042`/`0x13b2`) native asset ID in `codefi-v2.ts`, from the `erc20:0x0` zero-address placeholder to `slip44:5042` now that Arc has a real SLIP-44 registry entry for its native USDC ([#9681](https://github.com/MetaMask/core/pull/9681))
 - Treat `loan` (not `lending`) as the DeFi liability position type in `DEFI_POSITION_LIABILITY_TYPES`, matching corrected Accounts API v6 position types ([#9683](https://github.com/MetaMask/core/pull/9683))
 
 ## [110.0.0]
