@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.0]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to UX Teams packages ([#9621](https://github.com/MetaMask/core/pull/9621))
-
 ### Added
 
 - Add optional `assetType` (`'native' | 'erc20' | 'erc721' | 'erc1155'`) on `TokenAmount` and `Fee` so clients can resolve icons when `assetId` is absent ([#9671](https://github.com/MetaMask/core/pull/9671))
