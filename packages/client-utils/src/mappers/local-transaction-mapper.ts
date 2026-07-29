@@ -12,7 +12,10 @@ import {
   withdrawMethodIds,
   wrapMethodIds,
 } from './constants.js';
-import { formatAddressToAssetId } from './helpers/caip.js';
+import {
+  formatAddressToAssetId,
+  resolveNativeAssetId,
+} from './helpers/caip.js';
 import { getKnownTokenMetadata } from './helpers/token-metadata.js';
 import {
   getLocalTransactionFees,
@@ -39,9 +42,14 @@ export function mapLocalTransaction(
     fees?: Fee[];
   },
 ): ActivityItem {
+  const { initialTransaction, primaryTransaction } = transactionGroup;
+  const chainId = toCaipChainId(
+    KnownCaipNamespace.Eip155,
+    Number.parseInt(initialTransaction.chainId, 16).toString(),
+  );
+  const nativeSymbol = transactionGroup.nativeAssetSymbol;
   const fees =
     transactionGroup.fees ?? getLocalTransactionFees(transactionGroup);
-  const { initialTransaction, primaryTransaction } = transactionGroup;
   const {
     transferInformation,
     type: transactionType,
@@ -64,11 +72,6 @@ export function mapLocalTransaction(
   const tokenContractAddress = isPermit2Approve
     ? undefined
     : (transferInformation?.contractAddress ?? (to || undefined));
-  const chainId = toCaipChainId(
-    KnownCaipNamespace.Eip155,
-    Number.parseInt(initialTransaction.chainId, 16).toString(),
-  );
-  const nativeSymbol = transactionGroup.nativeAssetSymbol;
 
   const getNativeToken = (
     transaction: TransactionGroup['initialTransaction'],
@@ -88,12 +91,15 @@ export function mapLocalTransaction(
       return undefined;
     }
 
+    const assetId = resolveNativeAssetId(chainId, nativeSymbol);
+
     return {
       direction,
       assetType: 'native',
       decimals: evmNativeDecimals,
       ...(amount ? { amount } : {}),
       ...(nativeSymbol === undefined ? {} : { symbol: nativeSymbol }),
+      ...(assetId ? { assetId } : {}),
     };
   };
 
