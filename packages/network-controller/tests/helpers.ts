@@ -42,7 +42,6 @@ import type {
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController.js';
 import { RpcEndpointType } from '../src/NetworkController.js';
-import type { NetworkControllerAnalyticsOptions } from '../src/rpc-service-analytics.js';
 import { RpcServiceOptions } from '../src/rpc-service/rpc-service.js';
 import type { RpcFailoverMode } from '../src/selectors.js';
 import type {
@@ -83,15 +82,6 @@ export const TESTNET = {
   chainId: ChainId.sepolia,
   name: 'Sepolia',
   nativeCurrency: 'SepoliaETH',
-};
-
-/**
- * Analytics options for tests that don't exercise analytics. Reports no
- * endpoint as public and never samples, so no analytics events are emitted.
- */
-export const MOCK_ANALYTICS_OPTIONS: NetworkControllerAnalyticsOptions = {
-  isRpcEndpointUrlPublic: () => false,
-  rpcServiceEventsSampleRate: 0,
 };
 
 /**
@@ -698,7 +688,6 @@ export async function withController<ReturnValue>(
   const controller = new NetworkController({
     messenger: networkControllerMessenger,
     infuraProjectId: 'infura-project-id',
-    analyticsOptions: MOCK_ANALYTICS_OPTIONS,
     getRpcServiceOptions: (): Omit<
       RpcServiceOptions,
       'failoverService' | 'endpointUrl'
