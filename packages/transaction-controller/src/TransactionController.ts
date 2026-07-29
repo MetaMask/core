@@ -701,7 +701,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateSecurityAlertResponse',
   'updateSelectedGasFeeToken',
   'updateTransaction',
-  'updateTransactionMetadataWithoutResimulation',
+  'updateTransactionMetadata',
   'updateTransactionGasFees',
   'wipeTransactions',
 ] as const;
@@ -1624,22 +1624,25 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Updates transaction metadata without triggering automatic re-simulation.
+   * Updates transaction metadata.
    *
    * @param options - Update options.
    * @param options.transactionId - ID of the transaction to update.
    * @param options.callback - Function that mutates the transaction metadata.
+   * @param options.skipResimulate - Whether to skip automatic re-simulation.
    * @returns The updated transaction metadata.
    */
-  updateTransactionMetadataWithoutResimulation({
+  updateTransactionMetadata({
     transactionId,
     callback,
+    skipResimulate = false,
   }: {
     transactionId: string;
     callback: (transactionMeta: TransactionMeta) => void;
+    skipResimulate?: boolean;
   }): Readonly<TransactionMeta> {
     return this.#updateTransactionInternal(
-      { transactionId, skipResimulateCheck: true },
+      { transactionId, skipResimulateCheck: skipResimulate },
       (transactionMeta) => {
         callback(transactionMeta);
       },
