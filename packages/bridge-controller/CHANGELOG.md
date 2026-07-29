@@ -18,14 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.1` ([#9693](https://github.com/MetaMask/core/pull/9693))
-- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
-- Bump `@metamask/assets-controller` from `^11.2.1` to `^11.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
-
-## [78.0.1]
-
-### Changed
-
 - **BREAKING:** Use QuoteResponse V2 within the BridgeController; this affects the batch-sell, unified swap/bridge and quickBuy experiences ([#9085](https://github.com/MetaMask/core/pull/9085))
   - convert quotes to QuoteResponse v2 in `fetchBridgeQuoteStream`
   - store quotes as QuoteResponse v2 in the BridgeController
@@ -33,16 +25,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `fetchBridgeQuoteStream` and `fetchBatchSellTrades` now return `QuoteResponse` v2
   - `fetchBatchSellTrades` expects V2 quotes, then transforms them to V1 for backend compatibility
   - `appendFeesToQuotes` interface now requires a chainId parameter, but still accepts both V1 and V2 quotes
+- Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.1` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/assets-controller` from `^11.2.1` to `^11.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+
+### Removed
+
+- Clean up unused utils: `isEvmQuoteResponse`, unsupporteed `XlmScope.Testnet` chainId mapping ([#9085](https://github.com/MetaMask/core/pull/9085))
+
+## [78.0.1]
+
+### Changed
+
 - Bump `@metamask/assets-controller` from `^11.2.0` to `^11.2.1` ([#9648](https://github.com/MetaMask/core/pull/9648))
 - Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
 
 ### Fixed
 
 - Always fetch and save token prices to `assetExchangeRates` ([#9687](https://github.com/MetaMask/core/pull/9687))
-
-### Removed
-
-- Clean up unused utils: `isEvmQuoteResponse`, unsupporteed `XlmScope.Testnet` chainId mapping ([#9085](https://github.com/MetaMask/core/pull/9085))
 
 ## [78.0.0]
 
