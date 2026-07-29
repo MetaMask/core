@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0]
+
+### Added
+
+- Add optional `assetType` (`'native' | 'erc20' | 'erc721' | 'erc1155'`) on `TokenAmount` and `Fee` so clients can resolve icons when `assetId` is absent ([#9671](https://github.com/MetaMask/core/pull/9671))
+
 ### Changed
 
+- Stop inventing native token metadata in activity mappers ([#9671](https://github.com/MetaMask/core/pull/9671))
+  - Remove the hardcoded `nativeAssetsByCaipChainId` lookup and the `STANDARD` assume-native fallback
+  - `formatAddressToAssetId` returns `undefined` for native sentinel addresses instead of `erc20:0x0`
+  - Network fees and native tokens no longer invent `symbol` / slip44 `assetId`
 - Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
 
 ## [1.2.1]
@@ -50,7 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.3.0...HEAD
+[1.3.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.2.1...@metamask/client-utils@1.3.0
 [1.2.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.2.0...@metamask/client-utils@1.2.1
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.1.0...@metamask/client-utils@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.0.0...@metamask/client-utils@1.1.0
