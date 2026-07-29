@@ -109,13 +109,31 @@ describe('GeolocationApiService', () => {
       expect(result).toBe('GB');
     });
 
-    it('joins the country and region into an ISO 3166-2 code', async () => {
+    it('joins the country and region for the US', async () => {
       const mockFetch = createMockFetch({ country: 'US', region: 'NY' });
       const { service } = getService({ options: { fetch: mockFetch } });
 
       const result = await service.fetchGeolocation();
 
       expect(result).toBe('US-NY');
+    });
+
+    it('joins the country and region for Canada', async () => {
+      const mockFetch = createMockFetch({ country: 'CA', region: 'ON' });
+      const { service } = getService({ options: { fetch: mockFetch } });
+
+      const result = await service.fetchGeolocation();
+
+      expect(result).toBe('CA-ON');
+    });
+
+    it('returns the country only for other countries, even with a region', async () => {
+      const mockFetch = createMockFetch({ country: 'FR', region: 'IDF' });
+      const { service } = getService({ options: { fetch: mockFetch } });
+
+      const result = await service.fetchGeolocation();
+
+      expect(result).toBe('FR');
     });
 
     it('omits the region when the API does not return one', async () => {

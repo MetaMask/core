@@ -58,19 +58,35 @@ export function getUnknownGeolocationData(): GeolocationData {
 }
 
 /**
- * Converts geolocation data to the ISO 3166-2 location code that
- * {@link GeolocationApiService.fetchGeolocation} returns.
+ * Country codes for which the location code includes the region. This mirrors
+ * the legacy `v1` geolocation endpoint, which only appended the subdivision for
+ * the United States and Canada (e.g. `US-NY`, `CA-ON`) and returned the country
+ * alone for everywhere else.
+ */
+const REGION_APPENDED_COUNTRIES = new Set(['US', 'CA']);
+
+/**
+ * Converts geolocation data to a location code.
+ *
+ * To preserve backwards compatibility with the legacy `v1` endpoint, the region
+ * is appended only for {@link REGION_APPENDED_COUNTRIES} (e.g. `US-NY`,
+ * `CA-ON`); all other countries return the country code alone (e.g. `FR`), even
+ * when a region is known.
  *
  * @param data - The geolocation data to convert.
- * @returns The location code (e.g. `US`, `US-NY`), or {@link UNKNOWN_LOCATION}
- * when the country is unknown.
+ * @returns The location code (e.g. `US-NY`, `FR`), or
+ * {@link UNKNOWN_LOCATION} when the country is unknown.
  */
 export function toLocationCode(data: GeolocationData): string {
   if (data.country === null) {
     return UNKNOWN_LOCATION;
   }
 
-  return data.region === null ? data.country : `${data.country}-${data.region}`;
+  if (data.region !== null && REGION_APPENDED_COUNTRIES.has(data.country)) {
+    return `${data.country}-${data.region}`;
+  }
+
+  return data.country;
 }
 
 // === MESSENGER ===
