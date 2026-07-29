@@ -6187,7 +6187,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^78.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^78.0.1, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -6241,7 +6241,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^39.0.5"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/bridge-controller": "npm:^78.0.0"
+    "@metamask/bridge-controller": "npm:^78.0.1"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/gas-fee-controller": "npm:^26.3.0"
     "@metamask/keyring-controller": "npm:^27.1.0"
@@ -7269,7 +7269,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/foundryup@workspace:packages/foundryup":
+"@metamask/foundryup@npm:^1.0.1, @metamask/foundryup@workspace:packages/foundryup":
   version: 0.0.0-use.local
   resolution: "@metamask/foundryup@workspace:packages/foundryup"
   dependencies:
@@ -7740,6 +7740,7 @@ __metadata:
     immer: "npm:^9.0.6"
     jest: "npm:^30.4.2"
     ts-jest: "npm:^29.4.11"
+    tstyche: "npm:5.0.2"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9373,6 +9374,7 @@ __metadata:
     "@inquirer/password": "npm:^5.1.1"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
+    "@metamask/foundryup": "npm:^1.0.1"
     "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/scure-bip39": "npm:^2.1.1"
@@ -9389,6 +9391,7 @@ __metadata:
     immer: "npm:^9.0.6"
     jest: "npm:^30.4.2"
     jest-environment-node: "npm:^30.4.1"
+    nock: "npm:^13.3.1"
     ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
     typescript: "npm:~5.3.3"
@@ -26508,6 +26511,20 @@ __metadata:
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: 10/3e2e043d5c2316461cb54e5c7fe02c30ef6dccb3384717ca22ae5c6b5bc95232a6241df19c622d9c73b809bea33b187f6dbc73030963e29950c2141bc32a79f7
+  languageName: node
+  linkType: hard
+
+"tstyche@npm:5.0.2":
+  version: 5.0.2
+  resolution: "tstyche@npm:5.0.2"
+  peerDependencies:
+    typescript: ">=5.0"
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+  bin:
+    tstyche: ./build/bin.js
+  checksum: 10/bbc11c2f7c5c1cbf4f848a9af1eef947cf9b2643491a59fb7dbaa903bb15bba620dad24904c3db6279f206a23599d97d47f9d9e00473c54f6bb9375a7dc26178
   languageName: node
   linkType: hard
 
