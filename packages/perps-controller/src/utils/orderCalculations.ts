@@ -454,13 +454,44 @@ function buildMainOrderTypeField(params: {
   return {
     trigger: {
       isMarket: !isLimitExecutionOrderType(orderType),
-      triggerPx: formatHyperLiquidPrice({
-        price: parseFloat(triggerPrice),
+      triggerPx: formatTriggerPrice({
+        price: triggerPrice,
         szDecimals,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,
       }),
       tpsl: getTriggerDirection(orderType) === 'stop' ? 'sl' : 'tp',
     },
   };
+}
+
+/**
+ * Format a price that becomes a `triggerPx`, rejecting one that disappears at
+ * the asset's precision.
+ *
+ * A positive price below the asset's tick (`0.0004` where the asset quotes to
+ * three places) formats to `'0'`, which the exchange rejects. Callers validate
+ * this up front via `validateOrderPrecision`; this is the guard on the build
+ * path itself, so no caller can assemble an order that cannot be accepted.
+ *
+ * @param params - Price parameters
+ * @param params.price - The requested price
+ * @param params.szDecimals - Asset size decimals
+ * @param params.error - Typed error to throw when the price rounds away
+ * @returns The exchange-formatted price, guaranteed positive.
+ */
+function formatTriggerPrice(params: {
+  price: string;
+  szDecimals: number;
+  error: string;
+}): string {
+  const { price, szDecimals, error } = params;
+  const formatted = formatHyperLiquidPrice({ price, szDecimals });
+
+  if (parseFloat(formatted) <= 0) {
+    throw new Error(error);
+  }
+
+  return formatted;
 }
 
 /**
@@ -498,25 +529,45 @@ function formatTpslSize(params: {
 }
 
 /**
- * Check that partial TP/SL sizes survive the asset's precision.
+ * Check that an order's prices and partial sizes survive the asset's precision.
+ *
+ * Validation elsewhere sees the values the caller supplied; this sees what the
+ * exchange will actually receive. A positive value below the asset's tick
+ * formats to `'0'`, which either changes the order's meaning (a zero-sized
+ * trigger covers the whole position) or is rejected outright (a zero
+ * `triggerPx`).
  *
  * Callers run this before taking any side effect — cancelling the position's
- * existing triggers, changing leverage, moving HIP-3 margin — so a size that
+ * existing triggers, changing leverage, moving HIP-3 margin — so a value that
  * would only fail once the orders are built cannot leave a position stripped of
- * its protection with nothing put back.
+ * its protection, or an account with leverage moved, for an order that was
+ * never going to be accepted.
  *
- * @param params - Size parameters
+ * @param params - Price and size parameters
+ * @param params.triggerPrice - Trigger price for a trigger placement, if any
+ * @param params.takeProfitPrice - Attached take profit price, if any
+ * @param params.stopLossPrice - Attached stop loss price, if any
  * @param params.takeProfitSize - Requested partial take profit size, if any
  * @param params.stopLossSize - Requested partial stop loss size, if any
  * @param params.szDecimals - Asset size decimals
  * @returns Validation result with isValid flag and optional error message
  */
-export function validatePartialTpslSizePrecision(params: {
+export function validateOrderPrecision(params: {
+  triggerPrice?: string;
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
   takeProfitSize?: string;
   stopLossSize?: string;
   szDecimals: number;
 }): { isValid: boolean; error?: string } {
-  const { takeProfitSize, stopLossSize, szDecimals } = params;
+  const {
+    triggerPrice,
+    takeProfitPrice,
+    stopLossPrice,
+    takeProfitSize,
+    stopLossSize,
+    szDecimals,
+  } = params;
 
   for (const size of [takeProfitSize, stopLossSize]) {
     if (size === undefined) {
@@ -528,6 +579,26 @@ export function validatePartialTpslSizePrecision(params: {
         isValid: false,
         error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
       };
+    }
+  }
+
+  // Prices carry their own precision: an asset quotes to
+  // `MaxPriceDecimals - szDecimals` places, so a positive price under that tick
+  // formats to '0'. Every one of these becomes a `triggerPx` the exchange
+  // rejects outright.
+  const priceChecks: [string | undefined, string][] = [
+    [triggerPrice, PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE],
+    [takeProfitPrice, PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE],
+    [stopLossPrice, PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE],
+  ];
+
+  for (const [price, error] of priceChecks) {
+    if (price === undefined) {
+      continue;
+    }
+
+    if (parseFloat(formatHyperLiquidPrice({ price, szDecimals })) <= 0) {
+      return { isValid: false, error };
     }
   }
 
@@ -625,9 +696,10 @@ export function buildOrdersArray(
       t: {
         trigger: {
           isMarket: false,
-          triggerPx: formatHyperLiquidPrice({
-            price: parseFloat(takeProfitPrice),
+          triggerPx: formatTriggerPrice({
+            price: takeProfitPrice,
             szDecimals,
+            error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
           }),
           tpsl: 'tp',
         },
@@ -658,9 +730,10 @@ export function buildOrdersArray(
       t: {
         trigger: {
           isMarket: true,
-          triggerPx: formatHyperLiquidPrice({
-            price: stopLossPriceNum,
+          triggerPx: formatTriggerPrice({
+            price: stopLossPrice,
             szDecimals,
+            error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
           }),
           tpsl: 'sl',
         },

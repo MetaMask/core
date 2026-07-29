@@ -556,6 +556,34 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('rejects a trigger price that rounds to zero before changing leverage', async () => {
+      // The SDK would reject triggerPx: '0' anyway, but only after the leverage
+      // change has already been written on-chain.
+      mockValidateOrderParams.mockImplementation(
+        jest.requireActual('../../../src/utils/hyperLiquidValidation.js')
+          .validateOrderParams,
+      );
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_market',
+        triggerPrice: '0.0004',
+        currentPrice: 50000,
+        leverage: 5,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
     it('places a stop market order as a market-on-trigger stop', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
@@ -1737,6 +1765,28 @@ describe('HyperLiquidProvider', () => {
         ).not.toHaveBeenCalled();
       },
     );
+
+    it('rejects a TP/SL price that rounds to zero before the pre-cancel sweep', async () => {
+      mockValidateOrderParams.mockImplementation(
+        jest.requireActual('../../../src/utils/hyperLiquidValidation.js')
+          .validateOrderParams,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '0.0004',
+        position,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE);
+      expect(
+        mockClientService.getExchangeClient().cancel,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().setReferrer,
+      ).not.toHaveBeenCalled();
+    });
 
     it('leaves the position protected when a partial size rounds to zero', async () => {
       // The position already has a whole-position TP/SL the sweep would cancel.

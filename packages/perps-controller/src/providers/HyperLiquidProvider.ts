@@ -175,7 +175,7 @@ import {
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
   formatPartialTpslSize,
-  validatePartialTpslSizePrecision,
+  validateOrderPrecision,
 } from '../utils/orderCalculations.js';
 import {
   getTriggerExecution,
@@ -3490,17 +3490,21 @@ export class HyperLiquidProvider implements PerpsProvider {
         dexName,
       });
 
-      // A partial TP/SL size that rounds away at the asset precision is caught
-      // here, as soon as szDecimals is known and before anything is committed:
-      // the signing prompts in #ensureReadyForTrading, the leverage change in
-      // #prepareAssetForTrading, and the HIP-3 margin transfer all come later.
-      const tpslPrecision = validatePartialTpslSizePrecision({
+      // A price or partial size that rounds away at the asset precision is
+      // caught here, as soon as szDecimals is known and before anything is
+      // committed: the signing prompts in #ensureReadyForTrading, the leverage
+      // change in #prepareAssetForTrading, and the HIP-3 margin transfer all
+      // come later.
+      const precision = validateOrderPrecision({
+        triggerPrice: params.triggerPrice,
+        takeProfitPrice: params.takeProfitPrice,
+        stopLossPrice: params.stopLossPrice,
         takeProfitSize: params.takeProfitSize,
         stopLossSize: params.stopLossSize,
         szDecimals: assetInfo.szDecimals,
       });
-      if (!tpslPrecision.isValid) {
-        throw new Error(tpslPrecision.error);
+      if (!precision.isValid) {
+        throw new Error(precision.error);
       }
 
       // Allow override with UI-provided price (optimization to avoid API call).
@@ -4453,15 +4457,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
-      const tpslPrecision = validatePartialTpslSizePrecision({
+      const precision = validateOrderPrecision({
+        takeProfitPrice,
+        stopLossPrice,
         takeProfitSize,
         stopLossSize,
         szDecimals: assetInfo.szDecimals,
       });
-      if (!tpslPrecision.isValid) {
+      if (!precision.isValid) {
         return {
           success: false,
-          error: tpslPrecision.error,
+          error: precision.error,
         };
       }
 

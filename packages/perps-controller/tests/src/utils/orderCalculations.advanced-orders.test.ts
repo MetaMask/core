@@ -263,6 +263,42 @@ describe('orderCalculations - advanced order types', () => {
       expect(orders[1].s).toBe('0.004');
     });
 
+    it('throws a typed error when the trigger price rounds to zero at the asset precision', () => {
+      // 0.0004 is positive, but a szDecimals: 3 asset prices to 3 decimals, so
+      // it formats to '0' — a triggerPx the SDK rejects outright.
+      expect(() =>
+        buildOrdersArray({
+          ...baseBuildParams,
+          orderType: 'stop_market',
+          triggerPrice: '0.0004',
+        }),
+      ).toThrow(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE);
+    });
+
+    it.each(['takeProfitPrice', 'stopLossPrice'] as const)(
+      'throws a typed error when %s rounds to zero at the asset precision',
+      (priceField) => {
+        expect(() =>
+          buildOrdersArray({
+            ...baseBuildParams,
+            [priceField]: '0.0004',
+          }),
+        ).toThrow(PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE);
+      },
+    );
+
+    it('keeps a trigger price that survives the asset precision', () => {
+      const { orders } = buildOrdersArray({
+        ...baseBuildParams,
+        orderType: 'stop_market',
+        triggerPrice: '0.004',
+      });
+
+      expect(orders[0].t).toStrictEqual({
+        trigger: { isMarket: true, triggerPx: '0.004', tpsl: 'sl' },
+      });
+    });
+
     it('maps each public limit time-in-force value to the SDK', () => {
       expect(
         buildOrdersArray({ ...baseBuildParams, orderType: 'market' }).orders[0]
