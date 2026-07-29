@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `AccountActivityService` now debounces chain status updates instead of publishing one event per notification ([#9700](https://github.com/MetaMask/core/pull/9700))
+
 ## [8.0.0]
 
 ### Fixed
