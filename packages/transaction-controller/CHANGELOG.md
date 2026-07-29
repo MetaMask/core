@@ -9,12 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [69.2.2]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Confirmations packages ([#9582](https://github.com/MetaMask/core/pull/9582))
-
 ### Changed
 
+- Bump `@metamask/core-backend` from `^7.0.0` to `^8.0.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
 - Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
 
 ### Fixed
