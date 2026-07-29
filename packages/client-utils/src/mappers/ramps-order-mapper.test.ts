@@ -103,10 +103,61 @@ describe('mapRampsOrder', () => {
   });
 
   it('maps a precreated stub order with an empty chain id to an undefined chainId, not eip155:0', () => {
-    const item = mapRampsOrder({ ...baseOrder, network: { chainId: '' } });
+    const item = mapRampsOrder({
+      ...baseOrder,
+      network: { chainId: '' },
+      cryptoCurrency: undefined,
+    });
 
     expect(item?.chainId).toBeUndefined();
   });
+
+  it('falls through an unparseable network name to cryptoCurrency.chainId', () => {
+    // Coinbase (and other generic providers) return network as a free-form
+    // name string while still attaching a CAIP cryptoCurrency.chainId.
+    const item = mapRampsOrder({
+      ...baseOrder,
+      network: 'ethereum',
+      cryptoCurrency: {
+        assetId: 'eip155:1/slip44:60',
+        chainId: 'eip155:1',
+        symbol: 'ETH',
+        decimals: 18,
+      },
+    });
+
+    expect(item?.chainId).toBe('eip155:1');
+  });
+
+  it('falls through an unparseable network name to cryptoCurrency.assetId', () => {
+    const item = mapRampsOrder({
+      ...baseOrder,
+      network: 'ethereum',
+      cryptoCurrency: { assetId: 'eip155:1/slip44:60', symbol: 'ETH' },
+    });
+
+    expect(item?.chainId).toBe('eip155:1');
+  });
+
+  it('returns an undefined chainId when network is an unparseable name and crypto currency has no chain', () => {
+    const item = mapRampsOrder({
+      ...baseOrder,
+      network: 'ethereum',
+      cryptoCurrency: undefined,
+    });
+
+    expect(item?.chainId).toBeUndefined();
+  });
+
+  it.each(['0x', '0x0000'])(
+    'treats placeholder txHash %s as missing while keeping the order id',
+    (txHash) => {
+      const item = mapRampsOrder({ ...baseOrder, txHash });
+
+      expect(item?.hash).toBeUndefined();
+      expect(item?.type === 'rampBuy' ? item.id : 'unset').toBe('order-123');
+    },
+  );
 
   it.each([
     ['CREATED', 'pending'],

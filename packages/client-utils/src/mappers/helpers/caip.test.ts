@@ -1,4 +1,8 @@
-import { formatAddressToAssetId, formatChainIdToCaip } from './caip.js';
+import {
+  caipChainIdFromAssetId,
+  formatAddressToAssetId,
+  formatChainIdToCaip,
+} from './caip.js';
 
 describe('caip helpers', () => {
   describe('formatChainIdToCaip', () => {
@@ -78,6 +82,20 @@ describe('caip helpers', () => {
           '0xzzzz',
         ),
       ).toBeUndefined();
+    });
+  });
+
+  describe('caipChainIdFromAssetId', () => {
+    it('extracts the chain id segment from a CAIP-19 asset id', () => {
+      expect(caipChainIdFromAssetId('eip155:1/slip44:60')).toBe('eip155:1');
+    });
+
+    it('returns undefined for an undefined asset id', () => {
+      expect(caipChainIdFromAssetId(undefined)).toBeUndefined();
+    });
+
+    it('returns undefined for an asset id with no chain segment', () => {
+      expect(caipChainIdFromAssetId('not-an-asset-id')).toBeUndefined();
     });
   });
 });
