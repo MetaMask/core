@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `EXCHANGE_ACCOUNT_NOT_FOUND` to `PERPS_ERROR_CODES`, returned by `HyperLiquidProvider.placeOrder` when the wallet has no HyperLiquid account yet (TAT-3343)
+
+### Fixed
+
+- Map HyperLiquid's `"User or API Wallet 0x... does not exist."` order rejection to `PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND` instead of returning the raw exchange message as `OrderResult.error`, so clients can render an actionable "fund your account" message (TAT-3343)
+- Stop reporting the `"User or API Wallet 0x... does not exist."` order rejection to the error logger; it is an expected pre-account state, matching the handling already applied to the other user-scoped HyperLiquid exchange writes (TAT-3343)
+
 ## [10.0.0]
 
 ### Added
