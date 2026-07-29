@@ -3,7 +3,7 @@ import { isNativeAddress } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
-import type { BridgeHistoryItem } from '../types';
+import type { BridgeHistoryItem } from '../types.js';
 
 const getReceivedNativeAmount = (
   historyItem: BridgeHistoryItem,

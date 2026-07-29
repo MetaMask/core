@@ -10,14 +10,14 @@ import type { TransactionControllerState } from '@metamask/transaction-controlle
 import type { Hex } from '@metamask/utils';
 import { noop } from 'lodash';
 
-import { NATIVE_TOKEN_ADDRESS } from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
+import { NATIVE_TOKEN_ADDRESS } from '../constants.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
   TransactionData,
   TransactionPayControllerState,
   TransactionPayRequiredToken,
-} from '../types';
-import { parseRequiredTokens } from './required-tokens';
+} from '../types.js';
+import { parseRequiredTokens } from './required-tokens.js';
 import {
   FINALIZED_STATUSES,
   collectTransactionIds,
@@ -27,7 +27,7 @@ import {
   subscribeTransactionChanges,
   updateTransaction,
   waitForTransactionConfirmed,
-} from './transaction';
+} from './transaction.js';
 
 jest.mock('./required-tokens');
 

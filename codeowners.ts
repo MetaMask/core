@@ -1,7 +1,7 @@
 import type {
   CodeownersRule,
   CodeownersSection,
-} from './scripts/manage-codeowners/types';
+} from './scripts/manage-codeowners/types.js';
 
 /**
  * Metadata about a package in the monorepo, used to generate CODEOWNERS

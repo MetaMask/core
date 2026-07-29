@@ -1,12 +1,12 @@
-export { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController';
-export { MultichainNetworkService } from './MultichainNetworkService/MultichainNetworkService';
+export { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController.js';
+export { MultichainNetworkService } from './MultichainNetworkService/MultichainNetworkService.js';
 export {
   getDefaultMultichainNetworkControllerState,
   NON_EVM_TESTNET_IDS,
   MULTICHAIN_NETWORK_TICKER,
   MULTICHAIN_NETWORK_DECIMAL_PLACES,
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
-} from './constants';
+} from './constants.js';
 export type {
   MultichainNetworkMetadata,
   SupportedCaipChainId,
@@ -21,15 +21,15 @@ export type {
   MultichainNetworkControllerActions,
   MultichainNetworkControllerEvents,
   MultichainNetworkControllerMessenger,
-} from './types';
+} from './types.js';
 export type {
   MultichainNetworkControllerSetActiveNetworkAction,
   MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction,
-} from './MultichainNetworkController/MultichainNetworkController-method-action-types';
+} from './MultichainNetworkController/MultichainNetworkController-method-action-types.js';
 export {
   checkIfSupportedCaipChainId,
   toMultichainNetworkConfiguration,
   toMultichainNetworkConfigurationsByChainId,
   toEvmCaipChainId,
-} from './utils';
-export type { ActiveNetworksByAddress } from './api/accounts-api';
+} from './utils.js';
+export type { ActiveNetworksByAddress } from './api/accounts-api.js';

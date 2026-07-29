@@ -8,11 +8,12 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { merge } from 'lodash';
 
-import { flushPromises } from '../../../tests/helpers';
-import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
-import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth';
+import { flushPromises } from '../../../tests/helpers.js';
+import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
+import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
 import {
   advanceToNthTimer,
   advanceToNthTimerThenFlush,
@@ -21,24 +22,28 @@ import {
   mockSseEventSourceWithMultipleDelays,
   mockSseEventSourceWithWarnings,
   mockSseServerError,
-} from '../tests/mock-sse';
-import { BridgeController } from './bridge-controller';
+} from '../tests/mock-sse.js';
+import { BridgeController } from './bridge-controller.js';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
-} from './constants/bridge';
-import { ChainId, RequestStatus } from './types';
-import type { BridgeControllerMessenger } from './types';
-import * as balanceUtils from './utils/balance';
-import { formatChainIdToDec } from './utils/caip-formatters';
-import * as featureFlagUtils from './utils/feature-flags';
-import * as fetchUtils from './utils/fetch';
-import { FeatureId } from './validators/feature-flags';
-import { QuoteStreamCompleteReason } from './validators/quote-stream-complete';
-import { TokenFeatureType } from './validators/token-feature';
-import type { TxData } from './validators/trade';
+} from './constants/bridge.js';
+import { ChainId, RequestStatus } from './types.js';
+import type { BridgeControllerMessenger } from './types.js';
+import * as balanceUtils from './utils/balance.js';
+import {
+  formatChainIdToCaip,
+  formatChainIdToDec,
+} from './utils/caip-formatters.js';
+import * as featureFlagUtils from './utils/feature-flags.js';
+import * as fetchUtils from './utils/fetch.js';
+import { FeatureId } from './validators/feature-flags.js';
+import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
+import { QuoteStreamCompleteReason } from './validators/quote-stream-complete.js';
+import { TokenFeatureType } from './validators/token-feature.js';
+import type { TxData } from './validators/trade.js';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -377,9 +382,23 @@ describe('BridgeController SSE', function () {
               ...quote,
               quote: {
                 ...quote.quote,
-                srcTokenAddress,
+                srcAsset: {
+                  address: ETH_USDT_ADDRESS,
+                  assetId:
+                    `${formatChainIdToCaip(1)}/erc20:${srcTokenAddress}` as const,
+                  symbol: 'USDT',
+                  name: 'Tether USD',
+                  decimals: 6,
+                  chainId: 1,
+                  iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+                },
                 srcChainId: 1,
                 destChainId: formatChainIdToDec(destChainId),
+                destAsset: {
+                  ...quote.quote.destAsset,
+                  assetId:
+                    `${formatChainIdToCaip(destChainId)}/erc20:${quote.quote.destAsset.address}` as const,
+                },
               },
             }),
           );
@@ -488,16 +507,39 @@ describe('BridgeController SSE', function () {
                 resetApproval,
               },
             ],
-            quotes: mockUSDTQuoteResponse.map((quote) => ({
-              ...quote,
-              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
-              resetApproval: tradeData
-                ? {
-                    ...quote.approval,
-                    data: tradeData,
-                  }
-                : undefined,
-            })),
+            quotes: mockBridgeQuotesErc20Erc20V1
+              .map((quote) =>
+                merge({}, quote, {
+                  quote: {
+                    srcAsset: {
+                      address: ETH_USDT_ADDRESS,
+                      assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}`,
+                      symbol: 'USDT',
+                      name: 'Tether USD',
+                      decimals: 6,
+                      chainId: 1,
+                      iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+                    },
+                    srcChainId: 1,
+                    destAsset: {
+                      ...quote.quote.destAsset,
+                      assetId:
+                        `${formatChainIdToCaip(destChainId)}/erc20:${quote.quote.destAsset.address}` as const,
+                    },
+                    destChainId: formatChainIdToDec(destChainId),
+                  },
+                }),
+              )
+              .map((quote) => ({
+                ...quote,
+                featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
+                resetApproval: tradeData
+                  ? {
+                      ...quote.approval,
+                      data: tradeData,
+                    }
+                  : undefined,
+              })),
             quotesRefreshCount: 1,
             quotesLoadingStatus: 1,
             quotesLastFetched: t1,
@@ -541,11 +583,23 @@ describe('BridgeController SSE', function () {
             ...quote,
             quote: {
               ...quote.quote,
-              srcTokenAddress: ETH_USDT_ADDRESS,
+              srcAsset: {
+                address: ETH_USDT_ADDRESS,
+                assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}` as const,
+                chainId: 1,
+                symbol: 'USDT',
+                name: 'Tether USD',
+                decimals: 6,
+                iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+              },
               srcChainId: 1,
             },
           }),
         );
+        mockUSDTQuoteResponse.forEach((quote) =>
+          validateQuoteResponseV1(quote),
+        );
+
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSource(mockUSDTQuoteResponse);
         });
@@ -647,14 +701,31 @@ describe('BridgeController SSE', function () {
               resetApproval: true,
             },
           ],
-          quotes: mockUSDTQuoteResponse.map((quote) => ({
-            ...quote,
-            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
-            resetApproval: {
-              ...quote.approval,
-              data: '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
-            },
-          })),
+          quotes: mockBridgeQuotesErc20Erc20V1
+            .map((quote) =>
+              merge({}, quote, {
+                quote: {
+                  srcAsset: {
+                    address: ETH_USDT_ADDRESS,
+                    assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}`,
+                    name: 'Tether USD',
+                    decimals: 6,
+                    symbol: 'USDT',
+                    chainId: 1,
+                    iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+                  },
+                  srcChainId: 1,
+                },
+              }),
+            )
+            .map((quote) => ({
+              ...quote,
+              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
+              resetApproval: {
+                ...quote.approval,
+                data: '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
+              },
+            })),
           quotesRefreshCount: 1,
           quotesLoadingStatus: 1,
           quotesLastFetched: t1,

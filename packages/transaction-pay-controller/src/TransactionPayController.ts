@@ -4,14 +4,14 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
-import { updateFiatPayment } from './actions/update-fiat-payment';
-import { updatePaymentToken } from './actions/update-payment-token';
+import { updateFiatPayment } from './actions/update-fiat-payment.js';
+import { updatePaymentToken } from './actions/update-payment-token.js';
 import {
   CONTROLLER_NAME,
   isTransactionPayStrategy,
   TransactionPayStrategy,
-} from './constants';
-import { QuoteRefresher } from './helpers/QuoteRefresher';
+} from './constants.js';
+import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import type {
   GetAmountDataCallback,
   GetDelegationTransactionCallback,
@@ -25,14 +25,14 @@ import type {
   TransactionPayControllerState,
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
-} from './types';
-import { getStrategyOrder } from './utils/feature-flags';
-import { updateQuotes } from './utils/quotes';
-import { updateSourceAmounts } from './utils/source-amounts';
+} from './types.js';
+import { getStrategyOrder } from './utils/feature-flags.js';
+import { updateQuotes } from './utils/quotes.js';
+import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
   subscribeAssetChanges,
   subscribeTransactionChanges,
-} from './utils/transaction';
+} from './utils/transaction.js';
 
 const MESSENGER_EXPOSED_METHODS = [
   'getAmountData',

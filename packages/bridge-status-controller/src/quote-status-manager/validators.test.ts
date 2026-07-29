@@ -3,11 +3,11 @@ import { StatusTypes } from '@metamask/bridge-controller';
 import {
   QuoteStatusBackendStatus,
   QuoteStatusUpdateBackendErrorType,
-} from './constants';
+} from './constants.js';
 import {
   validateQuoteStatusGetResponse,
   validateQuoteStatusUpdateResponse,
-} from './validators';
+} from './validators.js';
 
 describe('quote-status validators', () => {
   describe('validateQuoteStatusUpdateResponse', () => {

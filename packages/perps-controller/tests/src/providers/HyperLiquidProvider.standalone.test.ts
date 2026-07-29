@@ -3,18 +3,18 @@ jest.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
 
-import { CandlePeriod } from '../../../src/constants/chartConfig';
+import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
   BUILDER_FEE_CONFIG,
   REFERRAL_CONFIG,
-} from '../../../src/constants/hyperLiquidConfig';
-import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig';
-import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes';
-import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider';
-import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService';
-import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService';
-import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService';
-import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache';
+} from '../../../src/constants/hyperLiquidConfig.js';
+import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
+import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
 import type {
   ClosePositionParams,
   DepositParams,
@@ -22,7 +22,7 @@ import type {
   PerpsPlatformDependencies,
   LiveDataConfig,
   OrderParams,
-} from '../../../src/types';
+} from '../../../src/types/index.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -30,12 +30,12 @@ import {
   validateDepositParams,
   validateOrderParams,
   validateWithdrawalParams,
-} from '../../../src/utils/hyperLiquidValidation';
-import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient';
+} from '../../../src/utils/hyperLiquidValidation.js';
+import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidWalletService');

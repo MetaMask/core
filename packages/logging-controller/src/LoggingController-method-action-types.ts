@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { LoggingController } from './LoggingController';
+import type { LoggingController } from './LoggingController.js';
 
 /**
  * Add log to the state.

@@ -5,11 +5,11 @@ export {
   installBitcoinRegtest,
   parseBitcoinRegtestInstallCliOptions,
   readBitcoinRegtestInstallOptionsFromPackageJson,
-} from './install';
+} from './install.js';
 export type {
   BitcoinRegtestArtifactConfig,
   BitcoinRegtestArtifactPlatformConfig,
   BitcoinRegtestInstallDependencies,
   BitcoinRegtestInstallOptions,
   BitcoinRegtestInstallResult,
-} from './install';
+} from './install.js';

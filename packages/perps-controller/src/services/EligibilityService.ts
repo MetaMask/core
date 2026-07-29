@@ -1,9 +1,9 @@
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type {
   PerpsPlatformDependencies,
   CheckEligibilityParams,
-} from '../types';
-import { ensureError } from '../utils/errorUtils';
+} from '../types/index.js';
+import { ensureError } from '../utils/errorUtils.js';
 
 /**
  * EligibilityService

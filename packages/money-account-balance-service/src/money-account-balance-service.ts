@@ -43,8 +43,8 @@ import {
   VAULT_CONFIG_FEATURE_FLAG_KEY,
   VEDA_API_NETWORK_NAMES,
   VEDA_PERFORMANCE_API_BASE_URL,
-} from './constants';
-import type { BalanceSource, BalanceSourcePolicy } from './constants';
+} from './constants.js';
+import type { BalanceSource, BalanceSourcePolicy } from './constants.js';
 import {
   MoneyAccountBalanceFetchError,
   MoneyAccountBalanceUnavailableError,
@@ -52,10 +52,10 @@ import {
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
   VedaResponseValidationError,
-} from './errors';
-import { projectLogger, createModuleLogger } from './logger';
-import type { MoneyAccountBalanceServiceMethodActions } from './money-account-balance-service-method-action-types';
-import { normalizeVaultApyResponse } from './requestNormalization';
+} from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { MoneyAccountBalanceServiceMethodActions } from './money-account-balance-service-method-action-types.js';
+import { normalizeVaultApyResponse } from './requestNormalization.js';
 import type {
   CanonicalMoneyAccountBalanceResponse,
   ExchangeRateResponse,
@@ -63,8 +63,8 @@ import type {
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
 } from './response.types';
-import { VaultApyRawResponseStruct, VaultConfigStruct } from './structs';
-import type { VaultConfig } from './types';
+import { VaultApyRawResponseStruct, VaultConfigStruct } from './structs.js';
+import type { VaultConfig } from './types.js';
 
 // === GENERAL ===
 

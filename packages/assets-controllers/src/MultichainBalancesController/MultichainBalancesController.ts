@@ -29,7 +29,7 @@ import type { Draft } from 'immer';
 import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
-} from '../MultichainAssetsController';
+} from '../MultichainAssetsController/index.js';
 
 const controllerName = 'MultichainBalancesController';
 

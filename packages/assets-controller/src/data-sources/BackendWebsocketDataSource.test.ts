@@ -9,16 +9,16 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type { Caip19AssetId, ChainId, DataRequest } from '../types';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import type { Caip19AssetId, ChainId, DataRequest } from '../types.js';
 import {
   BackendWebsocketDataSource,
   createBackendWebsocketDataSource,
-} from './BackendWebsocketDataSource';
+} from './BackendWebsocketDataSource.js';
 import type {
   BackendWebsocketDataSourceAllowedActions,
   BackendWebsocketDataSourceAllowedEvents,
-} from './BackendWebsocketDataSource';
+} from './BackendWebsocketDataSource.js';
 
 type AllActions = BackendWebsocketDataSourceAllowedActions;
 type AllEvents = BackendWebsocketDataSourceAllowedEvents;

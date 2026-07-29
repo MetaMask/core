@@ -7,22 +7,22 @@
 
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
-import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig';
-import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService';
-import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService';
-import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService';
+import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig.js';
+import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
   PriceUpdate,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribePositionsParams,
   SubscribePricesParams,
-} from '../../../src/types';
+} from '../../../src/types/index.js';
 import {
   adaptAccountStateFromSDK,
   parseAssetName,
-} from '../../../src/utils/hyperLiquidAdapter';
-import { createMockInfrastructure } from '../../helpers/serviceMocks';
+} from '../../../src/utils/hyperLiquidAdapter.js';
+import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 // Mock HyperLiquid SDK types
 interface MockSubscription {

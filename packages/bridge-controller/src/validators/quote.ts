@@ -10,10 +10,10 @@ import {
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 
-import { ChainIdSchema, BridgeAssetSchema } from './bridge-asset';
-import { IntentSchema } from './intent';
-import { TruthyDigitStringSchema, NumberStringSchema } from './number';
-import { RefuelDataSchema, StepSchema } from './step';
+import { ChainIdSchema, BridgeAssetSchema } from './bridge-asset.js';
+import { IntentSchema } from './intent.js';
+import { TruthyDigitStringSchema, NumberStringSchema } from './number.js';
+import { RefuelDataSchema, StepSchema } from './step.js';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
@@ -92,6 +92,8 @@ export const QuoteSchema = intersection([
     }),
     bridgeId: string(),
     bridges: array(string()),
+    // TODO require this after v2 migration
+    aggregator: optional(string()),
     steps: array(StepSchema),
     refuel: optional(RefuelDataSchema),
     priceData: optional(
@@ -106,6 +108,7 @@ export const QuoteSchema = intersection([
     walletAddress: optional(string()),
     destWalletAddress: optional(string()),
     slippage: optional(number()),
+    // TODO require this after v2 migration
     protocols: optional(array(string())),
   }),
 ]);

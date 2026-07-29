@@ -2,12 +2,17 @@ import { defaultAbiCoder, Interface } from '@ethersproject/abi';
 import * as controllerUtils from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import type { Address, BalanceOfRequest, ChainId, Provider } from '../types';
+import type {
+  Address,
+  BalanceOfRequest,
+  ChainId,
+  Provider,
+} from '../types/index.js';
 import {
   decodeAggregate3Response,
   encodeAggregate3,
   MulticallClient,
-} from './MulticallClient';
+} from './MulticallClient.js';
 
 // =============================================================================
 // MOCK PROVIDER

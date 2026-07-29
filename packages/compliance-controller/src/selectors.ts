@@ -1,7 +1,7 @@
 import { createSelector } from 'reselect';
 
-import type { ComplianceControllerState } from './ComplianceController';
-import { getWalletComplianceStatus } from './utils';
+import type { ComplianceControllerState } from './ComplianceController.js';
+import { getWalletComplianceStatus } from './utils.js';
 
 const selectWalletComplianceStatusMap = (
   state: ComplianceControllerState,

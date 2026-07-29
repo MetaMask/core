@@ -5,7 +5,7 @@ import {
   TransactionType,
 } from '@metamask/keyring-api';
 
-import { CustomTransactionTypeLabel } from '../../src/mappers/keyring-transaction-mapper';
+import { CustomTransactionTypeLabel } from '../../src/mappers/keyring-transaction-mapper.js';
 
 const accountId = '00000000-0000-4000-8000-000000000000';
 const stellarUsdcAsset = `stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN`;

@@ -1,8 +1,8 @@
-import type { Caip19AssetId } from '../types';
+import type { Caip19AssetId } from '../types.js';
 import {
   clearNormalizeAssetIdCacheForTesting,
   normalizeAssetId,
-} from './normalizeAssetId';
+} from './normalizeAssetId.js';
 
 describe('normalizeAssetId', () => {
   afterEach(() => {

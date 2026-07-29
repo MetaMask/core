@@ -42,34 +42,34 @@ import assert from 'assert';
 // eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { flushPromises } from '../../../tests/helpers';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
+import { FakeProvider } from '../../../tests/fake-provider.js';
+import { flushPromises } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
-import { CHAIN_IDS } from './constants';
-import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
-import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
-import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow';
-import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
+} from '../../network-controller/tests/helpers.js';
+import { CHAIN_IDS } from './constants.js';
+import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow.js';
+import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow.js';
+import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow.js';
+import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow.js';
 import {
   updateTransactionGasEstimates,
   GasFeePoller,
-} from './helpers/GasFeePoller';
-import { MethodDataHelper } from './helpers/MethodDataHelper';
-import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
-import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
-import { shouldResimulate } from './helpers/ResimulateHelper';
-import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
+} from './helpers/GasFeePoller.js';
+import { MethodDataHelper } from './helpers/MethodDataHelper.js';
+import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper.js';
+import { PendingTransactionTracker } from './helpers/PendingTransactionTracker.js';
+import { shouldResimulate } from './helpers/ResimulateHelper.js';
+import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook.js';
 import type {
   MethodData,
   TransactionControllerMessenger,
   TransactionControllerOptions,
-} from './TransactionController';
-import { TransactionController } from './TransactionController';
+} from './TransactionController.js';
+import { TransactionController } from './TransactionController.js';
 import type {
   TransactionMeta,
   DappSuggestedGasFees,
@@ -84,7 +84,7 @@ import type {
   GasFeeEstimates,
   SimulationData,
   GetSimulationConfig,
-} from './types';
+} from './types.js';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
@@ -95,35 +95,35 @@ import {
   TransactionStatus,
   TransactionType,
   WalletDevice,
-} from './types';
-import { getBalanceChanges } from './utils/balance-changes';
-import { addTransactionBatch } from './utils/batch';
-import { getDelegationAddress } from './utils/eip7702';
+} from './types.js';
+import { getBalanceChanges } from './utils/balance-changes.js';
+import { addTransactionBatch } from './utils/batch.js';
+import { getDelegationAddress } from './utils/eip7702.js';
 import {
   getSubmitHistoryLimit,
   getTransactionHistoryLimit,
-} from './utils/feature-flags';
-import { updateFirstTimeInteraction } from './utils/first-time-interaction';
+} from './utils/feature-flags.js';
+import { updateFirstTimeInteraction } from './utils/first-time-interaction.js';
+import { getGasFeeTokens } from './utils/gas-fee-tokens.js';
+import { updateGasFees } from './utils/gas-fees.js';
+import { getGasFeeFlow } from './utils/gas-flow.js';
 import {
   addGasBuffer,
   estimateGas,
   estimateGasBatch,
   updateGas,
-} from './utils/gas';
-import { getGasFeeTokens } from './utils/gas-fee-tokens';
-import { updateGasFees } from './utils/gas-fees';
-import { getGasFeeFlow } from './utils/gas-flow';
+} from './utils/gas.js';
 import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
-} from './utils/layer1-gas-fee-flow';
-import { rpcRequest } from './utils/provider';
+} from './utils/layer1-gas-fee-flow.js';
+import { rpcRequest } from './utils/provider.js';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
-} from './utils/swaps';
-import * as transactionTypeUtils from './utils/transaction-type';
-import { ErrorCode } from './utils/validation';
+} from './utils/swaps.js';
+import * as transactionTypeUtils from './utils/transaction-type.js';
+import { ErrorCode } from './utils/validation.js';
 
 type AllTransactionControllerActions =
   MessengerActions<TransactionControllerMessenger>;

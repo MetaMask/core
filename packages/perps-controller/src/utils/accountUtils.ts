@@ -4,9 +4,9 @@
  */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
-import type { AccountState, PerpsInternalAccount } from '../types';
-import type { SpotClearinghouseStateResponse } from '../types/hyperliquid-types';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import type { SpotClearinghouseStateResponse } from '../types/hyperliquid-types.js';
+import type { AccountState, PerpsInternalAccount } from '../types/index.js';
 
 const EVM_ACCOUNT_TYPES = new Set(['eip155:eoa', 'eip155:erc4337']);
 

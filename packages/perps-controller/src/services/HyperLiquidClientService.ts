@@ -8,20 +8,26 @@ import {
 } from '@nktkas/hyperliquid';
 import type { HistoricalOrdersResponse } from '@nktkas/hyperliquid';
 
-import { CandlePeriod, calculateCandleCount } from '../constants/chartConfig';
-import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig';
-import { PERFORMANCE_CONFIG, PERPS_CONSTANTS } from '../constants/perpsConfig';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import { WebSocketConnectionState } from '../types';
+import {
+  CandlePeriod,
+  calculateCandleCount,
+} from '../constants/chartConfig.js';
+import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig.js';
+import {
+  PERFORMANCE_CONFIG,
+  PERPS_CONSTANTS,
+} from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type { HyperLiquidNetwork } from '../types/config.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   SubscribeCandlesParams,
   PerpsPlatformDependencies,
-} from '../types';
-import type { HyperLiquidNetwork } from '../types/config';
-import type { CandleData } from '../types/perps-types';
-import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest';
-import { ensureError, isAbortError } from '../utils/errorUtils';
-import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemptContext';
+} from '../types/index.js';
+import type { CandleData } from '../types/perps-types.js';
+import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
+import { ensureError, isAbortError } from '../utils/errorUtils.js';
+import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemptContext.js';
 
 /**
  * Maximum number of reconnection attempts before giving up.
@@ -57,7 +63,7 @@ export type HyperLiquidWalletParams = {
 
 // WebSocketConnectionState is now imported from controllers/types
 // Re-export for backward compatibility with existing consumers
-export { WebSocketConnectionState } from '../types';
+export { WebSocketConnectionState } from '../types/index.js';
 
 /**
  * Service for managing HyperLiquid SDK clients

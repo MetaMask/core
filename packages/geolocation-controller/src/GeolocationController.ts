@@ -6,10 +6,10 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service';
-import type { GeolocationApiServiceFetchGeolocationAction } from './geolocation-api-service/geolocation-api-service-method-action-types';
-import type { GeolocationControllerMethodActions } from './GeolocationController-method-action-types';
-import type { GeolocationRequestStatus } from './types';
+import type { GeolocationApiServiceFetchGeolocationAction } from './geolocation-api-service/geolocation-api-service-method-action-types.js';
+import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service.js';
+import type { GeolocationControllerMethodActions } from './GeolocationController-method-action-types.js';
+import type { GeolocationRequestStatus } from './types.js';
 
 /**
  * The name of the {@link GeolocationController}, used to namespace the

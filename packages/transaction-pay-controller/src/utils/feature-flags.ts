@@ -8,24 +8,24 @@ import {
   isTransactionPayStrategy,
   STABLECOINS,
   TransactionPayStrategy,
-} from '../constants';
-import { projectLogger } from '../logger';
-import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
+} from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionPayFiatAsset } from '../strategy/fiat/constants.js';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
   FIAT_ENABLED_TYPES,
-} from '../strategy/fiat/constants';
+} from '../strategy/fiat/constants.js';
 import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
-} from '../strategy/relay/constants';
+} from '../strategy/relay/constants.js';
 import {
   SERVER_POLLING_INTERVAL,
   SERVER_URL_BASE,
-} from '../strategy/server/constants';
-import type { TransactionPayControllerMessenger } from '../types';
+} from '../strategy/server/constants.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
@@ -191,6 +191,7 @@ type FeatureFlagsExtendedRaw = {
   payStrategies?: {
     relay?: {
       gaslessEnabled?: boolean;
+      validationEnabled?: boolean;
     };
     server?: {
       enabled?: boolean;
@@ -628,6 +629,26 @@ export function isRelayExecuteEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.gaslessEnabled ?? false;
+}
+
+/**
+ * Whether Relay quote validation is enabled.
+ *
+ * Acts as an emergency kill switch: when disabled (default), Relay quotes are
+ * surfaced without being simulated/validated.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if Relay quote validation is enabled.
+ */
+export function isRelayValidationEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+  return featureFlags.payStrategies?.relay?.validationEnabled ?? false;
 }
 
 /**

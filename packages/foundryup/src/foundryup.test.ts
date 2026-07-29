@@ -9,11 +9,11 @@ import {
   checkAndDownloadBinaries,
   getBinaryArchiveUrl,
   getCacheDirectory,
-} from '.';
-import { parseArgs } from './options';
-import type { Binary, Checksums } from './types';
-import { Architecture, Platform } from './types';
-import { isCodedError } from './utils';
+} from './index.js';
+import { parseArgs } from './options.js';
+import type { Binary, Checksums } from './types.js';
+import { Architecture, Platform } from './types.js';
+import { isCodedError } from './utils.js';
 
 type OperationDetails = {
   path?: string;

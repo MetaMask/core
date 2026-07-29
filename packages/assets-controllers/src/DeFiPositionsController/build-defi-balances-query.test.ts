@@ -10,11 +10,11 @@ import {
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
+import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks.js';
 import {
   buildDeFiBalancesQuery,
   DEFI_SUPPORTED_NETWORKS,
-} from './build-defi-balances-query';
+} from './build-defi-balances-query.js';
 
 const EVM_ADDRESS = '0x0000000000000000000000000000000000000001';
 const SOLANA_ADDRESS = 'So11111111111111111111111111111111111111112';

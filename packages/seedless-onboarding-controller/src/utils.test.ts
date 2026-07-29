@@ -2,17 +2,17 @@ import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
-import { createMockJWTToken } from '../tests/mocks/utils';
-import { SecretType } from './constants';
-import { SecretMetadata } from './SecretMetadata';
-import type { DecodedNodeAuthToken } from './types';
+import { createMockJWTToken } from '../tests/mocks/utils.js';
+import { SecretType } from './constants.js';
+import { SecretMetadata } from './SecretMetadata.js';
+import type { DecodedNodeAuthToken } from './types.js';
 import {
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
   getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
-} from './utils';
+} from './utils.js';
 
 describe('utils', () => {
   describe('decodeNodeAuthToken', () => {

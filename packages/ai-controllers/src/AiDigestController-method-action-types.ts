@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AiDigestController } from './AiDigestController';
+import type { AiDigestController } from './AiDigestController.js';
 
 /**
  * Fetches market insights for a given asset identifier.

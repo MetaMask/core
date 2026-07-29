@@ -1,9 +1,9 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AssetsControllerState } from '../AssetsController';
-import type { Caip19AssetId } from '../types';
-import type { AccountsById, EnabledNetworkMap } from './balance';
+import type { AssetsControllerState } from '../AssetsController.js';
+import type { Caip19AssetId } from '../types.js';
+import type { AccountsById, EnabledNetworkMap } from './balance.js';
 import {
   calculateBalanceChangeForAccountGroup,
   calculateBalanceForAllWallets,
@@ -12,7 +12,7 @@ import {
   getAggregatedBalanceForAccountIds,
   getGroupIdForAccount,
   getInternalAccountsForGroup,
-} from './balance';
+} from './balance.js';
 
 describe('balance selectors', () => {
   const accountId1 = 'account-id-1';
@@ -723,6 +723,66 @@ describe('wallet-balance selectors', () => {
       );
 
       expect(result.totalBalanceInUserCurrency).toBe(0);
+    });
+
+    it('emits AggregatedBalanceSelector as a subspan under AggregatedBalance', () => {
+      const parentSpan = { id: 'aggregated-balance' };
+      const trace = jest
+        .fn()
+        .mockImplementation(
+          async (
+            request: { parentContext?: unknown },
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              return fn(
+                request.parentContext === undefined ? parentSpan : undefined,
+              );
+            }
+            return undefined;
+          },
+        );
+
+      calculateBalanceForAllWallets(
+        buildState(),
+        accountTreeState,
+        undefined,
+        trace,
+      );
+
+      expect(trace).toHaveBeenCalledTimes(2);
+      expect(trace).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          name: 'AggregatedBalance',
+          data: expect.objectContaining({
+            duration_ms: expect.any(Number),
+            wallet_count: 2,
+            group_count: 3,
+          }),
+          tags: expect.objectContaining({
+            controller: 'AssetsController',
+            duration_ms: expect.any(Number),
+          }),
+          startTime: expect.any(Number),
+        }),
+        expect.any(Function),
+      );
+      expect(trace).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          name: 'AggregatedBalanceSelector',
+          parentContext: parentSpan,
+          data: expect.objectContaining({
+            duration_ms: expect.any(Number),
+          }),
+          tags: expect.objectContaining({
+            duration_ms: expect.any(Number),
+          }),
+          startTime: expect.any(Number),
+        }),
+        expect.any(Function),
+      );
     });
   });
 

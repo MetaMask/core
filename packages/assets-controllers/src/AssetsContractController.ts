@@ -18,16 +18,16 @@ import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
-import type { AssetsContractControllerMethodActions } from './AssetsContractController-method-action-types';
+import type { AssetsContractControllerMethodActions } from './AssetsContractController-method-action-types.js';
 import {
   SupportedStakedBalanceNetworks,
   SupportedTokenDetectionNetworks,
-} from './assetsUtil';
-import type { Call } from './multicall';
-import { multicallOrFallback } from './multicall';
-import { ERC20Standard } from './Standards/ERC20Standard';
-import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
-import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
+} from './assetsUtil.js';
+import type { Call } from './multicall.js';
+import { multicallOrFallback } from './multicall.js';
+import { ERC20Standard } from './Standards/ERC20Standard.js';
+import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard.js';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard.js';
 
 /**
  * Check if token detection is enabled for certain networks

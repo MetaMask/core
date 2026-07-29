@@ -36,12 +36,12 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { BridgeHistoryItem } from '../types';
-import { calcActualGasUsed } from './gas';
+import type { BridgeHistoryItem } from '../types.js';
+import { calcActualGasUsed } from './gas.js';
 import {
   getActualBridgeReceivedAmount,
   getActualSwapReceivedAmount,
-} from './swap-received-amount';
+} from './swap-received-amount.js';
 
 export const getTxStatusesFromHistory = ({
   status,
@@ -158,7 +158,7 @@ export const getTradeDataFromQuote = (
   batchSellTrades?: BatchSellTradesResponse | null,
 ): TradeData => {
   return {
-    usd_quoted_gas: Number(quoteResponse.gasFee?.effective?.usd ?? 0),
+    usd_quoted_gas: Number(quoteResponse.gasFee?.total?.usd ?? 0),
     gas_included:
       quoteResponse.quote.gasIncluded ?? batchSellTrades?.gasIncluded ?? false,
     gas_included_7702:
@@ -169,7 +169,7 @@ export const getTradeDataFromQuote = (
     quoted_time_minutes: Number(
       quoteResponse.estimatedProcessingTimeInSeconds / 60,
     ),
-    usd_quoted_return: Number(quoteResponse.adjustedReturn?.usd ?? 0),
+    usd_quoted_return: Number(quoteResponse?.adjustedReturn?.usd ?? 0),
   };
 };
 
@@ -222,7 +222,7 @@ export const getPreConfirmationPropertiesFromQuote = (
       quoteResponse.quote.srcChainId,
       quoteResponse.quote.destChainId,
     ),
-    usd_amount_source: Number(quoteResponse.sentAmount?.usd ?? 0),
+    usd_amount_source: Number(quoteResponse?.sentAmount?.usd ?? 0),
     stx_enabled: isStxEnabled,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
     custom_slippage: false, // TODO detect whether the user changed the default slippage

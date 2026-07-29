@@ -40,30 +40,30 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { AssetsContractController } from './AssetsContractController';
+import type { AssetsContractController } from './AssetsContractController.js';
 import {
   formatIconUrlWithProxy,
   isTokenDetectionSupportedForNetwork,
-} from './assetsUtil';
+} from './assetsUtil.js';
 import {
   MUSD_ERC20_ADDRESS_LOWER,
   MUSD_TOKEN_DETECTION_CHAIN_IDS,
   MUSD_TOKEN_METADATA_BY_CHAIN,
   SUPPORTED_NETWORKS_ACCOUNTS_API_V4,
-} from './constants';
-import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types';
+} from './constants.js';
+import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types.js';
 import type {
   TokenListMap,
   TokenListToken,
   TokensChainsCache,
-} from './TokenListController';
-import type { TokenListService } from './TokenListService';
-import type { Token } from './TokenRatesController';
-import type { TokensControllerGetStateAction } from './TokensController';
+} from './TokenListController.js';
+import type { TokenListService } from './TokenListService.js';
+import type { Token } from './TokenRatesController.js';
 import type {
   TokensControllerAddDetectedTokensAction,
   TokensControllerAddTokensAction,
-} from './TokensController-method-action-types';
+} from './TokensController-method-action-types.js';
+import type { TokensControllerGetStateAction } from './TokensController.js';
 
 const DEFAULT_INTERVAL = 180000;
 

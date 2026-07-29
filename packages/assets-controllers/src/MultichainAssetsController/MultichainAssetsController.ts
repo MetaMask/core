@@ -41,8 +41,8 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';
 
-import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types';
-import { getChainIdsCaveat } from './utils';
+import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types.js';
+import { getChainIdsCaveat } from './utils.js';
 
 const controllerName = 'MultichainAssetsController';
 

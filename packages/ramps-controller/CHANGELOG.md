@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+
+### Removed
+
+- **BREAKING:** Remove `getHeadlessAllProvidersMinimumVersion`; app-version gating for `moneyHeadlessAllProviders` is owned by the LaunchDarkly `versions` wrapper (processed by `RemoteFeatureFlagController`), not a payload `minimumVersion` field. `featureVersion` fail-closed enablement and `providerIds` allowlisting are unchanged. ([#9668](https://github.com/MetaMask/core/pull/9668))
+
+## [17.2.0]
+
+### Added
+
+- Add the pure `getHeadlessProviderAllowlist(remoteFeatureFlagState)` helper resolving the provider-id allowlist carried by the `moneyHeadlessAllProviders` flag's object payload; empty or malformed `providerIds` resolve to `undefined` (no restriction), unknown keys and non-string entries are ignored ([#9524](https://github.com/MetaMask/core/pull/9524))
+- Add the `HEADLESS_ALL_PROVIDERS_FEATURE_VERSION` constant (currently `'1'`) and the `getHeadlessAllProvidersMinimumVersion(remoteFeatureFlagState)` helper; an enabled object payload must carry `featureVersion: '1'` or it resolves to disabled, and `minimumVersion` is exposed for clients to validate against the app version ([#9524](https://github.com/MetaMask/core/pull/9524))
+
+### Changed
+
+- Widen the `moneyHeadlessAllProviders` flag value contract to accept an object payload `{ enabled: true, featureVersion: "1", providerIds?: string[] }` alongside the boolean form ([#9524](https://github.com/MetaMask/core/pull/9524))
+  - `isHeadlessAllProvidersEnabled` now returns `true` for an object payload whose `enabled` is the literal `true` and `featureVersion` is `"1"`; every other previously-false value still resolves to `false`, so boolean-only configurations see no behavior change
+  - When the payload lists provider ids, the widened quote pick drops candidates whose provider is not listed (ids match in prefixed `/providers/x` or bare form, case-insensitively); if nothing survives, `getQuotes` returns an empty `success[]` with `sorted` / `error` / `customActions` preserved
+  - Clients on earlier versions coerce the object payload to `false` (native-only), so serving it cannot enable widening for a client that cannot parse it
+
+## [17.1.0]
+
+### Added
+
+- Add `TransakService.createWidgetUrl` and `RampsController.transakCreateWidgetUrl`, which create the Transak payment widget URL through the ramps API proxy (`POST /providers/{providerId}/widget-url`) so the partner API key never leaves the backend. Requires the host to delegate `AuthenticationController:getBearerToken` to the `TransakService` messenger. ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add a `rampsApiBaseUrlOverride` constructor option to `TransakService` (same semantics as `RampsService`'s `baseUrlOverride`) that overrides the ramps API base URL for local development; it applies to the orders and widget-url proxy requests only. ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add a `referrerDomain` constructor option to `TransakService` that identifies the client to Transak in `widgetParams` (defaults to `metamask.io`). ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add `TransakEnvironment.Development`, which routes ramps API requests to `https://on-ramp.dev-api.cx.metamask.io` while direct Transak API calls use the staging gateway. ([#9632](https://github.com/MetaMask/core/pull/9632))
+
+### Deprecated
+
+- Deprecate `TransakService.requestOtt` and `TransakService.generatePaymentWidgetUrl` in favor of `createWidgetUrl`; the OTT flow requires the partner API key on the client. ([#9632](https://github.com/MetaMask/core/pull/9632))
+
 ## [17.0.0]
 
 ### Added
@@ -441,7 +474,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.2.0...@metamask/ramps-controller@18.0.0
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.1.0...@metamask/ramps-controller@17.2.0
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.0.0...@metamask/ramps-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@16.0.0...@metamask/ramps-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.1.0...@metamask/ramps-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.0.0...@metamask/ramps-controller@15.1.0
