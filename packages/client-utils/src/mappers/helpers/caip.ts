@@ -32,7 +32,7 @@ export function formatChainIdToCaip(
     return Number.isNaN(reference) ? undefined : `eip155:${reference}`;
   }
 
-  if (!chainId) {
+  if (chainId === '') {
     return undefined;
   }
 
