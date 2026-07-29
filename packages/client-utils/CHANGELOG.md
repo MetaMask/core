@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1]
+
 ### Added
 
 - Add `@metamask/slip44` dependency for native token symbol lookup ([#9701](https://github.com/MetaMask/core/pull/9701))
@@ -85,7 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.4.1...HEAD
+[1.4.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.4.0...@metamask/client-utils@1.4.1
 [1.4.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.3.1...@metamask/client-utils@1.4.0
 [1.3.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.3.0...@metamask/client-utils@1.3.1
 [1.3.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.2.1...@metamask/client-utils@1.3.0
