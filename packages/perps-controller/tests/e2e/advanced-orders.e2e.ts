@@ -1,3 +1,4 @@
+import { hasProperty } from '@metamask/utils';
 /**
  * Advanced order types — end-to-end contract proof (TAT-3511).
  *
@@ -25,11 +26,9 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
-
-import { hasProperty } from '@metamask/utils';
+import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
 import type { FrontendOrder } from '../../src/types/hyperliquid-types.js';
-
 import { isTriggerOrderType } from '../../src/utils/orderTypes.js';
 import type {
   CaseContext,
@@ -119,10 +118,6 @@ async function signerFromWalletFixture(
       `wallet-fixture.json at ${fixturePath} has no account named "${accountName}". Available: ${names}.`,
     );
   }
-
-  const { mnemonicToAccount, privateKeyToAccount } = await import(
-    'viem/accounts'
-  );
 
   if (entry.type === 'mnemonic') {
     const account = mnemonicToAccount(entry.value.trim(), { addressIndex: 0 });
