@@ -36,7 +36,7 @@ export type {
   TransactionControllerGetTransactionsAction,
   TransactionControllerUpdateCustodialTransactionAction,
   TransactionControllerUpdateTransactionAction,
-  TransactionControllerUpdateTransactionMetadataWithoutResimulationAction,
+  TransactionControllerUpdateTransactionMetadataAction,
   TransactionControllerHandleMethodDataAction,
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerStopTransactionAction,
