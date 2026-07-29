@@ -1,8 +1,8 @@
-import type { AssetMetadata, FungibleAssetPrice } from '../types';
+import type { AssetMetadata, FungibleAssetPrice } from '../types.js';
 import {
   clearFormatExchangeRatesForBridgeCacheForTesting,
   formatExchangeRatesForBridge,
-} from './formatExchangeRatesForBridge';
+} from './formatExchangeRatesForBridge.js';
 
 /**
  * Builds minimal AssetPrice for tests. Defaults usdPrice to the same

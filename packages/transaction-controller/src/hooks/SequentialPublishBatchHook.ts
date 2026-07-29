@@ -2,14 +2,14 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
-import { projectLogger } from '../logger';
+import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker.js';
+import { projectLogger } from '../logger.js';
 import type {
   PublishBatchHook,
   PublishBatchHookRequest,
   PublishBatchHookResult,
   TransactionMeta,
-} from '../types';
+} from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'sequential-publish-batch-hook');
 

@@ -2,7 +2,7 @@
 import { chmod, mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 
-import { isFileMissingError } from './errors';
+import { isFileMissingError } from './errors.js';
 
 export type ExecutableWrapperPathResolution = 'absolute' | 'relative';
 

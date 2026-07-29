@@ -3,11 +3,11 @@ import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { prefixError } from '../../utils/error-prefix';
-import { getFiatQuotes } from './fiat-quotes';
-import { submitFiatQuotes } from './fiat-submit';
-import type { FiatQuote } from './types';
+} from '../../types.js';
+import { prefixError } from '../../utils/error-prefix.js';
+import { getFiatQuotes } from './fiat-quotes.js';
+import { submitFiatQuotes } from './fiat-submit.js';
+import type { FiatQuote } from './types.js';
 
 const ERROR_PREFIX = 'Fiat: ';
 

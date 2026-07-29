@@ -3,7 +3,7 @@ import HttpProvider from '@metamask/ethjs-provider-http';
 import BN from 'bn.js';
 import nock from 'nock';
 
-import { ERC20Standard } from './ERC20Standard';
+import { ERC20Standard } from './ERC20Standard.js';
 
 const MAINNET_PROVIDER_HTTP = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',

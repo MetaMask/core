@@ -6,20 +6,20 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import { flushPromises } from '../../../tests/helpers';
-import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
+import { flushPromises } from '../../../tests/helpers.js';
+import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service.js';
+import { ThresholdVersion } from './remote-feature-flag-controller-types.js';
+import type { FeatureFlags } from './remote-feature-flag-controller-types.js';
 import {
   RemoteFeatureFlagController,
   controllerName,
   DEFAULT_CACHE_DURATION,
   getDefaultRemoteFeatureFlagControllerState,
-} from './remote-feature-flag-controller';
+} from './remote-feature-flag-controller.js';
 import type {
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
-} from './remote-feature-flag-controller';
-import { ThresholdVersion } from './remote-feature-flag-controller-types';
-import type { FeatureFlags } from './remote-feature-flag-controller-types';
+} from './remote-feature-flag-controller.js';
 
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,

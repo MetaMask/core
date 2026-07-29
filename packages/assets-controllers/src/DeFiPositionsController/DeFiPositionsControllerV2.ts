@@ -8,10 +8,10 @@ import type {
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { Messenger } from '@metamask/messenger';
 
-import { buildDeFiBalancesQuery } from './build-defi-balances-query';
-import type { DeFiPositionsControllerV2MethodActions } from './DeFiPositionsControllerV2-method-action-types';
-import type { DeFiPositionsByAccount } from './group-defi-positions-v6';
-import { groupDeFiPositionsV6 } from './group-defi-positions-v6';
+import { buildDeFiBalancesQuery } from './build-defi-balances-query.js';
+import type { DeFiPositionsControllerV2MethodActions } from './DeFiPositionsControllerV2-method-action-types.js';
+import type { DeFiPositionsByAccount } from './group-defi-positions-v6.js';
+import { groupDeFiPositionsV6 } from './group-defi-positions-v6.js';
 
 const controllerName = 'DeFiPositionsControllerV2';
 

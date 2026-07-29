@@ -20,26 +20,26 @@ import type {
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
-import { flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkConfiguration,
   buildCustomRpcEndpoint,
-} from '../../network-controller/tests/helpers';
-import determineGasFeeCalculations from './determineGasFeeCalculations';
+} from '../../network-controller/tests/helpers.js';
+import determineGasFeeCalculations from './determineGasFeeCalculations.js';
 import {
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
-} from './gas-util';
-import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController';
+} from './gas-util.js';
+import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController.js';
 import type {
   GasFeeMessenger,
   GasFeeState,
   GasFeeStateEthGasPrice,
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
-} from './GasFeeController';
+} from './GasFeeController.js';
 
 jest.mock('./determineGasFeeCalculations');
 

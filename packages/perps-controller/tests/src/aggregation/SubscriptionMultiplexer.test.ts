@@ -1,4 +1,4 @@
-import { SubscriptionMultiplexer } from '../../../src/aggregation/SubscriptionMultiplexer';
+import { SubscriptionMultiplexer } from '../../../src/aggregation/SubscriptionMultiplexer.js';
 /* eslint-disable */
 import type {
   PerpsProvider,
@@ -8,7 +8,7 @@ import type {
   Order,
   OrderFill,
   AccountState,
-} from '../../../src/types';
+} from '../../../src/types/index.js';
 
 // Mock logger factory
 const createMockLogger = (): jest.Mocked<PerpsLogger> => ({

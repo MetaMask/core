@@ -1,7 +1,7 @@
-import { projectLogger, createModuleLogger } from '../logger';
-import { forDataTypes } from '../types';
-import type { AccountId, Caip19AssetId, Middleware } from '../types';
-import { normalizeAssetId } from '../utils';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import { forDataTypes } from '../types.js';
+import type { AccountId, Caip19AssetId, Middleware } from '../types.js';
+import { normalizeAssetId } from '../utils/index.js';
 
 // ============================================================================
 // CONSTANTS
@@ -138,28 +138,47 @@ export class DetectionMiddleware {
 
       if (Object.keys(detectedAssets).length > 0) {
         response.detectedAssets = detectedAssets;
+      }
 
-        const prices = stateAssetsPrice as Record<string, unknown>;
-        const missingPriceAssets = new Set<Caip19AssetId>();
+      // Queue prices for:
+      // 1) newly detected assets missing a price, and
+      // 2) assets in this balance response that already exist in state but still
+      //    lack a price (e.g. natives seeded before the first price poll).
+      // PriceDataSource filters non-priceable IDs before calling the API.
+      const prices = stateAssetsPrice as Record<string, unknown>;
+      const missingPriceAssets = new Set<Caip19AssetId>();
 
-        for (const accountAssetIds of Object.values(detectedAssets)) {
-          for (const assetId of accountAssetIds) {
-            const normalizedAssetId = normalizeAssetId(assetId);
-            if (
-              prices[normalizedAssetId] === undefined &&
-              prices[assetId] === undefined
-            ) {
-              missingPriceAssets.add(normalizedAssetId);
-            }
+      const maybeQueue = (assetId: Caip19AssetId): void => {
+        const normalizedAssetId = normalizeAssetId(assetId);
+        if (
+          prices[normalizedAssetId] === undefined &&
+          prices[assetId] === undefined
+        ) {
+          missingPriceAssets.add(normalizedAssetId);
+        }
+      };
+
+      for (const accountAssetIds of Object.values(detectedAssets)) {
+        for (const assetId of accountAssetIds) {
+          maybeQueue(assetId);
+        }
+      }
+
+      if (response.assetsBalance) {
+        for (const accountBalances of Object.values(response.assetsBalance)) {
+          for (const assetId of Object.keys(
+            accountBalances as Record<string, unknown>,
+          )) {
+            maybeQueue(assetId as Caip19AssetId);
           }
         }
+      }
 
-        if (missingPriceAssets.size > 0) {
-          request.assetsForPriceUpdate = [
-            ...(request.assetsForPriceUpdate ?? []),
-            ...missingPriceAssets,
-          ];
-        }
+      if (missingPriceAssets.size > 0) {
+        request.assetsForPriceUpdate = [
+          ...(request.assetsForPriceUpdate ?? []),
+          ...missingPriceAssets,
+        ];
       }
 
       return next(ctx);

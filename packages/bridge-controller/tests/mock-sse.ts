@@ -1,9 +1,9 @@
 // eslint-disable-next-line @typescript-eslint/no-shadow
 import { ReadableStream } from 'node:stream/web';
 
-import { flushPromises } from '../../../tests/helpers';
-import type { QuoteStreamCompleteData, TokenFeature } from '../src';
-import { QuoteResponseV1 } from '../src/validators/quote-response-v1';
+import { flushPromises } from '../../../tests/helpers.js';
+import type { QuoteStreamCompleteData, TokenFeature } from '../src/index.js';
+import { QuoteResponseV1 } from '../src/validators/quote-response-v1.js';
 
 type MockSseResponse = { status: number; ok: boolean; body: ReadableStream };
 

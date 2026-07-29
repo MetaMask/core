@@ -1,7 +1,7 @@
 export {
   MultichainAssetsController,
   getDefaultMultichainAssetsControllerState,
-} from './MultichainAssetsController';
+} from './MultichainAssetsController.js';
 
 export type {
   MultichainAssetsControllerState,
@@ -11,9 +11,9 @@ export type {
   MultichainAssetsControllerMessenger,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerEvents,
-} from './MultichainAssetsController';
+} from './MultichainAssetsController.js';
 export type {
   MultichainAssetsControllerGetAssetMetadataAction,
   MultichainAssetsControllerIgnoreAssetsAction,
   MultichainAssetsControllerAddAssetsAction,
-} from './MultichainAssetsController-method-action-types';
+} from './MultichainAssetsController-method-action-types.js';

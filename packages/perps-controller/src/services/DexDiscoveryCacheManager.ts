@@ -1,8 +1,11 @@
 import {
   MAINNET_HIP3_CONFIG,
   TESTNET_HIP3_CONFIG,
-} from '../constants/hyperLiquidConfig';
-import type { DexDiscoveryState, ExtendedPerpDex } from '../types/perps-types';
+} from '../constants/hyperLiquidConfig.js';
+import type {
+  DexDiscoveryState,
+  ExtendedPerpDex,
+} from '../types/perps-types.js';
 
 type DexDiscoveryDeps = {
   isTestnetMode: () => boolean;

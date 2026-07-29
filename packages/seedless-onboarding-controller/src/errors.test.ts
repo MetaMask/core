@@ -1,15 +1,15 @@
 import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 
-import { SeedlessOnboardingControllerErrorMessage } from './constants';
-import { SecretType } from './constants';
+import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
+import { SecretType } from './constants.js';
 import {
   getErrorMessageFromTOPRFErrorCode,
   InvalidPrimarySecretDataTypeError,
   RecoveryError,
   SeedlessOnboardingError,
-} from './errors';
-import { SecretMetadata } from './SecretMetadata';
+} from './errors.js';
+import { SecretMetadata } from './SecretMetadata.js';
 
 describe('getErrorMessageFromTOPRFErrorCode', () => {
   it('returns TooManyLoginAttempts for RateLimitExceeded', () => {

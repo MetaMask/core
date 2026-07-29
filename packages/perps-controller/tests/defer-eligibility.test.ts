@@ -5,9 +5,9 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { PerpsController } from '../src/PerpsController';
-import type { PerpsControllerMessenger } from '../src/PerpsController';
-import type { PerpsPlatformDependencies } from '../src/types';
+import { PerpsController } from '../src/PerpsController.js';
+import type { PerpsControllerMessenger } from '../src/PerpsController.js';
+import type { PerpsPlatformDependencies } from '../src/types/index.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
 jest.mock('@myx-trade/sdk', () => ({}));

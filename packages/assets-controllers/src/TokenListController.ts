@@ -22,8 +22,8 @@ import {
   isTokenListSupportedForNetwork,
   formatAggregatorNames,
   formatIconUrlWithProxy,
-} from './assetsUtil';
-import { TokenRwaData, fetchTokenListByChainId } from './token-service';
+} from './assetsUtil.js';
+import { TokenRwaData, fetchTokenListByChainId } from './token-service.js';
 
 // 4 Hour Interval Cache Refresh Threshold
 const DEFAULT_INTERVAL = 4 * 60 * 60 * 1000;

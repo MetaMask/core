@@ -1,6 +1,6 @@
-import { QuoteStatusFetchWithRetryOutcomeType } from './constants';
-import { QuoteStatusGetError } from './errors';
-import { QuoteStatusGetResponse } from './types';
+import { QuoteStatusFetchWithRetryOutcomeType } from './constants.js';
+import { QuoteStatusGetError } from './errors.js';
+import { QuoteStatusGetResponse } from './types.js';
 
 /**
  * Result of a retrying quote status fetch

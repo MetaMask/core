@@ -3,7 +3,7 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 
-import type { ChainId, TokenListEntry } from '../types';
+import type { ChainId, TokenListEntry } from '../types/index.js';
 
 /**
  * Same host + path that `TokenListController` (assets-controllers) uses

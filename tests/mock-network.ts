@@ -1,8 +1,8 @@
 import type { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
 import nock from 'nock';
 
-import type { NetworkClientConfiguration } from '../packages/network-controller/src/types';
-import { NetworkClientType } from '../packages/network-controller/src/types';
+import type { NetworkClientConfiguration } from '../packages/network-controller/src/types.js';
+import { NetworkClientType } from '../packages/network-controller/src/types.js';
 
 /**
  * An object which instructs the MockedNetwork class which JSON-RPC request
