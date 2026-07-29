@@ -3428,6 +3428,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         maxSlippageBps: normalizedMaxSlippageBps,
         szDecimals: assetInfo.szDecimals,
         leverage: params.leverage,
+        reduceOnly: params.reduceOnly,
       });
 
       const { orderPrice, formattedSize, formattedPrice } =
@@ -3515,7 +3516,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         errorMessage.includes('Order must have minimum value of $10') ||
         errorMessage.includes('Order 0: Order must have minimum value');
 
-      if (isMinimumOrderError && retryCount === 0) {
+      // Reduce-only orders are excluded: a close is capped by the position
+      // size, so retrying it 1.5% larger only swaps the minimum-value error for
+      // "Reduce only order would increase position" and hides the real cause.
+      if (isMinimumOrderError && retryCount === 0 && !params.reduceOnly) {
         let adjustedUsdAmount: string;
         let originalValue: string | undefined;
 
@@ -4408,6 +4412,36 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Use provided position (from WebSocket) or fetch from cache
       // This avoids unnecessary API calls and prevents 429 rate limiting
       let { position } = params;
+
+      // Re-validate the caller-supplied snapshot against the freshest WebSocket
+      // position cache. Clients pass a throttled snapshot (~1s old on mobile),
+      // so a concurrent TP/SL fill, a liquidation, or a double-tapped close
+      // leaves the snapshot's side/size larger than (or opposite to) the real
+      // position and HyperLiquid rejects the reduce-only order with "Reduce
+      // only order would increase position". Reading the cache never issues a
+      // REST request, so this does not reintroduce 429 rate limiting.
+      if (position && this.#subscriptionService.isPositionsCacheInitialized()) {
+        const livePosition = (
+          this.#subscriptionService.getCachedPositions() ?? []
+        ).find((pos) => pos.symbol === params.symbol);
+
+        if (livePosition && livePosition.size !== position.size) {
+          this.#deps.debugLogger.log(
+            'Stale close position snapshot: using live WebSocket position',
+            {
+              coin: params.symbol,
+              snapshotSize: position.size,
+              liveSize: livePosition.size,
+            },
+          );
+        }
+
+        // No live entry means the position is already closed; fall through to
+        // the lookup below so the standard "no position" error is raised
+        // instead of submitting a doomed reduce-only order.
+        position = livePosition;
+      }
+
       if (!position) {
         const positions = await this.getPositions();
         position = positions.find((pos) => pos.symbol === params.symbol);
@@ -4419,11 +4453,20 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       const positionSize = parseFloat(position.size);
       const isBuy = positionSize < 0;
-      const closeSize = params.size ?? Math.abs(positionSize).toString();
+      const absPositionSize = Math.abs(positionSize);
+      // Clamp to the live position size: HyperLiquid rejects reduce-only orders
+      // that would exceed the position, and a caller-supplied size is computed
+      // from a snapshot that may already be larger than the real position.
+      const requestedSize = params.size ? parseFloat(params.size) : NaN;
+      const closeSize = (
+        Number.isFinite(requestedSize)
+          ? Math.min(requestedSize, absPositionSize)
+          : absPositionSize
+      ).toString();
 
       // Capture position details BEFORE closing for freed margin calculation
       const totalMarginUsed = parseFloat(position.marginUsed);
-      const totalPositionSize = Math.abs(positionSize);
+      const totalPositionSize = absPositionSize;
       const closeSizeNum = parseFloat(closeSize);
       const isHip3Position = position.symbol.includes(':');
       const hip3Dex = isHip3Position ? position.symbol.split(':')[0] : null;
@@ -4461,6 +4504,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         freedMargin: freedMargin.toFixed(2),
       });
 
+      const isFullClose = !params.size; // True if closing 100% (size not provided)
+
       // Execute position close with consistent slippage handling
       const result = await this.placeOrder({
         symbol: params.symbol,
@@ -4469,10 +4514,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         orderType: params.orderType ?? 'market',
         price: params.price,
         reduceOnly: true,
-        isFullClose: !params.size, // True if closing 100% (size not provided)
+        isFullClose,
         // Pass through price and slippage parameters for consistent validation
         currentPrice,
-        usdAmount: params.usdAmount,
+        // A full close must submit exactly the live position size. Forwarding
+        // usdAmount would make placeOrder recompute the size from
+        // usdAmount / currentPrice and round it up to meet the requested USD,
+        // which submits more than the position holds and gets rejected with
+        // "Reduce only order would increase position".
+        usdAmount: isFullClose ? undefined : params.usdAmount,
         priceAtCalculation: params.priceAtCalculation,
         maxSlippageBps: params.maxSlippageBps,
       });

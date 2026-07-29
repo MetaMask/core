@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Stop `closePosition` from submitting reduce-only orders that HyperLiquid rejects with "Reduce only order would increase position" (TAT-3252)
+  - The position snapshot callers pass (to avoid a `getPositions()` REST call) is now re-validated against the freshest WebSocket position cache, so the order side and size follow the live position instead of a snapshot that a concurrent TP/SL fill, liquidation, or repeated close has already invalidated. No additional network request is made; when the cache reports no live position for the symbol, the close now fails fast with `No position found for <symbol>` instead of submitting a doomed order.
+  - A caller-supplied close size is clamped to the live position size.
+  - A 100% close now submits exactly the live position size; the `usdAmount` that clients send for slippage protection is no longer used to recompute (and round up) a full close's size.
+  - `placeOrder` no longer retries a reduce-only order that the exchange rejected for the $10 minimum order value with a 1.5% larger size. A close is capped by the position size, so that retry could only fail again as a reduce-only rejection; the minimum-value error is now surfaced instead.
+  - `calculateFinalPositionSize` accepts an optional `reduceOnly` flag. When set, the size is rounded down onto the asset's size grid and the "add one increment to meet the requested USD" adjustment is skipped, so a reduce-only size can never round up past the position.
+
 ## [10.0.0]
 
 ### Added

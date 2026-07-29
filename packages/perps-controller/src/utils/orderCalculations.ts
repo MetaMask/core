@@ -19,6 +19,12 @@ import {
  */
 export type OrderCalculationsDebugLogger = PerpsDebugLogger | undefined;
 
+/**
+ * Tolerance used when deciding whether a scaled size is already on the size
+ * grid, guarding against floating-point representation error.
+ */
+const FLOAT_TOLERANCE = 1e-6;
+
 type PositionSizeParams = {
   amount: string;
   price: number;
@@ -46,6 +52,10 @@ export type CalculateFinalPositionSizeParams = {
   maxSlippageBps?: number;
   szDecimals: number;
   leverage?: number;
+  // Reduce-only orders (position closes) may never round up: HyperLiquid
+  // rejects a reduce-only order whose size exceeds the live position with
+  // "Reduce only order would increase position".
+  reduceOnly?: boolean;
   debugLogger?: OrderCalculationsDebugLogger;
 };
 
@@ -189,6 +199,31 @@ export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
 }
 
 /**
+ * Round a size down onto the asset's size grid.
+ *
+ * Used for reduce-only orders, where rounding up would push the size past the
+ * live position size. Values already on the grid are snapped rather than
+ * truncated, because floating-point math can leave them just below a grid
+ * point (0.0123 * 10000 === 122.99999999999999) and truncating would drop a
+ * whole increment.
+ *
+ * @param size - Size to round down.
+ * @param szDecimals - The asset's size decimal precision.
+ * @returns The size rounded down onto the size grid.
+ */
+function floorToSizeDecimals(size: number, szDecimals: number): number {
+  const multiplier = Math.pow(10, szDecimals);
+  const scaled = size * multiplier;
+  const nearest = Math.round(scaled);
+
+  return (
+    (Math.abs(scaled - nearest) < FLOAT_TOLERANCE
+      ? nearest
+      : Math.floor(scaled)) / multiplier
+  );
+}
+
+/**
  * Calculates final position size using USD as source of truth with price validation
  *
  * This function implements the hybrid approach where USD is the source of truth,
@@ -208,6 +243,7 @@ export function calculateFinalPositionSize(
     maxSlippageBps,
     szDecimals,
     leverage,
+    reduceOnly,
     debugLogger,
   } = params;
 
@@ -243,13 +279,17 @@ export function calculateFinalPositionSize(
     // 2. Recalculate position size with fresh price
     finalPositionSize = usdValue / currentPrice;
 
-    // 3. Apply size decimals rounding
+    // 3. Apply size decimals rounding (reduce-only never rounds up)
     const multiplier = Math.pow(10, szDecimals);
-    finalPositionSize = Math.round(finalPositionSize * multiplier) / multiplier;
+    finalPositionSize = reduceOnly
+      ? floorToSizeDecimals(finalPositionSize, szDecimals)
+      : Math.round(finalPositionSize * multiplier) / multiplier;
 
-    // 4. Ensure rounded size meets requested USD (fix validation gap)
+    // 4. Ensure rounded size meets requested USD (fix validation gap).
+    // Skipped for reduce-only orders: adding an increment there would submit
+    // more than the position holds and HyperLiquid rejects the order.
     let actualNotionalValue = finalPositionSize * currentPrice;
-    if (actualNotionalValue < usdValue) {
+    if (!reduceOnly && actualNotionalValue < usdValue) {
       // Add 1 minimum increment to meet requested USD
       finalPositionSize += 1 / multiplier;
       actualNotionalValue = finalPositionSize * currentPrice;
@@ -290,6 +330,13 @@ export function calculateFinalPositionSize(
   } else {
     // Legacy: Use provided size (backward compatibility)
     finalPositionSize = parseFloat(size ?? '0');
+
+    // Reduce-only sizes are formatted with toFixed() further down, which rounds
+    // up; truncate onto the size grid first so a close can never exceed the
+    // position it is closing.
+    if (reduceOnly) {
+      finalPositionSize = floorToSizeDecimals(finalPositionSize, szDecimals);
+    }
 
     debugLogger?.log(
       'Using legacy size calculation (no USD amount provided):',

@@ -22,6 +22,7 @@ import type {
   PerpsPlatformDependencies,
   LiveDataConfig,
   OrderParams,
+  Position,
 } from '../../../src/types/index.js';
 import {
   validateAssetSupport,
@@ -2001,6 +2002,197 @@ describe('HyperLiquidProvider', () => {
 
       // Should succeed - TP/SL handling is automatic by Hyperliquid
       expect(result.success).toBe(true);
+    });
+  });
+
+  // Regression coverage for TAT-3252: HyperLiquid rejects a reduce-only order
+  // with "Reduce only order would increase position" whenever the submitted
+  // size/side does not match the live position.
+  describe('closePosition reduce-only safety', () => {
+    /**
+     * Build a position snapshot of the shape clients pass to closePosition.
+     * @param overrides - Fields to override on the default BTC long.
+     * @returns A position snapshot.
+     */
+    const createPositionSnapshot = (overrides: Partial<Position> = {}) => ({
+      symbol: 'BTC',
+      size: '0.1',
+      entryPrice: '50000',
+      positionValue: '5000',
+      unrealizedPnl: '100',
+      marginUsed: '500',
+      leverage: { type: 'cross' as const, value: 10 },
+      liquidationPrice: '45000',
+      maxLeverage: 50,
+      returnOnEquity: '20',
+      cumulativeFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+      takeProfitCount: 0,
+      stopLossCount: 0,
+      ...overrides,
+    });
+
+    /**
+     * Make the WebSocket position cache serve the given positions.
+     * @param positions - Positions the cache should report as live.
+     */
+    const primePositionsCache = (positions: Position[]) => {
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue(positions);
+    };
+
+    /**
+     * Read the main order submitted to the exchange.
+     * @returns The submitted SDK order.
+     */
+    const getSubmittedOrder = () =>
+      (mockClientService.getExchangeClient().order as jest.Mock).mock
+        .calls[0][0].orders[0];
+
+    it('uses the live position size when the provided snapshot is stale', async () => {
+      // Snapshot says 0.1 BTC, but a concurrent TP/SL fill left only 0.04
+      primePositionsCache([createPositionSnapshot({ size: '0.04' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot(),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({
+        b: false, // sell to close a long
+        s: '0.04',
+        r: true,
+      });
+    });
+
+    it('uses the live position side when the snapshot direction is stale', async () => {
+      // Snapshot says long, but the position has since flipped short
+      primePositionsCache([createPositionSnapshot({ size: '-0.05' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({
+        b: true, // buy to close a short
+        s: '0.05',
+        r: true,
+      });
+    });
+
+    it('fails fast without submitting an order when the position is already closed', async () => {
+      // Cache is initialized and no longer holds BTC: the position is gone
+      // (e.g. a double-tapped close), so the reduce-only order must not be sent
+      primePositionsCache([createPositionSnapshot({ symbol: 'ETH' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot(),
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('No position found for BTC');
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('clamps a requested close size to the live position size', async () => {
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        size: '0.2', // larger than the position
+        currentPrice: 50000,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
+    });
+
+    it('submits the exact position size for a full close instead of a USD-derived size', async () => {
+      // usdAmount / currentPrice rounds to 0.1 but leaves the notional below
+      // the requested USD, which previously added a whole size increment and
+      // submitted 0.101 for a 0.1 position.
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        usdAmount: '5000.5',
+        priceAtCalculation: 50000,
+        currentPrice: 50000,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
+    });
+
+    it('never rounds a partial close size up to meet the requested USD', async () => {
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        size: '0.05',
+        usdAmount: '2500.4', // implies 0.050008 BTC at 50000
+        currentPrice: 50000,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.05', r: true });
+    });
+
+    it('does not retry a reduce-only order rejected for the $10 minimum with a larger size', async () => {
+      // Growing a close by 1.5% would exceed the position, so the minimum-value
+      // error must surface instead of being masked by a reduce-only rejection.
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+      mockClientService.getExchangeClient = jest.fn().mockReturnValue({
+        ...createMockExchangeClient(),
+        order: jest
+          .fn()
+          .mockRejectedValue(new Error('Order must have minimum value of $10')),
+      });
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('minimum value of $10');
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
+    it('keeps a grid-aligned close size intact despite floating point error', async () => {
+      // 0.123 * 1000 === 122.99999999999999, so a naive truncation would drop a
+      // whole increment and leave dust behind.
+      primePositionsCache([createPositionSnapshot({ size: '0.123' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.123' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.123', r: true });
     });
   });
 
