@@ -79,9 +79,9 @@ export type Fee = {
   assetType?: AssetType;
 };
 
-type ActivityData<Type extends ActivityKind, Data, ChainId = CaipChainId> = {
+type ActivityData<Type extends ActivityKind, Data> = {
   type: Type;
-  chainId: ChainId;
+  chainId: CaipChainId;
   status: Status;
   timestamp: number;
   hash?: string;
@@ -176,26 +176,29 @@ export type ActivityItem =
         transactionProtocol?: string;
       }
     >
-  | (ActivityData<
-      'rampBuy' | 'rampSell',
-      {
-        from?: string;
-        fiat?: FiatAmount;
-        token?: TokenAmount;
-        fees?: Fee[];
-        provider?: {
-          id?: string;
-          name?: string;
-          orderLink?: string;
-        };
-        statusDescription?: string;
-        paymentDetails?: RampOrderPaymentDetail[];
-      },
+  | (Omit<
+      ActivityData<
+        'rampBuy' | 'rampSell',
+        {
+          from?: string;
+          fiat?: FiatAmount;
+          token?: TokenAmount;
+          fees?: Fee[];
+          provider?: {
+            id?: string;
+            name?: string;
+            orderLink?: string;
+          };
+          statusDescription?: string;
+          paymentDetails?: RampOrderPaymentDetail[];
+        }
+      >,
+      'chainId'
+    > & {
       // Precreated stub orders (see `RampsController.addPrecreatedOrder`) may
       // not have an assigned network yet, so unlike every other activity
       // kind, a ramp order's chain id isn't guaranteed.
-      CaipChainId | undefined
-    > & {
+      chainId?: CaipChainId;
       // Stable identifier for orders that may not have a hash yet (e.g. a
       // ramp order pending fiat settlement, where `hash` is empty until it
       // settles on-chain). Sits next to `hash` since, like `hash`, it's a
