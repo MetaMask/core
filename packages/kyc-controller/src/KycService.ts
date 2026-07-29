@@ -150,7 +150,6 @@ export type JwksResponse = Infer<typeof JwksResponseStruct>;
 
 const UkycSessionResponseStruct = type({
   sessionId: string(),
-  idosSessionId: string(),
 });
 export type UkycSessionResponse = Infer<typeof UkycSessionResponseStruct>;
 
@@ -204,11 +203,6 @@ export type CreateUkycSessionParams = {
    * before it is sent to the backend.
    */
   ukycCapabilityToken: UkycStorageAccessToken;
-};
-
-export type FetchApplicantAccessTokenParams = {
-  sessionId: string;
-  idosSessionId: string;
 };
 
 // === SERVICE DEFINITION ===
@@ -461,21 +455,18 @@ export class KycService {
    * Fetches (or refreshes) the SumSub applicant access token for a UKYC
    * session.
    *
-   * @param params - The parameters.
-   * @param params.sessionId - The UKYC session id from `createUkycSession`.
-   * @param params.idosSessionId - The idOS session id from `createUkycSession`.
+   * @param sessionId - The UKYC session id from `createUkycSession`.
    * @returns The applicant access token and status.
    */
   async fetchApplicantAccessToken(
-    params: FetchApplicantAccessTokenParams,
+    sessionId: string,
   ): Promise<ApplicantAccessTokenResponse> {
     const url = new URL(
-      `/sessions/${encodeURIComponent(params.sessionId)}/wrapped-key`,
+      `/sessions/${encodeURIComponent(sessionId)}/wrapped-key`,
       this.#baseUrl,
     );
     const data = await this.#request(url, {
       method: 'POST',
-      body: JSON.stringify({ idosSessionId: params.idosSessionId }),
     });
     return this.#validateResponse(
       data,
@@ -541,9 +532,13 @@ export class KycService {
   ): Promise<unknown> {
     const { authenticated = true } = options;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
+
+    // Only advertise a JSON body when one is actually sent; bodyless requests
+    // (e.g. `fetchApplicantAccessToken`) must not carry a `Content-Type`.
+    if (init.body !== undefined && init.body !== null) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (authenticated) {
       const bearerToken = await this.#messenger.call(

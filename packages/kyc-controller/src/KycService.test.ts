@@ -286,7 +286,6 @@ describe('KycService', () => {
     it('creates a UKYC session and forwards the wrapped key and capability token', async () => {
       const response = {
         sessionId: 'sid',
-        idosSessionId: 'iss',
       };
       nock(MOCK_API_URL)
         .post(
@@ -309,7 +308,7 @@ describe('KycService', () => {
     });
 
     it('throws on a malformed response', async () => {
-      nock(MOCK_API_URL).post('/sessions').reply(200, { sessionId: 'sid' });
+      nock(MOCK_API_URL).post('/sessions').reply(200, { unexpected: true });
       const { service } = getService();
 
       await expect(
@@ -327,16 +326,26 @@ describe('KycService', () => {
     it('fetches the applicant access token for a session', async () => {
       const response = { status: 'ok', applicantAccessToken: 'aat' };
       nock(MOCK_API_URL)
-        .post('/sessions/sid/wrapped-key', { idosSessionId: 'iss' })
+        .post('/sessions/sid/wrapped-key')
         .reply(200, response);
       const { service } = getService();
 
-      expect(
-        await service.fetchApplicantAccessToken({
-          sessionId: 'sid',
-          idosSessionId: 'iss',
-        }),
-      ).toStrictEqual(response);
+      expect(await service.fetchApplicantAccessToken('sid')).toStrictEqual(
+        response,
+      );
+    });
+
+    it('does not send a Content-Type header since it has no body', async () => {
+      const response = { status: 'ok', applicantAccessToken: 'aat' };
+      nock(MOCK_API_URL)
+        .post('/sessions/sid/wrapped-key')
+        .matchHeader('content-type', (value) => value === undefined)
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(await service.fetchApplicantAccessToken('sid')).toStrictEqual(
+        response,
+      );
     });
 
     it('throws on a malformed response', async () => {
@@ -346,10 +355,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchApplicantAccessToken({
-          sessionId: 'sid',
-          idosSessionId: 'iss',
-        }),
+        service.fetchApplicantAccessToken('sid'),
       ).rejects.toThrow(/Malformed response received from wrapped-key API/u);
     });
   });

@@ -1,8 +1,5 @@
 import { areUint8ArraysEqual } from '@metamask/utils';
-import { gcm } from '@noble/ciphers/aes';
-import { x25519 } from '@noble/curves/ed25519';
-import { hkdf } from '@noble/hashes/hkdf';
-import { sha256 } from '@noble/hashes/sha2';
+import nacl from 'tweetnacl';
 
 import { base64UrlToBytes, toBase64Url } from './encoding';
 import { wrapEncryptionKey } from './wrapEncryptionKey';
@@ -10,9 +7,8 @@ import { wrapEncryptionKey } from './wrapEncryptionKey';
 const DATA_ENCRYPTION_KEY = new Uint8Array(32).fill(7);
 
 /**
- * Reverses {@link wrapEncryptionKey} from the server's perspective: derives the
- * same shared secret from the server private key + client public key and
- * decrypts.
+ * Reverses {@link wrapEncryptionKey} from the server's perspective: opens the
+ * NaCl box using the server private key + client public key.
  *
  * @param serverPrivateKey - The server's X25519 private key.
  * @param clientPublicKey - The client's X25519 public key.
@@ -26,38 +22,41 @@ function unwrap(
   encryptedKey: string,
   nonce: string,
 ): Uint8Array {
-  const shared = x25519.getSharedSecret(serverPrivateKey, clientPublicKey);
-  const aeadKey = hkdf(sha256, shared, undefined, undefined, 32);
-  return gcm(aeadKey, base64UrlToBytes(nonce)).decrypt(
+  const recovered = nacl.box.open(
     base64UrlToBytes(encryptedKey),
+    base64UrlToBytes(nonce),
+    clientPublicKey,
+    serverPrivateKey,
   );
+  if (recovered === null) {
+    throw new Error('Failed to open NaCl box');
+  }
+  return recovered;
 }
 
 describe('UKYC wrapEncryptionKey', () => {
   it('wraps a key the session server can recover', () => {
-    const serverPrivateKey = x25519.utils.randomSecretKey();
-    const serverPublicKey = x25519.getPublicKey(serverPrivateKey);
-    const clientPrivateKey = x25519.utils.randomSecretKey();
-    const clientPublicKey = x25519.getPublicKey(clientPrivateKey);
+    const serverKeyPair = nacl.box.keyPair();
+    const clientKeyPair = nacl.box.keyPair();
 
     const { encryptedKey, nonce } = wrapEncryptionKey(
-      clientPrivateKey,
-      toBase64Url(serverPublicKey),
+      clientKeyPair.secretKey,
+      toBase64Url(serverKeyPair.publicKey),
       DATA_ENCRYPTION_KEY,
     );
 
     const recovered = unwrap(
-      serverPrivateKey,
-      clientPublicKey,
+      serverKeyPair.secretKey,
+      clientKeyPair.publicKey,
       encryptedKey,
       nonce,
     );
     expect(areUint8ArraysEqual(recovered, DATA_ENCRYPTION_KEY)).toBe(true);
   });
 
-  it('emits unpadded base64url fields', () => {
-    const serverPublicKey = x25519.getPublicKey(x25519.utils.randomSecretKey());
-    const clientPrivateKey = x25519.utils.randomSecretKey();
+  it('emits base64url fields', () => {
+    const serverPublicKey = nacl.box.keyPair().publicKey;
+    const clientPrivateKey = nacl.box.keyPair().secretKey;
 
     const { encryptedKey, nonce } = wrapEncryptionKey(
       clientPrivateKey,
@@ -65,13 +64,13 @@ describe('UKYC wrapEncryptionKey', () => {
       DATA_ENCRYPTION_KEY,
     );
 
-    expect(encryptedKey).toMatch(/^[A-Za-z0-9_-]+$/u);
-    expect(nonce).toMatch(/^[A-Za-z0-9_-]+$/u);
+    expect(encryptedKey).toMatch(/^[A-Za-z0-9\-_]+$/u);
+    expect(nonce).toMatch(/^[A-Za-z0-9\-_]+$/u);
   });
 
   it('uses a fresh nonce per call', () => {
-    const serverPublicKey = x25519.getPublicKey(x25519.utils.randomSecretKey());
-    const clientPrivateKey = x25519.utils.randomSecretKey();
+    const serverPublicKey = nacl.box.keyPair().publicKey;
+    const clientPrivateKey = nacl.box.keyPair().secretKey;
     const serverPublicKeyB64 = toBase64Url(serverPublicKey);
 
     const first = wrapEncryptionKey(

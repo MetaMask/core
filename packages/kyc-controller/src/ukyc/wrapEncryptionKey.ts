@@ -1,14 +1,11 @@
-import { gcm } from '@noble/ciphers/aes';
-import { x25519 } from '@noble/curves/ed25519';
-import { hkdf } from '@noble/hashes/hkdf';
-import { sha256 } from '@noble/hashes/sha2';
-import { randomBytes } from '@noble/hashes/utils';
+import nacl from 'tweetnacl';
 
 import { base64UrlToBytes, toBase64Url } from './encoding';
 
 /**
- * Wraps the `data_encryption_key` for the UKYC session server using the
- * static-static ECDH established with the server's per-session wrapping key.
+ * Wraps the `data_encryption_key` for the UKYC session server using NaCl's
+ * `crypto_box` (X25519 + XSalsa20-Poly1305) established with the server's
+ * per-session wrapping key.
  *
  * Unlike {@link wrapUserKey} (which generates a fresh ephemeral keypair per
  * call), this uses the session client keypair whose public half was already
@@ -17,13 +14,10 @@ import { base64UrlToBytes, toBase64Url } from './encoding';
  * private key, so only `{ encryptedKey, nonce }` need be transmitted.
  */
 
-/** 96-bit nonce, the AES-GCM standard nonce size. */
-const NONCE_SIZE_BYTES = 12;
-
 /**
- * The transmitted portion of a wrapped encryption key: the AES-256-GCM
- * ciphertext (which includes the 16-byte auth tag) and the nonce, both
- * base64url-encoded.
+ * The transmitted portion of a wrapped encryption key: the `crypto_box`
+ * ciphertext (which includes the 16-byte Poly1305 auth tag) and the nonce,
+ * both unpadded base64url-encoded.
  */
 export type WrappedEncryptionKeyParts = {
   encryptedKey: string;
@@ -33,9 +27,9 @@ export type WrappedEncryptionKeyParts = {
 /**
  * Wraps `keyToWrap` for the UKYC session server.
  *
- * The AEAD key is the ECDH shared secret between our session client private key
- * and the session server public key returned by `getWrappingKey`, run through
- * HKDF-SHA256; the key is then sealed with AES-256-GCM.
+ * The box is sealed with NaCl's `crypto_box`, keyed by the X25519 shared secret
+ * between our session client private key and the session server public key
+ * returned by `getWrappingKey`.
  *
  * @param sessionClientPrivateKey - Our session's X25519 private key.
  * @param sessionServerPublicKey - The server's X25519 public key (base64url).
@@ -48,13 +42,13 @@ export function wrapEncryptionKey(
   keyToWrap: Uint8Array,
 ): WrappedEncryptionKeyParts {
   const serverPublicKey = base64UrlToBytes(sessionServerPublicKey);
-  const shared = x25519.getSharedSecret(
-    sessionClientPrivateKey,
+  const nonce = nacl.randomBytes(nacl.box.nonceLength);
+  const encryptedKey = nacl.box(
+    keyToWrap,
+    nonce,
     serverPublicKey,
+    sessionClientPrivateKey,
   );
-  const aeadKey = hkdf(sha256, shared, undefined, undefined, 32);
-  const nonce = randomBytes(NONCE_SIZE_BYTES);
-  const encryptedKey = gcm(aeadKey, nonce).encrypt(keyToWrap);
   return {
     encryptedKey: toBase64Url(encryptedKey),
     nonce: toBase64Url(nonce),

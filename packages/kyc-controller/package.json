@@ -67,7 +67,8 @@
     "@noble/curves": "^1.9.2",
     "@noble/hashes": "^1.8.0",
     "@scure/base": "^1.2.6",
-    "reselect": "^5.1.1"
+    "reselect": "^5.1.1",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

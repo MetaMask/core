@@ -1332,7 +1332,6 @@ describe('KycController', () => {
           controller.reset();
           return {
             sessionId: 'sid',
-            idosSessionId: 'iss',
           };
         });
 
@@ -1550,7 +1549,6 @@ function withController<ReturnValue>(
     fetchJwks: jest.fn().mockResolvedValue({ keys: [] }),
     createUkycSession: jest.fn().mockResolvedValue({
       sessionId: 'sid',
-      idosSessionId: 'iss',
     }),
     fetchApplicantAccessToken: jest
       .fn()

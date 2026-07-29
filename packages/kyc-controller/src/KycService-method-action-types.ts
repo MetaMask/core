@@ -103,9 +103,7 @@ export type KycServiceCreateUkycSessionAction = {
  * Fetches (or refreshes) the SumSub applicant access token for a UKYC
  * session.
  *
- * @param params - The parameters.
- * @param params.sessionId - The UKYC session id from `createUkycSession`.
- * @param params.idosSessionId - The idOS session id from `createUkycSession`.
+ * @param sessionId - The UKYC session id from `createUkycSession`.
  * @returns The applicant access token and status.
  */
 export type KycServiceFetchApplicantAccessTokenAction = {

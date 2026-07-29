@@ -33,7 +33,6 @@ export type {
   CheckKycRequiredParams,
   CreateSessionParams,
   CreateUkycSessionParams,
-  FetchApplicantAccessTokenParams,
   GetWrappingKeyParams,
   JwksResponse,
   KycServiceActions,
