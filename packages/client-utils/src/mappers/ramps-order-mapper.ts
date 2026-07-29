@@ -192,7 +192,6 @@ export function mapRampsOrder(order: RampsOrderLike): ActivityItem | null {
     status: mapStatus(order.status),
     timestamp: order.createdAt,
     hash: isPlausibleRampTxHash(order.txHash) ? order.txHash : undefined,
-    id: order.id ?? order.providerOrderId,
     data: {
       from: order.walletAddress,
       fiat,
@@ -205,6 +204,7 @@ export function mapRampsOrder(order: RampsOrderLike): ActivityItem | null {
       },
       statusDescription: order.statusDescription,
       paymentDetails: order.paymentDetails,
+      id: order.id ?? order.providerOrderId,
     },
   };
 }

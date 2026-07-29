@@ -191,6 +191,10 @@ export type ActivityItem =
           };
           statusDescription?: string;
           paymentDetails?: RampOrderPaymentDetail[];
+          // Stable identifier for orders that may not have a hash yet (e.g. a
+          // ramp order pending fiat settlement, where `hash` is empty until it
+          // settles on-chain). Lives in `data` as a ramp-specific property.
+          id?: string;
         }
       >,
       'chainId'
@@ -199,12 +203,6 @@ export type ActivityItem =
       // not have an assigned network yet, so unlike every other activity
       // kind, a ramp order's chain id isn't guaranteed.
       chainId?: CaipChainId;
-      // Stable identifier for orders that may not have a hash yet (e.g. a
-      // ramp order pending fiat settlement, where `hash` is empty until it
-      // settles on-chain). Sits next to `hash` since, like `hash`, it's a
-      // cross-kind identity concept — scoped to this union arm only, since no
-      // other activity kind needs it today.
-      id?: string;
     });
 
 // Note: Update core-backend

@@ -34,7 +34,6 @@ describe('mapRampsOrder', () => {
       status: 'success',
       timestamp: 1716367781000,
       hash: '0xabc',
-      id: 'order-123',
       data: {
         from: '0xwallet',
         fiat: { amount: '100', currency: 'USD' },
@@ -54,6 +53,7 @@ describe('mapRampsOrder', () => {
         paymentDetails: [
           { fiatCurrency: 'USD', paymentMethod: 'card', fields: [] },
         ],
+        id: 'order-123',
       },
     });
   });
@@ -98,7 +98,7 @@ describe('mapRampsOrder', () => {
     const item = mapRampsOrder({ ...baseOrder, txHash: '', status: 'PENDING' });
 
     expect(item?.hash).toBeUndefined();
-    expect(item?.type === 'rampBuy' ? item.id : 'unset').toBe('order-123');
+    expect(item?.type === 'rampBuy' ? item.data.id : 'unset').toBe('order-123');
     expect(item?.status).toBe('pending');
   });
 
@@ -165,7 +165,9 @@ describe('mapRampsOrder', () => {
       const item = mapRampsOrder({ ...baseOrder, txHash });
 
       expect(item?.hash).toBeUndefined();
-      expect(item?.type === 'rampBuy' ? item.id : 'unset').toBe('order-123');
+      expect(item?.type === 'rampBuy' ? item.data.id : 'unset').toBe(
+        'order-123',
+      );
     },
   );
 
@@ -214,7 +216,9 @@ describe('mapRampsOrder', () => {
       id: 'transak/orders/canonical-id',
     });
 
-    expect(item).toMatchObject({ id: 'transak/orders/canonical-id' });
+    expect(item).toMatchObject({
+      data: { id: 'transak/orders/canonical-id' },
+    });
   });
 
   it('does not report a decimals field on the token amount, since cryptoAmount is already human-formatted', () => {
