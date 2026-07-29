@@ -135,6 +135,20 @@ export type TransactionControllerUpdateTransactionAction = {
 };
 
 /**
+ * Updates transaction metadata.
+ *
+ * @param options - Update options.
+ * @param options.transactionId - ID of the transaction to update.
+ * @param options.callback - Function that mutates the transaction metadata.
+ * @param options.skipResimulate - Whether to skip automatic re-simulation.
+ * @returns The updated transaction metadata.
+ */
+export type TransactionControllerUpdateTransactionMetadataAction = {
+  type: `TransactionController:updateTransactionMetadata`;
+  handler: TransactionController['updateTransactionMetadata'];
+};
+
+/**
  * Mark a transaction as failed, transitioning it through the standard failure
  * path.
  *
@@ -441,6 +455,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerEstimateGasBufferedAction
   | TransactionControllerUpdateTransactionAction
+  | TransactionControllerUpdateTransactionMetadataAction
   | TransactionControllerFailTransactionAction
   | TransactionControllerUpdateSecurityAlertResponseAction
   | TransactionControllerWipeTransactionsAction
