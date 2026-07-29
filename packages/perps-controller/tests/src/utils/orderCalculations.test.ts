@@ -138,8 +138,7 @@ describe('getMaxAllowedAmount', () => {
       leverage: 5,
     };
     const slippageMultiplier =
-      1 +
-      ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps / BASIS_POINTS_DIVISOR;
+      1 + ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps / BASIS_POINTS_DIVISOR;
 
     expect(getMaxAllowedAmount(params)).toBe(
       getMaxAllowedAmount({ ...params, isBuy: true, orderType: 'market' }),
