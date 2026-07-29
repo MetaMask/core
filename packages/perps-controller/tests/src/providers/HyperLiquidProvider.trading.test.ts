@@ -2125,6 +2125,197 @@ describe('HyperLiquidProvider', () => {
       expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
     });
 
+    it('rejects a non-positive close size instead of closing the whole position', async () => {
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        size: '0', // a caller-side formatting slip must not liquidate 0.1 BTC
+        usdAmount: '2500',
+        currentPrice: 50000,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects a non-numeric close size', async () => {
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        size: 'abc',
+        currentPrice: 50000,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('treats an empty close size as a full close', async () => {
+      // Mobile sends `size: sizeToClose || ''` for 100% closes
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        size: '',
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
+    });
+
+    it('caps a partial close at the clamped size when usdAmount implies more', async () => {
+      // 98% close priced at 50000, submitted after a 2.5% adverse move: the USD
+      // amount implies 0.1005 BTC, above both the request and the position
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        size: '0.098',
+        usdAmount: '4900',
+        priceAtCalculation: 50000,
+        currentPrice: 48750,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.098', r: true });
+    });
+
+    it('uses the caller snapshot verbatim when the WebSocket cache is not initialized', async () => {
+      // The 429-avoiding shortcut: no cache, no REST call, snapshot is authoritative
+      const getPositionsSpy = jest.spyOn(provider, 'getPositions');
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.07' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.07', r: true });
+      expect(getPositionsSpy).not.toHaveBeenCalled();
+    });
+
+    it('keeps the caller snapshot for a HIP-3 symbol the cache does not cover', async () => {
+      // HIP-3 DEXs are only in the cache while their subscriptions are active, so
+      // a missing entry there must not block the close the way a missing main-DEX
+      // entry does
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: true,
+      });
+      // Cache is initialized and holds only the main-DEX position
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+      const mockOrder = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 123 } }] } },
+      });
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+            params?.dex === 'xyz'
+              ? Promise.resolve({
+                  universe: [
+                    { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+                  ],
+                  collateralToken: 0, // USDC, so the collateral gate passes
+                })
+              : Promise.resolve({
+                  universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+                }),
+          ),
+          metaAndAssetCtxs: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve([
+                    {
+                      universe: [
+                        { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+                      ],
+                      collateralToken: 0,
+                    },
+                    [
+                      {
+                        funding: '0.0001',
+                        openInterest: '100',
+                        prevDayPx: '95',
+                        dayNtlVlm: '10000',
+                        markPx: '100',
+                        midPx: '100',
+                        oraclePx: '100',
+                      },
+                    ],
+                  ])
+                : Promise.resolve([
+                    {
+                      universe: [
+                        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+                      ],
+                    },
+                    [
+                      {
+                        funding: '0.0001',
+                        openInterest: '1000',
+                        prevDayPx: '49000',
+                        dayNtlVlm: '1000000',
+                        markPx: '50000',
+                        midPx: '50000',
+                        oraclePx: '50000',
+                      },
+                    ],
+                  ]),
+            ),
+          allMids: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve({ 'xyz:STOCK1': '100' })
+                : Promise.resolve({ BTC: '50000' }),
+            ),
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+
+      const result = await hip3Provider.closePosition({
+        symbol: 'xyz:STOCK1',
+        orderType: 'market',
+        position: createPositionSnapshot({
+          symbol: 'xyz:STOCK1',
+          size: '10',
+          marginUsed: '100',
+        }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orders: [expect.objectContaining({ s: '10', r: true })],
+        }),
+      );
+    });
+
     it('keeps the clamp when a partial close also carries usdAmount', async () => {
       // The ticket's scenario for the flow clients actually use: a 50% market
       // close sends size *and* usdAmount alongside a snapshot that a TP/SL fill
@@ -2447,6 +2638,57 @@ describe('HyperLiquidProvider', () => {
         expect(result.results).toHaveLength(2);
         expect(result.results[0].symbol).toBe('BTC');
         expect(result.results[1].symbol).toBe('ETH');
+      });
+
+      it('rounds each reduce-only close size down to the size grid', async () => {
+        // 0.1005 would toFixed(3) up to 0.101 — above the position, which
+        // HyperLiquid rejects with "Reduce only order would increase position"
+        const mockOrder = jest.fn().mockResolvedValue({
+          response: { data: { statuses: [{ filled: {} }] } },
+        });
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+              withdrawable: '10000',
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'BTC',
+                    szi: '0.1005',
+                    entryPx: '50000',
+                    positionValue: '5025',
+                    unrealizedPnl: '100',
+                    marginUsed: '500',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '45000',
+                  },
+                  type: 'oneWay',
+                },
+              ],
+              crossMarginSummary: {
+                accountValue: '10500',
+                totalMarginUsed: '500',
+              },
+            }),
+            meta: jest.fn().mockResolvedValue({
+              universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+            }),
+            allMids: jest.fn().mockResolvedValue({ BTC: '50000' }),
+          }),
+        );
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+
+        const result = await provider.closePositions({ closeAll: true });
+
+        expect(result.success).toBe(true);
+        expect(mockOrder).toHaveBeenCalledWith(
+          expect.objectContaining({
+            orders: [expect.objectContaining({ s: '0.1', r: true })],
+          }),
+        );
       });
 
       it('handles batch close errors', async () => {

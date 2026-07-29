@@ -29,8 +29,7 @@ describe('calculateFinalPositionSize', () => {
     });
 
     it('rounds a reduce-only size down rather than to the nearest increment', () => {
-      // 2500.4 / 50000 = 0.050008: nearest is 0.05 either way, but 4599 / 50000
-      // = 0.09198 would round up to 0.092
+      // 4599 / 50000 = 0.09198, which would round up to 0.092
       const { finalPositionSize } = calculateFinalPositionSize({
         usdAmount: '4599',
         currentPrice: 50000,
@@ -59,12 +58,38 @@ describe('calculateFinalPositionSize', () => {
         usdAmount: '2500',
         currentPrice: 50000,
         szDecimals: 5,
+      });
+
+      // For an opening order the USD amount wins outright
+      expect(finalPositionSize).toBeCloseTo(0.05, 10);
+    });
+
+    it('caps a reduce-only size at the provided size', () => {
+      // The caller already clamped 0.04 to the live position, so the USD amount
+      // (worth 0.05 at this price) must not resurrect the larger size
+      const { finalPositionSize } = calculateFinalPositionSize({
+        size: '0.04',
+        usdAmount: '2500',
+        currentPrice: 50000,
+        szDecimals: 5,
         reduceOnly: true,
       });
 
-      // Documents why closePosition must withhold usdAmount once its size clamp
-      // bites: the USD amount wins here.
-      expect(finalPositionSize).toBeCloseTo(0.05, 10);
+      expect(finalPositionSize).toBeCloseTo(0.04, 10);
+    });
+
+    it('keeps the USD-derived reduce-only size when it is below the provided size', () => {
+      // An adverse price move shrinks the USD-derived size; the cap must not
+      // raise it back up to the requested size
+      const { finalPositionSize } = calculateFinalPositionSize({
+        size: '0.05',
+        usdAmount: '2000',
+        currentPrice: 50000,
+        szDecimals: 5,
+        reduceOnly: true,
+      });
+
+      expect(finalPositionSize).toBeCloseTo(0.04, 10);
     });
 
     it('throws when the price moved beyond the allowed slippage', () => {

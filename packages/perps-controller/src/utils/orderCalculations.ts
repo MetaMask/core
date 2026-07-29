@@ -211,7 +211,7 @@ export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
  * @param szDecimals - The asset's size decimal precision.
  * @returns The size rounded down onto the size grid.
  */
-function floorToSizeDecimals(size: number, szDecimals: number): number {
+export function floorToSizeDecimals(size: number, szDecimals: number): number {
   const multiplier = Math.pow(10, szDecimals);
   const scaled = size * multiplier;
   const nearest = Math.round(scaled);
@@ -284,6 +284,18 @@ export function calculateFinalPositionSize(
 
     // 2. Recalculate position size with fresh price
     finalPositionSize = usdValue / currentPrice;
+
+    // A reduce-only order may never exceed the size the caller asked to close:
+    // that size is already clamped to the live position, while the USD amount was
+    // computed against an older price and can imply a larger size after an
+    // adverse move. Capping here keeps USD accuracy in the common case and makes
+    // the caller's clamp binding.
+    if (reduceOnly && size) {
+      const requestedSize = parseFloat(size);
+      if (Number.isFinite(requestedSize)) {
+        finalPositionSize = Math.min(finalPositionSize, requestedSize);
+      }
+    }
 
     // 3. Apply size decimals rounding (reduce-only never rounds up)
     const multiplier = Math.pow(10, szDecimals);

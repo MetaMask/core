@@ -169,6 +169,7 @@ import {
   buildOrdersArray,
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
+  floorToSizeDecimals,
 } from '../utils/orderCalculations.js';
 import {
   createStandaloneInfoClient,
@@ -3969,9 +3970,11 @@ export class HyperLiquidProvider implements PerpsProvider {
           ? currentPrice * (1 + slippage)
           : currentPrice * (1 - slippage);
 
-        // Format size and price
+        // Format size and price. formatHyperLiquidSize() rounds half-up, so floor
+        // onto the size grid first: a reduce-only order rounded above the
+        // position is rejected with "Reduce only order would increase position".
         const formattedSize = formatHyperLiquidSize({
-          size: closeSize,
+          size: floorToSizeDecimals(closeSize, assetInfo.szDecimals),
           szDecimals: assetInfo.szDecimals,
         });
 
@@ -4437,16 +4440,21 @@ export class HyperLiquidProvider implements PerpsProvider {
           );
         }
 
-        // An initialized cache with no entry for the symbol means the position
-        // is already closed (e.g. a double-tapped close). Fail here rather than
+        // An initialized cache with no entry for the symbol means the position is
+        // already closed (e.g. a double-tapped close). Fail here rather than
         // falling back to REST: the cache is the freshest source, so a REST
         // lookup can only burn a request that risks 429s and, if it lags, hand
         // back a position that no longer exists.
-        if (!livePosition) {
+        //
+        // This only holds for the main DEX, which is always subscribed. HIP-3
+        // DEXs are only in the cache while HIP-3 subscriptions are active, so a
+        // missing HIP-3 entry is ambiguous — keep the caller's snapshot there
+        // rather than blocking a close on a position that may well exist.
+        if (!livePosition && !params.symbol.includes(':')) {
           throw new Error(`No position found for ${params.symbol}`);
         }
 
-        position = livePosition;
+        position = livePosition ?? position;
       }
 
       if (!position) {
@@ -4461,17 +4469,26 @@ export class HyperLiquidProvider implements PerpsProvider {
       const positionSize = parseFloat(position.size);
       const isBuy = positionSize < 0;
       const absPositionSize = Math.abs(positionSize);
-      // Clamp to the live position size: HyperLiquid rejects reduce-only orders
-      // that would exceed the position, and a caller-supplied size is computed
-      // from a snapshot that may already be larger than the real position.
-      // A non-positive or non-numeric size falls back to closing the position in
-      // full, matching the documented "omit size to close 100%" contract.
-      const requestedSize = params.size ? parseFloat(params.size) : NaN;
-      const closeSize = (
-        Number.isFinite(requestedSize) && requestedSize > 0
-          ? Math.min(requestedSize, absPositionSize)
-          : absPositionSize
-      ).toString();
+      // Only an omitted (or empty) size means "close 100%". A supplied size must
+      // be a positive number: silently promoting '0' or 'abc' to a full close
+      // would liquidate the whole position on a caller-side formatting slip.
+      // A supplied size is clamped to the live position size, because
+      // HyperLiquid rejects reduce-only orders that exceed the position and the
+      // caller computed its size from a snapshot that may already be too large.
+      const hasRequestedSize = params.size !== undefined && params.size !== '';
+      let closeSizeNumber = absPositionSize;
+
+      if (hasRequestedSize) {
+        const requestedSize = parseFloat(params.size as string);
+
+        if (!Number.isFinite(requestedSize) || requestedSize <= 0) {
+          throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        }
+
+        closeSizeNumber = Math.min(requestedSize, absPositionSize);
+      }
+
+      const closeSize = closeSizeNumber.toString();
 
       // Capture position details BEFORE closing for freed margin calculation
       const totalMarginUsed = parseFloat(position.marginUsed);
