@@ -30,55 +30,66 @@ interface MockSubscription {
 }
 
 // Mock adapter
-jest.mock('../../../src/utils/hyperLiquidAdapter', () => ({
-  adaptPositionFromSDK: jest.fn((assetPos: any) => ({
-    symbol: 'BTC',
-    size: assetPos.position.szi,
-    entryPrice: '50000',
-    positionValue: '5000',
-    unrealizedPnl: '100',
-    marginUsed: '2500',
-    leverage: { type: 'isolated', value: 2 },
-    liquidationPrice: '40000',
-    maxLeverage: 100,
-    returnOnEquity: '4.0',
-    cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
-    takeProfitCount: 0,
-    stopLossCount: 0,
-  })),
-  adaptOrderFromSDK: jest.fn((order: any) => ({
-    orderId: order.oid.toString(),
-    symbol: order.coin,
-    side: order.side === 'B' ? 'buy' : 'sell',
-    orderType: 'limit',
-    size: order.sz,
-    originalSize: order.sz,
-    price: order.limitPx || order.triggerPx || '0',
-    filledSize: '0',
-    remainingSize: order.sz,
-    status: 'open',
-    timestamp: Date.now(),
-    detailedOrderType: order.orderType || 'Limit',
-    isTrigger: order.isTrigger ?? false,
-    reduceOnly: order.reduceOnly ?? false,
-    triggerPrice: order.triggerPx,
-    ...(typeof order.isPositionTpsl === 'boolean'
-      ? { isPositionTpsl: order.isPositionTpsl }
-      : {}),
-  })),
-  adaptAccountStateFromSDK: jest.fn(() => ({
-    spendableBalance: '1000.00',
-    withdrawableBalance: '1000.00',
-    marginUsed: '500.00',
-    unrealizedPnl: '100.00',
-    returnOnEquity: '20.0',
-    totalBalance: '10100.00',
-  })),
-  parseAssetName: jest.fn((symbol: string) => ({
-    symbol,
-    dex: null,
-  })),
-}));
+jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
+  // The placement type decides whether an order reaches the trigger arrays, so
+  // the stub has to name it exactly as the real adapter does. Omitting it left
+  // every array here empty regardless of the code under test, which the legacy
+  // count fallback then masked.
+  const { adaptTriggerOrderTypeFromSDK } = jest.requireActual(
+    '../../../src/utils/hyperLiquidAdapter',
+  );
+
+  return {
+    adaptPositionFromSDK: jest.fn((assetPos: any) => ({
+      symbol: 'BTC',
+      size: assetPos.position.szi,
+      entryPrice: '50000',
+      positionValue: '5000',
+      unrealizedPnl: '100',
+      marginUsed: '2500',
+      leverage: { type: 'isolated', value: 2 },
+      liquidationPrice: '40000',
+      maxLeverage: 100,
+      returnOnEquity: '4.0',
+      cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+      takeProfitCount: 0,
+      stopLossCount: 0,
+    })),
+    adaptOrderFromSDK: jest.fn((order: any) => ({
+      orderId: order.oid.toString(),
+      symbol: order.coin,
+      side: order.side === 'B' ? 'buy' : 'sell',
+      orderType: 'limit',
+      size: order.sz,
+      originalSize: order.sz,
+      price: order.limitPx || order.triggerPx || '0',
+      filledSize: '0',
+      remainingSize: order.sz,
+      status: 'open',
+      timestamp: Date.now(),
+      detailedOrderType: order.orderType || 'Limit',
+      isTrigger: order.isTrigger ?? false,
+      reduceOnly: order.reduceOnly ?? false,
+      triggerPrice: order.triggerPx,
+      triggerOrderType: adaptTriggerOrderTypeFromSDK(order.orderType),
+      ...(typeof order.isPositionTpsl === 'boolean'
+        ? { isPositionTpsl: order.isPositionTpsl }
+        : {}),
+    })),
+    adaptAccountStateFromSDK: jest.fn(() => ({
+      spendableBalance: '1000.00',
+      withdrawableBalance: '1000.00',
+      marginUsed: '500.00',
+      unrealizedPnl: '100.00',
+      returnOnEquity: '20.0',
+      totalBalance: '10100.00',
+    })),
+    parseAssetName: jest.fn((symbol: string) => ({
+      symbol,
+      dex: null,
+    })),
+  };
+});
 
 // Mock DevLogger
 jest.mock(
@@ -1108,15 +1119,35 @@ describe('HyperLiquidSubscriptionService', () => {
 
       await jest.runAllTimersAsync();
 
-      // Should correctly identify TP/SL based on trigger price vs entry price
-      // With the fix, ambiguous 'Trigger' orders are now counted correctly using price-based fallback
+      // An ambiguous 'Trigger' names neither direction nor execution. The
+      // direction is recovered from the trigger price against the entry, so the
+      // order still reaches its array and the count that derives from it — with
+      // the execution mode left unstated rather than guessed. Counts and arrays
+      // are asserted together: a count disagreeing with its own array is a
+      // state no subscriber can render.
       expect(mockCallback).toHaveBeenCalledWith([
         expect.objectContaining({
           symbol: 'BTC',
           takeProfitPrice: '55000', // Above entry price
           stopLossPrice: '45000', // Below entry price
-          takeProfitCount: 1, // Ambiguous orders now counted via price-based fallback
-          stopLossCount: 1, // Ambiguous orders now counted via price-based fallback
+          takeProfitCount: 1,
+          stopLossCount: 1,
+          takeProfitOrders: [
+            expect.objectContaining({
+              orderId: '128',
+              direction: 'take_profit',
+              orderType: undefined,
+              triggerPrice: '55000',
+            }),
+          ],
+          stopLossOrders: [
+            expect.objectContaining({
+              orderId: '129',
+              direction: 'stop',
+              orderType: undefined,
+              triggerPrice: '45000',
+            }),
+          ],
         }),
       ]);
 

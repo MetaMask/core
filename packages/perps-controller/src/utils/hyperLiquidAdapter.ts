@@ -29,6 +29,7 @@ import type {
 import type { TpslLinkage, TriggerOrderType } from '../types/perps-types.js';
 import {
   buildTriggerOrderType,
+  classifyTriggerDirection,
   getTriggerDirection,
   getTriggerExecution,
   isLimitExecutionOrderType,
@@ -404,6 +405,7 @@ export function adaptTriggerOrderTypeFromSDK(
  * @param params - Mapping parameters
  * @param params.rawOrder - Raw HyperLiquid frontend order
  * @param params.positionSize - Signed or unsigned position size
+ * @param params.entryPrice - Entry price, used to classify a trigger the exchange left unnamed
  * @returns The normalized trigger order, or undefined when the order is not a trigger
  */
 export function adaptPositionTriggerOrderFromSDK(params: {
@@ -412,16 +414,25 @@ export function adaptPositionTriggerOrderFromSDK(params: {
     'oid' | 'orderType' | 'triggerPx' | 'limitPx' | 'sz' | 'reduceOnly'
   >;
   positionSize: string;
+  entryPrice?: string;
 }): PositionTriggerOrder | undefined {
-  const { rawOrder, positionSize } = params;
+  const { rawOrder, positionSize, entryPrice } = params;
 
   const orderType = adaptTriggerOrderTypeFromSDK(rawOrder.orderType);
-  if (!orderType) {
-    return undefined;
-  }
 
   // HyperLiquid uses '' for "no trigger price", so `||` (not `??`) is required.
   const triggerPrice = rawOrder.triggerPx || rawOrder.limitPx || '0';
+
+  // Same rule as the WebSocket path: an unnamed trigger keeps its recoverable
+  // direction and leaves its execution mode unstated, so both transports
+  // report the same set of orders.
+  const direction = orderType
+    ? getTriggerDirection(orderType)
+    : classifyTriggerDirection({ triggerPrice, entryPrice, positionSize });
+
+  if (!direction) {
+    return undefined;
+  }
   const absolutePositionSize = Math.abs(parseFloat(positionSize || '0'));
   const rawSize = Math.abs(parseFloat(rawOrder.sz || '0'));
 
@@ -430,6 +441,7 @@ export function adaptPositionTriggerOrderFromSDK(params: {
 
   return {
     orderId: rawOrder.oid.toString(),
+    direction,
     orderType,
     triggerPrice,
     size: size.toString(),

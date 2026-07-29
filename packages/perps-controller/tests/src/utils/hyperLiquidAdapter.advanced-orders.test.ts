@@ -258,6 +258,7 @@ describe('hyperLiquidAdapter - advanced order types', () => {
 
       expect(result).toStrictEqual({
         orderId: '999',
+        direction: 'take_profit',
         orderType: 'take_profit_limit',
         triggerPrice: '60000',
         size: '0.4',

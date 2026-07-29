@@ -1279,6 +1279,7 @@ describe('HyperLiquidProvider', () => {
       expect(position?.takeProfitOrders).toStrictEqual([
         {
           orderId: '601',
+          direction: 'take_profit',
           orderType: 'take_profit_limit',
           triggerPrice: '60000',
           size: '0.04',
@@ -1289,6 +1290,7 @@ describe('HyperLiquidProvider', () => {
       expect(position?.stopLossOrders).toStrictEqual([
         {
           orderId: '602',
+          direction: 'stop',
           orderType: 'stop_market',
           triggerPrice: '45000',
           // Position-bound stop (size 0) resolves to the whole position
@@ -1447,6 +1449,7 @@ describe('HyperLiquidProvider', () => {
       expect(position?.takeProfitOrders).toStrictEqual([
         {
           orderId: '701',
+          direction: 'take_profit',
           orderType: 'take_profit_limit',
           triggerPrice: '60000',
           size: '0.04',

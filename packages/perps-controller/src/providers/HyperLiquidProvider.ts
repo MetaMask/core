@@ -368,6 +368,7 @@ function collectPositionTriggerOrders(params: {
     const triggerOrder = adaptPositionTriggerOrderFromSDK({
       rawOrder,
       positionSize: position.size,
+      entryPrice: position.entryPrice,
     });
 
     if (triggerOrder && !byOrderId.has(triggerOrder.orderId)) {
@@ -378,11 +379,11 @@ function collectPositionTriggerOrders(params: {
   const triggerOrders = Array.from(byOrderId.values());
 
   return {
-    takeProfitOrders: triggerOrders.filter((order) =>
-      order.orderType.startsWith('take_profit'),
+    takeProfitOrders: triggerOrders.filter(
+      (order) => order.direction === 'take_profit',
     ),
     stopLossOrders: triggerOrders.filter(
-      (order) => !order.orderType.startsWith('take_profit'),
+      (order) => order.direction !== 'take_profit',
     ),
   };
 }

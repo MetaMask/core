@@ -11,6 +11,7 @@ import type {
   CandleData,
   OrderType,
   TpslLinkage,
+  TriggerDirection,
   TriggerOrderType,
 } from './perps-types.js';
 
@@ -345,7 +346,8 @@ export type Position = {
  */
 export type PositionTriggerOrder = {
   orderId: string; // Exchange order ID (cancelable)
-  orderType: TriggerOrderType; // Normalized placement type
+  direction: TriggerDirection; // Whether the trigger takes profit or stops loss. Always known: recovered from the trigger price against the entry when the exchange does not name the placement type
+  orderType?: TriggerOrderType; // Normalized placement type. Absent when the exchange reported an unnamed trigger, whose execution mode cannot be recovered
   triggerPrice: string; // Price at which the order activates
   size: string; // Quantity this trigger closes (resolved to position size when the protocol encodes "whole position")
   isPartial: boolean; // true when `size` is smaller than the position size

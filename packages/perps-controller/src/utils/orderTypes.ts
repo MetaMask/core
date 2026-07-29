@@ -82,23 +82,83 @@ export function getTriggerDirection(
 }
 
 /**
+ * Recover which way a trigger fires from its price relative to the entry.
+ *
+ * Used when the exchange reports a trigger without naming its placement type:
+ * a long takes profit above its entry and stops out below, a short the other
+ * way round. Shared by both transports so they classify identically.
+ *
+ * @param params - Classification parameters
+ * @param params.triggerPrice - Price at which the order activates
+ * @param params.entryPrice - Entry price of the position it is attached to
+ * @param params.positionSize - Signed position size; its sign gives the side
+ * @returns The direction, or undefined when there is nothing to compare against
+ */
+export function classifyTriggerDirection(params: {
+  triggerPrice?: string;
+  entryPrice?: string;
+  positionSize: string;
+}): TriggerDirection | undefined {
+  const { triggerPrice, entryPrice, positionSize } = params;
+
+  const trigger = parseFloat(triggerPrice ?? '');
+  const entry = parseFloat(entryPrice ?? '');
+  const signedSize = parseFloat(positionSize || '0');
+
+  if (!Number.isFinite(trigger) || !Number.isFinite(entry) || entry <= 0) {
+    return undefined;
+  }
+
+  // A long takes profit above its entry and stops out below; a short is the
+  // mirror image.
+  const isLong = signedSize > 0;
+  const isAboveEntry = trigger > entry;
+
+  if (isLong) {
+    return isAboveEntry ? 'take_profit' : 'stop';
+  }
+  return isAboveEntry ? 'stop' : 'take_profit';
+}
+
+/**
  * Project a normalized open order onto the position-state view of a trigger order.
  *
- * Returns undefined when the order is not a trigger order, or when the exchange
- * did not identify the placement type precisely enough to state one.
+ * Returns undefined when the order is not a trigger, or when its direction can
+ * be established neither from a named placement type nor from its price.
  *
  * @param params - Mapping parameters
  * @param params.order - Normalized open order
  * @param params.positionSize - Size of the position the trigger is attached to
+ * @param params.entryPrice - Entry price, used to classify an unnamed trigger
  * @returns The position trigger order, or undefined
  */
 export function buildPositionTriggerOrderFromOrder(params: {
   order: Order;
   positionSize: string;
+  entryPrice?: string;
 }): PositionTriggerOrder | undefined {
-  const { order, positionSize } = params;
+  const { order, positionSize, entryPrice } = params;
 
-  if (!order.isTrigger || !order.triggerOrderType) {
+  if (!order.isTrigger) {
+    return undefined;
+  }
+
+  // HyperLiquid sometimes reports a bare 'Trigger', naming neither direction
+  // nor execution. The direction is still recoverable from the trigger price
+  // against the entry, and it is what decides which array the order belongs
+  // to — so an unnamed trigger is kept rather than dropped, with its execution
+  // mode left unstated. Without a position to compare against there is nothing
+  // to recover, and it is dropped.
+  const direction =
+    order.triggerOrderType === undefined
+      ? classifyTriggerDirection({
+          triggerPrice: order.triggerPrice ?? order.price,
+          entryPrice,
+          positionSize,
+        })
+      : getTriggerDirection(order.triggerOrderType);
+
+  if (!direction) {
     return undefined;
   }
 
@@ -118,6 +178,7 @@ export function buildPositionTriggerOrderFromOrder(params: {
 
   return {
     orderId: order.orderId,
+    direction,
     orderType: order.triggerOrderType,
     triggerPrice: order.triggerPrice ?? order.price,
     size: size.toString(),
@@ -194,7 +255,7 @@ export function hashTriggerOrders(orders?: PositionTriggerOrder[]): string {
   return orders
     .map(
       (order) =>
-        `${order.orderId}:${order.orderType}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}`,
+        `${order.orderId}:${order.direction}:${order.orderType ?? '?'}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}`,
     )
     .join(',');
 }

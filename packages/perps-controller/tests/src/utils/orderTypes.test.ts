@@ -112,6 +112,7 @@ describe('orderTypes', () => {
   describe('hashTriggerOrders', () => {
     const trigger = {
       orderId: '1',
+      direction: 'stop' as const,
       orderType: 'stop_market' as const,
       triggerPrice: '45000',
       size: '0.5',
@@ -197,6 +198,7 @@ describe('orderTypes', () => {
 
       expect(result).toStrictEqual({
         orderId: '222',
+        direction: 'take_profit',
         orderType: 'take_profit_limit',
         triggerPrice: '60000',
         size: '0.4',
@@ -249,6 +251,59 @@ describe('orderTypes', () => {
         expect(result?.isPartial).toBe(false);
       },
     );
+
+    it.each([
+      ['long', '1', '60000', 'take_profit'],
+      ['long', '1', '40000', 'stop'],
+      ['short', '-1', '40000', 'take_profit'],
+      ['short', '-1', '60000', 'stop'],
+    ])(
+      'classifies an unnamed trigger on a %s position at %s by price',
+      (_side, positionSize, triggerPrice, expectedDirection) => {
+        // HyperLiquid's bare 'Trigger' names no direction and no execution.
+        // The direction is still recoverable from the trigger price against
+        // the entry, and that is what decides which array the order joins.
+        const result = buildPositionTriggerOrderFromOrder({
+          order: createOrder({
+            isTrigger: true,
+            triggerPrice,
+            size: '1',
+            reduceOnly: true,
+          }),
+          positionSize,
+          entryPrice: '50000',
+        });
+
+        expect(result?.direction).toBe(expectedDirection);
+        // The execution mode is genuinely unknown, so it is left unstated
+        // rather than guessed.
+        expect(result?.orderType).toBeUndefined();
+      },
+    );
+
+    it('states the direction alongside a named placement type', () => {
+      const result = buildPositionTriggerOrderFromOrder({
+        order: createOrder({
+          isTrigger: true,
+          triggerOrderType: 'take_profit_limit',
+          triggerPrice: '60000',
+          size: '1',
+        }),
+        positionSize: '1',
+      });
+
+      expect(result?.direction).toBe('take_profit');
+      expect(result?.orderType).toBe('take_profit_limit');
+    });
+
+    it('returns undefined for an unnamed trigger with no position to classify against', () => {
+      expect(
+        buildPositionTriggerOrderFromOrder({
+          order: createOrder({ isTrigger: true, triggerPrice: '60000' }),
+          positionSize: '1',
+        }),
+      ).toBeUndefined();
+    });
 
     it('falls back to the order price when no trigger price is present', () => {
       const result = buildPositionTriggerOrderFromOrder({

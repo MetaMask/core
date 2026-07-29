@@ -900,7 +900,7 @@ export class HyperLiquidSubscriptionService {
         stopLossOrders: [],
       };
 
-      if (triggerOrder.orderType.startsWith('take_profit')) {
+      if (triggerOrder.direction === 'take_profit') {
         existing.takeProfitOrders.push(triggerOrder);
       } else {
         existing.stopLossOrders.push(triggerOrder);
@@ -931,6 +931,7 @@ export class HyperLiquidSubscriptionService {
             buildPositionTriggerOrderFromOrder({
               order,
               positionSize: positionsBySymbol.get(order.symbol)?.size ?? '0',
+              entryPrice: positionsBySymbol.get(order.symbol)?.entryPrice,
             }),
           );
         }
@@ -1131,6 +1132,7 @@ export class HyperLiquidSubscriptionService {
           buildPositionTriggerOrderFromOrder({
             order: convertedOrder,
             positionSize: (position ?? positionForCoin)?.size ?? '0',
+            entryPrice: (position ?? positionForCoin)?.entryPrice,
           }),
         );
       }
@@ -1173,10 +1175,13 @@ export class HyperLiquidSubscriptionService {
         // report one definition. Orders whose placement type the exchange did
         // not name (HyperLiquid's ambiguous 'Trigger') are absent from both,
         // where the legacy count included them.
-        takeProfitCount: triggerOrders
+        // Keyed on the map, not on this symbol's entry: a symbol with no
+        // entry has no triggers, and falling back to the legacy count there
+        // would report a count beside an empty array.
+        takeProfitCount: triggerOrderMap
           ? takeProfitOrders.length
           : (tpslCount.takeProfitCount ?? 0),
-        stopLossCount: triggerOrders
+        stopLossCount: triggerOrderMap
           ? stopLossOrders.length
           : (tpslCount.stopLossCount ?? 0),
         takeProfitOrders,
