@@ -183,9 +183,10 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
           MERGE_BASE: ${{ needs.is-release.outputs.merge-base }}
-          # This job checks out the merge-base commit directly (a detached SHA),
-          # so there is no `origin/main` ref for validate-changelog.sh to resolve
-          # the merge base against. Point it at the merge-base SHA we already have.
+          # This job's checkout fetches only the merge-base commit by SHA
+          # (depth 1) and never fetches main, so there is no `origin/main` ref
+          # for validate-changelog.sh to resolve the merge base against.
+          # Point it at the merge-base SHA we already have.
           CHANGELOG_BASE_REF: ${{ needs.is-release.outputs.merge-base }}
         run: |
           yarn changelog:validate --checkDeps --fix --currentPr "$PR_NUMBER" --fromRef "$MERGE_BASE"
