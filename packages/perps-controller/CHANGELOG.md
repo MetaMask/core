@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `EXCHANGE_ACCOUNT_NOT_FOUND` to `PERPS_ERROR_CODES`, returned by `HyperLiquidProvider.placeOrder` when the wallet has no HyperLiquid account yet (TAT-3343)
+- **BREAKING:** Add `EXCHANGE_ACCOUNT_NOT_FOUND` to `PERPS_ERROR_CODES`, returned by `HyperLiquidProvider.placeOrder` when the wallet has no HyperLiquid account yet (TAT-3343) ([#9709](https://github.com/MetaMask/core/pull/9709))
   - This widens the exported `PerpsErrorCode` union, so consumers that key an exhaustive `Record<PerpsErrorCode, …>` stop compiling until they add an entry for the new code. Both first-party clients do: Mobile's `app/components/UI/Perps/utils/translatePerpsError.ts` and Extension's `ui/components/app/perps/utils/translate-perps-error.ts`.
   - To migrate: add a translation entry for `EXCHANGE_ACCOUNT_NOT_FOUND`. It signals that the wallet has no HyperLiquid account yet, so the message should direct the user to fund the account before trading.
 
 ### Fixed
 
-- Map HyperLiquid's `"User or API Wallet 0x... does not exist."` order rejection to `PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND` instead of returning the raw exchange message as `OrderResult.error`, so clients can render an actionable "fund your account" message (TAT-3343)
-- Stop reporting the `"User or API Wallet 0x... does not exist."` order rejection to the error logger; it is an expected pre-account state, matching the handling already applied to the other user-scoped HyperLiquid exchange writes (TAT-3343)
+- Map HyperLiquid's `"User or API Wallet 0x... does not exist."` order rejection to `PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND` instead of returning the raw exchange message as `OrderResult.error`, so clients can render an actionable "fund your account" message (TAT-3343) ([#9709](https://github.com/MetaMask/core/pull/9709))
+- Stop reporting the `"User or API Wallet 0x... does not exist."` order rejection to the error logger; it is an expected pre-account state, matching the handling already applied to the other user-scoped HyperLiquid exchange writes (TAT-3343) ([#9709](https://github.com/MetaMask/core/pull/9709))
 
 ## [10.0.0]
 
