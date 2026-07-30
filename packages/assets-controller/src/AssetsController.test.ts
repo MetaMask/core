@@ -35,6 +35,8 @@ import {
   formatExchangeRatesForBridge,
   normalizeAssetId,
 } from './utils/index.js';
+import { FeatureFlags } from '@metamask/remote-feature-flag-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 
 jest.mock('./utils', () => {
   const actual =
@@ -122,15 +124,10 @@ type WithControllerOptions = {
   isBasicFunctionality?: () => boolean;
   queryApiClient?: ApiPlatformClient;
   /**
-   * When set, registers ClientController:getState so the controller sees this UI state.
-   * Required for tests that rely on asset tracking running (e.g. trace on unlock).
-   */
-  clientControllerState?: { isUiOpen: boolean };
-  /**
    * When set, registers RemoteFeatureFlagController:getState so the controller can
    * read feature flags (e.g. `assetsAccountsApiV6` gating the balances endpoint).
    */
-  remoteFeatureFlags?: Record<string, unknown>;
+  remoteFeatureFlags?: FeatureFlags;
   /** Extra options passed to AssetsController constructor (e.g. trace). */
   controllerOptions?: Partial<{
     trace: TraceCallback;
@@ -147,8 +144,81 @@ type WithControllerCallback<ReturnValue> = ({
   messenger,
 }: {
   controller: AssetsController;
-  messenger: RootMessenger;
+  messenger: AssetsControllerMessenger;
+  rootMessenger: RootMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
+
+/**
+ * Creates a new AssetsControllerMessenger with a parent RootMessenger.
+ *
+ * @param rootMessenger - The parent RootMessenger. If not provided, a new Messenger with MOCK_ANY_NAMESPACE is created.
+ * @returns A new AssetsControllerMessenger instance.
+ */
+function getAssetsControllerMessenger(
+  rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  }),
+): AssetsControllerMessenger {
+  const assetsControllerMessenger: AssetsControllerMessenger = new Messenger<
+    'AssetsController',
+    AllActions,
+    AllEvents,
+    RootMessenger
+  >({
+    namespace: 'AssetsController',
+    parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    messenger: assetsControllerMessenger,
+    actions: [
+      'AccountsController:getSelectedAccount',
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
+      'NetworkController:getState',
+      'NetworkController:getNetworkClientById',
+      'NetworkEnablementController:getState',
+      'SnapController:getRunnableSnaps',
+      'SnapController:handleRequest',
+      'PermissionController:getPermissions',
+      'BackendWebSocketService:connect',
+      'BackendWebSocketService:disconnect',
+      'BackendWebSocketService:forceReconnection',
+      'BackendWebSocketService:sendMessage',
+      'BackendWebSocketService:sendRequest',
+      'BackendWebSocketService:getConnectionInfo',
+      'BackendWebSocketService:getSubscriptionsByChannel',
+      'BackendWebSocketService:channelHasSubscription',
+      'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+      'BackendWebSocketService:addChannelCallback',
+      'BackendWebSocketService:removeChannelCallback',
+      'BackendWebSocketService:getChannelCallbacks',
+      'BackendWebSocketService:subscribe',
+    ],
+    events: [
+      'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:stateChange',
+      'ClientController:stateChange',
+      'KeyringController:lock',
+      'KeyringController:unlock',
+      'PreferencesController:stateChange',
+      'TransactionController:transactionConfirmed',
+      'TransactionController:unapprovedTransactionAdded',
+      'NetworkController:stateChange',
+      'NetworkController:networkAdded',
+      'NetworkController:networkRemoved',
+      'NetworkController:networkDidChange',
+      'NetworkEnablementController:stateChange',
+      'AccountsController:accountBalancesUpdated',
+      'PermissionController:stateChange',
+      'SnapController:snapInstalled',
+      'BackendWebSocketService:connectionStateChanged',
+      'AccountActivityService:balanceUpdated',
+      'RemoteFeatureFlagController:stateChange',
+    ],
+  });
+
+  return assetsControllerMessenger;
+}
 
 async function withController<ReturnValue>(
   options: WithControllerOptions,
@@ -166,7 +236,6 @@ async function withController<ReturnValue>(
     {
       state = {},
       isBasicFunctionality = (): boolean => true,
-      clientControllerState,
       remoteFeatureFlags = {},
       queryApiClient = createMockQueryApiClient(),
       controllerOptions = {},
@@ -181,27 +250,24 @@ async function withController<ReturnValue>(
   } = controllerOptions;
 
   // Use root messenger (MOCK_ANY_NAMESPACE) so data sources can register their actions.
-  const messenger: RootMessenger = new Messenger({
+  const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
 
   // Mock AccountsController
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('AccountsController:getSelectedAccount', () =>
-    createMockInternalAccount(),
+  rootMessenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    () => createMockInternalAccount(),
   );
 
   // Mock AccountTreeController
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'AccountTreeController:getAccountsFromSelectedAccountGroup',
     () => [createMockInternalAccount()],
   );
 
   // Mock NetworkEnablementController
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'NetworkEnablementController:getState',
     () => ({
       enabledNetworkMap: {
@@ -215,44 +281,31 @@ async function withController<ReturnValue>(
     }),
   );
 
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('NetworkController:getState', () => ({
+  rootMessenger.registerActionHandler('NetworkController:getState', () => ({
     networkConfigurationsByChainId: {},
     networksMetadata: {},
+    selectedNetworkClientId: '',
   }));
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
-    provider: {},
-  }));
+  rootMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    () => ({
+      // @ts-expect-error: Using fake provider
+      provider: {},
+    }),
+  );
 
-  if (clientControllerState !== undefined) {
-    (
-      messenger as {
-        registerActionHandler: (a: string, h: () => unknown) => void;
-      }
-    ).registerActionHandler(
-      'ClientController:getState',
-      () => clientControllerState,
-    );
-  }
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags,
+      cacheTimestamp: 0,
+    }),
+  );
 
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
-    remoteFeatureFlags,
-    cacheTimestamp: 0,
-  }));
+  const assetsControllerMessenger = getAssetsControllerMessenger(rootMessenger);
 
   const controller = new AssetsController({
-    messenger: messenger as unknown as AssetsControllerMessenger,
+    messenger: assetsControllerMessenger,
     state,
     queryApiClient,
     isBasicFunctionality,
@@ -266,7 +319,11 @@ async function withController<ReturnValue>(
   });
 
   try {
-    return await fn({ controller, messenger });
+    return await fn({
+      controller,
+      messenger: assetsControllerMessenger,
+      rootMessenger,
+    });
   } finally {
     await flushPromises();
     controller.destroy();
@@ -2236,8 +2293,8 @@ describe('AssetsController', () => {
 
       await withController(
         { state: initialState },
-        async ({ controller, messenger }) => {
-          messenger.publish('AccountActivityService:balanceUpdated', {
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.publish('AccountActivityService:balanceUpdated', {
             address: '0x1234567890123456789012345678901234567890',
             chain: 'eip155:42161',
             updates: [
@@ -2371,14 +2428,18 @@ describe('AssetsController', () => {
 
   describe('events', () => {
     it('force refreshes assets when transaction is confirmed', async () => {
-      await withController(async ({ controller, messenger }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         const getAssetsSpy = jest
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
-        messenger.publish('TransactionController:transactionConfirmed', {
+        rootMessenger.publish('TransactionController:transactionConfirmed', {
+          id: '0x1234567890123456789012345678901234567890',
+          networkClientId: 'test-network-client',
           chainId: '0xa4b1',
+          status: TransactionStatus.confirmed,
           txParams: { from: '0x1234567890123456789012345678901234567890' },
+          time: Date.now(),
         });
 
         await flushPromises();
@@ -2460,8 +2521,8 @@ describe('AssetsController', () => {
 
   describe('keyring lifecycle', () => {
     it('starts tracking on keyring unlock', async () => {
-      await withController(async ({ messenger }) => {
-        messenger.publish('KeyringController:unlock');
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.publish('KeyringController:unlock');
         await new Promise(process.nextTick);
 
         expect(true).toBe(true);
@@ -2469,11 +2530,11 @@ describe('AssetsController', () => {
     });
 
     it('stops tracking on keyring lock', async () => {
-      await withController(async ({ messenger }) => {
-        messenger.publish('KeyringController:unlock');
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.publish('KeyringController:unlock');
         await new Promise(process.nextTick);
 
-        messenger.publish('KeyringController:lock');
+        rootMessenger.publish('KeyringController:lock');
         await new Promise(process.nextTick);
 
         expect(true).toBe(true);
@@ -2491,17 +2552,18 @@ describe('AssetsController', () => {
 
       await withController(
         {
-          clientControllerState: { isUiOpen: true },
           controllerOptions: { trace },
         },
-        async ({ messenger }) => {
+        async ({ rootMessenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChange', { isUiOpen: true });
-          messenger.publish('KeyringController:unlock');
+          rootMessenger.publish(
+            'ClientController:stateChange',
+            {
+              isUiOpen: true,
+            },
+            [],
+          );
+          rootMessenger.publish('KeyringController:unlock');
 
           // Allow #start() -> getAssets() to resolve so the callback runs
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -2537,7 +2599,7 @@ describe('AssetsController', () => {
       const fetchV5MultiAccountBalances = jest.fn().mockResolvedValue({
         balances: [
           {
-            accountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+            accountId: MOCK_ACCOUNT_ID,
             assetId: MOCK_NATIVE_ASSET_ID,
             balance: '2',
           },
@@ -2558,7 +2620,6 @@ describe('AssetsController', () => {
 
       await withController(
         {
-          clientControllerState: { isUiOpen: true },
           queryApiClient,
           state: {
             assetsBalance: {
@@ -2569,13 +2630,15 @@ describe('AssetsController', () => {
             },
           },
         },
-        async ({ controller, messenger }) => {
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChange', { isUiOpen: true });
-          messenger.publish('KeyringController:unlock');
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.publish(
+            'ClientController:stateChange',
+            {
+              isUiOpen: true,
+            },
+            [],
+          );
+          rootMessenger.publish('KeyringController:unlock');
 
           await flushPromises();
 
@@ -2602,20 +2665,21 @@ describe('AssetsController', () => {
 
       await withController(
         {
-          clientControllerState: { isUiOpen: true },
           controllerOptions: { trace },
         },
-        async ({ messenger }) => {
+        async ({ rootMessenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChange', { isUiOpen: true });
-          messenger.publish('KeyringController:unlock');
+          rootMessenger.publish(
+            'ClientController:stateChange',
+            {
+              isUiOpen: true,
+            },
+            [],
+          );
+          rootMessenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          messenger.publish('KeyringController:unlock');
+          rootMessenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
           const firstInitFetchCalls = traceMock.mock.calls.filter(
@@ -2691,13 +2755,13 @@ describe('AssetsController', () => {
 
   describe('network changes', () => {
     it('handles enabled networks change', async () => {
-      await withController(async ({ messenger }) => {
-        (messenger.publish as CallableFunction)(
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
-                '1': true,
+                'eip155:1': true,
                 '137': true,
               },
             },
@@ -2716,8 +2780,8 @@ describe('AssetsController', () => {
     });
 
     it('handles network being disabled', async () => {
-      await withController(async ({ messenger }) => {
-        (messenger.publish as CallableFunction)(
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
@@ -2736,7 +2800,7 @@ describe('AssetsController', () => {
 
         await new Promise(process.nextTick);
 
-        (messenger.publish as CallableFunction)(
+        rootMessenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
@@ -2759,15 +2823,13 @@ describe('AssetsController', () => {
     });
 
     it('refreshes assets when a network is added or removed', async () => {
-      await withController(async ({ messenger }) => {
-        (messenger.publish as CallableFunction)(
-          'NetworkController:networkAdded',
-          { chainId: '0x89' },
-        );
-        (messenger.publish as CallableFunction)(
-          'NetworkController:networkRemoved',
-          { chainId: '0x89' },
-        );
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.publish('NetworkController:networkAdded', {
+          chainId: '0x89',
+        });
+        rootMessenger.publish('NetworkController:networkRemoved', {
+          chainId: '0x89',
+        });
 
         await new Promise(process.nextTick);
 
@@ -2789,15 +2851,15 @@ describe('AssetsController', () => {
         selectedNetworkClientId,
       });
 
-      const messenger: RootMessenger = new Messenger({
+      const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
       });
 
-      messenger.registerActionHandler(
+      rootMessenger.registerActionHandler(
         'AccountTreeController:getAccountsFromSelectedAccountGroup',
         () => [createMockInternalAccount()],
       );
-      messenger.registerActionHandler(
+      rootMessenger.registerActionHandler(
         'NetworkEnablementController:getState',
         () => ({
           enabledNetworkMap: { eip155: { '1': true, '11155111': true } },
@@ -2807,18 +2869,11 @@ describe('AssetsController', () => {
           },
         }),
       );
-      messenger.registerActionHandler(
+      rootMessenger.registerActionHandler(
         'NetworkController:getState',
         getNetworkState,
       );
-      (
-        messenger as {
-          registerActionHandler: (
-            a: string,
-            h: (id: string) => unknown,
-          ) => void;
-        }
-      ).registerActionHandler(
+      rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
         (networkClientId: string) => ({
           provider: {},
@@ -2827,11 +2882,7 @@ describe('AssetsController', () => {
           },
         }),
       );
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('ClientController:getState', () => ({
+      rootMessenger.registerActionHandler('ClientController:getState', () => ({
         isUiOpen: true,
       }));
 
@@ -2851,8 +2902,11 @@ describe('AssetsController', () => {
         },
       } as unknown as ApiPlatformClient;
 
+      const assetsControllerMessenger =
+        getAssetsControllerMessenger(rootMessenger);
+
       const controller = new AssetsController({
-        messenger: messenger as unknown as AssetsControllerMessenger,
+        messenger: assetsControllerMessenger,
         queryApiClient,
         subscribeToBasicFunctionalityChange: (): void => {
           /* no-op */
@@ -2862,19 +2916,19 @@ describe('AssetsController', () => {
       const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
       try {
-        (
-          messenger as unknown as {
-            publish: (topic: string, payload?: unknown) => void;
-          }
-        ).publish('ClientController:stateChange', { isUiOpen: true });
-        messenger.publish('KeyringController:unlock');
+        rootMessenger.publish(
+          'ClientController:stateChange',
+          { isUiOpen: true },
+          [],
+        );
+        rootMessenger.publish('KeyringController:unlock');
         await flushPromises();
 
         getAssetsSpy.mockClear();
         fetchV2SupportedNetworks.mockClear();
 
         selectedNetworkClientId = 'mainnet';
-        (messenger.publish as CallableFunction)(
+        rootMessenger.publish(
           'NetworkController:networkDidChange',
           getNetworkState(),
         );
@@ -2900,10 +2954,11 @@ describe('AssetsController', () => {
 
   describe('account group changes', () => {
     it('handles account group change', async () => {
-      await withController(async ({ messenger }) => {
-        (messenger.publish as CallableFunction)(
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.publish(
           'AccountTreeController:selectedAccountGroupChange',
-          undefined,
+          '',
+          '',
         );
 
         await new Promise(process.nextTick);
@@ -2917,14 +2972,14 @@ describe('AssetsController', () => {
     it('triggers start when tree initializes after unlock with empty accounts', async () => {
       const getAccountsMock = jest.fn().mockReturnValue([]);
 
-      const messenger: RootMessenger = new Messenger({
+      const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
       });
-      messenger.registerActionHandler(
+      rootMessenger.registerActionHandler(
         'AccountTreeController:getAccountsFromSelectedAccountGroup',
         getAccountsMock,
       );
-      messenger.registerActionHandler(
+      rootMessenger.registerActionHandler(
         'NetworkEnablementController:getState',
         () => ({
           enabledNetworkMap: { eip155: { '1': true } },
@@ -2934,31 +2989,26 @@ describe('AssetsController', () => {
           },
         }),
       );
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getState', () => ({
+      rootMessenger.registerActionHandler('NetworkController:getState', () => ({
         networkConfigurationsByChainId: {},
         networksMetadata: {},
+        selectedNetworkClientId: '',
       }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
-        provider: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('ClientController:getState', () => ({
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        () => ({
+          // @ts-expect-error: Using fake provider
+          provider: {},
+        }),
+      );
+      rootMessenger.registerActionHandler('ClientController:getState', () => ({
         isUiOpen: true,
       }));
 
+      const assetsControllerMessenger =
+        getAssetsControllerMessenger(rootMessenger);
       const controller = new AssetsController({
-        messenger: messenger as unknown as AssetsControllerMessenger,
+        messenger: assetsControllerMessenger,
         queryApiClient: createMockQueryApiClient(),
         subscribeToBasicFunctionalityChange: (): void => {
           /* no-op */
@@ -2968,23 +3018,19 @@ describe('AssetsController', () => {
       const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
       // Step 1: UI open + unlock — accounts empty, #start() is a no-op
-      (
-        messenger as unknown as {
-          publish: (topic: string, payload?: unknown) => void;
-        }
-      ).publish('ClientController:stateChange', { isUiOpen: true });
-      messenger.publish('KeyringController:unlock');
+      rootMessenger.publish(
+        'ClientController:stateChange',
+        { isUiOpen: true },
+        [],
+      );
+      rootMessenger.publish('KeyringController:unlock');
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(getAssetsSpy).not.toHaveBeenCalled();
 
       // Step 2: AccountTreeController.init() completes — accounts now available
       getAccountsMock.mockReturnValue([createMockInternalAccount()]);
-      (messenger.publish as CallableFunction)(
-        'AccountTreeController:stateChange',
-        {},
-        [],
-      );
+      rootMessenger.publish('AccountTreeController:stateChange', {}, []);
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(getAssetsSpy).toHaveBeenCalledTimes(2);
