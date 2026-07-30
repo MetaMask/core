@@ -4,6 +4,7 @@ import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
+import { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '../../../config-registry-controller/src/ConfigRegistryController-method-action-types.js';
 import {
   createMockAssetControllerMessenger,
   MockRootMessenger,
@@ -124,6 +125,7 @@ type ActionHandlerOverrides = {
   };
   'AssetsController:getState'?: () => unknown;
   'NetworkEnablementController:getState'?: () => unknown;
+  'ConfigRegistryController:getNetworkConfigByCaip2ChainId'?: ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction['handler'];
 };
 
 type WithControllerOptions = {
@@ -209,6 +211,16 @@ async function withController<ReturnValue>(
           [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
         },
       }));
+    }
+    if (
+      !actionHandlerOverrides[
+        'ConfigRegistryController:getNetworkConfigByCaip2ChainId'
+      ]
+    ) {
+      rootMessenger.registerActionHandler(
+        'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+        () => undefined,
+      );
     }
   } else {
     registerRpcDataSourceActions(rootMessenger, { networkState });

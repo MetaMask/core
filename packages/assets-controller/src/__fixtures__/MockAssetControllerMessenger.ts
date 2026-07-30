@@ -53,6 +53,7 @@ export function createMockAssetControllerMessenger(): {
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
       'AssetsController:getState',
       // RpcDataSource
+      'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       // RpcDataSource, StakedBalanceDataSource
@@ -183,6 +184,11 @@ export function registerRpcDataSourceActions(
         [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
       },
     }),
+  );
+
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+    () => undefined,
   );
 }
 

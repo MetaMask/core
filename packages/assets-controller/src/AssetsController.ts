@@ -12,6 +12,7 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
+import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
@@ -328,6 +329,7 @@ type AllowedActions =
   // RpcDataSource
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction
   // StakedBalanceDataSource
   | NetworkEnablementControllerGetStateAction
   // SnapDataSource
