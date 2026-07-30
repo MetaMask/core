@@ -226,15 +226,19 @@ export function floorToSizeDecimals(size: number, szDecimals: number): number {
     FLOAT_TOLERANCE,
     Math.abs(scaled) * Number.EPSILON * 8,
   );
-  const snapped =
-    (Math.abs(scaled - nearest) < tolerance ? nearest : Math.floor(scaled)) /
-    multiplier;
+  let units =
+    Math.abs(scaled - nearest) < tolerance ? nearest : Math.floor(scaled);
 
-  // Only accept the snap when it did not increase the value. A tolerance wide
-  // enough to absorb representation error at large magnitudes is also wide
-  // enough to reach the next grid point, which would round a reduce-only size
-  // up past the position it is closing.
-  return snapped <= size ? snapped : Math.floor(scaled) / multiplier;
+  // Step down until the result no longer exceeds the input. One pass is not
+  // enough: a tolerance wide enough to absorb representation error at large
+  // magnitudes also reaches the next grid point, and for an input less than half
+  // an ulp below a grid point `size * multiplier` evaluates to exactly that grid
+  // integer, so flooring the scaled value returns the same too-large result.
+  while (units > 0 && units / multiplier > size) {
+    units -= 1;
+  }
+
+  return units / multiplier;
 }
 
 /**

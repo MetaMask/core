@@ -52,6 +52,34 @@ describe('floorToSizeDecimals', () => {
     expect(floorToSizeDecimals(1048580.0694, 5)).toBe(1048580.0694);
   });
 
+  it('holds the invariant for inputs a fraction of an ulp below a grid point', () => {
+    // size * multiplier rounds to exactly the grid integer for these, so
+    // flooring the scaled value returns the grid point the input sits below
+    expect(floorToSizeDecimals(0.8999999999999999, 1)).toBeLessThanOrEqual(
+      0.8999999999999999,
+    );
+    expect(floorToSizeDecimals(0.11699999999999999, 3)).toBeLessThanOrEqual(
+      0.11699999999999999,
+    );
+  });
+
+  it('holds the invariant across a sweep of one-ulp-below-grid inputs', () => {
+    // The case the earlier boundary/property tests never sampled: grid points
+    // approached from below by 1-3 ulp, across every supported precision
+    for (let szDecimals = 0; szDecimals <= 6; szDecimals += 1) {
+      const multiplier = Math.pow(10, szDecimals);
+      for (let gridPoint = 1; gridPoint <= 500; gridPoint += 1) {
+        let size = gridPoint / multiplier;
+        for (let ulp = 0; ulp < 3; ulp += 1) {
+          size -= Math.abs(size) * Number.EPSILON;
+          expect(floorToSizeDecimals(size, szDecimals)).toBeLessThanOrEqual(
+            size,
+          );
+        }
+      }
+    }
+  });
+
   it('holds the invariant across a swept range of sizes and precisions', () => {
     // Property sweep: every result must be <= its input and on the size grid
     for (const szDecimals of [0, 1, 3, 5]) {
