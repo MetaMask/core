@@ -1,4 +1,8 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type {
+  GeolocationControllerGetGeolocationDataAction,
+  GeolocationData,
+} from '@metamask/geolocation-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
@@ -21,18 +25,54 @@ import type {
   AnalyticsContext,
 } from './index.js';
 
+/**
+ * The full set of actions the controller's messenger deals with, including the
+ * geolocation action the controller calls on other messengers.
+ */
+type AnalyticsControllerTestActions =
+  | AnalyticsControllerActions
+  | GeolocationControllerGetGeolocationDataAction;
+
 type SetupControllerOptions = {
   state: AnalyticsControllerState;
   platformAdapter?: AnalyticsPlatformAdapter;
   isAnonymousEventsFeatureEnabled?: boolean;
   isEventQueuePersistenceEnabled?: boolean;
   isPreConsentQueueEnabled?: boolean;
+  isGeolocationEnabled?: boolean;
+  /**
+   * Geolocation returned by the mocked `GeolocationController` action.
+   * Defaults to unknown geolocation so that events are not enriched.
+   */
+  geolocation?: Partial<GeolocationData>;
+  /**
+   * Handler for the mocked `GeolocationController` action. Takes precedence
+   * over `geolocation`.
+   */
+  geolocationHandler?: () => Promise<GeolocationData>;
+  /**
+   * When true, the `GeolocationController` action is not registered, mimicking
+   * a client that has not wired up geolocation.
+   */
+  omitGeolocationAction?: boolean;
 };
 
 type SetupControllerReturn = {
   controller: AnalyticsController;
   messenger: AnalyticsControllerMessenger;
 };
+
+/**
+ * Builds complete geolocation data from a partial fixture.
+ *
+ * @param data - The known geolocation fields.
+ * @returns The geolocation data with unknown fields set to null.
+ */
+function buildGeolocationData(
+  data: Partial<GeolocationData> = {},
+): GeolocationData {
+  return { country: null, region: null, timezone: null, ...data };
+}
 
 type MockAnalyticsPlatformAdapter = AnalyticsPlatformAdapter & {
   track: jest.Mock;
@@ -50,6 +90,10 @@ type MockAnalyticsPlatformAdapter = AnalyticsPlatformAdapter & {
  * @param options.isAnonymousEventsFeatureEnabled - Optional anonymous events feature flag (default: false)
  * @param options.isEventQueuePersistenceEnabled - Optional event queue persistence flag (default: false)
  * @param options.isPreConsentQueueEnabled - Optional pre-consent queue flag (default: false)
+ * @param options.isGeolocationEnabled - Optional geolocation enrichment flag (default: true)
+ * @param options.geolocation - Optional geolocation returned by the mocked geolocation action
+ * @param options.geolocationHandler - Optional handler for the mocked geolocation action
+ * @param options.omitGeolocationAction - When true, the geolocation action is not registered
  * @returns The controller and messenger
  */
 async function setupController(
@@ -61,6 +105,10 @@ async function setupController(
     isAnonymousEventsFeatureEnabled = false,
     isEventQueuePersistenceEnabled = false,
     isPreConsentQueueEnabled = false,
+    isGeolocationEnabled = true,
+    geolocation,
+    geolocationHandler,
+    omitGeolocationAction = false,
   } = options;
 
   const adapter =
@@ -74,19 +122,32 @@ async function setupController(
 
   const rootMessenger = new Messenger<
     MockAnyNamespace,
-    AnalyticsControllerActions,
+    AnalyticsControllerTestActions,
     AnalyticsControllerEvents
   >({ namespace: MOCK_ANY_NAMESPACE });
 
   const analyticsControllerMessenger = new Messenger<
     'AnalyticsController',
-    AnalyticsControllerActions,
+    AnalyticsControllerTestActions,
     AnalyticsControllerEvents,
     typeof rootMessenger
   >({
     namespace: 'AnalyticsController',
     parent: rootMessenger,
   });
+
+  if (!omitGeolocationAction) {
+    rootMessenger.registerActionHandler(
+      'GeolocationController:getGeolocationData',
+      geolocationHandler ??
+        ((): Promise<GeolocationData> =>
+          Promise.resolve(buildGeolocationData(geolocation))),
+    );
+    rootMessenger.delegate({
+      actions: ['GeolocationController:getGeolocationData'],
+      messenger: analyticsControllerMessenger,
+    });
+  }
 
   const controller = new AnalyticsController({
     messenger: analyticsControllerMessenger,
@@ -95,9 +156,10 @@ async function setupController(
     isAnonymousEventsFeatureEnabled,
     isEventQueuePersistenceEnabled,
     isPreConsentQueueEnabled,
+    isGeolocationEnabled,
   });
 
-  controller.init();
+  await controller.init();
 
   return {
     controller,
@@ -452,13 +514,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -478,7 +540,7 @@ describe('AnalyticsController', () => {
         // isAnonymousEventsFeatureEnabled not provided - should default to false
       });
 
-      controller.init();
+      await controller.init();
 
       // Verify default behavior: single event tracked (not split)
       const event = createTestEvent(
@@ -506,13 +568,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -538,13 +600,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -571,13 +633,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -648,13 +710,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -675,7 +737,7 @@ describe('AnalyticsController', () => {
       const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
       expect(onSetupCompletedSpy).not.toHaveBeenCalled();
 
-      controller.init();
+      await controller.init();
 
       expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
       expect(onSetupCompletedSpy).toHaveBeenCalledWith(analyticsId);
@@ -687,13 +749,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -713,28 +775,28 @@ describe('AnalyticsController', () => {
 
       const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
 
-      controller.init();
+      await controller.init();
       expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
       expect(onSetupCompletedSpy).toHaveBeenCalledWith(analyticsId);
 
       // Calling init() again should not throw and should not call onSetupCompleted again
-      expect(() => controller.init()).not.toThrow();
+      await expect(controller.init()).toBeFulfilled();
       expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onSetupCompleted synchronously', async () => {
+    it('shares a single in-flight initialization across overlapping init calls', async () => {
       const mockAdapter = createMockAdapter();
-      const analyticsId = '44444444-4444-4444-8444-444444444444';
+      const analyticsId = '33333333-3333-4333-8333-333333333333';
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -749,18 +811,70 @@ describe('AnalyticsController', () => {
           ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
-        isAnonymousEventsFeatureEnabled: false,
       });
 
-      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
-      expect(onSetupCompletedSpy).not.toHaveBeenCalled();
+      // Call init() twice before the first resolves.
+      const first = controller.init();
+      const second = controller.init();
 
-      controller.init();
+      // Overlapping callers share the same in-flight promise, so the second
+      // caller cannot observe a premature completion.
+      expect(second).toBe(first);
 
-      // Verify onSetupCompleted was called synchronously
-      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
-      expect(controller).toBeDefined();
-      expect(controller.state.analyticsId).toBeDefined();
+      await Promise.all([first, second]);
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+    });
+
+    it('completes setup when the geolocation action is not registered', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = '44444444-4444-4444-8444-444444444444';
+
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+          optedIn: true,
+        },
+        platformAdapter: mockAdapter,
+        omitGeolocationAction: true,
+      });
+
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+
+      controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        expect.any(Object),
+        undefined,
+      );
+    });
+
+    it('resolves geolocation before calling onSetupCompleted', async () => {
+      const mockAdapter = createMockAdapter();
+      const callOrder: string[] = [];
+
+      mockAdapter.onSetupCompleted.mockImplementation(() => {
+        callOrder.push('onSetupCompleted');
+      });
+
+      await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: '44444444-4444-4444-8444-444444444444',
+          optedIn: true,
+        },
+        platformAdapter: mockAdapter,
+        geolocationHandler: async () => {
+          callOrder.push('getGeolocationData');
+          return buildGeolocationData({ country: 'US' });
+        },
+      });
+
+      expect(callOrder).toStrictEqual([
+        'getGeolocationData',
+        'onSetupCompleted',
+      ]);
     });
 
     it('ignores errors thrown by onSetupCompleted', async () => {
@@ -780,13 +894,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -804,7 +918,7 @@ describe('AnalyticsController', () => {
         isAnonymousEventsFeatureEnabled: false,
       });
 
-      expect(() => controller.init()).not.toThrow();
+      await expect(controller.init()).toBeFulfilled();
 
       expect(controller).toBeDefined();
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
@@ -1286,6 +1400,356 @@ describe('AnalyticsController', () => {
       controller.trackView('home');
 
       expect(mockAdapter.view).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('geolocation enrichment', () => {
+    const analyticsId = '99999999-9999-4999-8999-999999999999';
+    const enabledState: AnalyticsControllerState = {
+      optedIn: true,
+      consentDecisionMade: true,
+      analyticsId,
+    };
+    const fullGeolocation = {
+      country: 'US',
+      region: 'WA',
+      timezone: 'America/Los_Angeles',
+    };
+    const fullLocationContext = {
+      country_code: 'US',
+      region: 'WA',
+      timezone: 'America/Los_Angeles',
+    };
+
+    it('adds country, region, and timezone to the track event context', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        { prop: 'value' },
+        { location: fullLocationContext },
+      );
+    });
+
+    it('adds location to events without properties', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: fullLocationContext,
+      });
+    });
+
+    it('adds location to identify events', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.identify({ trait: 'value' });
+
+      expect(mockAdapter.identify).toHaveBeenCalledWith(
+        analyticsId,
+        { trait: 'value' },
+        { location: fullLocationContext },
+      );
+    });
+
+    it('adds location to view events', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackView('home');
+
+      expect(mockAdapter.view).toHaveBeenCalledWith('home', undefined, {
+        location: fullLocationContext,
+      });
+    });
+
+    it('preserves unrelated caller context', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        app: { name: 'MetaMask' },
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        app: { name: 'MetaMask' },
+        location: fullLocationContext,
+      });
+    });
+
+    it('preserves caller location fields the controller does not resolve', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        location: { city: 'Seattle' },
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: { city: 'Seattle', ...fullLocationContext },
+      });
+    });
+
+    it('overrides caller location fields the controller resolves', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        location: { country_code: 'FR' },
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: fullLocationContext,
+      });
+    });
+
+    it('replaces a non-record caller location', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        location: 'Seattle',
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: fullLocationContext,
+      });
+    });
+
+    it('omits fields the geolocation API could not determine', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: { country: 'FR' },
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: { country_code: 'FR' },
+      });
+    });
+
+    it('leaves the context untouched when the geolocation is unknown', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        app: { name: 'MetaMask' },
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        app: { name: 'MetaMask' },
+      });
+    });
+
+    it('leaves the context untouched when the geolocation lookup fails', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocationHandler: () =>
+          Promise.reject(new Error('Geolocation fetch failed: 500')),
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        undefined,
+      );
+    });
+
+    it('does not resolve geolocation when geolocation enrichment is disabled', async () => {
+      const geolocationHandler = jest.fn(() =>
+        Promise.resolve(buildGeolocationData(fullGeolocation)),
+      );
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        isGeolocationEnabled: false,
+        geolocationHandler,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+
+      expect(geolocationHandler).not.toHaveBeenCalled();
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        undefined,
+      );
+    });
+
+    it('preserves caller context when geolocation enrichment is disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        isGeolocationEnabled: false,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        location: { city: 'Seattle' },
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: { city: 'Seattle' },
+      });
+    });
+
+    it('omits location from the anonymous payload when the anonymous events feature is enabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        isAnonymousEventsFeatureEnabled: true,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(
+        createTestEvent(
+          'test_event',
+          { prop: 'value' },
+          { sensitive_prop: 'sensitive value' },
+        ),
+      );
+
+      expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+      expect(mockAdapter.track).toHaveBeenNthCalledWith(
+        1,
+        'test_event',
+        { prop: 'value' },
+        { location: fullLocationContext },
+      );
+      expect(mockAdapter.track).toHaveBeenNthCalledWith(
+        2,
+        'test_event',
+        {
+          prop: 'value',
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        },
+        undefined,
+      );
+    });
+
+    it('adds location to the combined payload when the anonymous events feature is disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(
+        createTestEvent(
+          'test_event',
+          { prop: 'value' },
+          { sensitive_prop: 'sensitive value' },
+        ),
+      );
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        {
+          prop: 'value',
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        },
+        { location: fullLocationContext },
+      );
+    });
+
+    it('persists location context through the event queue', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+
+      const [queuedEvent] = Object.values(
+        controller.state.eventQueue as Record<string, Json>,
+      ) as { context?: AnalyticsContext }[];
+
+      expect(queuedEvent.context).toStrictEqual({
+        location: fullLocationContext,
+      });
+    });
+
+    it('replays pre-consent events with the location context captured at track time', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+
+      controller.optIn();
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        { location: fullLocationContext },
+        expect.any(Object),
+      );
     });
   });
 
