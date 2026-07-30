@@ -13,14 +13,16 @@ import type { Json } from '@metamask/utils';
 import {
   DefaultOptions,
   DehydratedState,
-  FetchInfiniteQueryOptions,
   FetchQueryOptions,
+  GetNextPageParamFunction,
+  GetPreviousPageParamFunction,
   InfiniteData,
   InvalidateOptions,
   InvalidateQueryFilters,
   OmitKeyof,
   QueryClient,
   QueryClientConfig,
+  QueryFunction,
   WithRequired,
   dehydrate,
   hydrate,
@@ -54,7 +56,7 @@ type CacheUpdatedType = DataServiceCacheUpdatedPayload['type'];
 export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   type: `${ServiceName}:invalidateQueries`;
   handler: (
-    filters?: InvalidateQueryFilters<Json>,
+    filters?: InvalidateQueryFilters,
     options?: InvalidateOptions,
   ) => Promise<void>;
 };
@@ -251,10 +253,14 @@ export class BaseDataService<
     options: WithRequired<
       OmitKeyof<
         FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
-        'retry' | 'retryDelay'
+        'retry' | 'retryDelay' | 'queryFn'
       >,
-      'queryKey' | 'queryFn'
-    >,
+      'queryKey'
+    > & {
+      // Data services always provide a concrete query function; the `skipToken`
+      // sentinel added in query-core v5 is not supported here.
+      queryFn: QueryFunction<TQueryFnData, TQueryKey>;
+    },
   ): Promise<TData> {
     return this.#queryClient.fetchQuery({
       ...options,
@@ -280,22 +286,50 @@ export class BaseDataService<
   >(
     options: WithRequired<
       OmitKeyof<
-        FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
-        'retry' | 'retryDelay'
+        FetchQueryOptions<
+          TQueryFnData,
+          TError,
+          InfiniteData<TData, TPageParam>,
+          TQueryKey,
+          TPageParam
+        >,
+        'retry' | 'retryDelay' | 'queryFn' | 'initialPageParam'
       >,
-      'queryKey' | 'queryFn'
-    >,
+      'queryKey'
+    > & {
+      // Data services always provide a concrete query function; the `skipToken`
+      // sentinel added in query-core v5 is not supported here.
+      queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
+      // These are required by query-core v5 for infinite queries but remain
+      // optional here: consumers may drive pagination purely by passing an
+      // explicit `pageParam` (see below).
+      initialPageParam?: TPageParam;
+      getNextPageParam?: GetNextPageParamFunction<TPageParam, TQueryFnData>;
+      getPreviousPageParam?: GetPreviousPageParamFunction<TPageParam, TQueryFnData>;
+    },
     pageParam?: TPageParam,
   ): Promise<TData> {
     const cache = this.#queryClient.getQueryCache();
 
-    const query = cache.find<TQueryFnData, TError, InfiniteData<TData>>({
-      queryKey: options.queryKey,
-    });
+    const query = cache.find<TQueryFnData, TError, InfiniteData<TData, TPageParam>>(
+      {
+        queryKey: options.queryKey,
+      },
+    );
 
     if (!query?.state.data || pageParam === undefined) {
-      const result = await this.#queryClient.fetchInfiniteQuery({
+      const result = await this.#queryClient.fetchInfiniteQuery<
+        TQueryFnData,
+        TError,
+        TData,
+        TQueryKey,
+        TPageParam
+      >({
         ...options,
+        // query-core v5 requires an `initialPageParam`. When the caller drives
+        // pagination with an explicit `pageParam`, use it as the initial param
+        // so the first (and only) page fetched is the requested one.
+        initialPageParam: (options.initialPageParam ?? pageParam) as TPageParam,
         queryFn: (context) =>
           this.#policy.execute(() =>
             options.queryFn({
@@ -308,19 +342,34 @@ export class BaseDataService<
       return result.pages[0];
     }
 
-    const { pages } = query.state.data;
-    const previous = options.getPreviousPageParam?.(pages[0], pages);
+    const { pages, pageParams } = query.state.data;
+    const previous = options.getPreviousPageParam?.(
+      pages[0],
+      pages,
+      pageParams[0],
+      pageParams,
+    );
 
     const direction = deepEqual(pageParam, previous) ? 'backward' : 'forward';
 
-    const result = await query.fetch(undefined, {
-      meta: {
-        fetchMore: {
-          direction,
-          pageParam,
+    // query-core v5 no longer accepts an explicit page param via the `fetchMore`
+    // meta; it derives the next/previous param from these callbacks instead.
+    // Override them to return exactly the requested page so pagination works
+    // even when the consumer did not provide page-param callbacks.
+    const result = await query.fetch(
+      {
+        ...query.options,
+        getNextPageParam: () => pageParam,
+        getPreviousPageParam: () => pageParam,
+      } as typeof query.options,
+      {
+        meta: {
+          fetchMore: {
+            direction,
+          },
         },
       },
-    });
+    );
 
     const pageIndex = result.pageParams.findIndex((param) =>
       deepEqual(param, pageParam),
@@ -337,7 +386,7 @@ export class BaseDataService<
    * @returns Nothing.
    */
   async invalidateQueries(
-    filters?: InvalidateQueryFilters<Json>,
+    filters?: InvalidateQueryFilters,
     options?: InvalidateOptions,
   ): Promise<void> {
     return this.#queryClient.invalidateQueries(filters, options);
