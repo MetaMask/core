@@ -497,6 +497,20 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   // SUBSCRIBE
   // ============================================================================
 
+  /**
+   * The websocket subscription is address-scoped only — the account-activity
+   * protocol carries no asset IDs, and updates are pushed per transaction. It
+   * cannot commit to serving pinned assets (a zero-balance or backend-unknown
+   * token never emits an update), so it claims none and lets them fall
+   * through to a polling source (AccountsApi `includeAssetIds` or the RPC
+   * asset-scoped poll), even on chains this source claims.
+   *
+   * @returns Always an empty array.
+   */
+  claimCustomAssets(): Caip19AssetId[] {
+    return [];
+  }
+
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
     const previousLock = this.#subscribeLock;
     let releaseLock: () => void = () => undefined;

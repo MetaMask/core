@@ -935,6 +935,39 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // SUBSCRIBE
   // ============================================================================
 
+  /**
+   * Claim the pinned assets this source can actually serve: EVM assets on its
+   * assigned chains, sent to the v6 endpoint as `includeAssetIds` on every
+   * poll. The v5 endpoint has no `includeAssetIds` support, so when the v6
+   * flag is off nothing is claimed and pinned assets fall through to RPC.
+   * Assets the backend cannot resolve at fetch time are released per-fetch
+   * via `unprocessedIncludeAssetIds` → `unprocessedCustomAssets`.
+   *
+   * @param customAssets - Candidate CAIP-19 asset IDs still unclaimed.
+   * @param assignedChains - Chains assigned to this source in the handoff.
+   * @returns The claimed subset of `customAssets`.
+   */
+  claimCustomAssets(
+    customAssets: Caip19AssetId[],
+    assignedChains: ChainId[],
+  ): Caip19AssetId[] {
+    if (!this.#isBalanceV6Enabled()) {
+      return [];
+    }
+    const assigned = new Set<ChainId>(assignedChains);
+    return customAssets.filter((assetId) => {
+      try {
+        const parsed = parseCaipAssetType(assetId);
+        return (
+          parsed.chain.namespace === KnownCaipNamespace.Eip155 &&
+          assigned.has(parsed.chainId)
+        );
+      } catch {
+        return false;
+      }
+    });
+  }
+
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
     const { request, subscriptionId, isUpdate } = subscriptionRequest;
 

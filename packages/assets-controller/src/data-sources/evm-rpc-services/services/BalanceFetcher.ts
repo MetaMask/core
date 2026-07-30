@@ -45,6 +45,15 @@ export type BalancePollingInput = {
   accountId: AccountId;
   /** Account address */
   accountAddress: Address;
+  /**
+   * When present, fetch balances for exactly these assets instead of the
+   * account's tracked `state.assetsBalance` entries. Used by the
+   * asset-scoped RPC poll on chains that another data source claimed in the
+   * chain handoff but whose pinned assets fell through to RPC in the asset
+   * handoff (`claimCustomAssets`). Callers must pass a deterministically
+   * ordered list — the polling input is the polling dedupe key.
+   */
+  assetIds?: CaipAssetType[];
 };
 
 /**
@@ -114,6 +123,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       input.chainId,
       input.accountId,
       input.accountAddress,
+      input.assetIds,
     );
 
     if (this.#onBalanceUpdate && result.balances.length > 0) {
@@ -127,11 +137,15 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    *
    * @param chainId - Hex chain ID (e.g. "0x1").
    * @param accountId - Account UUID.
+   * @param assetIds - When present, fetch exactly these assets instead of the
+   * tracked `assetsBalance` entries.
    * @returns Array of asset fetch entries from state for the requested chain.
    */
-  #getAssetsToFetch(chainId: ChainId, accountId: AccountId): AssetFetchEntry[] {
-    const state = this.#messenger.call('AssetsController:getState');
-
+  #getAssetsToFetch(
+    chainId: ChainId,
+    accountId: AccountId,
+    assetIds?: CaipAssetType[],
+  ): AssetFetchEntry[] {
     // Convert hex chainId to decimal for CAIP-2 matching
     // This is safe because we are filtring with an accountId that is for evm balances only
     const chainIdDecimal = parseInt(chainId, 16).toString();
@@ -161,21 +175,27 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       });
     };
 
-    // 1. Assets already tracked with a balance entry.
+    // Asset-scoped poll: fetch exactly the assets pinned on the input — the
+    // regular tracked balances on this chain are another data source's
+    // responsibility and polling them here would double-poll.
+    if (assetIds) {
+      for (const assetId of assetIds) {
+        collect(assetId);
+      }
+      return Array.from(assetsToFetch.values());
+    }
+
+    const state = this.#messenger.call('AssetsController:getState');
+
+    // Assets tracked with a balance entry. Custom (user-pinned) assets are
+    // covered here too: `addCustomAsset` seeds a zero-balance row and
+    // `mergeAccountBalances` re-seeds it on authoritative replaces, so every
+    // pinned asset on this chain has an entry. Pinned assets on chains
+    // another data source claimed are handled by the asset-scoped poll
+    // (explicit `assetIds`), not this path.
     const accountBalances = state?.assetsBalance?.[accountId];
     if (accountBalances) {
       for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
-        collect(assetId);
-      }
-    }
-
-    // 2. User-added custom assets — RPC is the sole balance fetcher for
-    //    these, so they must be polled even if they have no balance entry
-    //    yet (e.g. zero balance, first fetch failed, or state was hydrated
-    //    from disk before any successful fetch).
-    const customAssets = state?.customAssets?.[accountId];
-    if (customAssets) {
-      for (const assetId of customAssets as CaipAssetType[]) {
         collect(assetId);
       }
     }
@@ -190,14 +210,17 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param chainId - Hex chain ID.
    * @param accountId - Account UUID.
    * @param accountAddress - On-chain address of the account.
+   * @param assetIds - When present, fetch exactly these assets instead of the
+   * tracked `assetsBalance` entries.
    * @returns Balance fetch result.
    */
   async #fetchBalances(
     chainId: ChainId,
     accountId: AccountId,
     accountAddress: Address,
+    assetIds?: CaipAssetType[],
   ): Promise<BalanceFetchResult> {
-    const assets = this.#getAssetsToFetch(chainId, accountId);
+    const assets = this.#getAssetsToFetch(chainId, accountId, assetIds);
 
     return this.fetchBalancesForAssets(
       chainId,

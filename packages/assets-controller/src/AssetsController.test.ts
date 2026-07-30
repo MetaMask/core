@@ -19,6 +19,8 @@ import type {
   AssetsControllerState,
 } from './AssetsController.js';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
+import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
+import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
@@ -1101,6 +1103,47 @@ describe('AssetsController', () => {
       );
     });
 
+    it('scopes the custom assets on the request to the requested chains', async () => {
+      const mainnetToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const polygonToken =
+        'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
+
+      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
+      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
+        capturedCustomAssets.push(ctx.request.customAssets);
+        return next(ctx);
+      });
+      const middlewareGetter = jest
+        .spyOn(
+          AccountsApiDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        )
+        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
+
+      await withController(async ({ controller }) => {
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, mainnetToken);
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, polygonToken);
+
+        capturedCustomAssets.length = 0;
+        await controller.getAssets([createMockInternalAccount()], {
+          chainIds: ['eip155:1'],
+          forceUpdate: true,
+        });
+      });
+
+      // Pins on chains outside the request are dropped when the request is
+      // built — every data source would only ignore them at fetch time.
+      expect(capturedCustomAssets.length).toBeGreaterThan(0);
+      for (const customAssets of capturedCustomAssets) {
+        expect(customAssets).toStrictEqual([mainnetToken]);
+      }
+
+      middlewareGetter.mockRestore();
+    });
+
     it('forwards user-hidden assets to the Accounts API v6 endpoint as excludeAssetIds', async () => {
       const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
         accounts: [],
@@ -1961,6 +2004,64 @@ describe('AssetsController', () => {
           expect(subscribeSpy).not.toHaveBeenCalled();
         },
       );
+    });
+  });
+
+  describe('two-axis subscription handoff (chains + custom assets)', () => {
+    it('routes pinned assets on websocket-claimed chains to the RPC subscription', async () => {
+      // The websocket claims the chain axis for eip155:1...
+      jest
+        .spyOn(BackendWebsocketDataSource.prototype, 'getActiveChainsSync')
+        .mockReturnValue(['eip155:1' as ChainId]);
+      const wsSubscribeSpy = jest
+        .spyOn(BackendWebsocketDataSource.prototype, 'subscribe')
+        .mockResolvedValue(undefined);
+      const rpcSubscribeSpy = jest
+        .spyOn(RpcDataSource.prototype, 'subscribe')
+        .mockResolvedValue(undefined);
+      // ...and RPC has a provider for the pinned asset's chain (availability
+      // is unit-tested in RpcDataSource.test.ts; stubbed here because the
+      // mocked NetworkController has no configured networks).
+      const rpcClaimSpy = jest
+        .spyOn(RpcDataSource.prototype, 'claimCustomAssets')
+        .mockImplementation((customAssets) => customAssets);
+
+      await withController(async ({ controller }) => {
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+        // The websocket source was offered no pinned assets on its request —
+        // it claims none (push-only), so they must fall through.
+        const wsRequest = wsSubscribeSpy.mock.calls.at(-1)?.[0].request;
+        expect(wsRequest?.chainIds).toStrictEqual(['eip155:1']);
+        expect(wsRequest?.customAssets).toBeUndefined();
+
+        // RPC was assigned no chains, but claimed the pinned asset and got an
+        // asset-only subscription for it.
+        expect(rpcClaimSpy).toHaveBeenCalledWith([MOCK_ASSET_ID], []);
+        const rpcRequest = rpcSubscribeSpy.mock.calls.at(-1)?.[0].request;
+        expect(rpcRequest?.chainIds).toStrictEqual([]);
+        expect(rpcRequest?.customAssets).toStrictEqual([MOCK_ASSET_ID]);
+      });
+    });
+
+    it('does not create an RPC subscription for pinned assets it cannot claim', async () => {
+      jest
+        .spyOn(BackendWebsocketDataSource.prototype, 'getActiveChainsSync')
+        .mockReturnValue(['eip155:1' as ChainId]);
+      jest
+        .spyOn(BackendWebsocketDataSource.prototype, 'subscribe')
+        .mockResolvedValue(undefined);
+      const rpcSubscribeSpy = jest
+        .spyOn(RpcDataSource.prototype, 'subscribe')
+        .mockResolvedValue(undefined);
+
+      await withController(async ({ controller }) => {
+        // RPC has no provider for the chain (no networks configured in the
+        // mocked NetworkController), so its real claim returns nothing.
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+        expect(rpcSubscribeSpy).not.toHaveBeenCalled();
+      });
     });
   });
 

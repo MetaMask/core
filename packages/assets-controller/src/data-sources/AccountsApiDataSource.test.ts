@@ -597,6 +597,49 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  describe('claimCustomAssets', () => {
+    const assignedChainAsset =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111';
+    const unassignedChainAsset =
+      'eip155:137/erc20:0x2222222222222222222222222222222222222222';
+    const nonEvmAsset = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFW';
+
+    it('claims EVM assets on assigned chains when the v6 flag is enabled', async () => {
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      expect(
+        controller.claimCustomAssets(
+          [
+            assignedChainAsset,
+            unassignedChainAsset,
+            nonEvmAsset,
+            'not-a-caip-asset',
+          ] as Caip19AssetId[],
+          ['eip155:1' as ChainId],
+        ),
+      ).toStrictEqual([assignedChainAsset]);
+
+      controller.destroy();
+    });
+
+    it('claims nothing when the v6 flag is disabled (v5 has no includeAssetIds support)', async () => {
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: false } },
+      });
+
+      expect(
+        controller.claimCustomAssets(
+          [assignedChainAsset] as Caip19AssetId[],
+          ['eip155:1' as ChainId],
+        ),
+      ).toStrictEqual([]);
+
+      controller.destroy();
+    });
+  });
+
   describe('assetsAccountsApiV6 feature flag', () => {
     it('uses the v5 endpoint by default', async () => {
       const { controller, apiClient } = await setupController();

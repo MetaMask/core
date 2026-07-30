@@ -266,6 +266,23 @@ describe('BackendWebsocketDataSource', () => {
     controller.destroy();
   });
 
+  it('claims no custom assets even on chains it claims (push-only, no asset IDs on the protocol)', () => {
+    const { controller } = setupController({
+      initialActiveChains: [CHAIN_MAINNET],
+    });
+
+    expect(
+      controller.claimCustomAssets(
+        [
+          'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId,
+        ],
+        [CHAIN_MAINNET],
+      ),
+    ).toStrictEqual([]);
+
+    controller.destroy();
+  });
+
   it('updates active chains when AccountsApiDataSource publishes update', async () => {
     const { controller, triggerActiveChainsUpdate, activeChainsUpdateHandler } =
       setupController();

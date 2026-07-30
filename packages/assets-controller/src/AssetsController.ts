@@ -1642,12 +1642,23 @@ export class AssetsController extends BaseController<
       return this.#getAssetsFromState(accounts, chainIds, assetTypes);
     }
 
-    // Collect custom assets for all requested accounts
-    const customAssets: Caip19AssetId[] = [];
+    // Custom assets pinned by the requested accounts, scoped to the requested
+    // chains — every data source filters per chain at fetch time, so pins on
+    // other chains would only bloat the request.
+    const requestedChains = new Set<string>(chainIds);
+    const customAssetsSet = new Set<Caip19AssetId>();
     for (const account of accounts) {
-      const accountCustomAssets = this.getCustomAssets(account.id);
-      customAssets.push(...accountCustomAssets);
+      for (const assetId of this.getCustomAssets(account.id)) {
+        try {
+          if (requestedChains.has(parseCaipAssetType(assetId).chainId)) {
+            customAssetsSet.add(assetId);
+          }
+        } catch {
+          // Skip unparseable asset IDs
+        }
+      }
     }
+    const customAssets = [...customAssetsSet];
 
     const hiddenAssets = this.#getHiddenAssetIds();
 
@@ -3117,10 +3128,16 @@ export class AssetsController extends BaseController<
    * Strategy to minimize data source calls:
    * 1. Collect all chains to subscribe based on enabled networks
    * 2. Map chains to accounts based on their scopes
-   * 3. Split by data source (ordered by priority) - each data source gets ONE subscription
+   * 3. Split by data source (ordered by priority) - each data source gets ONE
+   *    subscription, claiming on two axes: the chains it can serve AND the
+   *    pinned custom assets it commits to (`claimCustomAssets`). Assets a
+   *    source cannot serve fall through to lower-priority sources — e.g. a
+   *    pinned token on a websocket-claimed chain is claimed by RPC, which
+   *    runs an asset-scoped poll for it (websocket pushes cannot cover
+   *    user-imported tokens that never transact).
    *
    * This ensures we make minimal subscriptions to each data source while covering
-   * all accounts and chains.
+   * all accounts, chains, and pinned assets.
    *
    * @param accounts - Accounts to subscribe balance updates for.
    * @param chainIds - Chain IDs to subscribe for.
@@ -3134,6 +3151,21 @@ export class AssetsController extends BaseController<
       new Set(chainIds),
     );
     const remainingChains = new Set(chainToAccounts.keys());
+    // Pinned custom assets on enabled chains, offered to the sources in
+    // priority order alongside the chains. Assets on disabled chains are not
+    // offered — the user cannot see those balances, polling them is waste.
+    const remainingCustomAssets = new Set<Caip19AssetId>();
+    for (const account of accounts) {
+      for (const assetId of this.getCustomAssets(account.id)) {
+        try {
+          if (remainingChains.has(parseCaipAssetType(assetId).chainId)) {
+            remainingCustomAssets.add(assetId);
+          }
+        } catch {
+          // Skip unparseable asset IDs
+        }
+      }
+    }
     // When basic functionality is on, use all balance data sources; when off, RPC only.
     const balanceDataSources = this.#isBasicFunctionality()
       ? this.#allBalanceDataSources
@@ -3150,11 +3182,20 @@ export class AssetsController extends BaseController<
         }
       }
 
-      if (assignedChains.length === 0) {
+      const claimedAssets = source.claimCustomAssets(
+        [...remainingCustomAssets],
+        assignedChains,
+      );
+      for (const assetId of claimedAssets) {
+        remainingCustomAssets.delete(assetId);
+      }
+
+      if (assignedChains.length === 0 && claimedAssets.length === 0) {
         this.#unsubscribeDataSource(source);
         continue;
       }
 
+      const claimedAssetsSet = new Set(claimedAssets);
       const seenIds = new Set<string>();
       const accountsForSource = assignedChains
         .flatMap((chainId) => chainToAccounts.get(chainId) ?? [])
@@ -3165,9 +3206,36 @@ export class AssetsController extends BaseController<
           seenIds.add(account.id);
           return true;
         });
-      if (accountsForSource.length > 0) {
-        this.#subscribeDataSource(source, accountsForSource, assignedChains);
+      // Owners of claimed assets must be on the subscription even when none
+      // of their chains were assigned to this source (asset-only coverage).
+      if (claimedAssetsSet.size > 0) {
+        for (const account of accounts) {
+          if (seenIds.has(account.id)) {
+            continue;
+          }
+          if (
+            this.getCustomAssets(account.id).some((assetId) =>
+              claimedAssetsSet.has(assetId),
+            )
+          ) {
+            seenIds.add(account.id);
+            accountsForSource.push(account);
+          }
+        }
       }
+      if (accountsForSource.length > 0) {
+        this.#subscribeDataSource(source, accountsForSource, assignedChains, {
+          customAssets: claimedAssets,
+        });
+      } else {
+        this.#unsubscribeDataSource(source);
+      }
+    }
+
+    if (remainingCustomAssets.size > 0) {
+      log('Custom assets unclaimed by any data source', {
+        assetIds: [...remainingCustomAssets],
+      });
     }
   }
 
@@ -3255,17 +3323,25 @@ export class AssetsController extends BaseController<
    * @param chains - Array of chain IDs to subscribe for.
    * @param options - Optional subscription overrides.
    * @param options.subscriptionKey - Custom subscription key (default: `ds:<sourceId>`).
+   * @param options.customAssets - Pinned custom assets this source claimed
+   * (`claimCustomAssets`), forwarded on the poll request so the source serves
+   * them (AccountsApi sends them as `includeAssetIds`; RPC polls them —
+   * asset-scoped when the asset's chain was not assigned to it).
    */
   #subscribeDataSource(
     source: AbstractDataSource<string, DataSourceState>,
     accounts: InternalAccount[],
     chains: ChainId[],
-    options: { subscriptionKey?: string } = {},
+    options: {
+      subscriptionKey?: string;
+      customAssets?: Caip19AssetId[];
+    } = {},
   ): void {
     const sourceId = source.getName();
     const subscriptionKey = options.subscriptionKey ?? `ds:${sourceId}`;
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
     const isUpdate = existingSubscription !== undefined;
+    const customAssets = options.customAssets ?? [];
 
     log('Subscribe to data source', {
       sourceId,
@@ -3273,14 +3349,8 @@ export class AssetsController extends BaseController<
       isUpdate,
       accountCount: accounts.length,
       chainCount: chains.length,
+      customAssetCount: customAssets.length,
     });
-
-    // User-pinned custom assets for the subscribed accounts, forwarded on the
-    // poll request so AccountsApi can send them as `includeAssetIds`.
-    const customAssets: Caip19AssetId[] = [];
-    for (const account of accounts) {
-      customAssets.push(...this.getCustomAssets(account.id));
-    }
 
     // Globally hidden assets, forwarded so AccountsApi can send them as
     // `excludeAssetIds` and drop them from the response.

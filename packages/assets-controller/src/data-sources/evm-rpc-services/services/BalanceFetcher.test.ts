@@ -248,12 +248,14 @@ describe('BalanceFetcher', () => {
       );
     });
 
-    it('polls custom assets even when they have no entry in assetsBalance yet', async () => {
-      // Regression: custom assets must be polled by RPC because RPC is the
-      // sole balance fetcher for them. Previously #getAssetsToFetch only
-      // looked at state.assetsBalance, so a freshly added custom asset
-      // (no balance row yet, e.g. zero balance or first fetch failed)
-      // would never be polled.
+    it('sources the regular poll from assetsBalance only, ignoring state.customAssets', async () => {
+      // Custom assets are guaranteed a seeded assetsBalance row
+      // (addCustomAsset seeds `{ amount: '0' }` and mergeAccountBalances
+      // re-seeds it on authoritative replaces), so the regular poll reads
+      // only assetsBalance. An asset present in state.customAssets but
+      // missing its balance row is NOT fetched — pinned assets on other
+      // sources' chains are handled by the asset-scoped poll (explicit
+      // `assetIds`), not here.
       const mockState: AssetsBalanceState = {
         assetsBalance: {
           [TEST_ACCOUNT_ID]: {
@@ -283,6 +285,55 @@ describe('BalanceFetcher', () => {
               true,
               '1000000000000000000',
             ),
+          ]);
+
+          const input: BalancePollingInput = {
+            chainId: MAINNET_CHAIN_ID,
+            accountId: TEST_ACCOUNT_ID,
+            accountAddress: TEST_ACCOUNT,
+          };
+
+          await controller._executePoll(input);
+
+          const [, batchedRequests] =
+            mockMulticallClient.batchBalanceOf.mock.calls[0];
+          const requestedTokens = (
+            batchedRequests as { tokenAddress: string }[]
+          )
+            .map((req) => req.tokenAddress.toLowerCase())
+            .sort();
+          expect(requestedTokens).toStrictEqual([ZERO_ADDRESS.toLowerCase()]);
+        },
+      );
+    });
+
+    it('with explicit assetIds fetches exactly those assets and ignores tracked state', async () => {
+      // The asset-scoped poll path: another data source claimed the chain
+      // for regular balances, but RPC claimed the user's pinned customAssets
+      // (claimCustomAssets) and pinned them on the polling input. We must
+      // NOT also poll the regular tracked balances.
+      const mockState: AssetsBalanceState = {
+        assetsBalance: {
+          [TEST_ACCOUNT_ID]: {
+            [NATIVE_ETH_ASSET_ID]: { amount: '0' },
+            [TOKEN_2_ASSET_ID]: { amount: '0' },
+          },
+        },
+        customAssets: {
+          [TEST_ACCOUNT_ID]: [TOKEN_1_ASSET_ID],
+        },
+      };
+
+      await withController(
+        {
+          assetsBalanceState: mockState,
+          config: {
+            isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
+          },
+        },
+        async ({ controller, mockMulticallClient }) => {
+          controller.setOnBalanceUpdate(jest.fn());
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
               TEST_TOKEN_1.toLowerCase() as Address,
               TEST_ACCOUNT,
@@ -295,23 +346,19 @@ describe('BalanceFetcher', () => {
             chainId: MAINNET_CHAIN_ID,
             accountId: TEST_ACCOUNT_ID,
             accountAddress: TEST_ACCOUNT,
+            assetIds: [TOKEN_1_ASSET_ID],
           };
 
           await controller._executePoll(input);
 
-          // The multicall batch should include both the native asset and
-          // the custom ERC-20 token, even though the custom token has no
-          // entry in assetsBalance.
           const [, batchedRequests] =
             mockMulticallClient.batchBalanceOf.mock.calls[0];
-          const requestedTokens = (
-            batchedRequests as { tokenAddress: string }[]
-          )
+          const requestedTokens = (batchedRequests as { tokenAddress: string }[])
             .map((req) => req.tokenAddress.toLowerCase())
             .sort();
-          expect(requestedTokens).toStrictEqual(
-            [ZERO_ADDRESS.toLowerCase(), TEST_TOKEN_1.toLowerCase()].sort(),
-          );
+          // ONLY the pinned asset — not the native and not TOKEN_2 from
+          // assetsBalance, even though both are tracked in state.
+          expect(requestedTokens).toStrictEqual([TEST_TOKEN_1.toLowerCase()]);
         },
       );
     });
