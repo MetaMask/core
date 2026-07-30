@@ -786,14 +786,8 @@ export class AssetsController extends BaseController<
 
   /**
    * All balance data sources in priority order for chain-claiming and cleanup.
-   * AccountActivityDataSource is highest priority: chains it reports as "up"
-   * (real-time WebSocket data via AccountActivityService) are reserved first so
-   * the polling sources (AccountsApi/RPC) do not also poll them. It only
-   * reserves chains here — its actual subscription (used to route
-   * `balanceUpdated` events) is created separately in `#subscribeAssetsBalance`
-   * with all selected accounts and enabled chains. Note: StakedBalanceDataSource
-   * is excluded because it provides supplementary data and should not
-   * participate in chain-claiming.
+   * Note: StakedBalanceDataSource is excluded because it provides supplementary
+   * data and should not participate in chain-claiming.
    *
    * @returns The four balance data source instances in priority order.
    */
