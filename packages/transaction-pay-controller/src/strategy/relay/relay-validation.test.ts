@@ -188,7 +188,7 @@ describe('validateRelayQuotes', () => {
     });
   });
 
-  it('passes through existing QuoteError unchanged', async () => {
+  it('re-wraps insufficient-source-balance QuoteError with request.quotes attached', async () => {
     const quoteError = new QuoteError({
       message: 'Insufficient source balance for quote',
       reason: 'insufficient-source-balance',
@@ -209,7 +209,34 @@ describe('validateRelayQuotes', () => {
         message: 'Insufficient source balance for quote',
         reason: 'insufficient-source-balance',
       },
+      quotes: [quote],
     });
+  });
+
+  it('throws QuoteError without quotes for non-insufficient-source-balance reason', async () => {
+    const quoteError = new QuoteError({
+      message: 'Quote simulation failed',
+      reason: 'simulation-failed',
+      detail: ['revert'],
+    });
+
+    validateQuoteExecutionMock.mockRejectedValue(quoteError);
+
+    const quote = buildQuote();
+
+    const thrownError = await validateRelayQuotes({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_MOCK,
+    }).catch((caughtError: unknown) => caughtError);
+
+    expect(thrownError).toMatchObject({
+      info: {
+        message: 'Quote simulation failed',
+        reason: 'simulation-failed',
+      },
+    });
+    expect((thrownError as QuoteError).quotes).toBeUndefined();
   });
 
   it('validates multiple quotes sequentially', async () => {

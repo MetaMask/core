@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix Relay quote validation ([#9723](https://github.com/MetaMask/core/pull/9723))
+  - Keep the quote when validation fails with reason `insufficient-source-balance`, while still surfacing `quoteError`; all other validation-failure reasons continue to remove the quote.
+  - Exclude a zero `gas` value from the simulated transaction.
+  - Always include an EIP-7702 authorization in the batch simulation so a not-yet-upgraded account is simulated as delegated, using the quote authorization address when present and otherwise the configured EIP-7702 upgrade contract for the chain.
+  - Surface the revert return data as `Custom Error - <return>` when a Sentinel simulation reverts with `execution reverted` and non-empty return data, falling back to `Reverted - Unknown Error` when the return data is empty, instead of the implied `execution reverted` message.
+
 ## [26.1.1]
 
 ### Changed

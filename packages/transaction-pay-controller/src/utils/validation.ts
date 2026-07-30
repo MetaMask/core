@@ -40,10 +40,13 @@ export type QuoteExecutionRequest = {
 export class QuoteError extends Error {
   readonly info: QuoteErrorInfo;
 
-  constructor(info: QuoteErrorInfo) {
+  readonly quotes?: TransactionPayQuote<unknown>[];
+
+  constructor(info: QuoteErrorInfo, quotes?: TransactionPayQuote<unknown>[]) {
     super(info.message);
     this.name = 'QuoteError';
     this.info = info;
+    this.quotes = quotes;
   }
 }
 

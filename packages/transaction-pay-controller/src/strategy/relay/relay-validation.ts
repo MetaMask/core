@@ -76,7 +76,16 @@ export async function validateRelayQuotes(
       if (request.signal?.aborted) {
         throw error;
       }
-      throw toQuoteError(error);
+      const quoteError = toQuoteError(error);
+      if (quoteError.info.reason === 'insufficient-source-balance') {
+        // Backwards compatibility: keep the quote(s) visible to clients even
+        // though validation failed, while still surfacing the error.
+        throw new QuoteError(
+          quoteError.info,
+          request.quotes as TransactionPayQuote<unknown>[],
+        );
+      }
+      throw quoteError;
     }
   }
 }
