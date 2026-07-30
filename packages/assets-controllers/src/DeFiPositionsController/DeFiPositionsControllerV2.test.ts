@@ -463,75 +463,78 @@ describe('DeFiPositionsControllerV2', () => {
     jest.useFakeTimers();
 
     const solanaAccountId = `solana:${SolScope.Mainnet.split(':')[1]}:${SOLANA_ADDRESS}`;
-    const { controller, mockInvalidateQueries, mockFetchV6MultiAccountBalances } =
-      setupController({
-        mockGroupAccounts: GROUP_ACCOUNTS_WITH_SOLANA,
-        mockFetchV6MultiAccountBalances: jest
-          .fn()
-          .mockResolvedValueOnce(
-            buildMockBalancesResponse({
-              accounts: [
-                {
-                  accountId: `eip155:0:${EVM_ADDRESS}`,
-                  balances: buildMockBalancesResponse().accounts[0].balances,
-                },
-                {
-                  accountId: solanaAccountId,
-                  balances: [
-                    {
-                      category: 'defi',
-                      assetId: `${SolScope.Mainnet}/token:${SOLANA_ADDRESS}`,
-                      name: 'Wrapped SOL',
-                      symbol: 'WSOL',
-                      decimals: 9,
-                      balance: '1',
-                      price: '100',
-                      metadata: {
-                        protocolId: 'marinade',
-                        productName: 'Marinade',
-                        description: 'Marinade on solana',
-                        protocolUrl: 'https://marinade.finance/',
-                        protocolIconUrl: 'https://example.com/marinade.png',
-                        positionType: 'stake',
-                        poolAddress: 'pool',
-                        groupId: 'group-marinade-1',
-                      },
+    const {
+      controller,
+      mockInvalidateQueries,
+      mockFetchV6MultiAccountBalances,
+    } = setupController({
+      mockGroupAccounts: GROUP_ACCOUNTS_WITH_SOLANA,
+      mockFetchV6MultiAccountBalances: jest
+        .fn()
+        .mockResolvedValueOnce(
+          buildMockBalancesResponse({
+            accounts: [
+              {
+                accountId: `eip155:0:${EVM_ADDRESS}`,
+                balances: buildMockBalancesResponse().accounts[0].balances,
+              },
+              {
+                accountId: solanaAccountId,
+                balances: [
+                  {
+                    category: 'defi',
+                    assetId: `${SolScope.Mainnet}/token:${SOLANA_ADDRESS}`,
+                    name: 'Wrapped SOL',
+                    symbol: 'WSOL',
+                    decimals: 9,
+                    balance: '1',
+                    price: '100',
+                    metadata: {
+                      protocolId: 'marinade',
+                      productName: 'Marinade',
+                      description: 'Marinade on solana',
+                      protocolUrl: 'https://marinade.finance/',
+                      protocolIconUrl: 'https://example.com/marinade.png',
+                      positionType: 'stake',
+                      poolAddress: 'pool',
+                      groupId: 'group-marinade-1',
                     },
-                  ],
-                },
-              ],
-            }),
-          )
-          .mockResolvedValueOnce(
-            buildMockBalancesResponse({
-              accounts: [
-                {
-                  accountId: `eip155:0:${EVM_ADDRESS}`,
-                  processingDefiPositions: true,
-                  balances: [],
-                },
-                {
-                  accountId: solanaAccountId,
-                  balances: [],
-                },
-              ],
-            }),
-          )
-          .mockResolvedValueOnce(
-            buildMockBalancesResponse({
-              accounts: [
-                {
-                  accountId: `eip155:0:${EVM_ADDRESS}`,
-                  balances: buildMockBalancesResponse().accounts[0].balances,
-                },
-                {
-                  accountId: solanaAccountId,
-                  balances: [],
-                },
-              ],
-            }),
-          ),
-      });
+                  },
+                ],
+              },
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(
+          buildMockBalancesResponse({
+            accounts: [
+              {
+                accountId: `eip155:0:${EVM_ADDRESS}`,
+                processingDefiPositions: true,
+                balances: [],
+              },
+              {
+                accountId: solanaAccountId,
+                balances: [],
+              },
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(
+          buildMockBalancesResponse({
+            accounts: [
+              {
+                accountId: `eip155:0:${EVM_ADDRESS}`,
+                balances: buildMockBalancesResponse().accounts[0].balances,
+              },
+              {
+                accountId: solanaAccountId,
+                balances: [],
+              },
+            ],
+          }),
+        ),
+    });
 
     await controller.fetchDeFiPositions();
     const evmPositions = controller.state.allDeFiPositionsV2['evm-account-id'];
