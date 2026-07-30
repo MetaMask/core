@@ -17,6 +17,24 @@ const controllerName = 'DeFiPositionsControllerV2';
 
 const MESSENGER_EXPOSED_METHODS = ['fetchDeFiPositions'] as const;
 
+/** Delay between polls while Accounts API reports DeFi indexing in progress. */
+export const DEFAULT_PROCESSING_POLL_INTERVAL_MS = 5_000;
+
+/**
+ * Maximum fetch attempts (including the first) while any account still has
+ * `processingDefiPositions: true`. After this, the call resolves and keeps
+ * prior state for accounts that never became ready.
+ */
+export const DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS = 5;
+
+/**
+ * @param ms - Milliseconds to wait.
+ * @returns A promise that resolves after `ms`.
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export type DeFiPositionsControllerV2State = {
   /**
    * DeFi positions keyed by internal MetaMask account ID (`InternalAccount.id`,
@@ -98,6 +116,11 @@ export type DeFiPositionsControllerV2Messenger = Messenger<
  * Deduplication and freshness are handled by the shared TanStack Query cache on
  * {@link ApiPlatformClient} (balances default `staleTime` is 1 minute). Pass
  * `{ forceRefresh: true }` to bypass that cache for pull-to-refresh.
+ *
+ * When the API reports `processingDefiPositions` for any account, this
+ * controller polls until indexing finishes or the attempt limit is reached.
+ * Concurrent calls share one in-flight promise so the UI can treat the pending
+ * promise as a loading signal.
  */
 export class DeFiPositionsControllerV2 extends BaseController<
   typeof controllerName,
@@ -109,6 +132,8 @@ export class DeFiPositionsControllerV2 extends BaseController<
   readonly #isEnabled: () => boolean;
 
   readonly #getVsCurrency: () => string;
+
+  #inFlightFetch: Promise<void> | null = null;
 
   /**
    * @param options - Constructor options.
@@ -154,16 +179,19 @@ export class DeFiPositionsControllerV2 extends BaseController<
   /**
    * Fetches DeFi positions for the selected account group. Each account key in
    * a ready response replaces that account's state (other accounts stay).
-   * Accounts still indexing (`processingDefiPositions`) are skipped so prior
-   * state is kept for them. No-ops when disabled or when the group has no
-   * supported accounts. Caching / spam prevention is handled by the apiClient
-   * TanStack Query cache (keyed by accounts + query options including
-   * `vsCurrency`). Pass `{ forceRefresh: true }` to bypass the cache (e.g.
-   * pull-to-refresh).
+   * Accounts still indexing (`processingDefiPositions`) keep prior state; the
+   * method polls (invalidating the balances cache between attempts) until all
+   * selected accounts are ready, the attempt limit is reached, or a request
+   * fails. Concurrent calls share one in-flight promise. No-ops when disabled
+   * or when the group has no supported accounts. Caching / spam prevention is
+   * handled by the apiClient TanStack Query cache (keyed by accounts + query
+   * options including `vsCurrency`). Pass `{ forceRefresh: true }` to bypass
+   * the cache on the first attempt (e.g. pull-to-refresh).
    *
    * @param options - Optional fetch modifiers.
-   * @param options.forceRefresh - When true, bypass the apiClient cache and
-   * fetch immediately.
+   * @param options.forceRefresh - When true, bypass the apiClient cache on the
+   * first attempt and fetch immediately.
+   * @returns Resolves when the fetch (and any processing polls) finish.
    */
   async fetchDeFiPositions(options?: {
     forceRefresh?: boolean;
@@ -172,6 +200,21 @@ export class DeFiPositionsControllerV2 extends BaseController<
       return;
     }
 
+    if (this.#inFlightFetch) {
+      await this.#inFlightFetch;
+      return;
+    }
+
+    this.#inFlightFetch = this.#fetchDeFiPositions(options).finally(() => {
+      this.#inFlightFetch = null;
+    });
+
+    await this.#inFlightFetch;
+  }
+
+  async #fetchDeFiPositions(options?: {
+    forceRefresh?: boolean;
+  }): Promise<void> {
     const selectedAccounts = this.messenger.call(
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
@@ -185,48 +228,82 @@ export class DeFiPositionsControllerV2 extends BaseController<
 
     const accountIds = [...internalAccountIdByCaip.keys()];
     const vsCurrency = this.#getVsCurrency().toLowerCase();
+    const queryOptions = {
+      networks,
+      includeDeFiBalances: true,
+      forceFetchDeFiPositions: true,
+      includePrices: true,
+      vsCurrency,
+    };
 
-    try {
-      const response =
-        await this.#apiClient.accounts.fetchV6MultiAccountBalances(
-          accountIds,
-          {
-            networks,
-            includeDeFiBalances: true,
-            forceFetchDeFiPositions: true,
-            includePrices: true,
-            vsCurrency,
-          },
-          {
-            // staleTime: 0 makes TanStack treat the cache as stale for this call.
-            ...(options?.forceRefresh ? { staleTime: 0 } : {}),
-          },
+    for (
+      let attempt = 0;
+      attempt < DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS;
+      attempt++
+    ) {
+      // First attempt respects forceRefresh; later polls always bypass cache
+      // so we do not spin on a stale processing snapshot.
+      const fetchOptions = {
+        ...(options?.forceRefresh || attempt > 0 ? { staleTime: 0 } : {}),
+      };
+
+      try {
+        const response =
+          await this.#apiClient.accounts.fetchV6MultiAccountBalances(
+            accountIds,
+            queryOptions,
+            fetchOptions,
+          );
+
+        const processingAccounts = response.accounts.filter(
+          (account) => account.processingDefiPositions,
+        );
+        const readyAccounts = response.accounts.filter(
+          (account) => !account.processingDefiPositions,
         );
 
-      // Skip accounts still indexing — their balances are not a valid snapshot.
-      const readyAccounts = response.accounts.filter(
-        (account) => !account.processingDefiPositions,
-      );
-      if (readyAccounts.length === 0) {
+        if (readyAccounts.length > 0) {
+          const positionsByAccount = groupDeFiPositionsV6(
+            { ...response, accounts: readyAccounts },
+            internalAccountIdByCaip,
+          );
+
+          // Last valid response wins per ready account; still-indexing accounts
+          // stay untouched.
+          this.update((state) => {
+            for (const [accountId, positions] of Object.entries(
+              positionsByAccount,
+            )) {
+              state.allDeFiPositionsV2[accountId] = positions;
+            }
+          });
+        }
+
+        if (processingAccounts.length === 0) {
+          return;
+        }
+
+        const { queryKey } =
+          this.#apiClient.accounts.getV6MultiAccountBalancesQueryOptions(
+            accountIds,
+            queryOptions,
+            fetchOptions,
+          );
+        await this.#apiClient.accounts.queryClient.invalidateQueries({
+          queryKey,
+        });
+
+        const isLastAttempt =
+          attempt >= DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS - 1;
+        if (isLastAttempt) {
+          return;
+        }
+
+        await delay(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+      } catch (error) {
+        console.error('Failed to fetch DeFi positions', error);
         return;
       }
-
-      const positionsByAccount = groupDeFiPositionsV6(
-        { ...response, accounts: readyAccounts },
-        internalAccountIdByCaip,
-      );
-
-      // Last valid response wins per ready account; processing / other accounts
-      // stay untouched.
-      this.update((state) => {
-        for (const [accountId, positions] of Object.entries(
-          positionsByAccount,
-        )) {
-          state.allDeFiPositionsV2[accountId] = positions;
-        }
-      });
-    } catch (error) {
-      console.error('Failed to fetch DeFi positions', error);
     }
   }
 }

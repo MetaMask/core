@@ -23,6 +23,8 @@ import { createMockInternalAccount } from '../../../accounts-controller/tests/mo
 import { DEFI_SUPPORTED_NETWORKS } from './build-defi-balances-query.js';
 import type { DeFiPositionsControllerV2Messenger } from './DeFiPositionsControllerV2.js';
 import {
+  DEFAULT_PROCESSING_POLL_INTERVAL_MS,
+  DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS,
   DeFiPositionsControllerV2,
   getDefaultDeFiPositionsControllerV2State,
 } from './DeFiPositionsControllerV2.js';
@@ -126,6 +128,23 @@ function buildMockBalancesResponse(
 }
 
 /**
+ * Builds a processing-only balances response for the EVM account.
+ *
+ * @returns A v6 balances response with `processingDefiPositions: true`.
+ */
+function buildProcessingBalancesResponse(): V6BalancesResponse {
+  return buildMockBalancesResponse({
+    accounts: [
+      {
+        accountId: `eip155:0:${EVM_ADDRESS}`,
+        processingDefiPositions: true,
+        balances: [],
+      },
+    ],
+  });
+}
+
+/**
  * Sets up the V2 controller with the given configuration.
  *
  * @param config - Configuration for the mock setup.
@@ -163,6 +182,8 @@ function setupController({
     RootMessenger
   >;
   mockFetchV6MultiAccountBalances: jest.Mock;
+  mockInvalidateQueries: jest.Mock;
+  mockGetV6MultiAccountBalancesQueryOptions: jest.Mock;
 } {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -187,9 +208,19 @@ function setupController({
     actions: ['AccountTreeController:getAccountsFromSelectedAccountGroup'],
   });
 
+  const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
+  const mockGetV6MultiAccountBalancesQueryOptions = jest
+    .fn()
+    .mockReturnValue({ queryKey: ['accounts', 'balances', 'v6', 'mock'] });
+
   const apiClient = {
     accounts: {
       fetchV6MultiAccountBalances: mockFetchV6MultiAccountBalances,
+      getV6MultiAccountBalancesQueryOptions:
+        mockGetV6MultiAccountBalancesQueryOptions,
+      queryClient: {
+        invalidateQueries: mockInvalidateQueries,
+      },
     },
   } as unknown as ApiPlatformClient;
 
@@ -205,11 +236,14 @@ function setupController({
     controller,
     controllerMessenger,
     mockFetchV6MultiAccountBalances,
+    mockInvalidateQueries,
+    mockGetV6MultiAccountBalancesQueryOptions,
   };
 }
 
 describe('DeFiPositionsControllerV2', () => {
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -248,7 +282,11 @@ describe('DeFiPositionsControllerV2', () => {
   });
 
   it('fetches positions and stores them keyed by internal account ID', async () => {
-    const { controller, mockFetchV6MultiAccountBalances } = setupController();
+    const {
+      controller,
+      mockFetchV6MultiAccountBalances,
+      mockInvalidateQueries,
+    } = setupController();
 
     await controller.fetchDeFiPositions();
 
@@ -266,6 +304,7 @@ describe('DeFiPositionsControllerV2', () => {
       },
       {},
     );
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
 
     expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
       1,
@@ -378,89 +417,121 @@ describe('DeFiPositionsControllerV2', () => {
     });
   });
 
-  it('keeps prior state for accounts still indexing DeFi positions', async () => {
-    const { controller, mockFetchV6MultiAccountBalances } = setupController({
+  it('polls until processing accounts become ready and keeps prior state meanwhile', async () => {
+    jest.useFakeTimers();
+
+    const {
+      controller,
+      mockFetchV6MultiAccountBalances,
+      mockInvalidateQueries,
+    } = setupController({
       mockFetchV6MultiAccountBalances: jest
         .fn()
         .mockResolvedValueOnce(buildMockBalancesResponse())
-        .mockResolvedValueOnce(
-          buildMockBalancesResponse({
-            accounts: [
-              {
-                accountId: `eip155:0:${EVM_ADDRESS}`,
-                processingDefiPositions: true,
-                balances: [],
-              },
-            ],
-          }),
-        ),
+        .mockResolvedValueOnce(buildProcessingBalancesResponse())
+        .mockResolvedValueOnce(buildMockBalancesResponse()),
     });
 
     await controller.fetchDeFiPositions();
     const cached = controller.state.allDeFiPositionsV2['evm-account-id'];
     expect(cached).toHaveLength(1);
 
-    await controller.fetchDeFiPositions({ forceRefresh: true });
-    expect(controller.state.allDeFiPositionsV2['evm-account-id']).toBe(cached);
+    const secondFetch = controller.fetchDeFiPositions({ forceRefresh: true });
+    await Promise.resolve();
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).toBe(cached);
+    expect(mockInvalidateQueries).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+    await secondFetch;
+
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(3);
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ vsCurrency: 'usd' }),
+      { staleTime: 0 },
+    );
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
+      1,
+    );
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).not.toBe(
+      cached,
+    );
   });
 
-  it('updates ready accounts while skipping ones still indexing', async () => {
+  it('updates ready accounts immediately while polling ones still indexing', async () => {
+    jest.useFakeTimers();
+
     const solanaAccountId = `solana:${SolScope.Mainnet.split(':')[1]}:${SOLANA_ADDRESS}`;
-    const { controller } = setupController({
-      mockGroupAccounts: GROUP_ACCOUNTS_WITH_SOLANA,
-      mockFetchV6MultiAccountBalances: jest
-        .fn()
-        .mockResolvedValueOnce(
-          buildMockBalancesResponse({
-            accounts: [
-              {
-                accountId: `eip155:0:${EVM_ADDRESS}`,
-                balances: buildMockBalancesResponse().accounts[0].balances,
-              },
-              {
-                accountId: solanaAccountId,
-                balances: [
-                  {
-                    category: 'defi',
-                    assetId: `${SolScope.Mainnet}/token:${SOLANA_ADDRESS}`,
-                    name: 'Wrapped SOL',
-                    symbol: 'WSOL',
-                    decimals: 9,
-                    balance: '1',
-                    price: '100',
-                    metadata: {
-                      protocolId: 'marinade',
-                      productName: 'Marinade',
-                      description: 'Marinade on solana',
-                      protocolUrl: 'https://marinade.finance/',
-                      protocolIconUrl: 'https://example.com/marinade.png',
-                      positionType: 'stake',
-                      poolAddress: 'pool',
-                      groupId: 'group-marinade-1',
+    const { controller, mockInvalidateQueries, mockFetchV6MultiAccountBalances } =
+      setupController({
+        mockGroupAccounts: GROUP_ACCOUNTS_WITH_SOLANA,
+        mockFetchV6MultiAccountBalances: jest
+          .fn()
+          .mockResolvedValueOnce(
+            buildMockBalancesResponse({
+              accounts: [
+                {
+                  accountId: `eip155:0:${EVM_ADDRESS}`,
+                  balances: buildMockBalancesResponse().accounts[0].balances,
+                },
+                {
+                  accountId: solanaAccountId,
+                  balances: [
+                    {
+                      category: 'defi',
+                      assetId: `${SolScope.Mainnet}/token:${SOLANA_ADDRESS}`,
+                      name: 'Wrapped SOL',
+                      symbol: 'WSOL',
+                      decimals: 9,
+                      balance: '1',
+                      price: '100',
+                      metadata: {
+                        protocolId: 'marinade',
+                        productName: 'Marinade',
+                        description: 'Marinade on solana',
+                        protocolUrl: 'https://marinade.finance/',
+                        protocolIconUrl: 'https://example.com/marinade.png',
+                        positionType: 'stake',
+                        poolAddress: 'pool',
+                        groupId: 'group-marinade-1',
+                      },
                     },
-                  },
-                ],
-              },
-            ],
-          }),
-        )
-        .mockResolvedValueOnce(
-          buildMockBalancesResponse({
-            accounts: [
-              {
-                accountId: `eip155:0:${EVM_ADDRESS}`,
-                processingDefiPositions: true,
-                balances: [],
-              },
-              {
-                accountId: solanaAccountId,
-                balances: [],
-              },
-            ],
-          }),
-        ),
-    });
+                  ],
+                },
+              ],
+            }),
+          )
+          .mockResolvedValueOnce(
+            buildMockBalancesResponse({
+              accounts: [
+                {
+                  accountId: `eip155:0:${EVM_ADDRESS}`,
+                  processingDefiPositions: true,
+                  balances: [],
+                },
+                {
+                  accountId: solanaAccountId,
+                  balances: [],
+                },
+              ],
+            }),
+          )
+          .mockResolvedValueOnce(
+            buildMockBalancesResponse({
+              accounts: [
+                {
+                  accountId: `eip155:0:${EVM_ADDRESS}`,
+                  balances: buildMockBalancesResponse().accounts[0].balances,
+                },
+                {
+                  accountId: solanaAccountId,
+                  balances: [],
+                },
+              ],
+            }),
+          ),
+      });
 
     await controller.fetchDeFiPositions();
     const evmPositions = controller.state.allDeFiPositionsV2['evm-account-id'];
@@ -469,15 +540,83 @@ describe('DeFiPositionsControllerV2', () => {
       controller.state.allDeFiPositionsV2['solana-account-id'],
     ).toHaveLength(1);
 
-    await controller.fetchDeFiPositions({ forceRefresh: true });
+    const secondFetch = controller.fetchDeFiPositions({ forceRefresh: true });
+    await Promise.resolve();
 
-    // Still-indexing EVM account keeps prior positions; ready Solana clears.
+    // Ready Solana clears immediately; still-indexing EVM keeps prior positions.
     expect(controller.state.allDeFiPositionsV2['evm-account-id']).toBe(
       evmPositions,
     );
     expect(
       controller.state.allDeFiPositionsV2['solana-account-id'],
     ).toStrictEqual([]);
+    expect(mockInvalidateQueries).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+    await secondFetch;
+
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(3);
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
+      1,
+    );
+    expect(
+      controller.state.allDeFiPositionsV2['solana-account-id'],
+    ).toStrictEqual([]);
+  });
+
+  it('stops polling after the max attempt limit while still processing', async () => {
+    jest.useFakeTimers();
+
+    const mockFetchV6MultiAccountBalances = jest
+      .fn()
+      .mockResolvedValue(buildProcessingBalancesResponse());
+
+    const { controller, mockInvalidateQueries } = setupController({
+      mockFetchV6MultiAccountBalances,
+    });
+
+    const fetchPromise = controller.fetchDeFiPositions();
+
+    for (let i = 0; i < DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS - 1; i++) {
+      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+    }
+
+    await fetchPromise;
+
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(
+      DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS,
+    );
+    expect(mockInvalidateQueries).toHaveBeenCalledTimes(
+      DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS,
+    );
+    expect(controller.state.allDeFiPositionsV2).toStrictEqual({});
+  });
+
+  it('shares one in-flight promise across concurrent fetchDeFiPositions calls', async () => {
+    jest.useFakeTimers();
+
+    let resolveFetch!: (value: V6BalancesResponse) => void;
+    const mockFetchV6MultiAccountBalances = jest.fn().mockImplementation(
+      () =>
+        new Promise<V6BalancesResponse>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+
+    const { controller } = setupController({
+      mockFetchV6MultiAccountBalances,
+    });
+
+    const first = controller.fetchDeFiPositions();
+    const second = controller.fetchDeFiPositions({ forceRefresh: true });
+
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(1);
+
+    resolveFetch(buildMockBalancesResponse());
+    await Promise.all([first, second]);
+
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(1);
   });
 
   it('merges fetched accounts into state without clearing other accounts', async () => {

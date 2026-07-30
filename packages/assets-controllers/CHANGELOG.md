@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `DeFiPositionsControllerV2.fetchDeFiPositions` now polls while any selected
+  account has `processingDefiPositions: true`, applying ready accounts
+  immediately, invalidating the balances cache between attempts, sharing one
+  in-flight promise across concurrent calls, and stopping on request failure or
+  the max attempt limit
+
 ## [110.0.2]
 
 ### Changed
