@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
 ### Added
 
 - Report migration error in case of failure ([#9696](https://github.com/MetaMask/core/pull/9696))
@@ -144,7 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.0.0...@metamask/snap-account-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@1.0.0...@metamask/snap-account-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.1...@metamask/snap-account-service@1.0.0
 [0.3.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.0...@metamask/snap-account-service@0.3.1
