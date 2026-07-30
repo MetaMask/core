@@ -679,31 +679,31 @@ function expectTestScripts(workspace) {
     expectWorkspaceField(
       workspace,
       'scripts.test',
-      'yarn test:jest && yarn test:types',
+      'yarn test:unit && yarn test:types',
     );
     expectWorkspaceField(
       workspace,
       'scripts.test:clean',
-      'yarn test:jest:clean && yarn test:types',
+      'yarn test:unit:clean && yarn test:types',
     );
     expectWorkspaceField(
       workspace,
       'scripts.test:verbose',
-      'yarn test:jest:verbose && yarn test:types',
+      'yarn test:unit:verbose && yarn test:types',
     );
     expectWorkspaceField(
       workspace,
-      'scripts.test:jest',
+      'scripts.test:unit',
       'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
     );
     expectWorkspaceField(
       workspace,
-      'scripts.test:jest:clean',
+      'scripts.test:unit:clean',
       'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
     );
     expectWorkspaceField(
       workspace,
-      'scripts.test:jest:verbose',
+      'scripts.test:unit:verbose',
       'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
     );
   }
