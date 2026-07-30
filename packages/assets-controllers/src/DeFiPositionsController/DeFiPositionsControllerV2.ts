@@ -120,10 +120,11 @@ export type DeFiPositionsControllerV2Messenger = Messenger<
  *
  * When the API reports `processingDefiPositions` for any account, this
  * controller polls until indexing finishes or the attempt limit is reached.
- * Concurrent calls for the same selected accounts share one in-flight promise
- * so the UI can treat the pending promise as a loading signal. Calls for a
- * different selection start their own fetch and leave any prior poll running,
- * so switching back can join an in-flight fetch for that group.
+ * Concurrent calls for the same selected accounts and `vsCurrency` share one
+ * in-flight promise so the UI can treat the pending promise as a loading
+ * signal. Calls for a different selection or fiat currency start their own
+ * fetch and leave any prior poll running, so switching back can join an
+ * in-flight fetch for that group and currency.
  */
 export class DeFiPositionsControllerV2 extends BaseController<
   typeof controllerName,
@@ -137,9 +138,10 @@ export class DeFiPositionsControllerV2 extends BaseController<
   readonly #getVsCurrency: () => string;
 
   /**
-   * In-flight fetches keyed by selected DeFi-queryable account IDs. Concurrent
-   * callers for the same selection share a promise; different selections keep
-   * independent fetches so fast account switching can join an earlier poll.
+   * In-flight fetches keyed by selected DeFi-queryable account IDs plus
+   * `vsCurrency`. Concurrent callers for the same selection and currency share
+   * a promise; different selections or fiat currencies keep independent
+   * fetches so fast switching can join an earlier matching poll.
    */
   readonly #inFlightFetches = new Map<string, Promise<void>>();
 
@@ -190,13 +192,14 @@ export class DeFiPositionsControllerV2 extends BaseController<
    * Accounts still indexing (`processingDefiPositions`) keep prior state; the
    * method polls (invalidating the balances cache between attempts) until all
    * selected accounts are ready, the attempt limit is reached, or a request
-   * fails. Concurrent calls for the same selected accounts share one in-flight
-   * promise; calls for a different selection start a new fetch and leave prior
-   * polls running so a later switch back can join them. No-ops when disabled
-   * or when the group has no supported accounts. Caching / spam prevention is
-   * handled by the apiClient TanStack Query cache (keyed by accounts + query
-   * options including `vsCurrency`). Pass `{ forceRefresh: true }` to bypass
-   * the cache on the first attempt (e.g. pull-to-refresh).
+   * fails. Concurrent calls for the same selected accounts and `vsCurrency`
+   * share one in-flight promise; calls for a different selection or fiat
+   * currency start a new fetch and leave prior polls running so a later
+   * switch back can join them. No-ops when disabled or when the group has no
+   * supported accounts. Caching / spam prevention is handled by the apiClient
+   * TanStack Query cache (keyed by accounts + query options including
+   * `vsCurrency`). Pass `{ forceRefresh: true }` to bypass the cache on the
+   * first attempt (e.g. pull-to-refresh).
    *
    * @param options - Optional fetch modifiers.
    * @param options.forceRefresh - When true, bypass the apiClient cache on the
@@ -214,24 +217,30 @@ export class DeFiPositionsControllerV2 extends BaseController<
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
     const query = buildDeFiBalancesQuery(selectedAccounts);
-    const accountIdsKey = [...query.internalAccountIdByCaip.keys()]
-      .sort()
-      .join('\0');
+    const vsCurrency = this.#getVsCurrency().toLowerCase();
+    // Include vsCurrency so a fiat change does not join a poll priced in the
+    // previous currency (TanStack also keys the balances cache on vsCurrency).
+    const inFlightKey = [
+      ...[...query.internalAccountIdByCaip.keys()].sort(),
+      vsCurrency,
+    ].join('\0');
 
-    const existing = this.#inFlightFetches.get(accountIdsKey);
+    const existing = this.#inFlightFetches.get(inFlightKey);
     if (existing) {
       await existing;
       return;
     }
 
-    const fetchPromise = this.#fetchDeFiPositions(options, query).finally(
-      () => {
-        if (this.#inFlightFetches.get(accountIdsKey) === fetchPromise) {
-          this.#inFlightFetches.delete(accountIdsKey);
-        }
-      },
-    );
-    this.#inFlightFetches.set(accountIdsKey, fetchPromise);
+    const fetchPromise = this.#fetchDeFiPositions(
+      options,
+      query,
+      vsCurrency,
+    ).finally(() => {
+      if (this.#inFlightFetches.get(inFlightKey) === fetchPromise) {
+        this.#inFlightFetches.delete(inFlightKey);
+      }
+    });
+    this.#inFlightFetches.set(inFlightKey, fetchPromise);
 
     await fetchPromise;
   }
@@ -239,13 +248,13 @@ export class DeFiPositionsControllerV2 extends BaseController<
   async #fetchDeFiPositions(
     options: { forceRefresh?: boolean } | undefined,
     { networks, internalAccountIdByCaip }: DeFiBalancesQuery,
+    vsCurrency: string,
   ): Promise<void> {
     if (internalAccountIdByCaip.size === 0 || networks.length === 0) {
       return;
     }
 
     const accountIds = [...internalAccountIdByCaip.keys()];
-    const vsCurrency = this.#getVsCurrency().toLowerCase();
     const queryOptions = {
       networks,
       includeDeFiBalances: true,

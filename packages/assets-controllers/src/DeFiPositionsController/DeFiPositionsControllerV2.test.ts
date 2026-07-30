@@ -622,6 +622,52 @@ describe('DeFiPositionsControllerV2', () => {
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(1);
   });
 
+  it('starts a new fetch when vsCurrency changes during an in-flight call', async () => {
+    let vsCurrency = 'USD';
+
+    let resolveUsdFetch!: (value: V6BalancesResponse) => void;
+    const mockFetchV6MultiAccountBalances = jest
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<V6BalancesResponse>((resolve) => {
+            resolveUsdFetch = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(buildMockBalancesResponse());
+
+    const { controller } = setupController({
+      getVsCurrency: () => vsCurrency,
+      mockFetchV6MultiAccountBalances,
+    });
+
+    const usdFetch = controller.fetchDeFiPositions();
+    await Promise.resolve();
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(1);
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ vsCurrency: 'usd' }),
+      {},
+    );
+
+    vsCurrency = 'EUR';
+    const eurFetch = controller.fetchDeFiPositions({ forceRefresh: true });
+    await Promise.resolve();
+
+    // Different fiat currency must not join the USD in-flight promise.
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ vsCurrency: 'eur' }),
+      { staleTime: 0 },
+    );
+
+    resolveUsdFetch(buildMockBalancesResponse());
+    await Promise.all([usdFetch, eurFetch]);
+
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+  });
+
   it('starts a new fetch when selection changes during an in-flight call', async () => {
     const otherEvmAddress = '0x0000000000000000000000000000000000000002';
     const otherEvmAccount = createMockInternalAccount({
