@@ -21,7 +21,10 @@ import {
   TransactionType,
   UserFeeLevel,
 } from '../types.js';
-import { getReplaceUnderpricedDappGasFeesEnabled } from './feature-flags.js';
+import {
+  getReplaceUnderpricedDappGasFeesEnabled,
+  getReplaceUnderpricedSavedGasFeesEnabled,
+} from './feature-flags.js';
 import { getGasFeeFlow } from './gas-flow.js';
 import { rpcRequest } from './provider.js';
 import { SWAP_TRANSACTION_TYPES } from './swaps.js';
@@ -85,7 +88,7 @@ export async function updateGasFees(
       txMeta.type as TransactionType,
     );
 
-  const savedGasFees =
+  let savedGasFees =
     shouldIgnoreSavedGasFees || hasInitialGasFeeParams(initialParams)
       ? undefined
       : request.getSavedGasFees(txMeta);
@@ -96,6 +99,17 @@ export async function updateGasFees(
   });
 
   log('Suggested gas fees', suggestedGasFees);
+
+  if (
+    shouldIgnoreUnderpricedSavedGasFees(savedGasFees, suggestedGasFees, request)
+  ) {
+    log(
+      'Ignoring saved custom gas fees below low estimate',
+      savedGasFees?.maxBaseFee,
+      suggestedGasFees.low?.maxFeePerGas,
+    );
+    savedGasFees = undefined;
+  }
 
   const getGasFeeRequest: GetGasFeeRequest = {
     ...request,
@@ -155,6 +169,53 @@ export function gweiDecimalToWeiDecimal(gweiDecimal: string | number): string {
   const weiValue = Number(gweiDecimal) * 1e9;
 
   return weiValue.toString().split('.')[0];
+}
+
+/**
+ * Determine whether saved (advanced) gas fee preferences should be ignored in
+ * favour of the suggested gas fees, as the saved custom `maxBaseFee` is below
+ * the current low estimate and hence unlikely to result in timely inclusion in
+ * a block. Level-based saved preferences track current estimates and are never
+ * ignored.
+ *
+ * @param savedGasFees - The saved gas fee preferences.
+ * @param suggestedGasFees - The suggested gas fees.
+ * @param request - The request object.
+ * @returns Whether the saved gas fee preferences should be ignored.
+ */
+function shouldIgnoreUnderpricedSavedGasFees(
+  savedGasFees: SavedGasFees | undefined,
+  suggestedGasFees: SuggestedGasFees,
+  request: UpdateGasFeesRequest,
+): boolean {
+  const { eip1559, messenger, txMeta } = request;
+
+  if (
+    !eip1559 ||
+    !savedGasFees?.maxBaseFee ||
+    !getReplaceUnderpricedSavedGasFeesEnabled(txMeta.chainId, messenger)
+  ) {
+    return false;
+  }
+
+  const lowMaxFeePerGas = suggestedGasFees.low?.maxFeePerGas;
+
+  const hasReplacement =
+    Boolean(suggestedGasFees.maxFeePerGas) &&
+    Boolean(suggestedGasFees.maxPriorityFeePerGas);
+
+  if (!lowMaxFeePerGas || !hasReplacement) {
+    return false;
+  }
+
+  try {
+    return (
+      BigInt(gweiDecimalToWeiHex(savedGasFees.maxBaseFee)) <
+      BigInt(lowMaxFeePerGas)
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**

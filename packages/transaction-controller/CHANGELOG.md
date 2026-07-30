@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `userFeeLevel` for such transactions is set to `medium` instead of `dappSuggested`, so the values are kept updated while the transaction is unapproved.
   - The original dapp-suggested values remain available via `dappSuggestedGasFees` on the transaction metadata.
   - Disabled by default.
+- Ignore underpriced saved (advanced) gas fee preferences in favour of the wallet's suggested estimates ([#YYYY](https://github.com/MetaMask/core/pull/YYYY))
+  - If the new `replaceUnderpricedSavedGasFees` feature flag is enabled for the chain, saved custom fees with a `maxBaseFee` below the current low estimate are ignored and the suggested medium values are used instead, as they are unlikely to result in inclusion in a block before fee values change.
+  - Level-based saved preferences track current estimates and are never ignored.
+  - The `userFeeLevel` for such transactions is set to `medium` instead of `custom`, so the values are kept updated while the transaction is unapproved.
+  - Disabled by default.
 
 ## [69.3.0]
 

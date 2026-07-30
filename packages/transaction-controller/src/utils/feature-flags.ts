@@ -205,6 +205,27 @@ export type TransactionControllerFeatureFlags = {
        */
       default?: boolean;
     };
+
+    /**
+     * Replacement of underpriced saved (advanced) gas fee preferences.
+     * If enabled, saved custom fees with a `maxBaseFee` below the current low
+     * estimate are ignored in favour of the wallet's suggested fees, as they
+     * are unlikely to be included in a block before fee values change.
+     * Level-based saved preferences track current estimates and are never
+     * ignored.
+     */
+    replaceUnderpricedSavedGasFees?: {
+      /** Enablement on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: boolean;
+      };
+
+      /**
+       * Default enablement.
+       * This value is used when no specific value is found for a chain ID.
+       */
+      default?: boolean;
+    };
   };
 };
 
@@ -504,6 +525,30 @@ export function getReplaceUnderpricedDappGasFeesEnabled(
   return (
     replaceUnderpricedDappGasFeesFlags?.perChainConfig?.[chainId] ??
     replaceUnderpricedDappGasFeesFlags?.default ??
+    false
+  );
+}
+
+/**
+ * Retrieves whether underpriced saved (advanced) gas fee preferences should be
+ * ignored in favour of the wallet's suggested fees.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns Whether the replacement is enabled.
+ */
+export function getReplaceUnderpricedSavedGasFeesEnabled(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const replaceUnderpricedSavedGasFeesFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.replaceUnderpricedSavedGasFees;
+
+  return (
+    replaceUnderpricedSavedGasFeesFlags?.perChainConfig?.[chainId] ??
+    replaceUnderpricedSavedGasFeesFlags?.default ??
     false
   );
 }
