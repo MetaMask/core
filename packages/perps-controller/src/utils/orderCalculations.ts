@@ -35,16 +35,13 @@ type MaxAllowedAmountParams = {
   assetPrice: number;
   assetSzDecimals: number;
   leverage: number;
-  // Order type the max is being computed for. Market orders are submitted with a
-  // slippage-adjusted price, which is what the exchange charges margin against.
-  // Defaults to 'market' (the conservative case) when omitted.
+  // Placement type. Only a resting order is margin-checked against its own
+  // submitted price; a marketable order is charged at the fill price. Defaults
+  // to 'market'.
   orderType?: 'market' | 'limit';
-  // Direction of the order. Only buys are priced above the market price, so only
-  // buys need the slippage haircut. Defaults to a buy (the conservative case).
-  isBuy?: boolean;
-  // Max slippage in basis points (e.g. 300 = 3%). Falls back to
-  // ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps.
-  maxSlippageBps?: number;
+  // Price a limit order will rest at. Needed to size a limit order that rests
+  // above the market price.
+  limitPrice?: number;
 };
 
 // Advanced order calculation interfaces
@@ -166,31 +163,27 @@ export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
     assetSzDecimals,
     leverage,
     orderType = 'market',
-    isBuy = true,
-    maxSlippageBps,
+    limitPrice,
   } = params;
   if (spendableBalance === 0 || !assetPrice || assetSzDecimals === undefined) {
     return 0;
   }
 
-  // Market buys are sent to HyperLiquid as limit orders priced at
-  // `assetPrice * (1 + slippage)` (see calculateOrderPriceAndSize), and the
-  // exchange charges initial margin against that submitted price - not against
-  // the market price the size was derived from. Sizing the max off the market
-  // price therefore requires ~slippage% more margin than the account has and the
-  // exchange rejects with "insufficient margin to place order". Price the max
-  // off the worst-case execution price instead. Sells are priced below the
-  // market price, so they need no haircut.
-  const slippageMultiplier =
-    orderType === 'market' && isBuy
-      ? 1 +
-        (maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps) /
-          BASIS_POINTS_DIVISOR
+  // HyperLiquid reserves initial margin for a RESTING order against the price
+  // the order is submitted at, not the market price its size was derived from.
+  // A limit order resting above the market price - typically a sell - therefore
+  // needs more margin than a market-priced notional budgets for, and the
+  // exchange refuses it with "insufficient margin to place order". Price the max
+  // off that submitted price instead. A marketable order is charged at the fill
+  // price, so it needs no adjustment.
+  const executionPriceRatio =
+    orderType === 'limit' && limitPrice && limitPrice > assetPrice
+      ? limitPrice / assetPrice
       : 1;
 
   // The theoretical maximum is spendableBalance * leverage, expressed in the
   // market-price notional the caller works with.
-  const theoreticalMax = (spendableBalance * leverage) / slippageMultiplier;
+  const theoreticalMax = (spendableBalance * leverage) / executionPriceRatio;
 
   // But we need to account for position size rounding
   // Find the largest whole dollar amount that fits within this limit
@@ -204,7 +197,7 @@ export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
   });
 
   const actualNotionalValue =
-    parseFloat(testPositionSize) * assetPrice * slippageMultiplier;
+    parseFloat(testPositionSize) * assetPrice * executionPriceRatio;
   const requiredMargin = actualNotionalValue / leverage;
 
   // If rounding caused us to exceed available balance, step down by one position increment

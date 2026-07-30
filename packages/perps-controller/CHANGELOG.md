@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Size the max order amount off the price the order is actually submitted at, fixing `order 0: insufficient margin to place order` rejections on max-size market buys ([#9694](https://github.com/MetaMask/core/pull/9694))
-  - `getMaxAllowedAmount` previously derived the maximum from the market price while market buys are submitted as limit orders priced at `market price * (1 + slippage)`; because HyperLiquid charges initial margin against the submitted price, a max-size buy asked for ~3% (up to 10% at the highest slippage setting) more margin than the account had and the exchange rejected it.
-  - `getMaxAllowedAmount` now accepts optional `orderType`, `isBuy`, and `maxSlippageBps` params. The slippage haircut applies to market buys only; sells and limit orders are unchanged. The params default to a market buy at the default slippage, so existing callers get the safe behavior without changes.
+- Size the max order amount off the price a resting limit order is submitted at, fixing `order 0: insufficient margin to place order` rejections on max-size limit orders resting above the market price ([#9694](https://github.com/MetaMask/core/pull/9694))
+  - `getMaxAllowedAmount` derived the maximum from the market price, but HyperLiquid reserves initial margin for a resting order against the price that order is submitted at. A max-size limit order resting above the market price - typically a sell - therefore reserved more margin than the account had and the exchange rejected it.
+  - `getMaxAllowedAmount` now accepts optional `orderType` and `limitPrice` params. When a limit order rests above the market price the maximum is scaled by `limitPrice / marketPrice`; orders at or below the market price, and market orders, are unchanged. Both params are optional, so existing callers keep the previous behavior.
 
 ## [10.0.0]
 

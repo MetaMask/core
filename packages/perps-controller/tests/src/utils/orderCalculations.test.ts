@@ -1,38 +1,32 @@
-import { BASIS_POINTS_DIVISOR } from '../../../src/constants/hyperLiquidConfig.js';
-import { ORDER_SLIPPAGE_CONFIG } from '../../../src/constants/perpsConfig.js';
 import {
   calculateFinalPositionSize,
-  calculateOrderPriceAndSize,
   getMaxAllowedAmount,
 } from '../../../src/utils/orderCalculations.js';
 
 /**
- * Margin HyperLiquid charges for an order, which is based on the price the order
- * is actually submitted at, not the market price the size was derived from.
+ * Margin HyperLiquid reserves for a resting order, which is based on the price
+ * the order is submitted at, not the market price the size was derived from.
  *
  * @param options - The order details.
  * @param options.usdAmount - Order notional in USD, priced at the market price.
  * @param options.assetPrice - Current market (mid) price of the asset.
  * @param options.assetSzDecimals - Size decimals for the asset.
  * @param options.leverage - Leverage the order is placed with.
- * @param options.isBuy - Whether the order is a buy.
- * @param options.maxSlippageBps - Max slippage in basis points.
- * @returns The margin the exchange requires for the resulting order.
+ * @param options.orderPrice - Price the order is submitted at.
+ * @returns The margin the exchange reserves for the resulting order.
  */
 function exchangeRequiredMargin({
   usdAmount,
   assetPrice,
   assetSzDecimals,
   leverage,
-  isBuy,
-  maxSlippageBps,
+  orderPrice,
 }: {
   usdAmount: number;
   assetPrice: number;
   assetSzDecimals: number;
   leverage: number;
-  isBuy: boolean;
-  maxSlippageBps?: number;
+  orderPrice: number;
 }): number {
   const { finalPositionSize } = calculateFinalPositionSize({
     usdAmount: usdAmount.toString(),
@@ -41,16 +35,7 @@ function exchangeRequiredMargin({
     leverage,
   });
 
-  const { orderPrice, formattedSize } = calculateOrderPriceAndSize({
-    orderType: 'market',
-    isBuy,
-    finalPositionSize,
-    currentPrice: assetPrice,
-    maxSlippageBps,
-    szDecimals: assetSzDecimals,
-  });
-
-  return (parseFloat(formattedSize) * orderPrice) / leverage;
+  return (finalPositionSize * orderPrice) / leverage;
 }
 
 describe('getMaxAllowedAmount', () => {
@@ -75,19 +60,22 @@ describe('getMaxAllowedAmount', () => {
   });
 
   // Regression: TAT-3344 - "order 0: insufficient margin to place order".
-  // Market buys are submitted at market price * (1 + slippage) and the exchange
-  // charges margin against that price, so the max must be sized off it too.
-  it('keeps a max market buy within the spendable balance', () => {
+  // A limit order resting above the market price has margin reserved at that
+  // submitted price, so the max must be sized off it and not off the mid.
+  it('keeps a max limit order resting above the market price within the balance', () => {
     const spendableBalance = 1000;
     const assetPrice = 100000;
     const assetSzDecimals = 5;
     const leverage = 5;
+    const limitPrice = assetPrice * 1.05;
 
     const maxAmount = getMaxAllowedAmount({
       spendableBalance,
       assetPrice,
       assetSzDecimals,
       leverage,
+      orderType: 'limit',
+      limitPrice,
     });
 
     expect(maxAmount).toBeGreaterThan(0);
@@ -97,72 +85,66 @@ describe('getMaxAllowedAmount', () => {
         assetPrice,
         assetSzDecimals,
         leverage,
-        isBuy: true,
+        orderPrice: limitPrice,
       }),
     ).toBeLessThanOrEqual(spendableBalance);
   });
 
-  it('honors a custom max slippage for market buys', () => {
-    const spendableBalance = 500;
-    const assetPrice = 2500;
-    const assetSzDecimals = 4;
-    const leverage = 10;
-    const maxSlippageBps = 1000;
+  it('scales the reduction with how far above the market price the order rests', () => {
+    const params = {
+      spendableBalance: 1000,
+      assetPrice: 100000,
+      assetSzDecimals: 5,
+      leverage: 5,
+      orderType: 'limit' as const,
+    };
 
-    const maxAmount = getMaxAllowedAmount({
-      spendableBalance,
-      assetPrice,
-      assetSzDecimals,
-      leverage,
-      isBuy: true,
-      maxSlippageBps,
+    const near = getMaxAllowedAmount({
+      ...params,
+      limitPrice: params.assetPrice * 1.02,
+    });
+    const far = getMaxAllowedAmount({
+      ...params,
+      limitPrice: params.assetPrice * 1.2,
     });
 
+    expect(far).toBeLessThan(near);
     expect(
       exchangeRequiredMargin({
-        usdAmount: maxAmount,
-        assetPrice,
-        assetSzDecimals,
-        leverage,
-        isBuy: true,
-        maxSlippageBps,
+        usdAmount: far,
+        assetPrice: params.assetPrice,
+        assetSzDecimals: params.assetSzDecimals,
+        leverage: params.leverage,
+        orderPrice: params.assetPrice * 1.2,
       }),
-    ).toBeLessThanOrEqual(spendableBalance);
+    ).toBeLessThanOrEqual(params.spendableBalance);
   });
 
-  it('applies the slippage haircut by default so unaware callers stay safe', () => {
+  it('does not reduce the max for orders that are not priced above the market', () => {
     const params = {
       spendableBalance: 1000,
       assetPrice: 100000,
       assetSzDecimals: 5,
       leverage: 5,
     };
-    const slippageMultiplier =
-      1 + ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps / BASIS_POINTS_DIVISOR;
+    const uncapped = getMaxAllowedAmount(params);
 
-    expect(getMaxAllowedAmount(params)).toBe(
-      getMaxAllowedAmount({ ...params, isBuy: true, orderType: 'market' }),
+    // A resting buy sits below the market price, so it reserves less margin.
+    expect(
+      getMaxAllowedAmount({
+        ...params,
+        orderType: 'limit',
+        limitPrice: params.assetPrice * 0.9,
+      }),
+    ).toBe(uncapped);
+
+    // A marketable order is charged at the fill price, not the padded price it
+    // is submitted with, so it is unaffected too.
+    expect(getMaxAllowedAmount({ ...params, orderType: 'market' })).toBe(
+      uncapped,
     );
-    expect(getMaxAllowedAmount(params)).toBeLessThan(
-      (params.spendableBalance * params.leverage) / slippageMultiplier,
-    );
-  });
 
-  it('does not apply the slippage haircut to sells or limit orders', () => {
-    const params = {
-      spendableBalance: 1000,
-      assetPrice: 100000,
-      assetSzDecimals: 5,
-      leverage: 5,
-    };
-
-    const buyMax = getMaxAllowedAmount({ ...params, isBuy: true });
-    const sellMax = getMaxAllowedAmount({ ...params, isBuy: false });
-    const limitMax = getMaxAllowedAmount({ ...params, orderType: 'limit' });
-
-    expect(sellMax).toBeGreaterThan(buyMax);
-    expect(limitMax).toBe(sellMax);
-    expect(sellMax).toBeLessThanOrEqual(
+    expect(uncapped).toBeLessThanOrEqual(
       params.spendableBalance * params.leverage,
     );
   });
@@ -180,7 +162,6 @@ describe('getMaxAllowedAmount', () => {
       assetPrice,
       assetSzDecimals,
       leverage,
-      isBuy: false,
     });
 
     expect(
@@ -189,7 +170,7 @@ describe('getMaxAllowedAmount', () => {
         assetPrice,
         assetSzDecimals,
         leverage,
-        isBuy: false,
+        orderPrice: assetPrice,
       }),
     ).toBeLessThanOrEqual(spendableBalance);
   });
