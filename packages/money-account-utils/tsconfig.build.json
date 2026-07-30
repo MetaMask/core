@@ -6,9 +6,9 @@
     "rootDir": "./src"
   },
   "references": [
-    { "path": "../base-controller/tsconfig.build.json" },
-    { "path": "../geolocation-controller/tsconfig.build.json" },
-    { "path": "../messenger/tsconfig.build.json" }
+    {
+      "path": "../transaction-controller/tsconfig.build.json"
+    }
   ],
   "include": ["../../types", "./src"]
 }
