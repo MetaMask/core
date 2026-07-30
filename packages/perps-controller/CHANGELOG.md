@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `EXCHANGE_ACCOUNT_NOT_FOUND` to `PERPS_ERROR_CODES`, returned by `HyperLiquidProvider.placeOrder` when the wallet has no HyperLiquid account yet (TAT-3343)
-  - This widens the exported `PerpsErrorCode` union. Consumers that key an exhaustive `Record<PerpsErrorCode, …>` (for example a translation map) will not compile until they add an entry for the new code.
+- **BREAKING:** Add `EXCHANGE_ACCOUNT_NOT_FOUND` to `PERPS_ERROR_CODES`, returned by `HyperLiquidProvider.placeOrder` when the wallet has no HyperLiquid account yet (TAT-3343)
+  - This widens the exported `PerpsErrorCode` union, so consumers that key an exhaustive `Record<PerpsErrorCode, …>` stop compiling until they add an entry for the new code. Both first-party clients do: Mobile's `app/components/UI/Perps/utils/translatePerpsError.ts` and Extension's `ui/components/app/perps/utils/translate-perps-error.ts`.
+  - To migrate: add a translation entry for `EXCHANGE_ACCOUNT_NOT_FOUND`. It signals that the wallet has no HyperLiquid account yet, so the message should direct the user to fund the account before trading.
 
 ### Fixed
 
