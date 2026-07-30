@@ -1,16 +1,15 @@
-import type { Env } from '@metamask/claims-controller';
+import type {
+  ClaimsControllerOptions,
+  ClaimsServiceConfig,
+} from '@metamask/claims-controller';
 
-export type ClaimsControllerInstanceOptions = Record<string, never>;
+export type ClaimsControllerInstanceOptions = Omit<
+  ClaimsControllerOptions,
+  'messenger' | 'state'
+>;
 
-export type ClaimsServiceInstanceOptions = {
-  /**
-   * Claims API environment. Supplied by the consumer per build flavor
-   * (dev, uat, production).
-   */
-  env?: Env;
-
-  /**
-   * Platform fetch implementation used for Claims API requests.
-   */
-  fetchFunction: typeof fetch;
-};
+export type ClaimsServiceInstanceOptions = Omit<
+  ClaimsServiceConfig,
+  'messenger' | 'env'
+> &
+  Partial<Pick<ClaimsServiceConfig, 'env'>>;

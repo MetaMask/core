@@ -8,6 +8,7 @@ export type {
   ClaimsControllerActions,
   ClaimsControllerStateChangeEvent,
   ClaimsControllerMessenger,
+  ClaimsControllerOptions,
 } from './ClaimsController.js';
 
 export type {
@@ -42,6 +43,7 @@ export type {
   ClaimsServiceGetClaimByIdAction,
   ClaimsServiceGenerateMessageForClaimSignatureAction,
   ClaimsServiceActions,
+  ClaimsServiceConfig,
   ClaimsServiceMessenger,
 } from './ClaimsService.js';
 
