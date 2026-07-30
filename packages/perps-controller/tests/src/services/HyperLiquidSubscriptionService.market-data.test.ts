@@ -2473,8 +2473,8 @@ describe('HyperLiquidSubscriptionService', () => {
     it('reports no DEX coverage for positions before initialization', () => {
       // A close of a symbol on an uncovered DEX must not read a cache miss as
       // "position closed"
-      expect(service.isPositionsCacheCoveringDex('')).toBe(false);
-      expect(service.isPositionsCacheCoveringDex('xyz')).toBe(false);
+      expect(service.getCachedPositionsForDex('')).toBeNull();
+      expect(service.getCachedPositionsForDex('xyz')).toBeNull();
     });
 
     it('returns null for cached orders before initialization', () => {

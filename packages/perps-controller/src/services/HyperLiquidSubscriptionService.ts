@@ -2768,19 +2768,27 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Check whether the positions cache covers a specific DEX
+   * Get the cached positions for one DEX, or null when that DEX has published
+   * none this session.
    *
-   * A DEX only enters the aggregate once its `clearinghouseState` subscription
-   * has published data, and a DEX whose subscription throws is dropped from the
-   * expected set while the aggregate is still published. So for an uncovered
-   * DEX the absence of a symbol from the cache proves nothing about whether a
-   * position exists.
+   * A DEX only enters this map once its `clearinghouseState` subscription has
+   * published, so `null` means the absence of a symbol proves nothing about
+   * whether a position exists there.
+   *
+   * Prefer this over `getCachedPositions()` when a decision depends on whether a
+   * specific symbol is absent. The aggregate is only rebuilt once *every*
+   * expected DEX has published (`#aggregateAndNotifySubscribers`), so after a
+   * reconnect — which resets `#initializedDexs` without clearing these caches —
+   * the aggregate can sit frozen at its pre-reconnect contents while this map
+   * keeps receiving per-DEX updates. Deciding "covered" from this map and then
+   * reading the symbol from the aggregate would mix a fresh answer with stale
+   * data.
    *
    * @param dexName - DEX identifier, or '' for the main DEX.
-   * @returns true if the cache holds positions for that DEX
+   * @returns That DEX's cached positions, or null if it has not published.
    */
-  public isPositionsCacheCoveringDex(dexName: string): boolean {
-    return this.#dexPositionsCache.has(dexName);
+  public getCachedPositionsForDex(dexName: string): Position[] | null {
+    return this.#dexPositionsCache.get(dexName) ?? null;
   }
 
   /**

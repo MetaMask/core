@@ -4491,9 +4491,20 @@ export class HyperLiquidProvider implements PerpsProvider {
       // only order would increase position". Reading the cache never issues a
       // REST request, so this does not reintroduce 429 rate limiting.
       if (position && this.#subscriptionService.isPositionsCacheInitialized()) {
-        const livePosition = (
-          this.#subscriptionService.getCachedPositions() ?? []
-        ).find((pos) => pos.symbol === params.symbol);
+        // Read the symbol's own DEX slice, not the aggregate. The aggregate is
+        // only rebuilt once every expected DEX has published, so after a
+        // WebSocket reconnect — which resets the initialized-DEX set without
+        // clearing these caches — it can sit frozen at pre-reconnect contents
+        // while the per-DEX slices keep updating. Deciding "this DEX is covered"
+        // from the per-DEX map and then reading the position from the aggregate
+        // mixed a fresh answer with stale data: a close could reuse a stale size,
+        // or throw for a position that is open.
+        const dexPositions = this.#subscriptionService.getCachedPositionsForDex(
+          parseAssetName(params.symbol).dex ?? '',
+        );
+        const livePosition = dexPositions?.find(
+          (pos) => pos.symbol === params.symbol,
+        );
 
         if (livePosition) {
           if (livePosition.size !== position.size) {
@@ -4508,16 +4519,13 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
 
           position = livePosition;
-        } else if (
-          this.#subscriptionService.isPositionsCacheCoveringDex(
-            parseAssetName(params.symbol).dex ?? '',
-          )
-        ) {
-          // The cache covers this symbol's DEX, so a missing entry means the
-          // position is already closed (e.g. a double-tapped close). Fail here
-          // rather than falling back to REST: the cache is the freshest source,
-          // so a REST lookup can only burn a request that risks 429s and, if it
-          // lags, hand back a position that no longer exists.
+        } else if (dexPositions) {
+          // That DEX has published and does not hold this symbol, so the position
+          // is already closed (e.g. a double-tapped close). This is the same read
+          // the lookup above used, so the two can never disagree. Fail here rather
+          // than falling back to REST: the cache is the freshest source, so a REST
+          // lookup can only burn a request that risks 429s and, if it lags, hand
+          // back a position that no longer exists.
           throw new Error(`No position found for ${params.symbol}`);
         } else {
           // The cache holds nothing for this symbol's DEX — a HIP-3 DEX whose

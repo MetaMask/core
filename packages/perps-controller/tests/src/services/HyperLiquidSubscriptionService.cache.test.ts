@@ -570,14 +570,14 @@ describe('HyperLiquidSubscriptionService', () => {
     it('reports DEX coverage for positions only once that DEX has published', async () => {
       // closePosition treats a cache miss as "position closed" only for a
       // covered DEX, so coverage must be false until data arrives
-      expect(service.isPositionsCacheCoveringDex('')).toBe(false);
+      expect(service.getCachedPositionsForDex('')).toBeNull();
 
       const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
       await jest.runAllTimersAsync();
 
-      expect(service.isPositionsCacheCoveringDex('')).toBe(true);
+      expect(service.getCachedPositionsForDex('')).not.toBeNull();
       // No HIP-3 DEX published, so a miss there proves nothing
-      expect(service.isPositionsCacheCoveringDex('xyz')).toBe(false);
+      expect(service.getCachedPositionsForDex('xyz')).toBeNull();
 
       unsubscribe();
     });

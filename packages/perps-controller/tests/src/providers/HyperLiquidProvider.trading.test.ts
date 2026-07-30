@@ -2046,9 +2046,19 @@ describe('HyperLiquidProvider', () => {
       mockSubscriptionService.getCachedPositions = jest
         .fn()
         .mockReturnValue(positions);
-      mockSubscriptionService.isPositionsCacheCoveringDex = jest
+      // Per-DEX slices are the store closePosition reads: a covered DEX returns
+      // its own positions, an uncovered one returns null
+      mockSubscriptionService.getCachedPositionsForDex = jest
         .fn()
-        .mockImplementation((dexName: string) => coveredDexs.includes(dexName));
+        .mockImplementation((dexName: string) =>
+          coveredDexs.includes(dexName)
+            ? positions.filter(
+                (pos) =>
+                  (pos.symbol.split(':')[1] ? pos.symbol.split(':')[0] : '') ===
+                  dexName,
+              )
+            : null,
+        );
     };
 
     /**
@@ -2093,6 +2103,62 @@ describe('HyperLiquidProvider', () => {
         s: '0.05',
         r: true,
       });
+    });
+
+    it('revalidates against the per-DEX slice, not a frozen aggregate, after a reconnect', async () => {
+      // After a WebSocket reconnect the initialized-DEX set is reset without
+      // clearing the caches, so the aggregate stays at its pre-reconnect contents
+      // until every expected DEX republishes while the per-DEX slices keep
+      // updating. Reading the aggregate here reused a stale size.
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      // Frozen aggregate: pre-reconnect 0.1 BTC
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue([createPositionSnapshot({ size: '0.1' })]);
+      // Fresh per-DEX slice: a TP/SL fill left 0.03 BTC
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === '' ? [createPositionSnapshot({ size: '0.03' })] : null,
+        );
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.03', r: true });
+    });
+
+    it('does not fail a close for a position missing only from a frozen aggregate', async () => {
+      // Same reconnect window, opposite direction: the position is absent from
+      // the stale aggregate but present in its DEX's fresh slice. Deciding
+      // coverage from the per-DEX map while reading the aggregate threw
+      // "No position found" for a position that is open.
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue([]);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === '' ? [createPositionSnapshot({ size: '0.05' })] : null,
+        );
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.05', r: true });
     });
 
     it('fails fast without submitting an order or a REST lookup when the position is already closed', async () => {
