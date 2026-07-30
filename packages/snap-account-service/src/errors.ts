@@ -1,13 +1,13 @@
 import { isKeyringControllerError } from '@metamask/keyring-controller';
 
 /**
- * Thrown by {@link safe} when the wrapped callback fails with an error
+ * Thrown by {@link withSafeError} when the wrapped callback fails with an error
  * whose message is not safe to forward to Sentry (e.g., a superstruct
  * `StructError` that may embed account addresses, or an unknown third-party
  * error). The message on a `SafeError` is always authored by us and contains
  * no user data.
  *
- * `SafeError` instances pass through nested {@link safe} calls unchanged;
+ * `SafeError` instances pass through nested {@link withSafeError} calls unchanged;
  * the innermost step description is preserved rather than re-wrapped.
  */
 export class SafeError extends Error {
@@ -93,7 +93,7 @@ function describeStructFailure(error: StructErrorLike): string {
  *
  * Sanitization rules applied to whatever `fn` throws:
  * - {@link SafeError}: re-thrown as-is (innermost step description preserved,
- *   no re-wrapping on nested calls).
+ *   no re-wrapping on nested {@link withSafeError} calls).
  * - {@link KeyringControllerError}: re-thrown as-is (uses static, enum-based
  *   messages; no user data).
  * - `StructError` (from `@metamask/superstruct`): wrapped in a
@@ -107,7 +107,7 @@ function describeStructFailure(error: StructErrorLike): string {
  * @param fn - The async callback to execute.
  * @returns The result of `fn`.
  */
-export async function safe<ReturnType>(
+export async function withSafeError<ReturnType>(
   step: string,
   fn: () => Promise<ReturnType>,
 ): Promise<ReturnType> {

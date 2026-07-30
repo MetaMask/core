@@ -8,7 +8,7 @@ import {
   isSafeError,
   reportError,
   SafeError,
-  safe,
+  withSafeError,
 } from './errors.js';
 
 /**
@@ -63,15 +63,15 @@ describe('isSafeError', () => {
   });
 });
 
-describe('safe', () => {
+describe('withSafeError', () => {
   it('returns the callback result on success', async () => {
-    expect(await safe('step', async () => 42)).toBe(42);
+    expect(await withSafeError('step', async () => 42)).toBe(42);
   });
 
   it('passes a SafeError through unchanged', async () => {
     const inner = new SafeError('inner step: detail');
     await expect(
-      safe('outer step', async () => {
+      withSafeError('outer step', async () => {
         throw inner;
       }),
     ).rejects.toThrow(inner);
@@ -82,7 +82,7 @@ describe('safe', () => {
       KeyringControllerErrorMessage.DuplicatedAccount,
     );
     await expect(
-      safe('step', async () => {
+      withSafeError('step', async () => {
         throw error;
       }),
     ).rejects.toThrow(error);
@@ -94,7 +94,7 @@ describe('safe', () => {
       'enums',
     );
     await expect(
-      safe('Adding keyring', async () => {
+      withSafeError('Adding keyring', async () => {
         throw structError;
       }),
     ).rejects.toThrow(
@@ -107,7 +107,7 @@ describe('safe', () => {
   it('uses refinement name over type when present', async () => {
     const structError = buildStructError(['address'], 'string', 'nonempty');
     await expect(
-      safe('step', async () => {
+      withSafeError('step', async () => {
         throw structError;
       }),
     ).rejects.toThrow(
@@ -120,7 +120,7 @@ describe('safe', () => {
   it('uses "root" when StructError path is empty', async () => {
     const structError = buildStructError([], 'object');
     await expect(
-      safe('step', async () => {
+      withSafeError('step', async () => {
         throw structError;
       }),
     ).rejects.toThrow(
@@ -130,7 +130,7 @@ describe('safe', () => {
 
   it('replaces an unknown error with a generic SafeError', async () => {
     await expect(
-      safe('Adding keyring', async () => {
+      withSafeError('Adding keyring', async () => {
         throw new Error('internal error with address 0x1234');
       }),
     ).rejects.toThrow(
@@ -138,10 +138,10 @@ describe('safe', () => {
     );
   });
 
-  it('re-forwards a SafeError from a nested safe without re-wrapping', async () => {
+  it('re-forwards a SafeError from a nested withSafeError without re-wrapping', async () => {
     const inner = new SafeError('inner: detail');
-    const result = safe('outer', async () =>
-      safe('inner', async () => {
+    const result = withSafeError('outer', async () =>
+      withSafeError('inner', async () => {
         throw inner;
       }),
     );

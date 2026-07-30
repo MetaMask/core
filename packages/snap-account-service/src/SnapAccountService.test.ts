@@ -1553,7 +1553,7 @@ describe('SnapAccountService', () => {
         captureException,
       });
       // An error from snap keyring internals or superstruct could contain
-      // account addresses in its message — safe replaces it with a safe one.
+      // account addresses in its message — withSafeError replaces it with a safe one.
       mocks.KeyringController.withController.mockRejectedValueOnce(
         new Error('internal error with address 0x1234'),
       );
