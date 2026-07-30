@@ -14,5 +14,5 @@
     }
   ],
   "include": ["../../types", "./src"],
-  "exclude": ["**/*.test.ts", "**/*.type-test.ts"]
+  "exclude": ["**/*.test.ts", "**/*.tst.ts"]
 }
