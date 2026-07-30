@@ -18,7 +18,11 @@ import type {
   TokenAmount,
   ValueTransfer,
 } from '../../types.js';
-import { formatAddressToAssetId } from './caip.js';
+import {
+  formatAddressToAssetId,
+  formatChainIdToCaip,
+  resolveNativeAssetId,
+} from './caip.js';
 import { getKnownTokenMetadata } from './token-metadata.js';
 
 // Adds optional `isSmartTransaction` to `TransactionMeta`.
@@ -48,12 +52,20 @@ function toNetworkFeeAmount(
   }
 }
 
-function buildBaseNetworkFee(amount: string): Fee {
+function buildBaseNetworkFee(
+  amount: string,
+  chainId: CaipChainId,
+  symbol?: string,
+): Fee {
+  const assetId = resolveNativeAssetId(chainId, symbol);
+
   return {
     type: 'base',
     amount,
     decimals: nativeTokenDecimals,
     assetType: 'native',
+    ...(symbol ? { symbol } : {}),
+    ...(assetId ? { assetId } : {}),
   };
 }
 
@@ -79,15 +91,44 @@ function getAssetTypeFromTransferType(
   return undefined;
 }
 
+function getNativeSymbolFromValueTransfers(
+  valueTransfers: V1TransactionByHashResponse['valueTransfers'],
+): string | undefined {
+  for (const transfer of valueTransfers ?? []) {
+    const transferType = transfer.transferType?.toLowerCase();
+
+    if (
+      (transferType === 'normal' || transferType === 'internal') &&
+      transfer.symbol
+    ) {
+      return transfer.symbol;
+    }
+  }
+
+  return undefined;
+}
+
 function getNetworkFee(
   transaction: V1TransactionByHashResponse,
 ): Fee | undefined {
+  const chainId = formatChainIdToCaip(transaction.chainId);
+
+  if (!chainId) {
+    return undefined;
+  }
+
   const amount = toNetworkFeeAmount(
     transaction.gasUsed,
     transaction.effectiveGasPrice,
   );
 
-  return amount ? buildBaseNetworkFee(amount) : undefined;
+  if (!amount) {
+    return undefined;
+  }
+
+  const symbol = getNativeSymbolFromValueTransfers(transaction.valueTransfers);
+
+  return buildBaseNetworkFee(amount, chainId, symbol);
 }
 
 export function getFees(
@@ -99,16 +140,28 @@ export function getFees(
 }
 
 export function getLocalTransactionFees(
-  transactionGroup: Pick<TransactionGroup, 'primaryTransaction'>,
+  transactionGroup: Pick<TransactionGroup, 'primaryTransaction'> & {
+    nativeAssetSymbol?: string;
+  },
 ): Fee[] | undefined {
-  const { primaryTransaction } = transactionGroup;
+  const { primaryTransaction, nativeAssetSymbol } = transactionGroup;
+  const chainId = formatChainIdToCaip(primaryTransaction.chainId);
+
+  if (!chainId) {
+    return undefined;
+  }
+
   const amount = toNetworkFeeAmount(
     primaryTransaction.txReceipt?.gasUsed,
     primaryTransaction.txReceipt?.effectiveGasPrice ??
       primaryTransaction.txParams?.gasPrice,
   );
 
-  return amount ? [buildBaseNetworkFee(amount)] : undefined;
+  if (!amount) {
+    return undefined;
+  }
+
+  return [buildBaseNetworkFee(amount, chainId, nativeAssetSymbol)];
 }
 
 const inProgressTransactionStatuses = [
@@ -341,14 +394,16 @@ export function getTokenAmountFromTransfer(
     return undefined;
   }
 
-  const assetId =
-    transfer && !isNftTransfer
-      ? resolveAssetId(chainId, transfer.contractAddress)
-      : undefined;
-
   const hasTransferAmount =
     !isNftTransfer && amount !== null && amount !== undefined;
   const assetType = getAssetTypeFromTransferType(transferType);
+
+  let assetId: string | undefined;
+  if (assetType === 'native') {
+    assetId = resolveNativeAssetId(chainId, symbol);
+  } else if (transfer && !isNftTransfer) {
+    assetId = resolveAssetId(chainId, transfer.contractAddress);
+  }
 
   return {
     direction,

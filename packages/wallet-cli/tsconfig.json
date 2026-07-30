@@ -5,7 +5,13 @@
   },
   "references": [
     {
+      "path": "../analytics-controller"
+    },
+    {
       "path": "../base-controller"
+    },
+    {
+      "path": "../messenger"
     },
     {
       "path": "../remote-feature-flag-controller"

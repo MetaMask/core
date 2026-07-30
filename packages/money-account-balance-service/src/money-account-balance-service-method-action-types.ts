@@ -93,8 +93,10 @@ export type MoneyAccountBalanceServiceGetMusdEquivalentValueAction = {
 
 /**
  * Fetches the vault's APY and fee breakdown from the Veda performance REST API.
+ * APR values in the response are converted to APY using daily
+ * compounding before the normalized response is returned.
  *
- * @returns The normalized vault APY response.
+ * @returns The normalized vault APY response with compounded APY values.
  * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
 export type MoneyAccountBalanceServiceGetVaultApyAction = {

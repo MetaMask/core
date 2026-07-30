@@ -100,6 +100,7 @@ describe('mapApiTransaction', () => {
           direction: 'out',
           symbol: 'MATIC',
           assetType: 'native',
+          assetId: 'eip155:137/slip44:966',
         },
       },
     });
@@ -225,6 +226,7 @@ describe('mapApiTransaction', () => {
           direction: 'in',
           symbol: 'ETH',
           assetType: 'native',
+          assetId: 'eip155:59144/slip44:60',
         },
       },
     });
@@ -257,7 +259,18 @@ describe('mapApiTransaction', () => {
           direction: 'in',
           symbol: 'ETH',
           assetType: 'native',
+          assetId: 'eip155:59144/slip44:60',
         },
+        fees: [
+          {
+            type: 'base',
+            amount: '11794061214463',
+            decimals: 18,
+            assetType: 'native',
+            symbol: 'ETH',
+            assetId: 'eip155:59144/slip44:60',
+          },
+        ],
       },
     });
   });
@@ -282,6 +295,8 @@ describe('mapApiTransaction', () => {
         paymentToken: {
           direction: 'in',
           symbol: 'ETH',
+          assetType: 'native',
+          assetId: 'eip155:1/slip44:60',
         },
       },
     });
@@ -354,6 +369,8 @@ describe('mapApiTransaction', () => {
         paymentToken: {
           direction: 'out',
           symbol: 'ETH',
+          assetType: 'native',
+          assetId: 'eip155:1/slip44:60',
         },
       },
     });
@@ -525,6 +542,7 @@ describe('mapApiTransaction', () => {
           direction: 'out',
           symbol: 'ETH',
           assetType: 'native',
+          assetId: 'eip155:1/slip44:60',
         },
       },
     });
@@ -551,6 +569,8 @@ describe('mapApiTransaction', () => {
           direction: 'out',
           symbol: 'ETH',
           amount: '1000000000000',
+          assetType: 'native',
+          assetId: 'eip155:1/slip44:60',
         },
         destinationToken: {
           direction: 'in',
@@ -579,6 +599,7 @@ describe('mapApiTransaction', () => {
           direction: 'out',
           symbol: 'ETH',
           assetType: 'native',
+          assetId: 'eip155:1/slip44:60',
         },
         destinationToken: {
           amount: '1000000000000',
@@ -658,6 +679,7 @@ describe('mapApiTransaction', () => {
           direction: 'in',
           symbol: 'ETH',
           assetType: 'native',
+          assetId: 'eip155:1/slip44:60',
         },
       },
     });
