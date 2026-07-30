@@ -23,6 +23,7 @@ import {
   getDefaultSubscriptionControllerState,
   SubscriptionController,
 } from './SubscriptionController.js';
+import { SUBSCRIPTION_URL } from './SubscriptionService.js';
 import type {
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
@@ -410,6 +411,34 @@ describe('SubscriptionController', () => {
       ];
       const headers = new globalThis.Headers(requestInit.headers);
       expect(headers.get('Authorization')).toBe('Bearer test-bearer-token');
+    });
+
+    it('defaults to PRD when building the default subscription service without env', async () => {
+      const { messenger, rootMessenger } = createMockSubscriptionMessenger();
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getBearerToken',
+        async () => 'test-bearer-token',
+      );
+      const fetchFunction = jest.fn(
+        async () =>
+          new globalThis.Response(
+            JSON.stringify(MOCK_GET_SUBSCRIPTIONS_RESPONSE),
+            {
+              status: 200,
+            },
+          ),
+      );
+
+      const controller = new SubscriptionController({
+        messenger,
+        fetchFunction,
+      });
+      await controller.getSubscriptions();
+
+      expect(fetchFunction).toHaveBeenCalledWith(
+        SUBSCRIPTION_URL(Env.PRD, 'subscriptions'),
+        expect.anything(),
+      );
     });
 
     it('uses a provided getAccessToken when building the default subscription service', async () => {
