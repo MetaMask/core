@@ -784,6 +784,47 @@ describe('AnalyticsController', () => {
       expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
     });
 
+    it('shares a single in-flight initialization across overlapping init calls', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = '33333333-3333-4333-8333-333333333333';
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerTestActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerTestActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({
+        namespace: 'AnalyticsController',
+        parent: rootMessenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: mockAdapter,
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+        },
+      });
+
+      // Call init() twice before the first resolves.
+      const first = controller.init();
+      const second = controller.init();
+
+      // Overlapping callers share the same in-flight promise, so the second
+      // caller cannot observe a premature completion.
+      expect(second).toBe(first);
+
+      await Promise.all([first, second]);
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+    });
+
     it('completes setup when the geolocation action is not registered', async () => {
       const mockAdapter = createMockAdapter();
       const analyticsId = '44444444-4444-4444-8444-444444444444';

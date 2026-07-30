@@ -450,7 +450,12 @@ export class AnalyticsController extends BaseController<
 
   readonly #isGeolocationEnabled: boolean;
 
-  #initialized: boolean;
+  /**
+   * The in-flight (or settled) initialization promise. Set on the first
+   * {@link init} call and returned by subsequent calls so overlapping callers
+   * await the same work rather than observing a premature completion.
+   */
+  #initPromise: Promise<void> | undefined;
 
   #locationContext: AnalyticsLocationContext | undefined;
 
@@ -500,7 +505,7 @@ export class AnalyticsController extends BaseController<
     this.#isPreConsentQueueEnabled = isPreConsentQueueEnabled;
     this.#isGeolocationEnabled = isGeolocationEnabled;
     this.#platformAdapter = platformAdapter;
-    this.#initialized = false;
+    this.#initPromise = undefined;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -533,15 +538,26 @@ export class AnalyticsController extends BaseController<
    * Otherwise the resolution fails and events are delivered for the rest of the
    * session without location (a message is logged, see
    * {@link #resolveLocationContext}).
+   *
+   * Safe to call more than once: the first call performs initialization and
+   * subsequent calls return the same in-flight (or settled) promise.
+   *
+   * @returns A promise that resolves once initialization has completed.
    */
-  async init(): Promise<void> {
-    if (this.#initialized) {
-      log('AnalyticsController already initialized.');
-      return;
-    }
+  init(): Promise<void> {
+    // Cache the in-flight promise so repeated or overlapping calls share a
+    // single initialization and all await the same completion (rather than an
+    // early call observing a finished init while work is still pending).
+    this.#initPromise ??= this.#performInit();
+    return this.#initPromise;
+  }
 
-    this.#initialized = true;
-
+  /**
+   * Performs the one-time initialization work: resolve geolocation, run the
+   * platform adapter's onSetupCompleted lifecycle hook, then replay any queued
+   * and pre-consent events.
+   */
+  async #performInit(): Promise<void> {
     await this.#resolveLocationContext();
 
     // Call onSetupCompleted lifecycle hook after initialization
