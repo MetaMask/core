@@ -65,6 +65,36 @@ describe('createWallet (real Wallet, in-memory)', () => {
     }
   });
 
+  it('registers stub AnalyticsController handlers that do nothing', async () => {
+    const { wallet, dispose } = await createWallet({
+      databasePath: ':memory:',
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
+      infuraProjectId: INFURA_PROJECT_ID,
+      log: () => undefined,
+    });
+
+    try {
+      // The daemon does not report analytics, so `getState` returns an empty
+      // analytics ID (which stops `NetworkController` before it tracks) and
+      // `trackEvent` does nothing.
+      expect(
+        wallet.messenger.call('AnalyticsController:getState').analyticsId,
+      ).toBe('');
+      expect(
+        wallet.messenger.call('AnalyticsController:trackEvent', {
+          name: 'test',
+          properties: {},
+          sensitiveProperties: {},
+          saveDataRecording: false,
+          hasProperties: false,
+        }),
+      ).toBeUndefined();
+    } finally {
+      await dispose();
+    }
+  });
+
   // Short timeout: auto-approval must resolve in milliseconds once the wallet
   // is up. A regression hangs, so fail fast rather than waiting the file-wide
   // 30 s (set for KDF/SQLite-heavy tests).

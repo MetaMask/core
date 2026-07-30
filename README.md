@@ -478,6 +478,7 @@ linkStyle default opacity:0.5
   network_connection_banner_controller --> messenger;
   network_connection_banner_controller --> network_controller;
   network_connection_banner_controller --> network_enablement_controller;
+  network_controller --> analytics_controller;
   network_controller --> base_controller;
   network_controller --> connectivity_controller;
   network_controller --> controller_utils;
@@ -661,7 +662,9 @@ linkStyle default opacity:0.5
   wallet --> storage_service;
   wallet --> subscription_controller;
   wallet --> transaction_controller;
+  wallet_cli --> analytics_controller;
   wallet_cli --> base_controller;
+  wallet_cli --> messenger;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;
   wallet_cli --> wallet;
