@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.4.0]
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.1` to `^110.1.0` ([#9706](https://github.com/MetaMask/core/pull/9706))
+- Bump `@metamask/network-enablement-controller` from `^5.6.0` to `^6.0.0` ([#9706](https://github.com/MetaMask/core/pull/9706))
+
 ## [11.3.0]
 
 ### Added
