@@ -47,9 +47,6 @@
       "path": "../shield-controller"
     },
     {
-      "path": "../signature-controller"
-    },
-    {
       "path": "../storage-service"
     },
     {
