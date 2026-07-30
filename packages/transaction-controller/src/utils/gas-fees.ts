@@ -208,11 +208,25 @@ function shouldIgnoreUnderpricedSavedGasFees(
     return false;
   }
 
+  return isFeeBelowLowEstimate(
+    gweiDecimalToWeiHex(savedGasFees.maxBaseFee),
+    lowMaxFeePerGas,
+  );
+}
+
+/**
+ * Determine whether a fee value is below the low estimate.
+ *
+ * @param valueHex - The fee value as a hex string.
+ * @param lowMaxFeePerGasHex - The low estimate `maxFeePerGas` as a hex string.
+ * @returns Whether the fee value is below the low estimate.
+ */
+function isFeeBelowLowEstimate(
+  valueHex: string,
+  lowMaxFeePerGasHex: string,
+): boolean {
   try {
-    return (
-      BigInt(gweiDecimalToWeiHex(savedGasFees.maxBaseFee)) <
-      BigInt(lowMaxFeePerGas)
-    );
+    return BigInt(valueHex) < BigInt(lowMaxFeePerGasHex);
   } catch {
     return false;
   }
@@ -261,11 +275,7 @@ function shouldIgnoreDappGasFees(request: GetGasFeeRequest): boolean {
     return false;
   }
 
-  try {
-    return BigInt(dappMaxFeePerGas) < BigInt(lowMaxFeePerGas);
-  } catch {
-    return false;
-  }
+  return isFeeBelowLowEstimate(dappMaxFeePerGas, lowMaxFeePerGas);
 }
 
 /**

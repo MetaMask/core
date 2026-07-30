@@ -855,6 +855,34 @@ describe('gas-fees', () => {
         );
       });
 
+      it('unless request has gasPrice alongside maxPriorityFeePerGas', async () => {
+        delete updateGasFeeRequest.txMeta.txParams.maxFeePerGas;
+        updateGasFeeRequest.txMeta.txParams.gasPrice =
+          UNDERPRICED_GAS_HEX_WEI_MOCK;
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          UNDERPRICED_GAS_HEX_WEI_MOCK,
+        );
+      });
+
+      it('unless request maxFeePerGas cannot be parsed', async () => {
+        updateGasFeeRequest.txMeta.txParams.maxFeePerGas = 'invalid-hex';
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          'invalid-hex',
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.DAPP_SUGGESTED,
+        );
+      });
+
       it('unless estimates are unavailable', async () => {
         gasFeeFlowMock.getGasFees.mockRejectedValue(new Error('TestError'));
         rpcRequestMock.mockResolvedValue(GAS_HEX_WEI_MOCK);
@@ -868,6 +896,24 @@ describe('gas-fees', () => {
           UserFeeLevel.DAPP_SUGGESTED,
         );
       });
+    });
+
+    it('uses gasPrice fallback if flow returns unsupported estimate type', async () => {
+      mockGasFeeFlowMockResponse({
+        estimates: {
+          type: 'unsupportedType',
+        },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any as GasFeeFlowResponse);
+
+      rpcRequestMock.mockResolvedValue(GAS_HEX_WEI_MOCK);
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+        GAS_HEX_WEI_MOCK,
+      );
     });
 
     describe('replaces underpriced saved gas fees', () => {
