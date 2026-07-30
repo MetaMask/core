@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `getEffectiveRecipient` utility that returns the actual recipient of a transaction, decoding it from calldata for ERC-20/ERC-721/ERC-1155 token transfer methods where `txParams.to` is the token contract ([#9699](https://github.com/MetaMask/core/pull/9699))
+
 ### Changed
 
 - Replace underpriced dapp-suggested gas fees with the wallet's suggested estimates ([#9704](https://github.com/MetaMask/core/pull/9704))
