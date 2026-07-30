@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.2` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9706](https://github.com/MetaMask/core/pull/9706))
 - Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
 
+### Fixed
+
+- Use the typed required amount for Money Account `isMaxAmount` source calculations instead of the pay token's on-chain balance, so Max deposits funded from the money account (e.g. Send to Perps) keep the full withdrawable total (mUSD + vmUSD) and can use `EXACT_INPUT` ([#9707](https://github.com/MetaMask/core/pull/9707))
+
 ## [26.0.1]
 
 ### Changed
