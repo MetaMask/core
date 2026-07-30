@@ -708,6 +708,7 @@ function buildPackageReleaseSection(): CodeownersSection {
       return [
         { pattern: `${workspacePath}/package.json`, owners },
         { pattern: `${workspacePath}/CHANGELOG.md`, owners },
+        { pattern: `${workspacePath}/tsconfig.*`, owners },
       ];
     }),
   };
