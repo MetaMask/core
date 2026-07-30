@@ -322,38 +322,37 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchApplicantAccessToken', () => {
+  describe('createJourney', () => {
     it('fetches the applicant access token for a session', async () => {
       const response = { status: 'ok', applicantAccessToken: 'aat' };
-      nock(MOCK_API_URL)
-        .post('/sessions/sid/wrapped-key')
-        .reply(200, response);
+      nock(MOCK_API_URL).post('/sessions/sid/journey').reply(200, response);
       const { service } = getService();
 
-      expect(await service.fetchApplicantAccessToken('sid')).toStrictEqual(
-        response,
-      );
+      expect(await service.createJourney('sid')).toStrictEqual(response);
     });
 
     it('does not send a Content-Type header since it has no body', async () => {
       const response = { status: 'ok', applicantAccessToken: 'aat' };
       nock(MOCK_API_URL)
-        .post('/sessions/sid/wrapped-key')
+        .post('/sessions/sid/journey')
         .matchHeader('content-type', (value) => value === undefined)
         .reply(200, response);
       const { service } = getService();
 
-      expect(await service.fetchApplicantAccessToken('sid')).toStrictEqual(
-        response,
-      );
+      expect(await service.createJourney('sid')).toStrictEqual(response);
     });
 
     it('throws on a malformed response', async () => {
       nock(MOCK_API_URL)
-        .post('/sessions/sid/wrapped-key')
+        .post('/sessions/sid/journey')
         .reply(200, { status: 'ok' });
       const { service } = getService();
 
+      await expect(service.createJourney('sid')).rejects.toThrow(
+        /Malformed response received from journey API/u,
+      );
+    });
+  });
       await expect(
         service.fetchApplicantAccessToken('sid'),
       ).rejects.toThrow(/Malformed response received from wrapped-key API/u);

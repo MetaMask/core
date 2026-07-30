@@ -145,7 +145,7 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `getGeoCountry`, `fetchDisclaimers`, `createSession`, `checkKycRequired`,
-`createUkycSession`, `submitWrappedKey`.
+`createUkycSession`, `createJourney`.
 
 Endpoints:
 
@@ -156,7 +156,7 @@ Endpoints:
 | `createSession`     | `POST` | `/vendors/moonpay/sessions`             | Create vendor session                                    |
 | `checkKycRequired`  | `POST` | `/vendors/moonpay/kyc-required`         | Is KYC required? (normalizes `required` → `kycRequired`) |
 | `createUkycSession` | `POST` | `/sessions`                             | Start SumSub sub-flow (wrapped key + read-only `ukyc_capability_token`) |
-| `submitWrappedKey`  | `POST` | `/sessions/{id}/wrapped-key`            | Exchange wrapped key → applicant token                   |
+| `createJourney`     | `POST` | `/sessions/{id}/journey`                | Create verification journey → applicant token            |
 
 ### 2.3 `crypto.ts`
 
@@ -356,8 +356,8 @@ sequenceDiagram
     opt kycRequired === true → auto-launch document verification
         Ctrl->>Svc: createUkycSession({ jwtToken, vendorMetadata, wrappedEncryptionKey, ukycCapabilityToken })
         Svc->>API: POST /sessions
-        Ctrl->>Svc: submitWrappedKey({ sessionId, wrappedUserKey, ... })
-        Svc->>API: POST /sessions/{id}/wrapped-key
+        Ctrl->>Svc: createJourney(sessionId)
+        Svc->>API: POST /sessions/{id}/journey
         Ctrl->>Launcher: launch({ applicantAccessToken, onTokenExpiration, onStatusChange })
         Launcher-->>Ctrl: SDK result
         Ctrl-->>UI: sumsub.status = complete (+ result)
@@ -444,7 +444,7 @@ stateDiagram-v2
     [*] --> idle
     idle --> creatingSession : startSumSub()
     creatingSession --> fetchingToken : createUkycSession() ok
-    fetchingToken --> launching : submitWrappedKey() ok
+    fetchingToken --> launching : createJourney() ok
     launching --> inProgress : onStatusChange (non-Completed)
     launching --> complete : onStatusChange = Completed
     inProgress --> complete : onStatusChange = Completed
@@ -472,7 +472,7 @@ type KycSumSubLauncher = {
 ```
 
 `launch` receives `applicantAccessToken`, an `onTokenExpiration` callback (the
-controller re-runs `submitWrappedKey` to refresh — but **refuses to refresh
+controller re-runs `createJourney` to refresh — but **refuses to refresh
 after a `reset()`**, throwing instead so a still-open SDK cannot keep an
 orphaned UKYC session alive), and an `onStatusChange` callback that the
 controller maps into `sumsub.status`.

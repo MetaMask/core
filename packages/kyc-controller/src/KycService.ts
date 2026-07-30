@@ -49,7 +49,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getWrappingKey',
   'fetchJwks',
   'createUkycSession',
-  'fetchApplicantAccessToken',
+  'createJourney',
 ] as const;
 
 /**
@@ -452,17 +452,17 @@ export class KycService {
   }
 
   /**
-   * Fetches (or refreshes) the SumSub applicant access token for a UKYC
-   * session.
+   * Creates (or refreshes) the SumSub verification journey for a UKYC session,
+   * returning the applicant access token used to launch the SDK.
    *
    * @param sessionId - The UKYC session id from `createUkycSession`.
    * @returns The applicant access token and status.
    */
-  async fetchApplicantAccessToken(
+  async createJourney(
     sessionId: string,
   ): Promise<ApplicantAccessTokenResponse> {
     const url = new URL(
-      `/sessions/${encodeURIComponent(sessionId)}/wrapped-key`,
+      `/sessions/${encodeURIComponent(sessionId)}/journey`,
       this.#baseUrl,
     );
     const data = await this.#request(url, {
@@ -471,7 +471,7 @@ export class KycService {
     return this.#validateResponse(
       data,
       ApplicantAccessTokenResponseStruct,
-      'wrapped-key',
+      'journey',
     );
   }
 
@@ -535,7 +535,7 @@ export class KycService {
     const headers: Record<string, string> = {};
 
     // Only advertise a JSON body when one is actually sent; bodyless requests
-    // (e.g. `fetchApplicantAccessToken`) must not carry a `Content-Type`.
+    // (e.g. `createJourney`) must not carry a `Content-Type`.
     if (init.body !== undefined && init.body !== null) {
       headers['Content-Type'] = 'application/json';
     }

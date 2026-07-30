@@ -100,15 +100,16 @@ export type KycServiceCreateUkycSessionAction = {
 };
 
 /**
- * Fetches (or refreshes) the SumSub applicant access token for a UKYC
- * session.
+ * Creates (or refreshes) the SumSub verification journey for a UKYC session,
+ * returning the applicant access token used to launch the SDK.
  *
  * @param sessionId - The UKYC session id from `createUkycSession`.
  * @returns The applicant access token and status.
  */
-export type KycServiceFetchApplicantAccessTokenAction = {
-  type: `KycService:fetchApplicantAccessToken`;
-  handler: KycService['fetchApplicantAccessToken'];
+export type KycServiceCreateJourneyAction = {
+  type: `KycService:createJourney`;
+  handler: KycService['createJourney'];
+};
 };
 
 /**
@@ -122,4 +123,4 @@ export type KycServiceMethodActions =
   | KycServiceGetWrappingKeyAction
   | KycServiceFetchJwksAction
   | KycServiceCreateUkycSessionAction
-  | KycServiceFetchApplicantAccessTokenAction;
+  | KycServiceCreateJourneyAction
