@@ -338,7 +338,7 @@ type AllowedActions =
   | BackendWebSocketServiceActions
   // PhishingController
   | PhishingControllerBulkScanTokensAction
-  // AccountsApiDataSource (Accounts API v6 balances feature flag)
+  // AccountsApiDataSource / BackendWebsocketDataSource (Accounts API v6 balances feature flag)
   | RemoteFeatureFlagControllerGetStateAction;
 
 type AllowedEvents =

@@ -12,6 +12,10 @@ import type { MockAnyNamespace } from '@metamask/messenger';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type { Caip19AssetId, ChainId, DataRequest } from '../types.js';
 import {
+  SNAPS_ASSETS_MIGRATION_FLAG_KEYS,
+  SnapsAssetsMigrationStage,
+} from '../utils/snaps-assets-migration.js';
+import {
   BackendWebsocketDataSource,
   createBackendWebsocketDataSource,
 } from './BackendWebsocketDataSource.js';
@@ -27,6 +31,8 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const CHAIN_POLYGON = 'eip155:137' as ChainId;
 const CHAIN_BASE = 'eip155:8453' as ChainId;
+const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;
+const STELLAR_CHAIN_ID = 'stellar:pubnet' as ChainId;
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 
 type SetupResult = {
@@ -39,6 +45,7 @@ type SetupResult = {
   removeChannelCallbackMock: jest.Mock;
   assetsUpdateHandler: jest.Mock;
   activeChainsUpdateHandler: jest.Mock;
+  fetchV2SupportedNetworksMock: jest.Mock;
   triggerConnectionStateChange: (state: WebSocketState) => void;
   triggerActiveChainsUpdate: (chains: ChainId[]) => void;
 };
@@ -106,11 +113,13 @@ function setupController(
   options: {
     initialActiveChains?: ChainId[];
     connectionState?: WebSocketState;
+    remoteFeatureFlags?: Record<string, unknown>;
   } = {},
 ): SetupResult {
   const {
     initialActiveChains = [],
     connectionState = WebSocketState.CONNECTED,
+    remoteFeatureFlags = {},
   } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -127,6 +136,15 @@ function setupController(
     parent: rootMessenger,
   });
 
+  (
+    rootMessenger as unknown as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
+    remoteFeatureFlags,
+    cacheTimestamp: 0,
+  }));
+
   rootMessenger.delegate({
     messenger: controllerMessenger,
     actions: [
@@ -135,6 +153,7 @@ function setupController(
       'BackendWebSocketService:findSubscriptionsByChannelPrefix',
       'BackendWebSocketService:addChannelCallback',
       'BackendWebSocketService:removeChannelCallback',
+      'RemoteFeatureFlagController:getState',
     ],
     events: ['BackendWebSocketService:connectionStateChanged'],
   });
@@ -178,14 +197,16 @@ function setupController(
     removeChannelCallbackMock,
   );
 
+  const fetchV2SupportedNetworksMock = jest.fn().mockResolvedValue({
+    fullSupport: initialActiveChains.map((chainId) => {
+      const [, ref] = chainId.split(':');
+      return parseInt(ref, 10);
+    }),
+  });
+
   const queryApiClient = {
     accounts: {
-      fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
-        fullSupport: initialActiveChains.map((chainId) => {
-          const [, ref] = chainId.split(':');
-          return parseInt(ref, 10);
-        }),
-      }),
+      fetchV2SupportedNetworks: fetchV2SupportedNetworksMock,
     },
   };
 
@@ -241,6 +262,7 @@ function setupController(
     removeChannelCallbackMock,
     assetsUpdateHandler,
     activeChainsUpdateHandler,
+    fetchV2SupportedNetworksMock,
     triggerConnectionStateChange,
     triggerActiveChainsUpdate,
   };
@@ -297,6 +319,58 @@ describe('BackendWebsocketDataSource', () => {
     );
 
     controller.destroy();
+  });
+
+  describe('gate migration networks', () => {
+    it('filters out migration networks from active chains when the FF is unset', async () => {
+      const {
+        controller,
+        triggerConnectionStateChange,
+        fetchV2SupportedNetworksMock,
+      } = setupController();
+
+      triggerConnectionStateChange(WebSocketState.CONNECTED);
+
+      fetchV2SupportedNetworksMock.mockResolvedValue({
+        fullSupport: [CHAIN_MAINNET, SOLANA_CHAIN_ID],
+      });
+      await controller.refreshActiveChains();
+
+      expect(await controller.getActiveChains()).toStrictEqual([CHAIN_MAINNET]);
+
+      controller.destroy();
+    });
+
+    it('gates migration networks independently per namespace', async () => {
+      const {
+        controller,
+        triggerConnectionStateChange,
+        fetchV2SupportedNetworksMock,
+      } = setupController({
+        remoteFeatureFlags: {
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+            stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+          },
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+            stage: SnapsAssetsMigrationStage.Off,
+          },
+        },
+      });
+
+      triggerConnectionStateChange(WebSocketState.CONNECTED);
+
+      fetchV2SupportedNetworksMock.mockResolvedValue({
+        fullSupport: [CHAIN_MAINNET, SOLANA_CHAIN_ID, STELLAR_CHAIN_ID],
+      });
+      await controller.refreshActiveChains();
+
+      expect(await controller.getActiveChains()).toStrictEqual([
+        CHAIN_MAINNET,
+        SOLANA_CHAIN_ID,
+      ]);
+
+      controller.destroy();
+    });
   });
 
   it('subscribe creates eip155 channel when no request chains match (eip155 account only)', async () => {
