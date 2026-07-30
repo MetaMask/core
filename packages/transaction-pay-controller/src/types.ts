@@ -562,13 +562,7 @@ export type QuoteRequest = {
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
 
-  /**
-   * Final recipient of the Relay quote output. Not client-configurable —
-   * derived internally at quote time for non-atomic flows: the
-   * `getPaymentOverrideData` callback's `recipient` for post-quote flows,
-   * otherwise the parent transaction's own `from` (e.g. the Money Account for
-   * max-amount deposits). When unset, the quote settles on `from`.
-   */
+  /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
   recipient?: Hex;
 
   /**
