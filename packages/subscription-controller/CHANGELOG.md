@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Allow `SubscriptionController` to build its own default `SubscriptionService` ([#9598](https://github.com/MetaMask/core/pull/9598))
+  - `SubscriptionControllerOptions` now accepts either a `subscriptionService`, or the service configuration (`env`, `fetchFunction`, and optionally `getAccessToken` and `captureException`) used to construct the default service.
+  - When constructing the default service, `getAccessToken` falls back to calling the `AuthenticationController:getBearerToken` messenger action.
+  - The new options shape is exported as `SubscriptionControllerServiceOptions`.
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.1` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593))
+
+### Removed
+
+- **BREAKING:** Remove the `AuthenticationController:stateChange` event from `SubscriptionControllerMessenger`, along with the `AllowedEvents` type export ([#9598](https://github.com/MetaMask/core/pull/9598))
+  - The controller never subscribed to this event, so it no longer needs to be delegated to the controller's messenger.
 
 ## [6.2.1]
 

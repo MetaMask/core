@@ -1,6 +1,7 @@
 import { GasFeeController } from '@metamask/gas-fee-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
+import { Env } from '@metamask/subscription-controller';
 
 import type { WalletOptions } from '../../../types.js';
 import { Wallet } from '../../../Wallet.js';
@@ -217,6 +218,10 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    subscriptionController: {
+      env: Env.DEV,
+      fetchFunction: globalThis.fetch,
+    },
   };
 }
 

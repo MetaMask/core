@@ -127,8 +127,6 @@ describe('subscriptionController', () => {
       messenger,
       options: {
         subscriptionService: mockService,
-        env: Env.DEV,
-        fetchFunction: globalThis.fetch,
       },
     });
 
@@ -206,7 +204,7 @@ describe('subscriptionController', () => {
     await rootMessenger.call('SubscriptionController:getSubscriptions');
 
     expect(fetchFunction).toHaveBeenCalled();
-    const [, requestInit] = fetchFunction.mock.calls[0] as [
+    const [, requestInit] = fetchFunction.mock.calls[0] as unknown as [
       string,
       RequestInit,
     ];
@@ -214,7 +212,7 @@ describe('subscriptionController', () => {
     expect(headers.get('Authorization')).toBe('Bearer test-bearer-token');
   });
 
-  it('delegates AuthenticationController actions and events', () => {
+  it('delegates AuthenticationController actions', () => {
     const parent = getRootMessenger();
     const delegateSpy = jest.spyOn(parent, 'delegate');
     const messenger = subscriptionController.getMessenger(parent);
@@ -225,7 +223,6 @@ describe('subscriptionController', () => {
         'AuthenticationController:getBearerToken',
         'AuthenticationController:performSignOut',
       ],
-      events: ['AuthenticationController:stateChange'],
     });
   });
 

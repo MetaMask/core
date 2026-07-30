@@ -17,7 +17,9 @@ import {
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
 } from './constants.js';
+import { Env } from './constants.js';
 import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types.js';
+import { SubscriptionService } from './SubscriptionService.js';
 import {
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -81,7 +83,7 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetStateAction
   | SubscriptionControllerMethodActions;
 
-export type AllowedActions =
+type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerTokenAction
   | AuthenticationController.AuthenticationControllerPerformSignOutAction;
 
@@ -93,15 +95,53 @@ export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
 export type SubscriptionControllerEvents =
   SubscriptionControllerStateChangeEvent;
 
-export type AllowedEvents =
-  AuthenticationController.AuthenticationControllerStateChangeEvent;
-
 // Messenger
 export type SubscriptionControllerMessenger = Messenger<
   typeof controllerName,
   SubscriptionControllerActions | AllowedActions,
-  SubscriptionControllerEvents | AllowedEvents
+  SubscriptionControllerEvents
 >;
+
+/**
+ * Options for the subscription service used by the controller.
+ *
+ * Either provide a pre-built service, or provide the configuration needed to
+ * build the default {@link SubscriptionService}.
+ */
+export type SubscriptionControllerServiceOptions =
+  | {
+      /**
+       * Subscription service to use for the subscription controller.
+       */
+      subscriptionService: ISubscriptionService;
+    }
+  | {
+      subscriptionService?: never;
+
+      /**
+       * Environment to use when building the default subscription service.
+       */
+      env?: Env;
+
+      /**
+       * Fetch function to use when building the default subscription service.
+       */
+      fetchFunction: typeof fetch;
+
+      /**
+       * Function used to retrieve the access token for subscription API
+       * requests.
+       *
+       * @default A function that calls the `AuthenticationController:getBearerToken` action.
+       */
+      getAccessToken?: () => Promise<string>;
+
+      /**
+       * Function used to capture exceptions raised by the default
+       * subscription service.
+       */
+      captureException?: (error: Error) => void;
+    };
 
 /**
  * Subscription Controller Options.
@@ -115,17 +155,12 @@ export type SubscriptionControllerOptions = {
   state?: Partial<SubscriptionControllerState>;
 
   /**
-   * Subscription service to use for the subscription controller.
-   */
-  subscriptionService: ISubscriptionService;
-
-  /**
    * Polling interval to use for the subscription controller.
    *
    * @default 5 minutes.
    */
   pollingInterval?: number;
-};
+} & SubscriptionControllerServiceOptions;
 
 /**
  * Get the default state for the Subscription Controller.
@@ -228,18 +263,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Creates a new SubscriptionController instance.
    *
-   * @param options - The options for the SubscriptionController.
+   * @param options - The options for the SubscriptionController. Either a
+   * `subscriptionService`, or the configuration for building the default
+   * subscription service, must be provided.
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
-   * @param options.subscriptionService - The subscription service for communicating with subscription server.
    * @param options.pollingInterval - The polling interval to use for the subscription controller.
    */
-  constructor({
-    messenger,
-    state,
-    subscriptionService,
-    pollingInterval = DEFAULT_POLLING_INTERVAL,
-  }: SubscriptionControllerOptions) {
+  constructor(options: SubscriptionControllerOptions) {
+    const { messenger, state, pollingInterval = DEFAULT_POLLING_INTERVAL } =
+      options;
     super({
       name: controllerName,
       metadata: subscriptionControllerMetadata,
@@ -251,11 +284,38 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     });
 
     this.setIntervalLength(pollingInterval);
-    this.#subscriptionService = subscriptionService;
+    this.#subscriptionService = this.#resolveSubscriptionService(options);
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Resolves the subscription service to use, building the default
+   * {@link SubscriptionService} when one is not provided.
+   *
+   * @param options - The subscription service options.
+   * @returns The subscription service to use.
+   */
+  #resolveSubscriptionService(
+    options: SubscriptionControllerServiceOptions,
+  ): ISubscriptionService {
+    if (options.subscriptionService) {
+      return options.subscriptionService;
+    }
+
+    const getAccessToken =
+      options.getAccessToken ??
+      (async (): Promise<string> =>
+        await this.messenger.call('AuthenticationController:getBearerToken'));
+
+    return new SubscriptionService({
+      env: options.env ?? Env.PRD,
+      auth: { getAccessToken },
+      fetchFunction: options.fetchFunction,
+      captureException: options.captureException,
+    });
   }
 
   /**

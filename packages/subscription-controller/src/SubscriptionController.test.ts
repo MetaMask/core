@@ -15,6 +15,7 @@ import { jestAdvanceTime } from '../../../tests/helpers.js';
 import { generateMockTxMeta } from '../tests/utils.js';
 import {
   controllerName,
+  Env,
   SubscriptionControllerErrorMessage,
 } from './constants.js';
 import { SubscriptionServiceError } from './errors.js';
@@ -23,7 +24,6 @@ import {
   SubscriptionController,
 } from './SubscriptionController.js';
 import type {
-  AllowedEvents,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerState,
@@ -159,13 +159,9 @@ const MOCK_COHORTS = [
 /**
  * Creates a custom subscription messenger, in case tests need different permissions
  *
- * @param props - overrides
- * @param props.overrideEvents - override events
  * @returns base messenger, and messenger. You can pass this into the mocks below to mock messenger calls
  */
-function createCustomSubscriptionMessenger(props?: {
-  overrideEvents?: AllowedEvents['type'][];
-}): {
+function createCustomSubscriptionMessenger(): {
   rootMessenger: RootMessenger;
   messenger: SubscriptionControllerMessenger;
 } {
@@ -188,7 +184,6 @@ function createCustomSubscriptionMessenger(props?: {
       'AuthenticationController:getBearerToken',
       'AuthenticationController:performSignOut',
     ],
-    events: props?.overrideEvents ?? ['AuthenticationController:stateChange'],
   });
 
   return {
@@ -383,6 +378,68 @@ describe('SubscriptionController', () => {
       expect(controller.state).toStrictEqual(
         getDefaultSubscriptionControllerState(),
       );
+    });
+
+    it('builds a default subscription service from service configuration', async () => {
+      const { messenger, rootMessenger } = createMockSubscriptionMessenger();
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getBearerToken',
+        async () => 'test-bearer-token',
+      );
+      const fetchFunction = jest.fn(
+        async () =>
+          new globalThis.Response(
+            JSON.stringify(MOCK_GET_SUBSCRIPTIONS_RESPONSE),
+            {
+              status: 200,
+            },
+          ),
+      );
+
+      const controller = new SubscriptionController({
+        messenger,
+        env: Env.DEV,
+        fetchFunction,
+      });
+      await controller.getSubscriptions();
+
+      expect(fetchFunction).toHaveBeenCalledTimes(1);
+      const [, requestInit] = fetchFunction.mock.calls[0] as unknown as [
+        string,
+        RequestInit,
+      ];
+      const headers = new globalThis.Headers(requestInit.headers);
+      expect(headers.get('Authorization')).toBe('Bearer test-bearer-token');
+    });
+
+    it('uses a provided getAccessToken when building the default subscription service', async () => {
+      const { messenger } = createMockSubscriptionMessenger();
+      const getAccessToken = jest.fn(async () => 'custom-access-token');
+      const fetchFunction = jest.fn(
+        async () =>
+          new globalThis.Response(
+            JSON.stringify(MOCK_GET_SUBSCRIPTIONS_RESPONSE),
+            {
+              status: 200,
+            },
+          ),
+      );
+
+      const controller = new SubscriptionController({
+        messenger,
+        env: Env.DEV,
+        fetchFunction,
+        getAccessToken,
+      });
+      await controller.getSubscriptions();
+
+      expect(getAccessToken).toHaveBeenCalled();
+      const [, requestInit] = fetchFunction.mock.calls[0] as unknown as [
+        string,
+        RequestInit,
+      ];
+      const headers = new globalThis.Headers(requestInit.headers);
+      expect(headers.get('Authorization')).toBe('Bearer custom-access-token');
     });
   });
 

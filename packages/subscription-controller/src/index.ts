@@ -5,9 +5,8 @@ export type {
   SubscriptionControllerGetStateAction,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
+  SubscriptionControllerServiceOptions,
   SubscriptionControllerStateChangeEvent,
-  AllowedActions,
-  AllowedEvents,
 } from './SubscriptionController.js';
 export type {
   SubscriptionControllerGetPricingAction,
