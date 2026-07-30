@@ -248,9 +248,12 @@ export function floorToSizeDecimals(size: number, szDecimals: number): number {
   // magnitudes also reaches the next grid point, and for an input less than half
   // an ulp below a grid point `size * multiplier` evaluates to exactly that grid
   // integer, so flooring the scaled value returns the same too-large result.
-  // `units !== 0` rather than `units > 0` so negative sizes step down too — for
-  // them the tolerance snap rounds *towards* zero, i.e. upward.
-  while (units !== 0 && units / multiplier > size) {
+  // The comparison alone is the whole termination condition: for a non-negative
+  // size the loop stops at or before zero, and for a negative size it stops once
+  // the value is no longer above the input. Guarding on `units` instead would
+  // skip a negative size below the tolerance, which snaps to `-0` — and
+  // `-0 !== 0` is false. The 2^53 bail-out above keeps this bounded.
+  while (units / multiplier > size) {
     units -= 1;
   }
 

@@ -130,6 +130,37 @@ describe('floorToSizeDecimals', () => {
     }
   });
 
+  it('holds the invariant for negative sizes below one grid increment', () => {
+    // Below the tolerance the snap produces -0, which `units !== 0` alone cannot
+    // step down because -0 === 0. This region sits under one grid increment, so
+    // the grid-point sweeps never reach it.
+    expect(floorToSizeDecimals(-1e-9, 0)).toBeLessThanOrEqual(-1e-9);
+    expect(floorToSizeDecimals(-5e-7, 0)).toBeLessThanOrEqual(-5e-7);
+    expect(floorToSizeDecimals(-1e-12, 5)).toBeLessThanOrEqual(-1e-12);
+    expect(floorToSizeDecimals(-1e-8, 2)).toBeLessThanOrEqual(-1e-8);
+    // A negative zero is already its own floor and must not be stepped down
+    expect(floorToSizeDecimals(-0, 3)).toBe(-0);
+    // A positive sub-tolerance size still floors to zero
+    expect(floorToSizeDecimals(1e-9, 3)).toBe(0);
+  });
+
+  it('holds the invariant across a sweep of sub-increment negative magnitudes', () => {
+    // Magnitudes from 1e-14 up to 1e-3 across every supported precision: spans
+    // sub-tolerance (snap-to--0), sub-increment, and above-increment regions
+    for (let szDecimals = 0; szDecimals <= 5; szDecimals += 1) {
+      for (const magnitude of [
+        1e-14, 1e-12, 1e-10, 1e-9, 5e-7, 1e-6, 1e-5, 1e-3,
+      ]) {
+        for (let step = 1; step <= 40; step += 1) {
+          const size = -(magnitude * step);
+          expect(floorToSizeDecimals(size, szDecimals)).toBeLessThanOrEqual(
+            size,
+          );
+        }
+      }
+    }
+  });
+
   it('terminates and holds the invariant for negative sizes past 2^53', () => {
     const cases: [number, number][] = [
       [-998999999.9999998, 8],
