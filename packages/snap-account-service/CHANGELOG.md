@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Report migration error in case of failure ([#9696](https://github.com/MetaMask/core/pull/9696))
-  - The migration is now a mandatory step and should never fail, so we want to report this as critical errors if anything goes wrong during that step.
+  - The migration is a mandatory and it is not suppose to fail.
+  - Reporting should help identifying which step could have failed and help addressing the actual issue.
 
 ### Changed
 
