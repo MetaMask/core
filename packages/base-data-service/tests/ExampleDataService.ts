@@ -101,7 +101,7 @@ export class ExampleDataService extends BaseDataService<
         return response.json();
       },
       staleTime: inMilliseconds(1, Duration.Day),
-      cacheTime: inMilliseconds(1, Duration.Day),
+      gcTime: inMilliseconds(1, Duration.Day),
     });
   }
 
@@ -109,7 +109,13 @@ export class ExampleDataService extends BaseDataService<
     address: string,
     page?: PageParam,
   ): Promise<GetActivityResponse> {
-    return this.fetchInfiniteQuery<GetActivityResponse>(
+    return this.fetchInfiniteQuery<
+      GetActivityResponse,
+      unknown,
+      GetActivityResponse,
+      [string, string],
+      PageParam
+    >(
       {
         queryKey: [`${this.name}:getActivity`, address],
         queryFn: async ({ pageParam }) => {
