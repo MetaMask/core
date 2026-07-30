@@ -622,6 +622,138 @@ describe('DeFiPositionsControllerV2', () => {
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(1);
   });
 
+  it('starts a new fetch when selection changes during an in-flight call', async () => {
+    const otherEvmAddress = '0x0000000000000000000000000000000000000002';
+    const otherEvmAccount = createMockInternalAccount({
+      id: 'evm-account-id-2',
+      address: otherEvmAddress,
+      type: EthAccountType.Eoa,
+    });
+    let groupAccounts: InternalAccount[] = GROUP_ACCOUNTS;
+
+    let resolveFirstFetch!: (value: V6BalancesResponse) => void;
+    const mockFetchV6MultiAccountBalances = jest
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<V6BalancesResponse>((resolve) => {
+            resolveFirstFetch = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(
+        buildMockBalancesResponse({
+          accounts: [
+            {
+              accountId: `eip155:0:${otherEvmAddress}`,
+              balances: buildMockBalancesResponse().accounts[0].balances,
+            },
+          ],
+        }),
+      );
+
+    const { controller } = setupController({
+      getGroupAccounts: () => groupAccounts,
+      mockFetchV6MultiAccountBalances,
+    });
+
+    const firstFetch = controller.fetchDeFiPositions();
+    await Promise.resolve();
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(1);
+    expect(mockFetchV6MultiAccountBalances.mock.calls[0][0]).toContain(
+      `eip155:0:${EVM_ADDRESS}`,
+    );
+
+    groupAccounts = [otherEvmAccount];
+    const secondFetch = controller.fetchDeFiPositions({ forceRefresh: true });
+    await Promise.resolve();
+
+    // Different selection does not join the in-flight promise.
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenLastCalledWith(
+      expect.arrayContaining([`eip155:0:${otherEvmAddress}`]),
+      expect.objectContaining({ vsCurrency: 'usd' }),
+      { staleTime: 0 },
+    );
+
+    resolveFirstFetch(buildMockBalancesResponse());
+    await Promise.all([firstFetch, secondFetch]);
+
+    // Prior poll may still write the old group; new fetch writes the new group.
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
+      1,
+    );
+    expect(controller.state.allDeFiPositionsV2['evm-account-id-2']).toHaveLength(
+      1,
+    );
+  });
+
+  it('rejoins an in-flight fetch when switching back to the same accounts', async () => {
+    const otherEvmAddress = '0x0000000000000000000000000000000000000002';
+    const otherEvmAccount = createMockInternalAccount({
+      id: 'evm-account-id-2',
+      address: otherEvmAddress,
+      type: EthAccountType.Eoa,
+    });
+    let groupAccounts: InternalAccount[] = GROUP_ACCOUNTS;
+
+    let resolveFirstFetch!: (value: V6BalancesResponse) => void;
+    let resolveSecondFetch!: (value: V6BalancesResponse) => void;
+    const mockFetchV6MultiAccountBalances = jest
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<V6BalancesResponse>((resolve) => {
+            resolveFirstFetch = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<V6BalancesResponse>((resolve) => {
+            resolveSecondFetch = resolve;
+          }),
+      );
+
+    const { controller } = setupController({
+      getGroupAccounts: () => groupAccounts,
+      mockFetchV6MultiAccountBalances,
+    });
+
+    const firstFetch = controller.fetchDeFiPositions();
+    await Promise.resolve();
+
+    groupAccounts = [otherEvmAccount];
+    const secondFetch = controller.fetchDeFiPositions();
+    await Promise.resolve();
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+
+    groupAccounts = GROUP_ACCOUNTS;
+    const thirdFetch = controller.fetchDeFiPositions();
+
+    // Switched back to the first group — join its still-in-flight promise.
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+
+    resolveFirstFetch(buildMockBalancesResponse());
+    resolveSecondFetch(
+      buildMockBalancesResponse({
+        accounts: [
+          {
+            accountId: `eip155:0:${otherEvmAddress}`,
+            balances: [],
+          },
+        ],
+      }),
+    );
+    await Promise.all([firstFetch, secondFetch, thirdFetch]);
+
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
+      1,
+    );
+    expect(controller.state.allDeFiPositionsV2['evm-account-id-2']).toStrictEqual(
+      [],
+    );
+  });
+
   it('merges fetched accounts into state without clearing other accounts', async () => {
     const otherEvmAddress = '0x0000000000000000000000000000000000000002';
     const otherEvmAccount = createMockInternalAccount({

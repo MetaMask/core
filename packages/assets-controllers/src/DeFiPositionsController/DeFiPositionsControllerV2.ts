@@ -9,6 +9,7 @@ import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { Messenger } from '@metamask/messenger';
 
 import { buildDeFiBalancesQuery } from './build-defi-balances-query.js';
+import type { DeFiBalancesQuery } from './build-defi-balances-query.js';
 import type { DeFiPositionsControllerV2MethodActions } from './DeFiPositionsControllerV2-method-action-types.js';
 import type { DeFiPositionsByAccount } from './group-defi-positions-v6.js';
 import { groupDeFiPositionsV6 } from './group-defi-positions-v6.js';
@@ -119,8 +120,10 @@ export type DeFiPositionsControllerV2Messenger = Messenger<
  *
  * When the API reports `processingDefiPositions` for any account, this
  * controller polls until indexing finishes or the attempt limit is reached.
- * Concurrent calls share one in-flight promise so the UI can treat the pending
- * promise as a loading signal.
+ * Concurrent calls for the same selected accounts share one in-flight promise
+ * so the UI can treat the pending promise as a loading signal. Calls for a
+ * different selection start their own fetch and leave any prior poll running,
+ * so switching back can join an in-flight fetch for that group.
  */
 export class DeFiPositionsControllerV2 extends BaseController<
   typeof controllerName,
@@ -133,7 +136,12 @@ export class DeFiPositionsControllerV2 extends BaseController<
 
   readonly #getVsCurrency: () => string;
 
-  #inFlightFetch: Promise<void> | null = null;
+  /**
+   * In-flight fetches keyed by selected DeFi-queryable account IDs. Concurrent
+   * callers for the same selection share a promise; different selections keep
+   * independent fetches so fast account switching can join an earlier poll.
+   */
+  readonly #inFlightFetches = new Map<string, Promise<void>>();
 
   /**
    * @param options - Constructor options.
@@ -182,7 +190,9 @@ export class DeFiPositionsControllerV2 extends BaseController<
    * Accounts still indexing (`processingDefiPositions`) keep prior state; the
    * method polls (invalidating the balances cache between attempts) until all
    * selected accounts are ready, the attempt limit is reached, or a request
-   * fails. Concurrent calls share one in-flight promise. No-ops when disabled
+   * fails. Concurrent calls for the same selected accounts share one in-flight
+   * promise; calls for a different selection start a new fetch and leave prior
+   * polls running so a later switch back can join them. No-ops when disabled
    * or when the group has no supported accounts. Caching / spam prevention is
    * handled by the apiClient TanStack Query cache (keyed by accounts + query
    * options including `vsCurrency`). Pass `{ forceRefresh: true }` to bypass
@@ -200,28 +210,36 @@ export class DeFiPositionsControllerV2 extends BaseController<
       return;
     }
 
-    if (this.#inFlightFetch) {
-      await this.#inFlightFetch;
-      return;
-    }
-
-    this.#inFlightFetch = this.#fetchDeFiPositions(options).finally(() => {
-      this.#inFlightFetch = null;
-    });
-
-    await this.#inFlightFetch;
-  }
-
-  async #fetchDeFiPositions(options?: {
-    forceRefresh?: boolean;
-  }): Promise<void> {
     const selectedAccounts = this.messenger.call(
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
+    const query = buildDeFiBalancesQuery(selectedAccounts);
+    const accountIdsKey = [...query.internalAccountIdByCaip.keys()]
+      .sort()
+      .join('\0');
 
-    const { networks, internalAccountIdByCaip } =
-      buildDeFiBalancesQuery(selectedAccounts);
+    const existing = this.#inFlightFetches.get(accountIdsKey);
+    if (existing) {
+      await existing;
+      return;
+    }
 
+    const fetchPromise = this.#fetchDeFiPositions(options, query).finally(
+      () => {
+        if (this.#inFlightFetches.get(accountIdsKey) === fetchPromise) {
+          this.#inFlightFetches.delete(accountIdsKey);
+        }
+      },
+    );
+    this.#inFlightFetches.set(accountIdsKey, fetchPromise);
+
+    await fetchPromise;
+  }
+
+  async #fetchDeFiPositions(
+    options: { forceRefresh?: boolean } | undefined,
+    { networks, internalAccountIdByCaip }: DeFiBalancesQuery,
+  ): Promise<void> {
     if (internalAccountIdByCaip.size === 0 || networks.length === 0) {
       return;
     }

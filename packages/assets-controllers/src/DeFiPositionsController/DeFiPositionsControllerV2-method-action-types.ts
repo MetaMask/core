@@ -11,7 +11,9 @@ import type { DeFiPositionsControllerV2 } from './DeFiPositionsControllerV2.js';
  * Accounts still indexing (`processingDefiPositions`) keep prior state; the
  * method polls (invalidating the balances cache between attempts) until all
  * selected accounts are ready, the attempt limit is reached, or a request
- * fails. Concurrent calls share one in-flight promise. No-ops when disabled
+ * fails. Concurrent calls for the same selected accounts share one in-flight
+ * promise; calls for a different selection start a new fetch and leave prior
+ * polls running so a later switch back can join them. No-ops when disabled
  * or when the group has no supported accounts. Caching / spam prevention is
  * handled by the apiClient TanStack Query cache (keyed by accounts + query
  * options including `vsCurrency`). Pass `{ forceRefresh: true }` to bypass
