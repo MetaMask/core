@@ -23,12 +23,12 @@ import {
   getDefaultSubscriptionControllerState,
   SubscriptionController,
 } from './SubscriptionController.js';
-import { SUBSCRIPTION_URL } from './SubscriptionService.js';
 import type {
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerState,
 } from './SubscriptionController.js';
+import { SUBSCRIPTION_URL } from './SubscriptionService.js';
 import type {
   Subscription,
   PricingResponse,
