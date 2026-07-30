@@ -360,6 +360,10 @@ async function buildPostQuoteDepositCalls({
  * read failure or missing amount throws rather than guessing, since using the
  * quote minimum would knowingly strand dust and defeat an EXACT_INPUT quote.
  *
+ * Relay execute submissions return `FALLBACK_HASH` instead of a real source
+ * hash, leaving nothing to read; only then is the quote's minimum output used
+ * as the last available source.
+ *
  * @param options - Resolution options.
  * @param options.completion - Outcome of `waitForRelayCompletion`.
  * @param options.messenger - Controller messenger.
@@ -394,7 +398,7 @@ async function resolveSettledAmount({
 
   if (hasPolledTargetHash) {
     settlementHash = completion.targetHash as Hex;
-  } else if (isSameChain) {
+  } else if (isSameChain && submittedSourceHash !== FALLBACK_HASH) {
     settlementHash = submittedSourceHash;
   }
 

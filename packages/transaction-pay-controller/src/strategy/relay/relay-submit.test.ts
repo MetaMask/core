@@ -1927,6 +1927,31 @@ describe('Relay Submit Utils', () => {
         );
       });
 
+      it('uses quote minimum on same-chain flows when submit returns FALLBACK_HASH', async () => {
+        request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+        request.quotes[0].original.details.currencyIn.currency.chainId = 1;
+        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+        request.quotes[0].original.metamask.isExecute = true;
+
+        submitViaRelayExecuteMock.mockResolvedValue(FALLBACK_HASH);
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [FALLBACK_HASH],
+          }),
+        } as Response);
+
+        await submitRelayQuotes(request);
+
+        expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
+        );
+      });
+
       it('reads settled amount from submitted source hash on same-chain flows', async () => {
         request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
         request.quotes[0].original.details.currencyIn.currency.chainId = 1;
