@@ -8893,7 +8893,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/messenger": "npm:^2.0.0"
-    "@metamask/signature-controller": "npm:^39.3.0"
+    "@metamask/signature-controller": "npm:^39.2.8"
     "@metamask/transaction-controller": "npm:^69.3.0"
     "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -8911,7 +8911,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/signature-controller@npm:^39.3.0, @metamask/signature-controller@workspace:packages/signature-controller":
+"@metamask/signature-controller@npm:^39.2.8, @metamask/signature-controller@workspace:packages/signature-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/signature-controller@workspace:packages/signature-controller"
   dependencies:
