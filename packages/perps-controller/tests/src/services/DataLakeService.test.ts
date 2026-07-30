@@ -1,13 +1,13 @@
-import { DataLakeService } from '../../../src/services/DataLakeService';
-import type { ServiceContext } from '../../../src/services/ServiceContext';
-import type { PerpsPlatformDependencies } from '../../../src/types';
+import { DataLakeService } from '../../../src/services/DataLakeService.js';
+import type { ServiceContext } from '../../../src/services/ServiceContext.js';
+import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
 /* eslint-disable */
 import {
   createMockServiceContext,
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
 

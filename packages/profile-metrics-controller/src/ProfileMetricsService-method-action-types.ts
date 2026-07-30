@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ProfileMetricsService } from './ProfileMetricsService';
+import type { ProfileMetricsService } from './ProfileMetricsService.js';
 
 /**
  * Fetch single-use nonces from the auth API, one per identifier.

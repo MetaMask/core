@@ -1,16 +1,16 @@
 import type { NetworkClientId } from '@metamask/network-controller';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { GasFeeFlow, GasFeeFlowResponse } from '../types.js';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionType,
   UserFeeLevel,
-} from '../types';
-import type { UpdateGasFeesRequest } from './gas-fees';
-import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees';
-import { rpcRequest } from './provider';
+} from '../types.js';
+import type { UpdateGasFeesRequest } from './gas-fees.js';
+import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees.js';
+import { rpcRequest } from './provider.js';
 
 jest.mock('./provider', () => ({
   rpcRequest: jest.fn(),
@@ -169,9 +169,31 @@ describe('gas-fees', () => {
         );
       });
 
-      it('are ignored for internal transactions (e.g. swaps and bridges)', async () => {
+      it('are applied for internal wallet transactions', async () => {
+        updateGasFeeRequest.txMeta.isInternal = true;
+        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce(
+          SAVED_GAS_FEES_MOCK,
+        );
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.getSavedGasFees).toHaveBeenCalledTimes(1);
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          '0x1ca35f0e00', // 123 gwei
+        );
+      });
+
+      it.each([
+        TransactionType.swap,
+        TransactionType.swapAndSend,
+        TransactionType.swapApproval,
+        TransactionType.bridge,
+        TransactionType.bridgeApproval,
+      ])('are ignored for %s transactions', async (type) => {
         mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
         updateGasFeeRequest.txMeta.isInternal = true;
+        updateGasFeeRequest.txMeta.type = type;
         updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce(
           SAVED_GAS_FEES_MOCK,
         );

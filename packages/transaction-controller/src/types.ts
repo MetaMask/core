@@ -7,7 +7,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
-import type { TransactionControllerMessenger } from './TransactionController';
+import type { TransactionControllerMessenger } from './TransactionController.js';
 
 /**
  * Given a record, ensures that each property matches the `Json` type.
@@ -2329,6 +2329,15 @@ export type RequiredAsset = {
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
+};
+
+/** A nested transaction calldata update in an atomic batch. */
+export type NestedTransactionUpdate = {
+  /** Index of the nested transaction to update. */
+  transactionIndex: number;
+
+  /** New calldata for the nested transaction. */
+  transactionData: Hex;
 };
 
 /**

@@ -165,21 +165,21 @@ describe('sendCommand', () => {
     expect(socket.destroy).toHaveBeenCalledTimes(2);
   });
 
-  it('retries once on ECONNRESET', async () => {
+  it('does not retry on ECONNRESET, surfacing the error instead', async () => {
+    // ECONNRESET can drop after the daemon has already acted on the request, so
+    // re-sending a non-idempotent request could execute it twice. The error
+    // must surface to the caller rather than trigger a blind resend.
     setupMockSocket();
     mockWriteLine.mockResolvedValue(undefined);
-    mockReadLine
-      .mockRejectedValueOnce(
-        Object.assign(new Error('reset'), { code: 'ECONNRESET' }),
-      )
-      .mockImplementationOnce(respondWithMatchingId());
+    mockReadLine.mockRejectedValue(
+      Object.assign(new Error('reset'), { code: 'ECONNRESET' }),
+    );
 
-    const response = await sendCommand({
-      socketPath: '/tmp/test.sock',
-      method: 'test',
-    });
+    await expect(
+      sendCommand({ socketPath: '/tmp/test.sock', method: 'test' }),
+    ).rejects.toThrow('reset');
 
-    expect(response).toHaveProperty('result');
+    expect(mockReadLine).toHaveBeenCalledTimes(1);
   });
 
   it('does not retry on other errors', async () => {
@@ -284,6 +284,20 @@ describe('pingDaemon', () => {
       reason: 'refused',
       error: expect.any(Error),
     });
+  });
+
+  it('returns unreachable with reason=refused on ECONNRESET without retrying', async () => {
+    // ECONNRESET is classified as refused but is not retried, so only a single
+    // connection attempt is made.
+    mockConnectionError('ECONNRESET');
+
+    const result = await pingDaemon('/tmp/test.sock');
+    expect(result).toStrictEqual({
+      status: 'unreachable',
+      reason: 'refused',
+      error: expect.any(Error),
+    });
+    expect(mockCreateConnection).toHaveBeenCalledTimes(1);
   });
 
   it('returns unreachable with reason=permission on EACCES', async () => {

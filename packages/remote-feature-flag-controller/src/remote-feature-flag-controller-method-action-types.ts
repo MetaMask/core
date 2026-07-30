@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { RemoteFeatureFlagController } from './remote-feature-flag-controller';
+import type { RemoteFeatureFlagController } from './remote-feature-flag-controller.js';
 
 /**
  * Retrieves the remote feature flags, fetching from the API if necessary.

@@ -6,21 +6,23 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   SavedGasFees,
   TransactionParams,
   TransactionMeta,
   GasFeeFlow,
-} from '../types';
+} from '../types.js';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
+  TransactionType,
   UserFeeLevel,
-} from '../types';
-import { getGasFeeFlow } from './gas-flow';
-import { rpcRequest } from './provider';
+} from '../types.js';
+import { getGasFeeFlow } from './gas-flow.js';
+import { rpcRequest } from './provider.js';
+import { SWAP_TRANSACTION_TYPES } from './swaps.js';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
@@ -57,6 +59,12 @@ type SuggestedGasFees = {
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
 
+const SAVED_GAS_FEES_IGNORED_TRANSACTION_TYPES = [
+  ...SWAP_TRANSACTION_TYPES,
+  TransactionType.bridge,
+  TransactionType.bridgeApproval,
+];
+
 /**
  * Update the gas fee properties of the provided transaction meta.
  *
@@ -68,12 +76,13 @@ export async function updateGasFees(
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
-  // User-saved (advanced) gas fees only apply to dApp transactions. Internal
-  // transactions (e.g. swaps and bridges) have their fees dictated by the
-  // aggregator or relay, so applying saved gas fees could underprice them and
-  // cause them to fail or get stuck.
+  const shouldIgnoreSavedGasFees =
+    SAVED_GAS_FEES_IGNORED_TRANSACTION_TYPES.includes(
+      txMeta.type as TransactionType,
+    );
+
   const savedGasFees =
-    txMeta.isInternal || hasInitialGasFeeParams(initialParams)
+    shouldIgnoreSavedGasFees || hasInitialGasFeeParams(initialParams)
       ? undefined
       : request.getSavedGasFees(txMeta);
 

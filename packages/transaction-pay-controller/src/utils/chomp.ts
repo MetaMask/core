@@ -1,10 +1,10 @@
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../constants';
-import { projectLogger } from '../logger';
-import type { TransactionPayControllerMessenger } from '../types';
-import { rpcRequest } from './provider';
+import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
+import { rpcRequest } from './provider.js';
 
 const log = createModuleLogger(projectLogger, 'chomp');
 

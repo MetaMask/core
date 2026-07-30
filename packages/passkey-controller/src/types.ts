@@ -12,8 +12,8 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import { controllerName } from './constants';
-import type { PasskeyControllerMethodActions } from './PasskeyController-method-action-types';
+import { controllerName } from './constants.js';
+import type { PasskeyControllerMethodActions } from './PasskeyController-method-action-types.js';
 
 export type Base64String = string;
 

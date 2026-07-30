@@ -1,4 +1,4 @@
-import { shouldDeferUnifiedAccountSetup } from '../../../src/utils/hyperLiquidAbstraction';
+import { shouldDeferUnifiedAccountSetup } from '../../../src/utils/hyperLiquidAbstraction.js';
 
 describe('shouldDeferUnifiedAccountSetup', () => {
   it.each(['dexAbstraction', 'default', 'disabled'] as const)(

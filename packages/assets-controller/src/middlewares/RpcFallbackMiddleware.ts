@@ -1,5 +1,5 @@
-import { projectLogger, createModuleLogger } from '../logger';
-import { forDataTypes } from '../types';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import { forDataTypes } from '../types.js';
 import type {
   AssetsDataSource,
   Caip19AssetId,
@@ -8,9 +8,9 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
-} from '../types';
-import { normalizeAssetId } from '../utils';
-import { mergeDataResponses } from './ParallelMiddleware';
+} from '../types.js';
+import { normalizeAssetId } from '../utils/index.js';
+import { mergeDataResponses } from './ParallelMiddleware.js';
 
 const CONTROLLER_NAME = 'RpcFallbackMiddleware';
 
@@ -188,7 +188,10 @@ function chainIdOfAsset(assetId: Caip19AssetId): ChainId {
  * @returns The response with recovered assets pruned from `unprocessedCustomAssets`.
  */
 function clearRecoveredAssetIds(response: DataResponse): DataResponse {
-  if (!response.unprocessedCustomAssets || response.unprocessedCustomAssets.length === 0) {
+  if (
+    !response.unprocessedCustomAssets ||
+    response.unprocessedCustomAssets.length === 0
+  ) {
     return response;
   }
 

@@ -1,9 +1,9 @@
-import type { PerpsMarketData } from '../../../src/types';
+import type { PerpsMarketData } from '../../../src/types/index.js';
 import {
   getMarketTypeFilter,
   isHip3Market,
   matchesCategory,
-} from '../../../src/utils/marketUtils';
+} from '../../../src/utils/marketUtils.js';
 
 const market = (overrides: Partial<PerpsMarketData>): PerpsMarketData =>
   ({

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService';
+import type { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService.js';
 
 /**
  * Creates a DELETE_ONLY regulation for the given analyticsId.

@@ -7,8 +7,8 @@ import type {
   Context,
   DataRequest,
   DataResponse,
-} from '../types';
-import { RpcFallbackMiddleware } from './RpcFallbackMiddleware';
+} from '../types.js';
+import { RpcFallbackMiddleware } from './RpcFallbackMiddleware.js';
 
 const MOCK_ACCOUNT_ID = 'mock-account-id';
 const MOCK_ASSET_MAINNET = 'eip155:1/slip44:60' as Caip19AssetId;
@@ -340,13 +340,10 @@ describe('RpcFallbackMiddleware', () => {
     };
     const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
     const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-    const ctx = createContext(
-      createDataRequest(['eip155:1', 'eip155:56']),
-      {
-        errors: { 'eip155:56': 'Fetch failed' },
-        unprocessedCustomAssets: [MOCK_TOKEN_MAINNET],
-      },
-    );
+    const ctx = createContext(createDataRequest(['eip155:1', 'eip155:56']), {
+      errors: { 'eip155:56': 'Fetch failed' },
+      unprocessedCustomAssets: [MOCK_TOKEN_MAINNET],
+    });
     const next = jest.fn(async (innerCtx) => innerCtx);
 
     await mw.assetsMiddleware(ctx, next);

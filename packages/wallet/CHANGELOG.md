@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Wire analytics into the default `NetworkController` initialization ([#9270](https://github.com/MetaMask/core/pull/9270))
+  - Adds an optional `instanceOptions.networkController.analyticsOptions` option (`isRpcEndpointUrlPublic` and `rpcServiceEventsSampleRate`, both optional) that the controller uses to emit `RPC Service Unavailable` and `RPC Service Degraded` events.
+  - The `Wallet` root messenger now requires the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions. Consumers must register handlers for them on the root messenger; a consumer that does not use analytics can register handlers that do nothing.
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+
+## [8.1.0]
+
+### Changed
+
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+
+## [8.0.0]
+
+### Added
+
 - **BREAKING:** Wire `GasFeeController` into the default wallet initialization ([#9527](https://github.com/MetaMask/core/pull/9527))
   - Adds a required `instanceOptions.gasFeeController` option whose `clientId` (sent as `X-Client-Id` to the gas API) is required, so every client identifies itself; all other fields are optional and fall back to platform-agnostic defaults.
 - **BREAKING** Wire `SeedlessOnboardingController` and `PasskeyController` into the default wallet initialization ([#9533](https://github.com/MetaMask/core/pull/9533))
@@ -113,7 +131,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.0.0...@metamask/wallet@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.1...@metamask/wallet@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.0...@metamask/wallet@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@6.0.0...@metamask/wallet@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@5.0.0...@metamask/wallet@6.0.0

@@ -7,7 +7,7 @@ import type {
   DataResponse,
   Middleware,
   AssetsDataSource,
-} from '../types';
+} from '../types.js';
 
 // ============================================================================
 // MERGE HELPER
@@ -53,7 +53,10 @@ export function mergeDataResponses(responses: DataResponse[]): DataResponse {
         ...response.errors,
       };
     }
-    if (response.unprocessedCustomAssets && response.unprocessedCustomAssets.length > 0) {
+    if (
+      response.unprocessedCustomAssets &&
+      response.unprocessedCustomAssets.length > 0
+    ) {
       merged.unprocessedCustomAssets = [
         ...new Set([
           ...(merged.unprocessedCustomAssets ?? []),

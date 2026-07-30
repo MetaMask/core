@@ -2,6 +2,7 @@ import { QueryKey } from '@metamask/base-data-service';
 import {
   useQuery as useQueryTanStack,
   useInfiniteQuery as useInfiniteQueryTanStack,
+  InfiniteData,
   OmitKeyof,
   UseQueryOptions,
   InitialDataFunction,
@@ -57,17 +58,12 @@ export function useQuery<
 export function useInfiniteQuery<
   TQueryFnData = unknown,
   TError = unknown,
-  TData = TQueryFnData,
+  TData = InfiniteData<TQueryFnData>,
   TQueryKey extends QueryKey = QueryKey,
+  TPageParam = unknown,
 >(
   options: OmitKeyof<
-    UseInfiniteQueryOptions<
-      TQueryFnData,
-      TError,
-      TData,
-      TQueryFnData,
-      TQueryKey
-    >,
+    UseInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>,
     'staleTime' | 'queryFn'
   >,
 ): UseInfiniteQueryResult<TData, TError> {

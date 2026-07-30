@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.5.4` to `^7.5.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/account-api` from `^1.0.4` to `^1.1.1` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-snap-sdk` from `^9.2.0` to `^9.2.1` ([#9676](https://github.com/MetaMask/core/pull/9676))
 
 ## [2.0.0]
 

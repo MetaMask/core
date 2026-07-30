@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.3.0]
+
 ### Changed
 
 - Defer the `GasFeeController` constructor's `NetworkController` and provider reads to the first gas fee fetch, making the controller initialization-order-agnostic; the constructor signature and fetching behavior are unchanged ([#9569](https://github.com/MetaMask/core/pull/9569))
@@ -571,7 +573,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.0...HEAD
+[26.3.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.4...@metamask/gas-fee-controller@26.3.0
 [26.2.4]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.3...@metamask/gas-fee-controller@26.2.4
 [26.2.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.2...@metamask/gas-fee-controller@26.2.3
 [26.2.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.1...@metamask/gas-fee-controller@26.2.2

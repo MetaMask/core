@@ -4,24 +4,24 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../..';
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { getMessengerMock } from '../../tests/messenger-mock';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { TransactionPayStrategy } from '../../index.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   Amount,
   FiatValue,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionPayQuote,
-} from '../../types';
-import { calculateGasFeeTokenCost } from '../../utils/gas';
+} from '../../types.js';
+import { calculateGasFeeTokenCost } from '../../utils/gas.js';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenInfo,
-} from '../../utils/token';
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
-import type { RelayQuote } from './types';
+} from '../../utils/token.js';
+import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
+import type { RelayQuote } from './types.js';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');

@@ -2,9 +2,9 @@ import {
   assertIsPasswordOutdatedCacheValid,
   assertIsValidPassword,
   assertIsValidVaultData,
-} from './assertions';
-import { SeedlessOnboardingControllerErrorMessage } from './constants';
-import { VaultData } from './types';
+} from './assertions.js';
+import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
+import { VaultData } from './types.js';
 
 describe('assertIsValidPassword', () => {
   it('should throw when password is not a string', () => {

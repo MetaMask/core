@@ -2,7 +2,7 @@ import { isEqualCaseInsensitive as equalsIgnoreCase } from '@metamask/controller
 import { TransactionType } from '@metamask/transaction-controller';
 import { KnownCaipNamespace, toCaipChainId } from '@metamask/utils';
 
-import type { Fee, ActivityItem, TokenAmount } from '../types';
+import type { Fee, ActivityItem, TokenAmount } from '../types.js';
 import {
   permit2ApproveMethodId,
   swapsWrappedTokensAddresses,
@@ -11,15 +11,18 @@ import {
   unwrapMethodIds,
   withdrawMethodIds,
   wrapMethodIds,
-} from './constants';
-import { formatAddressToAssetId, getNativeAsset } from './helpers/caip';
-import { getKnownTokenMetadata } from './helpers/token-metadata';
+} from './constants.js';
+import {
+  formatAddressToAssetId,
+  resolveNativeAssetId,
+} from './helpers/caip.js';
+import { getKnownTokenMetadata } from './helpers/token-metadata.js';
 import {
   getLocalTransactionFees,
   getLocalTransactionStatus,
   isNftStandard,
-} from './helpers/transactions';
-import type { TransactionGroup } from './helpers/transactions';
+} from './helpers/transactions.js';
+import type { TransactionGroup } from './helpers/transactions.js';
 
 const evmNativeDecimals = 18;
 
@@ -39,9 +42,14 @@ export function mapLocalTransaction(
     fees?: Fee[];
   },
 ): ActivityItem {
+  const { initialTransaction, primaryTransaction } = transactionGroup;
+  const chainId = toCaipChainId(
+    KnownCaipNamespace.Eip155,
+    Number.parseInt(initialTransaction.chainId, 16).toString(),
+  );
+  const nativeSymbol = transactionGroup.nativeAssetSymbol;
   const fees =
     transactionGroup.fees ?? getLocalTransactionFees(transactionGroup);
-  const { initialTransaction, primaryTransaction } = transactionGroup;
   const {
     transferInformation,
     type: transactionType,
@@ -64,30 +72,34 @@ export function mapLocalTransaction(
   const tokenContractAddress = isPermit2Approve
     ? undefined
     : (transferInformation?.contractAddress ?? (to || undefined));
-  const chainId = toCaipChainId(
-    KnownCaipNamespace.Eip155,
-    Number.parseInt(initialTransaction.chainId, 16).toString(),
-  );
-  const nativeAsset = getNativeAsset(initialTransaction.chainId);
-  const nativeSymbol =
-    transactionGroup.nativeAssetSymbol ?? nativeAsset?.symbol;
 
   const getNativeToken = (
     transaction: TransactionGroup['initialTransaction'],
     direction: TokenAmount['direction'],
   ): TokenAmount | undefined => {
-    if (nativeSymbol === undefined) {
+    const rawAmount = transaction.txParams.value;
+    let amount: string | undefined;
+    if (rawAmount) {
+      try {
+        amount = BigInt(rawAmount) > 0n ? rawAmount : undefined;
+      } catch {
+        amount = undefined;
+      }
+    }
+
+    if (!amount && nativeSymbol === undefined) {
       return undefined;
     }
 
+    const assetId = resolveNativeAssetId(chainId, nativeSymbol);
+
     return {
       direction,
-      symbol: nativeSymbol,
-      ...(transaction.txParams.value
-        ? { amount: transaction.txParams.value }
-        : {}),
-      ...(nativeAsset?.assetId ? { assetId: nativeAsset.assetId } : {}),
-      decimals: nativeAsset?.decimals ?? evmNativeDecimals,
+      assetType: 'native',
+      decimals: evmNativeDecimals,
+      ...(amount ? { amount } : {}),
+      ...(nativeSymbol === undefined ? {} : { symbol: nativeSymbol }),
+      ...(assetId ? { assetId } : {}),
     };
   };
 
@@ -146,7 +158,7 @@ export function mapLocalTransaction(
       ] || '',
     );
     const wrappedNativeTokenDecimals = isWrappedNativeToken
-      ? (nativeAsset?.decimals ?? evmNativeDecimals)
+      ? evmNativeDecimals
       : undefined;
 
     const decimals =
@@ -509,10 +521,16 @@ export function mapLocalTransaction(
                   direction: 'out',
                   contractAddress: wrappedTokenAddress,
                 }),
-                destinationToken:
-                  nativeToken && unwrapAmount
-                    ? { ...nativeToken, amount: unwrapAmount }
-                    : nativeToken,
+                destinationToken: unwrapAmount
+                  ? {
+                      ...(nativeToken ?? {
+                        direction: 'in' as const,
+                        assetType: 'native' as const,
+                        decimals: evmNativeDecimals,
+                      }),
+                      amount: unwrapAmount,
+                    }
+                  : nativeToken,
               },
             };
           }

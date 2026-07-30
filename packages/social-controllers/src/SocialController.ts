@@ -6,7 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import { controllerName } from './social-constants';
+import { controllerName } from './social-constants.js';
 import type {
   FetchLeaderboardOptions,
   FollowOptions,
@@ -16,8 +16,8 @@ import type {
   SocialControllerState,
   UnfollowOptions,
   UnfollowResponse,
-} from './social-types';
-import type { SocialControllerMethodActions } from './SocialController-method-action-types';
+} from './social-types.js';
+import type { SocialControllerMethodActions } from './SocialController-method-action-types.js';
 import type {
   SocialServiceFetchFollowingAction,
   SocialServiceFetchLeaderboardAction,
@@ -25,7 +25,7 @@ import type {
   SocialServiceOptInToLeaderboardAction,
   SocialServiceOptOutOfLeaderboardAction,
   SocialServiceUnfollowAction,
-} from './SocialService-method-action-types';
+} from './SocialService-method-action-types.js';
 
 // === MESSENGER ===
 

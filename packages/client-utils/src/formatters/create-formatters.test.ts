@@ -1,4 +1,4 @@
-import { createFormatters } from './create-formatters';
+import { createFormatters } from './create-formatters.js';
 
 const locale = 'en-US';
 

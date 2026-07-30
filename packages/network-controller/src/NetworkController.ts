@@ -1,4 +1,8 @@
 import type {
+  AnalyticsControllerGetStateAction,
+  AnalyticsControllerTrackEventAction,
+} from '@metamask/analytics-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -46,26 +50,37 @@ import {
   DEPRECATED_NETWORKS,
   INFURA_BLOCKED_KEY,
   NetworkStatus,
-} from './constants';
+} from './constants.js';
 import type {
   AutoManagedNetworkClient,
   ProxyWithAccessibleTarget,
-} from './create-auto-managed-network-client';
-import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
-import type { DegradedEventType, RetryReason } from './create-network-client';
-import { projectLogger, createModuleLogger } from './logger';
-import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
-import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
-import { getRpcFailoverMode } from './selectors';
-import type { RpcFailoverMode } from './selectors';
-import { NetworkClientType } from './types';
+} from './create-auto-managed-network-client.js';
+import { createAutoManagedNetworkClient } from './create-auto-managed-network-client.js';
+import type {
+  DegradedEventType,
+  RetryReason,
+} from './create-network-client.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { NetworkControllerMethodActions } from './NetworkController-method-action-types.js';
+import {
+  trackRpcServiceDegraded,
+  trackRpcServiceUnavailable,
+} from './rpc-service-analytics.js';
+import type {
+  NetworkControllerAnalyticsOptions,
+  ResolvedNetworkControllerAnalyticsOptions,
+} from './rpc-service-analytics.js';
+import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
+import { getRpcFailoverMode } from './selectors.js';
+import type { RpcFailoverMode } from './selectors.js';
+import { NetworkClientType } from './types.js';
 import type {
   BlockTracker,
   Provider,
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
-} from './types';
+} from './types.js';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
 
@@ -709,7 +724,9 @@ export type NetworkControllerActions =
  */
 type AllowedActions =
   | ConnectivityControllerGetStateAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | AnalyticsControllerGetStateAction
+  | AnalyticsControllerTrackEventAction;
 
 export type NetworkControllerMessenger = Messenger<
   typeof controllerName,
@@ -762,6 +779,16 @@ export type NetworkControllerOptions = {
   getBlockTrackerOptions?: (
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  /**
+   * Configuration for the "RPC Service Unavailable" and "RPC Service Degraded"
+   * analytics events the controller emits via the `AnalyticsController:trackEvent`
+   * action when an RPC endpoint becomes unavailable or degraded. Both the option
+   * and its properties are optional; omitted properties default to
+   * `isRpcEndpointUrlPublic: () => false` and `rpcServiceEventsSampleRate: 0`
+   * (which emits nothing). The messenger must allow `AnalyticsController:getState`
+   * and `AnalyticsController:trackEvent` regardless.
+   */
+  analyticsOptions?: NetworkControllerAnalyticsOptions;
 };
 
 /**
@@ -1262,6 +1289,8 @@ export class NetworkController extends BaseController<
 
   readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
 
+  readonly #analyticsOptions: ResolvedNetworkControllerAnalyticsOptions;
+
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
@@ -1283,6 +1312,7 @@ export class NetworkController extends BaseController<
       log,
       getRpcServiceOptions,
       getBlockTrackerOptions,
+      analyticsOptions,
     } = options;
     const initialState = {
       ...getDefaultNetworkControllerState(),
@@ -1326,6 +1356,11 @@ export class NetworkController extends BaseController<
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
     this.#getBlockTrackerOptions = getBlockTrackerOptions;
+    this.#analyticsOptions = {
+      isRpcEndpointUrlPublic: (): boolean => false,
+      rpcServiceEventsSampleRate: 0,
+      ...analyticsOptions,
+    };
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1362,6 +1397,17 @@ export class NetworkController extends BaseController<
           networkStatus: NetworkStatus.Available,
         });
       },
+    );
+
+    this.messenger.subscribe(`${this.name}:rpcEndpointUnavailable`, (payload) =>
+      trackRpcServiceUnavailable(
+        this.messenger,
+        this.#analyticsOptions,
+        payload,
+      ),
+    );
+    this.messenger.subscribe(`${this.name}:rpcEndpointDegraded`, (payload) =>
+      trackRpcServiceDegraded(this.messenger, this.#analyticsOptions, payload),
     );
 
     this.messenger.subscribe(

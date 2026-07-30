@@ -1,10 +1,10 @@
 import * as hl from '@nktkas/hyperliquid';
 
-import { HYPERLIQUID_TRANSPORT_CONFIG } from '../../../src/constants/hyperLiquidConfig';
+import { HYPERLIQUID_TRANSPORT_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import {
   AggregatedOrderBookConnection,
   processAggregatedOrderBook,
-} from '../../../src/services/AggregatedOrderBookConnection';
+} from '../../../src/services/AggregatedOrderBookConnection.js';
 
 /**
  * Mirrors the reconnecting socket: a `terminationSignal` plus a helper that

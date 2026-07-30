@@ -9,7 +9,7 @@ import type { KeyringControllerSignPersonalMessageAction } from '@metamask/keyri
 import type { Messenger } from '@metamask/messenger';
 import { bytesToHex, stringToBytes } from '@metamask/utils';
 
-import type { ClaimsControllerMethodActions } from './ClaimsController-method-action-types';
+import type { ClaimsControllerMethodActions } from './ClaimsController-method-action-types.js';
 import type {
   ClaimsServiceFetchClaimsConfigurationsAction,
   ClaimsServiceGenerateMessageForClaimSignatureAction,
@@ -17,13 +17,13 @@ import type {
   ClaimsServiceGetClaimsAction,
   ClaimsServiceGetClaimsApiUrlAction,
   ClaimsServiceGetRequestHeadersAction,
-} from './ClaimsService';
+} from './ClaimsService.js';
 import {
   ClaimsControllerErrorMessages,
   CONTROLLER_NAME,
   DEFAULT_CLAIMS_CONFIGURATIONS,
   SERVICE_NAME,
-} from './constants';
+} from './constants.js';
 import type {
   Claim,
   ClaimDraft,
@@ -31,7 +31,7 @@ import type {
   ClaimsControllerState,
   CreateClaimRequest,
   SubmitClaimConfig,
-} from './types';
+} from './types.js';
 
 export type ClaimsControllerGetStateAction = ControllerGetStateAction<
   typeof CONTROLLER_NAME,

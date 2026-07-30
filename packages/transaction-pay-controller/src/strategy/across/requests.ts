@@ -1,4 +1,4 @@
-import type { QuoteRequest } from '../../types';
+import type { QuoteRequest } from '../../types.js';
 
 export function isAcrossQuoteRequest(request: QuoteRequest): boolean {
   return (

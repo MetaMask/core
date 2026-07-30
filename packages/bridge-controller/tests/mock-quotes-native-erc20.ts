@@ -1,9 +1,9 @@
 import { merge } from 'lodash';
 
-import type { DeepPartial } from '../src/types';
-import type { QuoteResponseV1 } from '../src/validators/quote-response-v1';
-import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1';
-import { ActionTypes } from '../src/validators/step';
+import type { DeepPartial } from '../src/types.js';
+import type { QuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import { ActionTypes } from '../src/validators/step.js';
 
 export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
   {
@@ -13,7 +13,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
       srcAsset: {
         chainId: 10,
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:10/slip44:614',
+        assetId: 'eip155:10/slip44:60',
         symbol: 'ETH',
         name: 'Ethereum',
         decimals: 18,
@@ -38,7 +38,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
           asset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:614',
+            assetId: 'eip155:10/slip44:60',
             symbol: 'ETH',
             name: 'Ethereum',
             decimals: 18,
@@ -56,7 +56,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
           srcAsset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:614',
+            assetId: 'eip155:10/slip44:60',
             symbol: 'ETH',
             name: 'Ethereum',
             decimals: 18,
@@ -106,7 +106,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
         srcAsset: {
           chainId: 10,
           address: '0x0000000000000000000000000000000000000000',
-          assetId: 'eip155:10/slip44:614',
+          assetId: 'eip155:10/slip44:60',
           symbol: 'ETH',
           name: 'Ether',
           decimals: 18,
@@ -114,7 +114,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
         destAsset: {
           chainId: 137,
           address: '0x0000000000000000000000000000000000000000',
-          assetId: 'eip155:137/slip44:614',
+          assetId: 'eip155:137/slip44:966',
           symbol: 'MATIC',
           name: 'Matic',
           decimals: 18,
@@ -139,7 +139,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
       srcAsset: {
         chainId: 10,
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:10/slip44:614',
+        assetId: 'eip155:10/slip44:60',
         symbol: 'ETH',
         name: 'Ethereum',
         decimals: 18,
@@ -164,7 +164,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
           asset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:614',
+            assetId: 'eip155:10/slip44:60',
             symbol: 'ETH',
             name: 'Ethereum',
             decimals: 18,
@@ -182,7 +182,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
           srcAsset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:614',
+            assetId: 'eip155:10/slip44:60',
             symbol: 'ETH',
             name: 'Ethereum',
             decimals: 18,
@@ -232,7 +232,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
         srcAsset: {
           chainId: 10,
           address: '0x0000000000000000000000000000000000000000',
-          assetId: 'eip155:10/slip44:614',
+          assetId: 'eip155:10/slip44:60',
           symbol: 'ETH',
           name: 'Ether',
           decimals: 18,
@@ -240,7 +240,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
         destAsset: {
           chainId: 137,
           address: '0x0000000000000000000000000000000000000000',
-          assetId: 'eip155:137/slip44:614',
+          assetId: 'eip155:137/slip44:966',
           symbol: 'MATIC',
           name: 'Matic',
           decimals: 18,

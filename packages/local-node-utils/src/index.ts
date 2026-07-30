@@ -2,23 +2,23 @@ export type {
   ArtifactConfig,
   ArtifactPlatformConfig,
   InstallDependencies,
-} from './types';
+} from './types.js';
 export {
   getCacheKey,
   mergeArtifactConfig,
   requireCompletePlatformConfig,
   resolvePlatformConfig,
-} from './artifact';
-export { cleanInstallerCache } from './cache';
-export { getMetamaskCacheDirectory } from './cache-directory';
-export { verifyFileChecksum } from './checksum';
-export { readCliValue } from './cli';
-export { runCommand } from './command';
-export { isFileMissingError } from './errors';
-export { extractTarBz2Archive, extractTarGzArchive } from './archive';
-export { downloadFileFromUrl } from './download';
-export { installExecutableWrapper } from './executable-wrapper';
-export type { ExecutableWrapperPathResolution } from './executable-wrapper';
-export { findExecutable, isDirectory, isFile } from './filesystem';
-export { getPlatformKey, normalizeSystemArchitecture } from './platform';
-export { readPackageJsonToolConfig } from './package-json';
+} from './artifact.js';
+export { cleanInstallerCache } from './cache.js';
+export { getMetamaskCacheDirectory } from './cache-directory.js';
+export { verifyFileChecksum } from './checksum.js';
+export { readCliValue } from './cli.js';
+export { runCommand } from './command.js';
+export { isFileMissingError } from './errors.js';
+export { extractTarBz2Archive, extractTarGzArchive } from './archive.js';
+export { downloadFileFromUrl } from './download.js';
+export { installExecutableWrapper } from './executable-wrapper.js';
+export type { ExecutableWrapperPathResolution } from './executable-wrapper.js';
+export { findExecutable, isDirectory, isFile } from './filesystem.js';
+export { getPlatformKey, normalizeSystemArchitecture } from './platform.js';
+export { readPackageJsonToolConfig } from './package-json.js';
