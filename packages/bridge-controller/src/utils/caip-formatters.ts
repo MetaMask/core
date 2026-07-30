@@ -54,9 +54,6 @@ export const formatChainIdToCaip = (
     return TrxScope.Mainnet;
   }
   if (isStellarChainId(chainId)) {
-    if (chainId === XlmScope.Testnet) {
-      return XlmScope.Testnet;
-    }
     return XlmScope.Pubnet;
   }
   return toEvmCaipChainId(numberToHex(Number(chainId)));
