@@ -350,7 +350,8 @@ export class SnapAccountService {
       async () => {
         // If the migration is successful, we re-forward the current groups to each new keyrings!
         const groupId = this.#getSelectedAccountGroupId();
-        // NOTE: This cannot fail, all errors are swallowed under the hood.
+        // NOTE: This cannot throw, all errors are swallowed under the hood, so we don't need to
+        // catch anything here.
         return await this.#forwardSelectedAccounts(
           groupId,
           this.#getAccountGroup(groupId)?.accounts,
