@@ -65,6 +65,7 @@ import { SnapId } from '@metamask/snaps-sdk';
 import type { Json } from '@metamask/utils';
 import { assertStruct } from '@metamask/utils';
 
+import { reportError, withSafeError } from './errors.js';
 import { projectLogger as log } from './logger.js';
 import type {
   SnapAccountServiceEnsureReadyAction,
@@ -343,18 +344,23 @@ export class SnapAccountService {
    */
   #handleUnlock(): void {
     // eslint-disable-next-line no-void
-    void this.ensureMigrated()
-      .then(async () => {
+    void withSafeError('Snap keyring v2 migration', () =>
+      this.ensureMigrated(),
+    ).then(
+      async () => {
         // If the migration is successful, we re-forward the current groups to each new keyrings!
         const groupId = this.#getSelectedAccountGroupId();
+        // NOTE: This cannot throw, all errors are swallowed under the hood, so we don't need to
+        // catch anything here.
         return await this.#forwardSelectedAccounts(
           groupId,
           this.#getAccountGroup(groupId)?.accounts,
         );
-      })
-      .catch((error) => {
-        console.error('Migration failed after unlock:', error);
-      });
+      },
+      (error) => {
+        reportError(this.#messenger, 'Migration failed after unlock', error);
+      },
+    );
   }
 
   /**
@@ -508,18 +514,24 @@ export class SnapAccountService {
         // accounts over.
         for (const state of states.values()) {
           log(`Migrating accounts for Snap "${state.snapId}"...`);
-          await controller.addNewKeyring(
-            // IMPORTANT: The Snap keyring (v2) can also be used as a v1
-            // keyring. So the builder associated with the v2 keyring type is
-            // able to build both v1 and v2 keyrings.
-            KeyringType.Snap,
-            state,
+          await withSafeError(
+            `Adding v2 Snap keyring for "${state.snapId}"`,
+            async () =>
+              controller.addNewKeyring(
+                // IMPORTANT: The Snap keyring (v2) can also be used as a v1
+                // keyring. So the builder associated with the v2 keyring type
+                // is able to build both v1 and v2 keyrings.
+                KeyringType.Snap,
+                state,
+              ),
           );
         }
 
         // Remove the legacy Snap keyring after migration.
         log('Removing legacy Snap keyring...');
-        await controller.removeKeyring(legacySnapKeyringEntry.metadata.id);
+        await withSafeError('Removing legacy Snap keyring', async () =>
+          controller.removeKeyring(legacySnapKeyringEntry.metadata.id),
+        );
 
         log('Migration completed!');
       },
