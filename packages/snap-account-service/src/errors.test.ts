@@ -124,7 +124,7 @@ describe('safe', () => {
         throw structError;
       }),
     ).rejects.toThrow(
-      new SafeError('step: Validation failed at root (expected: object)'),
+      new SafeError('step: Validation failed at <root> (expected: object)'),
     );
   });
 

@@ -7,7 +7,7 @@ import { isKeyringControllerError } from '@metamask/keyring-controller';
  * error). The message on a `SafeError` is always authored by us and contains
  * no user data.
  *
- * `SafeError` instances pass through nested {@link safe} calls unchanged —
+ * `SafeError` instances pass through nested {@link safe} calls unchanged;
  * the innermost step description is preserved rather than re-wrapped.
  */
 export class SafeError extends Error {
@@ -40,7 +40,7 @@ export function isSafeError(error: unknown): error is SafeError {
  * Duck-typed shape of `@metamask/superstruct`'s `StructError`.
  *
  * We avoid a direct `instanceof` check because `@metamask/superstruct` is not
- * a declared dependency of this package — it reaches us transitively. Checking
+ * a declared dependency of this package; it reaches us transitively. Checking
  * `name` plus the presence of `path` and `type` is sufficient to identify it
  * without coupling to the transitive dep.
  */
@@ -74,7 +74,7 @@ function isStructError(error: unknown): error is StructErrorLike {
 
 /**
  * Produces a safe, human-readable summary of a superstruct validation failure.
- * Reports only the field path and expected type — never the actual failing
+ * Reports only the field path and expected type, never the actual failing
  * value, which may contain account addresses or other user data.
  *
  * @param error - The StructError-like object.
@@ -82,7 +82,7 @@ function isStructError(error: unknown): error is StructErrorLike {
  */
 function describeStructFailure(error: StructErrorLike): string {
   const path =
-    error.path.length > 0 ? `"${error.path.map(String).join('.')}"` : 'root';
+    error.path.length > 0 ? `"${error.path.map(String).join('.')}"` : '<root>';
   return `Validation failed at ${path} (expected: ${error.refinement ?? error.type})`;
 }
 
@@ -92,14 +92,14 @@ function describeStructFailure(error: StructErrorLike): string {
  * to Sentry.
  *
  * Sanitization rules applied to whatever `fn` throws:
- * - {@link SafeError} — re-thrown as-is (innermost step description preserved,
+ * - {@link SafeError}: re-thrown as-is (innermost step description preserved,
  *   no re-wrapping on nested calls).
- * - {@link KeyringControllerError} — re-thrown as-is (uses static, enum-based
+ * - {@link KeyringControllerError}: re-thrown as-is (uses static, enum-based
  *   messages; no user data).
- * - `StructError` (from `@metamask/superstruct`) — wrapped in a
+ * - `StructError` (from `@metamask/superstruct`): wrapped in a
  *   {@link SafeError} containing only the failing field path and expected type,
  *   never the actual value.
- * - Anything else — wrapped in a {@link SafeError} with a generic fallback
+ * - Anything else: wrapped in a {@link SafeError} with a generic fallback
  *   message; the original error is discarded to prevent accidental leakage.
  *
  * @param step - Human-readable label for this execution step, prepended to the
