@@ -12,8 +12,16 @@
         "default": "testnet",
         "description": "Testnet only. This proof spends the entire spendable balance as margin and must never touch real funds."
       },
-      "market": { "type": "string", "default": "BTC", "description": "Perps market symbol." },
-      "leverage": { "type": "number", "default": 3, "description": "Order leverage; also fed to getMaxAllowedAmount." },
+      "market": {
+        "type": "string",
+        "default": "BTC",
+        "description": "Perps market symbol."
+      },
+      "leverage": {
+        "type": "number",
+        "default": 3,
+        "description": "Order leverage; also fed to getMaxAllowedAmount."
+      },
       "mode": {
         "type": "string",
         "enum": ["fixed", "prefix"],
