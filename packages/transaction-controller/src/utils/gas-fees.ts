@@ -618,6 +618,13 @@ async function getSuggestedGasFees(
     log('Failed to get suggested gas fees', error);
   }
 
+  // Estimates on this path are only needed to check complete dapp-suggested
+  // fees, so no fallback is required and any failure must not block
+  // transaction creation.
+  if (hasCompleteDappFees) {
+    return {};
+  }
+
   const gasPriceHex = (await rpcRequest({
     messenger,
     networkClientId,
