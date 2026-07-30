@@ -682,9 +682,9 @@ describe('DeFiPositionsControllerV2', () => {
     expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
       1,
     );
-    expect(controller.state.allDeFiPositionsV2['evm-account-id-2']).toHaveLength(
-      1,
-    );
+    expect(
+      controller.state.allDeFiPositionsV2['evm-account-id-2'],
+    ).toHaveLength(1);
   });
 
   it('rejoins an in-flight fetch when switching back to the same accounts', async () => {
@@ -749,9 +749,9 @@ describe('DeFiPositionsControllerV2', () => {
     expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
       1,
     );
-    expect(controller.state.allDeFiPositionsV2['evm-account-id-2']).toStrictEqual(
-      [],
-    );
+    expect(
+      controller.state.allDeFiPositionsV2['evm-account-id-2'],
+    ).toStrictEqual([]);
   });
 
   it('merges fetched accounts into state without clearing other accounts', async () => {
