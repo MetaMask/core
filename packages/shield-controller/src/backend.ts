@@ -12,7 +12,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { AuthorizationList } from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';
 
-import { SignTypedDataVersion } from './constants.js';
+import { Env, getShieldApiBaseUrl, SignTypedDataVersion } from './constants.js';
 import { PollingWithCockatielPolicy } from './polling-with-policy.js';
 import type { ShieldControllerMessenger } from './ShieldController.js';
 import type {
@@ -80,19 +80,19 @@ export class ShieldRemoteBackend implements ShieldBackend {
     getAccessToken,
     getCoverageResultTimeout = 5000, // milliseconds
     getCoverageResultPollInterval = 1000, // milliseconds
-    baseUrl,
+    env,
     fetch: fetchFn,
     captureException: captureExceptionFn,
   }: {
     getAccessToken: () => Promise<string>;
     getCoverageResultTimeout?: number;
     getCoverageResultPollInterval?: number;
-    baseUrl: string;
+    env: Env;
     fetch: typeof globalThis.fetch;
     captureException?: (error: Error) => void;
   }) {
     this.#getAccessToken = getAccessToken;
-    this.#baseUrl = baseUrl;
+    this.#baseUrl = getShieldApiBaseUrl(env);
     this.#fetch = fetchFn;
 
     const { backoff, maxRetries } = computePollingIntervalAndRetryCount(
@@ -335,7 +335,11 @@ export type CreateShieldRemoteBackendOptions = {
    * `AuthenticationController:getBearerToken` messenger action.
    */
   getAccessToken?: () => Promise<string>;
-  baseUrl: string;
+  /**
+   * The environment used to resolve the backend API URL. Defaults to
+   * `Env.PRD`.
+   */
+  env?: Env;
   fetch: typeof globalThis.fetch;
   captureException?: (error: Error) => void;
   getCoverageResultTimeout?: number;
@@ -353,15 +357,19 @@ export type CreateShieldRemoteBackendOptions = {
  * @param options.messenger - The `ShieldController` messenger.
  * @param options.getAccessToken - An access token getter that overrides the
  * default.
+ * @param options.env - The environment used to resolve the backend API URL.
+ * Defaults to `Env.PRD`.
  * @returns The created backend.
  */
 export function createShieldRemoteBackend({
   messenger,
   getAccessToken,
+  env = Env.PRD,
   ...options
 }: CreateShieldRemoteBackendOptions): ShieldRemoteBackend {
   return new ShieldRemoteBackend({
     ...options,
+    env,
     getAccessToken:
       getAccessToken ??
       (async (): Promise<string> =>

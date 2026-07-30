@@ -12,9 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `createShieldRemoteBackend` function that constructs a `ShieldRemoteBackend`, defaulting `getAccessToken` to the `AuthenticationController:getBearerToken` messenger action ([#9616](https://github.com/MetaMask/core/pull/9616))
   - Also export its options type, `CreateShieldRemoteBackendOptions`.
 - Export the `ShieldBackend` type ([#9616](https://github.com/MetaMask/core/pull/9616))
+- Add `Env` enum, `SHIELD_API_URL_MAP`, and `getShieldApiBaseUrl` for resolving the shield backend API URL per environment
 
 ### Changed
 
+- **BREAKING:** Replace the `baseUrl` option of `ShieldRemoteBackend` and `createShieldRemoteBackend` with `env`
+  - Pass `Env.DEV`, `Env.UAT`, or `Env.PRD` instead of a URL; the base URL is resolved internally via `getShieldApiBaseUrl`, consistent with `ClaimsController` and `SubscriptionController`.
+  - `env` is optional in `createShieldRemoteBackend` and defaults to `Env.PRD`.
 - **BREAKING:** Add `AuthenticationController:getBearerToken` to the allowed actions of `ShieldControllerMessenger` ([#9616](https://github.com/MetaMask/core/pull/9616))
   - The action is only called when a backend created via `createShieldRemoteBackend` relies on the default `getAccessToken`, in which case the action must be delegated to the messenger.
 - Add `@metamask/profile-sync-controller` `^28.3.0` as a dependency ([#9616](https://github.com/MetaMask/core/pull/9616))

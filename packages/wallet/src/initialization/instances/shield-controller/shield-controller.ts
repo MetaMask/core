@@ -22,7 +22,7 @@ export const shieldController: InitializationConfiguration<
         options.backend ??
         createShieldRemoteBackend({
           messenger,
-          baseUrl: options.baseUrl,
+          env: options.env,
           fetch: options.fetchFunction,
           getAccessToken: options.getAccessToken,
           captureException: options.captureException,

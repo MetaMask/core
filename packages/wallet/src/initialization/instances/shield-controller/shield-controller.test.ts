@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/messenger';
 import type { ShieldBackend } from '@metamask/shield-controller';
 import {
+  Env,
   getDefaultShieldControllerState,
   ShieldController,
 } from '@metamask/shield-controller';
@@ -16,14 +17,13 @@ import type {
 import { shieldController } from './shield-controller.js';
 
 const MOCK_COVERAGE_ID = 'coverage-id-1';
-const SHIELD_BASE_URL = 'https://ruleset-engine.api.cx.metamask.io';
 
 type ActionHandler = (...args: unknown[]) => unknown;
 
 type AnyMessenger = Messenger<string>;
 
 const SHIELD_OPTIONS = {
-  baseUrl: SHIELD_BASE_URL,
+  env: Env.PRD,
   fetchFunction: globalThis.fetch,
 };
 
@@ -211,7 +211,7 @@ describe('shieldController', () => {
       state: undefined,
       messenger,
       options: {
-        baseUrl: SHIELD_BASE_URL,
+        env: Env.PRD,
         fetchFunction,
       },
     });
@@ -262,7 +262,7 @@ describe('shieldController', () => {
       state: undefined,
       messenger,
       options: {
-        baseUrl: SHIELD_BASE_URL,
+        env: Env.PRD,
         fetchFunction,
         getAccessToken,
       },

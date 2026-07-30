@@ -126,7 +126,6 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
     shieldController: {
-      baseUrl: 'https://ruleset-engine.api.cx.metamask.io',
       fetchFunction: jest.fn(),
       backend: {
         checkCoverage: jest.fn(),

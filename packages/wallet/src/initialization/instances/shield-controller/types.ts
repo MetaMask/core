@@ -23,8 +23,8 @@ type ShieldRemoteBackendInstanceOptions = Omit<
 
 /**
  * Per-instance options for the wallet's `ShieldController`. When `backend` is
- * not provided, `baseUrl` and `fetchFunction` are required so the instance can
- * build a default `ShieldRemoteBackend`.
+ * not provided, `fetchFunction` is required so the instance can build a
+ * default `ShieldRemoteBackend`; `env` is optional and defaults to production.
  */
 export type ShieldControllerInstanceOptions = ShieldControllerCommonOptions &
   (

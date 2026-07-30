@@ -15,7 +15,12 @@ import {
   parseSignatureRequestMethod,
   ShieldRemoteBackend,
 } from './backend.js';
-import { SignTypedDataVersion } from './constants.js';
+import {
+  Env,
+  getShieldApiBaseUrl,
+  SHIELD_API_URL_MAP,
+  SignTypedDataVersion,
+} from './constants.js';
 
 const mockCaptureException = jest.fn();
 
@@ -52,7 +57,7 @@ function setup({
     getCoverageResultTimeout,
     getCoverageResultPollInterval,
     fetch,
-    baseUrl: 'https://ruleset-engine.api.cx.metamask.io',
+    env: Env.PRD,
     captureException: mockCaptureException,
   });
 
@@ -532,7 +537,6 @@ describe('ShieldRemoteBackend', () => {
       const backend = createShieldRemoteBackend({
         messenger,
         getAccessToken,
-        baseUrl: 'https://ruleset-engine.api.cx.metamask.io',
         fetch,
       });
 
@@ -545,7 +549,11 @@ describe('ShieldRemoteBackend', () => {
       await backend.checkCoverage({ txMeta: generateMockTxMeta() });
 
       expect(getBearerToken).toHaveBeenCalled();
-      const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+      const [url, requestInit] = fetchMock.mock.calls[0] as [
+        string,
+        RequestInit,
+      ];
+      expect(url).toStrictEqual(expect.stringContaining(SHIELD_API_URL_MAP[Env.PRD]));
       expect(requestInit.headers).toMatchObject({
         Authorization: 'Bearer bearer-token',
       });
@@ -566,5 +574,17 @@ describe('ShieldRemoteBackend', () => {
         Authorization: 'Bearer override-token',
       });
     });
+  });
+});
+
+describe('getShieldApiBaseUrl', () => {
+  it.each(Object.values(Env))('returns the base URL for %s', (env) => {
+    expect(getShieldApiBaseUrl(env)).toBe(SHIELD_API_URL_MAP[env]);
+  });
+
+  it('throws on an invalid environment', () => {
+    expect(() => getShieldApiBaseUrl('invalid' as Env)).toThrow(
+      'invalid environment configuration',
+    );
   });
 });
