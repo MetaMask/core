@@ -291,7 +291,7 @@ describe('GeolocationController', () => {
       );
     });
 
-    it('preserves the last known data when the service throws', async () => {
+    it('rejects when the service throws instead of returning stale data', async () => {
       let callCount = 0;
 
       await withController(
@@ -313,19 +313,16 @@ describe('GeolocationController', () => {
         async ({ controller }) => {
           await controller.getGeolocationData();
 
-          const result = await controller.getGeolocationData();
-
-          expect(result).toStrictEqual({
-            country: 'US',
-            region: 'WA',
-            timezone: 'America/Los_Angeles',
-          });
+          await expect(controller.getGeolocationData()).rejects.toThrow(
+            'Network error',
+          );
           expect(controller.state.status).toBe('error');
+          expect(controller.state.error).toBe('Network error');
         },
       );
     });
 
-    it('returns unknown data when no prior value exists', async () => {
+    it('rejects when the service throws and no prior value exists', async () => {
       await withController(
         {
           serviceHandler: () => {
@@ -333,9 +330,9 @@ describe('GeolocationController', () => {
           },
         },
         async ({ controller }) => {
-          const result = await controller.getGeolocationData();
-
-          expect(result).toStrictEqual(getUnknownGeolocationData());
+          await expect(controller.getGeolocationData()).rejects.toThrow(
+            'Network error',
+          );
         },
       );
     });

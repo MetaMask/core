@@ -217,10 +217,17 @@ export class GeolocationController extends BaseController<
    * {@link GeolocationApiService} for network fetching and caching, then
    * updates controller state with the result.
    *
+   * Best-effort: if the fetch fails, the last known location code (or
+   * {@link UNKNOWN_LOCATION}) is returned rather than throwing.
+   *
    * @returns The ISO 3166-2 location code string.
    */
   async getGeolocation(): Promise<string> {
-    await this.#fetchAndUpdate();
+    try {
+      await this.#fetchAndUpdate();
+    } catch {
+      // Best-effort: fall back to the last known location code below.
+    }
     return this.state.location;
   }
 
@@ -229,8 +236,14 @@ export class GeolocationController extends BaseController<
    * Delegates to the {@link GeolocationApiService} for network fetching and
    * caching, then updates controller state with the result.
    *
+   * Unlike {@link getGeolocation}, this rejects when resolution fails instead
+   * of returning a stale value, so callers can distinguish a fresh result from
+   * a failed lookup (and, for example, omit location rather than enrich with a
+   * previous session's data).
+   *
    * @returns The geolocation data, where each field is `null` when it could
    * not be determined.
+   * @throws When the geolocation service fails to resolve.
    */
   async getGeolocationData(): Promise<GeolocationData> {
     return this.#fetchAndUpdate();
@@ -239,13 +252,20 @@ export class GeolocationController extends BaseController<
   /**
    * Forces a fresh geolocation fetch, bypassing the service's cache.
    *
+   * Best-effort: if the fetch fails, the last known location code (or
+   * {@link UNKNOWN_LOCATION}) is returned rather than throwing.
+   *
    * @returns The ISO 3166-2 location code string.
    */
   async refreshGeolocation(): Promise<string> {
     this.update((draft) => {
       draft.lastFetchedAt = null;
     });
-    await this.#fetchAndUpdate({ bypassCache: true });
+    try {
+      await this.#fetchAndUpdate({ bypassCache: true });
+    } catch {
+      // Best-effort: fall back to the last known location code below.
+    }
     return this.state.location;
   }
 
@@ -255,8 +275,9 @@ export class GeolocationController extends BaseController<
    *
    * @param options - Options forwarded to the service.
    * @param options.bypassCache - When true, the service skips its TTL cache.
-   * @returns The geolocation data. When the service throws, the last known
-   * geolocation is returned instead.
+   * @returns The resolved geolocation data.
+   * @throws Re-throws the service error after recording it in state, so
+   * callers can react to a failed lookup instead of receiving a stale value.
    */
   async #fetchAndUpdate(options?: {
     bypassCache?: boolean;
@@ -291,8 +312,7 @@ export class GeolocationController extends BaseController<
         draft.error = message;
       });
 
-      const { country, region, timezone } = this.state;
-      return { country, region, timezone };
+      throw error;
     }
   }
 }
