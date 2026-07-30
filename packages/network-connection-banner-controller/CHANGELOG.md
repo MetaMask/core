@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1]
+
 ### Uncategorized
 
 - chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
@@ -27,5 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dismissal, and switching custom RPC endpoints to an available Infura endpoint
   ([#9041](https://github.com/MetaMask/core/pull/9041))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.1...HEAD
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.0...@metamask/network-connection-banner-controller@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/network-connection-banner-controller@0.1.0
