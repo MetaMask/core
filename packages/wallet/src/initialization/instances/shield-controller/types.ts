@@ -1,22 +1,33 @@
 import type {
-  NormalizeSignatureRequestFn,
-  ShieldBackend,
+  CreateShieldRemoteBackendOptions,
+  ShieldController,
 } from '@metamask/shield-controller';
 
-export type ShieldControllerInstanceOptions = {
-  /**
-   * When set, used as-is; `baseUrl`, `fetchFunction`, `getAccessToken`, and
-   * `captureException` are ignored for backend construction.
-   */
-  backend?: ShieldBackend;
-  /** Required when building the default `ShieldRemoteBackend`. */
-  baseUrl: string;
-  fetchFunction: typeof fetch;
-  getAccessToken?: () => Promise<string>;
-  captureException?: (error: Error) => void;
-  getCoverageResultTimeout?: number;
-  getCoverageResultPollInterval?: number;
-  transactionHistoryLimit?: number;
-  coverageHistoryLimit?: number;
-  normalizeSignatureRequest?: NormalizeSignatureRequestFn;
+type ShieldControllerOptions = ConstructorParameters<
+  typeof ShieldController
+>[0];
+
+type ShieldControllerCommonOptions = Pick<
+  ShieldControllerOptions,
+  | 'transactionHistoryLimit'
+  | 'coverageHistoryLimit'
+  | 'normalizeSignatureRequest'
+>;
+
+type ShieldRemoteBackendInstanceOptions = Omit<
+  CreateShieldRemoteBackendOptions,
+  'messenger' | 'fetch'
+> & {
+  fetchFunction: CreateShieldRemoteBackendOptions['fetch'];
 };
+
+/**
+ * Per-instance options for the wallet's `ShieldController`. When `backend` is
+ * not provided, `baseUrl` and `fetchFunction` are required so the instance can
+ * build a default `ShieldRemoteBackend`.
+ */
+export type ShieldControllerInstanceOptions = ShieldControllerCommonOptions &
+  (
+    | { backend: ShieldControllerOptions['backend'] }
+    | ({ backend?: undefined } & ShieldRemoteBackendInstanceOptions)
+  );

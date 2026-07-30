@@ -123,7 +123,6 @@ describe('shieldController', () => {
       state: undefined,
       messenger,
       options: {
-        ...SHIELD_OPTIONS,
         backend: mockBackend,
       },
     });
@@ -139,7 +138,6 @@ describe('shieldController', () => {
       state: undefined,
       messenger,
       options: {
-        ...SHIELD_OPTIONS,
         backend: mockBackend,
         transactionHistoryLimit: 5,
         coverageHistoryLimit: 2,
@@ -169,7 +167,6 @@ describe('shieldController', () => {
       state: undefined,
       messenger,
       options: {
-        ...SHIELD_OPTIONS,
         backend: mockBackend,
         normalizeSignatureRequest,
       },
@@ -314,7 +311,6 @@ describe('shieldController', () => {
       state: undefined,
       messenger,
       options: {
-        ...SHIELD_OPTIONS,
         backend: createMockBackend(),
       },
     });
@@ -333,7 +329,6 @@ describe('shieldController', () => {
       state: undefined,
       messenger,
       options: {
-        ...SHIELD_OPTIONS,
         backend: mockBackend,
       },
     });
