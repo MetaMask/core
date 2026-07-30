@@ -4513,17 +4513,24 @@ export class HyperLiquidProvider implements PerpsProvider {
           const livePositionFromApi = positions.find(
             (pos) => pos.symbol === params.symbol,
           );
+          // getPositions() fans out across every enabled DEX and returns only the
+          // subset that answered, so a non-empty response proves nothing about
+          // this symbol's DEX. Look for another position on the same DEX: that is
+          // what proves its query ran and came back.
+          const targetDex = parseAssetName(params.symbol).dex ?? '';
+          const targetDexAnswered = positions.some(
+            (pos) => (parseAssetName(pos.symbol).dex ?? '') === targetDex,
+          );
 
           if (livePositionFromApi) {
             position = livePositionFromApi;
-          } else if (positions.length > 0) {
-            // A non-empty response proves the request worked, so the symbol is
-            // genuinely gone.
+          } else if (targetDexAnswered) {
+            // The DEX answered without this symbol, so it is genuinely closed.
             throw new Error(`No position found for ${params.symbol}`);
           }
-          // An empty response is ambiguous: getPositions() swallows request
-          // failures and returns [], so keep the caller's snapshot rather than
-          // let a rate-limited lookup block a position that is open and closable.
+          // Otherwise ambiguous — the DEX's request failed, or it is not enabled
+          // and was never queried. Keep the caller's snapshot rather than let
+          // that block a position that is open and closable.
         }
       }
 

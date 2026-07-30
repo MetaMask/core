@@ -2398,9 +2398,10 @@ describe('HyperLiquidProvider', () => {
       expect(getSubmittedOrder()).toMatchObject({ s: '0.07', r: true });
     });
 
-    it('fails when the uncovered-DEX lookup succeeds and the position is gone', async () => {
-      // A non-empty response proves the request worked, so the symbol really is
-      // closed — submitting the snapshot here is the bug this ticket is about
+    it('fails when the target DEX answered the lookup without the position', async () => {
+      // ETH came back from the same (main) DEX, which proves that DEX's query ran
+      // and BTC really is closed — submitting the snapshot here is the bug this
+      // ticket is about
       primePositionsCache([], []);
       jest
         .spyOn(provider, 'getPositions')
@@ -2417,6 +2418,117 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockClientService.getExchangeClient().order,
       ).not.toHaveBeenCalled();
+    });
+
+    it('keeps the snapshot when only other DEXs answered the uncovered-DEX lookup', async () => {
+      // getPositions() fans out across DEXs and returns the subset that answered.
+      // A HIP-3 target whose own DEX request failed (429/timeout) or was never
+      // queried still yields a non-empty response from the main DEX, which proves
+      // nothing about xyz — blocking the close there would strand the position.
+      primePositionsCache([], []);
+      jest
+        .spyOn(provider, 'getPositions')
+        .mockResolvedValue([createPositionSnapshot({ symbol: 'BTC' })]);
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: true,
+      });
+      jest
+        .spyOn(hip3Provider, 'getPositions')
+        .mockResolvedValue([createPositionSnapshot({ symbol: 'BTC' })]);
+      const mockOrder = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 321 } }] } },
+      });
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+            params?.dex === 'xyz'
+              ? Promise.resolve({
+                  universe: [
+                    { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+                  ],
+                  collateralToken: 0,
+                })
+              : Promise.resolve({
+                  universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+                }),
+          ),
+          metaAndAssetCtxs: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve([
+                    {
+                      universe: [
+                        { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+                      ],
+                      collateralToken: 0,
+                    },
+                    [
+                      {
+                        funding: '0.0001',
+                        openInterest: '100',
+                        prevDayPx: '95',
+                        dayNtlVlm: '10000',
+                        markPx: '100',
+                        midPx: '100',
+                        oraclePx: '100',
+                      },
+                    ],
+                  ])
+                : Promise.resolve([
+                    {
+                      universe: [
+                        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+                      ],
+                    },
+                    [
+                      {
+                        funding: '0.0001',
+                        openInterest: '1000',
+                        prevDayPx: '49000',
+                        dayNtlVlm: '1000000',
+                        markPx: '50000',
+                        midPx: '50000',
+                        oraclePx: '50000',
+                      },
+                    ],
+                  ]),
+            ),
+          allMids: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve({ 'xyz:STOCK1': '100' })
+                : Promise.resolve({ BTC: '50000' }),
+            ),
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+
+      const result = await hip3Provider.closePosition({
+        symbol: 'xyz:STOCK1',
+        orderType: 'market',
+        position: createPositionSnapshot({
+          symbol: 'xyz:STOCK1',
+          size: '10',
+          marginUsed: '100',
+        }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orders: [expect.objectContaining({ s: '10', r: true })],
+        }),
+      );
     });
 
     it('keeps the clamp when a partial close also carries usdAmount', async () => {
