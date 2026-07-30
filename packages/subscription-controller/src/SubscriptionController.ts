@@ -271,8 +271,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @param options.pollingInterval - The polling interval to use for the subscription controller.
    */
   constructor(options: SubscriptionControllerOptions) {
-    const { messenger, state, pollingInterval = DEFAULT_POLLING_INTERVAL } =
-      options;
+    const {
+      messenger,
+      state,
+      pollingInterval = DEFAULT_POLLING_INTERVAL,
+    } = options;
     super({
       name: controllerName,
       metadata: subscriptionControllerMetadata,
