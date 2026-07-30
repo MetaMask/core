@@ -9,11 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `DeFiPositionsControllerV2.fetchDeFiPositions` now polls while any selected
-  account has `processingDefiPositions: true`, applying ready accounts
-  immediately, invalidating the balances cache between attempts, sharing one
-  in-flight promise per selected-account key (so fast switches can join an
-  earlier poll), and stopping on request failure or the max attempt limit
+- `DeFiPositionsControllerV2.fetchDeFiPositions` now polls while any selected account has `processingDefiPositions: true`, applying ready accounts immediately, invalidating the balances cache between attempts, sharing one in-flight promise per selected-account key (so fast switches can join an earlier poll), and stopping on request failure or the max attempt limit ([#9711](https://github.com/MetaMask/core/pull/9711))
 
 ## [110.0.2]
 
