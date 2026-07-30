@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `EXCHANGE_ACCOUNT_NOT_FOUND` to `PERPS_ERROR_CODES`, returned by `HyperLiquidProvider.placeOrder` when the wallet has no HyperLiquid account yet (TAT-3343)
+  - This widens the exported `PerpsErrorCode` union. Consumers that key an exhaustive `Record<PerpsErrorCode, …>` (for example a translation map) will not compile until they add an entry for the new code.
 
 ### Fixed
 
