@@ -811,8 +811,7 @@ describe('gas-fees', () => {
       });
 
       it('unless request maxFeePerGas is at or above low estimate', async () => {
-        updateGasFeeRequest.txMeta.txParams.maxFeePerGas =
-          GAS_LOW_HEX_WEI_MOCK;
+        updateGasFeeRequest.txMeta.txParams.maxFeePerGas = GAS_LOW_HEX_WEI_MOCK;
 
         await updateGasFees(updateGasFeeRequest);
 
