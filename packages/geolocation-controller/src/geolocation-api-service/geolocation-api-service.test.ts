@@ -236,6 +236,34 @@ describe('GeolocationApiService', () => {
         expect(second).toBe('US');
         expect(mockFetch).toHaveBeenCalledTimes(2);
       });
+
+      it('caches a partially-known response so it is not re-fetched within the TTL', async () => {
+        const mockFetch = jest.fn(() =>
+          Promise.resolve(
+            createMockResponse(
+              JSON.stringify({ timezone: 'Europe/Paris' }),
+              200,
+            ),
+          ),
+        );
+        const { service } = getService({ options: { fetch: mockFetch } });
+
+        const first = await service.fetchGeolocationData();
+        expect(first).toStrictEqual({
+          country: null,
+          region: null,
+          timezone: 'Europe/Paris',
+        });
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+
+        const second = await service.fetchGeolocationData();
+        expect(second).toStrictEqual({
+          country: null,
+          region: null,
+          timezone: 'Europe/Paris',
+        });
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      });
     });
 
     describe('promise deduplication', () => {

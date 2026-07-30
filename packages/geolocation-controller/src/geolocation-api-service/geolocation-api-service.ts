@@ -419,7 +419,16 @@ export class GeolocationApiService {
       (await response.text()).trim(),
     );
 
-    if (geolocation.country !== null) {
+    // Cache whenever at least one field resolved. A partially-known result
+    // (e.g. timezone without a valid country) is still worth caching so we do
+    // not re-fetch it within the TTL window; only a fully-unknown response is
+    // left uncached so it can be retried.
+    const hasKnownField =
+      geolocation.country !== null ||
+      geolocation.region !== null ||
+      geolocation.timezone !== null;
+
+    if (hasKnownField) {
       this.#cachedGeolocation = geolocation;
       this.#lastFetchedAt = Date.now();
     }
