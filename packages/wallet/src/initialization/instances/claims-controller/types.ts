@@ -7,7 +7,7 @@ export type ClaimsServiceInstanceOptions = {
    * Claims API environment. Supplied by the consumer per build flavor
    * (dev, uat, production).
    */
-  env: Env;
+  env?: Env;
 
   /**
    * Platform fetch implementation used for Claims API requests.

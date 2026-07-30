@@ -1,4 +1,4 @@
-import { ClaimsService } from '@metamask/claims-controller';
+import { ClaimsService, Env } from '@metamask/claims-controller';
 import type { ClaimsServiceMessenger } from '@metamask/claims-controller';
 import { Messenger } from '@metamask/messenger';
 
@@ -14,7 +14,7 @@ export const claimsService: InitializationConfiguration<
   init: ({ messenger, options }) =>
     new ClaimsService({
       messenger,
-      env: options.env,
+      env: options.env ?? Env.PRD,
       fetchFunction: options.fetchFunction,
     }),
   getMessenger: (parent) => {

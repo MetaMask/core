@@ -146,7 +146,6 @@ function buildInstanceOptions(
       hooks: {},
     },
     claimsService: {
-      env: ClaimsEnv.PRD,
       fetchFunction: globalThis.fetch,
     },
   };
