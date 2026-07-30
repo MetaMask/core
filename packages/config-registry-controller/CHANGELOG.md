@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `contracts` property to `RegistryNetworkConfig` ([#9717](https://github.com/MetaMask/core/pull/9717))
+  - The `contracts` property is a record of known contract addresses for the network, keyed by contract name.
+  - Currently, the only supported contract is `multicall3`.
+
+### Removed
+
+- **BREAKING:** Remove `ConfigRegistryControllerMethodActions` from exported types ([#9717](https://github.com/MetaMask/core/pull/9717))
+  - One of the following action types can be used instead:
+    - `ConfigRegistryControllerStartPollingAction`
+    - `ConfigRegistryControllerStopPollingAction`
+    - `ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction`
+
 ## [1.0.0]
 
 ### Added

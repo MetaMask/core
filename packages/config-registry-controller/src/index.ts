@@ -9,7 +9,7 @@ export type {
 export type {
   ConfigRegistryControllerStartPollingAction,
   ConfigRegistryControllerStopPollingAction,
-  ConfigRegistryControllerMethodActions,
+  ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
 } from './ConfigRegistryController-method-action-types.js';
 export {
   ConfigRegistryController,
