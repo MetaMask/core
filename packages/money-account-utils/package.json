@@ -55,7 +55,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/transaction-controller": "^69.2.1",
+    "@metamask/transaction-controller": "^69.3.0",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
