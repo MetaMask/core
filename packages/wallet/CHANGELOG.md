@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Wire `ClaimsService` and `ClaimsController` into the default wallet initialization ([#9588](https://github.com/MetaMask/core/pull/9588))
-  - Passing `instanceOptions.claimsService.env` is now required.
   - Passing `instanceOptions.claimsService.fetchFunction` is now required.
+  - `instanceOptions.claimsService.env` is optional and defaults to production (`Env.PRD`); pass a different value per build flavor when not targeting production.
   - `ClaimsService` delegates `AuthenticationController:getBearerToken`; hosts must register `AuthenticationController` on the supplied root messenger before authenticated Claims API calls succeed.
 - **BREAKING:** Wire analytics into the default `NetworkController` initialization ([#9270](https://github.com/MetaMask/core/pull/9270))
   - Adds an optional `instanceOptions.networkController.analyticsOptions` option (`isRpcEndpointUrlPublic` and `rpcServiceEventsSampleRate`, both optional) that the controller uses to emit `RPC Service Unavailable` and `RPC Service Degraded` events.
