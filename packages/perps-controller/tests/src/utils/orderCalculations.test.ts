@@ -80,6 +80,72 @@ describe('floorToSizeDecimals', () => {
     }
   });
 
+  it('terminates and holds the invariant where the scaled size reaches 2^53', () => {
+    // Past 2^53 `units -= 1` is a no-op, so a step-down loop cannot converge.
+    // Each case must return (the test timing out is the failure mode) and must
+    // still not exceed its input.
+    const cases: [number, number][] = [
+      [998999999.9999998, 8],
+      [902999999999.9995, 4],
+      [8390000000000000, 6],
+      [1e18, 7],
+      [Number.MAX_SAFE_INTEGER, 0],
+      [Number.MAX_VALUE, 2],
+      [Infinity, 3],
+    ];
+
+    for (const [size, szDecimals] of cases) {
+      const result = floorToSizeDecimals(size, szDecimals);
+
+      expect(Number.isNaN(result)).toBe(false);
+      expect(result).toBeLessThanOrEqual(size);
+    }
+  });
+
+  it('holds the invariant for negative sizes', () => {
+    // For a negative input the tolerance snap rounds towards zero, i.e. upward,
+    // so the step-down has to run for negatives too
+    expect(floorToSizeDecimals(-1.0000000001, 0)).toBeLessThanOrEqual(
+      -1.0000000001,
+    );
+    expect(floorToSizeDecimals(-0.1220000001, 3)).toBeLessThanOrEqual(
+      -0.1220000001,
+    );
+    expect(floorToSizeDecimals(-1.5, 4)).toBe(-1.5);
+    expect(floorToSizeDecimals(-0.123, 3)).toBe(-0.123);
+  });
+
+  it('holds the invariant across a sweep of negative one-tick-below-grid inputs', () => {
+    for (let szDecimals = 0; szDecimals <= 5; szDecimals += 1) {
+      const multiplier = Math.pow(10, szDecimals);
+      for (let gridPoint = 1; gridPoint <= 400; gridPoint += 1) {
+        let size = -(gridPoint / multiplier);
+        for (let tick = 0; tick < 3; tick += 1) {
+          size -= Math.abs(size) * Number.EPSILON;
+          expect(floorToSizeDecimals(size, szDecimals)).toBeLessThanOrEqual(
+            size,
+          );
+        }
+      }
+    }
+  });
+
+  it('terminates and holds the invariant for negative sizes past 2^53', () => {
+    const cases: [number, number][] = [
+      [-998999999.9999998, 8],
+      [-8390000000000000, 6],
+      [-Number.MAX_VALUE, 2],
+      [-Infinity, 3],
+    ];
+
+    for (const [size, szDecimals] of cases) {
+      const result = floorToSizeDecimals(size, szDecimals);
+
+      expect(Number.isNaN(result)).toBe(false);
+      expect(result).toBeLessThanOrEqual(size);
+    }
+  });
+
   it('holds the invariant across a swept range of sizes and precisions', () => {
     // Property sweep: every result must be <= its input and on the size grid
     for (const szDecimals of [0, 1, 3, 5]) {

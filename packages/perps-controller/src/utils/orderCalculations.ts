@@ -207,9 +207,14 @@ export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
  * point (0.0123 * 10000 === 122.99999999999999) and truncating would drop a
  * whole increment.
  *
- * The result is never greater than `size`: the snap only ever recovers a grid
- * point the input already represents, so a value genuinely below a grid point is
- * truncated even when the tolerance would have reached the point above it.
+ * The result is never greater than `size`, for negative sizes as well as
+ * positive: the snap only ever recovers a grid point the input already
+ * represents, so a value genuinely below a grid point is stepped down even when
+ * the tolerance would have reached the point above it.
+ *
+ * A size whose scaled form reaches `2^53` is returned unchanged: doubles cannot
+ * represent consecutive integers there, so the grid is finer than the spacing
+ * between representable values and there is nothing to round down to.
  *
  * @param size - Size to round down.
  * @param szDecimals - The asset's size decimal precision.
@@ -218,6 +223,15 @@ export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
 export function floorToSizeDecimals(size: number, szDecimals: number): number {
   const multiplier = Math.pow(10, szDecimals);
   const scaled = size * multiplier;
+
+  // Past 2^53 a double cannot represent consecutive integers, so `units -= 1`
+  // below would be a no-op and the step-down loop would never terminate. The
+  // size grid is finer than the spacing between representable values at that
+  // magnitude, so there is no increment to shave: return the input unchanged.
+  if (!Number.isFinite(scaled) || Math.abs(scaled) >= Number.MAX_SAFE_INTEGER) {
+    return size;
+  }
+
   const nearest = Math.round(scaled);
   // The tolerance scales with the magnitude, because double-precision error
   // does too: a fixed epsilon would stop absorbing representation error for
@@ -234,7 +248,9 @@ export function floorToSizeDecimals(size: number, szDecimals: number): number {
   // magnitudes also reaches the next grid point, and for an input less than half
   // an ulp below a grid point `size * multiplier` evaluates to exactly that grid
   // integer, so flooring the scaled value returns the same too-large result.
-  while (units > 0 && units / multiplier > size) {
+  // `units !== 0` rather than `units > 0` so negative sizes step down too — for
+  // them the tolerance snap rounds *towards* zero, i.e. upward.
+  while (units !== 0 && units / multiplier > size) {
     units -= 1;
   }
 
