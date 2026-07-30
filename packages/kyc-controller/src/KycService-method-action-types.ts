@@ -88,8 +88,9 @@ export type KycServiceFetchJwksAction = {
 
 /**
  * Creates a UKYC session for the SumSub document-verification sub-flow,
- * handing over the wrapped `data_encryption_key` and a client-signed,
- * read-only `ukyc_capability_token`.
+ * handing over the wrapped `data_encryption_key` and the client-signed,
+ * read-only `ukyc_capability_token` that authorizes later storage access for
+ * the session.
  *
  * @param params - The session parameters.
  * @returns The UKYC session identifiers.
@@ -110,6 +111,18 @@ export type KycServiceCreateJourneyAction = {
   type: `KycService:createJourney`;
   handler: KycService['createJourney'];
 };
+
+/**
+ * Fetches the current status of a UKYC session. Polled after the SumSub SDK
+ * completes to determine the final verification decision.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - The UKYC session id.
+ * @returns The session status.
+ */
+export type KycServiceGetSessionStatusAction = {
+  type: `KycService:getSessionStatus`;
+  handler: KycService['getSessionStatus'];
 };
 
 /**
@@ -124,3 +137,4 @@ export type KycServiceMethodActions =
   | KycServiceFetchJwksAction
   | KycServiceCreateUkycSessionAction
   | KycServiceCreateJourneyAction
+  | KycServiceGetSessionStatusAction;

@@ -134,7 +134,8 @@ export type KycControllerGetKycStatusAction = {
  * attested session server public key;
  * 3. derives the `data_encryption_key` from the wallet's UKYC
  * `local_user_secret` and wraps it for the session server;
- * 4. creates the UKYC session (handing over the wrapped key);
+ * 4. mints a client-signed, read-only `ukyc_capability_token` and creates
+ * the UKYC session (handing over the wrapped key and the token);
  * 5. fetches the SumSub applicant access token; and
  * 6. presents the SDK via the injected launcher.
  *
@@ -146,6 +147,19 @@ export type KycControllerGetKycStatusAction = {
 export type KycControllerStartSumSubAction = {
   type: `KycController:startSumSub`;
   handler: KycController['startSumSub'];
+};
+
+/**
+ * Fetches the current UKYC session status for the active sub-flow and records
+ * it on state. Useful for a one-off refresh outside the automatic polling
+ * loop that {@link startSumSub} runs.
+ *
+ * @returns The fetched session status.
+ * @throws If there is no active SumSub session to query.
+ */
+export type KycControllerGetSessionStatusAction = {
+  type: `KycController:getSessionStatus`;
+  handler: KycController['getSessionStatus'];
 };
 
 /**
@@ -172,4 +186,5 @@ export type KycControllerMethodActions =
   | KycControllerCheckKycRequiredAction
   | KycControllerGetKycStatusAction
   | KycControllerStartSumSubAction
+  | KycControllerGetSessionStatusAction
   | KycControllerResetAction;

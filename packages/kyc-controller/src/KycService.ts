@@ -11,6 +11,7 @@ import {
   array,
   assert,
   boolean,
+  optional,
   string,
   StructError,
   type,
@@ -18,7 +19,7 @@ import {
 
 import { alpha2ToAlpha3 } from './countryCodes';
 import type { KycServiceMethodActions } from './KycService-method-action-types';
-import type { KycDisclaimer } from './types';
+import type { KycDisclaimer, KycSessionStatus } from './types';
 import { encodeStorageAccessTokenForHeader, UKYC_JWKS_PATH } from './ukyc';
 import type { UkycStorageAccessToken } from './ukyc';
 
@@ -50,6 +51,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchJwks',
   'createUkycSession',
   'createJourney',
+  'getSessionStatus',
 ] as const;
 
 /**
@@ -100,7 +102,7 @@ export type KycServiceOptions = {
   /**
    * Base URL of the Fractal encryption service, from which the JWKS used to
    * verify the `jwtChain` returned by {@link KycService.getWrappingKey} is
-   * fetched. Required to run the wrapped-key exchange in
+   * fetched. Required to run the wrapping-key exchange in
    * {@link KycService.fetchJwks}.
    */
   fractalEncryptionBaseUrl?: string;
@@ -161,6 +163,15 @@ export type ApplicantAccessTokenResponse = Infer<
   typeof ApplicantAccessTokenResponseStruct
 >;
 
+const SessionStatusResponseStruct = type({
+  finalStatus: string(),
+  statusMessage: optional(string()),
+  externalUserId: string(),
+  kycStatus: string(),
+  vendor: string(),
+  vendorStatus: string(),
+});
+
 // === PARAM TYPES ===
 
 export type CreateSessionParams = {
@@ -203,6 +214,10 @@ export type CreateUkycSessionParams = {
    * before it is sent to the backend.
    */
   ukycCapabilityToken: UkycStorageAccessToken;
+};
+
+export type GetSessionStatusParams = {
+  sessionId: string;
 };
 
 // === SERVICE DEFINITION ===
@@ -472,6 +487,29 @@ export class KycService {
       data,
       ApplicantAccessTokenResponseStruct,
       'journey',
+    );
+  }
+
+  /**
+   * Fetches the current status of a UKYC session. Polled after the SumSub SDK
+   * completes to determine the final verification decision.
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - The UKYC session id.
+   * @returns The session status.
+   */
+  async getSessionStatus(
+    params: GetSessionStatusParams,
+  ): Promise<KycSessionStatus> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(params.sessionId)}/status`,
+      this.#baseUrl,
+    );
+    const data = await this.#request(url, { method: 'GET' });
+    return this.#validateResponse(
+      data,
+      SessionStatusResponseStruct,
+      'session status',
     );
   }
 

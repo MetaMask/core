@@ -1257,7 +1257,7 @@ describe('KycController', () => {
           }),
         );
         // onTokenExpiration re-fetches the applicant access token.
-        expect(handlers.fetchApplicantAccessToken).toHaveBeenCalledTimes(2);
+        expect(handlers.createJourney).toHaveBeenCalledTimes(2);
       });
     });
 
@@ -1350,7 +1350,7 @@ describe('KycController', () => {
       await withController(async ({ controller, handlers, launcher }) => {
         // A reset() lands during the final token exchange, i.e. after the
         // session is prepared but before the SDK is presented.
-        handlers.fetchApplicantAccessToken.mockImplementation(async () => {
+        handlers.createJourney.mockImplementation(async () => {
           controller.reset();
           return { status: 'ok', applicantAccessToken: 'aat' };
         });
@@ -1373,17 +1373,17 @@ describe('KycController', () => {
         launcher.launch.mockImplementation(async ({ onTokenExpiration }) => {
           // The SDK stays open across a reset, then asks for a fresh token.
           controller.reset();
-          // Only the initial fetchApplicantAccessToken (session setup) should
+          // Only the initial createJourney (session setup) should
           // have run.
           const callsBeforeRefresh =
-            handlers.fetchApplicantAccessToken.mock.calls.length;
+            handlers.createJourney.mock.calls.length;
           try {
             await onTokenExpiration();
           } catch (error) {
             refreshError = error;
           }
           // The refresh must not hit the stale UKYC session.
-          expect(handlers.fetchApplicantAccessToken.mock.calls).toHaveLength(
+          expect(handlers.createJourney.mock.calls).toHaveLength(
             callsBeforeRefresh,
           );
           return { ok: true };
@@ -1413,6 +1413,252 @@ describe('KycController', () => {
         expect(controller.state.sumsub.status).toBe('idle');
         expect(controller.state.sumsub.result).toBeNull();
         expect(controller.state.phase).toBe('idle');
+      });
+    });
+  });
+
+  describe('session status polling', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    /**
+     * Makes the launcher report a successful SDK completion so the sub-flow
+     * proceeds into session-status polling.
+     *
+     * @param launcher - The mocked launcher.
+     */
+    function completeSdk(launcher: Launcher): void {
+      launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+        onStatusChange?.('InProgress', 'Completed');
+        return { ok: true };
+      });
+    }
+
+    it('polls the session status after completion and completes on an approved status', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        completeSdk(launcher);
+        handlers.getSessionStatus.mockResolvedValue(sessionStatus('approved'));
+
+        await controller.startSumSub();
+
+        expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+          sessionId: 'sid',
+        });
+        expect(controller.state.sumsub.status).toBe('complete');
+        expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+          sessionStatus('approved'),
+        );
+      });
+    });
+
+    it('maps a rejected terminal status to a failed sub-flow', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        completeSdk(launcher);
+        handlers.getSessionStatus.mockResolvedValue(sessionStatus('rejected'));
+
+        await controller.startSumSub();
+
+        expect(controller.state.sumsub.status).toBe('failed');
+        expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+          sessionStatus('rejected'),
+        );
+      });
+    });
+
+    it('treats SDK completion as final when the UKYC session has no id to poll', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        // A session created without an id leaves nothing to poll against.
+        handlers.createUkycSession.mockResolvedValue({ sessionId: '' });
+        completeSdk(launcher);
+
+        await controller.startSumSub();
+
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        expect(controller.state.sumsub.status).toBe('complete');
+      });
+    });
+
+    it('does not poll when the SDK did not report completion', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        // The applicant abandons the flow: `launch` resolves without ever
+        // reporting a Completed status.
+        launcher.launch.mockResolvedValue({ ok: false });
+
+        await controller.startSumSub();
+
+        expect(controller.state.sumsub.status).toBe('failed');
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+      });
+    });
+
+    it('keeps polling on a transient error, preserving the last good status', async () => {
+      jest.useFakeTimers();
+      await withController(
+        { options: { sessionStatusPollIntervalMs: 1000 } },
+        async ({ controller, handlers, launcher }) => {
+          completeSdk(launcher);
+          handlers.getSessionStatus
+            .mockResolvedValueOnce(sessionStatus('pending'))
+            .mockRejectedValueOnce(new Error('network blip'))
+            .mockResolvedValueOnce(sessionStatus('approved'));
+
+          await controller.startSumSub();
+
+          // First poll: non-terminal, keeps polling.
+          expect(controller.state.sumsub.status).toBe('polling');
+          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+            sessionStatus('pending'),
+          );
+
+          // Second poll fails transiently: the last good status is preserved
+          // and the loop keeps going.
+          await jest.advanceTimersByTimeAsync(1000);
+          expect(controller.state.sumsub.status).toBe('polling');
+          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+            sessionStatus('pending'),
+          );
+
+          // Third poll reaches a terminal status.
+          await jest.advanceTimersByTimeAsync(1000);
+          expect(controller.state.sumsub.status).toBe('complete');
+          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+            sessionStatus('approved'),
+          );
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+        },
+      );
+    });
+
+    it('stops polling once a terminal status is reached', async () => {
+      jest.useFakeTimers();
+      await withController(
+        { options: { sessionStatusPollIntervalMs: 1000 } },
+        async ({ controller, handlers, launcher }) => {
+          completeSdk(launcher);
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.startSumSub();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+          // No further polls after a terminal status.
+          await jest.advanceTimersByTimeAsync(5000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('stops polling when reset() is called', async () => {
+      jest.useFakeTimers();
+      await withController(
+        { options: { sessionStatusPollIntervalMs: 1000 } },
+        async ({ controller, handlers, launcher }) => {
+          completeSdk(launcher);
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          await controller.startSumSub();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+          controller.reset();
+          await jest.advanceTimersByTimeAsync(5000);
+
+          // The scheduled poll was cancelled by reset().
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          expect(controller.state.sumsub.status).toBe('idle');
+        },
+      );
+    });
+
+    it('discards a poll result when reset() runs while the request is in flight', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        completeSdk(launcher);
+        // Simulate a reset() landing while the status request is in flight.
+        handlers.getSessionStatus.mockImplementation(async () => {
+          controller.reset();
+          return sessionStatus('approved');
+        });
+
+        await controller.startSumSub();
+
+        expect(controller.state.sumsub.status).toBe('idle');
+        expect(controller.state.sumsub.sessionStatus).toBeNull();
+      });
+    });
+
+    it('supersedes a prior polling loop when a new sub-flow starts', async () => {
+      jest.useFakeTimers();
+      await withController(
+        { options: { sessionStatusPollIntervalMs: 1000 } },
+        async ({ controller, handlers, launcher }) => {
+          completeSdk(launcher);
+          // First sub-flow polls a never-terminal status.
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          await controller.startSumSub();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+          // A second sub-flow reaches a terminal status on its first poll and
+          // must cancel the first loop's scheduled poll.
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+          await controller.startSumSub();
+          expect(controller.state.sumsub.status).toBe('complete');
+
+          const callsAfterSecondFlow =
+            handlers.getSessionStatus.mock.calls.length;
+          await jest.advanceTimersByTimeAsync(5000);
+
+          // No stray polls from the superseded first loop.
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(
+            callsAfterSecondFlow,
+          );
+        },
+      );
+    });
+  });
+
+  describe('getSessionStatus', () => {
+    it('fetches and records the session status on demand', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sumsub: {
+                status: 'complete',
+                result: null,
+                sessionId: 'sid',
+                applicantAccessToken: null,
+                sessionStatus: null,
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          const result = await controller.getSessionStatus();
+
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(result).toStrictEqual(sessionStatus('approved'));
+          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+            sessionStatus('approved'),
+          );
+        },
+      );
+    });
+
+    it('throws when there is no active SumSub session', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.getSessionStatus()).rejects.toThrow(
+          /no active SumSub session/u,
+        );
       });
     });
   });
@@ -1471,7 +1717,8 @@ type ServiceHandlers = {
   getWrappingKey: jest.Mock;
   fetchJwks: jest.Mock;
   createUkycSession: jest.Mock;
-  fetchApplicantAccessToken: jest.Mock;
+  createJourney: jest.Mock;
+  getSessionStatus: jest.Mock;
   performGetStorage: jest.Mock;
   performSetStorage: jest.Mock;
 };
@@ -1500,10 +1747,33 @@ const SERVICE_ACTIONS = [
   'KycService:getWrappingKey',
   'KycService:fetchJwks',
   'KycService:createUkycSession',
-  'KycService:fetchApplicantAccessToken',
+  'KycService:createJourney',
+  'KycService:getSessionStatus',
   'UserStorageController:performGetStorage',
   'UserStorageController:performSetStorage',
 ] as const;
+
+/**
+ * Builds a UKYC session status payload with a given `finalStatus`.
+ *
+ * @param finalStatus - The overall session status.
+ * @returns A complete session status object.
+ */
+function sessionStatus(finalStatus: string): {
+  finalStatus: string;
+  externalUserId: string;
+  kycStatus: string;
+  vendor: string;
+  vendorStatus: string;
+} {
+  return {
+    finalStatus,
+    externalUserId: 'ext-1',
+    kycStatus: finalStatus,
+    vendor: 'sumsub',
+    vendorStatus: finalStatus,
+  };
+}
 
 /**
  * Wraps a test with a fully-wired controller, mocked service handlers, and a
@@ -1550,9 +1820,10 @@ function withController<ReturnValue>(
     createUkycSession: jest.fn().mockResolvedValue({
       sessionId: 'sid',
     }),
-    fetchApplicantAccessToken: jest
+    createJourney: jest
       .fn()
       .mockResolvedValue({ status: 'ok', applicantAccessToken: 'aat' }),
+    getSessionStatus: jest.fn().mockResolvedValue(sessionStatus('approved')),
     performGetStorage: jest.fn().mockResolvedValue(null),
     performSetStorage: jest.fn().mockResolvedValue(undefined),
   };
@@ -1582,8 +1853,12 @@ function withController<ReturnValue>(
     handlers.createUkycSession,
   );
   rootMessenger.registerActionHandler(
-    'KycService:fetchApplicantAccessToken',
-    handlers.fetchApplicantAccessToken,
+    'KycService:createJourney',
+    handlers.createJourney,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:getSessionStatus',
+    handlers.getSessionStatus,
   );
   rootMessenger.registerActionHandler(
     'UserStorageController:performGetStorage',
