@@ -10,6 +10,9 @@ import type { GeolocationController } from './GeolocationController.js';
  * {@link GeolocationApiService} for network fetching and caching, then
  * updates controller state with the result.
  *
+ * Best-effort: if the fetch fails, the last known location code (or
+ * {@link UNKNOWN_LOCATION}) is returned rather than throwing.
+ *
  * @returns The ISO 3166-2 location code string.
  */
 export type GeolocationControllerGetGeolocationAction = {
@@ -22,8 +25,14 @@ export type GeolocationControllerGetGeolocationAction = {
  * Delegates to the {@link GeolocationApiService} for network fetching and
  * caching, then updates controller state with the result.
  *
+ * Unlike {@link getGeolocation}, this rejects when resolution fails instead
+ * of returning a stale value, so callers can distinguish a fresh result from
+ * a failed lookup (and, for example, omit location rather than enrich with a
+ * previous session's data).
+ *
  * @returns The geolocation data, where each field is `null` when it could
  * not be determined.
+ * @throws When the geolocation service fails to resolve.
  */
 export type GeolocationControllerGetGeolocationDataAction = {
   type: `GeolocationController:getGeolocationData`;
@@ -32,6 +41,9 @@ export type GeolocationControllerGetGeolocationDataAction = {
 
 /**
  * Forces a fresh geolocation fetch, bypassing the service's cache.
+ *
+ * Best-effort: if the fetch fails, the last known location code (or
+ * {@link UNKNOWN_LOCATION}) is returned rather than throwing.
  *
  * @returns The ISO 3166-2 location code string.
  */
