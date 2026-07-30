@@ -14,6 +14,7 @@ import type { Json } from '@metamask/utils';
 
 import { SignTypedDataVersion } from './constants.js';
 import { PollingWithCockatielPolicy } from './polling-with-policy.js';
+import type { ShieldControllerMessenger } from './ShieldController.js';
 import type {
   CheckCoverageRequest,
   CheckSignatureCoverageRequest,
@@ -325,6 +326,47 @@ export class ShieldRemoteBackend implements ShieldBackend {
       Authorization: `Bearer ${accessToken}`,
     };
   }
+}
+
+export type CreateShieldRemoteBackendOptions = {
+  messenger: ShieldControllerMessenger;
+  /**
+   * Get an access token for the backend. Defaults to calling the
+   * `AuthenticationController:getBearerToken` messenger action.
+   */
+  getAccessToken?: () => Promise<string>;
+  baseUrl: string;
+  fetch: typeof globalThis.fetch;
+  captureException?: (error: Error) => void;
+  getCoverageResultTimeout?: number;
+  getCoverageResultPollInterval?: number;
+};
+
+/**
+ * Create a `ShieldRemoteBackend`.
+ *
+ * Unless `getAccessToken` is provided, requests are authenticated via the
+ * `AuthenticationController:getBearerToken` messenger action, which must be
+ * delegated to the messenger.
+ *
+ * @param options - The options for the backend.
+ * @param options.messenger - The `ShieldController` messenger.
+ * @param options.getAccessToken - An access token getter that overrides the
+ * default.
+ * @returns The created backend.
+ */
+export function createShieldRemoteBackend({
+  messenger,
+  getAccessToken,
+  ...options
+}: CreateShieldRemoteBackendOptions): ShieldRemoteBackend {
+  return new ShieldRemoteBackend({
+    ...options,
+    getAccessToken:
+      getAccessToken ??
+      (async (): Promise<string> =>
+        messenger.call('AuthenticationController:getBearerToken')),
+  });
 }
 
 /**

@@ -3,12 +3,14 @@ import {
   SignatureRequestType,
 } from '@metamask/signature-controller';
 
+import { createMockMessenger } from '../tests/mocks/messenger.js';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
   getRandomCoverageResult,
 } from '../tests/utils.js';
 import {
+  createShieldRemoteBackend,
   makeInitCoverageCheckBody,
   parseSignatureRequestMethod,
   ShieldRemoteBackend,
@@ -483,6 +485,85 @@ describe('ShieldRemoteBackend', () => {
             ],
           },
         ],
+      });
+    });
+  });
+
+  describe('createShieldRemoteBackend', () => {
+    /**
+     * Setup the test environment for the factory.
+     *
+     * @param options - The options for the setup.
+     * @param options.getAccessToken - An access token getter override.
+     * @returns Objects that have been created for testing.
+     */
+    function setupFactory({
+      getAccessToken,
+    }: {
+      getAccessToken?: () => Promise<string>;
+    } = {}): {
+      backend: ShieldRemoteBackend;
+      fetchMock: jest.MockedFunction<typeof fetch>;
+      getBearerToken: jest.Mock;
+    } {
+      const fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
+        typeof fetch
+      >;
+
+      // Mock init coverage check.
+      fetchMock.mockResolvedValueOnce({
+        status: 200,
+        json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      } as unknown as Response);
+
+      // Mock get coverage result.
+      fetchMock.mockResolvedValueOnce({
+        status: 200,
+        json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
+      } as unknown as Response);
+
+      const { messenger, rootMessenger } = createMockMessenger();
+      const getBearerToken = jest.fn().mockResolvedValue('bearer-token');
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getBearerToken',
+        getBearerToken,
+      );
+
+      const backend = createShieldRemoteBackend({
+        messenger,
+        getAccessToken,
+        baseUrl: 'https://ruleset-engine.api.cx.metamask.io',
+        fetch,
+      });
+
+      return { backend, fetchMock, getBearerToken };
+    }
+
+    it('defaults the access token to AuthenticationController:getBearerToken', async () => {
+      const { backend, fetchMock, getBearerToken } = setupFactory();
+
+      await backend.checkCoverage({ txMeta: generateMockTxMeta() });
+
+      expect(getBearerToken).toHaveBeenCalled();
+      const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(requestInit.headers).toMatchObject({
+        Authorization: 'Bearer bearer-token',
+      });
+    });
+
+    it('uses a provided getAccessToken instead of the messenger', async () => {
+      const getAccessToken = jest.fn().mockResolvedValue('override-token');
+      const { backend, fetchMock, getBearerToken } = setupFactory({
+        getAccessToken,
+      });
+
+      await backend.checkCoverage({ txMeta: generateMockTxMeta() });
+
+      expect(getAccessToken).toHaveBeenCalled();
+      expect(getBearerToken).not.toHaveBeenCalled();
+      const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(requestInit.headers).toMatchObject({
+        Authorization: 'Bearer override-token',
       });
     });
   });

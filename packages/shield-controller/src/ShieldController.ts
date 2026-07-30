@@ -4,6 +4,7 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import { SignatureRequestStatus } from '@metamask/signature-controller';
 import type {
   SignatureRequest,
@@ -98,6 +99,15 @@ export type ShieldControllerEvents =
   | ShieldControllerStateChangeEvent;
 
 /**
+ * The external actions available to the ShieldController.
+ *
+ * `AuthenticationController:getBearerToken` is used by
+ * `createShieldRemoteBackend` to authenticate requests made by the default
+ * backend.
+ */
+type AllowedActions = AuthenticationControllerGetBearerTokenAction;
+
+/**
  * The external events available to the ShieldController.
  */
 type AllowedEvents =
@@ -109,7 +119,7 @@ type AllowedEvents =
  */
 export type ShieldControllerMessenger = Messenger<
   typeof controllerName,
-  ShieldControllerActions,
+  ShieldControllerActions | AllowedActions,
   ShieldControllerEvents | AllowedEvents
 >;
 

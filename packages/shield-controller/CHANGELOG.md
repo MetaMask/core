@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createShieldRemoteBackend` function that constructs a `ShieldRemoteBackend`, defaulting `getAccessToken` to the `AuthenticationController:getBearerToken` messenger action ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - Also export its options type, `CreateShieldRemoteBackendOptions`.
+- Export the `ShieldBackend` type ([#9616](https://github.com/MetaMask/core/pull/9616))
+
 ### Changed
 
+- **BREAKING:** Add `AuthenticationController:getBearerToken` to the allowed actions of `ShieldControllerMessenger` ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - The action is only called when a backend created via `createShieldRemoteBackend` relies on the default `getAccessToken`, in which case the action must be delegated to the messenger.
+- Add `@metamask/profile-sync-controller` `^28.3.0` as a dependency ([#9616](https://github.com/MetaMask/core/pull/9616))
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.3.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693))
 
 ## [5.1.3]

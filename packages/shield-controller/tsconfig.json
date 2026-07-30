@@ -17,6 +17,9 @@
       "path": "../messenger"
     },
     {
+      "path": "../profile-sync-controller"
+    },
+    {
       "path": "../controller-utils"
     }
   ],

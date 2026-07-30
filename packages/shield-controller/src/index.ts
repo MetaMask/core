@@ -3,6 +3,7 @@ export type {
   LogSignatureRequest,
   LogTransactionRequest,
   NormalizeSignatureRequestFn,
+  ShieldBackend,
 } from './types.js';
 export type {
   ShieldControllerActions,
@@ -24,4 +25,9 @@ export {
   ShieldController,
   getDefaultShieldControllerState,
 } from './ShieldController.js';
-export { ShieldRemoteBackend, parseSignatureRequestMethod } from './backend.js';
+export {
+  createShieldRemoteBackend,
+  ShieldRemoteBackend,
+  parseSignatureRequestMethod,
+} from './backend.js';
+export type { CreateShieldRemoteBackendOptions } from './backend.js';

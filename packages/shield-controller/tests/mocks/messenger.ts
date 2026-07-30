@@ -50,6 +50,7 @@ export function createMockMessenger(): {
   });
   rootMessenger.delegate({
     messenger,
+    actions: ['AuthenticationController:getBearerToken'],
     events: [
       'SignatureController:stateChange',
       'TransactionController:stateChange',

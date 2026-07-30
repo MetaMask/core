@@ -1,71 +1,40 @@
 import { Messenger } from '@metamask/messenger';
 import type { ShieldControllerMessenger } from '@metamask/shield-controller';
 import {
+  createShieldRemoteBackend,
   ShieldController,
-  ShieldRemoteBackend,
 } from '@metamask/shield-controller';
-import type { ShieldControllerState } from '@metamask/shield-controller';
 
 import type { InitializationConfiguration } from '../../types.js';
-import type {
-  ShieldBackend,
-  ShieldControllerInitializationMessenger,
-  ShieldControllerInstanceOptions,
-} from './types.js';
 
-export type {
-  ShieldControllerInitializationMessenger,
-  ShieldControllerInstanceOptions,
-} from './types.js';
-
-function resolveShieldBackend(
-  messenger: ShieldControllerInitializationMessenger,
-  options: ShieldControllerInstanceOptions,
-): ShieldBackend {
-  if (options.backend) {
-    return options.backend;
-  }
-
-  const getAccessToken =
-    options.getAccessToken ??
-    ((): Promise<string> =>
-      messenger.call('AuthenticationController:getBearerToken'));
-
-  return new ShieldRemoteBackend({
-    baseUrl: options.baseUrl,
-    fetch: options.fetchFunction,
-    getAccessToken,
-    captureException: options.captureException,
-    getCoverageResultTimeout: options.getCoverageResultTimeout,
-    getCoverageResultPollInterval: options.getCoverageResultPollInterval,
-  });
-}
+export type { ShieldControllerInstanceOptions } from './types.js';
 
 export const shieldController: InitializationConfiguration<
   ShieldController,
-  ShieldControllerInitializationMessenger
+  ShieldControllerMessenger
 > = {
   name: 'ShieldController',
-  init: ({
-    state,
-    messenger,
-    options,
-  }: {
-    state: Partial<ShieldControllerState> | undefined;
-    messenger: ShieldControllerInitializationMessenger;
-    options: ShieldControllerInstanceOptions;
-  }) => {
-    return new ShieldController({
-      messenger: messenger as unknown as ShieldControllerMessenger,
+  init: ({ state, messenger, options }) =>
+    new ShieldController({
+      messenger,
       state,
-      backend: resolveShieldBackend(messenger, options),
+      backend:
+        options.backend ??
+        createShieldRemoteBackend({
+          messenger,
+          baseUrl: options.baseUrl,
+          fetch: options.fetchFunction,
+          getAccessToken: options.getAccessToken,
+          captureException: options.captureException,
+          getCoverageResultTimeout: options.getCoverageResultTimeout,
+          getCoverageResultPollInterval: options.getCoverageResultPollInterval,
+        }),
       transactionHistoryLimit: options.transactionHistoryLimit,
       coverageHistoryLimit: options.coverageHistoryLimit,
       normalizeSignatureRequest: options.normalizeSignatureRequest,
-    });
-  },
+    }),
   getMessenger: (parent) => {
-    const messenger: ShieldControllerInitializationMessenger = new Messenger({
+    const messenger: ShieldControllerMessenger = new Messenger({
       namespace: 'ShieldController',
       parent,
     });

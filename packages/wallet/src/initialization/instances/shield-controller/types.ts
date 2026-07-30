@@ -1,30 +1,7 @@
-import type { Messenger } from '@metamask/messenger';
 import type {
   NormalizeSignatureRequestFn,
-  ShieldControllerActions,
-  ShieldControllerEvents,
-  ShieldRemoteBackend,
+  ShieldBackend,
 } from '@metamask/shield-controller';
-import type { SignatureStateChange } from '@metamask/signature-controller';
-import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
-
-export type ShieldBackend = Pick<
-  ShieldRemoteBackend,
-  'checkCoverage' | 'checkSignatureCoverage' | 'logSignature' | 'logTransaction'
->;
-
-type AuthenticationControllerGetBearerTokenAction = {
-  type: 'AuthenticationController:getBearerToken';
-  handler: (entropySourceId?: string) => Promise<string>;
-};
-
-export type ShieldControllerInitializationMessenger = Messenger<
-  'ShieldController',
-  ShieldControllerActions | AuthenticationControllerGetBearerTokenAction,
-  | ShieldControllerEvents
-  | SignatureStateChange
-  | TransactionControllerStateChangeEvent
->;
 
 export type ShieldControllerInstanceOptions = {
   /**

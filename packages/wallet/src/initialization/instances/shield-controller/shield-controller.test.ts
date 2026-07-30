@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/messenger';
+import type { ShieldBackend } from '@metamask/shield-controller';
 import {
   getDefaultShieldControllerState,
   ShieldController,
@@ -13,7 +14,6 @@ import type {
   RootMessenger,
 } from '../../defaults.js';
 import { shieldController } from './shield-controller.js';
-import type { ShieldBackend } from './types.js';
 
 const MOCK_COVERAGE_ID = 'coverage-id-1';
 const SHIELD_BASE_URL = 'https://ruleset-engine.api.cx.metamask.io';
