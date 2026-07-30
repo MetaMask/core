@@ -3091,6 +3091,172 @@ describe('HyperLiquidProvider', () => {
         ]);
       });
 
+      it('credits a HIP-3 margin transfer only to its own order in a mixed batch', async () => {
+        // [BTC (main), xyz:STOCK1 (HIP-3)] where BTC fills and the HIP-3 close
+        // fails. A transfer list compacted to HIP-3 positions only would be read
+        // with BTC's status index and move xyz margin for a close that failed.
+        const hip3Provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+          // Manual transfer-back only runs outside unified accounts, which is
+          // the mode this alignment matters in
+          useUnifiedAccount: false,
+          initialAssetMapping: [
+            ['BTC', 0],
+            ['xyz:STOCK1', 110000],
+          ],
+        });
+        const mockOrder = jest.fn().mockResolvedValue({
+          response: {
+            data: {
+              statuses: [
+                { filled: {} },
+                { error: 'Reduce only order rejected' },
+              ],
+            },
+          },
+        });
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest
+              .fn()
+              .mockImplementation((params?: { dex?: string }) =>
+                Promise.resolve({
+                  marginSummary: {
+                    totalMarginUsed: '600',
+                    accountValue: '10600',
+                  },
+                  withdrawable: '10000',
+                  assetPositions:
+                    params?.dex === 'xyz'
+                      ? [
+                          {
+                            position: {
+                              coin: 'xyz:STOCK1',
+                              szi: '10',
+                              entryPx: '95',
+                              positionValue: '1000',
+                              unrealizedPnl: '50',
+                              marginUsed: '100',
+                              leverage: { type: 'isolated', value: 5 },
+                              liquidationPx: '70',
+                            },
+                            type: 'oneWay',
+                          },
+                        ]
+                      : [
+                          {
+                            position: {
+                              coin: 'BTC',
+                              szi: '0.1',
+                              entryPx: '50000',
+                              positionValue: '5000',
+                              unrealizedPnl: '100',
+                              marginUsed: '500',
+                              leverage: { type: 'cross', value: 10 },
+                              liquidationPx: '45000',
+                            },
+                            type: 'oneWay',
+                          },
+                        ],
+                  crossMarginSummary: {
+                    accountValue: '10600',
+                    totalMarginUsed: '600',
+                  },
+                }),
+              ),
+            perpDexs: jest
+              .fn()
+              .mockResolvedValue([
+                null,
+                { name: 'xyz', url: 'https://xyz.com' },
+              ]),
+            meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve({
+                    universe: [
+                      { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+                    ],
+                    collateralToken: 0,
+                  })
+                : Promise.resolve({
+                    universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+                  }),
+            ),
+            metaAndAssetCtxs: jest
+              .fn()
+              .mockImplementation((params?: { dex?: string }) =>
+                params?.dex === 'xyz'
+                  ? Promise.resolve([
+                      {
+                        universe: [
+                          {
+                            name: 'xyz:STOCK1',
+                            szDecimals: 2,
+                            maxLeverage: 20,
+                          },
+                        ],
+                        collateralToken: 0,
+                      },
+                      [
+                        {
+                          funding: '0.0001',
+                          openInterest: '100',
+                          prevDayPx: '95',
+                          dayNtlVlm: '10000',
+                          markPx: '100',
+                          midPx: '100',
+                          oraclePx: '100',
+                        },
+                      ],
+                    ])
+                  : Promise.resolve([
+                      {
+                        universe: [
+                          { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+                        ],
+                      },
+                      [
+                        {
+                          funding: '0.0001',
+                          openInterest: '1000',
+                          prevDayPx: '49000',
+                          dayNtlVlm: '1000000',
+                          markPx: '50000',
+                          midPx: '50000',
+                          oraclePx: '50000',
+                        },
+                      ],
+                    ]),
+              ),
+            allMids: jest
+              .fn()
+              .mockImplementation((params?: { dex?: string }) =>
+                params?.dex === 'xyz'
+                  ? Promise.resolve({ 'xyz:STOCK1': '100' })
+                  : Promise.resolve({ BTC: '50000' }),
+              ),
+          }),
+        );
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+        (mockPlatformDependencies.debugLogger.log as jest.Mock).mockClear();
+
+        const result = await hip3Provider.closePositions({ closeAll: true });
+
+        expect(result.successCount).toBe(1);
+        expect(result.failureCount).toBe(1);
+        // The HIP-3 close failed, so no freed-margin transfer may be initiated —
+        // the successful BTC order carries no transfer of its own
+        expect(
+          mockPlatformDependencies.debugLogger.log,
+        ).not.toHaveBeenCalledWith(
+          'Position closed successfully, initiating manual auto-transfer back',
+          expect.anything(),
+        );
+      });
+
       it('reports every position as failed when all of them are dust', async () => {
         // An empty result here would be indistinguishable from "no positions
         // matched", so each skipped position carries its own failure

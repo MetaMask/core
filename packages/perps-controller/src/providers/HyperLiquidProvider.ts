@@ -3912,11 +3912,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         ),
       );
 
-      // Track HIP-3 positions and freed margins for post-close transfers
-      const hip3Transfers: {
+      // Freed-margin transfer for each submitted order, or null when that order
+      // needs none. One entry per order rather than one per HIP-3 position: a
+      // compacted list read with the response-status index credits the wrong
+      // order in a mixed main-DEX/HIP-3 batch.
+      const orderedHip3Transfers: ({
         sourceDex: string;
         freedMargin: number;
-      }[] = [];
+      } | null)[] = [];
 
       // Build orders array, plus the positions each order closes so response
       // statuses stay index-aligned when a position is skipped below
@@ -3983,13 +3986,13 @@ export class HyperLiquidProvider implements PerpsProvider {
           continue;
         }
 
-        // Track HIP-3 transfers (full position close means all margin is freed)
-        if (isHip3Position && dexName && !this.#useUnifiedAccount) {
-          hip3Transfers.push({
-            sourceDex: dexName,
-            freedMargin: totalMarginUsed,
-          });
-        }
+        // Track this order's HIP-3 transfer, if it needs one (a full position
+        // close frees all of its margin). Pushed below alongside the order so the
+        // two stay index-aligned.
+        const hip3Transfer =
+          isHip3Position && dexName && !this.#useUnifiedAccount
+            ? { sourceDex: dexName, freedMargin: totalMarginUsed }
+            : null;
 
         const currentPrice = await this.#getOrFetchPrice({
           symbol: position.symbol,
@@ -4022,6 +4025,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           t: { limit: { tif: 'Ioc' } }, // Immediate or cancel for market-like execution
         });
         orderedPositions.push(position);
+        orderedHip3Transfers.push(hip3Transfer);
       }
 
       // Every position was smaller than one size increment. Return their
@@ -4072,8 +4076,10 @@ export class HyperLiquidProvider implements PerpsProvider {
             isStatusObject(status) &&
             (hasProperty(status, 'filled') || hasProperty(status, 'resting'));
 
-          if (isSuccess && hip3Transfers[i]) {
-            const { sourceDex, freedMargin } = hip3Transfers[i];
+          const transfer = orderedHip3Transfers[i];
+
+          if (isSuccess && transfer) {
+            const { sourceDex, freedMargin } = transfer;
             this.#deps.debugLogger.log(
               'Position closed successfully, initiating manual auto-transfer back',
               { symbol: orderedPositions[i].symbol, freedMargin },
@@ -4591,8 +4597,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       const freedMarginRatio = closeSizeNum / totalPositionSize;
       const freedMargin = totalMarginUsed * freedMarginRatio;
 
-      // Get current price for validation if not provided (and not a full close)
-      // Full closes don't need price for validation
+      // Get current price for USD/minimum validation if not provided. A full
+      // close skips *that* validation because it submits the exact live size —
+      // but not the price-staleness guard: calculateFinalPositionSize checks
+      // priceAtCalculation against the live price for every close that supplies
+      // it, using the price placeOrder fetches when none is passed here.
       let { currentPrice } = params;
       if (!currentPrice && params.size && !params.usdAmount) {
         // Partial close without USD or price: use limit price as fallback for validation
