@@ -50,6 +50,8 @@ function makeMockWallet(): Wallet {
       call: jest.fn(),
       subscribe: jest.fn(),
       unsubscribe: jest.fn(),
+      // Called when the analytics stub messenger delegates its handlers up.
+      _internalRegisterDelegatedActionHandler: jest.fn(),
     },
     controllerMetadata: {},
     state: {},
@@ -365,6 +367,7 @@ describe('createWallet', () => {
             }),
             subscribe: jest.fn(),
             unsubscribe: jest.fn(),
+            _internalRegisterDelegatedActionHandler: jest.fn(),
           },
         }) as unknown as Wallet,
     );
@@ -396,6 +399,7 @@ describe('createWallet', () => {
             }),
             subscribe: jest.fn(),
             unsubscribe: jest.fn(),
+            _internalRegisterDelegatedActionHandler: jest.fn(),
           },
         }) as unknown as Wallet,
     );

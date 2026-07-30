@@ -1,3 +1,9 @@
+import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
+import type {
+  AnalyticsControllerGetStateAction,
+  AnalyticsControllerTrackEventAction,
+} from '@metamask/analytics-controller';
+import { Messenger } from '@metamask/messenger';
 import {
   ClientConfigApiService,
   ClientType,
@@ -12,7 +18,12 @@ import {
   importSecretRecoveryPhrase,
   Wallet,
 } from '@metamask/wallet';
-import type { WalletOptions } from '@metamask/wallet';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+  WalletOptions,
+} from '@metamask/wallet';
 import { rm } from 'node:fs/promises';
 
 import { KeyValueStore } from '../persistence/KeyValueStore.js';
@@ -142,6 +153,41 @@ function buildInstanceOptions(
 }
 
 /**
+ * Register handlers for the `AnalyticsController` actions that
+ * `NetworkController` calls to emit RPC service analytics. The daemon does not
+ * report analytics, so these do nothing: `getState` returns an empty analytics
+ * ID, which stops the controller before it tracks anything, and `trackEvent` is
+ * a no-op. Registering them keeps those messenger calls from throwing.
+ *
+ * @param messenger - The wallet's root messenger.
+ */
+function registerAnalyticsStubHandlers(messenger: Wallet['messenger']): void {
+  // Register on an `AnalyticsController`-namespaced messenger, not the root: a
+  // messenger can only register handlers for its own namespace, and doing so
+  // delegates them up to the root, where `NetworkController` can reach them.
+  const analyticsMessenger = new Messenger<
+    'AnalyticsController',
+    AnalyticsControllerGetStateAction | AnalyticsControllerTrackEventAction,
+    never,
+    RootMessenger<DefaultActions, DefaultEvents>
+  >({
+    namespace: 'AnalyticsController',
+    parent: messenger as RootMessenger<DefaultActions, DefaultEvents>,
+  });
+  analyticsMessenger.registerActionHandler(
+    'AnalyticsController:getState',
+    () => ({
+      ...getDefaultAnalyticsControllerState(),
+      analyticsId: '',
+    }),
+  );
+  analyticsMessenger.registerActionHandler(
+    'AnalyticsController:trackEvent',
+    () => undefined,
+  );
+}
+
+/**
  * Create a configured `Wallet` for daemon use, backed by a SQLite key-value
  * store for controller-state persistence.
  *
@@ -213,6 +259,7 @@ export async function createWallet({
       state,
       instanceOptions: buildInstanceOptions(infuraProjectId),
     });
+    registerAnalyticsStubHandlers(wallet.messenger);
     persistenceUnsubscribe = subscribeToChanges(
       wallet.messenger,
       wallet.controllerMetadata,
@@ -335,6 +382,7 @@ async function loadPersistedState(
   const probe = new Wallet({
     instanceOptions: buildInstanceOptions(infuraProjectId),
   });
+  registerAnalyticsStubHandlers(probe.messenger);
   try {
     return loadState(store, probe.controllerMetadata);
   } finally {
