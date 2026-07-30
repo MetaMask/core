@@ -3,7 +3,13 @@ import {
   KeyringControllerErrorMessage,
 } from '@metamask/keyring-controller';
 
-import { createSentryError, reportError, SafeError, safe } from './errors.js';
+import {
+  createSentryError,
+  isSafeError,
+  reportError,
+  SafeError,
+  safe,
+} from './errors.js';
 
 /**
  * Builds a minimal duck-typed StructError for testing the superstruct branch.
@@ -32,6 +38,28 @@ describe('SafeError', () => {
     expect(error).toBeInstanceOf(Error);
     expect(error.name).toBe('SafeError');
     expect(error.message).toBe('step failed');
+  });
+});
+
+describe('isSafeError', () => {
+  it('returns true for a SafeError', () => {
+    expect(isSafeError(new SafeError('step failed'))).toBe(true);
+  });
+
+  it('returns true for a duck-typed object with name SafeError', () => {
+    expect(isSafeError({ name: 'SafeError', message: 'step failed' })).toBe(
+      true,
+    );
+  });
+
+  it('returns false for a plain Error', () => {
+    expect(isSafeError(new Error('oops'))).toBe(false);
+  });
+
+  it('returns false for null and non-objects', () => {
+    expect(isSafeError(null)).toBe(false);
+    expect(isSafeError('string')).toBe(false);
+    expect(isSafeError(undefined)).toBe(false);
   });
 });
 

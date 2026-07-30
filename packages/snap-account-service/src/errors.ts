@@ -1,4 +1,4 @@
-import { KeyringControllerError } from '@metamask/keyring-controller';
+import { isKeyringControllerError } from '@metamask/keyring-controller';
 
 /**
  * Thrown by {@link safe} when the wrapped callback fails with an error
@@ -18,6 +18,25 @@ export class SafeError extends Error {
 }
 
 /**
+ * Returns `true` if the error is a `SafeError`.
+ *
+ * Uses duck-typing on `error.name` rather than `instanceof` so that the check
+ * remains correct when multiple versions of this package coexist in the
+ * dependency tree (different versions produce different classes, so
+ * `instanceof` would return `false` for errors from another version).
+ *
+ * @param error - The value to check.
+ * @returns Whether the error is a `SafeError`.
+ */
+export function isSafeError(error: unknown): error is SafeError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: unknown }).name === 'SafeError'
+  );
+}
+
+/**
  * Duck-typed shape of `@metamask/superstruct`'s `StructError`.
  *
  * We avoid a direct `instanceof` check because `@metamask/superstruct` is not
@@ -32,12 +51,24 @@ type StructErrorLike = Error & {
   refinement?: string;
 };
 
+/**
+ * Returns `true` if the error is a `StructError`-like object.
+ *
+ * @param error - The value to check.
+ * @returns Whether the error is a `StructError`-like object.
+ */
 function isStructError(error: unknown): error is StructErrorLike {
+  const isError = error instanceof Error && error.name === 'StructError';
+  if (!isError) {
+    return false;
+  }
+
+  const structError = error as {
+    path?: string[];
+    type?: string;
+  };
   return (
-    error instanceof Error &&
-    error.name === 'StructError' &&
-    Array.isArray((error as Record<string, unknown>).path) &&
-    typeof (error as Record<string, unknown>).type === 'string'
+    Array.isArray(structError.path) && typeof structError.type === 'string'
   );
 }
 
@@ -80,7 +111,7 @@ export async function safe<T>(step: string, fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (error) {
-    if (error instanceof SafeError || error instanceof KeyringControllerError) {
+    if (isSafeError(error) || isKeyringControllerError(error)) {
       throw error;
     }
     if (isStructError(error)) {
