@@ -3,7 +3,7 @@ import type { TokenAmountValues } from '@metamask/bridge-controller';
 import type { TransactionReceipt } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
-import type { BridgeHistoryItem } from '../types';
+import type { BridgeHistoryItem } from '../types.js';
 
 const calcGasInHexWei = (gasLimit?: string, gasPrice?: string) => {
   return gasLimit && gasPrice

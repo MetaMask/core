@@ -6,7 +6,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import { TransactionStatus } from '@metamask/transaction-controller';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 import { strict as assert } from 'assert';
 import nock, { cleanAll, isDone, pendingMocks } from 'nock';
@@ -25,27 +28,30 @@ import {
   SECURITY_ALERTS_BASE_URL,
   ADDRESS_SCAN_ENDPOINT,
   APPROVALS_ENDPOINT,
-} from './PhishingController';
+} from './PhishingController.js';
 import type {
   PhishingControllerOptions,
   BulkPhishingDetectionScanResponse,
   PhishingControllerMessenger,
-} from './PhishingController';
+} from './PhishingController.js';
 import {
   createMockStateChangePayload,
   createMockTransaction,
   formatHostnameToUrl,
   TEST_ADDRESSES,
-} from './tests/utils';
-import type { PhishingDetectionScanResult, AddressScanResult } from './types';
+} from './tests/utils.js';
+import type {
+  PhishingDetectionScanResult,
+  AddressScanResult,
+} from './types.js';
 import {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
   ApprovalResultType,
   ApprovalFeatureType,
-} from './types';
-import { getHostnameFromUrl } from './utils';
+} from './types.js';
+import { getHostnameFromUrl } from './utils.js';
 
 const controllerName = 'PhishingController';
 
@@ -4627,6 +4633,59 @@ describe('Address poisoning detection', () => {
         poisoningScore: 36,
       },
     ]);
+  });
+
+  it('uses the decoded token recipient instead of the token contract for confirmed token transfers', () => {
+    const TOKEN_CONTRACT =
+      '0xdddd111111111111111111111111111111119999' as `0x${string}`;
+    const CONTRACT_CANDIDATE_ADDRESS =
+      '0xddddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa9999' as `0x${string}`;
+    // transfer(address _to, uint256 _value) sending tokens to CONFIRMED_TX_RECIPIENT
+    const transferData =
+      `0xa9059cbb000000000000000000000000${CONFIRMED_TX_RECIPIENT.slice(
+        2,
+      )}0000000000000000000000000000000000000000000000000000000000000064` as `0x${string}`;
+
+    const tokenTransferTransaction = createMockTransaction(
+      'token-transfer-tx',
+      [],
+      {
+        status: TransactionStatus.confirmed,
+        type: TransactionType.tokenMethodTransfer,
+        txParams: {
+          from: TEST_ADDRESSES.FROM_ADDRESS,
+          to: TOKEN_CONTRACT,
+          value: '0x0' as `0x${string}`,
+          data: transferData,
+        },
+      },
+    );
+
+    const { messenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [tokenTransferTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(
+      controller.checkAddressPoisoning(TX_CANDIDATE_ADDRESS),
+    ).toMatchObject([
+      {
+        knownAddress: CONFIRMED_TX_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 32,
+        poisoningScore: 36,
+      },
+    ]);
+
+    expect(
+      controller.checkAddressPoisoning(CONTRACT_CANDIDATE_ADDRESS),
+    ).toStrictEqual([]);
   });
 
   it('ignores non-confirmed transactions when hydrating known recipients', () => {

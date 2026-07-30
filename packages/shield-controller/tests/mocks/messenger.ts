@@ -5,8 +5,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { ShieldControllerMessenger } from '../../src';
-import { controllerName } from '../../src/constants';
+import { controllerName } from '../../src/constants.js';
+import type { ShieldControllerMessenger } from '../../src/index.js';
 
 type AllShieldControllerActions = MessengerActions<ShieldControllerMessenger>;
 

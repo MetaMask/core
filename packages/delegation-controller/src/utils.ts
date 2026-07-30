@@ -1,8 +1,8 @@
 import type { TypedMessageParams } from '@metamask/keyring-controller';
 import { getChecksumAddress } from '@metamask/utils';
 
-import { SIGNABLE_DELEGATION_TYPED_DATA } from './constants';
-import type { Address, Delegation, DelegationStruct } from './types';
+import { SIGNABLE_DELEGATION_TYPED_DATA } from './constants.js';
+import type { Address, Delegation, DelegationStruct } from './types.js';
 
 type CreateTypedMessageParamsOptions = {
   chainId: number;

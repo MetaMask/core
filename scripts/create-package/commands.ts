@@ -4,8 +4,8 @@ import type {
   Arguments,
 } from 'yargs';
 
-import type { PackageData } from './utils';
-import { finalizeAndWriteData, readMonorepoFiles } from './utils';
+import type { PackageData } from './utils.js';
+import { finalizeAndWriteData, readMonorepoFiles } from './utils.js';
 
 export type CreatePackageOptions = {
   name: string;

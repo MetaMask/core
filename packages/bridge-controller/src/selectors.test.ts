@@ -6,10 +6,10 @@ import { parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { merge } from 'lodash';
 
-import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
-import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge';
-import type { BridgeAppState } from './selectors';
+import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
+import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge.js';
+import type { BridgeAppState } from './selectors.js';
 import {
   selectExchangeRateByAssetId,
   selectIsAssetExchangeRateInState,
@@ -21,26 +21,26 @@ import {
   selectTokenWarnings,
   selectBatchSellQuotes,
   selectBatchSellTrades,
-} from './selectors';
+} from './selectors.js';
 import {
   SortOrder,
   RequestStatus,
   ChainId,
   BridgeAsset,
   NonEvmFees,
-} from './types';
-import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge';
+} from './types.js';
+import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge.js';
 import {
   formatAddressToAssetId,
   formatAddressToCaipReference,
   formatChainIdToDec,
   formatChainIdToHex,
-} from './utils/caip-formatters';
-import { calcQuoteMetadata } from './utils/quote-metadata/calculators';
-import { mergeQuoteMetadata } from './utils/quote-metadata/merge';
-import { BatchSellTransactionType } from './validators/batch-sell';
-import type { QuoteResponseV1 } from './validators/quote-response-v1';
-import { validateQuoteResponseV1 } from './validators/quote-response-v1';
+} from './utils/caip-formatters.js';
+import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
+import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
+import { BatchSellTransactionType } from './validators/batch-sell.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
@@ -128,6 +128,28 @@ describe('Bridge Selectors', () => {
         exchangeRate: '4.0',
         usdExchangeRate: undefined,
       });
+    });
+
+    it('should return undefined usdExchangeRate for Solana when currencyRates is undefined', () => {
+      const result = selectExchangeRateByAssetId(
+        {
+          ...mockExchangeRateSources,
+          currencyRates: undefined,
+        } as unknown as BridgeAppState,
+        formatAddressToAssetId('789', SolScope.Mainnet),
+      );
+      expect(result).toStrictEqual({
+        exchangeRate: '4.0',
+        usdExchangeRate: undefined,
+      });
+    });
+
+    it('should return empty object for Solana when conversion rate is missing', () => {
+      const result = selectExchangeRateByAssetId(
+        mockExchangeRateSources,
+        formatAddressToAssetId('456', SolScope.Mainnet),
+      );
+      expect(result).toStrictEqual({});
     });
 
     it('should return rate as usdExchangeRate for Solana when user currency is USD', () => {
@@ -232,6 +254,26 @@ describe('Bridge Selectors', () => {
         selectExchangeRateByAssetId(
           mockExchangeRateSources,
           'eip155:1/erc20:0x123',
+        ),
+      ).toStrictEqual({});
+    });
+
+    it('should return empty object for an EVM token when marketData is undefined', () => {
+      const result = selectExchangeRateByAssetId(
+        {
+          ...mockExchangeRateSources,
+          marketData: undefined,
+        } as unknown as BridgeAppState,
+        formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
+      );
+      expect(result).toStrictEqual({});
+    });
+
+    it('should return empty object when EVM token address is not a hex string', () => {
+      expect(
+        selectExchangeRateByAssetId(
+          mockExchangeRateSources,
+          'eip155:1/erc20:nothex',
         ),
       ).toStrictEqual({});
     });
@@ -2090,6 +2132,32 @@ describe('Bridge Selectors', () => {
       `);
       expect(mockState.quoteRequest).toHaveLength(2);
       expect(recommendedQuotes).toStrictEqual([null, null]);
+    });
+
+    it('should default quoteRequestIndex to 0 when unset', () => {
+      const { recommendedQuotes } = selectBatchSellQuotes(
+        {
+          ...mockState,
+          quotes: mockBridgeQuotesNativeErc20V1.map((quote) => ({
+            ...quote,
+            quoteRequestIndex: undefined,
+          })),
+          assetExchangeRates: {
+            'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85': {
+              exchangeRate: '1980',
+              usdExchangeRate: '10',
+            },
+            'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': {
+              exchangeRate: '200',
+              usdExchangeRate: '1',
+            },
+          },
+        },
+        { ...mockClientParams, requestCount: 1 },
+      );
+
+      expect(recommendedQuotes).toHaveLength(1);
+      expect(recommendedQuotes[0]?.quote.requestId).toBeDefined();
     });
   });
 

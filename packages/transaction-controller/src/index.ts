@@ -36,6 +36,7 @@ export type {
   TransactionControllerGetTransactionsAction,
   TransactionControllerUpdateCustodialTransactionAction,
   TransactionControllerUpdateTransactionAction,
+  TransactionControllerUpdateTransactionMetadataAction,
   TransactionControllerHandleMethodDataAction,
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerStopTransactionAction,
@@ -89,6 +90,7 @@ export type {
   Log,
   MetamaskPayMetadata,
   NestedTransactionMetadata,
+  NestedTransactionUpdate,
   PublishBatchHook,
   PublishBatchHookRequest,
   PublishBatchHookResult,
@@ -132,12 +134,14 @@ export { mergeGasFeeEstimates } from './utils/gas-flow.js';
 export {
   decodeAuthorizationSignature,
   generateEIP7702BatchTransaction,
+  updateEIP7702BatchData,
 } from './utils/eip7702.js';
 export {
   isEIP1559Transaction,
   normalizeTransactionParams,
 } from './utils/utils.js';
 export { hasTransactionType } from './utils/transaction-type.js';
+export { getEffectiveRecipient } from './utils/recipient.js';
 export { CHAIN_IDS } from './constants.js';
 export { HARDFORK } from './utils/prepare.js';
 export { getAccountAddressRelationship } from './api/accounts-api.js';

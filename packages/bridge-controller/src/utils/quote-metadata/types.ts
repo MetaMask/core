@@ -1,4 +1,4 @@
-import type { DeepPartial } from '../../types';
+import type { DeepPartial } from '../../types.js';
 
 /**
  * The types of values for the token amount and its values when converted to the user's selected currency and USD

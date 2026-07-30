@@ -10,10 +10,10 @@ import {
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 
-import { ChainIdSchema, BridgeAssetSchema } from './bridge-asset';
-import { IntentSchema } from './intent';
-import { TruthyDigitStringSchema, NumberStringSchema } from './number';
-import { RefuelDataSchema, StepSchema } from './step';
+import { ChainIdSchema, BridgeAssetSchema } from './bridge-asset.js';
+import { IntentSchema } from './intent.js';
+import { TruthyDigitStringSchema, NumberStringSchema } from './number.js';
+import { RefuelDataSchema, StepSchema } from './step.js';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',

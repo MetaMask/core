@@ -1,4 +1,4 @@
-import { SUBSCRIPTION_STATUSES } from './types';
+import { SUBSCRIPTION_STATUSES } from './types.js';
 
 export const controllerName = 'SubscriptionController';
 

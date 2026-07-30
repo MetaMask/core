@@ -31,12 +31,12 @@ import type {
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAccountId } from '@metamask/utils';
 
-import { createMockInternalAccount } from '../../tests/utils';
-import type { ActiveNetworksResponse } from '../api/accounts-api';
-import { getDefaultMultichainNetworkControllerState } from '../constants';
-import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
-import type { MultichainNetworkControllerMessenger } from '../types';
-import { MultichainNetworkController } from './MultichainNetworkController';
+import { createMockInternalAccount } from '../../tests/utils.js';
+import type { ActiveNetworksResponse } from '../api/accounts-api.js';
+import { getDefaultMultichainNetworkControllerState } from '../constants.js';
+import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService.js';
+import type { MultichainNetworkControllerMessenger } from '../types.js';
+import { MultichainNetworkController } from './MultichainNetworkController.js';
 
 // We exclude the generic account type, since it's used for testing purposes.
 type TestKeyringAccountType = Exclude<

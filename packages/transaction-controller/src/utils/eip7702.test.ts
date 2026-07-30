@@ -25,6 +25,7 @@ import {
   getDelegationAddress,
   isAccountUpgradedToEIP7702,
   signAuthorizationList,
+  updateEIP7702BatchData,
 } from './eip7702.js';
 import {
   getEIP7702ContractAddresses,
@@ -606,6 +607,75 @@ describe('EIP-7702 Utils', () => {
         delegationAddress: undefined,
         isSupported: false,
       });
+    });
+  });
+
+  describe('updateEIP7702BatchData', () => {
+    it('returns updated nested transactions and regenerated batch data without mutating the input', () => {
+      const nestedTransactions = [
+        {
+          data: '0xaaaa' as Hex,
+          to: ADDRESS_2_MOCK as Hex,
+          value: '0x5678' as Hex,
+        },
+        {
+          data: '0xbbbb' as Hex,
+          to: ADDRESS_3_MOCK as Hex,
+          value: '0xdef0' as Hex,
+        },
+      ];
+
+      const result = updateEIP7702BatchData({
+        from: ADDRESS_MOCK,
+        transactions: nestedTransactions,
+        updates: [
+          { transactionIndex: 0, transactionData: '0x1234' },
+          { transactionIndex: 1, transactionData: '0x9abc' },
+        ],
+      });
+
+      expect(result).toStrictEqual({
+        nestedTransactions: [
+          {
+            data: '0x1234',
+            to: ADDRESS_2_MOCK,
+            value: '0x5678',
+          },
+          {
+            data: '0x9abc',
+            to: ADDRESS_3_MOCK,
+            value: '0xdef0',
+          },
+        ],
+        transactionData: DATA_MOCK,
+      });
+      expect(nestedTransactions.map(({ data }) => data)).toStrictEqual([
+        '0xaaaa',
+        '0xbbbb',
+      ]);
+    });
+
+    it('throws if an update index is duplicated', () => {
+      expect(() =>
+        updateEIP7702BatchData({
+          from: ADDRESS_MOCK,
+          transactions: [{ data: '0xaaaa' }],
+          updates: [
+            { transactionIndex: 0, transactionData: '0x1234' },
+            { transactionIndex: 0, transactionData: '0x5678' },
+          ],
+        }),
+      ).toThrow('Duplicate nested transaction index - 0');
+    });
+
+    it('throws if an update index does not exist', () => {
+      expect(() =>
+        updateEIP7702BatchData({
+          from: ADDRESS_MOCK,
+          transactions: [{ data: '0xaaaa' }],
+          updates: [{ transactionIndex: 1, transactionData: '0x1234' }],
+        }),
+      ).toThrow('Nested transaction not found with index - 1');
     });
   });
 

@@ -43,10 +43,10 @@ import type {
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
-import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import { QuoteStatusState } from './quote-status-manager/constants';
-import { StatusResponseSchema } from './utils/validators';
+import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types.js';
+import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants.js';
+import { QuoteStatusState } from './quote-status-manager/constants.js';
+import { StatusResponseSchema } from './utils/validators.js';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error

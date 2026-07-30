@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { PhishingController } from './PhishingController';
+import type { PhishingController } from './PhishingController.js';
 
 /**
  * Finds known recipient addresses that look like an address poisoning match.

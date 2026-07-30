@@ -35,4 +35,6 @@ export const SocialServiceErrorMessage = {
   LEADERBOARD_OPT_IN_FAILED: 'SocialService: Leaderboard opt-in request failed',
   FETCH_FEED_FAILED: 'SocialService: Feed request failed',
   FETCH_FEED_INVALID_RESPONSE: 'SocialService: Feed returned invalid response',
+  NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED:
+    'SocialService: Notification preferences cache refresh request failed',
 } as const;

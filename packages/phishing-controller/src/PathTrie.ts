@@ -1,4 +1,4 @@
-import { getHostnameAndPathComponents } from './utils';
+import { getHostnameAndPathComponents } from './utils.js';
 
 export type PathNode = {
   [key: string]: PathNode;

@@ -1,7 +1,7 @@
 import type {
   AuthenticatorTransportFuture,
   Base64URLString as Base64URL,
-} from '../types';
+} from '../types.js';
 
 export type PublicKeyCredentialDescriptorJSON = {
   id: Base64URL;

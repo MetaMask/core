@@ -37,7 +37,7 @@ export type DeFiPositionType = V6DeFiPositionType;
  * protocol group's aggregated `marketValue`.
  */
 export const DEFI_POSITION_LIABILITY_TYPES: ReadonlySet<DeFiPositionType> =
-  new Set<DeFiPositionType>(['lending']);
+  new Set<DeFiPositionType>(['loan']);
 
 /**
  * An icon-group entry shown next to a protocol in the DeFi tab list.
