@@ -14,7 +14,6 @@ import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import type { Json } from '@metamask/utils';
 import {
   AlwaysOnlineAdapter,
-  ClaimsEnv,
   importSecretRecoveryPhrase,
   Wallet,
 } from '@metamask/wallet';
