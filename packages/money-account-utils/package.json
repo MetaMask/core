@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-utils",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Shared money account utilities: activity parsing, classification, and mUSD constants",
   "keywords": [
     "Ethereum",
