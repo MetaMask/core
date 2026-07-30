@@ -65,7 +65,7 @@ describe('isSafeError', () => {
 
 describe('safe', () => {
   it('returns the callback result on success', async () => {
-    await expect(safe('step', async () => 42)).resolves.toBe(42);
+    expect(await safe('step', async () => 42)).toBe(42);
   });
 
   it('passes a SafeError through unchanged', async () => {

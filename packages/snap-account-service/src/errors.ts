@@ -107,7 +107,10 @@ function describeStructFailure(error: StructErrorLike): string {
  * @param fn - The async callback to execute.
  * @returns The result of `fn`.
  */
-export async function safe<T>(step: string, fn: () => Promise<T>): Promise<T> {
+export async function safe<ReturnType>(
+  step: string,
+  fn: () => Promise<ReturnType>,
+): Promise<ReturnType> {
   try {
     return await fn();
   } catch (error) {
