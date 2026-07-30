@@ -186,6 +186,25 @@ export type TransactionControllerFeatureFlags = {
        */
       default?: number;
     };
+
+    /**
+     * Replacement of underpriced dapp-suggested gas fees.
+     * If enabled, dapp-suggested EIP-1559 fees with a `maxFeePerGas` below the
+     * current low estimate are replaced with the wallet's suggested fees, as
+     * they are unlikely to be included in a block before fee values change.
+     */
+    replaceUnderpricedDappGasFees?: {
+      /** Enablement on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: boolean;
+      };
+
+      /**
+       * Default enablement.
+       * This value is used when no specific value is found for a chain ID.
+       */
+      default?: boolean;
+    };
   };
 };
 
@@ -462,6 +481,30 @@ export function getTimeoutAttempts(
   return (
     timeoutAttemptsFlags?.perChainConfig?.[chainId] ??
     timeoutAttemptsFlags?.default
+  );
+}
+
+/**
+ * Retrieves whether underpriced dapp-suggested gas fees should be replaced
+ * with the wallet's suggested fees.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns Whether the replacement is enabled.
+ */
+export function getReplaceUnderpricedDappGasFeesEnabled(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const replaceUnderpricedDappGasFeesFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.replaceUnderpricedDappGasFees;
+
+  return (
+    replaceUnderpricedDappGasFeesFlags?.perChainConfig?.[chainId] ??
+    replaceUnderpricedDappGasFeesFlags?.default ??
+    false
   );
 }
 
