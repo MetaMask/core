@@ -4088,12 +4088,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
       }
 
-      return {
-        success: successCount > 0,
-        successCount,
-        failureCount,
-        results: [
-          ...statuses.map((status, index) => ({
+      // Index submitted and skipped outcomes by symbol so `results` can keep the
+      // order of the requested positions: consumers may correlate them by index.
+      const submittedResults = new Map(
+        statuses.map((status, index) => [
+          orderedPositions[index].symbol,
+          {
             symbol: orderedPositions[index].symbol,
             success:
               isStatusObject(status) &&
@@ -4102,9 +4102,23 @@ export class HyperLiquidProvider implements PerpsProvider {
               isStatusObject(status) && hasProperty(status, 'error')
                 ? String(status.error)
                 : undefined,
-          })),
-          ...skippedResults,
-        ],
+          },
+        ]),
+      );
+      const skippedBySymbol = new Map(
+        skippedResults.map((skipped) => [skipped.symbol, skipped]),
+      );
+
+      return {
+        success: successCount > 0,
+        successCount,
+        failureCount,
+        results: positionsToClose.flatMap((position) => {
+          const outcome =
+            submittedResults.get(position.symbol) ??
+            skippedBySymbol.get(position.symbol);
+          return outcome ? [outcome] : [];
+        }),
       };
     } catch (error) {
       this.#deps.logger.error(

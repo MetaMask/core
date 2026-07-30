@@ -371,13 +371,22 @@ export type ClosePositionParams = {
 
   /**
    * Optional live position data from WebSocket.
-   * If provided, skips the REST API position fetch (avoids rate limiting issues).
-   * If not provided, falls back to fetching positions via REST API cache.
    *
    * Pass a WebSocket-sourced snapshot only. The provider treats its own
    * WebSocket position cache as fresher than this value and overrides the
    * snapshot's size and side with it, so a REST-sourced (potentially older)
    * position gives no benefit here.
+   *
+   * Providing it avoids a position fetch in the common case, but does not
+   * guarantee one is skipped: when the WebSocket cache does not cover the
+   * symbol's DEX (for example a HIP-3 DEX whose subscription has not published
+   * this session), the provider still issues a single
+   * `getPositions({ skipCache: true })` request, because the cache's silence
+   * proves nothing about that symbol. If that lookup returns nothing for the
+   * symbol's DEX, this snapshot is used.
+   *
+   * If not provided, the position is read from the WebSocket cache, falling back
+   * to a REST fetch when the cache is not initialized.
    */
   position?: Position;
 };

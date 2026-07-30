@@ -2966,13 +2966,15 @@ describe('HyperLiquidProvider', () => {
           successCount: 1,
           failureCount: 1,
         });
+        // results keeps the requested order (BTC dust first, then ETH), so a
+        // consumer correlating results to positions by index stays correct
         expect(result.results).toStrictEqual([
-          { symbol: 'ETH', success: true, error: undefined },
           {
             symbol: 'BTC',
             success: false,
             error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
           },
+          { symbol: 'ETH', success: true, error: undefined },
         ]);
       });
 

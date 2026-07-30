@@ -207,9 +207,13 @@ export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
  * point (0.0123 * 10000 === 122.99999999999999) and truncating would drop a
  * whole increment.
  *
+ * The result is never greater than `size`: the snap only ever recovers a grid
+ * point the input already represents, so a value genuinely below a grid point is
+ * truncated even when the tolerance would have reached the point above it.
+ *
  * @param size - Size to round down.
  * @param szDecimals - The asset's size decimal precision.
- * @returns The size rounded down onto the size grid.
+ * @returns The size rounded down onto the size grid, never exceeding `size`.
  */
 export function floorToSizeDecimals(size: number, szDecimals: number): number {
   const multiplier = Math.pow(10, szDecimals);
@@ -222,11 +226,15 @@ export function floorToSizeDecimals(size: number, szDecimals: number): number {
     FLOAT_TOLERANCE,
     Math.abs(scaled) * Number.EPSILON * 8,
   );
-
-  return (
+  const snapped =
     (Math.abs(scaled - nearest) < tolerance ? nearest : Math.floor(scaled)) /
-    multiplier
-  );
+    multiplier;
+
+  // Only accept the snap when it did not increase the value. A tolerance wide
+  // enough to absorb representation error at large magnitudes is also wide
+  // enough to reach the next grid point, which would round a reduce-only size
+  // up past the position it is closing.
+  return snapped <= size ? snapped : Math.floor(scaled) / multiplier;
 }
 
 /**

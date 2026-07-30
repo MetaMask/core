@@ -1,5 +1,73 @@
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
-import { calculateFinalPositionSize } from '../../../src/utils/orderCalculations.js';
+import {
+  calculateFinalPositionSize,
+  floorToSizeDecimals,
+} from '../../../src/utils/orderCalculations.js';
+
+describe('floorToSizeDecimals', () => {
+  it('never returns a size larger than its input', () => {
+    // The invariant the helper exists to enforce: a reduce-only size may be
+    // reduced, never increased. Covers grid-aligned values, values just below
+    // and just above a grid point, dust, and magnitudes where the tolerance
+    // exceeds half a grid increment.
+    const cases: [number, number][] = [
+      [0.1229999995, 3],
+      [3000000000.000006, 5],
+      [0.123, 3],
+      [0.12356, 3],
+      [1048580.0694, 5],
+      [0.0004, 3],
+      [0.1, 3],
+      [1.5, 4],
+      [0.099999999999, 3],
+      [123456789.123456, 5],
+      [1e-8, 5],
+      [0, 3],
+    ];
+
+    for (const [size, szDecimals] of cases) {
+      expect(floorToSizeDecimals(size, szDecimals)).toBeLessThanOrEqual(size);
+    }
+  });
+
+  it('truncates a value that sits just below a grid point instead of snapping up', () => {
+    // 0.1229999995 * 1000 = 122.9999995, within the old tolerance of 123, so the
+    // previous implementation returned 0.123 — larger than the input
+    expect(floorToSizeDecimals(0.1229999995, 3)).toBe(0.122);
+  });
+
+  it('truncates at magnitudes where the tolerance exceeds half a grid increment', () => {
+    // 3000000000.000006 * 1e5 scales past 1e14, where a magnitude-scaled
+    // tolerance is wider than one increment and would round to nearest
+    expect(floorToSizeDecimals(3000000000.000006, 5)).toBeLessThanOrEqual(
+      3000000000.000006,
+    );
+    expect(floorToSizeDecimals(3000000000.000006, 5)).toBe(3000000000);
+  });
+
+  it('still recovers a grid-aligned value whose scaled form lands just below the grid point', () => {
+    // 0.123 * 1000 === 122.99999999999999 and 1048580.0694 * 1e5 is 1.5e-5 off
+    // its grid point: both are exactly representable, so neither may be shaved
+    expect(floorToSizeDecimals(0.123, 3)).toBe(0.123);
+    expect(floorToSizeDecimals(1048580.0694, 5)).toBe(1048580.0694);
+  });
+
+  it('holds the invariant across a swept range of sizes and precisions', () => {
+    // Property sweep: every result must be <= its input and on the size grid
+    for (const szDecimals of [0, 1, 3, 5]) {
+      const multiplier = Math.pow(10, szDecimals);
+      for (let step = 0; step < 400; step += 1) {
+        const size = step * 0.00731 + step / 997;
+        const result = floorToSizeDecimals(size, szDecimals);
+
+        expect(result).toBeLessThanOrEqual(size);
+        expect(
+          Math.abs(result * multiplier - Math.round(result * multiplier)),
+        ).toBeLessThan(1e-6);
+      }
+    }
+  });
+});
 
 describe('calculateFinalPositionSize', () => {
   describe('USD amount as source of truth', () => {
