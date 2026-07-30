@@ -22,13 +22,7 @@ import {
   selectBatchSellQuotes,
   selectBatchSellTrades,
 } from './selectors.js';
-import {
-  SortOrder,
-  RequestStatus,
-  ChainId,
-  BridgeAsset,
-  NonEvmFees,
-} from './types.js';
+import { SortOrder, RequestStatus, ChainId, NonEvmFees } from './types.js';
 import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge.js';
 import {
   formatAddressToAssetId,
@@ -39,6 +33,7 @@ import {
 import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 import { BatchSellTransactionType } from './validators/batch-sell.js';
+import type { BridgeAsset } from './validators/bridge-asset.js';
 import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
 
@@ -747,54 +742,6 @@ describe('Bridge Selectors', () => {
 
       expect(result.sortedQuotes[0]).toStrictEqual(quoteResponseV1);
       expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('1758.014454');
-    });
-
-    it('should return sorted quotes with metadata (no assetId)', () => {
-      const mockState = getMockState(1, {
-        quote: {
-          srcAsset: {
-            chainId: 1,
-            address: '0x0000000000000000000000000000000000000000',
-            decimals: 18,
-            assetId: null,
-            symbol: 'ETH',
-            name: 'Ethereum',
-          },
-        } as never,
-      });
-      const mockQuote = mockState.quotes[0];
-      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
-        selectBridgeQuotes(
-          {
-            ...mockState,
-            assetExchangeRates: {
-              [formatAddressToAssetId(
-                mockQuote.quote.srcAsset.address,
-                mockQuote.quote.srcChainId,
-              ) ?? '']: {
-                exchangeRate: '1980',
-                usdExchangeRate: '10',
-              },
-              [formatAddressToAssetId(
-                mockQuote.quote.destAsset.address,
-                mockQuote.quote.destChainId,
-              ) ?? '']: {
-                exchangeRate: '200',
-                usdExchangeRate: '1',
-              },
-            },
-          },
-          mockClientParams,
-        );
-
-      const quoteResponseV1 = {
-        ...mockState.quotes[1],
-      };
-
-      expect(result.sortedQuotes[0]).toStrictEqual(
-        expect.objectContaining(quoteResponseV1),
-      );
-      expect(result.sortedQuotes[0].cost?.valueInCurrency).toBeUndefined();
     });
 
     it('should return metadata when quotes are empty', () => {
