@@ -1,4 +1,125 @@
-import { createSentryError, reportError } from './errors.js';
+import {
+  KeyringControllerError,
+  KeyringControllerErrorMessage,
+} from '@metamask/keyring-controller';
+
+import { createSentryError, reportError, SafeError, safe } from './errors.js';
+
+/**
+ * Builds a minimal duck-typed StructError for testing the superstruct branch.
+ *
+ * @param path - The path to the failing field.
+ * @param type - The expected superstruct type string.
+ * @param refinement - Optional refinement name.
+ * @returns A TypeError whose shape matches StructError.
+ */
+function buildStructError(
+  path: string[],
+  type: string,
+  refinement?: string,
+): Error {
+  return Object.assign(
+    new TypeError(
+      `At path: ${path.join('.')} -- Expected a value of type \`${type}\``,
+    ),
+    { name: 'StructError' as const, path, type, refinement },
+  );
+}
+
+describe('SafeError', () => {
+  it('is an Error with name SafeError', () => {
+    const error = new SafeError('step failed');
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe('SafeError');
+    expect(error.message).toBe('step failed');
+  });
+});
+
+describe('safe', () => {
+  it('returns the callback result on success', async () => {
+    await expect(safe('step', async () => 42)).resolves.toBe(42);
+  });
+
+  it('passes a SafeError through unchanged', async () => {
+    const inner = new SafeError('inner step: detail');
+    await expect(
+      safe('outer step', async () => {
+        throw inner;
+      }),
+    ).rejects.toThrow(inner);
+  });
+
+  it('passes a KeyringControllerError through unchanged', async () => {
+    const error = new KeyringControllerError(
+      KeyringControllerErrorMessage.DuplicatedAccount,
+    );
+    await expect(
+      safe('step', async () => {
+        throw error;
+      }),
+    ).rejects.toThrow(error);
+  });
+
+  it('wraps a StructError as a SafeError with path and type', async () => {
+    const structError = buildStructError(
+      ['accounts', 'uuid-123', 'type'],
+      'enums',
+    );
+    await expect(
+      safe('Adding keyring', async () => {
+        throw structError;
+      }),
+    ).rejects.toThrow(
+      new SafeError(
+        'Adding keyring: Validation failed at "accounts.uuid-123.type" (expected: enums)',
+      ),
+    );
+  });
+
+  it('uses refinement name over type when present', async () => {
+    const structError = buildStructError(['address'], 'string', 'nonempty');
+    await expect(
+      safe('step', async () => {
+        throw structError;
+      }),
+    ).rejects.toThrow(
+      new SafeError(
+        'step: Validation failed at "address" (expected: nonempty)',
+      ),
+    );
+  });
+
+  it('uses "root" when StructError path is empty', async () => {
+    const structError = buildStructError([], 'object');
+    await expect(
+      safe('step', async () => {
+        throw structError;
+      }),
+    ).rejects.toThrow(
+      new SafeError('step: Validation failed at root (expected: object)'),
+    );
+  });
+
+  it('replaces an unknown error with a generic SafeError', async () => {
+    await expect(
+      safe('Adding keyring', async () => {
+        throw new Error('internal error with address 0x1234');
+      }),
+    ).rejects.toThrow(
+      new SafeError('Adding keyring: An unexpected error occurred'),
+    );
+  });
+
+  it('re-forwards a SafeError from a nested safe without re-wrapping', async () => {
+    const inner = new SafeError('inner: detail');
+    const result = safe('outer', async () =>
+      safe('inner', async () => {
+        throw inner;
+      }),
+    );
+    await expect(result).rejects.toThrow(inner);
+  });
+});
 
 describe('createSentryError', () => {
   it('creates an error with a cause', () => {
