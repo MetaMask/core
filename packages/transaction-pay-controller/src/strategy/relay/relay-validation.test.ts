@@ -213,6 +213,29 @@ describe('validateRelayQuotes', () => {
     });
   });
 
+  it('attaches the entire quote batch (not just the failing quote) when insufficient-source-balance is thrown', async () => {
+    const quoteError = new QuoteError({
+      message: 'Insufficient source balance for quote',
+      reason: 'insufficient-source-balance',
+    });
+
+    // Only the first quote triggers the error; the second has not yet been validated.
+    validateQuoteExecutionMock
+      .mockRejectedValueOnce(quoteError)
+      .mockResolvedValue(undefined);
+
+    const quote1 = buildQuote();
+    const quote2 = buildQuote();
+
+    const thrownError = await validateRelayQuotes({
+      messenger,
+      quotes: [quote1, quote2],
+      transaction: TRANSACTION_MOCK,
+    }).catch((caughtError: unknown) => caughtError);
+
+    expect((thrownError as QuoteError).quotes).toStrictEqual([quote1, quote2]);
+  });
+
   it('throws QuoteError without quotes for non-insufficient-source-balance reason', async () => {
     const quoteError = new QuoteError({
       message: 'Quote simulation failed',

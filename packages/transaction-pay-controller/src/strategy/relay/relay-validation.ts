@@ -78,8 +78,9 @@ export async function validateRelayQuotes(
       }
       const quoteError = toQuoteError(error);
       if (quoteError.info.reason === 'insufficient-source-balance') {
-        // Backwards compatibility: keep the quote(s) visible to clients even
-        // though validation failed, while still surfacing the error.
+        // Backwards compatibility: keep the entire quote batch (including
+        // quotes that may have passed or not yet been validated) so that
+        // clients can still show quote details alongside the balance error.
         throw new QuoteError(
           quoteError.info,
           request.quotes as TransactionPayQuote<unknown>[],
