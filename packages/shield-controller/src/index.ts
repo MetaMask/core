@@ -31,8 +31,4 @@ export {
   parseSignatureRequestMethod,
 } from './backend.js';
 export type { CreateShieldRemoteBackendOptions } from './backend.js';
-export {
-  Env,
-  SHIELD_API_URL_MAP,
-  getShieldApiBaseUrl,
-} from './constants.js';
+export { Env, SHIELD_API_URL_MAP, getShieldApiBaseUrl } from './constants.js';

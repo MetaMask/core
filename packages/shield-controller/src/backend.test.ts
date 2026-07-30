@@ -553,7 +553,9 @@ describe('ShieldRemoteBackend', () => {
         string,
         RequestInit,
       ];
-      expect(url).toStrictEqual(expect.stringContaining(SHIELD_API_URL_MAP[Env.PRD]));
+      expect(url).toStrictEqual(
+        expect.stringContaining(SHIELD_API_URL_MAP[Env.PRD]),
+      );
       expect(requestInit.headers).toMatchObject({
         Authorization: 'Bearer bearer-token',
       });
