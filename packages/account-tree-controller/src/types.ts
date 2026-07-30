@@ -102,7 +102,7 @@ export type AllowedActions =
   | MultichainAccountServiceCreateMultichainAccountGroupsAction
   | MultichainAccountServiceCreateMultichainAccountWalletAction
   | KeyringControllerWithKeyringV2Action
-  | KeyringControllerWithKeyringV2UnsafeAction
+  | KeyringControllerWithKeyringV2UnsafeAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction

@@ -10,6 +10,7 @@ import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import { EthAccountType, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import { decodeMnemonicWords } from '@metamask/keyring-sdk';
 
 import type {
   AccountTreeControllerMessenger,
@@ -190,7 +191,7 @@ async function importMnemonicWallet(
     }
 
     // Import the mnemonic as a new HD wallet.
-    const mnemonic = JSON.parse(payloadWallet.value);
+    const mnemonic = decodeMnemonicWords(payloadWallet.value);
     const { id } = await context.messenger.call(
       'MultichainAccountService:createMultichainAccountWallet',
       { type: 'import', mnemonic },

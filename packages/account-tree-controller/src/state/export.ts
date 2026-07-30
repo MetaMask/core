@@ -3,7 +3,7 @@ import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import { EthAccountType } from '@metamask/keyring-api';
 import { PrivateKeyExportedAccount } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import { encodeMnemonic } from '@metamask/keyring-sdk';
+import { encodeMnemonic, encodeMnemonicWords } from '@metamask/keyring-sdk';
 
 import type {
   AccountTreeControllerMessenger,
@@ -95,14 +95,14 @@ async function exportMnemonicWalletObject(
         entropySourceId: await hdKeyring.toEntropySourceId(),
         // No need to include the mnemonic here if we're not exporting secrets.
         mnemonic: includeMnemonic
-          ? encodeMnemonic(hdKeyring.mnemonic)
+          ? hdKeyring.mnemonic
           : undefined,
       };
     },
   );
   const { entropySourceId, mnemonic } = result as {
     entropySourceId: string;
-    mnemonic?: number[];
+    mnemonic?: Uint8Array<ArrayBufferLike>;
   };
 
   // We use the stable entropy source ID as the payload wallet ID, rather than the local wallet ID, to
@@ -140,7 +140,7 @@ async function exportMnemonicWalletObject(
       throw new Error(`Failed to export mnemonic for wallet ${wallet.id}`);
     }
 
-    wallet.value = JSON.stringify(mnemonic); // FIXME: This should be a string, but the encodeMnemonic function returns a number array. We need to fix this in the keyring-sdk.
+    wallet.value = encodeMnemonicWords(mnemonic);
   }
 
   return wallet;
