@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add V2 ramps order syncing with User Storage ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Synchronize orders across clients for the same SRP using timestamp-based conflict resolution, soft deletes, and incremental updates
+  - Add `RampsController:syncOrdersWithUserStorage` and optional error-reporting and tracing callbacks
+
+### Changed
+
+- **BREAKING:** `RampsControllerMessenger` now requires `UserStorageController` storage actions and `AuthenticationController:isSignedIn` to be delegated so order syncing can run ([#9474](https://github.com/MetaMask/core/pull/9474))
+
 ## [18.0.0]
 
 ### Removed
