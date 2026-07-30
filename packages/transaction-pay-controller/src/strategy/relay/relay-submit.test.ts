@@ -1927,6 +1927,30 @@ describe('Relay Submit Utils', () => {
         );
       });
 
+      it('reads settled amount from submitted source hash on same-chain flows', async () => {
+        request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+        request.quotes[0].original.details.currencyIn.currency.chainId = 1;
+        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: ON_CHAIN_AMOUNT_MOCK,
+          blockNumber: undefined,
+        });
+
+        await submitRelayQuotes(request);
+
+        expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            txHash: TRANSACTION_HASH_MOCK,
+            chainId: CHAIN_ID_MOCK,
+            walletAddress: RECIPIENT_MOCK,
+          }),
+        );
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({ sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK }),
+        );
+      });
+
       it('throws when the same-chain flow has no quote-minimum amount', async () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,

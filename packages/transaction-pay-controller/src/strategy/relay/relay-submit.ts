@@ -160,6 +160,7 @@ async function executeSingleQuote(
   );
 
   let polymarketPreSubmitUsdceBalance = 0n;
+  let submittedSourceHash: Hex | undefined;
 
   // Shallow clone so the server-returned requestId can be written back (state is frozen by Immer).
   const mutableOriginal: RelayQuote = { ...quote.original };
@@ -172,7 +173,7 @@ async function executeSingleQuote(
     polymarketPreSubmitUsdceBalance = preSubmitUsdceBalance;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
-    await submitTransactions(
+    submittedSourceHash = await submitTransactions(
       { ...quote, original: mutableOriginal },
       transaction,
       messenger,
@@ -220,6 +221,7 @@ async function executeSingleQuote(
       completion,
       messenger,
       quote,
+      submittedSourceHash,
       transaction,
     });
 
@@ -231,16 +233,20 @@ async function executeSingleQuote(
 
 /**
  * Runs the second leg of a non-atomic Relay quote. Resolves the settled amount
- * from the on-chain Transfer log at `completion.targetHash`, then submits the
- * batch via `submitMoneyAccountVaultDeposit`. Post-quote flows fetch pre-built
- * calls via the client `getPaymentOverrideData` callback; non-post-quote flows
- * fall through to the transaction's own nested calls re-encoded via
- * `getAmountData`.
+ * from the on-chain Transfer log, then submits the batch via
+ * `submitMoneyAccountVaultDeposit`. Post-quote flows fetch pre-built calls via
+ * the client `getPaymentOverrideData` callback; non-post-quote flows fall
+ * through to the transaction's own nested calls re-encoded via
+ * `getAmountData`. Funds settled on `quote.request.recipient`, derived at
+ * quote time by `resolveNonAtomicRecipient`.
  *
  * @param options - Submit options.
  * @param options.completion - Outcome of `waitForRelayCompletion`.
  * @param options.messenger - Controller messenger.
  * @param options.quote - The Relay quote that was submitted.
+ * @param options.submittedSourceHash - Hash of the submitted source
+ * transaction, used to read the settled amount when Relay skips polling on
+ * same-chain flows.
  * @param options.transaction - Original transaction meta.
  * @returns Hash of the final submitted child transaction, if available.
  */
@@ -248,17 +254,20 @@ async function submitPostNonAtomic({
   completion,
   messenger,
   quote,
+  submittedSourceHash,
   transaction,
 }: {
   completion: RelayCompletionOutcome;
   messenger: TransactionPayControllerMessenger;
   quote: TransactionPayQuote<RelayQuote>;
+  submittedSourceHash?: Hex;
   transaction: TransactionMeta;
 }): Promise<{ transactionHash?: Hex }> {
   const sourceAmountRaw = await resolveSettledAmount({
     completion,
     messenger,
     quote,
+    submittedSourceHash,
   });
 
   const override = quote.request.isPostQuote
@@ -344,42 +353,55 @@ async function buildPostQuoteDepositCalls({
 /**
  * Resolves the actual amount that landed on the recipient after a Relay bridge.
  *
- * When Relay settled on a different chain there is a real target-chain hash, so
- * the exact settled amount is read from its on-chain Transfer log; a read
- * failure or missing amount throws rather than guessing, since using the quote
- * minimum would knowingly strand dust and defeat an EXACT_INPUT quote.
- *
- * Same-chain relays have no separate settlement hash (the `FALLBACK_HASH`
- * placeholder), so there is nothing to read and the quote's minimum output is
- * used as the only available source.
+ * Cross-chain relays surface a real target-chain hash from polling; same-chain
+ * relays skip polling (the `FALLBACK_HASH` placeholder) but the submitted
+ * source transaction itself moved the funds, so its hash is read instead. In
+ * both cases the exact settled amount comes from the on-chain Transfer log; a
+ * read failure or missing amount throws rather than guessing, since using the
+ * quote minimum would knowingly strand dust and defeat an EXACT_INPUT quote.
  *
  * @param options - Resolution options.
  * @param options.completion - Outcome of `waitForRelayCompletion`.
  * @param options.messenger - Controller messenger.
  * @param options.quote - The Relay quote that was submitted.
+ * @param options.submittedSourceHash - Hash of the submitted source
+ * transaction, used when polling was skipped on same-chain flows.
  * @returns The raw (atomic) settled amount as a decimal string.
  */
 async function resolveSettledAmount({
   completion,
   messenger,
   quote,
+  submittedSourceHash,
 }: {
   completion: RelayCompletionOutcome;
   messenger: TransactionPayControllerMessenger;
   quote: TransactionPayQuote<RelayQuote>;
+  submittedSourceHash?: Hex;
 }): Promise<string> {
   const recipient = (quote.request.recipient ?? quote.request.from) as
     | Hex
     | undefined;
 
-  const hasSettlementHash = Boolean(
+  const isSameChain =
+    quote.request.sourceChainId === quote.request.targetChainId;
+
+  const hasPolledTargetHash = Boolean(
     completion.targetHash && completion.targetHash !== FALLBACK_HASH,
   );
 
-  if (recipient && hasSettlementHash) {
+  let settlementHash: Hex | undefined;
+
+  if (hasPolledTargetHash) {
+    settlementHash = completion.targetHash as Hex;
+  } else if (isSameChain) {
+    settlementHash = submittedSourceHash;
+  }
+
+  if (recipient && settlementHash) {
     const { amountRaw: onChainAmount } = await getTransferredAmountFromTxHash({
       messenger,
-      txHash: completion.targetHash as Hex,
+      txHash: settlementHash,
       chainId: quote.request.targetChainId,
       tokenAddress: quote.request.targetTokenAddress,
       walletAddress: recipient,
@@ -392,7 +414,7 @@ async function resolveSettledAmount({
     }
 
     log('Resolved settled amount from on-chain transaction', {
-      targetHash: completion.targetHash,
+      settlementHash,
       onChainAmount,
     });
 

@@ -148,14 +148,6 @@ export type TransactionConfig = {
   isQuoteRequired?: boolean;
 
   /**
-   * Final recipient of the Relay quote output. When set, overrides the default
-   * recipient (the EOA) in the quote request. Required for flows whose Relay
-   * output must settle on an address other than the funding EOA (e.g. a Money
-   * Account smart account for withdraw-to-MA).
-   */
-  recipient?: Hex;
-
-  /**
    * Optional address to receive refunds if the quote provider transaction fails.
    * When set, overrides the default refund recipient (EOA) in the quote
    * request. Use this for post-quote flows where the user's funds originate
@@ -349,12 +341,6 @@ export type TransactionData = {
 
   /** When true, a quote is always fetched even when the source and target tokens are identical. */
   isQuoteRequired?: boolean;
-
-  /**
-   * Final recipient of the Relay quote output. See
-   * {@link TransactionConfig.recipient}.
-   */
-  recipient?: Hex;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -576,7 +562,13 @@ export type QuoteRequest = {
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
 
-  /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
+  /**
+   * Final recipient of the Relay quote output. Not client-configurable —
+   * derived internally at quote time for non-atomic flows: the
+   * `getPaymentOverrideData` callback's `recipient` for post-quote flows,
+   * otherwise the parent transaction's own `from` (e.g. the Money Account for
+   * max-amount deposits). When unset, the quote settles on `from`.
+   */
   recipient?: Hex;
 
   /**

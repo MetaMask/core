@@ -94,7 +94,6 @@ export async function updateQuotes(
     isQuoteRequired,
     paymentOverride,
     paymentToken: originalPaymentToken,
-    recipient,
     refundTo,
     sourceAmounts,
     tokens,
@@ -134,7 +133,6 @@ export async function updateQuotes(
       isPostQuote,
       paymentOverride,
       paymentToken,
-      recipient,
       refundTo,
       sourceAmounts,
       tokens,
@@ -384,7 +382,6 @@ function clearControllerIfCurrent(
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.paymentOverride - Optional payment override type for the transaction.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
- * @param request.recipient - Optional final recipient of the Relay quote output.
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
@@ -400,7 +397,6 @@ function buildQuoteRequests({
   isPostQuote,
   paymentOverride,
   paymentToken,
-  recipient,
   refundTo,
   sourceAmounts,
   tokens,
@@ -414,7 +410,6 @@ function buildQuoteRequests({
   isPostQuote?: boolean;
   paymentOverride?: PaymentOverride;
   paymentToken: TransactionPaymentToken | undefined;
-  recipient?: Hex;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
@@ -433,7 +428,6 @@ function buildQuoteRequests({
       isMaxAmount,
       isPolymarketDepositWallet,
       paymentOverride,
-      recipient,
       refundTo,
       sourceAmounts,
       transactionId,
@@ -451,7 +445,6 @@ function buildQuoteRequests({
       from,
       isMaxAmount,
       paymentOverride,
-      recipient,
       refundTo,
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceChainId: paymentToken.chainId,
@@ -483,7 +476,6 @@ function buildQuoteRequests({
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.paymentOverride - Optional payment override type for the transaction.
- * @param request.recipient - Optional final recipient of the Relay quote output.
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
  * @param request.transactionId - ID of the transaction.
@@ -497,7 +489,6 @@ function buildPostQuoteRequests({
   isMaxAmount,
   isPolymarketDepositWallet,
   paymentOverride,
-  recipient,
   refundTo,
   sourceAmounts,
   transactionId,
@@ -509,7 +500,6 @@ function buildPostQuoteRequests({
   isMaxAmount: boolean;
   isPolymarketDepositWallet?: boolean;
   paymentOverride?: PaymentOverride;
-  recipient?: Hex;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   transactionId: string;
@@ -541,7 +531,6 @@ function buildPostQuoteRequests({
     isPolymarketDepositWallet,
     isPostQuote: true,
     paymentOverride,
-    recipient,
     refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceChainId: sourceAmount.sourceChainId,
