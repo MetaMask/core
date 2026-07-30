@@ -286,34 +286,37 @@ export function calculateFinalPositionSize(
 
   let finalPositionSize: number;
 
+  // Validate price staleness whenever the caller supplied a calculation-time
+  // price. This runs before the sizing branches on purpose: a full close submits
+  // the exact live position size rather than a USD-derived one, and it must still
+  // be rejected when the price has moved past the caller's tolerance.
+  if (priceAtCalculation) {
+    const priceDeltaBps = Math.abs(
+      ((currentPrice - priceAtCalculation) / priceAtCalculation) * 10000,
+    );
+    const maxSlippageBpsValue =
+      maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps;
+
+    if (priceDeltaBps > maxSlippageBpsValue) {
+      throw new Error(
+        `Price moved too much: ${priceDeltaBps.toFixed(0)} bps (max: ${maxSlippageBpsValue} bps). ` +
+          `Expected: ${priceAtCalculation.toFixed(2)}, Current: ${currentPrice.toFixed(2)}`,
+      );
+    }
+
+    debugLogger?.log('Price validation passed:', {
+      priceAtCalculation,
+      currentPrice,
+      deltaBps: priceDeltaBps.toFixed(2),
+      maxSlippageBps: maxSlippageBpsValue,
+    });
+  }
+
   if (usdAmount && parseFloat(usdAmount) > 0) {
     // USD amount provided - use it as source of truth
     const usdValue = parseFloat(usdAmount);
 
-    // 1. Validate price staleness if priceAtCalculation provided
-    if (priceAtCalculation) {
-      const priceDeltaBps = Math.abs(
-        ((currentPrice - priceAtCalculation) / priceAtCalculation) * 10000,
-      );
-      const maxSlippageBpsValue =
-        maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps;
-
-      if (priceDeltaBps > maxSlippageBpsValue) {
-        throw new Error(
-          `Price moved too much: ${priceDeltaBps.toFixed(0)} bps (max: ${maxSlippageBpsValue} bps). ` +
-            `Expected: ${priceAtCalculation.toFixed(2)}, Current: ${currentPrice.toFixed(2)}`,
-        );
-      }
-
-      debugLogger?.log('Price validation passed:', {
-        priceAtCalculation,
-        currentPrice,
-        deltaBps: priceDeltaBps.toFixed(2),
-        maxSlippageBps: maxSlippageBpsValue,
-      });
-    }
-
-    // 2. Recalculate position size with fresh price
+    // Recalculate position size with fresh price
     finalPositionSize = usdValue / currentPrice;
 
     // A reduce-only order may never exceed the size the caller asked to close:

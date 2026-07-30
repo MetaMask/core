@@ -4523,28 +4523,27 @@ export class HyperLiquidProvider implements PerpsProvider {
             { coin: params.symbol },
           );
 
-          const positions = await this.getPositions({ skipCache: true });
+          // Query the symbol's own DEX so the outcome carries provenance.
+          // getPositions() fans out across every enabled DEX, flattens the subset
+          // that answered and turns any failure into [], so it cannot distinguish
+          // "this DEX answered and holds nothing" from "this DEX failed or was
+          // never queried" — and those two need opposite decisions.
+          const { answered, positions } = await this.#queryDexPositions(
+            parseAssetName(params.symbol).dex,
+          );
           const livePositionFromApi = positions.find(
             (pos) => pos.symbol === params.symbol,
-          );
-          // getPositions() fans out across every enabled DEX and returns only the
-          // subset that answered, so a non-empty response proves nothing about
-          // this symbol's DEX. Look for another position on the same DEX: that is
-          // what proves its query ran and came back.
-          const targetDex = parseAssetName(params.symbol).dex ?? '';
-          const targetDexAnswered = positions.some(
-            (pos) => (parseAssetName(pos.symbol).dex ?? '') === targetDex,
           );
 
           if (livePositionFromApi) {
             position = livePositionFromApi;
-          } else if (targetDexAnswered) {
-            // The DEX answered without this symbol, so it is genuinely closed.
+          } else if (answered) {
+            // The DEX answered without this symbol — even with no positions at
+            // all — so it is genuinely closed.
             throw new Error(`No position found for ${params.symbol}`);
           }
-          // Otherwise ambiguous — the DEX's request failed, or it is not enabled
-          // and was never queried. Keep the caller's snapshot rather than let
-          // that block a position that is open and closable.
+          // Otherwise the query failed, so the absence proves nothing: keep the
+          // caller's snapshot rather than block a position that may be closable.
         }
       }
 
@@ -4838,6 +4837,59 @@ export class HyperLiquidProvider implements PerpsProvider {
     // buildAssetMapping uses state.raw for perpDexIndex computation.
     const state = this.#dexDiscoveryCache.update(allDexs);
     return state.validated;
+  }
+
+  /**
+   * Query one DEX's positions directly, preserving whether that DEX answered.
+   *
+   * `getPositions()` fans out across every enabled DEX, flattens the subset that
+   * answered and converts any thrown error into an empty array, so its result
+   * cannot distinguish "this DEX answered and holds no positions" from "this
+   * DEX's request failed or it was never queried". `closePosition` needs that
+   * distinction: the first means the position is closed and the close must fail
+   * before submitting, the second means the absence proves nothing and the
+   * caller's snapshot should stand.
+   *
+   * TP/SL enrichment is skipped, as in standalone mode: the close path only reads
+   * size, side and margin.
+   *
+   * @param dexName - DEX identifier, or null for the main DEX.
+   * @returns Whether the DEX answered, and the positions it reported.
+   */
+  async #queryDexPositions(
+    dexName: string | null,
+  ): Promise<{ answered: boolean; positions: Position[] }> {
+    try {
+      await this.#ensureClientsInitialized();
+      this.#clientService.ensureInitialized();
+
+      const infoClient = this.#clientService.getInfoClient();
+      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      const state = await infoClient.clearinghouseState(
+        dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
+      );
+      const positions = (state.assetPositions ?? [])
+        .filter((assetPos) => assetPos.position.szi !== '0')
+        .map((assetPos) => adaptPositionFromSDK(assetPos));
+
+      this.#deps.debugLogger.log('Target DEX position query answered', {
+        dex: dexName ?? 'main',
+        count: positions.length,
+      });
+
+      return { answered: true, positions };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'Target DEX position query failed; its silence proves nothing',
+        {
+          dex: dexName ?? 'main',
+          error: ensureError(error, 'HyperLiquidProvider.queryDexPositions')
+            .message,
+        },
+      );
+
+      return { answered: false, positions: [] };
+    }
   }
 
   /**

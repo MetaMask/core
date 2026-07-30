@@ -2184,6 +2184,46 @@ describe('HyperLiquidProvider', () => {
       expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
     });
 
+    it('rejects a full close whose price moved beyond maxSlippageBps', async () => {
+      // A full close submits the exact live size rather than a USD-derived one,
+      // but the caller's staleness guard must still apply: priceAtCalculation is
+      // 50000 and the live price is 40000, a 2000 bps move against a 300 bps cap
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        priceAtCalculation: 50000,
+        maxSlippageBps: 300,
+        currentPrice: 40000,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Price moved too much');
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('submits the exact live size for a full close inside maxSlippageBps', async () => {
+      // 100 bps of drift against a 300 bps cap: the guard passes and the close
+      // still submits exactly the live position size
+      primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        priceAtCalculation: 50000,
+        maxSlippageBps: 300,
+        currentPrice: 49500,
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
+    });
+
     it('caps a partial close at the clamped size when usdAmount implies more', async () => {
       // 98% close priced at 50000, submitted after a 2.5% adverse move: the USD
       // amount implies 0.1005 BTC, above both the request and the position
@@ -2364,11 +2404,11 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
-    it('does not block a main-DEX close when the cache does not cover the main DEX', async () => {
+    it('uses the live position when the target DEX answers the uncovered-DEX lookup', async () => {
       // A dropped main-DEX re-subscription still leaves the aggregate marked as
-      // initialized, so a cache miss there must not fail a closable position
+      // initialized, so a cache miss there must not fail a closable position: the
+      // DEX is queried directly and its live 0.1 BTC wins over the 0.07 snapshot
       primePositionsCache([], []);
-      const getPositionsSpy = jest.spyOn(provider, 'getPositions');
 
       const result = await provider.closePosition({
         symbol: 'BTC',
@@ -2377,35 +2417,24 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(true);
-      // Live REST data (0.1 BTC) is used, not the 0.07 snapshot
       expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
-      expect(getPositionsSpy).toHaveBeenCalledWith({ skipCache: true });
     });
 
-    it('falls back to the caller snapshot when the uncovered-DEX lookup returns nothing', async () => {
-      // getPositions() swallows request failures and returns [], so an empty
-      // response is ambiguous and must not block a closable position
+    it('fails when the target DEX answers with zero positions', async () => {
+      // A successful clearinghouseState response holding no positions at all
+      // proves the position is closed. Reusing the snapshot here would submit
+      // exactly the stale reduce-only order this ticket exists to prevent.
       primePositionsCache([], []);
-      jest.spyOn(provider, 'getPositions').mockResolvedValue([]);
-
-      const result = await provider.closePosition({
-        symbol: 'BTC',
-        orderType: 'market',
-        position: createPositionSnapshot({ size: '0.07' }),
-      });
-
-      expect(result.success).toBe(true);
-      expect(getSubmittedOrder()).toMatchObject({ s: '0.07', r: true });
-    });
-
-    it('fails when the target DEX answered the lookup without the position', async () => {
-      // ETH came back from the same (main) DEX, which proves that DEX's query ran
-      // and BTC really is closed — submitting the snapshot here is the bug this
-      // ticket is about
-      primePositionsCache([], []);
-      jest
-        .spyOn(provider, 'getPositions')
-        .mockResolvedValue([createPositionSnapshot({ symbol: 'ETH' })]);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '0', accountValue: '10000' },
+            withdrawable: '10000',
+            assetPositions: [],
+            crossMarginSummary: { accountValue: '10000', totalMarginUsed: '0' },
+          }),
+        }),
+      );
 
       const result = await provider.closePosition({
         symbol: 'BTC',
@@ -2420,15 +2449,79 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('keeps the snapshot when only other DEXs answered the uncovered-DEX lookup', async () => {
-      // getPositions() fans out across DEXs and returns the subset that answered.
-      // A HIP-3 target whose own DEX request failed (429/timeout) or was never
-      // queried still yields a non-empty response from the main DEX, which proves
-      // nothing about xyz — blocking the close there would strand the position.
+    it('fails when the target DEX answers without the position but holds others', async () => {
+      // ETH came back from the same (main) DEX, which proves that DEX's query ran
+      // and BTC really is closed
       primePositionsCache([], []);
-      jest
-        .spyOn(provider, 'getPositions')
-        .mockResolvedValue([createPositionSnapshot({ symbol: 'BTC' })]);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '450', accountValue: '10450' },
+            withdrawable: '10000',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'ETH',
+                  szi: '1.5',
+                  entryPx: '3000',
+                  positionValue: '4500',
+                  unrealizedPnl: '50',
+                  marginUsed: '450',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '2700',
+                },
+                type: 'oneWay',
+              },
+            ],
+            crossMarginSummary: {
+              accountValue: '10450',
+              totalMarginUsed: '450',
+            },
+          }),
+        }),
+      );
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.07' }),
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('No position found for BTC');
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('keeps the caller snapshot when the target DEX query fails', async () => {
+      // A rate-limited or erroring clearinghouseState proves nothing about the
+      // symbol, so the snapshot must stand rather than block a closable position
+      primePositionsCache([], []);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest
+            .fn()
+            .mockRejectedValue(new Error('429 Too Many Requests')),
+        }),
+      );
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        currentPrice: 50000,
+        position: createPositionSnapshot({ size: '0.07' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.07', r: true });
+    });
+
+    it('keeps the snapshot when the HIP-3 target DEX query fails', async () => {
+      // The target DEX is queried directly now, so a failing xyz request is
+      // reported as unanswered no matter what the main DEX holds — blocking the
+      // close on that would strand the position.
+      primePositionsCache([], []);
       const hip3Provider = createTestProvider({
         hip3Enabled: true,
         allowlistMarkets: ['xyz:*'],
@@ -2443,6 +2536,26 @@ describe('HyperLiquidProvider', () => {
       });
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
+          // The xyz DEX query fails; the main DEX would answer, but that says
+          // nothing about xyz
+          clearinghouseState: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.reject(new Error('429 Too Many Requests'))
+                : Promise.resolve({
+                    marginSummary: {
+                      totalMarginUsed: '500',
+                      accountValue: '10500',
+                    },
+                    withdrawable: '9500',
+                    assetPositions: [],
+                    crossMarginSummary: {
+                      accountValue: '10500',
+                      totalMarginUsed: '500',
+                    },
+                  }),
+            ),
           perpDexs: jest
             .fn()
             .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
