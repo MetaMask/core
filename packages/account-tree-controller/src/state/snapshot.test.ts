@@ -5,7 +5,10 @@ import type {
   AccountWalletPrivateKeyPayload,
 } from './payload.js';
 import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION } from './payload.js';
-import { AccountTreeSnapshot } from './snapshot.js';
+import {
+  AccountTreeSnapshot,
+  createAccountTreeSnapshot,
+} from './snapshot.js';
 
 const MOCK_MNEMONIC_WALLET: AccountWalletMnemonicPayload = {
   id: 'wallet:entropy-source-1',
@@ -48,13 +51,15 @@ function buildIdMap(): IdMap {
 }
 
 describe('AccountTreeSnapshot', () => {
-  describe('filter', () => {
+  describe('filterWallets', () => {
     it('returns a snapshot containing only matching entries', () => {
-      const snapshot = new AccountTreeSnapshot(
+      const snapshot = createAccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
         null,
       );
-      const filtered = snapshot.filter((entry) => entry.type === 'mnemonic');
+      const filtered = snapshot.filterWallets(
+        (wallet) => wallet.type === 'mnemonic',
+      );
       expect(filtered.serialize().wallets).toHaveLength(1);
       expect(filtered.serialize().wallets[0]?.id).toBe(
         'wallet:entropy-source-1',
@@ -62,22 +67,24 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('preserves null idMap when filtering', () => {
-      const snapshot = new AccountTreeSnapshot(
+      const snapshot = createAccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
         null,
       );
-      const filtered = snapshot.filter(() => true);
+      const filtered = snapshot.filterWallets(() => true);
       expect(filtered.toLocalId('wallet:entropy-source-1')).toBeUndefined();
     });
 
     it('prunes the idMap to only include entries for kept wallets', () => {
       const map = buildIdMap();
-      const snapshot = new AccountTreeSnapshot(
+      const snapshot = createAccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
         map,
       );
 
-      const filtered = snapshot.filter((entry) => entry.type === 'mnemonic');
+      const filtered = snapshot.filterWallets(
+        (wallet) => wallet.type === 'mnemonic',
+      );
 
       expect(filtered.toLocalId('wallet:entropy-source-1')).toBe(
         'entropy:wallet-1',
@@ -85,7 +92,6 @@ describe('AccountTreeSnapshot', () => {
       expect(filtered.toLocalId('wallet:entropy-source-1/0')).toBe(
         'entropy:wallet-1/0',
       );
-      // Private key wallet entries should not be in the filtered map.
       expect(filtered.toLocalId('wallet:private-key')).toBeUndefined();
       expect(
         filtered.toLocalId('wallet:private-key/0xdeadbeef'),
@@ -94,19 +100,145 @@ describe('AccountTreeSnapshot', () => {
 
     it('handles wallet entries whose IDs are not in the idMap', () => {
       const map = new IdMap();
-      // Only add one of the two wallets to the map.
       map.add('entropy:wallet-1', 'wallet:entropy-source-1');
 
-      const snapshot = new AccountTreeSnapshot(
+      const snapshot = createAccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
         map,
       );
 
-      const filtered = snapshot.filter(() => true);
+      const filtered = snapshot.filterWallets(() => true);
       expect(filtered.toLocalId('wallet:entropy-source-1')).toBe(
         'entropy:wallet-1',
       );
-      // Private key wallet was not in the map — it should still be absent.
+      expect(filtered.toLocalId('wallet:private-key')).toBeUndefined();
+    });
+  });
+
+  describe('filterGroups', () => {
+    it('filters groups within a single wallet and leaves others unchanged', () => {
+      const snapshot = createAccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
+        null,
+      );
+
+      const filtered = snapshot.filterGroups(
+        'wallet:entropy-source-1',
+        (group) => group.id.endsWith('/0'),
+      );
+
+      const wallets = filtered.serialize().wallets;
+      expect(wallets).toHaveLength(2);
+      expect(wallets[0]?.groups).toHaveLength(1);
+      expect(wallets[0]?.groups[0]?.id).toBe('wallet:entropy-source-1/0');
+      expect(wallets[1]?.groups).toHaveLength(1);
+    });
+
+    it('removes the wallet when all groups are filtered out', () => {
+      const snapshot = createAccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
+        null,
+      );
+
+      const filtered = snapshot.filterGroups(
+        'wallet:entropy-source-1',
+        () => false,
+      );
+
+      expect(filtered.serialize().wallets).toHaveLength(1);
+      expect(filtered.serialize().wallets[0]?.type).toBe('private-key');
+    });
+
+    it('filters private-key wallet groups and prunes the idMap', () => {
+      const map = buildIdMap();
+      const snapshot = createAccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
+        map,
+      );
+
+      const filtered = snapshot.filterGroups(
+        'wallet:private-key',
+        () => true,
+      );
+
+      expect(filtered.serialize().wallets).toHaveLength(2);
+      expect(filtered.toLocalId('wallet:private-key/0xdeadbeef')).toBe(
+        'keyring:simple/0xdeadbeef',
+      );
+    });
+
+    it('filters mnemonic wallet groups and prunes the idMap', () => {
+      const map = buildIdMap();
+      const snapshot = createAccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
+        map,
+      );
+
+      const filtered = snapshot.filterGroups(
+        'wallet:entropy-source-1',
+        (group) => group.id.endsWith('/0'),
+      );
+
+      expect(filtered.toLocalId('wallet:entropy-source-1/0')).toBe(
+        'entropy:wallet-1/0',
+      );
+      expect(filtered.toLocalId('wallet:entropy-source-1/1')).toBeUndefined();
+    });
+
+    it('throws when the wallet ID is not in the snapshot', () => {
+      const snapshot = createAccountTreeSnapshot([MOCK_MNEMONIC_WALLET], null);
+
+      expect(() =>
+        snapshot.filterGroups('wallet:missing', () => true),
+      ).toThrow('wallet "wallet:missing" not found in snapshot');
+    });
+  });
+
+  describe('filterAllGroups', () => {
+    it('filters groups across all wallets and removes empty wallets', () => {
+      const snapshot = createAccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
+        null,
+      );
+
+      const filtered = snapshot.filterAllGroups((group) =>
+        group.id.endsWith('/0'),
+      );
+
+      const wallets = filtered.serialize().wallets;
+      expect(wallets).toHaveLength(1);
+      expect(wallets[0]?.type).toBe('mnemonic');
+      expect(wallets[0]?.groups).toHaveLength(1);
+    });
+
+    it('provides the parent wallet to the predicate', () => {
+      const snapshot = createAccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
+        null,
+      );
+
+      const filtered = snapshot.filterAllGroups(
+        (_group, wallet) => wallet.type === 'private-key',
+      );
+
+      expect(filtered.serialize().wallets).toHaveLength(1);
+      expect(filtered.serialize().wallets[0]?.type).toBe('private-key');
+    });
+
+    it('prunes the idMap when filtering all groups', () => {
+      const map = buildIdMap();
+      const snapshot = createAccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
+        map,
+      );
+
+      const filtered = snapshot.filterAllGroups(
+        (_group, wallet) => wallet.type === 'mnemonic',
+      );
+
+      expect(filtered.toLocalId('wallet:entropy-source-1/0')).toBe(
+        'entropy:wallet-1/0',
+      );
       expect(filtered.toLocalId('wallet:private-key')).toBeUndefined();
     });
   });
@@ -114,7 +246,7 @@ describe('AccountTreeSnapshot', () => {
   describe('toLocalId', () => {
     it('returns the local ID for a known payload wallet ID', () => {
       const map = buildIdMap();
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
+      const snapshot = createAccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
       expect(snapshot.toLocalId('wallet:entropy-source-1')).toBe(
         'entropy:wallet-1',
       );
@@ -122,19 +254,19 @@ describe('AccountTreeSnapshot', () => {
 
     it('returns the local ID for a known payload group ID', () => {
       const map = buildIdMap();
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
+      const snapshot = createAccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
       expect(snapshot.toLocalId('wallet:entropy-source-1/0')).toBe(
         'entropy:wallet-1/0',
       );
     });
 
     it('returns undefined when no idMap is present', () => {
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], null);
+      const snapshot = createAccountTreeSnapshot([MOCK_MNEMONIC_WALLET], null);
       expect(snapshot.toLocalId('wallet:entropy-source-1')).toBeUndefined();
     });
 
     it('returns undefined for an unknown payload ID', () => {
-      const snapshot = new AccountTreeSnapshot(
+      const snapshot = createAccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET],
         new IdMap(),
       );
@@ -145,7 +277,7 @@ describe('AccountTreeSnapshot', () => {
   describe('toPayloadId', () => {
     it('returns the payload ID for a known local wallet ID', () => {
       const map = buildIdMap();
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
+      const snapshot = createAccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
       expect(snapshot.toPayloadId('entropy:wallet-1')).toBe(
         'wallet:entropy-source-1',
       );
@@ -153,19 +285,19 @@ describe('AccountTreeSnapshot', () => {
 
     it('returns the payload ID for a known local group ID', () => {
       const map = buildIdMap();
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
+      const snapshot = createAccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
       expect(snapshot.toPayloadId('entropy:wallet-1/0')).toBe(
         'wallet:entropy-source-1/0',
       );
     });
 
     it('returns undefined when no idMap is present', () => {
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], null);
+      const snapshot = createAccountTreeSnapshot([MOCK_MNEMONIC_WALLET], null);
       expect(snapshot.toPayloadId('entropy:wallet-1')).toBeUndefined();
     });
 
     it('returns undefined for an unknown local ID', () => {
-      const snapshot = new AccountTreeSnapshot(
+      const snapshot = createAccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET],
         new IdMap(),
       );
@@ -175,7 +307,7 @@ describe('AccountTreeSnapshot', () => {
 
   describe('serialize', () => {
     it('serializes to a versioned AccountTreePayload', () => {
-      const snapshot = new AccountTreeSnapshot(
+      const snapshot = createAccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
         null,
       );
@@ -187,7 +319,7 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('serializes an empty snapshot', () => {
-      const snapshot = new AccountTreeSnapshot([], null);
+      const snapshot = createAccountTreeSnapshot([], null);
       const payload = snapshot.serialize();
       expect(payload.version).toBe(ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION);
       expect(payload.wallets).toHaveLength(0);
@@ -230,6 +362,22 @@ describe('AccountTreeSnapshot', () => {
           wallets: [],
         }),
       ).toThrow('Unsupported AccountTreePayload version');
+    });
+
+    it('throws for an unsupported wallet type', () => {
+      expect(() =>
+        AccountTreeSnapshot.deserialize({
+          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+          wallets: [
+            {
+              id: 'wallet:ledger',
+              type: 'ledger',
+              metadata: { name: '' },
+              groups: [],
+            },
+          ],
+        }),
+      ).toThrow('Invalid AccountTreePayload');
     });
   });
 });

@@ -2,61 +2,244 @@ import { IdMap } from './id-map.js';
 import type {
   AccountGroupPayloadId,
   AccountTreePayload,
-  AccountTreeSnapshotEntry,
+  AccountTreeSnapshotGroup,
+  AccountTreeSnapshotWallet,
+  AccountTreeWalletEntry,
+  AccountWalletMnemonicGroupEntry,
+  AccountWalletMnemonicPayload,
   AccountWalletPayloadId,
+  AccountWalletPrivateKeyGroupEntry,
+  AccountWalletPrivateKeyPayload,
 } from './payload.js';
 import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION, migrate } from './payload.js';
 
 /**
+ * Creates an {@link AccountTreeSnapshot}. Package-internal factory used by export
+ * and tests; callers outside this package should use
+ * {@link AccountTreeController.exportState} or {@link AccountTreeSnapshot.deserialize}.
+ *
+ * @param entries - Wallet entries in the snapshot.
+ * @param idMap - Optional local ↔ payload ID map populated during export.
+ * @returns A new snapshot.
+ */
+export function createAccountTreeSnapshot(
+  entries: AccountTreeWalletEntry[],
+  idMap: IdMap | null,
+): AccountTreeSnapshot {
+  return new AccountTreeSnapshot(entries, idMap);
+}
+
+/**
+ * Deep-freezes a value for use in immutable snapshot filtering predicates.
+ *
+ * @param value - Value to freeze.
+ * @returns The frozen value.
+ */
+function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+
+  Object.freeze(value);
+
+  for (const nested of Object.values(value)) {
+    deepFreeze(nested);
+  }
+
+  return value;
+}
+
+/**
+ * Builds ID-map pairs for the wallets and groups present in `entries`.
+ *
+ * @param entries - Wallet entries to map.
+ * @param idMap - Source ID map.
+ * @returns Pairs for a pruned {@link IdMap}.
+ */
+function collectIdMapPairs(
+  entries: AccountTreeWalletEntry[],
+  idMap: IdMap,
+): Parameters<IdMap['add']>[] {
+  const pairs: Parameters<IdMap['add']>[] = [];
+
+  for (const entry of entries) {
+    const localWalletId = idMap.getLocalId(entry.id);
+    if (localWalletId !== undefined) {
+      pairs.push([localWalletId, entry.id]);
+    }
+    for (const group of entry.groups) {
+      const localGroupId = idMap.getLocalId(group.id);
+      if (localGroupId !== undefined) {
+        pairs.push([localGroupId, group.id]);
+      }
+    }
+  }
+
+  return pairs;
+}
+
+/**
  * Immutable value object returned by {@link AccountTreeController.exportState}.
+ *
+ * Snapshots can only be constructed by {@link AccountTreeController.exportState},
+ * {@link AccountTreeSnapshot.deserialize}, or the package-internal
+ * {@link createAccountTreeSnapshot} factory.
  *
  * Holds an ID map (local ↔ payload) populated during export so callers can
  * bridge between internal controller IDs and the stable cross-device IDs that
  * appear in the serialized payload. The map is absent for snapshots produced
- * by {@link AccountTreeSnapshot.deserialize} — `toLocalId` / `toPayloadId`
- * return `undefined` in that case.
+ * by {@link AccountTreeSnapshot.deserialize} — {@link toLocalId} /
+ * {@link toPayloadId} return `undefined` in that case.
  */
 export class AccountTreeSnapshot {
-  readonly #entries: AccountTreeSnapshotEntry[];
+  readonly #entries: AccountTreeWalletEntry[];
 
   readonly #idMap: IdMap | null;
 
-  constructor(entries: AccountTreeSnapshotEntry[], idMap: IdMap | null) {
+  private constructor(
+    entries: AccountTreeWalletEntry[],
+    idMap: IdMap | null,
+  ) {
     this.#entries = entries;
     this.#idMap = idMap;
   }
 
   /**
-   * Returns a new snapshot containing only the wallet entries for which
+   * Returns a new snapshot containing only the wallets for which
    * `predicate` returns `true`. The ID map is pruned to match.
    *
-   * @param predicate - Function called with each wallet entry.
+   * When filtering by wallet ID, compare against stable payload IDs from
+   * {@link serialize} or convert local IDs with {@link toPayloadId} first.
+   *
+   * @param predicate - Function called with each deeply read-only wallet entry.
    * @returns A filtered snapshot.
    */
-  filter(
-    predicate: (entry: AccountTreeSnapshotEntry) => boolean,
+  filterWallets(
+    predicate: (wallet: AccountTreeSnapshotWallet) => boolean,
   ): AccountTreeSnapshot {
-    const filteredEntries = this.#entries.filter(predicate);
+    const filteredEntries = this.#entries.filter((entry) =>
+      predicate(deepFreeze(structuredClone(entry)) as AccountTreeSnapshotWallet),
+    );
 
     if (!this.#idMap) {
       return new AccountTreeSnapshot(filteredEntries, null);
     }
 
-    const pairs: Parameters<IdMap['add']>[] = [];
-    for (const entry of filteredEntries) {
-      const localWalletId = this.#idMap.getLocalId(entry.id);
-      if (localWalletId !== undefined) {
-        pairs.push([localWalletId, entry.id]);
+    return new AccountTreeSnapshot(
+      filteredEntries,
+      new IdMap(collectIdMapPairs(filteredEntries, this.#idMap)),
+    );
+  }
+
+  /**
+   * Filters groups within one wallet. Other wallets are left unchanged.
+   *
+   * Throws if `walletId` does not identify a wallet in the snapshot.
+   * Removes the wallet if no groups remain after filtering — this prevents a
+   * mnemonic wallet with zero selected groups from still transferring its secret.
+   *
+   * @param walletId - Stable payload wallet ID to filter groups within.
+   * @param predicate - Function called with each deeply read-only group entry.
+   * @returns A filtered snapshot.
+   * @throws If `walletId` is not present in the snapshot.
+   */
+  filterGroups(
+    walletId: AccountWalletPayloadId,
+    predicate: (group: AccountTreeSnapshotGroup) => boolean,
+  ): AccountTreeSnapshot {
+    const walletIndex = this.#entries.findIndex(
+      (entry) => entry.id === walletId,
+    );
+    if (walletIndex === -1) {
+      throw new Error(
+        `Cannot filter groups: wallet "${walletId}" not found in snapshot`,
+      );
+    }
+
+    const wallet = this.#entries[walletIndex] as AccountTreeWalletEntry;
+
+    const filteredGroups = wallet.groups.filter((group) =>
+      predicate(deepFreeze(structuredClone(group)) as AccountTreeSnapshotGroup),
+    );
+
+    const filteredEntries = [...this.#entries];
+    if (filteredGroups.length === 0) {
+      filteredEntries.splice(walletIndex, 1);
+    } else if (wallet.type === 'mnemonic') {
+      filteredEntries[walletIndex] = {
+        ...wallet,
+        groups: filteredGroups as AccountWalletMnemonicGroupEntry[],
+      };
+    } else {
+      filteredEntries[walletIndex] = {
+        ...wallet,
+        groups: filteredGroups as AccountWalletPrivateKeyGroupEntry[],
+      };
+    }
+
+    if (!this.#idMap) {
+      return new AccountTreeSnapshot(filteredEntries, null);
+    }
+
+    return new AccountTreeSnapshot(
+      filteredEntries,
+      new IdMap(collectIdMapPairs(filteredEntries, this.#idMap)),
+    );
+  }
+
+  /**
+   * Filters groups across every wallet.
+   *
+   * The parent wallet is provided as context to the predicate. Removes any
+   * wallet with no remaining groups after filtering.
+   *
+   * @param predicate - Function called with each group and its parent wallet.
+   * @returns A filtered snapshot.
+   */
+  filterAllGroups(
+    predicate: (
+      group: AccountTreeSnapshotGroup,
+      wallet: AccountTreeSnapshotWallet,
+    ) => boolean,
+  ): AccountTreeSnapshot {
+    const filteredEntries: AccountTreeWalletEntry[] = [];
+
+    for (const wallet of this.#entries) {
+      const frozenWallet = deepFreeze(
+        structuredClone(wallet),
+      ) as AccountTreeSnapshotWallet;
+      const filteredGroups = wallet.groups.filter((group) =>
+        predicate(
+          deepFreeze(structuredClone(group)) as AccountTreeSnapshotGroup,
+          frozenWallet,
+        ),
+      );
+
+      if (filteredGroups.length === 0) {
+        continue;
       }
-      for (const group of entry.groups) {
-        const localGroupId = this.#idMap.getLocalId(group.id);
-        if (localGroupId !== undefined) {
-          pairs.push([localGroupId, group.id]);
-        }
+
+      if (wallet.type === 'mnemonic') {
+        filteredEntries.push({
+          ...wallet,
+          groups: filteredGroups as AccountWalletMnemonicGroupEntry[],
+        });
+      } else {
+        filteredEntries.push({
+          ...wallet,
+          groups: filteredGroups as AccountWalletPrivateKeyGroupEntry[],
+        });
       }
     }
 
-    return new AccountTreeSnapshot(filteredEntries, new IdMap(pairs));
+    if (!this.#idMap) {
+      return new AccountTreeSnapshot(filteredEntries, null);
+    }
+
+    return new AccountTreeSnapshot(
+      filteredEntries,
+      new IdMap(collectIdMapPairs(filteredEntries, this.#idMap)),
+    );
   }
 
   /**
@@ -98,15 +281,20 @@ export class AccountTreeSnapshot {
   }
 
   /**
-   * Deserializes and validates a raw value as an `AccountTreePayload`,
-   * running any necessary version migrations.
+   * Validates a raw value as an {@link AccountTreePayload}, running any
+   * necessary version migrations, and returns an immutable snapshot.
    *
-   * The returned snapshot has no ID map — `toLocalId` / `toPayloadId` return
-   * `undefined`. Use `AccountTreeController.exportState` when you need the map.
+   * This is the entry point for untrusted serialized data. Unsupported schema
+   * versions and wallet types fail closed with an error instead of returning a
+   * partial snapshot.
+   *
+   * The returned snapshot has no ID map — {@link toLocalId} / {@link toPayloadId}
+   * return `undefined`. Use {@link AccountTreeController.exportState} when you
+   * need the map.
    *
    * @param raw - Unknown value to parse.
-   * @returns A migrated snapshot.
-   * @throws If `raw` is not a valid payload or its version exceeds the current version.
+   * @returns A validated snapshot.
+   * @throws If `raw` is not a valid payload or its version is unsupported.
    */
   static deserialize(raw: unknown): AccountTreeSnapshot {
     const payload = migrate(raw);
