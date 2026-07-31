@@ -353,7 +353,8 @@ describe('validateRelayQuotes', () => {
           transaction: TRANSACTION_MOCK,
         });
         const simulationTx =
-          validateQuoteExecutionMock.mock.calls[0][0].simulation.transactions[0];
+          validateQuoteExecutionMock.mock.calls[0][0].simulation
+            .transactions[0];
         expect(simulationTx).not.toHaveProperty('gas');
       });
     });
@@ -617,7 +618,8 @@ describe('validateRelayQuotes', () => {
           transaction: TRANSACTION_MOCK,
         });
         const batchTx =
-          validateQuoteExecutionMock.mock.calls[0][0].simulation.transactions[0];
+          validateQuoteExecutionMock.mock.calls[0][0].simulation
+            .transactions[0];
         expect(batchTx).not.toHaveProperty('gas');
       });
 
@@ -643,7 +645,8 @@ describe('validateRelayQuotes', () => {
         });
         expect(generateEIP7702BatchTransactionMock).not.toHaveBeenCalled();
         const simulationTx =
-          validateQuoteExecutionMock.mock.calls[0][0].simulation.transactions[0];
+          validateQuoteExecutionMock.mock.calls[0][0].simulation
+            .transactions[0];
         expect(simulationTx.data).toBe('0xcall1data');
         expect(simulationTx.to).toBe('0xcall1to');
       });
