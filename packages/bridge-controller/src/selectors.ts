@@ -33,13 +33,11 @@ import {
   formatChainIdToHex,
 } from './utils/caip-formatters.js';
 import { processFeatureFlags } from './utils/feature-flags.js';
+import { sumAmounts } from './utils/number-formatters.js';
 import { calcBatchFees } from './utils/quote-metadata/calculators.js';
 import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
-import type {
-  QuoteMetadata,
-  TokenAmountValues,
-} from './utils/quote-metadata/types.js';
+import type { QuoteMetadata } from './utils/quote-metadata/types.js';
 import { getDefaultSlippagePercentage } from './utils/slippage.js';
 import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 
@@ -345,10 +343,11 @@ const selectMetadata = createBridgeSelector(
         bridgeFeesPerGas,
         destTokenExchangeRate: selectExchangeRateByAssetId(
           exchangeRateSources,
-          formatAddressToAssetId(
-            destTokenAddress ?? quote.quote.destAsset.assetId,
-            destChainId,
-          ),
+          quote.quote.destAsset.assetId ??
+            formatAddressToAssetId(
+              destTokenAddress ?? quote.quote.destAsset.assetId,
+              destChainId,
+            ),
         ),
         nativeExchangeRate: selectExchangeRateByAssetId(
           exchangeRateSources,
@@ -383,10 +382,16 @@ const selectSortedBridgeQuotes = createBridgeSelector(
           'asc',
         );
       default:
-        if (quotesWithMetadata.every((quote) => quote?.cost?.valueInCurrency)) {
+        if (
+          quotesWithMetadata.every(
+            (quote) =>
+              quote.priceImpact?.valueInCurrency &&
+              quote.priceImpact?.valueInCurrency !== '0',
+          )
+        ) {
           return orderBy(
             quotesWithMetadata,
-            ({ cost }) => Number(cost?.valueInCurrency),
+            ({ priceImpact }) => Number(priceImpact?.valueInCurrency),
             'asc',
           );
         }
@@ -419,12 +424,11 @@ const selectActiveQuote = createBridgeSelector(
   [
     selectRecommendedQuote,
     selectSortedBridgeQuotes,
-    (_, { selectedQuote }) => selectedQuote,
+    (_, { selectedQuote }) => selectedQuote?.quote.requestId,
   ],
-  (recommendedQuote, sortedQuotes, selectedQuote) =>
-    sortedQuotes.find(
-      (quote) => quote.quote.requestId === selectedQuote?.quote.requestId,
-    ) ?? recommendedQuote,
+  (recommendedQuote, sortedQuotes, requestId) =>
+    sortedQuotes.find((quote) => quote.quote.requestId === requestId) ??
+    recommendedQuote,
 );
 
 const selectIsQuoteGoingToRefresh = createBridgeSelector(
@@ -507,33 +511,20 @@ const selectRecommendedQuotes = createBridgeSelector(
       return acc;
     }, Array<(QuoteResponseV1 & QuoteMetadata) | null>(requestCount).fill(null)),
 );
+const selectDestAmountSum = createBridgeSelector(
+  [selectRecommendedQuotes],
+  (recommendedQuotes) => {
+    return sumAmounts(recommendedQuotes.map((quote) => quote?.toTokenAmount));
+  },
+);
 
-const selectMetadataSum = createBridgeSelector(
-  [
-    selectRecommendedQuotes,
-    (
-      _,
-      {
-        key,
-      }: { key: 'totalNetworkFee' | 'minToTokenAmount' | 'toTokenAmount' },
-    ) => key,
-  ],
-  (recommendedQuotes, key) =>
-    recommendedQuotes.reduce<TokenAmountValues>(
-      (acc, quote) => {
-        acc.usd = new BigNumber(acc.usd)
-          .plus(quote?.[key]?.usd ?? 0)
-          .toString();
-        acc.valueInCurrency = new BigNumber(acc.valueInCurrency)
-          .plus(quote?.[key]?.valueInCurrency ?? 0)
-          .toString();
-        acc.amount = new BigNumber(acc.amount)
-          .plus(quote?.[key]?.amount ?? 0)
-          .toString();
-        return acc;
-      },
-      { usd: '0', valueInCurrency: '0', amount: '0' },
-    ),
+const selectMinDestAmountSum = createBridgeSelector(
+  [selectRecommendedQuotes],
+  (recommendedQuotes) => {
+    return sumAmounts(
+      recommendedQuotes.map((quote) => quote?.minToTokenAmount),
+    );
+  },
 );
 
 /**
@@ -558,10 +549,8 @@ const selectMetadataSum = createBridgeSelector(
  */
 export const selectBatchSellQuotes = createStructuredBridgeSelector({
   recommendedQuotes: selectRecommendedQuotes,
-  totalReceived: (state, opts) =>
-    selectMetadataSum(state, { ...opts, key: 'toTokenAmount' }),
-  minimumReceived: (state, opts) =>
-    selectMetadataSum(state, { ...opts, key: 'minToTokenAmount' }),
+  totalReceived: selectDestAmountSum,
+  minimumReceived: selectMinDestAmountSum,
   quotesLastFetchedMs: (state) => state.quotesLastFetched,
   isLoading: (state) => state.quotesLoadingStatus === RequestStatus.LOADING,
   quoteFetchError: (state) => state.quoteFetchError,

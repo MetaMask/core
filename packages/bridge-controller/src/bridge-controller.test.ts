@@ -2667,11 +2667,11 @@ describe('BridgeController', function () {
         expect(quotes[1].nonEvmFeesInNative).toBeUndefined();
         expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'Failed to compute non-EVM fees for quote 5cb5a527-d4e4-4b5e-b753-136afc3986d3:',
+          'Failed to compute non-EVM fees for quote in bip122:000000000019d6689c085ae165831e93:',
           new Error('Failed to compute fees'),
         );
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'Failed to compute non-EVM fees for quote 12c94d29-4b5c-4aee-92de-76eee4172d3d:',
+          'Failed to compute non-EVM fees for quote in bip122:000000000019d6689c085ae165831e93:',
           new Error('Failed to compute fees'),
         );
       },

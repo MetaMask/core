@@ -1882,16 +1882,16 @@ describe('Bridge Selectors', () => {
 
       expect(totalReceived).toMatchInlineSnapshot(`
         {
-          "amount": "38.423182",
-          "usd": "38.423182",
-          "valueInCurrency": "7684.6364",
+          "amount": "38.240503",
+          "usd": "38.240503",
+          "valueInCurrency": "7648.1006",
         }
       `);
       expect(minimumReceived).toMatchInlineSnapshot(`
         {
-          "amount": "37.6",
-          "usd": "37.6",
-          "valueInCurrency": "7520",
+          "amount": "37.46",
+          "usd": "37.46",
+          "valueInCurrency": "7492",
         }
       `);
       expect(rest).toMatchInlineSnapshot(`
@@ -1905,7 +1905,7 @@ describe('Bridge Selectors', () => {
       expect(recommendedQuotes.map((quote) => quote?.quote.requestId))
         .toMatchInlineSnapshot(`
         [
-          "381c23bc-e3e4-48fe-bc53-257471e388ad",
+          "4277a368-40d7-4e82-aa67-74f29dc5f98a",
           "90ae8e69-f03a-4cf6-bab7-ed4e3431eb37",
         ]
       `);
@@ -1949,20 +1949,8 @@ describe('Bridge Selectors', () => {
       const { totalReceived, minimumReceived, recommendedQuotes, ...rest } =
         result;
 
-      expect(totalReceived).toMatchInlineSnapshot(`
-        {
-          "amount": "0",
-          "usd": "0",
-          "valueInCurrency": "0",
-        }
-      `);
-      expect(minimumReceived).toMatchInlineSnapshot(`
-        {
-          "amount": "0",
-          "usd": "0",
-          "valueInCurrency": "0",
-        }
-      `);
+      expect(totalReceived).toBeUndefined();
+      expect(minimumReceived).toBeUndefined();
       expect(rest).toMatchInlineSnapshot(`
         {
           "isLoading": false,

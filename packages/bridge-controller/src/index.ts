@@ -127,6 +127,8 @@ export { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
 export { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.js';
 export { toQuoteMetadataV2 } from './utils/quote-metadata/to-quote-metadata-v2.js';
 
+export { sumAmounts } from './utils/number-formatters.js';
+
 export {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,

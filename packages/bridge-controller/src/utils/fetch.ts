@@ -310,13 +310,13 @@ const getQuoteRequestId = ({
   srcTokenAddress,
   destTokenAddress,
 }: QuoteRequest): string =>
-  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`;
+  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`.toLowerCase();
 
 const getQuoteResponseId = ({
   srcAsset: { address: srcTokenAddress, chainId: srcChainId },
   destAsset: { address: destTokenAddress, chainId: destChainId },
 }: QuoteResponseV1['quote']): string =>
-  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`;
+  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`.toLowerCase();
 
 /**
  * Fetches quotes from the bridge-api
@@ -348,7 +348,9 @@ export async function fetchBridgeQuoteStream(
   serverEventHandlers: {
     onClose: () => void | Promise<void>;
     onQuoteValidationFailure: (validationFailures: string[]) => void;
-    onValidQuoteReceived: (quotes: QuoteResponseV1) => Promise<void>;
+    onValidQuoteReceived: (
+      quotes: QuoteResponseV1 & { resetApproval?: TxData },
+    ) => Promise<void>;
     onTokenWarning: (warning: TokenFeature) => void;
     onComplete: (data: QuoteStreamCompleteData) => void;
   },
