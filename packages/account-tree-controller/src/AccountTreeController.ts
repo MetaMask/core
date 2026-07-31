@@ -1505,9 +1505,8 @@ export class AccountTreeController extends BaseController<
           id,
         );
 
-        if (!candidateId) {
-          candidateId = id;
-        }
+        candidateId ??= id;
+
         if (account && isEvmAccountType(account.type)) {
           // EVM accounts have a higher priority, so if we find any, we just
           // use that account!
