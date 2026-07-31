@@ -1726,7 +1726,10 @@ describe('AnalyticsController', () => {
       });
     });
 
-    it('replays pre-consent events with the location context captured at track time', async () => {
+    it('defers geolocation to opt-in, then enriches replayed pre-consent events and later events', async () => {
+      const geolocationHandler = jest.fn(() =>
+        Promise.resolve(buildGeolocationData(fullGeolocation)),
+      );
       const mockAdapter = createMockAdapter();
       const { controller } = await setupController({
         state: {
@@ -1736,20 +1739,101 @@ describe('AnalyticsController', () => {
         },
         platformAdapter: mockAdapter,
         isPreConsentQueueEnabled: true,
-        geolocation: fullGeolocation,
+        isGeolocationEnabled: true,
+        geolocationHandler,
       });
 
-      controller.trackEvent(createTestEvent('test_event'));
+      // While undecided, the event is queued and geolocation is not requested.
+      controller.trackEvent(createTestEvent('preconsent_event'));
       expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(geolocationHandler).not.toHaveBeenCalled();
 
-      controller.optIn();
+      // optIn resolves geolocation (awaited) before replaying the queue.
+      await controller.optIn();
+      expect(geolocationHandler).toHaveBeenCalledTimes(1);
 
+      // The replayed pre-consent event is enriched with the location resolved
+      // on opt-in.
       expect(mockAdapter.track).toHaveBeenCalledWith(
-        'test_event',
+        'preconsent_event',
         undefined,
         { location: fullLocationContext },
         expect.any(Object),
       );
+
+      // Events tracked after opt-in are enriched too.
+      controller.trackEvent(createTestEvent('postconsent_event'));
+      expect(mockAdapter.track).toHaveBeenLastCalledWith(
+        'postconsent_event',
+        undefined,
+        { location: fullLocationContext },
+      );
+    });
+
+    it('does not enrich an anonymous pre-consent payload on replay', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isAnonymousEventsFeatureEnabled: true,
+        isGeolocationEnabled: true,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(
+        createTestEvent(
+          'test_event',
+          { prop: 'value' },
+          { sensitive_prop: 'sensitive value' },
+        ),
+      );
+
+      await controller.optIn();
+
+      // The identified payload is enriched...
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        { prop: 'value' },
+        { location: fullLocationContext },
+        expect.any(Object),
+      );
+      // ...but the anonymous payload carries no location.
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        {
+          prop: 'value',
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        },
+        undefined,
+        expect.any(Object),
+      );
+    });
+
+    it('does not resolve geolocation at init when the user is not opted in', async () => {
+      const geolocationHandler = jest.fn(() =>
+        Promise.resolve(buildGeolocationData(fullGeolocation)),
+      );
+      const mockAdapter = createMockAdapter();
+      await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: true,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isGeolocationEnabled: true,
+        geolocationHandler,
+      });
+
+      // init awaits geolocation resolution, so if it were going to request
+      // location it would have by now.
+      expect(geolocationHandler).not.toHaveBeenCalled();
     });
   });
 
@@ -2393,7 +2477,7 @@ describe('AnalyticsController', () => {
         },
       });
 
-      controller.optIn();
+      await controller.optIn();
 
       expect(controller.state.optedIn).toBe(true);
       expect(controller.state.consentDecisionMade).toBe(true);
@@ -2499,7 +2583,7 @@ describe('AnalyticsController', () => {
 
       expect(controller.state.preConsentEventQueue).toStrictEqual({});
 
-      controller.optIn();
+      await controller.optIn();
 
       expect(controller.state.optedIn).toBe(true);
       expect(mockAdapter.track).not.toHaveBeenCalled();
@@ -2516,7 +2600,7 @@ describe('AnalyticsController', () => {
         isPreConsentQueueEnabled: true,
       });
 
-      controller.optIn();
+      await controller.optIn();
 
       expect(controller.state.optedIn).toBe(true);
       expect(controller.state.consentDecisionMade).toBe(true);
@@ -2545,7 +2629,7 @@ describe('AnalyticsController', () => {
       const { controller, mockAdapter } =
         await setupControllerWithQueuedEvent();
 
-      controller.optIn();
+      await controller.optIn();
 
       expect(controller.state.optedIn).toBe(true);
       expect(controller.state.consentDecisionMade).toBe(true);
@@ -2575,7 +2659,7 @@ describe('AnalyticsController', () => {
       // Held in the pre-consent queue, not yet in the delivery queue.
       expect(controller.state.eventQueue ?? {}).toStrictEqual({});
 
-      controller.optIn();
+      await controller.optIn();
 
       // The pre-consent queue is drained and the event is now tracked for
       // delivery (the mock adapter never acks, so it remains in eventQueue).
@@ -2707,7 +2791,7 @@ describe('AnalyticsController', () => {
         Object.values(controller.state.preConsentEventQueue ?? {}),
       ).toHaveLength(2);
 
-      controller.optIn();
+      await controller.optIn();
 
       expect(mockAdapter.track).toHaveBeenCalledTimes(2);
       expect(mockAdapter.track).toHaveBeenCalledWith(
@@ -2751,7 +2835,7 @@ describe('AnalyticsController', () => {
         isPreConsentQueueEnabled: true,
       });
 
-      controller.optIn();
+      await controller.optIn();
 
       // Only the valid entry is replayed; every malformed entry is dropped.
       expect(mockAdapter.track).toHaveBeenCalledTimes(1);

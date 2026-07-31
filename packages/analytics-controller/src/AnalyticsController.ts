@@ -457,6 +457,12 @@ export class AnalyticsController extends BaseController<
    */
   #initPromise: Promise<void> | undefined;
 
+  /**
+   * The in-flight (or settled) geolocation resolution, if any. Its presence
+   * marks that resolution has been started, so it runs at most once.
+   */
+  #locationResolvePromise: Promise<void> | undefined;
+
   #locationContext: AnalyticsLocationContext | undefined;
 
   /**
@@ -506,6 +512,7 @@ export class AnalyticsController extends BaseController<
     this.#isGeolocationEnabled = isGeolocationEnabled;
     this.#platformAdapter = platformAdapter;
     this.#initPromise = undefined;
+    this.#locationResolvePromise = undefined;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -524,20 +531,18 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Initialize the controller by resolving the geolocation used to enrich
-   * events and then calling the platform adapter's onSetupCompleted lifecycle
-   * hook. This method must be called after construction to complete the setup
-   * process.
+   * Initialize the controller by calling the platform adapter's
+   * onSetupCompleted lifecycle hook and replaying any queued events. This
+   * method must be called after construction to complete the setup process.
    *
-   * Geolocation is resolved before any queued event is replayed so that
-   * replayed events carry the same location context as new ones.
-   *
-   * When geolocation enrichment is enabled (`isGeolocationEnabled`), the
-   * `GeolocationController` and its `GeolocationController:getGeolocationData`
-   * action must be registered and initialized *before* this method is called.
-   * Otherwise the resolution fails and events are delivered for the rest of the
-   * session without location (a message is logged, see
-   * {@link #resolveLocationContext}).
+   * When geolocation enrichment is enabled (`isGeolocationEnabled`), geolocation
+   * is resolved only for a user who is already opted in; for undecided or
+   * opted-out users it is deferred until they opt in (see {@link optIn}), so a
+   * user's location is never requested before they consent to analytics. In
+   * either case the `GeolocationController` and its
+   * `GeolocationController:getGeolocationData` action must be registered before
+   * resolution occurs, or enrichment is skipped for the session (a message is
+   * logged, see {@link #resolveLocationContext}).
    *
    * Safe to call more than once: the first call performs initialization and
    * subsequent calls return the same in-flight (or settled) promise.
@@ -558,7 +563,10 @@ export class AnalyticsController extends BaseController<
    * and pre-consent events.
    */
   async #performInit(): Promise<void> {
-    await this.#resolveLocationContext();
+    // Resolve geolocation only when the user is already opted in; for undecided
+    // or opted-out users it is deferred to {@link optIn}. Awaited so that an
+    // already-opted-in session has location available before events replay.
+    await this.#maybeResolveLocation();
 
     // Call onSetupCompleted lifecycle hook after initialization
     // State is already validated, so analyticsId is guaranteed to be a valid UUIDv4
@@ -574,17 +582,29 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Resolve the location context used to enrich analytics events.
+   * Start resolving the geolocation context if warranted, and return the
+   * in-flight (or settled) resolution so callers can await it. No-op unless
+   * enrichment is enabled, the user is opted in, and a resolution has not
+   * already been started. Deferring resolution until opt-in ensures a user's
+   * location is never requested before they consent to analytics (for example,
+   * during onboarding).
    *
-   * No-op unless geolocation enrichment is enabled. Otherwise geolocation is
-   * best-effort: when the GeolocationController is unavailable or fails to
-   * resolve, events are still delivered, just without location.
+   * @returns The geolocation resolution promise, or `undefined` when no
+   * resolution is warranted.
    */
-  async #resolveLocationContext(): Promise<void> {
-    if (!this.#isGeolocationEnabled) {
-      return;
+  #maybeResolveLocation(): Promise<void> | undefined {
+    if (
+      this.#isGeolocationEnabled &&
+      this.#locationResolvePromise === undefined &&
+      analyticsControllerSelectors.selectEnabled(this.state)
+    ) {
+      this.#locationResolvePromise = this.#resolveLocationContext();
     }
 
+    return this.#locationResolvePromise;
+  }
+
+  async #resolveLocationContext(): Promise<void> {
     try {
       const geolocation = await this.messenger.call(
         'GeolocationController:getGeolocationData',
@@ -592,11 +612,12 @@ export class AnalyticsController extends BaseController<
 
       this.#locationContext = buildLocationContext(geolocation);
     } catch (error) {
-      // A common cause is calling `init()` before the GeolocationController is
-      // registered/initialized. Name it here so the failure is diagnosable,
-      // since enrichment is otherwise skipped silently for the session.
+      // A common cause is the GeolocationController not being registered before
+      // resolution runs (at init for an opted-in user, otherwise at opt-in).
+      // Name it here so the failure is diagnosable, since enrichment is
+      // otherwise skipped silently for the session.
       log(
-        'Failed to resolve geolocation for analytics enrichment; events will be sent without location. Ensure the GeolocationController is registered and initialized before AnalyticsController.init() when geolocation is enabled.',
+        'Failed to resolve geolocation for analytics enrichment; events will be sent without location. Ensure the GeolocationController is registered and initialized before the user opts in when geolocation is enabled.',
         error,
       );
     }
@@ -921,12 +942,41 @@ export class AnalyticsController extends BaseController<
         continue;
       }
 
+      const eventToReplay = this.#enrichPreConsentEvent(queuedEvent);
+
       if (this.#isEventQueuePersistenceEnabled) {
-        this.#enqueueEvent(queuedEvent);
+        this.#enqueueEvent(eventToReplay);
       } else {
-        this.#sendQueuedEvent(queuedEvent);
+        this.#sendQueuedEvent(eventToReplay);
       }
     }
+  }
+
+  /**
+   * Enrich a pre-consent event with the geolocation resolved on opt-in.
+   *
+   * Pre-consent events are captured while geolocation is not yet resolved, so
+   * they are re-enriched here as they replay. Anonymous track payloads are left
+   * untouched, since they must never carry location.
+   *
+   * @param queuedEvent - The queued pre-consent event.
+   * @returns The event with its context enriched, or the event unchanged when
+   * enrichment does not apply.
+   */
+  #enrichPreConsentEvent(
+    queuedEvent: AnalyticsQueuedEvent,
+  ): AnalyticsQueuedEvent {
+    if (
+      queuedEvent.type === 'track' &&
+      queuedEvent.properties?.anonymous === true
+    ) {
+      return queuedEvent;
+    }
+
+    return {
+      ...queuedEvent,
+      context: this.#withLocationContext(queuedEvent.context),
+    };
   }
 
   /**
@@ -1087,12 +1137,22 @@ export class AnalyticsController extends BaseController<
    *
    * Records that a consent decision has been made and replays any events that
    * were queued while the user was undecided.
+   *
+   * When geolocation enrichment is enabled, geolocation is resolved here (once
+   * the user has consented) and awaited before the queued events are replayed,
+   * so those events are enriched with the resolved location as they are sent.
+   *
+   * @returns A promise that resolves once opt-in processing has completed.
    */
-  optIn(): void {
+  async optIn(): Promise<void> {
     this.update((state) => {
       state.optedIn = true;
       state.consentDecisionMade = true;
     });
+
+    // Now that the user has consented, resolve geolocation (once) and wait for
+    // it so the queued pre-consent events can be enriched as they replay.
+    await this.#maybeResolveLocation();
 
     this.#replayPreConsentEvents();
   }

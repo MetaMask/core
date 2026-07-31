@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Optionally enrich non-anonymous track, identify, and view payloads with the user's `country_code`, `region`, and `timezone` under `context.location`, gated behind the new `isGeolocationEnabled` constructor option (default `false`) ([#9691](https://github.com/MetaMask/core/pull/9691))
-  - `AnalyticsController.init` is now asynchronous and returns a `Promise<void>`, so await it before tracking events
-  - When `isGeolocationEnabled` is `true`, the geolocation is resolved during `init` via `GeolocationController:getGeolocationData`, which compositions must register and initialize before `AnalyticsController` (otherwise enrichment is skipped for the session)
+  - `AnalyticsController.init` and `AnalyticsController.optIn` are now asynchronous and return a `Promise<void>`, so await them before tracking events
+  - When enabled, geolocation is resolved via `GeolocationController:getGeolocationData` (which compositions must register) only after the user opts in, so location is never requested before they consent to analytics; queued pre-consent events are then enriched on replay (anonymous payloads excluded)
   - Adds `@metamask/geolocation-controller` `^0.1.3` as a dependency
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
