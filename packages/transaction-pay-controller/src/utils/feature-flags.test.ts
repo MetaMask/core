@@ -34,6 +34,7 @@ import {
   getStablecoins,
   isChainExcludedFromInfura,
   isEIP7702Chain,
+  getEIP7702UpgradeContractAddress,
   isRelayExecuteEnabled,
   isRelayValidationEnabled,
   getFeatureFlags,
@@ -472,6 +473,87 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(isEIP7702Chain(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+  });
+
+  describe('getEIP7702UpgradeContractAddress', () => {
+    const CONTRACT_ADDRESS_MOCK = '0xdelegator' as Hex;
+
+    it('returns undefined when no feature flags are set', () => {
+      expect(
+        getEIP7702UpgradeContractAddress(messenger, CHAIN_ID_MOCK),
+      ).toBeUndefined();
+    });
+
+    it('returns the first contract address for the chain', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {
+            contracts: {
+              [CHAIN_ID_MOCK]: [
+                { address: CONTRACT_ADDRESS_MOCK, signature: '0xsig' as Hex },
+                { address: '0xsecond' as Hex, signature: '0xsig2' as Hex },
+              ],
+            },
+          },
+        },
+      });
+
+      expect(getEIP7702UpgradeContractAddress(messenger, CHAIN_ID_MOCK)).toBe(
+        CONTRACT_ADDRESS_MOCK,
+      );
+    });
+
+    it('matches the chain ID case-insensitively', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {
+            contracts: {
+              ['0xAABB' as Hex]: [
+                { address: CONTRACT_ADDRESS_MOCK, signature: '0xsig' as Hex },
+              ],
+            },
+          },
+        },
+      });
+
+      expect(
+        getEIP7702UpgradeContractAddress(messenger, '0xaabb' as Hex),
+      ).toBe(CONTRACT_ADDRESS_MOCK);
+    });
+
+    it('returns undefined when the chain has no contracts', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {
+            contracts: {
+              [CHAIN_ID_DIFFERENT_MOCK]: [
+                { address: CONTRACT_ADDRESS_MOCK, signature: '0xsig' as Hex },
+              ],
+            },
+          },
+        },
+      });
+
+      expect(
+        getEIP7702UpgradeContractAddress(messenger, CHAIN_ID_MOCK),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when contracts is undefined', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {},
+        },
+      });
+
+      expect(
+        getEIP7702UpgradeContractAddress(messenger, CHAIN_ID_MOCK),
+      ).toBeUndefined();
     });
   });
 
