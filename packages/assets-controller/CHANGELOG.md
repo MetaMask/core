@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `AccountActivityDataSource` is now the highest-priority balance data source and participates in chain-claiming: chains it reports as "up" from `AccountActivityService:statusChanged`. The `AssetsController` messenger must now allow the `AccountActivityService:statusChanged` event ([#9517](https://github.com/MetaMask/core/pull/9517))
+
+### Removed
+
+- **BREAKING:** Remove `BackendWebsocketDataSource` and its factory/types (`BackendWebsocketDataSource`, `createBackendWebsocketDataSource`, `BackendWebsocketDataSourceOptions`, `BackendWebsocketDataSourceState`). Real-time balance updates and per-chain status are now consumed from `AccountActivityService` via `AccountActivityDataSource`, which manages the WebSocket connection and subscriptions. Consumers no longer need to delegate `BackendWebSocketService` actions/events to the `AssetsController` messenger ([#9517](https://github.com/MetaMask/core/pull/9517))
+
+## [11.3.1]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.1` to `^110.0.2` ([#9706](https://github.com/MetaMask/core/pull/9706))
+- Bump `@metamask/network-enablement-controller` from `^5.6.0` to `^6.0.0` ([#9706](https://github.com/MetaMask/core/pull/9706))
+
 ## [11.3.0]
 
 ### Added
@@ -809,7 +824,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.1...HEAD
+[11.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.0...@metamask/assets-controller@11.3.1
 [11.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.1...@metamask/assets-controller@11.3.0
 [11.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.0...@metamask/assets-controller@11.2.1
 [11.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.1.1...@metamask/assets-controller@11.2.0
