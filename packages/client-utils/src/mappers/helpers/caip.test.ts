@@ -1,10 +1,26 @@
+import { getChainById } from 'eth-chainlist';
+
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
+  getNativeAsset,
   resolveNativeAssetId,
 } from './caip.js';
 
+jest.mock('eth-chainlist', () => ({
+  ...jest.requireActual('eth-chainlist'),
+  getChainById: jest.fn(),
+}));
+
+const mockGetChainById = jest.mocked(getChainById);
+
 describe('caip helpers', () => {
+  beforeEach(() => {
+    mockGetChainById.mockImplementation(
+      jest.requireActual('eth-chainlist').getChainById,
+    );
+  });
+
   describe('formatChainIdToCaip', () => {
     it('formats numeric chain ids', () => {
       expect(formatChainIdToCaip(1)).toBe('eip155:1');
@@ -111,6 +127,47 @@ describe('caip helpers', () => {
 
     it('returns undefined when the chain id cannot be normalized', () => {
       expect(resolveNativeAssetId('0xzzzz', 'ETH')).toBeUndefined();
+    });
+  });
+
+  describe('getNativeAsset', () => {
+    it('resolves mainnet native asset from chainlist slip44', () => {
+      expect(getNativeAsset('eip155:1')).toStrictEqual({
+        symbol: 'ETH',
+        decimals: 18,
+        assetId: 'eip155:1/slip44:60',
+      });
+    });
+
+    it('resolves arbitrum native asset via symbol fallback when chainlist omits slip44', () => {
+      expect(getNativeAsset('eip155:42161')).toStrictEqual({
+        symbol: 'ETH',
+        decimals: 18,
+        assetId: 'eip155:42161/slip44:60',
+      });
+    });
+
+    it('returns undefined for unknown chains', () => {
+      expect(getNativeAsset('eip155:999999991')).toBeUndefined();
+    });
+
+    it('returns undefined for non-eip155 chain ids', () => {
+      expect(
+        getNativeAsset('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when chainlist omits native currency symbol', () => {
+      mockGetChainById.mockReturnValue({
+        slip44: 60,
+        nativeCurrency: { name: 'Ether', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(getNativeAsset('eip155:1')).toBeUndefined();
+    });
+
+    it('returns undefined when slip44 and symbol lookup both fail', () => {
+      expect(getNativeAsset('eip155:1088')).toBeUndefined();
     });
   });
 });

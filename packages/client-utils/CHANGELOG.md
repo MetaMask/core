@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Resolve native fee/token metadata from `eth-chainlist` (chainId → slip44/symbol), falling back to `@metamask/slip44` by symbol when chainlist omits `slip44`
+
 ## [1.5.0]
 
 ### Added

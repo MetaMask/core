@@ -21,6 +21,7 @@ import type {
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
+  getNativeAsset,
   resolveNativeAssetId,
 } from './caip.js';
 import { getKnownTokenMetadata } from './token-metadata.js';
@@ -57,14 +58,17 @@ function buildBaseNetworkFee(
   chainId: CaipChainId,
   symbol?: string,
 ): Fee {
-  const assetId = resolveNativeAssetId(chainId, symbol);
+  const nativeAsset = getNativeAsset(chainId);
+  const resolvedSymbol = symbol ?? nativeAsset?.symbol;
+  const assetId =
+    resolveNativeAssetId(chainId, resolvedSymbol) ?? nativeAsset?.assetId;
 
   return {
     type: 'base',
     amount,
-    decimals: nativeTokenDecimals,
+    decimals: nativeAsset?.decimals ?? nativeTokenDecimals,
     assetType: 'native',
-    ...(symbol ? { symbol } : {}),
+    ...(resolvedSymbol ? { symbol: resolvedSymbol } : {}),
     ...(assetId ? { assetId } : {}),
   };
 }
@@ -91,23 +95,6 @@ function getAssetTypeFromTransferType(
   return undefined;
 }
 
-function getNativeSymbolFromValueTransfers(
-  valueTransfers: V1TransactionByHashResponse['valueTransfers'],
-): string | undefined {
-  for (const transfer of valueTransfers ?? []) {
-    const transferType = transfer.transferType?.toLowerCase();
-
-    if (
-      (transferType === 'normal' || transferType === 'internal') &&
-      transfer.symbol
-    ) {
-      return transfer.symbol;
-    }
-  }
-
-  return undefined;
-}
-
 function getNetworkFee(
   transaction: V1TransactionByHashResponse,
 ): Fee | undefined {
@@ -126,9 +113,7 @@ function getNetworkFee(
     return undefined;
   }
 
-  const symbol = getNativeSymbolFromValueTransfers(transaction.valueTransfers);
-
-  return buildBaseNetworkFee(amount, chainId, symbol);
+  return buildBaseNetworkFee(amount, chainId);
 }
 
 export function getFees(
@@ -434,42 +419,5 @@ export function getTokenMetadataFromKnownToken(
       ? {}
       : { decimals: tokenMetadata.decimals }),
     ...(tokenMetadata.assetId ? { assetId: tokenMetadata.assetId } : {}),
-  };
-}
-
-/**
- * When the transfer omits contractAddress, fall back to the indexed tx `to` field.
- *
- * @param token - Parsed token amount from the value transfer.
- * @param fallbackContractAddress - Indexed transaction `to` address used as ERC-20 fallback.
- * @param transferType - Value transfer type; native (`normal`) transfers skip the fallback.
- * @param chainId - CAIP-2 chain id for asset id encoding.
- * @returns Token amount with `assetId` set when a fallback address applies.
- */
-export function withFallbackTokenAssetId(
-  token: TokenAmount | undefined,
-  fallbackContractAddress: string | undefined,
-  transferType: string | undefined,
-  chainId: CaipChainId,
-): TokenAmount | undefined {
-  if (
-    !token ||
-    token.assetId ||
-    transferType === 'normal' ||
-    transferType === 'internal' ||
-    !fallbackContractAddress
-  ) {
-    return token;
-  }
-
-  const assetId = formatAddressToAssetId(fallbackContractAddress, chainId);
-  if (!assetId) {
-    return token;
-  }
-
-  return {
-    ...token,
-    assetId,
-    assetType: token.assetType,
   };
 }

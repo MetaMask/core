@@ -8,7 +8,6 @@ import {
   getTokenMetadataFromKnownToken,
   isNftStandard,
   parseValueTransfers,
-  withFallbackTokenAssetId,
 } from './transactions.js';
 
 describe('transaction helpers', () => {
@@ -252,18 +251,8 @@ describe('transaction helpers', () => {
     });
   });
 
-  describe('withFallbackTokenAssetId', () => {
-    it('returns the token unchanged when the fallback address cannot be encoded', () => {
-      const token = { direction: 'out' as const, symbol: 'USDC' };
-
-      expect(
-        withFallbackTokenAssetId(token, 'not-an-address', 'erc20', 'eip155:1'),
-      ).toBe(token);
-    });
-  });
-
   describe('getLocalTransactionFees', () => {
-    it('returns fallback native fee metadata for unsupported chains', () => {
+    it('resolves native fee metadata from chain id when nativeAssetSymbol is omitted', () => {
       expect(
         getLocalTransactionFees({
           primaryTransaction: {
@@ -281,6 +270,8 @@ describe('transaction helpers', () => {
           amount: '2',
           decimals: 18,
           assetType: 'native',
+          symbol: 'ETH',
+          assetId: 'eip155:1337/slip44:60',
         },
       ]);
     });
@@ -338,7 +329,7 @@ describe('transaction helpers', () => {
   });
 
   describe('getFees', () => {
-    it('returns network fees with amount and decimals only', () => {
+    it('returns network fees with native symbol and assetId from the chain id', () => {
       expect(
         getFees({
           chainId: 1,
@@ -351,6 +342,8 @@ describe('transaction helpers', () => {
           amount: '6',
           decimals: 18,
           assetType: 'native',
+          symbol: 'ETH',
+          assetId: 'eip155:1/slip44:60',
         },
       ]);
     });
@@ -394,6 +387,23 @@ describe('transaction helpers', () => {
           effectiveGasPrice: '0x3',
         } as Parameters<typeof getFees>[0]),
       ).toBeUndefined();
+    });
+
+    it('returns fee amount without symbol or assetId when the chain is unknown', () => {
+      expect(
+        getFees({
+          chainId: 999999991,
+          gasUsed: '0x2',
+          effectiveGasPrice: '0x3',
+        } as Parameters<typeof getFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '6',
+          decimals: 18,
+          assetType: 'native',
+        },
+      ]);
     });
   });
 

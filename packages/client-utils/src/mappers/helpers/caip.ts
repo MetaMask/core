@@ -5,9 +5,11 @@ import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
   isStrictHexString,
+  KnownCaipNamespace,
   parseCaipChainId,
   toCaipAssetType,
 } from '@metamask/utils';
+import { getChainById } from 'eth-chainlist';
 
 import { nativeTokenAddress } from '../constants.js';
 
@@ -24,11 +26,8 @@ const slip44CoinTypeBySymbol = ((): Map<string, string> => {
     }
   }
 
-  const maticCoinType = coinTypeBySymbol.get('MATIC');
-
-  if (maticCoinType) {
-    coinTypeBySymbol.set('POL', maticCoinType);
-  }
+  // Polygon rebrand: POL shares MATIC's slip44 coin type.
+  coinTypeBySymbol.set('POL', coinTypeBySymbol.get('MATIC') as string);
 
   return coinTypeBySymbol;
 })();
@@ -91,6 +90,44 @@ export function resolveNativeAssetId(
   const { namespace, reference } = parseCaipChainId(caipChainId);
 
   return toCaipAssetType(namespace, reference, 'slip44', coinType);
+}
+
+export function getNativeAsset(chainId: CaipChainId):
+  | {
+      symbol: string;
+      decimals: number;
+      assetId: CaipAssetType;
+    }
+  | undefined {
+  const { namespace, reference } = parseCaipChainId(chainId);
+  if (namespace !== KnownCaipNamespace.Eip155) {
+    return undefined;
+  }
+
+  const chain = getChainById(Number(reference));
+  if (!chain) {
+    return undefined;
+  }
+
+  const { nativeCurrency, slip44: slip44AssetReference } = chain;
+  if (!nativeCurrency?.symbol) {
+    return undefined;
+  }
+
+  const assetReference =
+    typeof slip44AssetReference === 'number'
+      ? `${slip44AssetReference}`
+      : slip44CoinTypeForSymbol(nativeCurrency.symbol);
+
+  if (!assetReference) {
+    return undefined;
+  }
+
+  return {
+    symbol: nativeCurrency.symbol,
+    decimals: nativeCurrency.decimals,
+    assetId: toCaipAssetType(namespace, reference, 'slip44', assetReference),
+  };
 }
 
 function isNativeAddress(address: string): boolean {

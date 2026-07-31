@@ -28,6 +28,9 @@ const addresses = {
   nftContractAddress: '0x239fd4b0c4db49fa8660e65b97619d43d0e0a79d',
   stakingContractAddress: '0x00000000219ab540356cbb839cbe05303d7705fa',
   lidoStEth: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
+  zeroValueSendRecipient: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
+  arbitrumUsdt: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+  acrossExchangeRecipient: '0x7a70cb77a12fa2dc3fa1bc1dcbca4c79db71a289',
 } as const;
 
 const transactions = {
@@ -959,15 +962,6 @@ const transactions = {
     value: '1000000000000000000',
     valueTransfers: [],
   },
-  mapsAStandardTransactionWithA: {
-    timestamp: '2026-05-12T13:37:47.000Z',
-    chainId: 1,
-    from: addresses.subjectAddress,
-    to: addresses.baseRecipientAddress,
-    transactionCategory: 'STANDARD',
-    value: '1000000000000000000',
-    valueTransfers: [],
-  },
   mapsAnApproveWithOnlyAn: {
     hash: '0xrevoke',
     timestamp: '2026-05-12T13:37:47.000Z',
@@ -992,15 +986,6 @@ const transactions = {
     from: addresses.subjectAddress,
     to: addresses.mainnetUsdt,
     transactionCategory: 'APPROVE',
-    valueTransfers: [],
-  },
-  mapsAStandardInboundNativeTransfer: {
-    timestamp: '2026-05-12T13:37:47.000Z',
-    chainId: 1,
-    from: '0x1111111111111111111111111111111111111111',
-    to: addresses.subjectAddress,
-    transactionCategory: 'STANDARD',
-    value: '1000000000000000000',
     valueTransfers: [],
   },
   mapsAnUnrecognizedCategoryWithOnly: {
@@ -1032,6 +1017,70 @@ const transactions = {
     methodId: '0xdeadbeef',
     transactionCategory: 'CONTRACT_CALL',
     valueTransfers: [],
+  },
+  mapsAZeroValueStandardSendWithoutTransfers: {
+    hash: '0x062497f6874582f5d14e65510606a849d6fe8d0ea468c12907452e235c6b5201',
+    timestamp: '2026-07-29T01:22:23.000Z',
+    chainId: 1,
+    accountId: 'eip155:1:0x9bed78535d6a03a955f1504aadba974d9a29e292',
+    blockNumber: 25635173,
+    blockHash:
+      '0x58761bcd4278bd5ddf326648b294101b6e6e00c3a7e7ca4235212cb4ef4b00cb',
+    gas: 21000,
+    gasUsed: 21000,
+    gasPrice: '2148922470',
+    effectiveGasPrice: '2148922470',
+    nonce: 244,
+    cumulativeGasUsed: 1003926,
+    methodId: null,
+    value: '0',
+    to: addresses.zeroValueSendRecipient,
+    from: addresses.subjectAddress,
+    isError: false,
+    valueTransfers: [],
+    logs: [],
+    transactionType: 'STANDARD',
+    transactionCategory: 'STANDARD',
+    readable: 'Sent',
+    readableExtended: 'Sent',
+  },
+  mapsAnAcrossUsdtExchangeWithNativeFee: {
+    hash: '0x34bbaa01262f2e9221913316f4548a4b5981e05ee338ea586fc267a6868f9526',
+    timestamp: '2026-07-28T10:29:49.000Z',
+    chainId: 42161,
+    accountId: 'eip155:42161:0x9bed78535d6a03a955f1504aadba974d9a29e292',
+    blockNumber: 488572152,
+    blockHash:
+      '0xf9742fb12fa16b42fb0dbc043bfe3bc0437448cab7da0419d425e29cf01f6dfd',
+    gas: 649231,
+    gasUsed: 424977,
+    gasPrice: '20166000',
+    effectiveGasPrice: '20166000',
+    nonce: 108,
+    cumulativeGasUsed: 424977,
+    methodId: '0xe9ae5c53',
+    value: '0',
+    to: addresses.subjectAddress,
+    from: addresses.subjectAddress,
+    isError: false,
+    valueTransfers: [
+      {
+        from: addresses.subjectAddress,
+        to: addresses.acrossExchangeRecipient,
+        amount: '1199957',
+        decimal: 6,
+        contractAddress: addresses.arbitrumUsdt,
+        symbol: 'USDT',
+        name: 'Tether USD',
+        transferType: 'erc20',
+      },
+    ],
+    logs: [],
+    transactionCategory: 'EXCHANGE',
+    transactionProtocol: 'ACROSS',
+    transactionType: 'ACROSS_EXCHANGE',
+    readable: 'Swapped USDT for',
+    readableExtended: 'Swapped 1.2 USDT for',
   },
 } as const satisfies Record<string, V1TransactionByHashResponse>;
 
@@ -1174,10 +1223,6 @@ const mapArgs = {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAStandardTransactionOnA,
   },
-  mapsAStandardTransactionWithA: {
-    subjectAddress: addresses.subjectAddress,
-    transaction: transactions.mapsAStandardTransactionWithA,
-  },
   mapsAnApproveWithOnlyAn: {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAnApproveWithOnlyAn,
@@ -1186,10 +1231,6 @@ const mapArgs = {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAnApproveForAKnown,
   },
-  mapsAStandardInboundNativeTransfer: {
-    subjectAddress: addresses.subjectAddress,
-    transaction: transactions.mapsAStandardInboundNativeTransfer,
-  },
   mapsAnUnrecognizedCategoryWithOnly: {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAnUnrecognizedCategoryWithOnly,
@@ -1197,6 +1238,14 @@ const mapArgs = {
   mapsAContractCallWithNoTransfers: {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAContractCallWithNoTransfers,
+  },
+  mapsAZeroValueStandardSendWithoutTransfers: {
+    subjectAddress: addresses.subjectAddress,
+    transaction: transactions.mapsAZeroValueStandardSendWithoutTransfers,
+  },
+  mapsAnAcrossUsdtExchangeWithNativeFee: {
+    subjectAddress: addresses.subjectAddress,
+    transaction: transactions.mapsAnAcrossUsdtExchangeWithNativeFee,
   },
 } as const;
 
