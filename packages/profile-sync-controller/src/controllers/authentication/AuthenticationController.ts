@@ -392,7 +392,7 @@ export class AuthenticationController extends BaseController<
       const { vault, authConnection } = this.messenger.call(
         'SeedlessOnboardingController:getState',
       );
-      if (vault == null) {
+      if (vault === null || vault === undefined) {
         return 'SRP';
       }
 

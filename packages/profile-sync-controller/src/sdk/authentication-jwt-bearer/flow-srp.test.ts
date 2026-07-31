@@ -687,12 +687,12 @@ describe('SRPJwtBearerAuth login tag', () => {
   it('defaults to primary when getLoginTag is omitted', async () => {
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
-        getLoginResponse: async () => null,
-        setLoginResponse: async () => undefined,
+        getLoginResponse: async (): Promise<LoginResponse | null> => null,
+        setLoginResponse: async (): Promise<void> => undefined,
       },
       signing: {
-        getIdentifier: async () => 'pubkey-1',
-        signMessage: async () => 'signature-1',
+        getIdentifier: async (): Promise<string> => 'pubkey-1',
+        signMessage: async (): Promise<string> => 'signature-1',
       },
     });
 
@@ -712,12 +712,12 @@ describe('SRPJwtBearerAuth login tag', () => {
     const getLoginTag = jest.fn().mockResolvedValue('secondary');
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
-        getLoginResponse: async () => null,
-        setLoginResponse: async () => undefined,
+        getLoginResponse: async (): Promise<LoginResponse | null> => null,
+        setLoginResponse: async (): Promise<void> => undefined,
       },
       signing: {
-        getIdentifier: async () => 'pubkey-1',
-        signMessage: async () => 'signature-1',
+        getIdentifier: async (): Promise<string> => 'pubkey-1',
+        signMessage: async (): Promise<string> => 'signature-1',
       },
       getLoginTag,
     });
@@ -739,12 +739,12 @@ describe('SRPJwtBearerAuth login tag', () => {
     const getLoginIdentifierType = jest.fn().mockResolvedValue('GOOGLE');
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
-        getLoginResponse: async () => null,
-        setLoginResponse: async () => undefined,
+        getLoginResponse: async (): Promise<LoginResponse | null> => null,
+        setLoginResponse: async (): Promise<void> => undefined,
       },
       signing: {
-        getIdentifier: async () => 'pubkey-1',
-        signMessage: async () => 'signature-1',
+        getIdentifier: async (): Promise<string> => 'pubkey-1',
+        signMessage: async (): Promise<string> => 'signature-1',
       },
       getLoginIdentifierType,
     });

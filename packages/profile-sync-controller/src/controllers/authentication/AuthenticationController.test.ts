@@ -29,6 +29,15 @@ const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID2',
 ];
 
+type SrpLoginRequestBody = {
+  metametrics?: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- API field
+    identifier_type?: string;
+  };
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- API field
+  raw_message?: string;
+};
+
 /**
  * Return mock state for the scenario where a user is signed in.
  *
@@ -183,10 +192,10 @@ describe('AuthenticationController', () => {
       const signedMessages = mockSnapSignMessage.mock.calls.map(
         (call) => (call[0] as { message: string }).message,
       );
-      expect(signedMessages).toEqual(
+      expect(signedMessages).toStrictEqual(
         expect.arrayContaining([
-          expect.stringMatching(/^metamask:[^:]+:[^:]+:primary$/),
-          expect.stringMatching(/^metamask:[^:]+:[^:]+:secondary$/),
+          expect.stringMatching(/^metamask:[^:]+:[^:]+:primary$/u),
+          expect.stringMatching(/^metamask:[^:]+:[^:]+:secondary$/u),
         ]),
       );
     });
@@ -217,24 +226,20 @@ describe('AuthenticationController', () => {
 
       expect(mockSnapSignMessage).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringMatching(/^metamask:[^:]+:[^:]+:primary$/),
+          message: expect.stringMatching(/^metamask:[^:]+:[^:]+:primary$/u),
         }),
       );
     });
 
     it('sends GOOGLE identifier_type for primary SRP on a social vault', async () => {
       const metametrics = createMockAuthMetaMetrics();
-      const loginBodies: {
-        metametrics?: { identifier_type?: string };
-        raw_message?: string;
-      }[] = [];
+      const loginBodies: SrpLoginRequestBody[] = [];
       arrangeAuthAPIs({
         onSrpLoginBody: (body) => {
           loginBodies.push(
-            (typeof body === 'string' ? JSON.parse(body) : body) as {
-              metametrics?: { identifier_type?: string };
-              raw_message?: string;
-            },
+            (typeof body === 'string'
+              ? JSON.parse(body)
+              : body) as SrpLoginRequestBody,
           );
         },
       });
@@ -261,23 +266,19 @@ describe('AuthenticationController', () => {
       expect(loginBodies).toHaveLength(1);
       expect(loginBodies[0]?.metametrics?.identifier_type).toBe('GOOGLE');
       expect(loginBodies[0]?.raw_message).toMatch(
-        /^metamask:[^:]+:[^:]+:primary$/,
+        /^metamask:[^:]+:[^:]+:primary$/u,
       );
     });
 
     it('sends SRP identifier_type for secondary SRPs in a social vault', async () => {
       const metametrics = createMockAuthMetaMetrics();
-      const loginBodies: {
-        metametrics?: { identifier_type?: string };
-        raw_message?: string;
-      }[] = [];
+      const loginBodies: SrpLoginRequestBody[] = [];
       arrangeAuthAPIs({
         onSrpLoginBody: (body) => {
           loginBodies.push(
-            (typeof body === 'string' ? JSON.parse(body) : body) as {
-              metametrics?: { identifier_type?: string };
-              raw_message?: string;
-            },
+            (typeof body === 'string'
+              ? JSON.parse(body)
+              : body) as SrpLoginRequestBody,
           );
         },
       });
