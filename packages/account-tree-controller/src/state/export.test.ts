@@ -536,5 +536,58 @@ describe('exportState', () => {
         MOCK_PK_GROUP_ID,
       );
     });
+
+    it('merges multiple simple-keyring wallets into one private-key payload entry', async () => {
+      const secondPkWalletId = 'keyring:simple:legacy' as typeof MOCK_PK_WALLET_ID;
+      const secondPkGroupId = toAccountGroupId(secondPkWalletId, '0xdef');
+
+      const wallets: AccountTreeControllerState['accountTree']['wallets'] = {
+        ...MOCK_PK_WALLET_STATE,
+        [secondPkWalletId]: {
+          id: secondPkWalletId,
+          type: AccountWalletType.Keyring,
+          status: 'ready',
+          groups: {
+            [secondPkGroupId]: {
+              id: secondPkGroupId,
+              type: AccountGroupType.SingleAccount,
+              accounts: ['account-pk-2'],
+              metadata: {
+                name: 'Imported 2',
+                pinned: false,
+                hidden: false,
+                lastSelected: 0,
+              },
+            },
+          },
+          metadata: {
+            name: 'Imported Accounts 2',
+            keyring: { type: KeyringTypes.simple },
+          },
+        },
+      };
+
+      const { context, mocks } = setup({ wallets });
+      mocks.AccountsController.getAccount.mockImplementation((accountId) => {
+        if (accountId === 'account-pk-1') {
+          return { id: 'account-pk-1', address: '0xabc' };
+        }
+        if (accountId === 'account-pk-2') {
+          return { id: 'account-pk-2', address: '0xdef' };
+        }
+        return undefined;
+      });
+
+      const snapshot = await exportState(context);
+      const payload = snapshot.serialize();
+
+      expect(payload.wallets).toHaveLength(1);
+      expect(payload.wallets[0]?.type).toBe('private-key');
+      expect(payload.wallets[0]?.groups).toHaveLength(2);
+      expect(payload.wallets[0]?.groups.map((group) => group.id)).toEqual([
+        'wallet:private-key/0xabc',
+        'wallet:private-key/0xdef',
+      ]);
+    });
   });
 });

@@ -23,7 +23,7 @@ import type {
   AccountWalletPrivateKeyPayload,
   ExportStateOptions,
 } from './payload.js';
-import { AccountTreeSnapshot } from './snapshot.js';
+import { AccountTreeSnapshot, createAccountTreeSnapshot } from './snapshot.js';
 
 /**
  * Returns `true` if `wallet` is an HD entropy wallet ({@link AccountWalletEntropyObject}).
@@ -270,6 +270,8 @@ export async function exportState(
 
   const idMap = new IdMap();
   const entries: AccountTreeWalletEntry[] = [];
+  let privateKeyWallet: AccountWalletPrivateKeyPayload | undefined;
+
   for (const walletObj of Object.values(state.accountTree.wallets)) {
     if (isMnemonicWalletObject(walletObj)) {
       entries.push(
@@ -281,18 +283,26 @@ export async function exportState(
         ),
       );
     } else if (isPrivateKeyWalletObject(walletObj)) {
-      entries.push(
-        await exportPrivateKeyWalletObject(
-          context,
-          walletObj,
-          includeSecrets,
-          idMap,
-        ),
+      const exported = await exportPrivateKeyWalletObject(
+        context,
+        walletObj,
+        includeSecrets,
+        idMap,
       );
+
+      if (!privateKeyWallet) {
+        privateKeyWallet = exported;
+      } else {
+        privateKeyWallet.groups.push(...exported.groups);
+      }
     } else {
       // AccountWalletType.Snap and hardware keyrings: skipped for now.
     }
   }
 
-  return new AccountTreeSnapshot(entries, idMap);
+  if (privateKeyWallet) {
+    entries.push(privateKeyWallet);
+  }
+
+  return createAccountTreeSnapshot(entries, idMap);
 }
