@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix global catch for migration error ([#9720](https://github.com/MetaMask/core/pull/9720))
+  - The global catch was only used during automatic migration on vault unlock.
+  - It is now properly setup for any migration entry point.
+
 ## [2.1.0]
 
 ### Added
