@@ -6000,7 +6000,7 @@ __metadata:
     "@metamask/keyring-snap-client": "npm:^9.2.1"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/network-controller": "npm:^35.0.0"
-    "@metamask/network-enablement-controller": "npm:^6.0.1"
+    "@metamask/network-enablement-controller": "npm:^6.0.2"
     "@metamask/permission-controller": "npm:^13.1.1"
     "@metamask/phishing-controller": "npm:^17.3.0"
     "@metamask/polling-controller": "npm:^16.0.9"
@@ -6058,7 +6058,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/multichain-account-service": "npm:^13.0.0"
     "@metamask/network-controller": "npm:^35.0.0"
-    "@metamask/network-enablement-controller": "npm:^6.0.1"
+    "@metamask/network-enablement-controller": "npm:^6.0.2"
     "@metamask/permission-controller": "npm:^13.1.1"
     "@metamask/phishing-controller": "npm:^17.3.0"
     "@metamask/polling-controller": "npm:^16.0.9"
@@ -6250,7 +6250,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^78.0.2, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^78.0.3, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -6304,7 +6304,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^39.0.6"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/bridge-controller": "npm:^78.0.2"
+    "@metamask/bridge-controller": "npm:^78.0.3"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/gas-fee-controller": "npm:^26.3.1"
     "@metamask/keyring-controller": "npm:^27.1.0"
@@ -8126,7 +8126,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/network-controller": "npm:^35.0.0"
-    "@metamask/network-enablement-controller": "npm:^6.0.1"
+    "@metamask/network-enablement-controller": "npm:^6.0.2"
     "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
@@ -8191,7 +8191,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-enablement-controller@npm:^6.0.1, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
+"@metamask/network-enablement-controller@npm:^6.0.2, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-enablement-controller@workspace:packages/network-enablement-controller"
   dependencies:
