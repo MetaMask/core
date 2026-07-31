@@ -31,8 +31,8 @@ import {
   toBase64Url,
   verifyJwtChain,
   wrapEncryptionKey,
-} from './ukyc.js';
-import type { UkycLocalUserSecretStore } from './ukyc.js';
+} from './ukyc/index.js';
+import type { UkycLocalUserSecretStore } from './ukyc/index.js';
 
 // === GENERAL ===
 

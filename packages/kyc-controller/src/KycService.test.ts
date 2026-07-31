@@ -13,7 +13,7 @@ import {
   encodeStorageAccessTokenForHeader,
   signStorageAccessToken,
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
-} from './ukyc.js';
+} from './ukyc/index.js';
 
 const MOCK_API_URL = 'https://kyc-api.dev-api.cx.metamask.io';
 const MOCK_FRACTAL_URL = 'https://fractal.dev-api.cx.metamask.io';

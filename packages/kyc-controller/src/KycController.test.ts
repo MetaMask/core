@@ -13,7 +13,7 @@ import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { KycController } from './KycController.js';
 import type { KycControllerMessenger } from './KycController.js';
 import type { KycSumSubLauncher } from './types.js';
-import { verifyJwtChain, wrapEncryptionKey } from './ukyc.js';
+import { verifyJwtChain, wrapEncryptionKey } from './ukyc/index.js';
 
 // `verifyJwtChain` (JWKS attestation) and `wrapEncryptionKey` (X25519 sealing)
 // need a real signed chain / valid keys, so they are stubbed here; the rest of

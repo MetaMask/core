@@ -106,7 +106,7 @@ export {
   verifyJwtChain,
   wrapEncryptionKey,
   wrapUserKey,
-} from './ukyc.js';
+} from './ukyc/index.js';
 export type {
   EncodedUkycClientMaterial,
   Jwk,
@@ -120,4 +120,4 @@ export type {
   UkycTokenPresenter,
   UkycWrappedRelayPayload,
   WrappedEncryptionKeyParts,
-} from './ukyc.js';
+} from './ukyc/index.js';
