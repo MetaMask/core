@@ -38,13 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^18.0.0` to `^18.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 
-### Fixed
-
-- Fix Relay quote validation simulation ([#9723](https://github.com/MetaMask/core/pull/9723))
-  - Exclude a zero `gas` value from the simulated transaction.
-  - Always include an EIP-7702 authorization in the batch simulation so a not-yet-upgraded account is simulated as delegated, using the quote authorization address when present and otherwise the configured EIP-7702 upgrade contract for the chain.
-  - Surface the revert return data as `Custom Error - <return>` when a Sentinel simulation reverts with `execution reverted` and non-empty return data, falling back to `Reverted - Unknown Error` when the return data is empty, instead of the implied `execution reverted` message.
-
 ## [26.0.1]
 
 ### Changed
