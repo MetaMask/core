@@ -15,6 +15,7 @@ export {
   TELLER_ABI,
   applySlippage,
   buildMoneyAccountDepositBatch,
+  buildMoneyAccountDepositPlaceholderBatch,
   buildMoneyAccountWithdrawBatch,
   getMoneyAccountDepositAssetAddress,
   getMoneyAccountDepositAssetId,
@@ -22,8 +23,11 @@ export {
 } from './transactions.js';
 export type {
   BuildMoneyAccountDepositBatchOptions,
+  BuildMoneyAccountDepositPlaceholderBatchOptions,
   BuildMoneyAccountWithdrawBatchOptions,
   MoneyAccountDepositBatchResult,
+  MoneyAccountDepositPlaceholderBatchResult,
+  MoneyAccountPlaceholderTxParams,
   MoneyAccountTxParams,
   MoneyAccountWithdrawBatchResult,
 } from './transactions.js';

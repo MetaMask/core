@@ -1,7 +1,7 @@
 import { Interface } from '@ethersproject/abi';
 import type { Provider } from '@ethersproject/abstract-provider';
 import { Contract } from '@ethersproject/contracts';
-import { CHAIN_IDS, TransactionType } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 
 import {
@@ -52,7 +52,21 @@ export function applySlippage(value: bigint): bigint {
 export type MoneyAccountTxParams = {
   params: {
     to: Hex;
-    data?: Hex;
+    data: Hex;
+    value: Hex;
+  };
+  type: TransactionType;
+};
+
+/**
+ * A Money Account call with its target and type resolved but no calldata, for
+ * placeholder batches that Pay re-encodes once the user picks an amount.
+ * Distinct from {@link MoneyAccountTxParams} so callers of the encoding
+ * builders never have to narrow an optional `data`.
+ */
+export type MoneyAccountPlaceholderTxParams = {
+  params: {
+    to: Hex;
     value: Hex;
   };
   type: TransactionType;
@@ -66,6 +80,15 @@ export type MoneyAccountTxParams = {
 type MoneyAccountBatchResult<TxKey extends string> = Record<
   TxKey,
   MoneyAccountTxParams
+>;
+
+/**
+ * Result shape for the placeholder variants of the batch builders. Mirrors
+ * {@link MoneyAccountBatchResult} but without calldata.
+ */
+type MoneyAccountPlaceholderBatchResult<TxKey extends string> = Record<
+  TxKey,
+  MoneyAccountPlaceholderTxParams
 >;
 
 // -- Deposit helpers -------------------------------------------------------
@@ -176,32 +199,45 @@ export function getMoneyAccountDepositAssetAddress(chainId: Hex): Hex {
  * Resolves the CAIP-19 asset id of the Money Account deposit asset (mUSD) for a
  * given chain. Pure mapping over `MUSD_TOKEN_ASSET_ID_BY_CHAIN`.
  *
- * Money Account is Monad-only today, so an unknown or undefined `chainId` falls
- * back to the Monad mUSD asset id rather than throwing — the entry-point gate
- * that consumes this should still resolve against the asset the deposit flow
- * actually targets.
+ * Returns `undefined` for a chain mUSD is not deployed on, so an unsupported
+ * chain stays distinguishable from a supported one. Clients that want a default
+ * (e.g. Money Account being Monad-only today) apply it at the call site:
+ * `getMoneyAccountDepositAssetId(chainId) ??
+ * MUSD_TOKEN_ASSET_ID_BY_CHAIN[CHAIN_IDS.MONAD]`.
  *
  * @param chainId - The chain ID to get the deposit asset id for.
- * @returns The CAIP-19 asset id of the deposit asset for the given chain ID.
+ * @returns The CAIP-19 asset id of the deposit asset, or `undefined` if mUSD is
+ * not deployed on the given chain.
  */
-export function getMoneyAccountDepositAssetId(chainId?: Hex): CaipAssetType {
-  return (MUSD_TOKEN_ASSET_ID_BY_CHAIN[chainId as Hex] ??
-    MUSD_TOKEN_ASSET_ID_BY_CHAIN[CHAIN_IDS.MONAD]) as CaipAssetType;
+export function getMoneyAccountDepositAssetId(
+  chainId?: Hex,
+): CaipAssetType | undefined {
+  if (!chainId) {
+    return undefined;
+  }
+  return MUSD_TOKEN_ASSET_ID_BY_CHAIN[chainId];
 }
 
 export type MoneyAccountDepositBatchResult = MoneyAccountBatchResult<
   'approveTx' | 'depositTx'
 >;
 
+export type MoneyAccountDepositPlaceholderBatchResult =
+  MoneyAccountPlaceholderBatchResult<'approveTx' | 'depositTx'>;
+
 export type BuildMoneyAccountDepositBatchOptions = {
   amount: bigint;
   chainId: Hex;
-  boringVault: string;
-  tellerAddress: string;
-  accountantAddress: string;
-  lensAddress: string;
+  boringVault: Hex;
+  tellerAddress: Hex;
+  accountantAddress: Hex;
+  lensAddress: Hex;
   provider: Provider;
-  initialiseWithoutData?: boolean;
+};
+
+export type BuildMoneyAccountDepositPlaceholderBatchOptions = {
+  chainId: Hex;
+  tellerAddress: Hex;
 };
 
 /**
@@ -212,6 +248,10 @@ export type BuildMoneyAccountDepositBatchOptions = {
  * 3. Encodes ERC-20 `approve(boringVault, amount)` on the mUSD token.
  * 4. Encodes `deposit(mUSD, amount, minimumMint, 0x0)` on the teller contract.
  *
+ * For placeholder batches with no amount yet, use
+ * {@link buildMoneyAccountDepositPlaceholderBatch} instead — it needs neither a
+ * provider nor the vault read.
+ *
  * @param options - Options bag.
  * @param options.amount - Deposit amount in mUSD base units.
  * @param options.chainId - Chain the deposit happens on.
@@ -220,9 +260,6 @@ export type BuildMoneyAccountDepositBatchOptions = {
  * @param options.accountantAddress - Address of the vault accountant contract.
  * @param options.lensAddress - Address of the vault lens contract.
  * @param options.provider - Provider used for the `previewDeposit` read.
- * @param options.initialiseWithoutData - When true, returns the transaction
- * targets and types without calldata, for placeholder batches that Pay
- * re-encodes once the user picks an amount.
  * @returns The approve and deposit transactions, keyed by name.
  */
 export async function buildMoneyAccountDepositBatch({
@@ -233,11 +270,10 @@ export async function buildMoneyAccountDepositBatch({
   accountantAddress,
   lensAddress,
   provider,
-  initialiseWithoutData = false,
 }: BuildMoneyAccountDepositBatchOptions): Promise<MoneyAccountDepositBatchResult> {
   const musdAddress = getMoneyAccountDepositAssetAddress(chainId);
 
-  // Skip the RPC call for zero-amount placeholder batches (e.g. initial deposit submission).
+  // Nothing to preview for a zero-amount deposit, so skip the RPC call.
   const minimumMint =
     amount === 0n
       ? 0n
@@ -252,27 +288,53 @@ export async function buildMoneyAccountDepositBatch({
           }),
         );
 
-  const approveData = initialiseWithoutData
-    ? undefined
-    : buildApproveData(boringVault, amount);
-  const depositData = initialiseWithoutData
-    ? undefined
-    : buildDepositData(musdAddress, amount, minimumMint);
-
   return {
     approveTx: {
       params: {
         to: musdAddress,
-        data: approveData,
-        value: '0x0' as Hex,
+        data: buildApproveData(boringVault, amount),
+        value: '0x0',
       },
       type: TransactionType.tokenMethodApprove,
     },
     depositTx: {
       params: {
-        to: tellerAddress as Hex,
-        data: depositData,
-        value: '0x0' as Hex,
+        to: tellerAddress,
+        data: buildDepositData(musdAddress, amount, minimumMint),
+        value: '0x0',
+      },
+      type: TransactionType.moneyAccountDeposit,
+    },
+  };
+}
+
+/**
+ * Builds the approve + deposit pair for a Money Account deposit *without*
+ * calldata, for placeholder batches that Pay re-encodes once the user picks an
+ * amount. Resolves the call targets and types only, so it performs no vault
+ * reads and needs no provider.
+ *
+ * @param options - Options bag.
+ * @param options.chainId - Chain the deposit happens on.
+ * @param options.tellerAddress - Address of the teller contract.
+ * @returns The approve and deposit transaction targets, keyed by name.
+ */
+export function buildMoneyAccountDepositPlaceholderBatch({
+  chainId,
+  tellerAddress,
+}: BuildMoneyAccountDepositPlaceholderBatchOptions): MoneyAccountDepositPlaceholderBatchResult {
+  return {
+    approveTx: {
+      params: {
+        to: getMoneyAccountDepositAssetAddress(chainId),
+        value: '0x0',
+      },
+      type: TransactionType.tokenMethodApprove,
+    },
+    depositTx: {
+      params: {
+        to: tellerAddress,
+        value: '0x0',
       },
       type: TransactionType.moneyAccountDeposit,
     },
@@ -353,9 +415,9 @@ export type BuildMoneyAccountWithdrawBatchOptions = {
   chainId: Hex;
   tellerAddress: Hex;
   accountantAddress: Hex;
-  /** Address of the money account — vault sends USDC here first. */
+  /** Address of the money account — vault sends the redeemed mUSD here first. */
   moneyAccountAddress: Hex;
-  /** Address of the user's selected EVM account — receives the USDC transfer. */
+  /** Address of the user's selected EVM account — receives the mUSD transfer. */
   recipient: Hex;
   provider: Provider;
 };
@@ -365,8 +427,8 @@ export type BuildMoneyAccountWithdrawBatchOptions = {
  *
  * 1. Calls `getRate` on the accountant contract to get the current vault rate.
  * 2. Converts the asset amount to vault shares.
- * 3. Encodes `withdraw(mUSD, shareAmount, minimumAssets, moneyAccountAddress)` on the teller contract — USDC lands on the money account.
- * 4. Encodes `transfer(recipient, amount)` on the USDC contract — moves the exact requested USDC from the money account to the user's selected EVM account.
+ * 3. Encodes `withdraw(mUSD, shareAmount, minimumAssets, moneyAccountAddress)` on the teller contract — the redeemed mUSD lands on the money account.
+ * 4. Encodes `transfer(recipient, amount)` on the mUSD token contract — moves the exact requested amount from the money account to the user's selected EVM account.
  *
  * When `amount === 0n` the rate fetch is skipped: the caller is encoding a
  * placeholder batch that Pay will re-encode once the user picks an amount.
@@ -394,8 +456,8 @@ export async function buildMoneyAccountWithdrawBatch({
   const musdAddress = getMoneyAccountDepositAssetAddress(chainId);
 
   const shareAmount =
-    amount === BigInt(0)
-      ? BigInt(0)
+    amount === 0n
+      ? 0n
       : getSharesForWithdrawal(
           amount,
           await getVaultRate({ accountantAddress, provider }),
@@ -423,7 +485,7 @@ export async function buildMoneyAccountWithdrawBatch({
       params: {
         to: tellerAddress,
         data: withdrawData,
-        value: '0x0' as Hex,
+        value: '0x0',
       },
       type: TransactionType.moneyAccountWithdraw,
     },
@@ -431,7 +493,7 @@ export async function buildMoneyAccountWithdrawBatch({
       params: {
         to: musdAddress,
         data: transferData,
-        value: '0x0' as Hex,
+        value: '0x0',
       },
       type: TransactionType.tokenMethodTransfer,
     },

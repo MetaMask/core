@@ -9,6 +9,7 @@ import { MUSD_TOKEN_ADDRESS, MUSD_TOKEN_ASSET_ID_BY_CHAIN } from './musd.js';
 import {
   applySlippage,
   buildMoneyAccountDepositBatch,
+  buildMoneyAccountDepositPlaceholderBatch,
   buildMoneyAccountWithdrawBatch,
   getMoneyAccountDepositAssetAddress,
   getMoneyAccountDepositAssetId,
@@ -280,16 +281,12 @@ describe('getMoneyAccountDepositAssetId', () => {
     );
   });
 
-  it('falls back to the Monad asset id for an unknown chain', () => {
-    expect(getMoneyAccountDepositAssetId(UNSUPPORTED_CHAIN_ID)).toBe(
-      MUSD_TOKEN_ASSET_ID_BY_CHAIN[CHAIN_IDS.MONAD],
-    );
+  it('returns undefined for a chain mUSD is not deployed on', () => {
+    expect(getMoneyAccountDepositAssetId(UNSUPPORTED_CHAIN_ID)).toBeUndefined();
   });
 
-  it('falls back to the Monad asset id when chainId is undefined', () => {
-    expect(getMoneyAccountDepositAssetId(undefined)).toBe(
-      MUSD_TOKEN_ASSET_ID_BY_CHAIN[CHAIN_IDS.MONAD],
-    );
+  it('returns undefined when chainId is undefined', () => {
+    expect(getMoneyAccountDepositAssetId(undefined)).toBeUndefined();
   });
 });
 
@@ -358,42 +355,6 @@ describe('buildMoneyAccountDepositBatch', () => {
     expect(BigInt(decoded.minimumMint.toString())).toBe(BigInt(0));
   });
 
-  it('returns undefined data fields when initialiseWithoutData is true', async () => {
-    const result = await buildMoneyAccountDepositBatch(
-      depositArgs({ amount: BigInt(0), initialiseWithoutData: true }),
-    );
-
-    expect(result.approveTx.params.data).toBeUndefined();
-    expect(result.depositTx.params.data).toBeUndefined();
-    expect(result.approveTx.type).toBe(TransactionType.tokenMethodApprove);
-    expect(result.depositTx.type).toBe(TransactionType.moneyAccountDeposit);
-    expect(result.approveTx.params.to).toBe(MUSD_TOKEN_ADDRESS);
-    expect(result.depositTx.params.to).toBe(TELLER);
-  });
-
-  it('still resolves minimumMint for non-zero amounts when initialiseWithoutData is true', async () => {
-    previewDeposit.mockResolvedValue(BigInt(1_000_000));
-
-    const result = await buildMoneyAccountDepositBatch(
-      depositArgs({ initialiseWithoutData: true }),
-    );
-
-    expect(previewDeposit).toHaveBeenCalledTimes(1);
-    expect(result.approveTx.params.data).toBeUndefined();
-    expect(result.depositTx.params.data).toBeUndefined();
-  });
-
-  it('builds calldata when initialiseWithoutData is explicitly false', async () => {
-    previewDeposit.mockResolvedValue(BigInt(1_000_000));
-
-    const result = await buildMoneyAccountDepositBatch(
-      depositArgs({ initialiseWithoutData: false }),
-    );
-
-    expect(result.approveTx.params.data).toBeDefined();
-    expect(result.depositTx.params.data).toBeDefined();
-  });
-
   it('throws for a chain mUSD is not deployed on', async () => {
     await expect(
       buildMoneyAccountDepositBatch(
@@ -408,6 +369,46 @@ describe('buildMoneyAccountDepositBatch', () => {
     await expect(buildMoneyAccountDepositBatch(depositArgs())).rejects.toThrow(
       'RPC down',
     );
+  });
+});
+
+describe('buildMoneyAccountDepositPlaceholderBatch', () => {
+  beforeEach(mockVaultContracts);
+
+  it('returns the approve and deposit targets and types without calldata', () => {
+    const result = buildMoneyAccountDepositPlaceholderBatch({
+      chainId: CHAIN_ID,
+      tellerAddress: TELLER,
+    });
+
+    expect(result.approveTx.type).toBe(TransactionType.tokenMethodApprove);
+    expect(result.approveTx.params.to).toBe(MUSD_TOKEN_ADDRESS);
+    expect(result.approveTx.params.value).toBe('0x0');
+    expect(result.approveTx.params).not.toHaveProperty('data');
+
+    expect(result.depositTx.type).toBe(TransactionType.moneyAccountDeposit);
+    expect(result.depositTx.params.to).toBe(TELLER);
+    expect(result.depositTx.params.value).toBe('0x0');
+    expect(result.depositTx.params).not.toHaveProperty('data');
+  });
+
+  it('performs no vault reads', () => {
+    buildMoneyAccountDepositPlaceholderBatch({
+      chainId: CHAIN_ID,
+      tellerAddress: TELLER,
+    });
+
+    expect(previewDeposit).not.toHaveBeenCalled();
+    expect(MockContract).not.toHaveBeenCalled();
+  });
+
+  it('throws for a chain mUSD is not deployed on', () => {
+    expect(() =>
+      buildMoneyAccountDepositPlaceholderBatch({
+        chainId: UNSUPPORTED_CHAIN_ID,
+        tellerAddress: TELLER,
+      }),
+    ).toThrow(`mUSD not deployed on chain ${UNSUPPORTED_CHAIN_ID}`);
   });
 });
 
