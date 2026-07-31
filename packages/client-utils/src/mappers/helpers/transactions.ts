@@ -38,7 +38,7 @@ export type TransactionGroup = {
 
 const nativeTokenDecimals = 18;
 
-function toNetworkFeeAmount(
+function calculateNetworkFee(
   gasUsed: string | number | undefined,
   gasPrice: string | number | undefined,
 ): string | undefined {
@@ -53,7 +53,7 @@ function toNetworkFeeAmount(
   }
 }
 
-function buildBaseNetworkFee(
+function toNetworkFee(
   amount: string,
   chainId: CaipChainId,
   symbol?: string,
@@ -104,7 +104,7 @@ function getNetworkFee(
     return undefined;
   }
 
-  const amount = toNetworkFeeAmount(
+  const amount = calculateNetworkFee(
     transaction.gasUsed,
     transaction.effectiveGasPrice,
   );
@@ -113,7 +113,7 @@ function getNetworkFee(
     return undefined;
   }
 
-  return buildBaseNetworkFee(amount, chainId);
+  return toNetworkFee(amount, chainId);
 }
 
 export function getFees(
@@ -136,7 +136,7 @@ export function getLocalTransactionFees(
     return undefined;
   }
 
-  const amount = toNetworkFeeAmount(
+  const amount = calculateNetworkFee(
     primaryTransaction.txReceipt?.gasUsed,
     primaryTransaction.txReceipt?.effectiveGasPrice ??
       primaryTransaction.txParams?.gasPrice,
@@ -146,7 +146,7 @@ export function getLocalTransactionFees(
     return undefined;
   }
 
-  return [buildBaseNetworkFee(amount, chainId, nativeAssetSymbol)];
+  return [toNetworkFee(amount, chainId, nativeAssetSymbol)];
 }
 
 const inProgressTransactionStatuses = [
