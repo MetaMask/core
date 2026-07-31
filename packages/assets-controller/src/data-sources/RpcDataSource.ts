@@ -18,6 +18,8 @@ import {
   parseCaipAssetType,
   parseCaipChainId,
   hexToNumber,
+  toCaipChainId,
+  KnownCaipNamespace,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BigNumberJS from 'bignumber.js';
@@ -282,7 +284,10 @@ export class RpcDataSource extends AbstractDataSource<
         // eslint-disable-next-line no-restricted-syntax
         this.#messenger.call(
           'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
-          `eip155:${hexToNumber(hexChainId)}`,
+          toCaipChainId(
+            KnownCaipNamespace.Eip155,
+            String(hexToNumber(hexChainId)),
+          ),
         )?.contracts?.multicall3,
     });
 
