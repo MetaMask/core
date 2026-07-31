@@ -1,10 +1,10 @@
 import { HttpTransport, InfoClient } from '@nktkas/hyperliquid';
 
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type {
   ClearinghouseStateResponse,
   FrontendOpenOrdersResponse,
-} from '../types/hyperliquid-types';
+} from '../types/hyperliquid-types.js';
 
 export type StandaloneInfoClientOptions = {
   /** Whether to use testnet API endpoint */

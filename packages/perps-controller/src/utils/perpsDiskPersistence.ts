@@ -4,8 +4,13 @@ import {
   PERPS_DISK_CACHE_MARKETS,
   PERPS_DISK_CACHE_USER_DATA,
   PROVIDER_CONFIG,
-} from '../constants/perpsConfig';
-import type { AccountState, Order, PerpsMarketData, Position } from '../types';
+} from '../constants/perpsConfig.js';
+import type {
+  AccountState,
+  Order,
+  PerpsMarketData,
+  Position,
+} from '../types/index.js';
 
 /**
  * Multiplier applied to staleGuardMs (preloadGuardMs, currently 30s) to compute

@@ -6,9 +6,9 @@ import type {
   DataRequest,
   Caip19AssetId,
   AssetsControllerStateInternal,
-} from '../types';
-import { normalizeAssetId } from '../utils';
-import { DetectionMiddleware } from './DetectionMiddleware';
+} from '../types.js';
+import { normalizeAssetId } from '../utils/index.js';
+import { DetectionMiddleware } from './DetectionMiddleware.js';
 
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const MOCK_ACCOUNT_ID = 'mock-account-id';
@@ -406,6 +406,32 @@ describe('DetectionMiddleware', () => {
       [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
     });
     expect(context.request.assetsForPriceUpdate).toBeUndefined();
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
+  it('queues assetsForPriceUpdate for known balance assets that still lack a price', async () => {
+    const { middleware } = setupController();
+    // Asset already has metadata (known / seeded) but no price yet.
+    const context = createMiddlewareContext(
+      {
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_NATIVE_ASSET]: { amount: '0' },
+            },
+          },
+        },
+      },
+      [MOCK_NATIVE_ASSET],
+    );
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(context.response.detectedAssets).toBeUndefined();
+    expect(context.request.assetsForPriceUpdate).toStrictEqual([
+      normalizeAssetId(MOCK_NATIVE_ASSET),
+    ]);
     expect(next).toHaveBeenCalledWith(context);
   });
 

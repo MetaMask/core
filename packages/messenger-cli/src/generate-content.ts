@@ -1,8 +1,8 @@
 import { assertExhaustive, getErrorMessage } from '@metamask/utils';
 import * as path from 'node:path';
 
-import type { SourceInfo } from './parse-source';
-import { Formatter } from './types';
+import type { SourceInfo } from './parse-source.js';
+import { Formatter } from './types.js';
 
 /**
  * The default options used by Oxfmt and Prettier when formatting the generated
@@ -97,14 +97,17 @@ function getFormatter(
  *
  * @param source - The source information object (controller or service).
  * @param formatter - The formatter to use for formatting the generated content.
+ * @param esm - Whether to add `.js` extensions to import paths for ESM
+ * compatibility.
  * @returns The content for the action types file.
  */
 export async function generateActionTypesContent(
   source: SourceInfo,
   formatter: Formatter,
+  esm = false,
 ): Promise<string> {
   const baseFileName = path.basename(source.filePath, '.ts');
-  const sourceImportPath = `./${baseFileName}`;
+  const sourceImportPath = `./${baseFileName}${esm ? '.js' : ''}`;
 
   let content = `/**
  * This file is auto generated.

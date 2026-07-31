@@ -4,7 +4,7 @@ import {
   ChainId,
   BuiltInNetworkName,
   BlockExplorerUrl,
-} from './types';
+} from './types.js';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';

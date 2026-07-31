@@ -5,7 +5,7 @@ import {
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import { ZERO_ADDRESS } from '../../../utils/constants';
+import { ZERO_ADDRESS } from '../../../utils/constants.js';
 import type {
   Address,
   BalanceOfRequest,
@@ -13,8 +13,8 @@ import type {
   ChainId,
   GetProviderFunction,
   Provider,
-} from '../types';
-import { reduceInBatchesSerially } from '../utils';
+} from '../types/index.js';
+import { reduceInBatchesSerially } from '../utils/index.js';
 
 // =============================================================================
 // ABI DEFINITIONS

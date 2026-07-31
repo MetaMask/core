@@ -95,6 +95,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
 - [`@metamask/money-account-controller`](packages/money-account-controller)
 - [`@metamask/money-account-upgrade-controller`](packages/money-account-upgrade-controller)
+- [`@metamask/money-account-utils`](packages/money-account-utils)
 - [`@metamask/multichain-account-service`](packages/multichain-account-service)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
@@ -121,6 +122,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/sample-controllers`](packages/sample-controllers)
 - [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
+- [`@metamask/sentinel-api-service`](packages/sentinel-api-service)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/smart-transactions-controller`](packages/smart-transactions-controller)
@@ -199,6 +201,7 @@ linkStyle default opacity:0.5
   money_account_balance_service(["@metamask/money-account-balance-service"]);
   money_account_controller(["@metamask/money-account-controller"]);
   money_account_upgrade_controller(["@metamask/money-account-upgrade-controller"]);
+  money_account_utils(["@metamask/money-account-utils"]);
   multichain_account_service(["@metamask/multichain-account-service"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
@@ -225,6 +228,7 @@ linkStyle default opacity:0.5
   sample_controllers(["@metamask/sample-controllers"]);
   seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
+  sentinel_api_service(["@metamask/sentinel-api-service"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   smart_transactions_controller(["@metamask/smart-transactions-controller"]);
@@ -256,6 +260,7 @@ linkStyle default opacity:0.5
   ai_controllers --> base_controller;
   ai_controllers --> messenger;
   analytics_controller --> base_controller;
+  analytics_controller --> geolocation_controller;
   analytics_controller --> messenger;
   analytics_data_regulation_controller --> base_controller;
   analytics_data_regulation_controller --> controller_utils;
@@ -281,6 +286,7 @@ linkStyle default opacity:0.5
   assets_controller --> phishing_controller;
   assets_controller --> polling_controller;
   assets_controller --> preferences_controller;
+  assets_controller --> remote_feature_flag_controller;
   assets_controller --> transaction_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
@@ -305,6 +311,7 @@ linkStyle default opacity:0.5
   authenticated_user_storage --> messenger;
   base_controller --> messenger;
   base_data_service --> messenger;
+  base_data_service --> storage_service;
   bitcoin_regtest_up --> local_node_utils;
   bridge_controller --> accounts_controller;
   bridge_controller --> assets_controller;
@@ -361,11 +368,12 @@ linkStyle default opacity:0.5
   config_registry_controller --> remote_feature_flag_controller;
   connectivity_controller --> base_controller;
   connectivity_controller --> messenger;
-  core_backend --> accounts_controller;
+  core_backend --> account_tree_controller;
   core_backend --> controller_utils;
   core_backend --> keyring_controller;
   core_backend --> messenger;
   core_backend --> profile_sync_controller;
+  core_backend --> remote_feature_flag_controller;
   delegation_controller --> base_controller;
   delegation_controller --> keyring_controller;
   delegation_controller --> messenger;
@@ -376,6 +384,7 @@ linkStyle default opacity:0.5
   earn_controller --> network_controller;
   earn_controller --> transaction_controller;
   eip_5792_middleware --> messenger;
+  eip_5792_middleware --> preferences_controller;
   eip_5792_middleware --> transaction_controller;
   eip_5792_middleware --> keyring_controller;
   eip_7702_internal_rpc_middleware --> controller_utils;
@@ -410,6 +419,7 @@ linkStyle default opacity:0.5
   json_rpc_engine --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
+  keyring_controller --> controller_utils;
   keyring_controller --> messenger;
   logging_controller --> base_controller;
   logging_controller --> controller_utils;
@@ -423,6 +433,7 @@ linkStyle default opacity:0.5
   money_account_balance_service --> base_data_service;
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;
+  money_account_balance_service --> money_account_api_data_service;
   money_account_balance_service --> network_controller;
   money_account_balance_service --> remote_feature_flag_controller;
   money_account_controller --> accounts_controller;
@@ -436,6 +447,7 @@ linkStyle default opacity:0.5
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
   money_account_upgrade_controller --> network_controller;
+  money_account_utils --> transaction_controller;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;
   multichain_account_service --> keyring_controller;
@@ -470,6 +482,7 @@ linkStyle default opacity:0.5
   network_connection_banner_controller --> messenger;
   network_connection_banner_controller --> network_controller;
   network_connection_banner_controller --> network_enablement_controller;
+  network_controller --> analytics_controller;
   network_controller --> base_controller;
   network_controller --> connectivity_controller;
   network_controller --> controller_utils;
@@ -480,6 +493,7 @@ linkStyle default opacity:0.5
   network_controller --> messenger;
   network_controller --> remote_feature_flag_controller;
   network_enablement_controller --> base_controller;
+  network_enablement_controller --> config_registry_controller;
   network_enablement_controller --> controller_utils;
   network_enablement_controller --> messenger;
   network_enablement_controller --> multichain_network_controller;
@@ -492,6 +506,7 @@ linkStyle default opacity:0.5
   notification_services_controller --> messenger;
   notification_services_controller --> profile_sync_controller;
   passkey_controller --> base_controller;
+  passkey_controller --> keyring_controller;
   passkey_controller --> messenger;
   permission_controller --> approval_controller;
   permission_controller --> base_controller;
@@ -559,6 +574,9 @@ linkStyle default opacity:0.5
   selected_network_controller --> messenger;
   selected_network_controller --> network_controller;
   selected_network_controller --> permission_controller;
+  sentinel_api_service --> base_data_service;
+  sentinel_api_service --> controller_utils;
+  sentinel_api_service --> messenger;
   shield_controller --> base_controller;
   shield_controller --> controller_utils;
   shield_controller --> messenger;
@@ -583,7 +601,6 @@ linkStyle default opacity:0.5
   smart_transactions_controller --> remote_feature_flag_controller;
   smart_transactions_controller --> transaction_controller;
   smart_transactions_controller --> json_rpc_engine;
-  snap_account_service --> account_tree_controller;
   snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   social_controllers --> base_controller;
@@ -621,6 +638,7 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> network_controller;
   transaction_pay_controller --> ramps_controller;
   transaction_pay_controller --> remote_feature_flag_controller;
+  transaction_pay_controller --> sentinel_api_service;
   transaction_pay_controller --> transaction_controller;
   user_operation_controller --> approval_controller;
   user_operation_controller --> base_controller;
@@ -638,16 +656,22 @@ linkStyle default opacity:0.5
   wallet --> base_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
+  wallet --> gas_fee_controller;
   wallet --> keyring_controller;
   wallet --> messenger;
   wallet --> network_controller;
+  wallet --> passkey_controller;
   wallet --> remote_feature_flag_controller;
+  wallet --> seedless_onboarding_controller;
   wallet --> storage_service;
   wallet --> transaction_controller;
+  wallet_cli --> analytics_controller;
   wallet_cli --> base_controller;
+  wallet_cli --> messenger;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;
   wallet_cli --> wallet;
+  wallet_cli --> foundryup;
 ```
 
 <!-- end dependency graph -->

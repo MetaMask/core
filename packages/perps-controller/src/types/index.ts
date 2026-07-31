@@ -6,8 +6,8 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { CandlePeriod, TimeDuration } from '../constants/chartConfig';
-import type { CandleData, OrderType } from './perps-types';
+import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type { CandleData, OrderType } from './perps-types.js';
 
 /**
  * Connection states for WebSocket management.
@@ -140,8 +140,13 @@ export type InputMethod =
   | 'percentage'
   | 'max';
 
-// Trade action type - differentiates first trade on a market from adding to existing position
-export type TradeAction = 'create_position' | 'increase_exposure';
+// Trade action type - differentiates first trade on a market, adding to an
+// existing position, and flipping a position's direction
+export type TradeAction =
+  | 'create_position'
+  | 'increase_exposure'
+  | 'flip_long_to_short'
+  | 'flip_short_to_long';
 
 // Unified tracking data interface for analytics events (never persisted in state)
 // Note: Numeric values are already parsed by hooks (usePerpsOrderFees, etc.) from API responses
@@ -256,6 +261,11 @@ export type OrderResult = {
   orderId?: string; // Order ID from exchange
   error?: string;
   filledSize?: string; // Amount filled
+  // Final normalized size actually submitted to the exchange (post precision
+  // rounding, USD recalculation, and any $10-minimum retry). Present only when
+  // the provider reached submission; used to classify partial fills against the
+  // real submitted size rather than the caller's pre-normalization params.size.
+  submittedSize?: string;
   averagePrice?: string; // Average execution price
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
 };
@@ -361,8 +371,24 @@ export type ClosePositionParams = {
 
   /**
    * Optional live position data from WebSocket.
-   * If provided, skips the REST API position fetch (avoids rate limiting issues).
-   * If not provided, falls back to fetching positions via REST API cache.
+   *
+   * Pass a WebSocket-sourced snapshot only. The provider treats its own
+   * WebSocket position cache as fresher than this value and overrides the
+   * snapshot's size and side with it, so a REST-sourced (potentially older)
+   * position gives no benefit here.
+   *
+   * Providing it avoids a position fetch in the common case, but does not
+   * guarantee one is skipped: when the WebSocket cache does not cover the
+   * symbol's DEX (for example a HIP-3 DEX whose subscription has not published
+   * this session), the provider issues a single `clearinghouseState` request for
+   * that DEX alone, because the cache's silence proves nothing about the symbol.
+   * If that request succeeds, its answer is authoritative — the close fails with
+   * `No position found for <symbol>` when the DEX reports the symbol gone, even
+   * if it reports no positions at all. This snapshot is used only when that
+   * request fails, since a failed lookup proves nothing either.
+   *
+   * If not provided, the position is read from the WebSocket cache, falling back
+   * to a REST fetch when the cache is not initialized.
    */
   position?: Position;
 };
@@ -1949,10 +1975,10 @@ export function isVersionGatedFeatureFlag(
 // ============================================================================
 // Sub-module type re-exports
 // These types live in separate files within types/ and need to be accessible
-// from the root barrel via `export * from './types'`.
+// from the root barrel via `export * from './types.js'`.
 // ============================================================================
-export type * from './perps-types';
-export * from './transactionTypes';
+export type * from './perps-types.js';
+export * from './transactionTypes.js';
 // hyperliquid-types: selective export to avoid OrderType clash with main types
 export type {
   AssetPosition,
@@ -1970,4 +1996,4 @@ export type {
   MetaAndAssetCtxsResponse,
   PredictedFundingsResponse,
   SpotMetaResponse,
-} from './hyperliquid-types';
+} from './hyperliquid-types.js';

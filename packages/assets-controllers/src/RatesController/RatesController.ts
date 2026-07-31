@@ -3,13 +3,13 @@ import type { StateMetadata } from '@metamask/base-controller';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
-import { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
+import { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service/index.js';
 import type {
   ConversionRates,
   RatesControllerState,
   RatesControllerOptions,
   RatesControllerMessenger,
-} from './types';
+} from './types.js';
 
 export const name = 'RatesController';
 

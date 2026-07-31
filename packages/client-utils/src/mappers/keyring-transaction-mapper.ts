@@ -4,7 +4,7 @@ import {
   TransactionType as KeyringTransactionType,
 } from '@metamask/keyring-api';
 
-import type { Fee, ActivityItem, Status, TokenAmount } from '../types';
+import type { Fee, ActivityItem, Status, TokenAmount } from '../types.js';
 
 type Movement = KeyringTransaction['from'][number];
 type KeyringFee = KeyringTransaction['fees'][number];

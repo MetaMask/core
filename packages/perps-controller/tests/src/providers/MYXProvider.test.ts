@@ -2,26 +2,26 @@
 import {
   createMockInfrastructure,
   createMockMessenger,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('@myx-trade/sdk', () => ({
   MyxClient: jest.fn(),
   OrderStatusEnum: { Successful: 9 },
 }));
 
-import { CandlePeriod } from '../../../src/constants/chartConfig';
-import { MYXProvider } from '../../../src/providers/MYXProvider';
-import { MYXClientService } from '../../../src/services/MYXClientService';
-import { WebSocketConnectionState } from '../../../src/types';
-import type { PerpsPlatformDependencies } from '../../../src/types';
-import type { MYXPoolSymbol, MYXTicker } from '../../../src/types/myx-types';
+import { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { MYXProvider } from '../../../src/providers/MYXProvider.js';
+import { MYXClientService } from '../../../src/services/MYXClientService.js';
+import { WebSocketConnectionState } from '../../../src/types/index.js';
+import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
+import type { MYXPoolSymbol, MYXTicker } from '../../../src/types/myx-types.js';
 import {
   adaptMarketFromMYX,
   adaptMarketDataFromMYX,
   adaptPriceFromMYX,
   filterMYXExclusiveMarkets,
   buildPoolSymbolMap,
-} from '../../../src/utils/myxAdapter';
+} from '../../../src/utils/myxAdapter.js';
 
 // ============================================================================
 // Mocks

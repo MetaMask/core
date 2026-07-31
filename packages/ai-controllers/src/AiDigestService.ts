@@ -7,14 +7,14 @@ import {
   type as structType,
 } from '@metamask/superstruct';
 
-import { AiDigestControllerErrorMessage } from './ai-digest-constants';
+import { AiDigestControllerErrorMessage } from './ai-digest-constants.js';
 import type {
   DigestService,
   MarketInsightsReport,
   MarketOverview,
   MarketOverviewFrontPage,
   MarketOverviewTrend,
-} from './ai-digest-types';
+} from './ai-digest-types.js';
 
 export type AiDigestServiceConfig = {
   baseUrl: string;

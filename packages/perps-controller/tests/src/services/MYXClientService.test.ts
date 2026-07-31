@@ -1,10 +1,10 @@
 /* eslint-disable */
 import type { PerpsPlatformDependencies } from '@metamask/perps-controller';
 
-import { MYX_PRICE_POLLING_INTERVAL_MS } from '../../../src/constants/myxConfig';
-import { MYXClientService } from '../../../src/services/MYXClientService';
-import type { MYXPoolSymbol, MYXTicker } from '../../../src/types/myx-types';
-import { createMockInfrastructure } from '../../helpers/serviceMocks';
+import { MYX_PRICE_POLLING_INTERVAL_MS } from '../../../src/constants/myxConfig.js';
+import { MYXClientService } from '../../../src/services/MYXClientService.js';
+import type { MYXPoolSymbol, MYXTicker } from '../../../src/types/myx-types.js';
+import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 // ============================================================================
 // Mock @myx-trade/sdk

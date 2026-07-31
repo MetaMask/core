@@ -7,10 +7,10 @@ import type {
 } from '@metamask/messenger';
 import type { JsonRpcResponse } from '@metamask/utils';
 
-import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
-import type { SelectedNetworkControllerMessenger } from '../src/SelectedNetworkController';
-import type { SelectedNetworkMiddlewareJsonRpcRequest } from '../src/SelectedNetworkMiddleware';
-import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware';
+import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController.js';
+import type { SelectedNetworkControllerMessenger } from '../src/SelectedNetworkController.js';
+import type { SelectedNetworkMiddlewareJsonRpcRequest } from '../src/SelectedNetworkMiddleware.js';
+import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware.js';
 
 type AllSelectedNetworkControllerActions =
   MessengerActions<SelectedNetworkControllerMessenger>;

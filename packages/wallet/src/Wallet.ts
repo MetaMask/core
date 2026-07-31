@@ -8,9 +8,9 @@ import type {
   DefaultInstances,
   DefaultState,
   RootMessenger,
-} from './initialization/defaults';
-import { initialize } from './initialization/initialization';
-import { WalletOptions } from './types';
+} from './initialization/defaults.js';
+import { initialize } from './initialization/initialization.js';
+import { WalletOptions } from './types.js';
 
 export class Wallet {
   // TODO: Expand default types when passing additionalConfigurations.

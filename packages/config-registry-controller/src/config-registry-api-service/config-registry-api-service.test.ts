@@ -1,13 +1,13 @@
 import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
 
-import { createMockNetworkConfig } from '../../tests/helpers';
-import { ConfigRegistryApiService } from './config-registry-api-service';
+import { createMockNetworkConfig } from '../../tests/helpers.js';
+import { ConfigRegistryApiService } from './config-registry-api-service.js';
 import type {
   ConfigRegistryApiServiceMessenger,
   ConfigRegistryApiServiceOptions,
-} from './config-registry-api-service';
-import type { RegistryConfigApiResponse } from './types';
+} from './config-registry-api-service.js';
+import type { RegistryConfigApiResponse } from './types.js';
 
 function createMockServiceMessenger(): ConfigRegistryApiServiceMessenger {
   return {

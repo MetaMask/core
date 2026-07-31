@@ -1,11 +1,11 @@
-import type { InstanceSpecificOptions, WalletOptions } from '../types';
+import type { InstanceSpecificOptions, WalletOptions } from '../types.js';
 import type {
   DefaultActions,
   DefaultEvents,
   DefaultInstances,
-} from './defaults';
-import { defaultConfigurations, RootMessenger } from './defaults';
-import { InitializationConfiguration } from './types';
+} from './defaults.js';
+import { defaultConfigurations, RootMessenger } from './defaults.js';
+import { InitializationConfiguration } from './types.js';
 
 type InitializeOptions = WalletOptions & {
   messenger: RootMessenger<DefaultActions, DefaultEvents>;

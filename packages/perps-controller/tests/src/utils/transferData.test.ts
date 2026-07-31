@@ -1,4 +1,4 @@
-import { generateERC20TransferData } from '../../../src/utils/transferData';
+import { generateERC20TransferData } from '../../../src/utils/transferData.js';
 
 describe('generateERC20TransferData', () => {
   it('encodes ERC-20 transfer calldata', () => {

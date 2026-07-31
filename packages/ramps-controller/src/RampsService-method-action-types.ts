@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { RampsService } from './RampsService';
+import type { RampsService } from './RampsService.js';
 
 /**
  * Makes a request to the API in order to retrieve the user's geolocation

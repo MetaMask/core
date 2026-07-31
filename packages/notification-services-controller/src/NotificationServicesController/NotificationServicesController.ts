@@ -34,31 +34,31 @@ import { assert } from '@metamask/utils';
 import { debounce } from 'lodash';
 import log from 'loglevel';
 
-import type { NormalisedAPINotification } from '.';
 import type {
   NotificationServicesPushControllerStateChangeEvent,
   NotificationServicesPushControllerOnNewNotificationEvent,
-} from '../NotificationServicesPushController';
-import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types';
-import { TRIGGER_TYPES } from './constants/notification-schema';
-import type { NotificationServicesControllerMethodActions } from './NotificationServicesController-method-action-types';
+} from '../NotificationServicesPushController/index.js';
+import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types.js';
+import { TRIGGER_TYPES } from './constants/notification-schema.js';
+import type { NormalisedAPINotification } from './index.js';
+import type { NotificationServicesControllerMethodActions } from './NotificationServicesController-method-action-types.js';
 import {
   processAndFilterNotifications,
   safeProcessNotification,
-} from './processors/process-notifications';
-import type { ENV } from './services/api-notifications';
+} from './processors/process-notifications.js';
+import type { ENV } from './services/api-notifications.js';
 import {
   getAPINotifications,
   getNotificationsApiConfigCached,
   markNotificationsAsRead,
-} from './services/api-notifications';
-import { getFeatureAnnouncementNotifications } from './services/feature-announcements';
-import { createPerpOrderNotification } from './services/perp-notifications';
+} from './services/api-notifications.js';
+import { getFeatureAnnouncementNotifications } from './services/feature-announcements.js';
+import { createPerpOrderNotification } from './services/perp-notifications.js';
 import type {
   INotification,
   MarkAsReadNotificationsParam,
-} from './types/notification/notification';
-import type { OrderInput } from './types/perps';
+} from './types/notification/notification.js';
+import type { OrderInput } from './types/perps/index.js';
 
 // Unique name for the controller
 const controllerName = 'NotificationServicesController';
@@ -526,11 +526,34 @@ export class NotificationServicesController extends BaseController<
       }
     },
     subscribe: (): void => {
+      // Coalesce pushes: at most one fetch in-flight, one queued.
+      // Re-fetch after completion because the new row may not be visible yet when the push arrives.
+      let pushFetchInFlight = false;
+      let pendingPushRefetch = false;
+
+      const fetchOnPush = async (): Promise<void> => {
+        pushFetchInFlight = true;
+        try {
+          await this.fetchAndUpdateMetamaskNotifications();
+        } finally {
+          pushFetchInFlight = false;
+          if (pendingPushRefetch) {
+            pendingPushRefetch = false;
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            fetchOnPush();
+          }
+        }
+      };
+
       this.messenger.subscribe(
         'NotificationServicesPushController:onNewNotifications',
-        (notification): void => {
+        (): void => {
+          if (pushFetchInFlight) {
+            pendingPushRefetch = true;
+            return;
+          }
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.updateMetamaskNotificationsList(notification);
+          fetchOnPush();
         },
       );
     },

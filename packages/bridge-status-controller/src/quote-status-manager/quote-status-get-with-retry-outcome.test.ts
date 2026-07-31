@@ -1,9 +1,9 @@
 import { StatusTypes } from '@metamask/bridge-controller';
 
-import { QuoteStatusFetchWithRetryOutcomeType } from './constants';
-import { QuoteStatusGetError } from './errors';
-import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
-import type { QuoteStatusGetResponse } from './types';
+import { QuoteStatusFetchWithRetryOutcomeType } from './constants.js';
+import { QuoteStatusGetError } from './errors.js';
+import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome.js';
+import type { QuoteStatusGetResponse } from './types.js';
 
 describe('QuoteStatusGetWithRetryOutcome', () => {
   it('exposes the outcome type', () => {

@@ -5,7 +5,7 @@ export type {
   MultichainAccountServiceMultichainAccountGroupCreatedEvent,
   MultichainAccountServiceMultichainAccountGroupUpdatedEvent,
   MultichainAccountServiceWalletStatusChangeEvent,
-} from './types';
+} from './types.js';
 export type {
   MultichainAccountServiceResyncAccountsAction,
   MultichainAccountServiceGetMultichainAccountWalletAction,
@@ -21,7 +21,7 @@ export type {
   MultichainAccountServiceAlignWalletsAction,
   MultichainAccountServiceAlignWalletAction,
   MultichainAccountServiceInitAction,
-} from './MultichainAccountService-method-action-types';
+} from './MultichainAccountService-method-action-types.js';
 export {
   AccountProviderWrapper,
   BaseBip44AccountProvider,
@@ -37,7 +37,7 @@ export {
   TrxAccountProvider,
   XLM_ACCOUNT_PROVIDER_NAME,
   XlmAccountProvider,
-} from './providers';
-export { MultichainAccountWallet } from './MultichainAccountWallet';
-export { MultichainAccountGroup } from './MultichainAccountGroup';
-export { MultichainAccountService } from './MultichainAccountService';
+} from './providers/index.js';
+export { MultichainAccountWallet } from './MultichainAccountWallet.js';
+export { MultichainAccountGroup } from './MultichainAccountGroup.js';
+export { MultichainAccountService } from './MultichainAccountService.js';

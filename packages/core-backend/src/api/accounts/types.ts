@@ -3,7 +3,7 @@
  * API: accounts.api.cx.metamask.io
  */
 
-import type { PageInfo } from '../shared-types';
+import type { PageInfo } from '../shared-types.js';
 
 // ============================================================================
 // BALANCE TYPES
@@ -64,17 +64,39 @@ export type V4BalancesResponse = {
 export type V6VsCurrency = string;
 
 /**
+ * Possible `positionType` values on DeFi rows in the v6 balances response.
+ * Categorizes the protocol module where the position is held.
+ * Link here: https://developers.zerion.io/api-reference/wallets/get-wallet-fungible-positions#parameter-filter-position-types
+ */
+export const V6_DEFI_POSITION_TYPES = [
+  'deposit',
+  'loan',
+  'locked',
+  'staked',
+  'reward',
+  'wallet',
+  'investment',
+] as const;
+
+/**
+ * The specific module or functionality within a DeFi protocol where a position
+ * is held.
+ */
+export type V6DeFiPositionType = (typeof V6_DEFI_POSITION_TYPES)[number];
+
+/**
  * DeFi protocol metadata attached to a `category: defi` row in the v6 balances
  * response (`BalanceMetadataV3ResponseDto`).
  */
 export type V6BalanceMetadata = {
   protocolId: string;
-  protocolName: string;
+  productName: string;
   description: string;
   protocolUrl: string;
   protocolIconUrl: string;
-  positionType: string;
+  positionType: V6DeFiPositionType;
   poolAddress: string;
+  groupId: string;
 };
 
 /**

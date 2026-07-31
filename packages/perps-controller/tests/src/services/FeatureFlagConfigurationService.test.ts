@@ -1,18 +1,18 @@
 /* eslint-disable */
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 
-import { FeatureFlagConfigurationService } from '../../../src/services/FeatureFlagConfigurationService';
-import type { ServiceContext } from '../../../src/services/ServiceContext';
-import type { PerpsPlatformDependencies } from '../../../src/types';
-import { validateMarketPattern } from '../../../src/utils/marketUtils';
+import { FeatureFlagConfigurationService } from '../../../src/services/FeatureFlagConfigurationService.js';
+import type { ServiceContext } from '../../../src/services/ServiceContext.js';
+import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
+import { validateMarketPattern } from '../../../src/utils/marketUtils.js';
 import {
   parseCommaSeparatedString,
   stripQuotes,
-} from '../../../src/utils/stringParseUtils';
+} from '../../../src/utils/stringParseUtils.js';
 import {
   createMockServiceContext,
   createMockInfrastructure,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/utils/stringParseUtils');
 jest.mock('../../../src/utils/marketUtils', () => ({

@@ -7,8 +7,8 @@ import type {
 import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountServiceMessenger } from '../types';
-import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import type { MultichainAccountServiceMessenger } from '../types.js';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider.js';
 
 /**
  * A simple wrapper that adds disable functionality to any BaseBip44AccountProvider.

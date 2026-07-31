@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { CurrencyRateController } from './CurrencyRateController';
+import type { CurrencyRateController } from './CurrencyRateController.js';
 
 /**
  * Sets a currency to track.

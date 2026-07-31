@@ -1,13 +1,13 @@
 import nock from 'nock';
 
-import { MOCK_GET_BALANCES_RESPONSE } from './mocks/mock-get-balances';
-import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './mocks/mock-get-supported-networks';
+import { MOCK_GET_BALANCES_RESPONSE } from './mocks/mock-get-balances.js';
+import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './mocks/mock-get-supported-networks.js';
 import {
   MULTICHAIN_ACCOUNTS_DOMAIN,
   fetchMultiChainBalances,
   fetchMultiChainBalancesV4,
   fetchSupportedNetworks,
-} from './multi-chain-accounts';
+} from './multi-chain-accounts.js';
 
 const MOCK_ADDRESS = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 const MOCK_CAIP_ADDRESSES = [

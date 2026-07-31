@@ -4,7 +4,7 @@ import {
   getE2EIdentifierFromJwt,
   MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
-} from './mockResponses';
+} from './mockResponses.js';
 
 describe('getE2EIdentifierFromJwt()', () => {
   it('extracts the sub claim from a valid mock JWT', () => {

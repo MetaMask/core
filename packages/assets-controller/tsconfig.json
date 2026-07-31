@@ -4,16 +4,57 @@
     "baseUrl": "./"
   },
   "references": [
-    { "path": "../account-tree-controller" },
-    { "path": "../assets-controllers" },
-    { "path": "../base-controller" },
-    { "path": "../client-controller" },
-    { "path": "../core-backend" },
-    { "path": "../keyring-controller" },
-    { "path": "../messenger" },
-    { "path": "../network-enablement-controller" },
-    { "path": "../phishing-controller" },
-    { "path": "../preferences-controller" }
+    {
+      "path": "../account-tree-controller"
+    },
+    {
+      "path": "../assets-controllers"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../client-controller"
+    },
+    {
+      "path": "../core-backend"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-enablement-controller"
+    },
+    {
+      "path": "../phishing-controller"
+    },
+    {
+      "path": "../preferences-controller"
+    },
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../permission-controller"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    }
   ],
   "include": ["../../types", "./src"]
 }

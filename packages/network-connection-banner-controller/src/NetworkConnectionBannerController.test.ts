@@ -18,8 +18,8 @@ import type { NetworkEnablementControllerState } from '@metamask/network-enablem
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { NetworkConnectionBannerControllerMessenger } from './NetworkConnectionBannerController';
-import { NetworkConnectionBannerController } from './NetworkConnectionBannerController';
+import type { NetworkConnectionBannerControllerMessenger } from './NetworkConnectionBannerController.js';
+import { NetworkConnectionBannerController } from './NetworkConnectionBannerController.js';
 
 const TEST_INFURA_PROJECT_ID = 'test-infura-project-id';
 const MAINNET_CLIENT_ID = 'mainnet' satisfies BuiltInNetworkClientId;

@@ -1,4 +1,4 @@
-import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
+import { InMemoryStorageAdapter } from './InMemoryStorageAdapter.js';
 
 describe('InMemoryStorageAdapter', () => {
   describe('constructor', () => {

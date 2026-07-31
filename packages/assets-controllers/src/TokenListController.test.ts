@@ -15,22 +15,22 @@ import type {
 import type { NetworkState } from '@metamask/network-controller';
 import { StorageGetResult } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
-import nock from 'nock';
+import nock, { cleanAll } from 'nock';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildInfuraNetworkClientConfiguration,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
-import * as tokenService from './token-service';
+} from '../../network-controller/tests/helpers.js';
+import * as tokenService from './token-service.js';
 import type {
   TokenListMap,
   TokenListState,
   TokenListControllerMessenger,
   DataCache,
-} from './TokenListController';
-import { TokenListController } from './TokenListController';
+} from './TokenListController.js';
+import { TokenListController } from './TokenListController.js';
 
 const namespace = 'TokenListController';
 const timestamp = Date.now();
@@ -558,10 +558,17 @@ describe('TokenListController', () => {
   beforeEach(() => {
     // Clear mock storage between tests
     mockStorage.clear();
+    tokenService.resetSuggestedOccurrenceFloorsCacheForTesting();
+    nock(tokenService.TOKEN_END_POINT_API)
+      .get('/v1/suggestedOccurrenceFloors')
+      .reply(200, { '1': 3, '59144': 1 })
+      .persist();
   });
 
   afterEach(() => {
     jest.clearAllTimers();
+    cleanAll();
+    tokenService.resetSuggestedOccurrenceFloorsCacheForTesting();
   });
 
   it('should set default state', async () => {

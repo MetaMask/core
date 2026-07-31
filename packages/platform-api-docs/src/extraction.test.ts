@@ -2,8 +2,11 @@ import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { createExtractionProject, extractFromSourceFile } from './extraction';
-import { MessengerCapabilityPacket } from './types';
+import {
+  createExtractionProject,
+  extractFromSourceFile,
+} from './extraction.js';
+import { MessengerCapabilityPacket } from './types.js';
 
 const { withinSandbox } = createSandbox('platform-api-docs/extraction');
 
@@ -682,7 +685,7 @@ export type MyControllerGetAction = {
         filePath,
         withMessenger(
           `
-import { CONTROLLER_NAME } from './constants';
+import { CONTROLLER_NAME } from './constants.js';
 
 export type ImportedControllerGetAction = {
   type: \`\${typeof CONTROLLER_NAME}:get\`;
@@ -1433,7 +1436,7 @@ export type FooMethodActions = FooAddAction | FooRemoveAction;
       const items = await extractFromWrittenFile(
         filePath,
         `
-import type { FooMethodActions } from './method-action-types';
+import type { FooMethodActions } from './method-action-types.js';
 
 export type FooMessenger = Messenger<'Foo', FooMethodActions, never>;
 `,
@@ -1558,7 +1561,7 @@ export type ControllerGetStateAction<T, S> = {
       const items = await extractFromWrittenFile(
         filePath,
         `
-import * as Helpers from './helpers';
+import * as Helpers from './helpers.js';
 
 export type LocalAction = {
   type: 'Local:do';
@@ -1694,7 +1697,7 @@ export type FooAction = {
         filePath,
         withMessenger(
           `
-import { MISSING } from './does-not-exist';
+import { MISSING } from './does-not-exist.js';
 
 export type FooAction = {
   type: 'Foo:do';
@@ -1760,7 +1763,7 @@ export type NsAction = {
       const items = await extractFromWrittenFile(
         filePath,
         `
-import * as Ns from './ns';
+import * as Ns from './ns.js';
 
 export type LocalAction = {
   type: 'Local:do';
@@ -2357,7 +2360,7 @@ export class FooController {
         filePath,
         withMessenger(
           `
-import * as NS from './controller';
+import * as NS from './controller.js';
 
 export type FooAction = {
   type: 'Foo:do';

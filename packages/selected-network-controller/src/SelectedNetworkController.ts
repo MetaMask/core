@@ -24,7 +24,7 @@ import {
 } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
 
-import type { SelectedNetworkControllerMethodActions } from './SelectedNetworkController-method-action-types';
+import type { SelectedNetworkControllerMethodActions } from './SelectedNetworkController-method-action-types.js';
 
 const controllerName = 'SelectedNetworkController';
 

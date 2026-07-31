@@ -13,27 +13,32 @@ import type { NetworkState } from '@metamask/network-controller';
 import {
   AssetsController,
   getDefaultAssetsControllerState,
-} from './AssetsController';
+} from './AssetsController.js';
 import type {
   AssetsControllerMessenger,
   AssetsControllerState,
-} from './AssetsController';
-import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
-import { PriceDataSource } from './data-sources/PriceDataSource';
-import { TokenDataSource } from './data-sources/TokenDataSource';
-import { buildDefaultAssetsInfo } from './defaults';
-import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata';
+} from './AssetsController.js';
+import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
+import { PriceDataSource } from './data-sources/PriceDataSource.js';
+import { TokenDataSource } from './data-sources/TokenDataSource.js';
+import { buildDefaultAssetsInfo } from './defaults.js';
+import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
 import type {
   Caip19AssetId,
   AccountId,
   DataRequest,
   DataResponse,
   FungibleAssetMetadata,
-} from './types';
-import { formatExchangeRatesForBridge, normalizeAssetId } from './utils';
+} from './types.js';
+import {
+  formatExchangeRatesForBridge,
+  normalizeAssetId,
+} from './utils/index.js';
 
 jest.mock('./utils', () => {
-  const actual = jest.requireActual<typeof import('./utils')>('./utils');
+  const actual =
+    jest.requireActual<typeof import('./utils/index.js')>('./utils');
   return {
     ...actual,
     formatExchangeRatesForBridge: jest.fn(actual.formatExchangeRatesForBridge),
@@ -92,6 +97,22 @@ const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
 
+/**
+ * Activate asset tracking by marking the UI open and the keyring unlocked,
+ * then flushing the async startup so the controller is in its running state.
+ *
+ * @param messenger - The root messenger used to publish lifecycle events.
+ */
+async function activateTracking(messenger: RootMessenger): Promise<void> {
+  (
+    messenger as unknown as {
+      publish: (topic: string, payload?: unknown) => void;
+    }
+  ).publish('ClientController:stateChange', { isUiOpen: true });
+  messenger.publish('KeyringController:unlock');
+  await flushPromises();
+}
+
 function createMockInternalAccount(
   overrides?: Partial<InternalAccount>,
 ): InternalAccount {
@@ -121,10 +142,16 @@ type WithControllerOptions = {
    * Required for tests that rely on asset tracking running (e.g. trace on unlock).
    */
   clientControllerState?: { isUiOpen: boolean };
+  /**
+   * When set, registers RemoteFeatureFlagController:getState so the controller can
+   * read feature flags (e.g. `assetsAccountsApiV6` gating the balances endpoint).
+   */
+  remoteFeatureFlags?: Record<string, unknown>;
   /** Extra options passed to AssetsController constructor (e.g. trace). */
   controllerOptions?: Partial<{
     trace: TraceCallback;
     priceDataSourceConfig: PriceDataSourceConfig;
+    accountsApiDataSourceConfig: AccountsApiDataSourceConfig;
     isEnabled: () => boolean;
     captureException: (error: Error) => void;
     tempMigrateAssetsInfoMetadataAssets3346: () => Assets3346MigrationState;
@@ -156,6 +183,7 @@ async function withController<ReturnValue>(
       state = {},
       isBasicFunctionality = (): boolean => true,
       clientControllerState,
+      remoteFeatureFlags = {},
       queryApiClient = createMockQueryApiClient(),
       controllerOptions = {},
     },
@@ -229,6 +257,15 @@ async function withController<ReturnValue>(
       () => clientControllerState,
     );
   }
+
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
+    remoteFeatureFlags,
+    cacheTimestamp: 0,
+  }));
 
   const controller = new AssetsController({
     messenger: messenger as unknown as AssetsControllerMessenger,
@@ -719,7 +756,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('graduates an EVM custom asset when BackendWebsocketDataSource reports a balance for it', async () => {
+    it('graduates an EVM custom asset when AccountActivityDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -731,7 +768,7 @@ describe('AssetsController', () => {
               },
             },
           },
-          'BackendWebsocketDataSource',
+          'AccountActivityDataSource',
         );
 
         expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
@@ -856,13 +893,163 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('getAsset', () => {
+    const metadata = {
+      type: 'erc20' as const,
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6,
+    };
+
+    it('returns the combined asset with computed fiatValue', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
+        },
+        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const asset = controller.getAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+        expect(asset).toStrictEqual({
+          id: MOCK_ASSET_ID,
+          chainId: 'eip155:1',
+          balance: { amount: '100' },
+          metadata,
+          price: { price: 2, lastUpdated: 123 },
+          fiatValue: 200,
+        });
+      });
+    });
+
+    it('normalizes a lowercase EVM asset ID before lookup', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1' } },
+        },
+        assetsPrice: { [MOCK_ASSET_ID]: { price: 1, lastUpdated: 1 } },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const asset = controller.getAsset(
+          MOCK_ACCOUNT_ID,
+          MOCK_ASSET_ID_LOWERCASE,
+        );
+
+        expect(asset?.id).toBe(MOCK_ASSET_ID);
+      });
+    });
+
+    it('returns undefined when the balance is missing', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        expect(
+          controller.getAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
+        ).toBeUndefined();
+      });
+    });
+
+    it('returns undefined when the metadata is missing', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
+        },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        expect(
+          controller.getAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
+        ).toBeUndefined();
+      });
+    });
+
+    it('falls back to a zero price and fiatValue when the price is missing', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
+        },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const asset = controller.getAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+        expect(asset?.price).toStrictEqual({ price: 0, lastUpdated: 0 });
+        expect(asset?.fiatValue).toBe(0);
+      });
+    });
+
+    it('returns undefined for a hidden asset', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
+        },
+        assetPreferences: { [MOCK_ASSET_ID]: { hidden: true } },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        expect(
+          controller.getAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
+        ).toBeUndefined();
+      });
+    });
+
+    it('throws when accountId is empty', async () => {
+      await withController(({ controller }) => {
+        expect(() =>
+          controller.getAsset('' as AccountId, MOCK_ASSET_ID),
+        ).toThrow('accountId must be a non-empty string');
+      });
+    });
+
+    it('throws when assetId is not a valid CAIP-19 asset ID', async () => {
+      await withController(({ controller }) => {
+        expect(() =>
+          controller.getAsset(
+            MOCK_ACCOUNT_ID,
+            'not-a-caip-19' as Caip19AssetId,
+          ),
+        ).toThrow('invalid CAIP-19 assetId');
+      });
+    });
+
+    it('is exposed as the AssetsController:getAsset messenger action', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: metadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
+        },
+        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+      };
+
+      await withController({ state: initialState }, ({ messenger }) => {
+        const asset = messenger.call(
+          'AssetsController:getAsset',
+          MOCK_ACCOUNT_ID,
+          MOCK_ASSET_ID,
+        );
+
+        expect(asset?.fiatValue).toBe(200);
+      });
+    });
+  });
+
   describe('getAssets', () => {
     it('returns empty object when no balances exist', async () => {
       await withController(async ({ controller }) => {
         const accounts = [createMockInternalAccount()];
         const assets = await controller.getAssets(accounts);
 
-        expect(assets[MOCK_ACCOUNT_ID]).toStrictEqual({});
+        // `#getAssetsFromState` returns null-prototype objects (prototype-pollution
+        // hardening), so assert emptiness via keys to avoid a prototype mismatch.
+        expect(Object.keys(assets[MOCK_ACCOUNT_ID])).toStrictEqual([]);
       });
     });
 
@@ -876,6 +1063,99 @@ describe('AssetsController', () => {
         expect(assets).toBeDefined();
         // When queryApiClient is not provided, no data sources run; result is from state
       });
+    });
+
+    it('does not fail forceUpdate when parent trace rejects after work completes', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (
+            _request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              await fn({ id: 'parent' });
+              // Simulate Sentry/adapter failure after the span callback finishes.
+              throw new Error('telemetry failed');
+            }
+            return undefined;
+          },
+        );
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          expect(
+            await controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            }),
+          ).toBeDefined();
+        },
+      );
+    });
+
+    it('still runs forceUpdate when parent trace rejects before invoking work', async () => {
+      const traceMock = jest
+        .fn()
+        .mockRejectedValue(new Error('telemetry failed'));
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          expect(
+            await controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            }),
+          ).toBeDefined();
+        },
+      );
+    });
+
+    // Endpoint selection from the flag is unit-tested in AccountsApiDataSource;
+    // this asserts the controller wires its messenger through so the
+    // `assetsAccountsApiV6` flag drives endpoint selection end-to-end.
+    it('routes to the Accounts API v6 endpoint when the assetsAccountsApiV6 remote flag is enabled', async () => {
+      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        accounts: [],
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+      });
+      const fetchV5MultiAccountBalances = jest.fn().mockResolvedValue({
+        balances: [],
+        unprocessedNetworks: [],
+      });
+
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1],
+            partialSupport: [],
+          }),
+          fetchV6MultiAccountBalances,
+          fetchV5MultiAccountBalances,
+        },
+      } as unknown as ApiPlatformClient;
+
+      await withController(
+        {
+          queryApiClient,
+          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        },
+        async ({ controller }) => {
+          await flushPromises();
+
+          await controller.getAssets([createMockInternalAccount()], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          });
+
+          expect(fetchV6MultiAccountBalances).toHaveBeenCalled();
+          expect(fetchV5MultiAccountBalances).not.toHaveBeenCalled();
+        },
+      );
     });
 
     describe('pipeline splitting', () => {
@@ -1179,6 +1459,46 @@ describe('AssetsController', () => {
   });
 
   describe('handleAssetsUpdate', () => {
+    it('does not fail when parent trace rejects after enrichment completes', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (
+            _request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              await fn({ id: 'parent' });
+              throw new Error('telemetry failed');
+            }
+            return undefined;
+          },
+        );
+      const trace = traceMock as unknown as TraceCallback;
+
+      await withController(
+        { controllerOptions: { trace } },
+        async ({ controller }) => {
+          expect(
+            await controller.handleAssetsUpdate(
+              {
+                updateMode: 'merge',
+                assetsBalance: {
+                  [MOCK_ACCOUNT_ID]: {
+                    [MOCK_ASSET_ID]: { amount: '1' },
+                  },
+                },
+              },
+              'test-source',
+            ),
+          ).toBeUndefined();
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+          ).toStrictEqual({ amount: '1' });
+        },
+      );
+    });
+
     it('preserves existing rich metadata when the API response has empty symbol and name', async () => {
       const richMetadata: FungibleAssetMetadata = {
         type: 'erc20',
@@ -1341,7 +1661,7 @@ describe('AssetsController', () => {
         const accounts = [createMockInternalAccount()];
         const balances = await controller.getAssetsBalance(accounts);
 
-        expect(balances[MOCK_ACCOUNT_ID]).toStrictEqual({});
+        expect(Object.keys(balances[MOCK_ACCOUNT_ID])).toStrictEqual([]);
       });
     });
   });
@@ -1393,7 +1713,8 @@ describe('AssetsController', () => {
 
   describe('handleActiveChainsUpdate', () => {
     it('re-subscribes assets when chains are added', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
         const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
@@ -1427,13 +1748,32 @@ describe('AssetsController', () => {
     });
 
     it('re-subscribes assets when chains are removed', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
         const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
 
         expect(subscribeSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not re-subscribe after tracking has stopped', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
+
+        // Lock the keyring so the controller stops and clears subscriptions.
+        messenger.publish('KeyringController:lock');
+        await flushPromises();
+
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+        // Simulate the WebSocket flushing all chains as "down" after stop.
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
+
+        expect(subscribeSpy).not.toHaveBeenCalled();
       });
     });
 
@@ -2019,8 +2359,19 @@ describe('AssetsController', () => {
       };
 
       await withController(
-        { state: initialState },
+        { state: initialState, clientControllerState: { isUiOpen: true } },
         async ({ controller, messenger }) => {
+          // UI must be open and keyring unlocked so AccountActivityDataSource is
+          // subscribed and can route balanceUpdated events to the account.
+          (
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
+          messenger.publish('KeyringController:unlock');
+
+          await flushPromises();
+
           messenger.publish('AccountActivityService:balanceUpdated', {
             address: '0x1234567890123456789012345678901234567890',
             chain: 'eip155:42161',
@@ -2265,11 +2616,22 @@ describe('AssetsController', () => {
     });
 
     it('invokes trace with first init fetch trace request on unlock', async () => {
+      const parentSpan = { id: 'assets-full-fetch' };
       const traceMock = jest
         .fn()
         .mockImplementation(
-          async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
-            fn?.(),
+          async (
+            request: TraceRequest,
+            fn?: (context?: unknown) => unknown,
+          ) => {
+            if (fn) {
+              // Parent spans (with callback work) provide context for nesting.
+              return fn(
+                request.parentContext === undefined ? parentSpan : undefined,
+              );
+            }
+            return undefined;
+          },
         );
       const trace = traceMock as unknown as TraceCallback;
 
@@ -2303,7 +2665,12 @@ describe('AssetsController', () => {
               duration_ms: expect.any(Number),
               chain_ids: expect.any(String),
             }),
-            tags: { controller: 'AssetsController' },
+            tags: expect.objectContaining({
+              controller: 'AssetsController',
+              duration_ms: expect.any(Number),
+            }),
+            startTime: expect.any(Number),
+            parentContext: parentSpan,
           });
           const {
             duration_ms: durationMs,
@@ -2313,6 +2680,32 @@ describe('AssetsController', () => {
           expect(durationMs).toBeGreaterThanOrEqual(0);
           expect(typeof chainIds).toBe('string');
           expect(typeof durationByDataSource).toBe('object');
+
+          const fullFetchCalls = traceMock.mock.calls.filter(
+            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+          );
+          expect(fullFetchCalls.length).toBeGreaterThan(0);
+          expect(fullFetchCalls[0][0]).toMatchObject({
+            data: expect.objectContaining({
+              duration_ms: expect.any(Number),
+            }),
+            tags: expect.objectContaining({
+              duration_ms: expect.any(Number),
+            }),
+            startTime: expect.any(Number),
+            parentContext: parentSpan,
+          });
+
+          const timingCalls = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+          );
+          expect(timingCalls.length).toBeGreaterThan(0);
+          for (const [timingRequest] of timingCalls) {
+            expect(timingRequest).toMatchObject({
+              parentContext: parentSpan,
+            });
+          }
         },
       );
     });
@@ -2375,7 +2768,7 @@ describe('AssetsController', () => {
       );
     });
 
-    it('invokes trace only once per session until lock', async () => {
+    it('invokes first-init fetch trace only once per session until lock', async () => {
       const traceMock = jest
         .fn()
         .mockImplementation(
@@ -2389,7 +2782,7 @@ describe('AssetsController', () => {
           clientControllerState: { isUiOpen: true },
           controllerOptions: { trace },
         },
-        async ({ messenger }) => {
+        async ({ controller, messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
           (
             messenger as unknown as {
@@ -2408,6 +2801,30 @@ describe('AssetsController', () => {
               'AssetsControllerFirstInitFetch',
           );
           expect(firstInitFetchCalls).toHaveLength(1);
+
+          const fullFetchCallsBefore = traceMock.mock.calls.filter(
+            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+          ).length;
+          const timingCallsBefore = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+          ).length;
+
+          // Later force updates must not emit pipeline spans (unlock-only tracing).
+          await controller.getAssets([createMockInternalAccount()], {
+            forceUpdate: true,
+          });
+
+          const fullFetchCallsAfter = traceMock.mock.calls.filter(
+            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+          ).length;
+          const timingCallsAfter = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+          ).length;
+
+          expect(fullFetchCallsAfter).toBe(fullFetchCallsBefore);
+          expect(timingCallsAfter).toBe(timingCallsBefore);
         },
       );
     });
@@ -2771,10 +3188,20 @@ describe('AssetsController', () => {
       );
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      expect(getAssetsSpy).toHaveBeenCalledTimes(1);
-      expect(getAssetsSpy).toHaveBeenCalledWith(
+      expect(getAssetsSpy).toHaveBeenCalledTimes(2);
+      expect(getAssetsSpy).toHaveBeenNthCalledWith(
+        1,
         [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
         expect.objectContaining({ forceUpdate: true }),
+      );
+      expect(getAssetsSpy).toHaveBeenNthCalledWith(
+        2,
+        [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+        expect.objectContaining({
+          forceUpdate: true,
+          dataTypes: ['price'],
+          assetsForPriceUpdate: expect.arrayContaining(['eip155:1/slip44:60']),
+        }),
       );
     });
   });

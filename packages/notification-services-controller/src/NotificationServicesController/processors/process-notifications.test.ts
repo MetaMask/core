@@ -1,14 +1,14 @@
-import type { TRIGGER_TYPES } from '../constants/notification-schema';
-import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
+import type { TRIGGER_TYPES } from '../constants/notification-schema.js';
+import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements.js';
 import {
   createMockNotificationEthSent,
   createMockPlatformNotification,
-} from '../mocks/mock-raw-notifications';
-import { createMockSnapNotification } from '../mocks/mock-snap-notification';
+} from '../mocks/mock-raw-notifications.js';
+import { createMockSnapNotification } from '../mocks/mock-snap-notification.js';
 import {
   processNotification,
   safeProcessNotification,
-} from './process-notifications';
+} from './process-notifications.js';
 
 describe('process-notifications - processNotification()', () => {
   // More thorough tests are found in the specific process

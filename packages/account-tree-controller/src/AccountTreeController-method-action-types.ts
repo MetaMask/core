@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AccountTreeController } from './AccountTreeController';
+import type { AccountTreeController } from './AccountTreeController.js';
 
 /**
  * Initialize the controller's state.

@@ -1,6 +1,5 @@
 import { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
 
-import { createBlockRefMiddleware } from '.';
 import {
   createMockParamsWithBlockParamAt,
   stubProviderRequests,
@@ -12,7 +11,8 @@ import {
   createProviderAndBlockTracker,
   createEngine,
   createRequest,
-} from '../test/util/helpers';
+} from '../test/util/helpers.js';
+import { createBlockRefMiddleware } from './index.js';
 
 describe('createBlockRefMiddleware', () => {
   let provider: ReturnType<typeof createProviderAndBlockTracker>['provider'];

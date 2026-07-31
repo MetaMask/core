@@ -5,20 +5,21 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger, add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { ABI_IERC7821 } from '../constants';
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { ABI_IERC7821 } from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   BatchTransactionParams,
+  NestedTransactionUpdate,
   Authorization,
   AuthorizationList,
   TransactionMeta,
-} from '../types';
+} from '../types.js';
 import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
-} from './feature-flags';
-import { rpcRequest } from './provider';
+} from './feature-flags.js';
+import { rpcRequest } from './provider.js';
 
 export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
@@ -161,6 +162,64 @@ export async function isAccountUpgradedToEIP7702(
   return {
     delegationAddress,
     isSupported,
+  };
+}
+
+/**
+ * Update indexed transactions in an EIP-7702 batch and regenerate its calldata.
+ *
+ * @param options - Update options.
+ * @param options.from - The sender address.
+ * @param options.transactions - The existing nested transactions.
+ * @param options.updates - Indexed calldata updates.
+ * @returns Updated nested transactions and regenerated batch calldata.
+ */
+export function updateEIP7702BatchData({
+  from,
+  transactions,
+  updates,
+}: {
+  from: Hex;
+  transactions: BatchTransactionParams[];
+  updates: NestedTransactionUpdate[];
+}): {
+  nestedTransactions: BatchTransactionParams[];
+  transactionData: Hex;
+} {
+  const updatesByIndex = new Map<number, Hex>();
+
+  for (const { transactionIndex, transactionData } of updates) {
+    if (updatesByIndex.has(transactionIndex)) {
+      throw new Error(
+        `Duplicate nested transaction index - ${transactionIndex}`,
+      );
+    }
+
+    if (!transactions[transactionIndex]) {
+      throw new Error(
+        `Nested transaction not found with index - ${transactionIndex}`,
+      );
+    }
+
+    updatesByIndex.set(transactionIndex, transactionData);
+  }
+
+  const nestedTransactions = transactions.map((transaction, index) => {
+    const transactionData = updatesByIndex.get(index);
+
+    return {
+      ...transaction,
+      ...(transactionData === undefined ? {} : { data: transactionData }),
+    };
+  });
+  const batchTransaction = generateEIP7702BatchTransaction(
+    from,
+    nestedTransactions,
+  );
+
+  return {
+    nestedTransactions,
+    transactionData: batchTransaction.data as Hex,
   };
 }
 

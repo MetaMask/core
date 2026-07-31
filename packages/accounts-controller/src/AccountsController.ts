@@ -36,16 +36,16 @@ import type { CaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 import { cloneDeep } from 'lodash';
 
-import { AccountsControllerMethodActions } from './AccountsController-method-action-types';
-import { projectLogger as log } from './logger';
+import { AccountsControllerMethodActions } from './AccountsController-method-action-types.js';
+import { projectLogger as log } from './logger.js';
 import type {
   MultichainNetworkControllerNetworkDidChangeEvent,
   SnapAccountServiceAccountAssetListUpdatedEvent,
   SnapAccountServiceAccountBalancesUpdatedEvent,
   SnapAccountServiceAccountTransactionsUpdatedEvent,
-} from './types';
-import type { AccountsControllerStrictState } from './typing';
-import type { HdSnapKeyringAccount } from './utils';
+} from './types.js';
+import type { AccountsControllerStrictState } from './typing.js';
+import type { HdSnapKeyringAccount } from './utils.js';
 import {
   constructAccountIdByAddress,
   getEvmDerivationPathForIndex,
@@ -57,7 +57,7 @@ import {
   isSnapKeyringType,
   isSnapKeyringV2Type,
   keyringTypeToName,
-} from './utils';
+} from './utils.js';
 
 const controllerName = 'AccountsController';
 

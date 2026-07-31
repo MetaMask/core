@@ -14,10 +14,13 @@ import type { Snap } from '@metamask/snaps-utils';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
-} from '../../tests/mockMessenger';
-import type { AccountGroupObjectOf } from '../group';
-import type { AccountWalletObjectOf, AccountWalletSnapObject } from '../wallet';
-import { SnapRule } from './snap';
+} from '../../tests/mockMessenger.js';
+import type { AccountGroupObjectOf } from '../group.js';
+import type {
+  AccountWalletObjectOf,
+  AccountWalletSnapObject,
+} from '../wallet.js';
+import { SnapRule } from './snap.js';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,

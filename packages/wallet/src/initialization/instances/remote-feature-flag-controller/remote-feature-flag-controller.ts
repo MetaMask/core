@@ -4,7 +4,7 @@ import {
   RemoteFeatureFlagControllerMessenger,
 } from '@metamask/remote-feature-flag-controller';
 
-import { InitializationConfiguration } from '../../types';
+import { InitializationConfiguration } from '../../types.js';
 
 export const remoteFeatureFlagController: InitializationConfiguration<
   RemoteFeatureFlagController,

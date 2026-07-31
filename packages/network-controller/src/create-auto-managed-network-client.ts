@@ -2,19 +2,19 @@ import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { Json } from '@metamask/utils';
 import type { Logger } from 'loglevel';
 
-import type { NetworkClient } from './create-network-client';
-import { createNetworkClient } from './create-network-client';
+import type { NetworkClient } from './create-network-client.js';
+import { createNetworkClient } from './create-network-client.js';
 import type {
   NetworkClientId,
   NetworkControllerMessenger,
-} from './NetworkController';
-import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
-import type { RpcFailoverMode } from './selectors';
+} from './NetworkController.js';
+import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
+import type { RpcFailoverMode } from './selectors.js';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
   Provider,
-} from './types';
+} from './types.js';
 
 /**
  * The name of the method on both the provider and block tracker proxy which can

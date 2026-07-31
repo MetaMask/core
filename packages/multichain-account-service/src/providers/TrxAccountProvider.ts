@@ -6,10 +6,10 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { CaipChainId } from '@metamask/utils';
 
-import { traceFallback } from '../analytics';
-import type { MultichainAccountServiceMessenger } from '../types';
-import { SnapAccountProvider } from './SnapAccountProvider';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import { traceFallback } from '../analytics/index.js';
+import type { MultichainAccountServiceMessenger } from '../types.js';
+import { SnapAccountProvider } from './SnapAccountProvider.js';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 
 export type TrxAccountProviderConfig = SnapAccountProviderConfig;
 

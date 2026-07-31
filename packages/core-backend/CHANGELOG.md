@@ -7,11 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+
 ### Changed
 
+- `AccountActivityService` now debounces chain status updates instead of publishing one event per notification ([#9700](https://github.com/MetaMask/core/pull/9700))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [8.0.0]
+
+### Fixed
+
+- **BREAKING:** Align `V6_DEFI_POSITION_TYPES` (and inferred `V6DeFiPositionType`) with Accounts API / Zerion wallet fungible position types: `deposit`, `loan`, `locked`, `staked`, `reward`, `wallet`, `investment` ([#9683](https://github.com/MetaMask/core/pull/9683))
+
+## [7.0.0]
+
+### Added
+
+- Export `V6_DEFI_POSITION_TYPES` and inferred `V6DeFiPositionType`, and type `V6BalanceMetadata.positionType` with the Accounts API v6 DeFi position module values (`deposit`, `lending`, `yield`, `liquidity_pool`, `staked`, `leveraged_farming`, `nft_staked`, `farming`, `locked`, `vesting`, `rewards`, `investment`) ([#9557](https://github.com/MetaMask/core/pull/9557))
+- Add `groupId` to `V6BalanceMetadata` to match Accounts API v6 DeFi metadata ([#9557](https://github.com/MetaMask/core/pull/9557))
+
+### Changed
+
+- **BREAKING:** Rename `V6BalanceMetadata.protocolName` to `productName` to match the Accounts API v6 DeFi metadata field ([#9557](https://github.com/MetaMask/core/pull/9557))
+- **BREAKING:** `AccountActivityService` now determines which non-EVM chains to subscribe to from remote feature flags instead of a bundled list ([#9379](https://github.com/MetaMask/core/pull/9379))
+  - The `AccountActivityServiceMessenger` now requires the following delegate actions and events:
+    - `RemoteFeatureFlagController:getState` action and `RemoteFeatureFlagController:stateChange` event
+    - `AccountTreeController:getAccountsFromSelectedAccountGroup` action and `AccountTreeController:selectedAccountGroupChange` event
+  - EVM (`eip155`) subscriptions are always enabled. Solana, Tron, and Stellar subscriptions are enabled when the corresponding `networkAssetsSnapsMigrationSolana` / `networkAssetsSnapsMigrationTron` / `networkAssetsSnapsMigrationStellar` feature flag has `stage >= 1`, and disabled otherwise.
+  - Accounts whose scopes do not match an enabled chain are no longer subscribed at all.
+  - When the enabled chains change via a feature flag update while the websocket is connected, the service automatically resubscribes the selected account.
+- Add `@metamask/remote-feature-flag-controller` `^4.2.2` as a dependency ([#9379](https://github.com/MetaMask/core/pull/9379))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
-- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+### Removed
+
+- **BREAKING:** `AccountActivityService.subscribe` and `AccountActivityService.unsubscribe` methods have been removed ([#9531](https://github.com/MetaMask/core/pull/9531))
+
+### Fixed
+
+- `AccountActivityService` subscribes to all supported scopes for a given account ([#9379](https://github.com/MetaMask/core/pull/9379))
 
 ## [6.5.0]
 
@@ -336,7 +372,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.0.0...@metamask/core-backend@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@7.0.0...@metamask/core-backend@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.5.0...@metamask/core-backend@7.0.0
 [6.5.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.4.0...@metamask/core-backend@6.5.0
 [6.4.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.3...@metamask/core-backend@6.4.0
 [6.3.3]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.2...@metamask/core-backend@6.3.3

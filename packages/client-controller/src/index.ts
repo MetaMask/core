@@ -1,8 +1,8 @@
 export {
   ClientController,
   getDefaultClientControllerState,
-} from './ClientController';
-export { clientControllerSelectors } from './selectors';
+} from './ClientController.js';
+export { clientControllerSelectors } from './selectors.js';
 
 export type {
   ClientControllerState,
@@ -12,5 +12,5 @@ export type {
   ClientControllerStateChangeEvent,
   ClientControllerEvents,
   ClientControllerMessenger,
-} from './ClientController';
-export type { ClientControllerSetUiOpenAction } from './ClientController-method-action-types';
+} from './ClientController.js';
+export type { ClientControllerSetUiOpenAction } from './ClientController-method-action-types.js';

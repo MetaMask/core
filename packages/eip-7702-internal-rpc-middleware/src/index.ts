@@ -1,12 +1,12 @@
 // Method handlers
-export { walletUpgradeAccount } from './wallet_upgradeAccount';
-export { walletGetAccountUpgradeStatus } from './wallet_getAccountUpgradeStatus';
+export { walletUpgradeAccount } from './wallet_upgradeAccount.js';
+export { walletGetAccountUpgradeStatus } from './wallet_getAccountUpgradeStatus.js';
 
 // Utilities
-export { validateParams, validateAndNormalizeAddress } from './utils';
+export { validateParams, validateAndNormalizeAddress } from './utils.js';
 
 // Constants
-export { METHOD_NAMES } from './constants';
+export { METHOD_NAMES } from './constants.js';
 
 // Types
 export type {
@@ -14,4 +14,4 @@ export type {
   UpgradeAccountResult,
   GetAccountUpgradeStatusParams,
   GetAccountUpgradeStatusResult,
-} from './types';
+} from './types.js';

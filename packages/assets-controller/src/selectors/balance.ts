@@ -11,19 +11,61 @@ import {
 } from '@metamask/utils';
 import BigNumberJS from 'bignumber.js';
 
-import type { AssetsControllerState } from '../AssetsController';
+import type { AssetsControllerState } from '../AssetsController.js';
 import type {
   AccountId,
   AssetBalance,
   AssetMetadata,
   AssetPreferences,
   Caip19AssetId,
-} from '../types';
+} from '../types.js';
+import { emitTrace, withTrace } from '../utils/trace.js';
 
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)
 // ============================================================================
+/** Parent span that nests {@link TRACE_AGGREGATED_BALANCE_SELECTOR}. */
+const TRACE_AGGREGATED_BALANCE = 'AggregatedBalance';
 const TRACE_AGGREGATED_BALANCE_SELECTOR = 'AggregatedBalanceSelector';
+
+/**
+ * Emit `AggregatedBalanceSelector` as a **subspan** under an `AggregatedBalance`
+ * parent (via `parentContext`).
+ *
+ * Work is timed outside the callback (selectors are sync), so we backdate
+ * `startTime` via `duration_ms` — MetaMask's Sentry adapter promotes numeric
+ * tags to measurements, which Spans dashboard widgets chart as `duration_ms`.
+ *
+ * @param trace - Trace callback from the client.
+ * @param durationMs - Measured compute time in milliseconds.
+ * @param data - Additional span attributes (counts, etc.).
+ */
+function emitAggregatedBalanceSelectorTrace(
+  trace: TraceCallback,
+  durationMs: number,
+  data: Record<string, number | string | boolean>,
+): void {
+  const spanData = {
+    duration_ms: durationMs,
+    ...data,
+  };
+
+  withTrace({
+    name: TRACE_AGGREGATED_BALANCE,
+    trace,
+    data: spanData,
+    fn: async (parentContext) => {
+      emitTrace({
+        name: TRACE_AGGREGATED_BALANCE_SELECTOR,
+        trace,
+        data: spanData,
+        parentContext,
+      });
+    },
+  }).catch(() => {
+    // Telemetry failure must not break.
+  });
+}
 
 export type EnabledNetworkMap =
   | Record<string, Record<string, boolean>>
@@ -62,29 +104,6 @@ const getAmountFromBalance = (balance: AssetBalance): string => {
 const toBigNumberOrZero = (value: string): BigNumberJS => {
   const parsed = new BigNumberJS(value);
   return parsed.isNaN() || !parsed.isFinite() ? new BigNumberJS(0) : parsed;
-};
-
-/**
- * When state contains raw base units (e.g. SPORE "16201541034.639288184" with 9 decimals),
- * scale to human (16.2) before pricing. Only scale when amount >= 10^decimals so we don't
- * double-scale amounts that are already human (e.g. "1", "0.227285").
- *
- * @param amountRaw - Amount from state (may be raw or human).
- * @param decimals - Token decimals from metadata.
- * @returns Human amount for display and fiat (amountRaw or amountRaw / 10^decimals).
- */
-const scaleToHumanIfRaw = (
-  amountRaw: BigNumberJS,
-  decimals: number,
-): BigNumberJS => {
-  if (decimals <= 0) {
-    return amountRaw;
-  }
-  const scale = new BigNumberJS(10).pow(decimals);
-  if (amountRaw.lt(scale)) {
-    return amountRaw;
-  }
-  return amountRaw.dividedBy(scale);
 };
 
 const getPriceDatumFast = (
@@ -228,11 +247,8 @@ function mergeBalancesIntoMap(args: {
     }
 
     const amountStr = getAmountFromBalance(accountBalances[typedAssetId]);
-    let amountBn = toBigNumberOrZero(amountStr);
+    const amountBn = toBigNumberOrZero(amountStr);
     const meta = metadata[typedAssetId];
-    if (meta?.decimals !== undefined) {
-      amountBn = scaleToHumanIfRaw(amountBn, meta.decimals);
-    }
     if (amountBn.isZero()) {
       continue; // skip zeros early to reduce map pressure
     }
@@ -523,20 +539,10 @@ function aggregateBalances(
       const info = getAssetInfo(assetInfoCache, assetId);
       uniqueNetworks.add(info.chainId);
     }
-    trace(
-      {
-        name: TRACE_AGGREGATED_BALANCE_SELECTOR,
-        data: {
-          duration_ms: durationMs,
-          asset_count: merged.size,
-          network_count: uniqueNetworks.size,
-          account_count: accountsToAggregate.length,
-        },
-        tags: { controller: 'AssetsController' },
-      },
-      () => undefined,
-    ).catch(() => {
-      // Telemetry failure must not break.
+    emitAggregatedBalanceSelectorTrace(trace, durationMs, {
+      asset_count: merged.size,
+      network_count: uniqueNetworks.size,
+      account_count: accountsToAggregate.length,
     });
   }
 
@@ -721,9 +727,11 @@ export function calculateBalanceForAllWallets(
   enabledNetworkMap?: EnabledNetworkMap,
   trace?: TraceCallback,
 ): AllWalletsBalance {
+  const startTime = performance.now();
   const userCurrency = getUserCurrency(assetsControllerState);
   const wallets: AllWalletsBalance['wallets'] = {};
   let totalBalanceInUserCurrency = 0;
+  let groupCount = 0;
 
   type WalletWithGroups = { groups?: Record<string, unknown> };
   for (const [walletId, wallet] of Object.entries(
@@ -738,12 +746,14 @@ export function calculateBalanceForAllWallets(
 
     const groups = (wallet as WalletWithGroups)?.groups ?? {};
     for (const groupId of Object.keys(groups)) {
+      groupCount += 1;
       const accountIds = getAccountIdsForGroup(accountTreeState, groupId);
+      // Do not forward `trace` per group — that created one root Sentry span
+      // per account group and hit rate limits. Emit a single span below.
       const { totalBalanceInFiat = 0 } = getAggregatedBalanceForAccountIds(
         assetsControllerState,
         accountIds,
         enabledNetworkMap,
-        trace,
       );
 
       walletBalance.groups[groupId] = {
@@ -757,6 +767,13 @@ export function calculateBalanceForAllWallets(
 
     wallets[walletId] = walletBalance;
     totalBalanceInUserCurrency += walletBalance.totalBalanceInUserCurrency;
+  }
+
+  if (trace) {
+    emitAggregatedBalanceSelectorTrace(trace, performance.now() - startTime, {
+      wallet_count: Object.keys(wallets).length,
+      group_count: groupCount,
+    });
   }
 
   return { wallets, totalBalanceInUserCurrency, userCurrency };

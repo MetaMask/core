@@ -8,7 +8,7 @@ import {
   CHAIN_ID_POLYGON,
   MUSD_MONAD_ADDRESS,
   NATIVE_TOKEN_ADDRESS,
-} from '../../constants';
+} from '../../constants.js';
 
 export const DEFAULT_FIAT_CURRENCY = 'USD';
 

@@ -4,10 +4,27 @@
     "baseUrl": "./"
   },
   "references": [
-    { "path": "../base-controller/tsconfig.json" },
-    { "path": "../remote-feature-flag-controller/tsconfig.json" },
-    { "path": "../storage-service/tsconfig.json" },
-    { "path": "../wallet/tsconfig.json" }
+    {
+      "path": "../analytics-controller"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../storage-service"
+    },
+    {
+      "path": "../wallet"
+    },
+    {
+      "path": "../foundryup"
+    }
   ],
   "include": ["../../types", "./bin", "./src", "./tests"]
 }

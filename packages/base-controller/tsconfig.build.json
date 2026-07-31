@@ -7,9 +7,6 @@
   },
   "references": [
     {
-      "path": "../controller-utils/tsconfig.build.json"
-    },
-    {
       "path": "../messenger/tsconfig.build.json"
     }
   ],

@@ -1,20 +1,20 @@
 import type { Eip1193Provider } from 'ethers';
 
-import type { Env } from '../shared/env';
-import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
-import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
+import type { Env } from '../shared/env.js';
+import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe.js';
+import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp.js';
 import {
   getNonce,
   pairIdentifiers,
-} from './authentication-jwt-bearer/services';
-import type { PairProfilesResponse } from './authentication-jwt-bearer/services';
+} from './authentication-jwt-bearer/services.js';
+import type { PairProfilesResponse } from './authentication-jwt-bearer/services.js';
 import type {
   UserProfile,
   Pair,
   UserProfileLineage,
-} from './authentication-jwt-bearer/types';
-import { AuthType } from './authentication-jwt-bearer/types';
-import { PairError, UnsupportedAuthTypeError } from './errors';
+} from './authentication-jwt-bearer/types.js';
+import { AuthType } from './authentication-jwt-bearer/types.js';
+import { PairError, UnsupportedAuthTypeError } from './errors.js';
 
 // Computing the Classes, so we only get back the public methods for the interface.
 
@@ -169,6 +169,6 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   }
 }
 
-export { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
-export { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
-export * from './authentication-jwt-bearer/types';
+export { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe.js';
+export { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp.js';
+export * from './authentication-jwt-bearer/types.js';

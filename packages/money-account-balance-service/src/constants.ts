@@ -23,6 +23,43 @@ export const MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY =
  */
 export const DEFAULT_BALANCE_STALE_TIME = inMilliseconds(1, Duration.Minute);
 
+/**
+ * The key under which the Money account balance source routing policy is
+ * stored in `RemoteFeatureFlagController` state's `remoteFeatureFlags` map.
+ * Falls back to {@link DEFAULT_BALANCE_SOURCE_POLICY} when absent or malformed.
+ */
+export const MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY =
+  'moneyAccountBalanceSource';
+
+/**
+ * Supported values for {@link MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY}.
+ *
+ * - `api` — Money API primary, RPC fallback
+ * - `rpc` — RPC primary, Money API fallback
+ * - `api-only` — Money API only (incident kill switch)
+ * - `rpc-only` — RPC only (incident kill switch)
+ */
+export const BALANCE_SOURCE_POLICIES = [
+  'api',
+  'rpc',
+  'api-only',
+  'rpc-only',
+] as const;
+
+export type BalanceSourcePolicy = (typeof BALANCE_SOURCE_POLICIES)[number];
+
+/**
+ * Hard default when the routing flag is absent or malformed: RPC primary
+ * with Money API fallback. API-primary remains opt-in via the feature flag
+ * until source equivalence is proven.
+ */
+export const DEFAULT_BALANCE_SOURCE_POLICY: BalanceSourcePolicy = 'rpc';
+
+/**
+ * Balance source used in the canonical facade result.
+ */
+export type BalanceSource = 'api' | 'rpc';
+
 export const VEDA_API_NETWORK_NAMES: Record<Hex, string> = {
   '0xa4b1': 'arbitrum',
   '0x8f': 'monad',

@@ -93,6 +93,7 @@ export const PERPS_EVENT_PROPERTY = {
   VIEW_OCCURRENCES: 'view_occurrences',
   AMOUNT_FILLED: 'amount_filled',
   REMAINING_AMOUNT: 'remaining_amount',
+  NUMBER_POSITIONS_CLOSED: 'number_positions_closed',
 
   // Tutorial carousel navigation properties
   PREVIOUS_SCREEN: 'previous_screen',
@@ -287,6 +288,7 @@ export const PERPS_EVENT_VALUE = {
     PERP_MARKET: 'perp_market',
     PERP_MARKET_SEARCH: 'perp_market_search',
     POSITION_SCREEN: 'position_screen',
+    BOTTOM_NAV_BAR: 'bottom_nav_bar',
     TP_SL_VIEW: 'tp_sl_view',
     PERPS_HOME: 'perps_home',
     PERPS_TUTORIAL: 'perps_tutorial',

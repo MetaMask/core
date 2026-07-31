@@ -10,14 +10,14 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
-import type { ApprovalControllerMethodActions } from './ApprovalController-method-action-types';
+import type { ApprovalControllerMethodActions } from './ApprovalController-method-action-types.js';
 import {
   ApprovalRequestNotFoundError,
   ApprovalRequestNoResultSupportError,
   EndInvalidFlowError,
   NoApprovalFlowsError,
   MissingApprovalFlowError,
-} from './errors';
+} from './errors.js';
 
 // Constants
 

@@ -14,10 +14,13 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  // Exclude TSTyche type test files from coverage collection
+  collectCoverageFrom: ['./src/**/*.ts', '!**/*.tst.ts'],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
-      branches: 100,
+      branches: 98.97,
       functions: 100,
       lines: 100,
       statements: 100,

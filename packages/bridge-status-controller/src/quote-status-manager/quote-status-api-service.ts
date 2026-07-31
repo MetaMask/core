@@ -1,26 +1,26 @@
 import { getClientHeaders } from '@metamask/bridge-controller';
 import { StructError } from '@metamask/superstruct';
 
-import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
-import { getJwt } from '../utils/authentication';
+import { BridgeClientId, BridgeStatusControllerMessenger } from '../types.js';
+import { getJwt } from '../utils/authentication.js';
 import {
   QuoteStatusBackendStatus,
   QuoteStatusUpdateRetryableBackendTypes,
   QuoteStatusFetchWithRetryOutcomeType,
-} from './constants';
-import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors';
-import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
-import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
+} from './constants.js';
+import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors.js';
+import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome.js';
+import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome.js';
 import {
   QuoteStatusApiServiceOptions,
   QuoteStatusGetResponse,
   QuoteStatusUpdateResponse,
-} from './types';
-import { sleep } from './utils';
+} from './types.js';
+import { sleep } from './utils.js';
 import {
   validateQuoteStatusGetResponse,
   validateQuoteStatusUpdateResponse,
-} from './validators';
+} from './validators.js';
 
 /**
  * Service responsible for calling bridge quote status update APIs.
@@ -129,7 +129,7 @@ export class QuoteStatusApiService {
       this.#onError?.(
         new QuoteStatusUpdateError(
           'unexpected response shape from quote/updateStatus',
-          { quoteId: data.quoteId },
+          { quoteId: data.quoteId, srcTxHash: data.srcTxHash },
         ),
       );
       throw error;

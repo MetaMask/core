@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.4.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+### Fixed
+
+- Disable in-request retries on `ProfileMetricsService:submitMetrics` by default (`maxRetries: 0`) ([#9667](https://github.com/MetaMask/core/pull/9667))
+  - Proof nonces are single-use, so retrying a spent `submitMetrics` payload caused `PUT /profile/accounts` 400s; `fetchNonces` still retries because a failed fetch soft-degrades to a proof-less submit that clears the queue.
+
 ## [4.0.2]
 
 ### Changed

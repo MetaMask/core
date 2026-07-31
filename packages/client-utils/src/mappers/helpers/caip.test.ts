@@ -1,8 +1,8 @@
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
-  getNativeAsset,
-} from './caip';
+  resolveNativeAssetId,
+} from './caip.js';
 
 describe('caip helpers', () => {
   describe('formatChainIdToCaip', () => {
@@ -29,19 +29,9 @@ describe('caip helpers', () => {
     it('returns undefined for invalid decimal chain ids', () => {
       expect(formatChainIdToCaip('not-a-number')).toBeUndefined();
     });
-  });
 
-  describe('getNativeAsset', () => {
-    it('returns native asset metadata for supported chains', () => {
-      expect(getNativeAsset('0x1')).toStrictEqual({
-        symbol: 'ETH',
-        decimals: 18,
-        assetId: 'eip155:1/slip44:60',
-      });
-    });
-
-    it('returns undefined when the chain id cannot be normalized', () => {
-      expect(getNativeAsset('0xzzzz')).toBeUndefined();
+    it('returns undefined for an empty chain id instead of eip155:0', () => {
+      expect(formatChainIdToCaip('')).toBeUndefined();
     });
   });
 
@@ -63,13 +53,14 @@ describe('caip helpers', () => {
       ).toBe('eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48');
     });
 
-    it('encodes native token addresses on supported chains', () => {
+    it('returns undefined for native sentinel addresses instead of erc20:0x0', () => {
       expect(
         formatAddressToAssetId(
           '0x0000000000000000000000000000000000000000',
           'eip155:1',
         ),
-      ).toBe('eip155:1/slip44:60');
+      ).toBeUndefined();
+      expect(formatAddressToAssetId('0x0', 'eip155:4663')).toBeUndefined();
     });
 
     it('returns undefined when chain id is omitted', () => {
@@ -91,6 +82,35 @@ describe('caip helpers', () => {
           '0xzzzz',
         ),
       ).toBeUndefined();
+    });
+  });
+
+  describe('resolveNativeAssetId', () => {
+    it('resolves ETH via slip44', () => {
+      expect(resolveNativeAssetId('eip155:1', 'ETH')).toBe(
+        'eip155:1/slip44:60',
+      );
+    });
+
+    it('resolves POL via the MATIC slip44 entry', () => {
+      expect(resolveNativeAssetId('eip155:137', 'POL')).toBe(
+        'eip155:137/slip44:966',
+      );
+    });
+
+    it('returns undefined without a symbol', () => {
+      expect(resolveNativeAssetId('eip155:8453', undefined)).toBeUndefined();
+      expect(resolveNativeAssetId('eip155:4663', undefined)).toBeUndefined();
+    });
+
+    it('returns undefined for unknown symbols', () => {
+      expect(
+        resolveNativeAssetId('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', 'NOPE'),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when the chain id cannot be normalized', () => {
+      expect(resolveNativeAssetId('0xzzzz', 'ETH')).toBeUndefined();
     });
   });
 });

@@ -1,6 +1,6 @@
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 
-import { AlwaysOnlineAdapter } from './always-online-adapter';
+import { AlwaysOnlineAdapter } from './always-online-adapter.js';
 
 describe('AlwaysOnlineAdapter', () => {
   it('returns Online from getStatus', async () => {

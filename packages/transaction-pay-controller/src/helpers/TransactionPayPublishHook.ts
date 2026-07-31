@@ -4,15 +4,16 @@ import type { PublishHookResult } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
+import { TransactionPayStrategy } from '../constants.js';
+import { projectLogger } from '../logger.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../types';
-import { accountSupports7702 } from '../utils/7702';
-import { prefixError } from '../utils/error-prefix';
-import { getStrategyByName } from '../utils/strategy';
-import { updateTransaction } from '../utils/transaction';
+} from '../types.js';
+import { accountSupports7702 } from '../utils/7702.js';
+import { prefixError } from '../utils/error-prefix.js';
+import { getStrategyByName } from '../utils/strategy.js';
+import { updateTransaction } from '../utils/transaction.js';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 const ERROR_PREFIX = 'MetaMask Pay: ';
@@ -64,18 +65,23 @@ export class TransactionPayPublishHook {
     );
 
     const transactionData = controllerState.transactionData?.[transactionId];
-    const quotes =
-      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? [];
+
+    // No-op quotes mark direct routes and cannot be executed by any strategy.
+    const quotes = (
+      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? []
+    ).filter((quote) => quote.strategy !== TransactionPayStrategy.None);
+
     const isFiatSelected = Boolean(
       transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
 
-    if (!quotes?.length) {
+    if (!quotes.length) {
       if (isFiatSelected) {
         throw new Error('Fiat: Missing quote');
       }
 
-      log('Skipping as no quotes found');
+      log('Skipping as no executable quotes found', { transactionId });
+
       return EMPTY_RESULT;
     }
 

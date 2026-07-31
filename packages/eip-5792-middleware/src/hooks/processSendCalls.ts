@@ -21,14 +21,14 @@ import {
   MessageType,
   SupportedCapabilities,
   VERSION,
-} from '../constants';
+} from '../constants.js';
 import type {
   EIP5792Messenger,
   SendCallsPayload,
   SendCallsRequiredAssetsParam,
   SendCallsResult,
-} from '../types';
-import { getAccountKeyringType } from '../utils';
+} from '../types.js';
+import { getAccountKeyringType } from '../utils.js';
 
 /**
  * Type definition for required controller hooks and utilities of {@link processSendCalls}

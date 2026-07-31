@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AuthenticationController } from './AuthenticationController';
+import type { AuthenticationController } from './AuthenticationController.js';
 
 export type AuthenticationControllerPerformSignInAction = {
   type: `AuthenticationController:performSignIn`;

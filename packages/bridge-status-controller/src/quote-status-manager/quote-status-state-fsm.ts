@@ -1,11 +1,11 @@
 import {
   AllowedQuoteStatusStateTransitions,
   QuoteStatusState,
-} from './constants';
+} from './constants.js';
 import type {
   QuoteStatusStateUpdateEvent,
   QuoteStatusStateUpdateListener,
-} from './types';
+} from './types.js';
 
 /**
  * Finite state machine that enforces forward-only quote status transitions.

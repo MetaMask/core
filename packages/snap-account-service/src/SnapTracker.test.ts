@@ -7,8 +7,8 @@ import type {
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { TruncatedSnap } from '@metamask/snaps-utils';
 
-import type { SnapAccountServiceMessenger } from './SnapAccountService';
-import { SnapTracker } from './SnapTracker';
+import type { SnapAccountServiceMessenger } from './SnapAccountService.js';
+import { SnapTracker } from './SnapTracker.js';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -344,6 +344,14 @@ describe('SnapTracker', () => {
       });
 
       publishSnapUninstalled(rootMessenger, buildSnap(MOCK_SNAP_ID, true));
+
+      expect(tracker.getSnaps()).toStrictEqual([]);
+    });
+
+    it('does nothing when a removal event fires for an untracked Snap', () => {
+      const { tracker, rootMessenger } = setup();
+
+      publishSnapDisabled(rootMessenger, buildSnap(MOCK_SNAP_ID, true));
 
       expect(tracker.getSnaps()).toStrictEqual([]);
     });

@@ -1,7 +1,7 @@
 import {
   QuoteStatusGetErrorDetails,
   QuoteStatusUpdateErrorDetails,
-} from './types';
+} from './types.js';
 
 /**
  * Error thrown for quote status update failures.
@@ -19,6 +19,12 @@ export class QuoteStatusUpdateError extends Error {
    * @param details - Structured metadata about the failed quote update.
    * @param details.errorType - Optional category for known update failures.
    * @param details.quoteId - Unique quote identifier associated with the error.
+   * @param details.txMetaId - Optional transaction metadata id associated with
+   * the error.
+   * @param details.srcTxHash - Optional source-chain transaction hash
+   * associated with the error.
+   * @param details.srcChainId - Optional source-chain id associated with the
+   * error.
    */
   constructor(message: string, details: QuoteStatusUpdateErrorDetails) {
     super(`${details.errorType ? `[${details.errorType}] ` : ''}${message}`);

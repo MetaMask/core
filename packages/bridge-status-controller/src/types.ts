@@ -43,10 +43,10 @@ import type {
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
-import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import { QuoteStatusState } from './quote-status-manager/constants';
-import { StatusResponseSchema } from './utils/validators';
+import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types.js';
+import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants.js';
+import { QuoteStatusState } from './quote-status-manager/constants.js';
+import { StatusResponseSchema } from './utils/validators.js';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -152,10 +152,19 @@ export type BridgeHistoryItem = {
    * This is defined when the history item corresponds to the 7702 batch's delegation tx.
    * It contains the list of quoteIds for the BatchSell quotes that are part of the 7702 batch.
    * Each quote can be retrieved from txHistory as `txHistory[quoteId]`.
+   *
+   * On single swaps/bridges this value is an empty array, or absent on history items
+   * persisted before this field was introduced.
    */
   quoteIds?: string[];
   quote: Quote;
-  quoteId?: string; // Optional: absent on history items persisted before this field was introduced
+  /**
+   * This is the the quote id used on single swaps/bridges. On batch sell, it is set
+   * as the first item of `quoteIds`.
+   *
+   * This value is absent on history items persisted before this field was introduced.
+   */
+  quoteId?: string;
   reportedSubmittedTxHash?: string;
   status: StatusResponse;
   startTime: number; // timestamp in ms
@@ -166,11 +175,11 @@ export type BridgeHistoryItem = {
     /**
      * The actual amount sent by user in non-atomic decimal form
      */
-    amountSent: QuoteMetadata['sentAmount']['amount'];
-    amountSentInUsd?: QuoteMetadata['sentAmount']['usd'];
-    quotedGasInUsd?: QuoteMetadata['gasFee']['effective']['usd'];
-    quotedGasAmount?: QuoteMetadata['gasFee']['effective']['amount'];
-    quotedReturnInUsd?: QuoteMetadata['toTokenAmount']['usd'];
+    amountSent: string;
+    amountSentInUsd?: string;
+    quotedGasInUsd?: string;
+    quotedGasAmount?: string;
+    quotedReturnInUsd?: string;
     quotedRefuelSrcAmountInUsd?: string;
     quotedRefuelDestAmountInUsd?: string;
   };
