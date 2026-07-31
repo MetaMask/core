@@ -2815,6 +2815,76 @@ describe('AccountTreeController', () => {
     });
   });
 
+  describe('setSelectedAccountGroupByAccountId', () => {
+    it('sets the selected account group for a known account', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const expectedWalletId2 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const expectedGroupId2 = toMultichainAccountGroupId(
+        expectedWalletId2,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+
+      controller.setSelectedAccountGroupByAccountId(MOCK_HD_ACCOUNT_2.id);
+
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId2);
+    });
+
+    it('updates AccountsController selected account when called', () => {
+      const { controller, accountTreeControllerMessenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const setSelectedAccountSpy = jest.spyOn(
+        accountTreeControllerMessenger,
+        'call',
+      );
+
+      controller.setSelectedAccountGroupByAccountId(MOCK_HD_ACCOUNT_2.id);
+
+      expect(setSelectedAccountSpy).toHaveBeenCalledWith(
+        'AccountsController:setSelectedAccount',
+        expect.any(String),
+      );
+    });
+
+    it('throws when account ID is not in the tree', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(() => {
+        controller.setSelectedAccountGroupByAccountId(
+          'non-existent-account-id' as AccountId,
+        );
+      }).toThrow('Account not found in the account tree');
+    });
+
+    it('throws before init when account ID is not yet in the tree', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      expect(() => {
+        controller.setSelectedAccountGroupByAccountId(MOCK_HD_ACCOUNT_1.id);
+      }).toThrow('Account not found in the account tree');
+    });
+  });
+
   describe('account removal and memory management', () => {
     it('cleans up reverse mapping and does not change selectedAccountGroup when removing from non-selected group', () => {
       const { controller, messenger } = setup({
