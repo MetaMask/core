@@ -180,7 +180,7 @@ export const mockBridgeQuotesSolErc20V1: QuoteResponseV1[] = [
   },
 ];
 
-export const getMockBridgeQuotesSolErc20V2 = (
+export const getMockBridgeQuotesSolErc20V1 = (
   quoteOverrides?: DeepPartial<QuoteResponseV1>,
 ): QuoteResponseV1[] => {
   return mockBridgeQuotesSolErc20V1.map((quote) => {

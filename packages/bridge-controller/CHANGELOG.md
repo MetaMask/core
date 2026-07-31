@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `toQuoteResponseV2` and `toQuoteResponseV1` convert quote responses to required schema when needed
   - `toQuoteMetadataV2` and `toQuoteMetadataV1` convert quote metadata to required schema when needed
   - `toNormalizedAmounts`converts atomic amounts to human-readable values
+- Selector compatibility
+  - deprecate cost and use priceImpact
+
+### Removed
+
+- Clean up unused unsupporteed `XlmScope.Testnet` chainId mapping ([#9085](https://github.com/MetaMask/core/pull/9085))
 
 ### Changed
 
