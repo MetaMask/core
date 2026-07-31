@@ -971,6 +971,158 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    // A venue `modify` REPLACES the resting order: the old oid is cancelled and
+    // the replacement rests under a new one, which the SDK modify response does
+    // not carry. Reporting the old oid back as OrderResult.orderId therefore
+    // names an order that no longer exists. These pin the contract: resolve the
+    // replacement from authoritative post-modify data when it is unambiguous,
+    // and otherwise omit the id rather than fabricate identity.
+    describe('replacement order id', () => {
+      const restingOrder = (overrides: Record<string, unknown> = {}) => ({
+        coin: 'BTC',
+        side: 'B',
+        limitPx: '50000',
+        sz: '0.1',
+        origSz: '0.1',
+        oid: 123,
+        timestamp: 1_700_000_000_000,
+        isTrigger: false,
+        triggerCondition: 'N/A',
+        triggerPx: '0',
+        children: [],
+        isPositionTpsl: false,
+        reduceOnly: false,
+        orderType: 'Limit',
+        ...overrides,
+      });
+
+      /**
+       * Point frontendOpenOrders at a pre-modify then post-modify snapshot.
+       *
+       * @param before - Orders resting before the edit.
+       * @param after - Orders resting after the edit.
+       * @returns The frontendOpenOrders mock.
+       */
+      const withSnapshots = (before: unknown[], after: unknown[]) => {
+        const frontendOpenOrders = jest
+          .fn()
+          .mockResolvedValueOnce(before)
+          .mockResolvedValue(after);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({ frontendOpenOrders }) as never,
+        );
+        return frontendOpenOrders;
+      };
+
+      const edit = async () =>
+        provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'limit',
+            price: '49000',
+          },
+        });
+
+      it('reports the replacement order id, never the one that was replaced', async () => {
+        withSnapshots(
+          [restingOrder()],
+          [restingOrder({ oid: 456, limitPx: '49000' })],
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBe('456');
+        expect(result.orderId).not.toBe('123');
+      });
+
+      it('omits the order id when the edit filled instead of resting', async () => {
+        // A market edit leaves nothing to resolve. Success is still true — the
+        // modify was accepted — but there is no resting order to name.
+        withSnapshots([restingOrder()], []);
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+
+      it('omits the order id when the replacement is not yet visible', async () => {
+        // Eventual consistency: the post-modify read still shows the old order.
+        // Guessing here would report an id the venue has already cancelled.
+        withSnapshots([restingOrder()], [restingOrder()]);
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+
+      it('omits the order id when more than one new order could be the replacement', async () => {
+        withSnapshots(
+          [restingOrder()],
+          [
+            restingOrder({ oid: 456, limitPx: '49000' }),
+            restingOrder({ oid: 457, limitPx: '49000' }),
+          ],
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+
+      it('does not mistake an order that was already resting for the replacement', async () => {
+        // The lookalike shares coin, side and size, so attributes alone would
+        // match it. It existed before the edit, so it cannot be the replacement.
+        withSnapshots(
+          [restingOrder(), restingOrder({ oid: 789 })],
+          [restingOrder({ oid: 789 })],
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+
+      it('does not mistake a different market or side for the replacement', async () => {
+        withSnapshots(
+          [restingOrder()],
+          [
+            restingOrder({ oid: 456, coin: 'ETH' }),
+            restingOrder({ oid: 457, side: 'A' }),
+          ],
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+
+      it('keeps the edit successful when the post-modify read fails', async () => {
+        // The modify was accepted; only the identity lookup failed. Turning that
+        // into a failed edit would misreport an order that really was changed.
+        const frontendOpenOrders = jest
+          .fn()
+          .mockResolvedValueOnce([restingOrder()])
+          .mockRejectedValue(new Error('network down'));
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({ frontendOpenOrders }) as never,
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+    });
+
     it('rejects editing a resting trigger order into a plain one', async () => {
       // The dangerous direction: `modify` would rebuild the protective stop as
       // an immediately-resting limit order and report success.

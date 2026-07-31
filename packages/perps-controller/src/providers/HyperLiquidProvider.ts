@@ -3718,28 +3718,78 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Look up a resting order by id in the account's open orders.
+   * Read the account's currently resting orders.
    *
    * @param params - The lookup parameters.
-   * @param params.orderId - The order ID to look up.
    * @param params.dexName - DEX to query, or null for the main DEX.
-   * @returns The raw open order, or undefined when it is no longer resting.
+   * @returns The raw open orders.
    */
-  async #findRestingOrder(params: {
-    orderId: string | number;
+  async #fetchOpenOrders(params: {
     dexName: string | null;
-  }): Promise<FrontendOrder | undefined> {
+  }): Promise<FrontendOrder[]> {
     const userAddress = await this.#walletService.getUserAddressWithDefault();
-    const orders = await this.#clientService
-      .getInfoClient()
-      .frontendOpenOrders({
-        user: userAddress,
-        dex: params.dexName ?? undefined,
-      });
+    return await this.#clientService.getInfoClient().frontendOpenOrders({
+      user: userAddress,
+      dex: params.dexName ?? undefined,
+    });
+  }
 
-    return orders.find(
-      (order) => order.oid.toString() === params.orderId.toString(),
-    );
+  /**
+   * Resolve the order id that a `modify` rested the replacement under.
+   *
+   * HyperLiquid does not edit an order in place: it cancels the target and
+   * rests a replacement under a NEW oid, which the SDK's modify response does
+   * not carry. The submitted oid therefore names an order that no longer
+   * exists, so the only honest source of identity is a post-modify read.
+   *
+   * An id is returned only when exactly one newly-rested order carries the
+   * attributes just submitted. Everything else leaves it absent: a market edit
+   * that filled rather than rested, a read that has not caught up yet, or two
+   * equally plausible candidates. Novelty is judged against the pre-edit
+   * snapshot rather than attributes alone, because an order that was already
+   * resting can share a market, side and size with the replacement.
+   *
+   * @param params - The resolution parameters.
+   * @param params.previousOrders - Orders resting immediately before the edit.
+   * @param params.dexName - DEX to query, or null for the main DEX.
+   * @param params.symbol - Market the edit was submitted against.
+   * @param params.isBuy - Direction submitted.
+   * @param params.size - Formatted size submitted.
+   * @returns The replacement order id, or undefined when it cannot be resolved unambiguously.
+   */
+  async #resolveReplacementOrderId(params: {
+    previousOrders: FrontendOrder[];
+    dexName: string | null;
+    symbol: string;
+    isBuy: boolean;
+    size: string;
+  }): Promise<string | undefined> {
+    try {
+      const previousOrderIds = new Set(
+        params.previousOrders.map((order) => order.oid.toString()),
+      );
+      const ordersAfterEdit = await this.#fetchOpenOrders({
+        dexName: params.dexName,
+      });
+      const submittedSize = parseFloat(params.size);
+      const candidates = ordersAfterEdit.filter(
+        (order) =>
+          !previousOrderIds.has(order.oid.toString()) &&
+          order.coin === params.symbol &&
+          (order.side === 'B') === params.isBuy &&
+          parseFloat(order.sz) === submittedSize,
+      );
+
+      return candidates.length === 1 ? candidates[0].oid.toString() : undefined;
+    } catch (error) {
+      // The modify was accepted; only the identity lookup failed. Reporting a
+      // failed edit here would misstate an order that really was changed.
+      this.#deps.debugLogger.log(
+        'Could not resolve the replacement order id after modify:',
+        error,
+      );
+      return undefined;
+    }
   }
 
   /**
@@ -3816,11 +3866,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Fail closed when the cache could not confirm the resting order: an
       // unverified edit can rebuild a protective stop as a plain order and
       // report success. REST carries the placement type the cache lacked.
+      // One authoritative read of what is resting before the edit. It verifies
+      // the target when the cache could not, and doubles as the baseline that
+      // tells the replacement apart from orders that were already there.
+      const ordersBeforeEdit = await this.#fetchOpenOrders({ dexName });
+
       if (cachedRestingOrder === undefined) {
-        const restingOrder = await this.#findRestingOrder({
-          orderId: params.orderId,
-          dexName,
-        });
+        const restingOrder = ordersBeforeEdit.find(
+          (order) => order.oid.toString() === params.orderId.toString(),
+        );
 
         if (!restingOrder) {
           return {
@@ -3913,9 +3967,24 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(`Order modification failed: ${JSON.stringify(result)}`);
       }
 
+      // `params.orderId` is the order that was just REPLACED, so returning it
+      // as OrderResult.orderId (documented as the exchange order ID) names an
+      // order the venue has already cancelled. Report the replacement when it
+      // can be resolved unambiguously, and otherwise omit the optional id
+      // rather than fabricate identity.
+      const replacementOrderId = await this.#resolveReplacementOrderId({
+        previousOrders: ordersBeforeEdit,
+        dexName,
+        symbol: params.newOrder.symbol,
+        isBuy: params.newOrder.isBuy,
+        size: formattedSize,
+      });
+
       return {
         success: true,
-        orderId: params.orderId.toString(),
+        ...(replacementOrderId === undefined
+          ? {}
+          : { orderId: replacementOrderId }),
       };
     } catch (error) {
       this.#deps.logger.error(
