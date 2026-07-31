@@ -139,6 +139,7 @@ describe('mapLocalTransaction', () => {
           direction: 'out',
           symbol: 'ETH',
           assetType: 'native',
+          assetId: 'eip155:1338/slip44:60',
         },
       },
     });
@@ -333,7 +334,7 @@ describe('mapLocalTransaction', () => {
       },
     });
   });
-  it('maps an incoming native transfer without nativeAssetSymbol to a Receive with native assetType but no symbol', () => {
+  it('maps an incoming native transfer without nativeAssetSymbol to a Receive with native assetType only', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAnIncomingNativeTransferTo,
     );
@@ -347,7 +348,7 @@ describe('mapLocalTransaction', () => {
       },
     });
     expect(
-      item.type === 'receive' ? item.data.token?.symbol : 'unset',
+      item.type === 'receive' ? item.data.token?.assetId : 'unset',
     ).toBeUndefined();
   });
   it('maps an mUSD conversion to a Convert activity', () => {

@@ -66,7 +66,8 @@ The Accounts API classifies each transaction with a `transactionCategory`. The m
 Notes:
 
 - Backend API improvements are ongoing
-- Native / fee tokens may omit `assetId` and instead set `assetType: 'native'` so clients can resolve icons from chain metadata
+- Native tokens and network fees include slip44 `assetId` when a symbol is available (for example from an indexed native value transfer)
+- When no symbol is available, mappers still set `assetType: 'native'` but omit `assetId` — clients should resolve icons from chain metadata
 
 ---
 
