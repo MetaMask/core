@@ -3886,11 +3886,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(validation.error);
       }
 
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
-
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(params.newOrder.symbol);
+
+      // Initialization only — clients and the asset mapping. The signing half
+      // of readiness is deferred until after the checks below, so a refused
+      // edit never prompts for a signature or writes an approval.
+      await this.#ensureReady();
 
       // What is resting before the edit serves two purposes, and they carry
       // different weight. Verifying the target is REQUIRED when the cache could
@@ -3994,6 +3996,11 @@ export class HyperLiquidProvider implements PerpsProvider {
           ? (params.newOrder.clientOrderId as Hex)
           : undefined,
       };
+
+      // Every refusal is behind us, so the setup that may prompt for signatures
+      // and write builder-fee/referral approvals can run now — a rejected edit
+      // costs the caller nothing, matching placeOrder and updatePositionTPSL.
+      await this.#ensureReadyForTrading();
 
       // Submit modification via SDK
       const exchangeClient = this.#clientService.getExchangeClient();

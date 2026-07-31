@@ -1160,6 +1160,44 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it('refuses an unverifiable edit before any trading setup runs', async () => {
+      // The cold-cache path fails closed, but the refusal is only free if it
+      // happens BEFORE ensureReadyForTrading: that prompts for signatures and
+      // writes builder-fee and referral approvals. Rejecting afterwards makes
+      // the caller pay for an edit that was never going to happen — the same
+      // ordering placeOrder and updatePositionTPSL already observe.
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        }) as never,
+      );
+
+      const result = await provider.editOrder({
+        orderId: '123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'limit',
+          price: '49000',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_EDIT_ORDER_UNVERIFIABLE,
+      );
+      expect(
+        mockClientService.getExchangeClient().approveBuilderFee,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().setReferrer,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().modify,
+      ).not.toHaveBeenCalled();
+    });
+
     it('rejects editing a resting trigger order into a plain one', async () => {
       // The dangerous direction: `modify` would rebuild the protective stop as
       // an immediately-resting limit order and report success.

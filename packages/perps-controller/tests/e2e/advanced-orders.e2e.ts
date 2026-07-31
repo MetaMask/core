@@ -341,7 +341,9 @@ export async function createTestnetRunner(options: {
         grouping: 'na',
       });
       if (result.status !== 'ok') {
-        throw new Error(`Failed to flatten ${symbol}: ${JSON.stringify(result)}`);
+        throw new Error(
+          `Failed to flatten ${symbol}: ${JSON.stringify(result)}`,
+        );
       }
     },
   };
