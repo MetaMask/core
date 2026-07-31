@@ -97,6 +97,22 @@ const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
 
+/**
+ * Activate asset tracking by marking the UI open and the keyring unlocked,
+ * then flushing the async startup so the controller is in its running state.
+ *
+ * @param messenger - The root messenger used to publish lifecycle events.
+ */
+async function activateTracking(messenger: RootMessenger): Promise<void> {
+  (
+    messenger as unknown as {
+      publish: (topic: string, payload?: unknown) => void;
+    }
+  ).publish('ClientController:stateChange', { isUiOpen: true });
+  messenger.publish('KeyringController:unlock');
+  await flushPromises();
+}
+
 function createMockInternalAccount(
   overrides?: Partial<InternalAccount>,
 ): InternalAccount {
@@ -740,7 +756,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('graduates an EVM custom asset when BackendWebsocketDataSource reports a balance for it', async () => {
+    it('graduates an EVM custom asset when AccountActivityDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -752,7 +768,7 @@ describe('AssetsController', () => {
               },
             },
           },
-          'BackendWebsocketDataSource',
+          'AccountActivityDataSource',
         );
 
         expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
@@ -1697,7 +1713,8 @@ describe('AssetsController', () => {
 
   describe('handleActiveChainsUpdate', () => {
     it('re-subscribes assets when chains are added', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
         const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
@@ -1731,13 +1748,32 @@ describe('AssetsController', () => {
     });
 
     it('re-subscribes assets when chains are removed', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
         const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
 
         expect(subscribeSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not re-subscribe after tracking has stopped', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
+
+        // Lock the keyring so the controller stops and clears subscriptions.
+        messenger.publish('KeyringController:lock');
+        await flushPromises();
+
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+        // Simulate the WebSocket flushing all chains as "down" after stop.
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
+
+        expect(subscribeSpy).not.toHaveBeenCalled();
       });
     });
 
@@ -2323,8 +2359,19 @@ describe('AssetsController', () => {
       };
 
       await withController(
-        { state: initialState },
+        { state: initialState, clientControllerState: { isUiOpen: true } },
         async ({ controller, messenger }) => {
+          // UI must be open and keyring unlocked so AccountActivityDataSource is
+          // subscribed and can route balanceUpdated events to the account.
+          (
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
+          messenger.publish('KeyringController:unlock');
+
+          await flushPromises();
+
           messenger.publish('AccountActivityService:balanceUpdated', {
             address: '0x1234567890123456789012345678901234567890',
             chain: 'eip155:42161',
