@@ -2176,6 +2176,9 @@ export type MetamaskPayMetadata = {
   /** Source chain transaction hash if no local transaction. */
   sourceHash?: Hex;
 
+  /** Pay strategy used to fund the transaction (e.g. "relay", "fiat"). */
+  strategy?: string;
+
   /** Total amount of target token provided in fiat currency. */
   targetFiat?: string;
 
