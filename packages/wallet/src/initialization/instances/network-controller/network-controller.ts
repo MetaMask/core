@@ -17,6 +17,7 @@ export const networkController: InitializationConfiguration<
       messenger,
       infuraProjectId: options.infuraProjectId,
       failoverUrls: options.failoverUrls,
+      analyticsOptions: options.analyticsOptions,
     }),
   getMessenger: (parent) => {
     const networkControllerMessenger: NetworkControllerMessenger =
@@ -28,6 +29,8 @@ export const networkController: InitializationConfiguration<
     parent.delegate({
       messenger: networkControllerMessenger,
       actions: [
+        'AnalyticsController:getState',
+        'AnalyticsController:trackEvent',
         'ConnectivityController:getState',
         'RemoteFeatureFlagController:getState',
       ],

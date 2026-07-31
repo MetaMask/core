@@ -11,6 +11,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add Somnia (`5031`/`0x13a7`) in `MulticallClient` ([#9665](https://github.com/MetaMask/core/pull/9665))
 
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** `AccountActivityDataSource` is now the highest-priority balance data source and participates in chain-claiming: chains it reports as "up" from `AccountActivityService:statusChanged`. The `AssetsController` messenger must now allow the `AccountActivityService:statusChanged` event ([#9517](https://github.com/MetaMask/core/pull/9517))
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/assets-controllers` from `^110.0.2` to `^110.0.3` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/core-backend` from `^8.0.0` to `^8.1.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-enablement-controller` from `^6.0.0` to `^6.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+### Removed
+
+- **BREAKING:** Remove `BackendWebsocketDataSource` and its factory/types (`BackendWebsocketDataSource`, `createBackendWebsocketDataSource`, `BackendWebsocketDataSourceOptions`, `BackendWebsocketDataSourceState`). Real-time balance updates and per-chain status are now consumed from `AccountActivityService` via `AccountActivityDataSource`, which manages the WebSocket connection and subscriptions. Consumers no longer need to delegate `BackendWebSocketService` actions/events to the `AssetsController` messenger ([#9517](https://github.com/MetaMask/core/pull/9517))
+
+## [11.3.1]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.1` to `^110.0.2` ([#9706](https://github.com/MetaMask/core/pull/9706))
+- Bump `@metamask/network-enablement-controller` from `^5.6.0` to `^6.0.0` ([#9706](https://github.com/MetaMask/core/pull/9706))
+
+## [11.3.0]
+
+### Added
+
+- `SnapDataSource` now preserves optional balance `metadata` from snap keyrings into `assetsBalance` when handling `AccountsController:accountBalancesUpdated` and `getAccountBalances` results ([#9564](https://github.com/MetaMask/core/pull/9564))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.1` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/core-backend` from `^7.0.0` to `^8.0.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Nest AssetsController Sentry spans (`AssetsDataSourceTiming`, `AssetsDataSourceError`, `AssetsControllerFirstInitFetch`, pipeline summaries) as subspans under parent `AssetsFullFetch` / `AssetsUpdatePipeline` / `AssetsBackgroundFetch` traces, and emit a single `AggregatedBalanceSelector` span for `calculateBalanceForAllWallets` instead of one root span per account group, to avoid Sentry rate limits ([#9672](https://github.com/MetaMask/core/pull/9672))
+  - Pipeline / data-source / update enrichment spans emit only on the unlock (first-init) fetch per session; later polls, force updates, and subscription enrichment skip tracing.
+  - Tracing helpers live in `utils/trace.ts` (`emitTrace` / `withTrace`); omit `trace` to no-op so call sites stay free of gating `if`s. Fast and background fetch lanes are sibling `withTrace` calls (not nested).
+  - Dashboard-facing spans (`AssetsFullFetch`, `AssetsUpdatePipeline`, `AggregatedBalanceSelector`, etc.) record `duration_ms` as a Sentry measurement (and backdate `startTime`) so Spans widgets charting `p95(duration_ms)` receive data. Nesting parents use `AssetsFetchPipeline` / `AssetsUpdateEnrichment` / `AssetsBackgroundFetch` / `AggregatedBalance`.
+  - `AggregatedBalanceSelector` is nested under an `AggregatedBalance` parent span via `parentContext`.
+- Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-internal-api` from `^11.0.1` to `^11.0.2` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-snap-client` from `^9.2.0` to `^9.2.1` ([#9676](https://github.com/MetaMask/core/pull/9676))
+
+### Fixed
+
+- `withTrace` treats a rejected parent `trace` promise as best-effort (like `emitTrace`), so Sentry/adapter failures cannot fail full fetches or `handleAssetsUpdate` enrichment ([#9672](https://github.com/MetaMask/core/pull/9672))
+- `SnapDataSource` now delivers snap-sourced balance updates directly to `AssetsController` via a constructor-supplied `onAssetsUpdate` callback instead of fanning out to `activeSubscriptions`, so updates (e.g. Tron energy/bandwidth) are no longer dropped when no active subscription is tracked for the chain in the SnapDataSource ([#9656](https://github.com/MetaMask/core/pull/9656))
+- Balance aggregation selectors (`getAggregatedBalanceForAccount`, `getAggregatedBalanceForAccountIds`, `calculateBalanceForAllWallets`, `calculateBalanceChangeForAccountGroup`) no longer rescale balances whose amount is greater than or equal to `10^decimals`. Amounts in `assetsBalance` state are always human-readable, so the removed raw-vs-human magnitude heuristic corrupted legitimately large balances (e.g. 54.06B tokens with 9 decimals were divided by `10^9`), excluding them from aggregated fiat totals ([#9653](https://github.com/MetaMask/core/pull/9653))
+
 ## [11.2.1]
 
 ### Fixed
@@ -787,7 +838,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.1...@metamask/assets-controller@12.0.0
+[11.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.0...@metamask/assets-controller@11.3.1
+[11.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.1...@metamask/assets-controller@11.3.0
 [11.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.0...@metamask/assets-controller@11.2.1
 [11.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.1.1...@metamask/assets-controller@11.2.0
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.1.0...@metamask/assets-controller@11.1.1

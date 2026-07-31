@@ -110,6 +110,18 @@ export type TransactionConfig = {
   accountOverride?: Hex;
 
   /**
+   * Whether the target transaction (or `paymentOverride` batch) is executed
+   * atomically with the Relay quote. Defaults to `true` (embedded in the quote
+   * and executed by the Relay solver). When `false`, Pay does not embed the
+   * target/override calls in the quote; the quote only bridges the required
+   * asset to `recipient`, and the calls are submitted separately after Relay
+   * completion. Used by flows whose second-leg amount is only known after
+   * Relay settles (EXACT_INPUT max flows) or that require the second leg to
+   * originate from a different signer than the Relay solver.
+   */
+  atomic?: boolean;
+
+  /**
    * Whether the source of funds is HyperLiquid (HyperCore).
    * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
    * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
@@ -293,6 +305,12 @@ export type TransactionData = {
    * When `isPostQuote` is false, it provides the funds and pays for gas.
    */
   accountOverride?: Hex;
+
+  /**
+   * Whether the target transaction is executed atomically with the Relay
+   * quote. See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
 
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
@@ -517,6 +535,12 @@ export type FiatRates = {
 
 /** Request for a quote to retrieve a required token. */
 export type QuoteRequest = {
+  /**
+   * Whether the target transaction is executed atomically with the Relay
+   * quote. See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
+
   /** Address of the user's account. */
   from: Hex;
 

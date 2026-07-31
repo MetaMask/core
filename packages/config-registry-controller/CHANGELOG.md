@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1]
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [1.0.0]
+
 ### Added
 
 - Add `ConfigRegistryControllerStateChangedEvent` (`ConfigRegistryController:stateChanged`) to the controller's events ([#9595](https://github.com/MetaMask/core/pull/9595))
@@ -99,7 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7668](https://github.com/MetaMask/core/pull/7668), [#7809](https://github.com/MetaMask/core/pull/7809))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@1.0.0...@metamask/config-registry-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.4.1...@metamask/config-registry-controller@1.0.0
 [0.4.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.4.0...@metamask/config-registry-controller@0.4.1
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.2...@metamask/config-registry-controller@0.4.0
 [0.3.2]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.1...@metamask/config-registry-controller@0.3.2

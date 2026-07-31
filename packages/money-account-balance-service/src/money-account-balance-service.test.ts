@@ -119,20 +119,20 @@ const MOCK_VAULT_APY_RAW_RESPONSE = {
 
 const MOCK_VAULT_APY_NORMALIZED = {
   aggregationPeriod: '7 days',
-  apy: 0.055,
+  apy: 0.05653623699373145,
   chainAllocation: { arbitrum: 1.0 },
   fees: 0.005,
   globalApyBreakdown: {
     fee: 0.005,
-    maturityApy: 0.03,
-    realApy: 0.05,
+    maturityApy: 0.030453263600551006,
+    realApy: 0.05126749646744733,
   },
   performanceFees: 0.001,
   realApyBreakdown: [
     {
       allocation: 1.0,
-      apy: 0.055,
-      apyNet: 0.05,
+      apy: 0.05653623699373145,
+      apyNet: 0.05126749646744733,
       chain: 'arbitrum',
       protocol: 'aave',
     },
@@ -2191,6 +2191,11 @@ describe('MoneyAccountBalanceService', () => {
 
       expect(result.apy).toBe(0);
       expect(result.fees).toBe(0);
+      expect(result.globalApyBreakdown).toStrictEqual({
+        fee: 0,
+        maturityApy: 0,
+        realApy: 0,
+      });
       expect(result.timestamp).toBe('Fri, 10 Apr 2026 22:05:54 GMT');
       expect(result.realApyBreakdown).toStrictEqual([]);
     });
@@ -2213,7 +2218,7 @@ describe('MoneyAccountBalanceService', () => {
 
       expect(result).toStrictEqual({
         aggregationPeriod: undefined,
-        apy: 0.03,
+        apy: 0.030453263600551006,
         chainAllocation: undefined,
         fees: undefined,
         globalApyBreakdown: undefined,

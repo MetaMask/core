@@ -668,7 +668,7 @@ describe('QuoteStatusUpdateManager', () => {
     it('surfaces an error when the entry is not found', () => {
       const { manager, onError } = createManager();
 
-      manager.reportFinalised('tx-missing', true, 'eip155:1');
+      manager.reportFinalised('tx-missing', true, 'eip155:1', '0xabc');
 
       expect(onError).toHaveBeenCalledTimes(1);
       expect(onError.mock.calls[0][0].message).toBe(
@@ -678,6 +678,7 @@ describe('QuoteStatusUpdateManager', () => {
         quoteId: '',
         txMetaId: 'tx-missing',
         srcChainId: 'eip155:1',
+        srcTxHash: '0xabc',
       });
     });
 

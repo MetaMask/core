@@ -83,30 +83,6 @@ function isEnabledPayload(value: Json | undefined): value is {
 }
 
 /**
- * The `minimumVersion` carried by an enabled payload, or `undefined` for the
- * boolean form, a disabled payload, or a malformed field. This package cannot
- * compare app versions itself; mobile validates the value through its shared
- * `validatedVersionGatedFeatureFlag` util, and the LaunchDarkly `versions`
- * wrapper provides the server-side gate.
- *
- * @param remoteFeatureFlagState - `RemoteFeatureFlagController` state (or the
- * relevant subset of it).
- * @returns The minimum app version the payload declares, or `undefined`.
- */
-export function getHeadlessAllProvidersMinimumVersion(
-  remoteFeatureFlagState: HeadlessFeatureFlagsLookup | null | undefined,
-): string | undefined {
-  const value = resolveFlagValue(remoteFeatureFlagState);
-  if (!isEnabledPayload(value)) {
-    return undefined;
-  }
-  const { minimumVersion } = value;
-  return typeof minimumVersion === 'string' && minimumVersion.trim() !== ''
-    ? minimumVersion
-    : undefined;
-}
-
-/**
  * Coerces a payload field into a provider-id list: keeps only string entries,
  * trims them, and drops empties. An empty or malformed level is treated as
  * "not provided" so resolution falls through to the next level rather than

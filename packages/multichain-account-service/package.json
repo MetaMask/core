@@ -56,17 +56,18 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask/accounts-controller": "^39.0.5",
+    "@metamask/account-api": "^1.1.1",
+    "@metamask/accounts-controller": "^39.0.6",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/eth-snap-keyring": "^23.0.0",
     "@metamask/key-tree": "^10.1.1",
-    "@metamask/keyring-api": "^23.5.0",
+    "@metamask/keyring-api": "^23.7.0",
     "@metamask/keyring-controller": "^27.1.0",
-    "@metamask/keyring-internal-api": "^11.0.1",
-    "@metamask/keyring-snap-client": "^9.2.0",
+    "@metamask/keyring-internal-api": "^11.0.2",
+    "@metamask/keyring-snap-client": "^9.2.1",
     "@metamask/keyring-utils": "^3.3.1",
     "@metamask/messenger": "^2.0.0",
-    "@metamask/snap-account-service": "^2.0.0",
+    "@metamask/snap-account-service": "^2.1.1",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
@@ -76,7 +77,6 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/account-api": "^1.0.4",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/eth-hd-keyring": "^14.1.1",
@@ -95,7 +95,6 @@
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/account-api": "^1.0.4",
     "@metamask/providers": "^22.0.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
