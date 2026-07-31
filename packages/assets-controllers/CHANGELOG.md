@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Somnia (`5031`/`0x13a7`) entries in `multicall.ts` and `codefi-v2.ts` ([#9665](https://github.com/MetaMask/core/pull/9665))
+
 ### Changed
 
 - Bump `@metamask/network-enablement-controller` from `^6.0.1` to `^6.0.2` ([#9740](https://github.com/MetaMask/core/pull/9740))
