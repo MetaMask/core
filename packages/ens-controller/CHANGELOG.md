@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `DEFAULT_ENS_NETWORK_MAP` now maps Mainnet and Sepolia to the ENS Universal Resolver contract address (`0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe`)
+  - Previously it mapped Mainnet, Ropsten, Rinkeby, Goerli, Holesky, and Sepolia to the ENS registry contract address; the default `ensEntries` state seeded from this map (under the `.` key) changes accordingly
+  - Reverse resolution is no longer available on Holesky by default; Ropsten, Rinkeby, and Goerli have been shut down and could not resolve anyway
+- Replace `@ethersproject/providers` with `viem` for ENS resolution
+  - Reverse resolution now goes through the ENS Universal Resolver (ENSIP-23), which makes the controller compatible with ENSv2 when it launches
+
 ## [19.1.6]
 
 ### Changed

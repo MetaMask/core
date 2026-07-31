@@ -1,4 +1,3 @@
-import * as providersModule from '@ethersproject/providers';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   toChecksumHexAddress,
@@ -16,6 +15,7 @@ import type {
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
+import { getEnsAddress, getEnsName } from 'viem/actions';
 
 import {
   buildMockGetNetworkClientById,
@@ -44,14 +44,14 @@ for (const [cid, address] of Object.entries(DEFAULT_ENS_NETWORK_MAP)) {
 }
 Object.freeze(defaultState);
 
-jest.mock('@ethersproject/providers', () => {
-  const originalModule = jest.requireActual('@ethersproject/providers');
+jest.mock('viem/actions', () => ({
+  __esModule: true,
+  getEnsAddress: jest.fn(),
+  getEnsName: jest.fn(),
+}));
 
-  return {
-    __esModule: true,
-    ...originalModule,
-  };
-});
+const getEnsNameMock = jest.mocked(getEnsName);
+const getEnsAddressMock = jest.mocked(getEnsAddress);
 
 type AllEnsControllerActions = MessengerActions<EnsControllerMessenger>;
 
@@ -135,15 +135,6 @@ function getEnsControllerMessenger(
   return ensControllerMessenger;
 }
 
-/**
- * Creates a mock provider.
- *
- * @returns mock provider
- */
-function getProvider() {
-  return () => Promise.resolve(null);
-}
-
 describe('EnsController', () => {
   it('should set default state', () => {
     const rootMessenger = getRootMessenger();
@@ -154,7 +145,7 @@ describe('EnsController', () => {
     expect(controller.state).toStrictEqual(defaultState);
   });
 
-  it('should return registry address for `.`', () => {
+  it('should return universal resolver address for `.`', () => {
     const rootMessenger = getRootMessenger();
     const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
@@ -162,7 +153,7 @@ describe('EnsController', () => {
     });
     expect(controller.get('0x1', '.')).toStrictEqual({
       ensName: '.',
-      address: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+      address: '0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe',
       chainId: '0x1',
     });
   });
@@ -579,12 +570,8 @@ describe('EnsController', () => {
     it('should only resolve an ENS name once', async () => {
       const rootMessenger = getRootMessenger();
       const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
-      const ethProvider = new providersModule.Web3Provider(getProvider());
-      jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(address1);
-      jest
-        .spyOn(ethProvider, 'lookupAddress')
-        .mockResolvedValue('peaksignal.eth');
-      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      getEnsAddressMock.mockResolvedValue(address1);
+      getEnsNameMock.mockResolvedValue('peaksignal.eth');
 
       const ens = new EnsController({
         messenger: ensControllerMessenger,
@@ -598,14 +585,13 @@ describe('EnsController', () => {
 
       expect(await ens.reverseResolveAddress(address1)).toBe('peaksignal.eth');
       expect(await ens.reverseResolveAddress(address1)).toBe('peaksignal.eth');
+      expect(getEnsNameMock).toHaveBeenCalledTimes(1);
     });
 
     it('should fail if lookupAddress through an error', async () => {
       const rootMessenger = getRootMessenger();
       const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
-      const ethProvider = new providersModule.Web3Provider(getProvider());
-      jest.spyOn(ethProvider, 'lookupAddress').mockRejectedValue('error');
-      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      getEnsNameMock.mockRejectedValue(new Error('error'));
       const ens = new EnsController({
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
@@ -622,9 +608,7 @@ describe('EnsController', () => {
     it('should fail if lookupAddress returns a null value', async () => {
       const rootMessenger = getRootMessenger();
       const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
-      const ethProvider = new providersModule.Web3Provider(getProvider());
-      jest.spyOn(ethProvider, 'lookupAddress').mockResolvedValue(null);
-      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      getEnsNameMock.mockResolvedValue(null);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
@@ -641,12 +625,8 @@ describe('EnsController', () => {
     it('should fail if resolveName through an error', async () => {
       const rootMessenger = getRootMessenger();
       const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
-      const ethProvider = new providersModule.Web3Provider(getProvider());
-      jest
-        .spyOn(ethProvider, 'lookupAddress')
-        .mockResolvedValue('peaksignal.eth');
-      jest.spyOn(ethProvider, 'resolveName').mockRejectedValue('error');
-      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      getEnsNameMock.mockResolvedValue('peaksignal.eth');
+      getEnsAddressMock.mockRejectedValue(new Error('error'));
       const ens = new EnsController({
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
@@ -663,12 +643,8 @@ describe('EnsController', () => {
     it('should fail if resolveName returns a null value', async () => {
       const rootMessenger = getRootMessenger();
       const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
-      const ethProvider = new providersModule.Web3Provider(getProvider());
-      jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(null);
-      jest
-        .spyOn(ethProvider, 'lookupAddress')
-        .mockResolvedValue('peaksignal.eth');
-      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      getEnsNameMock.mockResolvedValue('peaksignal.eth');
+      getEnsAddressMock.mockResolvedValue(null);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
@@ -685,14 +661,8 @@ describe('EnsController', () => {
     it('should fail if registred address is zero x error address', async () => {
       const rootMessenger = getRootMessenger();
       const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
-      const ethProvider = new providersModule.Web3Provider(getProvider());
-      jest
-        .spyOn(ethProvider, 'resolveName')
-        .mockResolvedValue(ZERO_X_ERROR_ADDRESS);
-      jest
-        .spyOn(ethProvider, 'lookupAddress')
-        .mockResolvedValue('peaksignal.eth');
-      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      getEnsNameMock.mockResolvedValue('peaksignal.eth');
+      getEnsAddressMock.mockResolvedValue(ZERO_X_ERROR_ADDRESS);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
@@ -709,13 +679,8 @@ describe('EnsController', () => {
     it('should fail if the name is registered to a different address than the reverse resolved', async () => {
       const rootMessenger = getRootMessenger();
       const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
-
-      const ethProvider = new providersModule.Web3Provider(getProvider());
-      jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(address2);
-      jest
-        .spyOn(ethProvider, 'lookupAddress')
-        .mockResolvedValue('peaksignal.eth');
-      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      getEnsNameMock.mockResolvedValue('peaksignal.eth');
+      getEnsAddressMock.mockResolvedValue(address2);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
@@ -727,6 +692,34 @@ describe('EnsController', () => {
       });
 
       expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
+    });
+
+    it('should return undefined on a chain without a known universal resolver', async () => {
+      const rootMessenger = getRootMessenger();
+      const getNetworkClientById = buildMockGetNetworkClientById({
+        'AAAA-AAAA-AAAA-AAAA': buildCustomNetworkClientConfiguration({
+          chainId: '0x2105',
+        }),
+      });
+      const ensControllerMessenger = getEnsControllerMessenger(
+        rootMessenger,
+        getNetworkClientById,
+      );
+      const ens = new EnsController({
+        messenger: ensControllerMessenger,
+        registriesByChainId: {
+          8453: '0x74E20Bd2A1fE0cdbe45b9A1d89cb7e0a45b36376',
+        },
+        onNetworkDidChange: (listener): void => {
+          listener({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+          });
+        },
+      });
+
+      expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
+      expect(getEnsNameMock).not.toHaveBeenCalled();
     });
   });
 
@@ -765,42 +758,14 @@ describe('EnsController', () => {
           "ensEntries": {
             "0x1": {
               ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+                "address": "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe",
                 "chainId": "0x1",
-                "ensName": ".",
-              },
-            },
-            "0x3": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x3",
-                "ensName": ".",
-              },
-            },
-            "0x4": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x4",
-                "ensName": ".",
-              },
-            },
-            "0x4268": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x4268",
-                "ensName": ".",
-              },
-            },
-            "0x5": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x5",
                 "ensName": ".",
               },
             },
             "0xaa36a7": {
               ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+                "address": "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe",
                 "chainId": "0xaa36a7",
                 "ensName": ".",
               },
@@ -829,42 +794,14 @@ describe('EnsController', () => {
           "ensEntries": {
             "0x1": {
               ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+                "address": "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe",
                 "chainId": "0x1",
-                "ensName": ".",
-              },
-            },
-            "0x3": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x3",
-                "ensName": ".",
-              },
-            },
-            "0x4": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x4",
-                "ensName": ".",
-              },
-            },
-            "0x4268": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x4268",
-                "ensName": ".",
-              },
-            },
-            "0x5": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x5",
                 "ensName": ".",
               },
             },
             "0xaa36a7": {
               ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+                "address": "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe",
                 "chainId": "0xaa36a7",
                 "ensName": ".",
               },
@@ -893,42 +830,14 @@ describe('EnsController', () => {
           "ensEntries": {
             "0x1": {
               ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+                "address": "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe",
                 "chainId": "0x1",
-                "ensName": ".",
-              },
-            },
-            "0x3": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x3",
-                "ensName": ".",
-              },
-            },
-            "0x4": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x4",
-                "ensName": ".",
-              },
-            },
-            "0x4268": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x4268",
-                "ensName": ".",
-              },
-            },
-            "0x5": {
-              ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-                "chainId": "0x5",
                 "ensName": ".",
               },
             },
             "0xaa36a7": {
               ".": {
-                "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+                "address": "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe",
                 "chainId": "0xaa36a7",
                 "ensName": ".",
               },

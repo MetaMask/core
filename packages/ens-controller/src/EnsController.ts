@@ -1,17 +1,14 @@
-import { Web3Provider } from '@ethersproject/providers';
 import { BaseController } from '@metamask/base-controller';
 import type {
   StateMetadata,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
   isSafeDynamicKey,
   toChecksumHexAddress,
-  CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
@@ -24,6 +21,11 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
 import { toASCII } from 'punycode/punycode.js';
+import type { Address, Chain, Client } from 'viem';
+import { createClient, custom } from 'viem';
+import { getEnsAddress, getEnsName } from 'viem/actions';
+import { mainnet, sepolia } from 'viem/chains';
+import { normalize } from 'viem/ens';
 
 import type { EnsControllerMethodActions } from './EnsController-method-action-types.js';
 
@@ -40,20 +42,20 @@ const MESSENGER_EXPOSED_METHODS = [
   'set',
 ] as const;
 
-// Map of chainIDs and ENS registry contract addresses
+// Map of chainIDs and ENS universal resolver contract addresses (ENSIP-23
+// proxy, upgraded in place by the ENS DAO to support ENSv2 on launch).
 export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
   // Mainnet
-  1: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
-  // Ropsten
-  3: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
-  // Rinkeby
-  4: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
-  // Goerli
-  5: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
-  // Holesky
-  17000: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  1: '0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe',
   // Sepolia
-  11155111: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  11155111: '0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe',
+};
+
+// Chains with a viem definition that includes an `ensUniversalResolver`
+// contract, used as the default source of universal resolver addresses.
+const VIEM_CHAINS_BY_ID: Record<number, Chain> = {
+  [mainnet.id]: mainnet,
+  [sepolia.id]: sepolia,
 };
 
 /**
@@ -143,7 +145,7 @@ export class EnsController extends BaseController<
   EnsControllerState,
   EnsControllerMessenger
 > {
-  #ethProvider: Web3Provider | null = null;
+  #ethClient: Client | null = null;
 
   /**
    * Creates an EnsController instance.
@@ -335,17 +337,22 @@ export class EnsController extends BaseController<
       selectedNetworkClientId,
     );
 
+    const chainIdDecimal = convertHexToDecimal(currentChainId);
+    const chain = VIEM_CHAINS_BY_ID[chainIdDecimal];
+
     if (
-      registriesByChainId?.[parseInt(currentChainId, 16)] &&
-      this.#getChainEnsSupport(currentChainId)
+      registriesByChainId?.[chainIdDecimal] &&
+      this.#getChainEnsSupport(currentChainId) &&
+      chain
     ) {
-      this.#ethProvider = new Web3Provider(provider, {
-        chainId: convertHexToDecimal(currentChainId),
-        name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[currentChainId as ChainId],
-        ensAddress: registriesByChainId[parseInt(currentChainId, 16)],
+      // viem resolves ENS names through the `ensUniversalResolver` contract
+      // defined on the chain.
+      this.#ethClient = createClient({
+        chain,
+        transport: custom(provider),
       });
     } else {
-      this.#ethProvider = null;
+      this.#ethClient = null;
     }
   }
 
@@ -366,7 +373,7 @@ export class EnsController extends BaseController<
    * @returns ens resolution
    */
   async reverseResolveAddress(nonChecksummedAddress: string) {
-    if (!this.#ethProvider) {
+    if (!this.#ethClient) {
       return undefined;
     }
 
@@ -377,7 +384,9 @@ export class EnsController extends BaseController<
 
     let domain: string | null;
     try {
-      domain = await this.#ethProvider.lookupAddress(address);
+      domain = await getEnsName(this.#ethClient, {
+        address: address as Address,
+      });
     } catch (error) {
       log(error);
       return undefined;
@@ -389,7 +398,9 @@ export class EnsController extends BaseController<
 
     let registeredAddress: string | null;
     try {
-      registeredAddress = await this.#ethProvider.resolveName(domain);
+      registeredAddress = await getEnsAddress(this.#ethClient, {
+        name: normalize(domain),
+      });
     } catch (error) {
       log(error);
       return undefined;
