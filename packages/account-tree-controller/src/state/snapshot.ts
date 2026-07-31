@@ -1,4 +1,3 @@
-import { IdMap } from './id-map.js';
 import type {
   AccountGroupPayloadId,
   AccountTreePayload,
@@ -12,22 +11,7 @@ import type {
   AccountWalletPrivateKeyPayload,
 } from './payload.js';
 import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION, migrate } from './payload.js';
-
-/**
- * Creates an {@link AccountTreeSnapshot}. Package-internal factory used by export
- * and tests; callers outside this package should use
- * {@link AccountTreeController.exportState} or {@link AccountTreeSnapshot.deserialize}.
- *
- * @param entries - Wallet entries in the snapshot.
- * @param idMap - Optional local ↔ payload ID map populated during export.
- * @returns A new snapshot.
- */
-export function createAccountTreeSnapshot(
-  entries: AccountTreeWalletEntry[],
-  idMap: IdMap | null,
-): AccountTreeSnapshot {
-  return new AccountTreeSnapshot(entries, idMap);
-}
+import type { IdMap } from './id-map.js';
 
 /**
  * Recursively freezes a value and its nested properties.
@@ -52,31 +36,31 @@ function deepFreeze<T>(value: T): T {
 /**
  * Immutable value object returned by {@link AccountTreeController.exportState}.
  *
- * Snapshots can only be constructed by {@link AccountTreeController.exportState},
- * {@link AccountTreeSnapshot.deserialize}, or the package-internal
- * {@link createAccountTreeSnapshot} factory.
+ * Construct with {@link AccountTreeController.exportState},
+ * {@link AccountTreeSnapshot.deserialize}, or `new AccountTreeSnapshot(...)`
+ * for tests and advanced use.
  *
  * Wallet and group entries are deep-cloned and deep-frozen once in the
  * constructor. Filtering predicates receive those read-only views directly;
  * each filter method returns a new snapshot that repeats the process for its
  * result.
  *
- * Holds an ID map (local ↔ payload) populated during export so callers can
- * bridge between internal controller IDs and the stable cross-device IDs that
- * appear in the serialized payload. The map covers the original export and is
- * preserved unchanged through filtering until {@link serialize}. It is absent
- * for snapshots produced by {@link AccountTreeSnapshot.deserialize} —
- * {@link toLocalId} / {@link toPayloadId} return `undefined` in that case.
+ * An optional ID map (local ↔ payload) may be supplied when bridging between
+ * internal controller IDs and the stable cross-device IDs in the serialized
+ * payload. The map covers the original export and is preserved unchanged
+ * through filtering until {@link serialize}. Omit it when deterministic IDs
+ * make {@link toLocalId} / {@link toPayloadId} unnecessary.
  */
 export class AccountTreeSnapshot {
   readonly #entries: AccountTreeWalletEntry[];
 
-  readonly #idMap: IdMap | null;
+  readonly #idMap: IdMap | undefined;
 
-  private constructor(
-    entries: AccountTreeWalletEntry[],
-    idMap: IdMap | null,
-  ) {
+  /**
+   * @param entries - Wallet entries in the snapshot.
+   * @param idMap - Optional local ↔ payload ID map from export.
+   */
+  constructor(entries: AccountTreeWalletEntry[], idMap?: IdMap) {
     this.#entries = deepFreeze(structuredClone(entries));
     this.#idMap = idMap;
   }
@@ -250,8 +234,8 @@ export class AccountTreeSnapshot {
    * partial snapshot.
    *
    * The returned snapshot has no ID map — {@link toLocalId} / {@link toPayloadId}
-   * return `undefined`. Use {@link AccountTreeController.exportState} when you
-   * need the map.
+   * return `undefined`. Pass an {@link IdMap} to the constructor when you need
+   * the map.
    *
    * @param raw - Unknown value to parse.
    * @returns A validated snapshot.
@@ -259,6 +243,6 @@ export class AccountTreeSnapshot {
    */
   static deserialize(raw: unknown): AccountTreeSnapshot {
     const payload = migrate(raw);
-    return new AccountTreeSnapshot(payload.wallets, null);
+    return new AccountTreeSnapshot(payload.wallets);
   }
 }

@@ -23,7 +23,7 @@ import type {
   AccountWalletPrivateKeyPayload,
   ExportStateOptions,
 } from './payload.js';
-import { AccountTreeSnapshot, createAccountTreeSnapshot } from './snapshot.js';
+import { AccountTreeSnapshot } from './snapshot.js';
 
 /**
  * Returns `true` if `wallet` is an HD entropy wallet ({@link AccountWalletEntropyObject}).
@@ -304,5 +304,5 @@ export async function exportState(
     entries.push(privateKeyWallet);
   }
 
-  return createAccountTreeSnapshot(entries, idMap);
+  return new AccountTreeSnapshot(entries, idMap);
 }
