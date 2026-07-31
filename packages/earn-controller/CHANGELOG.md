@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.7.0` ([#9390](https://github.com/MetaMask/core/pull/9390), [#9676](https://github.com/MetaMask/core/pull/9676))
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `^7.5.5` ([#9429](https://github.com/MetaMask/core/pull/9429), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 
 ## [12.2.2]
 

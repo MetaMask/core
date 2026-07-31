@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `AccountActivityService` now debounces chain status updates instead of publishing one event per notification ([#9700](https://github.com/MetaMask/core/pull/9700))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 
 ## [8.0.0]
 

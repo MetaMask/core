@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When enabled, geolocation is resolved via `GeolocationController:getGeolocationData` (which compositions must register) only after the user opts in, so location is never requested before they consent to analytics; queued pre-consent events are then enriched on replay (anonymous payloads excluded)
   - Adds `@metamask/geolocation-controller` `^0.1.3` as a dependency
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/geolocation-controller` from `^0.1.3` to `^1.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 
 ## [1.2.1]
 
