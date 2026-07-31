@@ -62,35 +62,6 @@ function deepFreeze<T>(value: T): T {
 }
 
 /**
- * Builds ID-map pairs for the wallets and groups present in `entries`.
- *
- * @param entries - Wallet entries to map.
- * @param idMap - Source ID map.
- * @returns Pairs for a pruned {@link IdMap}.
- */
-function collectIdMapPairs(
-  entries: AccountTreeWalletEntry[],
-  idMap: IdMap,
-): Parameters<IdMap['add']>[] {
-  const pairs: Parameters<IdMap['add']>[] = [];
-
-  for (const entry of entries) {
-    const localWalletId = idMap.getLocalId(entry.id);
-    if (localWalletId !== undefined) {
-      pairs.push([localWalletId, entry.id]);
-    }
-    for (const group of entry.groups) {
-      const localGroupId = idMap.getLocalId(group.id);
-      if (localGroupId !== undefined) {
-        pairs.push([localGroupId, group.id]);
-      }
-    }
-  }
-
-  return pairs;
-}
-
-/**
  * Immutable value object returned by {@link AccountTreeController.exportState}.
  *
  * Snapshots can only be constructed by {@link AccountTreeController.exportState},
@@ -104,9 +75,10 @@ function collectIdMapPairs(
  *
  * Holds an ID map (local ↔ payload) populated during export so callers can
  * bridge between internal controller IDs and the stable cross-device IDs that
- * appear in the serialized payload. The map is absent for snapshots produced
- * by {@link AccountTreeSnapshot.deserialize} — {@link toLocalId} /
- * {@link toPayloadId} return `undefined` in that case.
+ * appear in the serialized payload. The map covers the original export and is
+ * preserved unchanged through filtering until {@link serialize}. It is absent
+ * for snapshots produced by {@link AccountTreeSnapshot.deserialize} —
+ * {@link toLocalId} / {@link toPayloadId} return `undefined` in that case.
  */
 export class AccountTreeSnapshot {
   readonly #entries: AccountTreeWalletEntry[];
@@ -123,7 +95,7 @@ export class AccountTreeSnapshot {
 
   /**
    * Returns a new snapshot containing only the wallets for which
-   * `predicate` returns `true`. The ID map is pruned to match.
+   * `predicate` returns `true`.
    *
    * When filtering by wallet ID, compare against stable payload IDs from
    * {@link serialize} or convert local IDs with {@link toPayloadId} first.
@@ -138,14 +110,7 @@ export class AccountTreeSnapshot {
       predicate(entry as AccountTreeSnapshotWallet),
     );
 
-    if (!this.#idMap) {
-      return new AccountTreeSnapshot(filteredEntries, null);
-    }
-
-    return new AccountTreeSnapshot(
-      filteredEntries,
-      new IdMap(collectIdMapPairs(filteredEntries, this.#idMap)),
-    );
+    return new AccountTreeSnapshot(filteredEntries, this.#idMap);
   }
 
   /**
@@ -194,14 +159,7 @@ export class AccountTreeSnapshot {
       };
     }
 
-    if (!this.#idMap) {
-      return new AccountTreeSnapshot(filteredEntries, null);
-    }
-
-    return new AccountTreeSnapshot(
-      filteredEntries,
-      new IdMap(collectIdMapPairs(filteredEntries, this.#idMap)),
-    );
+    return new AccountTreeSnapshot(filteredEntries, this.#idMap);
   }
 
   /**
@@ -246,19 +204,15 @@ export class AccountTreeSnapshot {
       }
     }
 
-    if (!this.#idMap) {
-      return new AccountTreeSnapshot(filteredEntries, null);
-    }
-
-    return new AccountTreeSnapshot(
-      filteredEntries,
-      new IdMap(collectIdMapPairs(filteredEntries, this.#idMap)),
-    );
+    return new AccountTreeSnapshot(filteredEntries, this.#idMap);
   }
 
   /**
    * Converts a payload ID (wallet or group) to the corresponding local
    * `AccountTreeController` ID.
+   *
+   * The map reflects the original export, not the wallets/groups currently
+   * retained in this snapshot after filtering.
    *
    * @param payloadId - Stable cross-device wallet or group payload ID.
    * @returns The local controller ID, or `undefined` if not found or no ID map is present.
@@ -272,6 +226,9 @@ export class AccountTreeSnapshot {
   /**
    * Converts a local `AccountTreeController` ID (wallet or group) to its
    * stable cross-device payload ID.
+   *
+   * The map reflects the original export, not the wallets/groups currently
+   * retained in this snapshot after filtering.
    *
    * @param localId - Local controller wallet or group ID.
    * @returns The payload ID, or `undefined` if not found or no ID map is present.
