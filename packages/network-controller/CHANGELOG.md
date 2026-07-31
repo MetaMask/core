@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This allows Infura-backed networks to be added and updated dynamically without being constrained to the known Infura network list bundled in `@metamask/controller-utils`.
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/connectivity-controller` from `^0.2.0` to `^0.3.0` ([#9435](https://github.com/MetaMask/core/pull/9435))
+- Bump `@metamask/analytics-controller` from `^1.2.1` to `^2.0.0` ([#9731](https://github.com/MetaMask/core/pull/9731))
 
 ## [34.0.0]
 
