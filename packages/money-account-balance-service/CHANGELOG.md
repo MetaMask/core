@@ -21,8 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Convert all Veda vault APR values returned by `getVaultApy` to compounded APY using daily compounding before exposing them to consumers. ([#9684](https://github.com/MetaMask/core/pull/9684))
 - Bump `@metamask/money-account-api-data-service` from `^0.3.0` to `^0.4.0` ([#9677](https://github.com/MetaMask/core/pull/9677))
 - Bump `@metamask/money-account-api-data-service` from `^0.2.0` to `^0.3.0` ([#9592](https://github.com/MetaMask/core/pull/9592))
-- refactor: add `.js` import extensions to Earn packages ([#9625](https://github.com/MetaMask/core/pull/9625))
-- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
 
 ## [2.3.0]
 
