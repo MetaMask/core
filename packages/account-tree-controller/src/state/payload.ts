@@ -8,7 +8,7 @@ import {
   integer,
   literal,
   object,
-  optional,
+  exactOptional,
   sensitive,
   string,
   StructError,
@@ -217,7 +217,7 @@ const AccountWalletGroupPayloadMetadataSchema = object({
 const AccountWalletPrivateKeyValueSchema = object({
   privateKey: sensitive(string()),
   encoding: enums(['hexadecimal', 'base58', 'base32']),
-  type: optional(string()),
+  type: exactOptional(string()),
 });
 
 const AccountWalletMnemonicGroupEntrySchema = object({
@@ -228,14 +228,14 @@ const AccountWalletMnemonicGroupEntrySchema = object({
 
 const AccountWalletPrivateKeyGroupEntrySchema = object({
   id: AccountGroupPayloadIdSchema,
-  value: optional(AccountWalletPrivateKeyValueSchema),
+  value: exactOptional(AccountWalletPrivateKeyValueSchema),
   metadata: AccountWalletGroupPayloadMetadataSchema,
 });
 
 const AccountWalletMnemonicPayloadSchema = object({
   id: AccountWalletPayloadIdSchema,
   type: literal('mnemonic'),
-  value: optional(sensitive(string())),
+  value: exactOptional(sensitive(string())),
   metadata: AccountWalletPayloadMetadataSchema,
   groups: array(AccountWalletMnemonicGroupEntrySchema),
 });
