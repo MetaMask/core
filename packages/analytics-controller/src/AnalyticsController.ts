@@ -973,9 +973,11 @@ export class AnalyticsController extends BaseController<
       return queuedEvent;
     }
 
+    const context = this.#withLocationContext(queuedEvent.context);
+
     return {
       ...queuedEvent,
-      context: this.#withLocationContext(queuedEvent.context),
+      ...(context === undefined ? {} : { context }),
     };
   }
 
