@@ -126,7 +126,6 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
     shieldController: {
-      fetchFunction: jest.fn(),
       backend: {
         checkCoverage: jest.fn(),
         checkSignatureCoverage: jest.fn(),
