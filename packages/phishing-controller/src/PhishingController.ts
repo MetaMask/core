@@ -21,7 +21,10 @@ import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import { TransactionStatus } from '@metamask/transaction-controller';
+import {
+  getEffectiveRecipient,
+  TransactionStatus,
+} from '@metamask/transaction-controller';
 import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
@@ -960,7 +963,7 @@ export class PhishingController extends BaseController<
     }
 
     const transactionRecipient = this.#normalizeAddress(
-      transaction.txParams.to,
+      getEffectiveRecipient(transaction),
     );
     const swapAndSendRecipient = this.#normalizeAddress(
       transaction.swapAndSendRecipient,

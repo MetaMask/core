@@ -319,6 +319,8 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x13b2': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Robinhood Chain (4663)
   '0x1237': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Somnia (5031), MultiCallV3 per docs.somnia.network/developer/smart-contracts
+  '0x13a7': '0x5e44F178E8cF9B2F5409B6f18ce936aB817C5a11',
 } as Record<Hex, Hex>;
 
 const multicallAbi = [

@@ -2176,6 +2176,9 @@ export type MetamaskPayMetadata = {
   /** Source chain transaction hash if no local transaction. */
   sourceHash?: Hex;
 
+  /** Pay strategy used to fund the transaction (e.g. "relay", "fiat"). */
+  strategy?: string;
+
   /** Total amount of target token provided in fiat currency. */
   targetFiat?: string;
 
@@ -2329,6 +2332,15 @@ export type RequiredAsset = {
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
+};
+
+/** A nested transaction calldata update in an atomic batch. */
+export type NestedTransactionUpdate = {
+  /** Index of the nested transaction to update. */
+  transactionIndex: number;
+
+  /** New calldata for the nested transaction. */
+  transactionData: Hex;
 };
 
 /**

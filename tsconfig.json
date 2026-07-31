@@ -171,6 +171,9 @@
       "path": "./packages/money-account-upgrade-controller"
     },
     {
+      "path": "./packages/money-account-utils"
+    },
+    {
       "path": "./packages/multichain-account-service"
     },
     {

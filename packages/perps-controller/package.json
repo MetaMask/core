@@ -113,13 +113,13 @@
     "@metamask/account-tree-controller": "^7.5.5",
     "@metamask/authenticated-user-storage": "^3.0.1",
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/geolocation-controller": "^0.1.3",
+    "@metamask/geolocation-controller": "^1.0.0",
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/keyring-internal-api": "^11.0.2",
-    "@metamask/network-controller": "^34.0.0",
+    "@metamask/network-controller": "^35.0.0",
     "@metamask/profile-sync-controller": "^28.3.0",
-    "@metamask/remote-feature-flag-controller": "^4.2.2",
-    "@metamask/transaction-controller": "^69.2.1",
+    "@metamask/remote-feature-flag-controller": "^5.0.0",
+    "@metamask/transaction-controller": "^69.4.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "@types/uuid": "^8.3.0",
@@ -129,7 +129,8 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3"
+    "typescript": "~5.3.3",
+    "viem": "^2.55.8"
   },
   "optionalDependencies": {
     "@myx-trade/sdk": "^0.1.265"

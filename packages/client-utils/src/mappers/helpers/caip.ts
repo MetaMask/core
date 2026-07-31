@@ -1,4 +1,6 @@
 import { toChecksumHexAddress } from '@metamask/controller-utils';
+// @ts-expect-error: No type definitions for '@metamask/slip44'
+import slip44 from '@metamask/slip44';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
@@ -8,6 +10,32 @@ import {
 } from '@metamask/utils';
 
 import { nativeTokenAddress } from '../constants.js';
+
+const slip44CoinTypeBySymbol = ((): Map<string, string> => {
+  const coinTypeBySymbol = new Map<string, string>();
+
+  for (const [coinType, entry] of Object.entries(
+    slip44 as Record<string, { symbol: string }>,
+  )) {
+    const normalizedSymbol = entry.symbol.toUpperCase();
+
+    if (!coinTypeBySymbol.has(normalizedSymbol)) {
+      coinTypeBySymbol.set(normalizedSymbol, coinType);
+    }
+  }
+
+  const maticCoinType = coinTypeBySymbol.get('MATIC');
+
+  if (maticCoinType) {
+    coinTypeBySymbol.set('POL', maticCoinType);
+  }
+
+  return coinTypeBySymbol;
+})();
+
+function slip44CoinTypeForSymbol(symbol: string): string | undefined {
+  return slip44CoinTypeBySymbol.get(symbol.toUpperCase());
+}
 
 /**
  * Normalizes a hex, decimal, numeric, or CAIP chain id to its CAIP-2 form.
@@ -32,8 +60,37 @@ export function formatChainIdToCaip(
     return Number.isNaN(reference) ? undefined : `eip155:${reference}`;
   }
 
+  if (chainId === '') {
+    return undefined;
+  }
+
   const reference = Number(chainId);
   return Number.isNaN(reference) ? undefined : `eip155:${reference}`;
+}
+
+export function resolveNativeAssetId(
+  chainId: string | number | undefined,
+  symbol: string | undefined,
+): CaipAssetType | undefined {
+  if (chainId === undefined || !symbol) {
+    return undefined;
+  }
+
+  const caipChainId = formatChainIdToCaip(chainId);
+
+  if (!caipChainId) {
+    return undefined;
+  }
+
+  const coinType = slip44CoinTypeForSymbol(symbol);
+
+  if (!coinType) {
+    return undefined;
+  }
+
+  const { namespace, reference } = parseCaipChainId(caipChainId);
+
+  return toCaipAssetType(namespace, reference, 'slip44', coinType);
 }
 
 function isNativeAddress(address: string): boolean {

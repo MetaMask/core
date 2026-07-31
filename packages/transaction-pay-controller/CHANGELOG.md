@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^13.0.0` to `^13.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
+- Bump `@metamask/assets-controllers` from `^110.0.3` to `^110.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
+
+### Fixed
+
+- Fix Relay quote validation ([#9723](https://github.com/MetaMask/core/pull/9723))
+  - Keep the quote when validation fails with reason `insufficient-source-balance`, while still surfacing `quoteError`; all other validation-failure reasons continue to remove the quote.
+  - Exclude a zero `gas` value from the simulated transaction.
+  - Always include an EIP-7702 authorization in the batch simulation so a not-yet-upgraded account is simulated as delegated, using the quote authorization address when present and otherwise the configured EIP-7702 upgrade contract for the chain.
+  - Surface the revert return data as `Custom Error - <return>` when a Sentinel simulation reverts with `execution reverted` and non-empty return data, falling back to `Reverted - Unknown Error` when the return data is empty, instead of the implied `execution reverted` message.
+
+## [26.1.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^12.0.0` to `^13.0.0` ([#9740](https://github.com/MetaMask/core/pull/9740))
+
+## [26.1.0]
+
+### Added
+
+- Add `atomic` field on `TransactionConfig` / `TransactionData` for a generic non-atomic post-Relay flow: when `atomic` is `false`, Relay bridges to an internally derived recipient (`getPaymentOverrideData` recipient for post-quote flows, otherwise the transaction's own `from`) and the second leg is submitted separately after completion, replacing the removed `relay-post-ma-vault` module ([#9497](https://github.com/MetaMask/core/pull/9497))
+- Persist the quote strategy in the transaction's `metamaskPay.strategy` metadata so clients can derive pay metrics after `transactionData` is gone (e.g. after a restart) ([#9733](https://github.com/MetaMask/core/pull/9733))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^11.2.1` to `^12.0.0` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9706](https://github.com/MetaMask/core/pull/9706), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.3` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9706](https://github.com/MetaMask/core/pull/9706), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.4.0` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/gas-fee-controller` from `^26.3.0` to `^26.3.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/ramps-controller` from `^18.0.0` to `^18.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
 ## [26.0.1]
 
 ### Changed
@@ -1345,7 +1381,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.1.1...HEAD
+[26.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.1.0...@metamask/transaction-pay-controller@26.1.1
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.1...@metamask/transaction-pay-controller@26.1.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.0...@metamask/transaction-pay-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.1.1...@metamask/transaction-pay-controller@26.0.0
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.1.0...@metamask/transaction-pay-controller@25.1.1
