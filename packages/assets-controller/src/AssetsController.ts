@@ -16,9 +16,8 @@ import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
   AccountActivityServiceBalanceUpdatedEvent,
-  BackendWebSocketServiceActions,
-  BackendWebSocketServiceEvents,
-  BalanceUpdate,
+  AccountActivityServiceResubscribeAction,
+  AccountActivityServiceStatusChangedEvent,
   SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
@@ -79,9 +78,9 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './data-sources/AbstractDataSource.js';
+import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource.js';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
-import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource.js';
 import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import {
@@ -151,7 +150,6 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils/index.js';
-import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates.js';
 import { emitTrace, withTrace } from './utils/trace.js';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
@@ -332,12 +330,13 @@ type AllowedActions =
   | SnapControllerGetRunnableSnapsAction
   | SnapControllerHandleRequestAction
   | GetPermissions
-  // BackendWebsocketDataSource
-  | BackendWebSocketServiceActions
   // PhishingController
   | PhishingControllerBulkScanTokensAction
   // AccountsApiDataSource (Accounts API v6 balances feature flag)
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  // AccountActivityDataSource (re-create the websocket subscription when the
+  // pinned custom-asset set changes)
+  | AccountActivityServiceResubscribeAction;
 
 type AllowedEvents =
   // AssetsController
@@ -363,10 +362,9 @@ type AllowedEvents =
   | AccountsControllerAccountBalancesUpdatedEvent
   | PermissionControllerStateChange
   | SnapControllerSnapInstalledEvent
-  // BackendWebsocketDataSource
-  | BackendWebSocketServiceEvents
-  // AccountActivityService (real-time balance updates for unified assets)
+  // AccountActivityService (real-time balance updates + chain status for unified assets)
   | AccountActivityServiceBalanceUpdatedEvent
+  | AccountActivityServiceStatusChangedEvent
   // AccountsApiDataSource subscribes to react to Snaps → AssetsController
   // migration flag changes (which gate the chains it surfaces as active)
   | RemoteFeatureFlagControllerStateChangeEvent;
@@ -778,7 +776,7 @@ export class AssetsController extends BaseController<
     return [];
   }
 
-  readonly #backendWebsocketDataSource: BackendWebsocketDataSource;
+  readonly #accountActivityDataSource: AccountActivityDataSource;
 
   readonly #accountsApiDataSource: AccountsApiDataSource;
 
@@ -796,13 +794,13 @@ export class AssetsController extends BaseController<
    * @returns The four balance data source instances in priority order.
    */
   get #allBalanceDataSources(): [
-    BackendWebsocketDataSource,
+    AccountActivityDataSource,
     AccountsApiDataSource,
     SnapDataSource,
     RpcDataSource,
   ] {
     return [
-      this.#backendWebsocketDataSource,
+      this.#accountActivityDataSource,
       this.#accountsApiDataSource,
       this.#snapDataSource,
       this.#rpcDataSource,
@@ -891,12 +889,17 @@ export class AssetsController extends BaseController<
       }
     };
 
-    this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
+    this.#accountActivityDataSource = new AccountActivityDataSource({
       messenger: this.messenger,
-      queryApiClient,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
         this.#getAssetType(assetId),
+      onAssetsUpdate: (response, request): Promise<void> =>
+        this.handleAssetsUpdate(
+          response,
+          this.#accountActivityDataSource.getName(),
+          request,
+        ),
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       messenger: this.messenger,
@@ -1163,16 +1166,6 @@ export class AssetsController extends BaseController<
         this.#onTransactionConfirmed(transactionMeta);
       },
     );
-
-    // Real-time post-tx balances from AccountActivityService (same WS payload as
-    // TokenBalancesController; BackendWebsocketDataSource may not receive the
-    // callback when AccountActivityService owns the server subscription).
-    this.messenger.subscribe(
-      'AccountActivityService:balanceUpdated',
-      (event) => {
-        this.#onAccountActivityBalanceUpdated(event);
-      },
-    );
   }
 
   #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
@@ -1229,49 +1222,6 @@ export class AssetsController extends BaseController<
     }).catch((error) => {
       log('Failed to refresh assets after transaction confirmed', { error });
     });
-  }
-
-  #onAccountActivityBalanceUpdated({
-    address,
-    chain,
-    updates,
-  }: {
-    address: string;
-    chain: string;
-    updates: BalanceUpdate[];
-  }): void {
-    const account = this.#getSelectedAccounts().find((a) =>
-      a.address.startsWith('0x')
-        ? a.address.toLowerCase() === address.toLowerCase()
-        : a.address === address,
-    );
-
-    if (!account) {
-      return;
-    }
-
-    const chainId = chain as ChainId;
-    const response = processAccountActivityBalanceUpdates(
-      updates,
-      account.id,
-      (assetId) => this.#getAssetType(assetId),
-    );
-
-    if (!response.assetsBalance) {
-      return;
-    }
-
-    const request: DataRequest = {
-      accountsWithSupportedChains: [{ account, supportedChains: [chainId] }],
-      chainIds: [chainId],
-      dataTypes: ['balance', 'metadata'],
-    };
-
-    this.handleAssetsUpdate(response, 'AccountActivityService', request).catch(
-      (error) => {
-        log('Failed to apply AccountActivityService balance update', { error });
-      },
-    );
   }
 
   /**
@@ -1425,7 +1375,7 @@ export class AssetsController extends BaseController<
     activeChains: ChainId[],
     previousChains: ChainId[],
   ): void {
-    if (!this.#isEnabled()) {
+    if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
       return;
     }
     log('Data source active chains changed', {
@@ -1440,11 +1390,8 @@ export class AssetsController extends BaseController<
     const addedChains = activeChains.filter((ch) => !previousSet.has(ch));
     const removedChains = previous.filter((ch) => !activeChains.includes(ch));
 
+    // Refresh subscriptions to use updated data source availability.
     if (addedChains.length > 0 || removedChains.length > 0) {
-      // Refresh subscriptions to use updated data source availability.
-      // No one-time fetch needed here — #handleEnabledNetworksChanged
-      // handles fetches when the user enables a network, and
-      // #subscribeAssets re-subscribes with the correct chain assignment.
       this.#subscribeAssets();
     }
   }
@@ -1632,6 +1579,14 @@ export class AssetsController extends BaseController<
       assetsForPriceUpdate?: Caip19AssetId[];
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
       updateMode?: AssetsUpdateMode;
+      /**
+       * Custom (user-pinned) assets to attach to this fetch instead of every
+       * pinned asset in state for the requested accounts. Use for targeted
+       * fetches (e.g. a newly added token) so data sources don't re-request
+       * pins already covered by the subscription. Entries outside the
+       * requested chains are still dropped.
+       */
+      customAssets?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -1642,20 +1597,26 @@ export class AssetsController extends BaseController<
       return this.#getAssetsFromState(accounts, chainIds, assetTypes);
     }
 
-    // Custom assets pinned by the requested accounts, scoped to the requested
-    // chains — every data source filters per chain at fetch time, so pins on
-    // other chains would only bloat the request.
+    // Custom assets attached to the fetch — the caller's override when
+    // provided, otherwise every asset pinned by the requested accounts. Either
+    // way they are scoped to the requested chains: every data source filters
+    // per chain at fetch time, so pins on other chains would only bloat the
+    // request.
     const requestedChains = new Set<string>(chainIds);
+    const candidateCustomAssets =
+      options?.customAssets ??
+      accounts.flatMap((account) => this.getCustomAssets(account.id));
     const customAssetsSet = new Set<Caip19AssetId>();
-    for (const account of accounts) {
-      for (const assetId of this.getCustomAssets(account.id)) {
-        try {
-          if (requestedChains.has(parseCaipAssetType(assetId).chainId)) {
-            customAssetsSet.add(assetId);
-          }
-        } catch {
-          // Skip unparseable asset IDs
+    for (const assetId of candidateCustomAssets) {
+      try {
+        const normalizedAssetId = normalizeAssetId(assetId);
+        if (
+          requestedChains.has(parseCaipAssetType(normalizedAssetId).chainId)
+        ) {
+          customAssetsSet.add(normalizedAssetId);
         }
+      } catch {
+        // Skip unparseable asset IDs
       }
     }
     const customAssets = [...customAssetsSet];
@@ -2052,7 +2013,10 @@ export class AssetsController extends BaseController<
       balances[accountId][normalizedAssetId] ??= { amount: '0' };
     });
 
-    // Fetch data for the newly added custom asset (merge to preserve other chains)
+    // Fetch data for the newly added custom asset (merge to preserve other
+    // chains). Only the new pin is attached to the request — the account's
+    // other pins are already covered by the subscription and keep their state
+    // via `mergeAccountBalances`.
     const account = this.#getSelectedAccounts().find((a) => a.id === accountId);
     if (account) {
       const chainId = extractChainId(normalizedAssetId);
@@ -2062,6 +2026,7 @@ export class AssetsController extends BaseController<
         assetTypes: ['fungible'],
         forceUpdate: true,
         updateMode: 'merge',
+        customAssets: [normalizedAssetId],
       });
     }
 
@@ -3166,8 +3131,10 @@ export class AssetsController extends BaseController<
         }
       }
     }
-    // When basic functionality is on, use all balance data sources; when off, RPC only.
-    const balanceDataSources = this.#isBasicFunctionality()
+    // When basic functionality is on, use all balance data sources; when off,
+    // RPC only.
+    const isBasicFunctionality = this.#isBasicFunctionality();
+    const balanceDataSources = isBasicFunctionality
       ? this.#allBalanceDataSources
       : [this.#rpcDataSource];
 
@@ -3633,14 +3600,11 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Refresh data-source `activeChains` after an EVM network switch so API/WS/Rpc
+   * Refresh data-source `activeChains` after an EVM network switch so API/Rpc
    * chain claiming is not stuck on an empty or stale init-time list.
    */
   async #refreshActiveChainsOnNetworkSwitch(): Promise<void> {
-    await Promise.all([
-      this.#accountsApiDataSource.refreshActiveChains(),
-      this.#backendWebsocketDataSource.refreshActiveChains(),
-    ]);
+    await this.#accountsApiDataSource.refreshActiveChains();
     this.#rpcDataSource.refreshActiveChainsFromNetworkState();
   }
 
@@ -3881,7 +3845,7 @@ export class AssetsController extends BaseController<
     });
 
     // Destroy instantiated data sources
-    this.#backendWebsocketDataSource?.destroy?.();
+    this.#accountActivityDataSource?.destroy?.();
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();
     this.#rpcDataSource?.destroy?.();

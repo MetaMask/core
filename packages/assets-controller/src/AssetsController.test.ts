@@ -20,7 +20,7 @@ import type {
 } from './AssetsController.js';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
-import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource.js';
+import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
@@ -30,6 +30,7 @@ import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetada
 import type {
   Caip19AssetId,
   AccountId,
+  ChainId,
   DataRequest,
   DataResponse,
   FungibleAssetMetadata,
@@ -100,6 +101,22 @@ const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
 
+/**
+ * Activate asset tracking by marking the UI open and the keyring unlocked,
+ * then flushing the async startup so the controller is in its running state.
+ *
+ * @param messenger - The root messenger used to publish lifecycle events.
+ */
+async function activateTracking(messenger: RootMessenger): Promise<void> {
+  (
+    messenger as unknown as {
+      publish: (topic: string, payload?: unknown) => void;
+    }
+  ).publish('ClientController:stateChange', { isUiOpen: true });
+  messenger.publish('KeyringController:unlock');
+  await flushPromises();
+}
+
 function createMockInternalAccount(
   overrides?: Partial<InternalAccount>,
 ): InternalAccount {
@@ -148,9 +165,11 @@ type WithControllerOptions = {
 type WithControllerCallback<ReturnValue> = ({
   controller,
   messenger,
+  resubscribeAccountActivityMock,
 }: {
   controller: AssetsController;
   messenger: RootMessenger;
+  resubscribeAccountActivityMock: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -254,6 +273,13 @@ async function withController<ReturnValue>(
     cacheTimestamp: 0,
   }));
 
+  // Mock AccountActivityService
+  const resubscribeAccountActivityMock = jest.fn().mockResolvedValue(undefined);
+  messenger.registerActionHandler(
+    'AccountActivityService:resubscribe',
+    resubscribeAccountActivityMock,
+  );
+
   const controller = new AssetsController({
     messenger: messenger as unknown as AssetsControllerMessenger,
     state,
@@ -269,7 +295,7 @@ async function withController<ReturnValue>(
   });
 
   try {
-    return await fn({ controller, messenger });
+    return await fn({ controller, messenger, resubscribeAccountActivityMock });
   } finally {
     await flushPromises();
     controller.destroy();
@@ -655,6 +681,66 @@ describe('AssetsController', () => {
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
         ).toStrictEqual({ amount: '0' });
       });
+    });
+
+    it('fetches only the newly added asset instead of every pinned asset', async () => {
+      // Use a valid checksummed address (DAI token address)
+      const secondAssetId =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
+      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
+        capturedCustomAssets.push(ctx.request.customAssets);
+        return next(ctx);
+      });
+      const middlewareGetter = jest
+        .spyOn(
+          AccountsApiDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        )
+        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
+
+      await withController(async ({ controller }) => {
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+        capturedCustomAssets.length = 0;
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, secondAssetId);
+      });
+
+      // The fetch triggered by adding the second pin must not re-request the
+      // first pin — the subscription refresh covers it on the next poll.
+      expect(capturedCustomAssets.length).toBeGreaterThan(0);
+      for (const customAssets of capturedCustomAssets) {
+        expect(customAssets).toStrictEqual([secondAssetId]);
+      }
+
+      middlewareGetter.mockRestore();
+    });
+
+    it('re-creates the account-activity websocket subscription when a pin is added on an activity-claimed chain', async () => {
+      // Use a valid checksummed address (DAI token address)
+      const secondAssetId =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+      jest
+        .spyOn(AccountActivityDataSource.prototype, 'getActiveChainsSync')
+        .mockReturnValue(['eip155:1' as ChainId]);
+
+      await withController(
+        async ({ controller, resubscribeAccountActivityMock }) => {
+          // First pin establishes the baseline: the websocket subscription
+          // was just created with current backend state.
+          await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+          expect(resubscribeAccountActivityMock).not.toHaveBeenCalled();
+
+          // A later pin changes the claimed set: the backend must re-derive
+          // the assets it pushes, so the subscription is re-created.
+          await controller.addCustomAsset(MOCK_ACCOUNT_ID, secondAssetId);
+          expect(resubscribeAccountActivityMock).toHaveBeenCalledTimes(1);
+        },
+      );
     });
 
     it('does not overwrite an existing balance when re-adding a custom asset', async () => {
@@ -1139,6 +1225,113 @@ describe('AssetsController', () => {
       expect(capturedCustomAssets.length).toBeGreaterThan(0);
       for (const customAssets of capturedCustomAssets) {
         expect(customAssets).toStrictEqual([mainnetToken]);
+      }
+
+      middlewareGetter.mockRestore();
+    });
+
+    it('uses the customAssets option instead of state-pinned assets when provided', async () => {
+      const pinnedToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const requestedToken =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
+      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
+        capturedCustomAssets.push(ctx.request.customAssets);
+        return next(ctx);
+      });
+      const middlewareGetter = jest
+        .spyOn(
+          AccountsApiDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        )
+        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
+
+      await withController(async ({ controller }) => {
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, pinnedToken);
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, requestedToken);
+
+        capturedCustomAssets.length = 0;
+        await controller.getAssets([createMockInternalAccount()], {
+          chainIds: ['eip155:1'],
+          forceUpdate: true,
+          customAssets: [requestedToken],
+        });
+      });
+
+      expect(capturedCustomAssets.length).toBeGreaterThan(0);
+      for (const customAssets of capturedCustomAssets) {
+        expect(customAssets).toStrictEqual([requestedToken]);
+      }
+
+      middlewareGetter.mockRestore();
+    });
+
+    it('scopes the customAssets option to the requested chains and drops invalid IDs', async () => {
+      const polygonToken =
+        'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
+
+      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
+      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
+        capturedCustomAssets.push(ctx.request.customAssets);
+        return next(ctx);
+      });
+      const middlewareGetter = jest
+        .spyOn(
+          AccountsApiDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        )
+        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
+
+      await withController(async ({ controller }) => {
+        await controller.getAssets([createMockInternalAccount()], {
+          chainIds: ['eip155:1'],
+          forceUpdate: true,
+          customAssets: [polygonToken, 'not-a-caip-id' as Caip19AssetId],
+        });
+      });
+
+      // The off-chain pin and the unparseable ID are both dropped, leaving no
+      // custom assets on the request.
+      expect(capturedCustomAssets.length).toBeGreaterThan(0);
+      for (const customAssets of capturedCustomAssets) {
+        expect(customAssets).toBeUndefined();
+      }
+
+      middlewareGetter.mockRestore();
+    });
+
+    it('normalizes asset IDs passed via the customAssets option', async () => {
+      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
+      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
+        capturedCustomAssets.push(ctx.request.customAssets);
+        return next(ctx);
+      });
+      const middlewareGetter = jest
+        .spyOn(
+          AccountsApiDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        )
+        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
+
+      await withController(async ({ controller }) => {
+        await controller.getAssets([createMockInternalAccount()], {
+          chainIds: ['eip155:1'],
+          forceUpdate: true,
+          customAssets: [MOCK_ASSET_ID_LOWERCASE],
+        });
+      });
+
+      expect(capturedCustomAssets.length).toBeGreaterThan(0);
+      for (const customAssets of capturedCustomAssets) {
+        expect(customAssets).toStrictEqual([MOCK_ASSET_ID]);
       }
 
       middlewareGetter.mockRestore();
@@ -1927,7 +2120,8 @@ describe('AssetsController', () => {
 
   describe('handleActiveChainsUpdate', () => {
     it('re-subscribes assets when chains are added', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
         const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
@@ -1961,13 +2155,32 @@ describe('AssetsController', () => {
     });
 
     it('re-subscribes assets when chains are removed', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
         const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
 
         expect(subscribeSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not re-subscribe after tracking has stopped', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
+
+        // Lock the keyring so the controller stops and clears subscriptions.
+        messenger.publish('KeyringController:lock');
+        await flushPromises();
+
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+        // Simulate the WebSocket flushing all chains as "down" after stop.
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
+
+        expect(subscribeSpy).not.toHaveBeenCalled();
       });
     });
 
@@ -2008,56 +2221,49 @@ describe('AssetsController', () => {
   });
 
   describe('two-axis subscription handoff (chains + custom assets)', () => {
-    it('routes pinned assets on websocket-claimed chains to the RPC subscription', async () => {
-      // The websocket claims the chain axis for eip155:1...
+    it('claims pinned assets on account-activity-claimed chains instead of letting them fall through', async () => {
+      // The account-activity source claims the chain axis for eip155:1. The
+      // activity stream covers every asset of a subscribed account —
+      // including user-pinned custom assets — so pins on its chains stay
+      // with its subscription instead of falling through to a poller.
       jest
-        .spyOn(BackendWebsocketDataSource.prototype, 'getActiveChainsSync')
+        .spyOn(AccountActivityDataSource.prototype, 'getActiveChainsSync')
         .mockReturnValue(['eip155:1' as ChainId]);
       const wsSubscribeSpy = jest
-        .spyOn(BackendWebsocketDataSource.prototype, 'subscribe')
+        .spyOn(AccountActivityDataSource.prototype, 'subscribe')
         .mockResolvedValue(undefined);
       const rpcSubscribeSpy = jest
         .spyOn(RpcDataSource.prototype, 'subscribe')
         .mockResolvedValue(undefined);
-      // ...and RPC has a provider for the pinned asset's chain (availability
-      // is unit-tested in RpcDataSource.test.ts; stubbed here because the
-      // mocked NetworkController has no configured networks).
-      const rpcClaimSpy = jest
-        .spyOn(RpcDataSource.prototype, 'claimCustomAssets')
-        .mockImplementation((customAssets) => customAssets);
 
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
-        // The websocket source was offered no pinned assets on its request —
-        // it claims none (push-only), so they must fall through.
         const wsRequest = wsSubscribeSpy.mock.calls.at(-1)?.[0].request;
         expect(wsRequest?.chainIds).toStrictEqual(['eip155:1']);
-        expect(wsRequest?.customAssets).toBeUndefined();
+        expect(wsRequest?.customAssets).toStrictEqual([MOCK_ASSET_ID]);
 
-        // RPC was assigned no chains, but claimed the pinned asset and got an
-        // asset-only subscription for it.
-        expect(rpcClaimSpy).toHaveBeenCalledWith([MOCK_ASSET_ID], []);
-        const rpcRequest = rpcSubscribeSpy.mock.calls.at(-1)?.[0].request;
-        expect(rpcRequest?.chainIds).toStrictEqual([]);
-        expect(rpcRequest?.customAssets).toStrictEqual([MOCK_ASSET_ID]);
+        // Nothing was left for lower-priority sources to claim.
+        expect(rpcSubscribeSpy).not.toHaveBeenCalled();
       });
     });
 
-    it('does not create an RPC subscription for pinned assets it cannot claim', async () => {
+    it('does not create an RPC subscription for pinned assets no source can claim', async () => {
+      // Account activity is not active on the pin's chain, so the pin falls
+      // through the whole handoff...
       jest
-        .spyOn(BackendWebsocketDataSource.prototype, 'getActiveChainsSync')
-        .mockReturnValue(['eip155:1' as ChainId]);
+        .spyOn(AccountActivityDataSource.prototype, 'getActiveChainsSync')
+        .mockReturnValue([]);
       jest
-        .spyOn(BackendWebsocketDataSource.prototype, 'subscribe')
+        .spyOn(AccountActivityDataSource.prototype, 'subscribe')
         .mockResolvedValue(undefined);
       const rpcSubscribeSpy = jest
         .spyOn(RpcDataSource.prototype, 'subscribe')
         .mockResolvedValue(undefined);
 
       await withController(async ({ controller }) => {
-        // RPC has no provider for the chain (no networks configured in the
-        // mocked NetworkController), so its real claim returns nothing.
+        // ...and RPC has no provider for the chain (no networks configured in
+        // the mocked NetworkController), so its real claim returns nothing.
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
         expect(rpcSubscribeSpy).not.toHaveBeenCalled();
@@ -2611,8 +2817,19 @@ describe('AssetsController', () => {
       };
 
       await withController(
-        { state: initialState },
+        { state: initialState, clientControllerState: { isUiOpen: true } },
         async ({ controller, messenger }) => {
+          // UI must be open and keyring unlocked so AccountActivityDataSource is
+          // subscribed and can route balanceUpdated events to the account.
+          (
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
+          messenger.publish('KeyringController:unlock');
+
+          await flushPromises();
+
           messenger.publish('AccountActivityService:balanceUpdated', {
             address: '0x1234567890123456789012345678901234567890',
             chain: 'eip155:42161',

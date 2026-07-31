@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountActivityService.resubscribe`, exposed as the `AccountActivityService:resubscribe` messenger action (see the new `AccountActivityServiceResubscribeAction` type). It re-creates the account-activity websocket subscriptions for the selected account so the backend re-derives the asset set it pushes — call it after that derivation changes server-side (e.g. a custom token was registered with the backend). No-op while the websocket is disconnected ([#9600](https://github.com/MetaMask/core/pull/9600))
+
+### Changed
+
+- `AccountActivityService` now debounces chain status updates instead of publishing one event per notification ([#9700](https://github.com/MetaMask/core/pull/9700))
+
 ## [8.0.0]
 
 ### Fixed

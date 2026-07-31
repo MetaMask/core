@@ -482,50 +482,355 @@ describe('AccountActivityService', () => {
       });
 
       it('should track chains as up and down based on system notifications', async () => {
-        await withService(async ({ messenger, mocks }) => {
-          const statusChangedEventListener = jest.fn();
-          messenger.subscribe(
-            'AccountActivityService:statusChanged',
-            statusChangedEventListener,
-          );
-          const systemCallback = getSystemNotificationCallback(mocks);
+        jest.useFakeTimers();
+        // Remove the random jitter so the debounce delay is exactly the base
+        // window; jitter is covered separately below.
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          await withService(async ({ messenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            const systemCallback = getSystemNotificationCallback(mocks);
 
-          // Simulate chains coming up
-          const timestamp1 = 1760344704595;
-          systemCallback({
-            event: 'system-notification',
-            channel: 'system-notifications.v1.account-activity.v1',
-            data: {
+            // Simulate chains coming up
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: {
+                chainIds: ['eip155:1', 'eip155:137'],
+                status: 'up',
+              },
+              timestamp: 1760344704595,
+            });
+
+            jest.advanceTimersByTime(1000);
+
+            expect(statusChangedEventListener).toHaveBeenCalledWith({
               chainIds: ['eip155:1', 'eip155:137'],
               status: 'up',
-            },
-            timestamp: timestamp1,
-          });
+            });
 
-          expect(statusChangedEventListener).toHaveBeenCalledWith({
-            chainIds: ['eip155:1', 'eip155:137'],
-            status: 'up',
-            timestamp: timestamp1,
-          });
+            // Simulate one chain going down
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: {
+                chainIds: ['eip155:137'],
+                status: 'down',
+              },
+              timestamp: 1760344704696,
+            });
 
-          // Simulate one chain going down
-          const timestamp2 = 1760344704696;
-          systemCallback({
-            event: 'system-notification',
-            channel: 'system-notifications.v1.account-activity.v1',
-            data: {
+            jest.advanceTimersByTime(1000);
+
+            expect(statusChangedEventListener).toHaveBeenCalledWith({
               chainIds: ['eip155:137'],
               status: 'down',
-            },
-            timestamp: timestamp2,
+            });
           });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
 
-          expect(statusChangedEventListener).toHaveBeenCalledWith({
-            chainIds: ['eip155:137'],
-            status: 'down',
-            timestamp: timestamp2,
+      it('accumulates notifications and publishes one batched event per status after the debounce window', async () => {
+        jest.useFakeTimers();
+        // Remove the random jitter so the debounce delay is exactly the base
+        // window; jitter is covered separately below.
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          await withService(async ({ messenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            const systemCallback = getSystemNotificationCallback(mocks);
+
+            // Burst of notifications within the debounce window
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:1', 'eip155:137'], status: 'up' },
+              timestamp: 1000,
+            });
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:56'], status: 'up' },
+              timestamp: 2000,
+            });
+            // eip155:137 flips to down before the window elapses
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:137'], status: 'down' },
+              timestamp: 3000,
+            });
+
+            // Nothing published yet - still within the debounce window
+            expect(statusChangedEventListener).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(1000);
+
+            // One batched 'up' event and one batched 'down' event.
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(2);
+            expect(statusChangedEventListener).toHaveBeenCalledWith({
+              chainIds: ['eip155:1', 'eip155:56'],
+              status: 'up',
+            });
+            expect(statusChangedEventListener).toHaveBeenCalledWith({
+              chainIds: ['eip155:137'],
+              status: 'down',
+            });
           });
-        });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('resets the debounce timer on each notification', async () => {
+        jest.useFakeTimers();
+        // Remove the random jitter so the debounce delay is exactly the base
+        // window; jitter is covered separately below.
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          await withService(async ({ messenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            const systemCallback = getSystemNotificationCallback(mocks);
+
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:1'], status: 'up' },
+              timestamp: 1000,
+            });
+
+            // A second notification part-way through the window resets the
+            // timer, pushing the flush back another full window.
+            jest.advanceTimersByTime(500);
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:137'], status: 'up' },
+              timestamp: 1500,
+            });
+
+            // 1000ms after the first notification, but only 500ms after the
+            // second: not flushed yet because the timer was reset.
+            jest.advanceTimersByTime(500);
+            expect(statusChangedEventListener).not.toHaveBeenCalled();
+
+            // A full window after the last notification flushes both chains.
+            jest.advanceTimersByTime(500);
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
+            expect(statusChangedEventListener).toHaveBeenCalledWith({
+              chainIds: ['eip155:1', 'eip155:137'],
+              status: 'up',
+            });
+          });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('adds random jitter on top of the debounce window before publishing', async () => {
+        jest.useFakeTimers();
+        // Mid-range jitter: 1000ms debounce + 0.5 * 1000ms jitter = 1500ms.
+        jest.spyOn(Math, 'random').mockReturnValue(0.5);
+        try {
+          await withService(async ({ messenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            const systemCallback = getSystemNotificationCallback(mocks);
+
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:1'], status: 'up' },
+              timestamp: 1000,
+            });
+
+            // Not yet flushed at the base debounce window: jitter delays it.
+            jest.advanceTimersByTime(1000);
+            expect(statusChangedEventListener).not.toHaveBeenCalled();
+
+            // Flushed once the jittered delay elapses.
+            jest.advanceTimersByTime(500);
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
+            expect(statusChangedEventListener).toHaveBeenCalledWith({
+              chainIds: ['eip155:1'],
+              status: 'up',
+            });
+          });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('drops buffered status changes when the WebSocket disconnects before the window elapses', async () => {
+        jest.useFakeTimers();
+        // Remove the random jitter so the debounce delay is exactly the base
+        // window; jitter is covered separately below.
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          await withService(async ({ messenger, rootMessenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([]);
+            const systemCallback = getSystemNotificationCallback(mocks);
+
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:1', 'eip155:137'], status: 'up' },
+              timestamp: 1000,
+            });
+
+            // Disconnect before the debounce window elapses.
+            rootMessenger.publish(
+              'BackendWebSocketService:connectionStateChanged',
+              {
+                state: WebSocketState.DISCONNECTED,
+                url: 'ws://test',
+                reconnectAttempts: 0,
+                timeout: 10000,
+                reconnectDelay: 500,
+                maxReconnectDelay: 5000,
+                requestTimeout: 30000,
+              },
+            );
+
+            // The buffered 'up' event is dropped; only the 'down' flush for
+            // the tracked chains is published.
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
+            expect(statusChangedEventListener).toHaveBeenCalledWith({
+              chainIds: ['eip155:1', 'eip155:137'],
+              status: 'down',
+              timestamp: expect.any(Number),
+            });
+
+            // Advancing past the window must not emit the stale 'up' event.
+            jest.advanceTimersByTime(1000);
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
+          });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('publishes down on disconnect for chains whose buffered down was still pending', async () => {
+        jest.useFakeTimers();
+        // Remove the random jitter so the debounce delay is exactly the base
+        // window; jitter is covered separately below.
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          await withService(async ({ messenger, rootMessenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([]);
+            const systemCallback = getSystemNotificationCallback(mocks);
+
+            // Both chains come up and the window elapses, so consumers have
+            // been told they are up.
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:1', 'eip155:137'], status: 'up' },
+              timestamp: 1000,
+            });
+            jest.advanceTimersByTime(1000);
+            expect(statusChangedEventListener).toHaveBeenCalledWith({
+              chainIds: ['eip155:1', 'eip155:137'],
+              status: 'up',
+            });
+
+            // eip155:137 goes down, but the WebSocket disconnects before the
+            // debounce window elapses.
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:137'], status: 'down' },
+              timestamp: 2000,
+            });
+            rootMessenger.publish(
+              'BackendWebSocketService:connectionStateChanged',
+              {
+                state: WebSocketState.DISCONNECTED,
+                url: 'ws://test',
+                reconnectAttempts: 0,
+                timeout: 10000,
+                reconnectDelay: 500,
+                maxReconnectDelay: 5000,
+                requestTimeout: 30000,
+              },
+            );
+
+            // The disconnect flush must include the chain whose buffered
+            // 'down' was still pending, not just the chains still tracked
+            // as up.
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(2);
+            expect(statusChangedEventListener).toHaveBeenLastCalledWith({
+              chainIds: ['eip155:1', 'eip155:137'],
+              status: 'down',
+              timestamp: expect.any(Number),
+            });
+
+            // Advancing past the window must not emit anything further.
+            jest.advanceTimersByTime(1000);
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(2);
+          });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('cancels a pending debounced flush when the service is destroyed', async () => {
+        jest.useFakeTimers();
+        // Remove the random jitter so the debounce delay is exactly the base
+        // window; jitter is covered separately below.
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          await withService(async ({ service, messenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            const systemCallback = getSystemNotificationCallback(mocks);
+
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:1'], status: 'up' },
+              timestamp: 1000,
+            });
+
+            // Destroying before the window elapses cancels the pending flush.
+            service.destroy();
+
+            jest.advanceTimersByTime(1000);
+            expect(statusChangedEventListener).not.toHaveBeenCalled();
+          });
+        } finally {
+          jest.useRealTimers();
+        }
       });
     });
 
@@ -1202,6 +1507,58 @@ describe('AccountActivityService', () => {
           expect(mocks.subscribe).not.toHaveBeenCalled();
         });
       });
+    });
+  });
+
+  describe('resubscribe', () => {
+    it('recreates the subscriptions for the selected account when connected', async () => {
+      await withService(
+        { accountAddress: '0x1234567890123456789012345678901234567890' },
+        async ({ mocks, rootMessenger }) => {
+          const unsubscribe = jest.fn();
+          mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
+            {
+              channels: [
+                'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890',
+              ],
+              unsubscribe,
+            },
+          ]);
+          mocks.subscribe.mockResolvedValue({
+            subscriptionId: 'sub-123',
+            unsubscribe: jest.fn(),
+          });
+
+          await rootMessenger.call('AccountActivityService:resubscribe');
+
+          // The stale subscription is dropped and the selected account is
+          // subscribed again.
+          expect(unsubscribe).toHaveBeenCalled();
+          expect(mocks.subscribe).toHaveBeenCalledWith(
+            expect.objectContaining({
+              channels: [
+                'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890',
+              ],
+            }),
+          );
+        },
+      );
+    });
+
+    it('does nothing when the websocket is not connected', async () => {
+      await withService(
+        { accountAddress: '0x1234567890123456789012345678901234567890' },
+        async ({ mocks, rootMessenger }) => {
+          mocks.getConnectionInfo.mockReturnValue({
+            state: WebSocketState.DISCONNECTED,
+          });
+
+          await rootMessenger.call('AccountActivityService:resubscribe');
+
+          expect(mocks.findSubscriptionsByChannelPrefix).not.toHaveBeenCalled();
+          expect(mocks.subscribe).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 });

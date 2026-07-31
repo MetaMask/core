@@ -630,10 +630,9 @@ describe('AccountsApiDataSource', () => {
       });
 
       expect(
-        controller.claimCustomAssets(
-          [assignedChainAsset] as Caip19AssetId[],
-          ['eip155:1' as ChainId],
-        ),
+        controller.claimCustomAssets([assignedChainAsset] as Caip19AssetId[], [
+          'eip155:1' as ChainId,
+        ]),
       ).toStrictEqual([]);
 
       controller.destroy();
@@ -1225,6 +1224,59 @@ describe('AccountsApiDataSource', () => {
     });
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
+
+    controller.destroy();
+  });
+
+  it('subscribe update immediately fetches newly added chains', async () => {
+    const { controller, assetsUpdateHandler } = await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    const fetchSpy = jest.spyOn(controller, 'fetch');
+
+    // Simulate a chain handoff (e.g. websocket coverage dropped for Polygon).
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      isUpdate: true,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ chainIds: [CHAIN_POLYGON] }),
+    );
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(2);
+
+    controller.destroy();
+  });
+
+  it('subscribe update does not fetch when no chains are added', async () => {
+    const { controller, assetsUpdateHandler } = await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    // Removing a chain (or an account-only update) should not trigger a fetch.
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
+      isUpdate: true,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
 
     controller.destroy();
   });

@@ -126,17 +126,6 @@ export type {
   AccountsApiDataSourceState,
 } from './data-sources/index.js';
 
-// Data sources - BackendWebsocket
-export {
-  BackendWebsocketDataSource,
-  createBackendWebsocketDataSource,
-} from './data-sources/index.js';
-
-export type {
-  BackendWebsocketDataSourceOptions,
-  BackendWebsocketDataSourceState,
-} from './data-sources/index.js';
-
 // Data sources - RPC
 export { RpcDataSource, createRpcDataSource } from './data-sources/index.js';
 

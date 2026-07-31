@@ -987,8 +987,32 @@ export class AccountsApiDataSource extends AbstractDataSource<
     if (isUpdate) {
       const existing = this.activeSubscriptions.get(subscriptionId);
       if (existing) {
+        const previousChains = existing.chains;
         existing.chains = chainsToSubscribe;
         existing.request = request;
+
+        // Chains handed off from another data source (e.g. the websocket
+        // source releasing a chain that went down) would otherwise stay
+        // stale until the next poll tick — fetch them immediately.
+        const addedChains = chainsToSubscribe.filter(
+          (chainId) => !previousChains.includes(chainId),
+        );
+        if (addedChains.length > 0) {
+          try {
+            const fetchResponse = await this.fetch({
+              ...request,
+              chainIds: addedChains,
+              forceUpdate: true,
+            });
+            await existing.onAssetsUpdate(fetchResponse);
+          } catch (error) {
+            log('Initial fetch for added chains failed', {
+              subscriptionId,
+              addedChains,
+              error,
+            });
+          }
+        }
         return;
       }
     }

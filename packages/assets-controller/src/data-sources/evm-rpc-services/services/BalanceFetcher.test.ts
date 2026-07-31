@@ -353,7 +353,9 @@ describe('BalanceFetcher', () => {
 
           const [, batchedRequests] =
             mockMulticallClient.batchBalanceOf.mock.calls[0];
-          const requestedTokens = (batchedRequests as { tokenAddress: string }[])
+          const requestedTokens = (
+            batchedRequests as { tokenAddress: string }[]
+          )
             .map((req) => req.tokenAddress.toLowerCase())
             .sort();
           // ONLY the pinned asset — not the native and not TOKEN_2 from

@@ -41,6 +41,7 @@ export type {
   SubscriptionOptions,
   AccountActivityServiceOptions,
   AccountActivityServiceActions,
+  AccountActivityServiceResubscribeAction,
   AllowedActions as AccountActivityServiceAllowedActions,
   AccountActivityServiceTransactionUpdatedEvent,
   AccountActivityServiceBalanceUpdatedEvent,
