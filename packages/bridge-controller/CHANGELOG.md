@@ -9,9 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Define `QuoteResponse` v2 ([#9085](https://github.com/MetaMask/core/pull/9085))
-  - `validateQuoteResponse` validates data
-- Export `BridgeAsset` and `validateBridgeAsset`, used by QuoteResponse v2, and token endpoints ([#9085](https://github.com/MetaMask/core/pull/9085))
+- Define `QuoteResponse` v2 and `validateQuoteResponse` ([#9724](https://github.com/MetaMask/core/pull/9724))
+- Export `BridgeAsset` and `validateBridgeAsset` used by QuoteResponse v2, and token endpoints ([#9724](https://github.com/MetaMask/core/pull/9724))
 
 ### Changed
 
