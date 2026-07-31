@@ -19,13 +19,13 @@ import type {
 import type { AccountWalletEntropyObject } from '../wallet.js';
 import { isMnemonicWalletObject } from './export.js';
 import type {
-  AccountTreePayload,
   AccountWalletMnemonicGroupEntry,
   AccountWalletMnemonicPayload,
   AccountWalletPayloadId,
   AccountWalletPrivateKeyGroupEntry,
 } from './payload.js';
 import { parsePayloadGroupId, toWalletPayloadId } from './payload.js';
+import type { AccountTreeSnapshot } from './snapshot.js';
 
 /** Context required by {@link importState}. */
 export type ImportContext = {
@@ -314,28 +314,30 @@ async function importPrivateKeyWallet(
 }
 
 /**
- * Applies an {@link AccountTreePayload} to the current controller state.
+ * Applies an {@link AccountTreeSnapshot} to the current controller state.
  *
- * - For each `'mnemonic'` wallet: imports the mnemonic (if provided and not
- *   already present) and applies metadata to all groups.
- * - For each `'private-key'` group: imports the key (if provided and not
- *   already present) and applies metadata.
- * - Unknown wallet types are silently skipped for forward compatibility.
+ * The snapshot must already have been validated — typically via
+ * {@link AccountTreeSnapshot.deserialize}. For each retained wallet:
+ *
+ * - `'mnemonic'`: imports the mnemonic when provided and not already present,
+ *   then applies metadata to all groups.
+ * - `'private-key'`: imports each retained group's key when provided and not
+ *   already present, then applies metadata.
  *
  * @param context - Import context providing state, messenger, and setters.
- * @param payload - The validated payload to import.
+ * @param snapshot - The validated snapshot to import.
  */
 export async function importState(
   context: ImportContext,
-  payload: AccountTreePayload,
+  snapshot: AccountTreeSnapshot,
 ): Promise<void> {
+  const payload = snapshot.serialize();
+
   for (const wallet of payload.wallets) {
     if (wallet.type === 'mnemonic') {
       await importMnemonicWallet(context, wallet);
-    } else if (wallet.type === 'private-key') {
-      await importPrivateKeyWallet(context, wallet.groups);
     } else {
-      // Unknown types: skip silently (forward-compat).
+      await importPrivateKeyWallet(context, wallet.groups);
     }
   }
 }

@@ -214,13 +214,15 @@ export type AccountTreeControllerExportStateAction = {
 };
 
 /**
- * Applies a versioned snapshot to the current state.
+ * Applies a validated snapshot to the current state.
  *
- * New mnemonic wallets are imported via `MultichainAccountService` and new
- * private-key accounts via `KeyringController`. Metadata (name, pinned,
- * hidden) is applied to all existing and newly created wallets / groups.
+ * Accepts an `AccountTreeSnapshot` only — untrusted wire data must be parsed
+ * with `AccountTreeSnapshot.deserialize` first. New mnemonic wallets are
+ * imported via `MultichainAccountService` and new private-key accounts via
+ * `KeyringController`. Metadata (name, pinned, hidden) is applied to all
+ * existing and newly created wallets / groups.
  *
- * @param payload - The payload to import.
+ * @param snapshot - The validated snapshot to import.
  * @returns A promise that resolves when the import is complete.
  */
 export type AccountTreeControllerImportStateAction = {

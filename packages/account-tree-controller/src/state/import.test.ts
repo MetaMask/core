@@ -18,6 +18,7 @@ import type { ImportContext } from './import.js';
 import { importState } from './import.js';
 import type { AccountTreePayload } from './payload.js';
 import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION } from './payload.js';
+import { AccountTreeSnapshot } from './snapshot.js';
 
 // Valid 20-byte hex addresses for use with getUUIDFromAddressOfNormalAccount.
 const ADDR_A = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -34,6 +35,9 @@ const MOCK_PK_WALLET_ID = toAccountWalletId(
 );
 
 const MOCK_PAYLOAD_WALLET_ID = `wallet:${MOCK_ENTROPY_ID}` as const;
+
+const TEST_MNEMONIC =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 const MNEMONIC_PAYLOAD: AccountTreePayload = {
   version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
@@ -216,29 +220,16 @@ function makeWithKeyringV2Mock(
     );
 }
 
+function importSnapshot(
+  context: ImportContext,
+  payload: AccountTreePayload,
+): ReturnType<typeof importState> {
+  return importState(context, AccountTreeSnapshot.deserialize(payload));
+}
+
 describe('importState', () => {
   beforeEach(() => {
     jest.resetAllMocks();
-  });
-
-  describe('unknown wallet types', () => {
-    it('silently skips wallet entries with unrecognised types', async () => {
-      const { context, mocks } = setup();
-      const payload: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
-        wallets: [
-          // @ts-expect-error -- deliberate unknown type for forward-compat test
-          {
-            id: 'wallet:future',
-            type: 'future-type',
-            metadata: { name: 'X' },
-            groups: [],
-          },
-        ],
-      };
-      expect(await importState(context, payload)).toBeUndefined();
-      expect(mocks.setters.setWalletName).not.toHaveBeenCalled();
-    });
   });
 
   describe('mnemonic wallets', () => {
@@ -250,7 +241,7 @@ describe('importState', () => {
         },
       );
 
-      await importState(context, MNEMONIC_PAYLOAD);
+      await importSnapshot(context, MNEMONIC_PAYLOAD);
 
       expect(mocks.setters.setWalletName).toHaveBeenCalledWith(
         MOCK_HD_WALLET_ID,
@@ -315,7 +306,7 @@ describe('importState', () => {
         ],
       };
 
-      await importState(context, payload);
+      await importSnapshot(context, payload);
       expect(mocks.setters.setWalletName).not.toHaveBeenCalled();
     });
 
@@ -338,7 +329,7 @@ describe('importState', () => {
           },
         ],
       };
-      await importState(context, payloadWithoutMnemonic);
+      await importSnapshot(context, payloadWithoutMnemonic);
       expect(mocks.setters.setWalletName).not.toHaveBeenCalled();
     });
 
@@ -356,13 +347,13 @@ describe('importState', () => {
       );
 
       await expect(
-        importState(context, {
+        importSnapshot(context, {
           version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
               id: 'wallet:no-match-entropy',
               type: 'mnemonic',
-              value: JSON.stringify([1, 2, 3]),
+              value: TEST_MNEMONIC,
               metadata: { name: 'Wallet' },
               groups: [],
             },
@@ -403,13 +394,13 @@ describe('importState', () => {
       );
 
       await expect(
-        importState(context, {
+        importSnapshot(context, {
           version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
               id: 'wallet:no-match',
               type: 'mnemonic',
-              value: JSON.stringify([1, 2, 3]),
+              value: TEST_MNEMONIC,
               metadata: { name: 'Wallet' },
               groups: [],
             },
@@ -439,7 +430,7 @@ describe('importState', () => {
           {
             id: 'wallet:unknown-entropy',
             type: 'mnemonic',
-            value: JSON.stringify([1, 2, 3]),
+            value: TEST_MNEMONIC,
             metadata: { name: 'My Renamed Wallet' },
             groups: [
               {
@@ -452,7 +443,7 @@ describe('importState', () => {
         ],
       };
 
-      await importState(context, payloadWithMnemonic);
+      await importSnapshot(context, payloadWithMnemonic);
 
       expect(
         mocks.MultichainAccountService.createMultichainAccountWallet,
@@ -518,7 +509,7 @@ describe('importState', () => {
         ],
       };
 
-      await importState(context, payload);
+      await importSnapshot(context, payload);
 
       expect(
         mocks.MultichainAccountService.createMultichainAccountGroups,
@@ -608,7 +599,7 @@ describe('importState', () => {
         ],
       };
 
-      await importState(context, payload);
+      await importSnapshot(context, payload);
 
       expect(
         mocks.MultichainAccountService.createMultichainAccountGroups,
@@ -671,7 +662,7 @@ describe('importState', () => {
         ],
       };
 
-      await importState(context, payload);
+      await importSnapshot(context, payload);
 
       expect(mocks.setters.setGroupName).toHaveBeenCalledWith(
         pkGroupId,
@@ -750,7 +741,7 @@ describe('importState', () => {
         ],
       };
 
-      await importState(context, payload);
+      await importSnapshot(context, payload);
 
       expect(mocks.KeyringController.withKeyringV2).toHaveBeenCalledWith(
         expect.anything(),
@@ -770,7 +761,7 @@ describe('importState', () => {
       );
 
       await expect(
-        importState(context, {
+        importSnapshot(context, {
           version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
@@ -819,7 +810,7 @@ describe('importState', () => {
         ],
       };
 
-      await importState(context, payload);
+      await importSnapshot(context, payload);
       expect(mocks.KeyringController.withKeyringV2).not.toHaveBeenCalled();
       expect(mocks.setters.setGroupName).not.toHaveBeenCalled();
     });
@@ -854,7 +845,7 @@ describe('importState', () => {
       };
 
       // withKeyringV2 is called (not skipped), but returns [] so it throws.
-      await expect(importState(context, payload)).rejects.toThrow(
+      await expect(importSnapshot(context, payload)).rejects.toThrow(
         'Failed to import private key for account',
       );
       expect(mocks.KeyringController.withKeyringV2).toHaveBeenCalled();
@@ -881,7 +872,7 @@ describe('importState', () => {
         ],
       };
 
-      await importState(context, payload);
+      await importSnapshot(context, payload);
       expect(mocks.setters.setGroupName).not.toHaveBeenCalled();
     });
 
@@ -911,7 +902,7 @@ describe('importState', () => {
         ],
       };
 
-      await importState(context, payload);
+      await importSnapshot(context, payload);
       expect(mocks.setters.setGroupName).not.toHaveBeenCalled();
     });
   });

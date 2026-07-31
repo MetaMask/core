@@ -38,7 +38,6 @@ import { SnapRule } from './rules/snap.js';
 import { exportState } from './state/export.js';
 import { importState } from './state/import.js';
 import type { ExportStateOptions } from './state/payload.js';
-import type { AccountTreePayload } from './state/payload.js';
 import type { AccountTreeSnapshot } from './state/snapshot.js';
 import type {
   AccountTreeControllerConfig,
@@ -1816,16 +1815,22 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Applies a versioned snapshot to the current state.
+   * Applies a validated snapshot to the current state.
+   *
+   * Accepts an {@link AccountTreeSnapshot} only — untrusted wire data must be
+   * parsed with {@link AccountTreeSnapshot.deserialize} first. Callers may
+   * filter the snapshot with {@link AccountTreeSnapshot.filterWallets},
+   * {@link AccountTreeSnapshot.filterGroups}, or
+   * {@link AccountTreeSnapshot.filterAllGroups} before importing.
    *
    * New mnemonic wallets are imported via `MultichainAccountService` and new
    * private-key accounts via `KeyringController`. Metadata (name, pinned,
    * hidden) is applied to all existing and newly created wallets / groups.
    *
-   * @param payload - The payload to import.
+   * @param snapshot - The validated snapshot to import.
    * @returns A promise that resolves when the import is complete.
    */
-  async importState(payload: AccountTreePayload): Promise<void> {
+  async importState(snapshot: AccountTreeSnapshot): Promise<void> {
     return importState(
       {
         getState: () => this.state,
@@ -1835,7 +1840,7 @@ export class AccountTreeController extends BaseController<
         setGroupPinned: (id, pinned) => this.setAccountGroupPinned(id, pinned),
         setGroupHidden: (id, hidden) => this.setAccountGroupHidden(id, hidden),
       },
-      payload,
+      snapshot,
     );
   }
 

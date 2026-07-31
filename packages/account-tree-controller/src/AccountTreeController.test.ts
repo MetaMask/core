@@ -6150,7 +6150,7 @@ describe('AccountTreeController', () => {
       // --- IMPORT ---
       // withKeyringV2Unsafe is called again during import to find the matching wallet.
       // It's already registered; the existing handler stays in place.
-      await controller.importState(payload);
+      await controller.importState(snapshot);
 
       // After import, original metadata should be restored.
       expect(
@@ -6206,7 +6206,7 @@ describe('AccountTreeController', () => {
       expect((payload.wallets[0] as { value?: string }).value).toBeUndefined();
 
       // Reimport is a no-op for metadata when nothing changed.
-      expect(await controller.importState(payload)).toBeUndefined();
+      expect(await controller.importState(snapshot)).toBeUndefined();
     });
 
     it('throws when exporting with includeSecrets: true and the vault is locked', async () => {
