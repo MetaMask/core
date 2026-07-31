@@ -1,17 +1,18 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { TransactionController } from '@metamask/transaction-controller';
-import { numberToHex } from '@metamask/utils';
+import { hasProperty, isObject, numberToHex } from '@metamask/utils';
 
 import { CHAIN_IDS } from '../constants/chains.js';
 import type {
   L1GasFees,
+  NonEvmBalanceError,
   NonEvmFees,
   BridgeControllerMessenger,
 } from '../types.js';
 import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
 import { isTronTrade } from '../validators/trade.js';
 import type { TxData } from '../validators/trade.js';
-import { isNonEvmChainId, sumHexes } from './bridge.js';
+import { isNonEvmChainId, isStellarChainId, sumHexes } from './bridge.js';
 import { formatChainIdToCaip } from './caip-formatters.js';
 import { computeFeeRequest } from './snaps.js';
 import { extractTradeData } from './trade-utils.js';
@@ -88,6 +89,55 @@ const appendL1GasFees = async (
   return quotesWithL1GasFees;
 };
 
+const isAmountString = (value: unknown): value is string =>
+  typeof value === 'string' && /^(?:0|[1-9]\d*)(?:\.\d+)?$/u.test(value);
+
+const isNonEvmBalanceError = (value: unknown): value is NonEvmBalanceError => {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return (
+    hasProperty(value, 'code') &&
+    (value.code === 'InsufficientBalance' ||
+      value.code === 'InsufficientBalanceToCoverFee') &&
+    hasProperty(value, 'assetId') &&
+    typeof value.assetId === 'string' &&
+    value.assetId.length > 0 &&
+    hasProperty(value, 'availableAmount') &&
+    isAmountString(value.availableAmount) &&
+    hasProperty(value, 'requiredAmount') &&
+    isAmountString(value.requiredAmount) &&
+    (!hasProperty(value, 'reserveAmount') ||
+      isAmountString(value.reserveAmount))
+  );
+};
+
+const getNonEvmBalanceError = (
+  error: unknown,
+): NonEvmBalanceError | undefined => {
+  if (!isObject(error) || !hasProperty(error, 'data')) {
+    return undefined;
+  }
+
+  if (isNonEvmBalanceError(error.data)) {
+    return error.data;
+  }
+
+  if (
+    !isObject(error.data) ||
+    !hasProperty(error.data, 'cause') ||
+    !isObject(error.data.cause) ||
+    !hasProperty(error.data.cause, 'data')
+  ) {
+    return undefined;
+  }
+
+  return isNonEvmBalanceError(error.data.cause.data)
+    ? error.data.cause.data
+    : undefined;
+};
+
 /**
  * Appends transaction fees for non-EVM chains to quotes
  *
@@ -161,6 +211,18 @@ const appendNonEvmFees = async (
           nonEvmFeesInNative: feeInNative,
         };
       } catch (error) {
+        const nonEvmBalanceError = isStellarChainId(quote.srcChainId)
+          ? getNonEvmBalanceError(error)
+          : undefined;
+
+        if (nonEvmBalanceError) {
+          return {
+            ...quoteResponse,
+            nonEvmFeesInNative: undefined,
+            nonEvmBalanceError,
+          };
+        }
+
         // Return quote with undefined fee if snap fails (e.g., insufficient UTXO funds)
         // Client can render special UI or skip the quote card row for quotes with missing fee data
         console.error(

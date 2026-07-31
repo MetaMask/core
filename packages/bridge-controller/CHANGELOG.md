@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Return structured Stellar balance errors in `QuoteMetadata.nonEvmBalanceError` when fee computation fails due to insufficient funds ([#9659](https://github.com/MetaMask/core/pull/9659))
+
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.1` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9706](https://github.com/MetaMask/core/pull/9706))

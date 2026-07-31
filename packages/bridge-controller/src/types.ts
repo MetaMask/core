@@ -77,11 +77,25 @@ export type L1GasFees = {
   l1GasFeesInHexWei?: Hex; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
 };
 
+export type NonEvmBalanceError = {
+  code: 'InsufficientBalance' | 'InsufficientBalanceToCoverFee';
+  assetId: string;
+  availableAmount: string;
+  requiredAmount: string;
+  /**
+   * Minimum native balance the account must keep on-chain (e.g. the Stellar
+   * base reserve), in display units. Enables clients to surface reserve
+   * warnings without chain-specific lookups.
+   */
+  reserveAmount?: string;
+};
+
 /**
  * @deprecated Avoid introducing new usages and use the QuoteResponseV2 feeData.network value instead
  */
 export type NonEvmFees = {
   nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
+  nonEvmBalanceError?: NonEvmBalanceError;
 };
 
 export type InputPrimaryDenomination = 'token_amount' | 'fiat_value';

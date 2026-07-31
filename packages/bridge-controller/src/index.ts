@@ -40,6 +40,7 @@ export {
 export type {
   ChainConfiguration,
   L1GasFees,
+  NonEvmBalanceError,
   NonEvmFees,
   GasMultiplierByChainId,
   FeatureFlagResponse,
