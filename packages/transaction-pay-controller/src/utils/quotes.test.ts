@@ -365,6 +365,69 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('keeps quotes and sets quoteError when strategy throws QuoteError with reason insufficient-source-balance and attached quotes', async () => {
+      const attachedQuote = {
+        ...QUOTE_MOCK,
+        strategy: TransactionPayStrategy.Relay,
+      } as TransactionPayQuote<Json>;
+      const error = new QuoteError(
+        {
+          message: 'Insufficient source balance for quote',
+          reason: 'insufficient-source-balance',
+          detail: ['Required: 1 USDC', 'Current: 0.5 USDC'],
+        },
+        [attachedQuote],
+      );
+      getQuotesMock.mockRejectedValue(error);
+
+      await run();
+
+      const transactionDataMock = {} as Record<string, unknown>;
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [attachedQuote],
+        quoteError: {
+          message: 'Insufficient source balance for quote',
+          reason: 'insufficient-source-balance',
+          detail: ['Required: 1 USDC', 'Current: 0.5 USDC'],
+        },
+      });
+    });
+
+    it('drops quotes and sets quoteError when strategy throws QuoteError with non-insufficient-source-balance reason and attached quotes', async () => {
+      const attachedQuote = {
+        ...QUOTE_MOCK,
+        strategy: TransactionPayStrategy.Relay,
+      } as TransactionPayQuote<Json>;
+      const error = new QuoteError(
+        {
+          message: 'Quote simulation failed',
+          reason: 'simulation-failed',
+          detail: ['revert'],
+        },
+        [attachedQuote],
+      );
+      getQuotesMock.mockRejectedValue(error);
+
+      await run();
+
+      const transactionDataMock = {} as Record<string, unknown>;
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+        quoteError: {
+          message: 'Quote simulation failed',
+          reason: 'simulation-failed',
+        },
+      });
+    });
+
     it('clears quotes in state if strategy throws', async () => {
       getQuotesMock.mockRejectedValue(new Error('Strategy error'));
 

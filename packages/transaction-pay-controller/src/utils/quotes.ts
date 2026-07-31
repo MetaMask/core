@@ -191,7 +191,7 @@ export async function updateQuotes(
 
     updateTransactionData(transactionId, (data) => {
       data.quotes = quotes as never;
-      data.quoteError = quotes.length ? undefined : error;
+      data.quoteError = error;
       data.quotesLastUpdated = Date.now();
       data.totals = totals;
     });
@@ -758,6 +758,22 @@ async function getQuotes(
       error ??= isQuoteError(caughtError)
         ? caughtError.info
         : { message: (caughtError as Error).message, reason: 'no-quotes' };
+
+      if (
+        isQuoteError(caughtError) &&
+        caughtError.info.reason === 'insufficient-source-balance' &&
+        caughtError.quotes?.length
+      ) {
+        log('Keeping quotes despite insufficient source balance', {
+          strategy: name,
+          transactionId,
+        });
+        return {
+          batchTransactions: [],
+          error: caughtError.info,
+          quotes: caughtError.quotes as TransactionPayQuote<Json>[],
+        };
+      }
 
       log('Strategy failed, trying next', {
         error: caughtError,
