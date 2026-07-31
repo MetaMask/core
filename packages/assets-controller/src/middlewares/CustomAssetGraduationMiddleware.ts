@@ -83,7 +83,7 @@ export class CustomAssetGraduationMiddleware {
 
       // customAssets state is stored with checksummed/normalized asset IDs.
       // AccountsApiDataSource normalizes its response IDs, but
-      // BackendWebsocketDataSource does not — so we normalize the response
+      // AccountActivityDataSource does not — so we normalize the response
       // side here to make the comparison robust to lower-case addresses
       // delivered over the websocket.
       const customSet = new Set(customForAccount);
