@@ -1404,6 +1404,11 @@ export class AccountTreeController extends BaseController<
     this.#setSelectedAccountGroup(groupId);
   }
 
+  /**
+   * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
+   *
+   * @param accountId - The account ID to select the group for.
+   */
   setSelectedAccountGroupByAccountId(accountId: AccountId): void {
     const context = this.#accountIdToContext.get(accountId);
     if (!context) {
