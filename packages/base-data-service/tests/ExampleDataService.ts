@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/messenger';
 import { CaipAssetId, Duration, inMilliseconds, Json } from '@metamask/utils';
+import { DefaultError } from '@tanstack/query-core';
 import { ConstantBackoff } from 'cockatiel';
 
 import {
@@ -8,6 +9,7 @@ import {
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
   PersistenceConfiguration,
+  QueryKey,
 } from '../src/BaseDataService.js';
 import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types.js';
 
@@ -49,7 +51,8 @@ export type PageParam =
   | {
       before: string;
     }
-  | { after: string };
+  | { after: string }
+  | null;
 
 const MESSENGER_EXPOSED_METHODS = ['getAssets', 'getActivity'] as const;
 
@@ -101,15 +104,21 @@ export class ExampleDataService extends BaseDataService<
         return response.json();
       },
       staleTime: inMilliseconds(1, Duration.Day),
-      cacheTime: inMilliseconds(1, Duration.Day),
+      gcTime: inMilliseconds(1, Duration.Day),
     });
   }
 
   async getActivity(
     address: string,
-    page?: PageParam,
+    page: PageParam = null,
   ): Promise<GetActivityResponse> {
-    return this.fetchInfiniteQuery<GetActivityResponse>(
+    return this.fetchInfiniteQuery<
+      GetActivityResponse,
+      DefaultError,
+      GetActivityResponse,
+      QueryKey,
+      PageParam
+    >(
       {
         queryKey: [`${this.name}:getActivity`, address],
         queryFn: async ({ pageParam }) => {
@@ -118,10 +127,16 @@ export class ExampleDataService extends BaseDataService<
             `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
           );
 
-          if (pageParam?.after) {
-            url.searchParams.set('after', pageParam.after);
-          } else if (pageParam?.before) {
-            url.searchParams.set('before', pageParam.before);
+          if (pageParam !== null) {
+            // We need to discriminate this union.
+            // eslint-disable-next-line no-restricted-syntax
+            if ('after' in pageParam) {
+              url.searchParams.set('after', pageParam.after);
+              // We need to discriminate this union.
+              // eslint-disable-next-line no-restricted-syntax
+            } else if ('before' in pageParam) {
+              url.searchParams.set('before', pageParam.before);
+            }
           }
 
           const response = await fetch(url);
@@ -134,6 +149,7 @@ export class ExampleDataService extends BaseDataService<
 
           return response.json();
         },
+        initialPageParam: null,
         getPreviousPageParam: ({ pageInfo }) =>
           pageInfo.hasPreviousPage
             ? { before: pageInfo.startCursor }

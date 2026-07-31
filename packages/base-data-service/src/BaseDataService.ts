@@ -14,6 +14,7 @@ import {
   FetchQueryOptions,
   GetNextPageParamFunction,
   InfiniteData,
+  InfiniteQueryPageParamsOptions,
   InvalidateOptions,
   InvalidateQueryFilters,
   OmitKeyof,
@@ -278,14 +279,16 @@ export class BaseDataService<
    * Fetch a paginated query.
    *
    * @param options - The options defining the query. Note that although this
-   * method wraps `fetchQuery` from `@tanstack/query-core`, there are a few
-   * restrictions:
+   * method wraps `fetchInfiniteQuery` from `@tanstack/query-core`, there are a
+   * few differences:
    * - `queryKey` and `queryFn` are required
    * - `queryFn` must be a function, not a skip token
    * - `retry` and `retryDelay` are not available (retries can be customized
    *   using the constructor's `servicePolicyOptions`).
+   * - This function returns a page's worth of data (the same thing that
+   *   `queryFn` returns), not a list of pages
    * @param pageParam - An optional page parameter.
-   * @returns The query result (the requested page).
+   * @returns The requested page.
    */
   protected async fetchInfiniteQuery<
     TQueryFnData extends Json,
@@ -330,29 +333,23 @@ export class BaseDataService<
               TQueryFnData
             >;
           }
-      ),
+      ) &
+      InfiniteQueryPageParamsOptions<TQueryFnData, TPageParam>,
     pageParam?: TPageParam,
-  ): Promise<InfiniteData<TData, TPageParam>> {
-    return await this.#queryClient.fetchInfiniteQuery({
-      ...options,
-      queryFn: (context) =>
-        this.#policy.execute(() =>
-          options.queryFn({
-            ...context,
-            pageParam: context.pageParam ?? pageParam,
-          }),
-        ),
-    });
-
-    /*
+    // ): Promise<InfiniteData<TData, TPageParam> | TQueryFnData | TData> {
+  ): Promise<TQueryFnData> {
     const cache = this.#queryClient.getQueryCache();
 
-    const query = cache.find<TQueryFnData, TError, InfiniteData<TData>>({
+    const query = cache.find<
+      TQueryFnData,
+      TError,
+      InfiniteData<TQueryFnData, TPageParam>
+    >({
       queryKey: options.queryKey,
     });
 
     if (!query?.state.data || pageParam === undefined) {
-      return await this.#queryClient.fetchInfiniteQuery({
+      const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
         queryFn: (context) =>
           this.#policy.execute(() =>
@@ -362,10 +359,18 @@ export class BaseDataService<
             }),
           ),
       });
+      // We have to assume that `fetchInfiniteQuery` returns the same data
+      // that `queryFn` returns.
+      return result.pages[0] as unknown as TQueryFnData;
     }
 
-    const { pages } = query.state.data;
-    const previous = options.getPreviousPageParam?.(pages[0], pages);
+    const { pages, pageParams } = query.state.data;
+    const previous = options.getPreviousPageParam?.(
+      pages[0],
+      pages,
+      pageParams[0],
+      pageParams,
+    );
 
     const direction = deepEqual(pageParam, previous) ? 'backward' : 'forward';
 
@@ -373,7 +378,6 @@ export class BaseDataService<
       meta: {
         fetchMore: {
           direction,
-          pageParam,
         },
       },
     });
@@ -383,7 +387,6 @@ export class BaseDataService<
     );
 
     return result.pages[pageIndex];
-    */
   }
 
   /**
