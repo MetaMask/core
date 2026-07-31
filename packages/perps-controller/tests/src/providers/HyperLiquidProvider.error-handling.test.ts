@@ -626,6 +626,172 @@ describe('HyperLiquidProvider', () => {
         expect(result.error).toContain('Failed to update leverage');
       });
 
+      // TAT-3343: wallets with no Hyperliquid account (accounts are created
+      // server-side on the first USDC credit) get "User or API Wallet 0x... does
+      // not exist." from every exchange write. The order path used to leak that
+      // raw string to the UI and to failed-trade analytics, leaving users with
+      // no idea they simply need to fund the account.
+      it.each([
+        [
+          'updateLeverage',
+          () =>
+            createMockExchangeClient({
+              updateLeverage: jest
+                .fn()
+                .mockRejectedValue(
+                  new Error(
+                    'User or API Wallet 0x1234567890123456789012345678901234567890 does not exist.',
+                  ),
+                ),
+            }),
+        ],
+        [
+          'order',
+          () =>
+            createMockExchangeClient({
+              order: jest
+                .fn()
+                .mockRejectedValue(
+                  new Error(
+                    'User or API Wallet 0x1234567890123456789012345678901234567890 does not exist.',
+                  ),
+                ),
+            }),
+        ],
+      ])(
+        'maps the Hyperliquid "wallet does not exist" rejection from %s to EXCHANGE_ACCOUNT_NOT_FOUND',
+        async (_action, buildExchangeClient) => {
+          mockClientService.getExchangeClient = jest
+            .fn()
+            .mockReturnValue(buildExchangeClient());
+
+          const orderParams: OrderParams = {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+            leverage: 10,
+            currentPrice: 50000,
+          };
+
+          const result = await provider.placeOrder(orderParams);
+
+          expect(result.success).toBe(false);
+          expect(result.error).toBe(
+            PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+          );
+          // Raw exchange internals must never reach the UI or analytics.
+          expect(result.error).not.toContain('0x1234567890');
+        },
+      );
+
+      it('does not report the "wallet does not exist" rejection to Sentry', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            order: jest
+              .fn()
+              .mockRejectedValue(
+                new Error(
+                  'User or API Wallet 0x1234567890123456789012345678901234567890 does not exist.',
+                ),
+              ),
+          }),
+        );
+
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        });
+
+        expect(result.success).toBe(false);
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+      });
+
+      // HyperLiquid more often returns a non-`ok` status than a thrown
+      // rejection. #submitOrderWithRollback wraps that as
+      // `Order failed: ${JSON.stringify(result)}`, so the classifier must still
+      // match through the JSON wrapper.
+      it('maps the rejection when it arrives as a non-ok order status rather than a throw', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            order: jest.fn().mockResolvedValue({
+              status: 'err',
+              response:
+                'User or API Wallet 0x1234567890123456789012345678901234567890 does not exist.',
+            }),
+          }),
+        );
+
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND);
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+      });
+
+      // Boundary guard: `isHyperLiquidUserNotFoundError` is substring-based and
+      // now gates both error mapping and Sentry suppression on the order path.
+      // A message that merely contains "does not exist" must NOT be swallowed.
+      it('does not swallow near-miss "does not exist" order errors', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            order: jest
+              .fn()
+              .mockRejectedValue(
+                new Error('Asset BTC does not exist on this DEX'),
+              ),
+          }),
+        );
+
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).not.toBe(
+          PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        );
+        expect(result.error).toContain('Asset BTC does not exist');
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalled();
+      });
+
+      it('still reports unrelated order failures to Sentry', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            order: jest
+              .fn()
+              .mockRejectedValue(
+                new Error('Insufficient margin to place order'),
+              ),
+          }),
+        );
+
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Insufficient margin');
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalled();
+      });
+
       it('succeeds with market order without current price or usdAmount (uses fetched price)', async () => {
         // The provider now fetches the live price before validation so callers
         // that intentionally omit currentPrice (e.g. flipPosition) work correctly.
@@ -872,7 +1038,7 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('cache path: only cancels positionTpsl orders, not normalTpsl children of limit orders', async () => {
+      it('falls back to REST when the cache shows standalone-looking triggers, cancelling only positionTpsl orders', async () => {
         provider = createTestProvider({
           initialAssetMapping: [['BTC', 0]],
         });
@@ -969,6 +1135,46 @@ describe('HyperLiquidProvider', () => {
         mockSubscriptionService.getOrdersCacheIfInitialized = jest
           .fn()
           .mockReturnValue(cachedOrders);
+
+        // The cache cannot tell a standalone trigger apart from another order's
+        // normalTpsl child, so the update falls back to the REST payload, which
+        // carries the parent/child links.
+        const restTrigger = (
+          oid: number,
+          orderType: string,
+          isPositionTpsl: boolean,
+        ) => ({
+          coin: 'BTC',
+          oid,
+          orderType,
+          isPositionTpsl,
+          reduceOnly: true,
+          isTrigger: true,
+        });
+        const normalTpslChildren = [
+          restTrigger(501, 'Take Profit Limit', false),
+          restTrigger(502, 'Stop Market', false),
+        ];
+        const restOrders = [
+          {
+            coin: 'BTC',
+            oid: 500,
+            orderType: 'Limit',
+            isPositionTpsl: false,
+            reduceOnly: false,
+            isTrigger: false,
+            children: normalTpslChildren,
+          },
+          ...normalTpslChildren,
+          restTrigger(503, 'Take Profit Limit', true),
+          restTrigger(504, 'Stop Market', true),
+        ];
+
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            frontendOpenOrders: jest.fn().mockResolvedValue(restOrders),
+          }),
+        );
 
         const mockCancel = jest.fn().mockResolvedValue({
           status: 'ok',
