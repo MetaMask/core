@@ -589,6 +589,11 @@ export class AnalyticsController extends BaseController<
    * location is never requested before they consent to analytics (for example,
    * during onboarding).
    *
+   * Resolution runs at most once per controller session: the settled promise
+   * is retained, so the outcome — including a failure (see
+   * {@link #resolveLocationContext}) — is not retried, and events are delivered
+   * without location for the rest of the session.
+   *
    * @returns The geolocation resolution promise, or `undefined` when no
    * resolution is warranted.
    */
