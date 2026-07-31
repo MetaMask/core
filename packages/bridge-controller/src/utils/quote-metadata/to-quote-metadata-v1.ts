@@ -2,20 +2,25 @@ import { merge } from 'lodash';
 
 import type { DeepPartial } from '../../types.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import { QuoteResponseSchemaV2 } from '../../validators/quote-response.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import type { QuoteMetadata } from './types.js';
+import { is } from '@metamask/superstruct';
+import { sumAmounts } from '../number-formatters.js';
 
 /**
  * Extracts legacy {@link QuoteMetadata} values from a {@link QuoteResponse} or {@link QuoteResponseV1}.
  * If a QuoteResponse is provided, this assumes that its `valueInCurrency` properties are set.
  *
  * @param quoteResponse - The quote to extract the metadata from
+ * @param migrationPhase - The migration phase to use
  * @returns A partial {@link QuoteMetadata} object
  */
 export const toQuoteMetadataV1 = (
   quoteResponse:
     | (DeepPartial<QuoteResponse | QuoteResponseV1> & QuoteMetadata)
     | null,
+  migrationPhase: '1' | '1.5' | '2',
 ): QuoteMetadata => {
   if (!quoteResponse) {
     return {};
@@ -57,6 +62,97 @@ export const toQuoteMetadataV1 = (
       : {}),
   };
 
-  // Phase 1 only uses legacyMetadata
+  // Build V1 from V2 quote
+  if (is(quoteResponse, QuoteResponseSchemaV2) && migrationPhase !== '1') {
+    const totalNetworkFeeV2 = sumAmounts(
+      quoteResponse?.quote?.feeData?.network,
+      quoteResponse?.quote?.feeData?.relayer,
+    );
+    const v2Metadata: QuoteMetadata | undefined = {
+      sentAmount: {
+        amount: quoteResponse?.quote?.src?.normalizedAmount,
+        usd: quoteResponse?.quote?.src?.usd ?? undefined,
+        valueInCurrency:
+          quoteResponse?.quote?.src?.valueInCurrency ?? undefined,
+      },
+      toTokenAmount: {
+        amount: quoteResponse?.quote?.dest?.normalizedAmount,
+        usd: quoteResponse?.quote?.dest?.usd ?? undefined,
+        valueInCurrency:
+          quoteResponse?.quote?.dest?.valueInCurrency ?? undefined,
+      },
+      minToTokenAmount: {
+        amount: quoteResponse?.quote?.dest?.minAmountNormalized,
+        valueInCurrency:
+          quoteResponse?.quote?.dest?.minAmountValueInCurrency ?? undefined,
+        usd: quoteResponse?.quote?.dest?.minAmountUsd ?? undefined,
+      },
+      swapRate: quoteResponse?.quote?.priceData?.swapRate,
+      adjustedReturn: {
+        usd: quoteResponse?.quote?.priceData?.adjustedReturn?.usd ?? undefined,
+        valueInCurrency:
+          quoteResponse?.quote?.priceData?.adjustedReturn?.valueInCurrency ??
+          undefined,
+      },
+      cost: {
+        valueInCurrency:
+          quoteResponse?.quote?.priceData?.priceImpact?.valueInCurrency ??
+          undefined,
+        usd: quoteResponse?.quote?.priceData?.priceImpact?.usd ?? undefined,
+      },
+      gasFee: {
+        total: {
+          amount:
+            quoteResponse?.quote?.feeData?.network?.[0]?.normalizedAmount ??
+            undefined,
+          usd: quoteResponse?.quote?.feeData?.network?.[0]?.usd ?? undefined,
+          valueInCurrency:
+            quoteResponse?.quote?.feeData?.network?.[0]?.valueInCurrency ??
+            undefined,
+        },
+      },
+      totalNetworkFee: {
+        amount: totalNetworkFeeV2?.normalizedAmount ?? undefined,
+        usd: totalNetworkFeeV2?.usd ?? undefined,
+        valueInCurrency: totalNetworkFeeV2?.valueInCurrency ?? undefined,
+      },
+      priceImpact: {
+        usd: quoteResponse?.quote?.priceData?.priceImpact?.usd ?? undefined,
+        valueInCurrency:
+          quoteResponse?.quote?.priceData?.priceImpact?.valueInCurrency ??
+          undefined,
+      },
+      relayerFee: {
+        amount:
+          quoteResponse?.quote?.feeData?.relayer?.[0]?.normalizedAmount ??
+          undefined,
+        usd: quoteResponse?.quote?.feeData?.relayer?.[0]?.usd ?? undefined,
+        valueInCurrency:
+          quoteResponse?.quote?.feeData?.relayer?.[0]?.valueInCurrency ??
+          undefined,
+      },
+      includedTxFees: {
+        amount:
+          quoteResponse?.quote?.feeData?.txFee?.[0]?.normalizedAmount ??
+          undefined,
+        usd: quoteResponse?.quote?.feeData?.txFee?.[0]?.usd ?? undefined,
+        valueInCurrency:
+          quoteResponse?.quote?.feeData?.txFee?.[0]?.valueInCurrency ??
+          undefined,
+      },
+    };
+
+    if (migrationPhase === '1.5') {
+      // Phase 1.5 uses legacyMetadata as fallback
+      return merge({}, legacyMetadata, v2Metadata);
+    }
+
+    // Phase 2 only uses metadata from the API response
+    if (migrationPhase === '2' && v2Metadata) {
+      return v2Metadata;
+    }
+  }
+
+  // Return legacy metadata as-is, extract from quote
   return merge({}, legacyMetadata);
 };

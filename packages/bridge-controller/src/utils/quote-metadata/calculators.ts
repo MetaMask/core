@@ -23,6 +23,7 @@ import type { TxData } from '../../validators/trade.js';
 import { isEvmQuoteResponse, isNativeAddress } from '../bridge.js';
 import { calcTokenAmount } from '../number-formatters.js';
 import type { QuoteMetadata, TokenAmountValues } from './types.js';
+import { FeeType } from '../../index.js';
 
 export const calcNonEvmTotalNetworkFee = (
   bridgeQuote: QuoteResponseV1 & NonEvmFees,
@@ -447,6 +448,7 @@ export const calcQuoteMetadata = (
 
   const isQuoteV2 = is(quote, QuoteResponseSchemaV2);
   const quoteV1 = isQuoteV2 ? toQuoteResponseV1(quote) : quote;
+  // const quote = toQuoteResponseV2(toQuoteResponseV1(baseQuote));
 
   const sentAmount = calcSentAmount(
     quoteV1.quote,
@@ -531,5 +533,61 @@ export const calcQuoteMetadata = (
       Object.values(priceImpact).some(Boolean) && {
         priceImpact,
       }),
+  };
+};
+
+export const calcQuoteMetadataV2 = (
+  quote: QuoteResponse,
+  usdToFiatExchangeRateString?: string,
+): DeepPartial<QuoteResponse> => {
+  if (!usdToFiatExchangeRateString) {
+    return {};
+  }
+  const usdToFiatExchangeRate = new BigNumber(usdToFiatExchangeRateString);
+  // Calculate fiat based on usd value
+  return {
+    quote: {
+      src: {
+        valueInCurrency:
+          quote.quote.src.usd &&
+          usdToFiatExchangeRate.times(quote.quote.src.usd).toFixed(),
+      },
+      dest: {
+        valueInCurrency:
+          quote.quote.dest.usd &&
+          usdToFiatExchangeRate.times(quote.quote.dest.usd).toFixed(),
+        minAmountValueInCurrency:
+          quote.quote.dest.minAmountUsd &&
+          usdToFiatExchangeRate.times(quote.quote.dest.minAmountUsd).toFixed(),
+      },
+      feeData: Object.fromEntries(
+        Object.values(FeeType).map((feeType) => [
+          feeType,
+          quote.quote.feeData[feeType]
+            ?.filter((fee) => fee.usd)
+            .map((fee) => ({
+              valueInCurrency: usdToFiatExchangeRate
+                .times(fee.usd as string)
+                .toFixed(),
+            })),
+        ]),
+      ),
+      priceData: {
+        priceImpact: {
+          valueInCurrency: quote.quote.priceData?.priceImpact?.usd
+            ? usdToFiatExchangeRate
+                .times(quote.quote.priceData?.priceImpact?.usd)
+                .toFixed()
+            : undefined,
+        },
+        adjustedReturn: {
+          valueInCurrency: quote.quote.priceData?.adjustedReturn?.usd
+            ? usdToFiatExchangeRate
+                .times(quote.quote.priceData.adjustedReturn.usd)
+                .toFixed()
+            : undefined,
+        },
+      },
+    },
   };
 };

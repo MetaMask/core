@@ -39,6 +39,7 @@ import {
   getDefaultBridgeControllerState,
   isCrossChain,
   isEthUsdt,
+  isNativeAddress,
   isNonEvmChainId,
   isSolanaChainId,
 } from './utils/bridge.js';

@@ -38,8 +38,11 @@ import {
 } from './utils/caip-formatters.js';
 import { processFeatureFlags } from './utils/feature-flags.js';
 import { sumAmounts } from './utils/number-formatters.js';
-import { calcBatchFees } from './utils/quote-metadata/calculators.js';
-import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
+import {
+  calcBatchFees,
+  calcQuoteMetadataV2,
+  calcQuoteMetadata,
+} from './utils/quote-metadata/calculators.js';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 import type { QuoteMetadata } from './utils/quote-metadata/types.js';
 import { getDefaultSlippagePercentage } from './utils/slippage.js';
@@ -98,6 +101,7 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
+  migrationPhase: '1' | '1.5' | '2';
 };
 
 type EvmTokenExchangeRate = { price?: number; currency?: string };
@@ -362,13 +366,54 @@ const selectMetadata = createBridgeSelector(
   },
 );
 
+export const selectUsdToFiatExchangeRate = createBridgeSelector(
+  [
+    selectExchangeRateSources,
+    ({ quoteRequest }) =>
+      getNativeAssetForChainId(quoteRequest[0]?.srcChainId ?? 1)?.assetId,
+  ],
+  (exchangeRateSources, nativeAssetId) => {
+    const exchangeRate = selectExchangeRateByAssetId(
+      exchangeRateSources,
+      nativeAssetId,
+    );
+    return exchangeRate?.exchangeRate && exchangeRate?.usdExchangeRate
+      ? new BigNumber(exchangeRate.exchangeRate)
+          .div(exchangeRate.usdExchangeRate)
+          .toFixed()
+      : undefined;
+  },
+);
+
+export const selectMetadataV2 = createBridgeSelector(
+  [({ quotes }) => quotes, selectUsdToFiatExchangeRate],
+  (quotes, usdToFiatExchangeRate) => {
+    return quotes.map((quote) =>
+      calcQuoteMetadataV2(quote, usdToFiatExchangeRate),
+    );
+  },
+);
+
 // Selects cross-chain swap quotes including their metadata
 const selectBridgeQuotesWithMetadata = createBridgeSelector(
-  [selectMetadata, ({ quotes }) => quotes],
-  (quoteMetadata, quotes) =>
-    quotes.map((quote, index) =>
-      mergeQuoteMetadata(quote, quoteMetadata[index]),
-    ),
+  [
+    selectMetadata,
+    selectMetadataV2,
+    ({ quotes }) => quotes,
+    (_, { migrationPhase }: BridgeQuotesClientParams) => migrationPhase,
+  ],
+  (quoteMetadata, quoteMetadataV2, quotes, migrationPhase) =>
+    quotes.map((quote, index) => {
+      // if phase 1, skip toQuoteMetadataV2(quoteMetadataV2) so new metadata keys have old data
+      // if phase 1.5, add quoteMetadataV2, so new metadata keys can have both old and new data
+      // if phase 2, skip quoteMetadata, so new metadata keys have new data and old data can be removed
+      return mergeQuoteMetadata(
+        quote,
+        quoteMetadata[index],
+        migrationPhase,
+        quoteMetadataV2?.[index],
+      );
+    }),
 );
 
 const selectSortedBridgeQuotes = createBridgeSelector(
@@ -465,8 +510,8 @@ export const selectIsQuoteExpired = createBridgeSelector(
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
       !isQuoteGoingToRefresh &&
-      quotesLastFetched &&
-      currentTimeInMs - quotesLastFetched > refreshRate,
+        quotesLastFetched &&
+        currentTimeInMs - quotesLastFetched > refreshRate,
     ),
 );
 
