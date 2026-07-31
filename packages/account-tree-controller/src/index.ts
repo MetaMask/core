@@ -51,14 +51,22 @@ export {
 
 export type {
   AccountTreePayload,
+  AccountTreePayloadSchemaType,
   AccountWalletMnemonicPayload,
   AccountWalletPrivateKeyPayload,
   AccountWalletMnemonicGroupEntry,
   AccountWalletPrivateKeyGroupEntry,
   AccountWalletPayloadId,
   AccountGroupPayloadId,
-  AccountTreeSnapshotEntry,
+  AccountTreeSnapshotWallet,
+  AccountTreeSnapshotGroup,
   ExportStateOptions,
+} from './state/payload.js';
+
+export {
+  AccountTreePayloadSchema,
+  assertValidAccountTreePayload,
+  migrate,
 } from './state/payload.js';
 
 export { AccountTreeSnapshot } from './state/snapshot.js';
