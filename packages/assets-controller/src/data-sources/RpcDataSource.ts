@@ -286,7 +286,7 @@ export class RpcDataSource extends AbstractDataSource<
           'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
           toCaipChainId(
             KnownCaipNamespace.Eip155,
-            String(hexToNumber(hexChainId)),
+            hexToNumber(hexChainId).toString(),
           ),
         )?.contracts?.multicall3,
     });
