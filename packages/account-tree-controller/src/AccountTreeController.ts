@@ -49,6 +49,7 @@ export const controllerName = 'AccountTreeController';
 const MESSENGER_EXPOSED_METHODS = [
   'getSelectedAccountGroup',
   'setSelectedAccountGroup',
+  'setSelectedAccountGroupByAccountId',
   'getAccountsFromSelectedAccountGroup',
   'getAccountFromSelectedAccountGroup',
   'getAccountContext',
@@ -1401,6 +1402,14 @@ export class AccountTreeController extends BaseController<
    */
   setSelectedAccountGroup(groupId: AccountGroupId): void {
     this.#setSelectedAccountGroup(groupId);
+  }
+
+  setSelectedAccountGroupByAccountId(accountId: AccountId): void {
+    const context = this.#accountIdToContext.get(accountId);
+    if (!context) {
+      throw new Error('Account not found in the account tree');
+    }
+    this.setSelectedAccountGroup(context.groupId);
   }
 
   /**
