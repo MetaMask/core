@@ -309,6 +309,95 @@ describe('AuthenticationController', () => {
       });
     });
 
+    it.each([
+      {
+        name: 'APPLE for apple social vault',
+        seedlessState: { vault: 'encrypted', authConnection: 'apple' },
+        expectedIdentifierType: 'APPLE',
+      },
+      {
+        name: 'SRP when social vault has unrecognized authConnection',
+        seedlessState: { vault: 'encrypted', authConnection: 'unknown' },
+        expectedIdentifierType: 'SRP',
+      },
+      {
+        name: 'SRP when seedless vault is absent',
+        seedlessState: { vault: undefined, authConnection: 'google' },
+        expectedIdentifierType: 'SRP',
+      },
+    ])(
+      'sends $name',
+      async ({ seedlessState, expectedIdentifierType }) => {
+        const metametrics = createMockAuthMetaMetrics();
+        const loginBodies: SrpLoginRequestBody[] = [];
+        arrangeAuthAPIs({
+          onSrpLoginBody: (body) => {
+            loginBodies.push(
+              (typeof body === 'string'
+                ? JSON.parse(body)
+                : body) as SrpLoginRequestBody,
+            );
+          },
+        });
+        const {
+          messenger,
+          mockSnapGetAllPublicKeys,
+          mockSeedlessOnboardingGetState,
+        } = createMockAuthenticationMessenger();
+        mockSnapGetAllPublicKeys.mockResolvedValue([
+          [MOCK_ENTROPY_SOURCE_IDS[0], 'MOCK_PUBLIC_KEY'],
+        ]);
+        mockSeedlessOnboardingGetState.mockReturnValue(seedlessState);
+
+        const controller = new AuthenticationController({
+          messenger,
+          metametrics,
+        });
+
+        await controller.performSignIn();
+
+        expect(loginBodies).toHaveLength(1);
+        expect(loginBodies[0]?.metametrics?.identifier_type).toBe(
+          expectedIdentifierType,
+        );
+      },
+    );
+
+    it('sends SRP identifier_type when SeedlessOnboarding getState fails', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const loginBodies: SrpLoginRequestBody[] = [];
+      arrangeAuthAPIs({
+        onSrpLoginBody: (body) => {
+          loginBodies.push(
+            (typeof body === 'string'
+              ? JSON.parse(body)
+              : body) as SrpLoginRequestBody,
+          );
+        },
+      });
+      const {
+        messenger,
+        mockSnapGetAllPublicKeys,
+        mockSeedlessOnboardingGetState,
+      } = createMockAuthenticationMessenger();
+      mockSnapGetAllPublicKeys.mockResolvedValue([
+        [MOCK_ENTROPY_SOURCE_IDS[0], 'MOCK_PUBLIC_KEY'],
+      ]);
+      mockSeedlessOnboardingGetState.mockImplementation(() => {
+        throw new Error('SeedlessOnboardingController unavailable');
+      });
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      await controller.performSignIn();
+
+      expect(loginBodies).toHaveLength(1);
+      expect(loginBodies[0]?.metametrics?.identifier_type).toBe('SRP');
+    });
+
     it('should error when nonce endpoint fails', async () => {
       expect(true).toBe(true);
       await testAndAssertFailingEndpoints('nonce');
