@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `eth-chainlist` dependency for chain-native slip44/symbol lookup ([#9729](https://github.com/MetaMask/core/pull/9729))
+
 ### Changed
 
-- Resolve native fee/token metadata from `eth-chainlist` (chainId → slip44/symbol), falling back to `@metamask/slip44` by symbol when chainlist omits `slip44`
+- Resolve native fee/token metadata from `eth-chainlist` (chainId → slip44/symbol), falling back to `@metamask/slip44` by symbol when chainlist omits `slip44` ([#9729](https://github.com/MetaMask/core/pull/9729))
+  - API network fees no longer scrape native symbol from `valueTransfers`
+  - STANDARD sends with empty `valueTransfers` synthesize a native token from `tx.value`
 
 ## [1.5.0]
 
