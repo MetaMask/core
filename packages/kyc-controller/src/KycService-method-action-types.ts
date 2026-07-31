@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { KycService } from './KycService';
+import type { KycService } from './KycService.js';
 
 /**
  * Resolves the customer's country from the geolocation source and converts it

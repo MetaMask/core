@@ -1,8 +1,8 @@
 import { areUint8ArraysEqual } from '@metamask/utils';
-import nacl from 'tweetnacl';
+import { box } from 'tweetnacl';
 
-import { base64UrlToBytes, toBase64Url } from './encoding';
-import { wrapEncryptionKey } from './wrapEncryptionKey';
+import { base64UrlToBytes, toBase64Url } from './encoding.js';
+import { wrapEncryptionKey } from './wrapEncryptionKey.js';
 
 const DATA_ENCRYPTION_KEY = new Uint8Array(32).fill(7);
 
@@ -22,7 +22,7 @@ function unwrap(
   encryptedKey: string,
   nonce: string,
 ): Uint8Array {
-  const recovered = nacl.box.open(
+  const recovered = box.open(
     base64UrlToBytes(encryptedKey),
     base64UrlToBytes(nonce),
     clientPublicKey,
@@ -36,8 +36,8 @@ function unwrap(
 
 describe('UKYC wrapEncryptionKey', () => {
   it('wraps a key the session server can recover', () => {
-    const serverKeyPair = nacl.box.keyPair();
-    const clientKeyPair = nacl.box.keyPair();
+    const serverKeyPair = box.keyPair();
+    const clientKeyPair = box.keyPair();
 
     const { encryptedKey, nonce } = wrapEncryptionKey(
       clientKeyPair.secretKey,
@@ -55,8 +55,8 @@ describe('UKYC wrapEncryptionKey', () => {
   });
 
   it('emits base64url fields', () => {
-    const serverPublicKey = nacl.box.keyPair().publicKey;
-    const clientPrivateKey = nacl.box.keyPair().secretKey;
+    const serverPublicKey = box.keyPair().publicKey;
+    const clientPrivateKey = box.keyPair().secretKey;
 
     const { encryptedKey, nonce } = wrapEncryptionKey(
       clientPrivateKey,
@@ -69,8 +69,8 @@ describe('UKYC wrapEncryptionKey', () => {
   });
 
   it('uses a fresh nonce per call', () => {
-    const serverPublicKey = nacl.box.keyPair().publicKey;
-    const clientPrivateKey = nacl.box.keyPair().secretKey;
+    const serverPublicKey = box.keyPair().publicKey;
+    const clientPrivateKey = box.keyPair().secretKey;
     const serverPublicKeyB64 = toBase64Url(serverPublicKey);
 
     const first = wrapEncryptionKey(

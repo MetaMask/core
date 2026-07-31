@@ -1,4 +1,4 @@
-import * as packageExports from '.';
+import * as packageExports from './index.js';
 
 describe('@metamask/kyc-controller', () => {
   it('exports the controller, service, selectors, and helpers', () => {

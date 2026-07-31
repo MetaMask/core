@@ -6,38 +6,38 @@ export {
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
   UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
   UKYC_STORAGE_ACCESS_TOKEN_VERSION,
-} from './constants';
-export { base64UrlToBytes, toBase64Url } from './encoding';
+} from './constants.js';
+export { base64UrlToBytes, toBase64Url } from './encoding.js';
 export {
   deriveClientMaterial,
   encodeClientMaterial,
-} from './deriveClientMaterial';
+} from './deriveClientMaterial.js';
 export type {
   EncodedUkycClientMaterial,
   UkycClientMaterial,
-} from './deriveClientMaterial';
-export { verifyJwtChain } from './jwtChain';
-export type { Jwk, JwtChainPayload } from './jwtChain';
+} from './deriveClientMaterial.js';
+export { verifyJwtChain } from './jwtChain.js';
+export type { Jwk, JwtChainPayload } from './jwtChain.js';
 export {
   getOrCreateLocalUserSecret,
   hasLocalUserSecret,
   loadLocalUserSecret,
-} from './localUserSecret';
-export type { UkycLocalUserSecretStore } from './localUserSecret';
+} from './localUserSecret.js';
+export type { UkycLocalUserSecretStore } from './localUserSecret.js';
 export {
   canonicalizeJson,
   encodeStorageAccessTokenForHeader,
   signStorageAccessToken,
-} from './storageAccessToken';
+} from './storageAccessToken.js';
 export type {
   SignStorageAccessTokenParams,
   UkycStorageAccessToken,
   UkycStorageAccessTokenPayload,
   UkycStorageOperation,
   UkycTokenPresenter,
-} from './storageAccessToken';
-export { wrapEncryptionKey } from './wrapEncryptionKey';
-export type { WrappedEncryptionKeyParts } from './wrapEncryptionKey';
-export { wrapUserKey } from './wrapUserKey';
-export { buildWrappedRelayPayload } from './wrappedRelayPayload';
-export type { UkycWrappedRelayPayload } from './wrappedRelayPayload';
+} from './storageAccessToken.js';
+export { wrapEncryptionKey } from './wrapEncryptionKey.js';
+export type { WrappedEncryptionKeyParts } from './wrapEncryptionKey.js';
+export { wrapUserKey } from './wrapUserKey.js';
+export { buildWrappedRelayPayload } from './wrappedRelayPayload.js';
+export type { UkycWrappedRelayPayload } from './wrappedRelayPayload.js';

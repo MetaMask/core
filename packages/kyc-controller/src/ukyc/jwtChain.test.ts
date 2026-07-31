@@ -1,9 +1,9 @@
 import { stringToBytes } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
 
-import { toBase64Url } from './encoding';
-import type { Jwk } from './jwtChain';
-import { verifyJwtChain } from './jwtChain';
+import { toBase64Url } from './encoding.js';
+import type { Jwk } from './jwtChain.js';
+import { verifyJwtChain } from './jwtChain.js';
 
 const KID = 'key-1';
 const PAYLOAD = { sessionServerPublicKeyX: 'spk-x', nonce: 'nonce-1' };

@@ -5,13 +5,13 @@ import {
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
   UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
   UKYC_STORAGE_ACCESS_TOKEN_VERSION,
-} from './constants';
-import { deriveClientMaterial } from './deriveClientMaterial';
+} from './constants.js';
+import { deriveClientMaterial } from './deriveClientMaterial.js';
 import {
   canonicalizeJson,
   encodeStorageAccessTokenForHeader,
   signStorageAccessToken,
-} from './storageAccessToken';
+} from './storageAccessToken.js';
 
 const LOCAL_USER_SECRET = new Uint8Array(
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,

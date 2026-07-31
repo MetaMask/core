@@ -3,13 +3,13 @@ import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 import {
   UKYC_LOCAL_USER_SECRET_PATH,
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
-} from './constants';
-import type { UkycLocalUserSecretStore } from './localUserSecret';
+} from './constants.js';
+import type { UkycLocalUserSecretStore } from './localUserSecret.js';
 import {
   getOrCreateLocalUserSecret,
   hasLocalUserSecret,
   loadLocalUserSecret,
-} from './localUserSecret';
+} from './localUserSecret.js';
 
 const SECRET_BYTES = new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(7);
 const SECRET_BASE64 = bytesToBase64(SECRET_BYTES);

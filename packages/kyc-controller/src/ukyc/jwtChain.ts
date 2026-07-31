@@ -1,7 +1,7 @@
 import { bytesToString } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
 
-import { base64UrlToBytes } from './encoding';
+import { base64UrlToBytes } from './encoding.js';
 
 /**
  * Verifies the `jwtChain` returned by the Fractal encryption service against

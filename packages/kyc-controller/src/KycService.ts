@@ -17,11 +17,11 @@ import {
   type,
 } from '@metamask/superstruct';
 
-import { alpha2ToAlpha3 } from './countryCodes';
-import type { KycServiceMethodActions } from './KycService-method-action-types';
-import type { KycDisclaimer, KycSessionStatus } from './types';
-import { encodeStorageAccessTokenForHeader, UKYC_JWKS_PATH } from './ukyc';
-import type { UkycStorageAccessToken } from './ukyc';
+import { alpha2ToAlpha3 } from './countryCodes.js';
+import type { KycServiceMethodActions } from './KycService-method-action-types.js';
+import type { KycDisclaimer, KycSessionStatus } from './types.js';
+import { encodeStorageAccessTokenForHeader, UKYC_JWKS_PATH } from './ukyc.js';
+import type { UkycStorageAccessToken } from './ukyc.js';
 
 // === GENERAL ===
 

@@ -3,8 +3,8 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 
-import { UKYC_DERIVED_KEY_SIZES, UKYC_KDF_INFO } from './constants';
-import { toBase64Url } from './encoding';
+import { UKYC_DERIVED_KEY_SIZES, UKYC_KDF_INFO } from './constants.js';
+import { toBase64Url } from './encoding.js';
 
 /**
  * Derives UKYC client material from the root `local_user_secret` using

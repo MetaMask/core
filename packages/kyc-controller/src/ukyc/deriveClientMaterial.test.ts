@@ -4,11 +4,11 @@ import { ed25519 } from '@noble/curves/ed25519';
 import {
   UKYC_DERIVED_KEY_SIZES,
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
-} from './constants';
+} from './constants.js';
 import {
   deriveClientMaterial,
   encodeClientMaterial,
-} from './deriveClientMaterial';
+} from './deriveClientMaterial.js';
 
 const LOCAL_USER_SECRET = new Uint8Array(
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,

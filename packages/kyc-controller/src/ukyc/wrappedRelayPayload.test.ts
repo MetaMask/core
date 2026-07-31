@@ -1,8 +1,8 @@
-import { UKYC_LOCAL_USER_SECRET_SIZE_BYTES } from './constants';
-import { deriveClientMaterial } from './deriveClientMaterial';
-import type { UkycStorageAccessToken } from './storageAccessToken';
-import { signStorageAccessToken } from './storageAccessToken';
-import { buildWrappedRelayPayload } from './wrappedRelayPayload';
+import { UKYC_LOCAL_USER_SECRET_SIZE_BYTES } from './constants.js';
+import { deriveClientMaterial } from './deriveClientMaterial.js';
+import type { UkycStorageAccessToken } from './storageAccessToken.js';
+import { signStorageAccessToken } from './storageAccessToken.js';
+import { buildWrappedRelayPayload } from './wrappedRelayPayload.js';
 
 const LOCAL_USER_SECRET = new Uint8Array(
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,

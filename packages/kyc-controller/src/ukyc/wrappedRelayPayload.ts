@@ -1,6 +1,6 @@
-import type { UkycClientMaterial } from './deriveClientMaterial';
-import { toBase64Url } from './encoding';
-import type { UkycStorageAccessToken } from './storageAccessToken';
+import type { UkycClientMaterial } from './deriveClientMaterial.js';
+import { toBase64Url } from './encoding.js';
+import type { UkycStorageAccessToken } from './storageAccessToken.js';
 
 /**
  * Builds the `wrapped_relay_payload` — the only client-derived material that

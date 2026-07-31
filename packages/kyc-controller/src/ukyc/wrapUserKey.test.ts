@@ -5,7 +5,7 @@ import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex } from '@noble/hashes/utils';
 
-import { wrapUserKey } from './wrapUserKey';
+import { wrapUserKey } from './wrapUserKey.js';
 
 const X25519_KEY_SIZE_BYTES = 32;
 const IV_SIZE_BYTES = 12;

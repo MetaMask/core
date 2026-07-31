@@ -4,7 +4,7 @@ import { randomBytes } from '@noble/hashes/utils';
 import {
   UKYC_LOCAL_USER_SECRET_PATH,
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
-} from './constants';
+} from './constants.js';
 
 /**
  * Orchestrates creation and loading of the UKYC `local_user_secret`.

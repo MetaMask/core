@@ -1,6 +1,6 @@
-import nacl from 'tweetnacl';
+import { randomBytes, box } from 'tweetnacl';
 
-import { base64UrlToBytes, toBase64Url } from './encoding';
+import { base64UrlToBytes, toBase64Url } from './encoding.js';
 
 /**
  * Wraps the `data_encryption_key` for the UKYC session server using NaCl's
@@ -42,8 +42,8 @@ export function wrapEncryptionKey(
   keyToWrap: Uint8Array,
 ): WrappedEncryptionKeyParts {
   const serverPublicKey = base64UrlToBytes(sessionServerPublicKey);
-  const nonce = nacl.randomBytes(nacl.box.nonceLength);
-  const encryptedKey = nacl.box(
+  const nonce = randomBytes(box.nonceLength);
+  const encryptedKey = box(
     keyToWrap,
     nonce,
     serverPublicKey,

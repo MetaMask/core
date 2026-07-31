@@ -5,8 +5,8 @@ import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 import { base64 } from '@scure/base';
 
-import type { EncryptedCredentialsEnvelope } from './crypto';
-import { decryptCredentials, generateKeyPair } from './crypto';
+import type { EncryptedCredentialsEnvelope } from './crypto.js';
+import { decryptCredentials, generateKeyPair } from './crypto.js';
 
 /**
  * Builds an encrypted-credentials envelope that `decryptCredentials` can

@@ -2,7 +2,7 @@ export {
   KycController,
   getDefaultKycControllerState,
   controllerName,
-} from './KycController';
+} from './KycController.js';
 export type {
   KycControllerActions,
   KycControllerEvents,
@@ -11,7 +11,7 @@ export type {
   KycControllerOptions,
   KycControllerState,
   KycControllerStateChangeEvent,
-} from './KycController';
+} from './KycController.js';
 export type {
   KycControllerAcceptTermsAndStartSessionAction,
   KycControllerBuildAuthFrameUrlAction,
@@ -26,9 +26,9 @@ export type {
   KycControllerLoadDisclaimersAction,
   KycControllerResetAction,
   KycControllerStartSumSubAction,
-} from './KycController-method-action-types';
+} from './KycController-method-action-types.js';
 
-export { KycService, serviceName } from './KycService';
+export { KycService, serviceName } from './KycService.js';
 export type {
   ApplicantAccessTokenResponse,
   CheckKycRequiredParams,
@@ -45,7 +45,7 @@ export type {
   UkycSessionResponse,
   WrappedEncryptionKey,
   WrappingKeyResponse,
-} from './KycService';
+} from './KycService.js';
 export type {
   KycServiceCheckKycRequiredAction,
   KycServiceCreateJourneyAction,
@@ -56,22 +56,22 @@ export type {
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetWrappingKeyAction,
-} from './KycService-method-action-types';
+} from './KycService-method-action-types.js';
 
 export {
   selectIsKycRequiredForProduct,
   selectKycPhase,
   selectKycSumSub,
-} from './selectors';
+} from './selectors.js';
 
-export { alpha2ToAlpha3, ALPHA2_TO_ALPHA3 } from './countryCodes';
-export { decryptCredentials, generateKeyPair } from './crypto';
+export { alpha2ToAlpha3, ALPHA2_TO_ALPHA3 } from './countryCodes.js';
+export { decryptCredentials, generateKeyPair } from './crypto.js';
 export type {
   DecryptedCredentials,
   DecryptResult,
   EncryptedCredentialsEnvelope,
   X25519KeyPair,
-} from './crypto';
+} from './crypto.js';
 
 export type {
   KycDisclaimer,
@@ -82,7 +82,7 @@ export type {
   KycSumSubLauncher,
   KycSumSubStatus,
   KycVendor,
-} from './types';
+} from './types.js';
 
 export {
   base64UrlToBytes,
@@ -106,7 +106,7 @@ export {
   verifyJwtChain,
   wrapEncryptionKey,
   wrapUserKey,
-} from './ukyc';
+} from './ukyc.js';
 export type {
   EncodedUkycClientMaterial,
   Jwk,
@@ -120,4 +120,4 @@ export type {
   UkycTokenPresenter,
   UkycWrappedRelayPayload,
   WrappedEncryptionKeyParts,
-} from './ukyc';
+} from './ukyc.js';

@@ -1,4 +1,4 @@
-import { ALPHA2_TO_ALPHA3, alpha2ToAlpha3 } from './countryCodes';
+import { ALPHA2_TO_ALPHA3, alpha2ToAlpha3 } from './countryCodes.js';
 
 describe('countryCodes', () => {
   it('exposes the alpha-2 to alpha-3 map', () => {

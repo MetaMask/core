@@ -4,9 +4,9 @@ import { ed25519 } from '@noble/curves/ed25519';
 import {
   UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
   UKYC_STORAGE_ACCESS_TOKEN_VERSION,
-} from './constants';
-import type { UkycClientMaterial } from './deriveClientMaterial';
-import { toBase64Url } from './encoding';
+} from './constants.js';
+import type { UkycClientMaterial } from './deriveClientMaterial.js';
+import { toBase64Url } from './encoding.js';
 
 /**
  * Mints `storage_access_token` capabilities — the client-signed, scoped,

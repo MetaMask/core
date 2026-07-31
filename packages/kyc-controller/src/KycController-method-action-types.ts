@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { KycController } from './KycController';
+import type { KycController } from './KycController.js';
 
 /**
  * Resolves persisted terms + geolocation, and auto-creates a session when

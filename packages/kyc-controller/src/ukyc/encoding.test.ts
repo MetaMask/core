@@ -1,6 +1,6 @@
 import { areUint8ArraysEqual } from '@metamask/utils';
 
-import { base64UrlToBytes, toBase64Url } from './encoding';
+import { base64UrlToBytes, toBase64Url } from './encoding.js';
 
 describe('UKYC encoding', () => {
   describe('toBase64Url', () => {

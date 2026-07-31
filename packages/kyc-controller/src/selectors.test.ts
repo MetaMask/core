@@ -1,9 +1,9 @@
-import { getDefaultKycControllerState } from './KycController';
+import { getDefaultKycControllerState } from './KycController.js';
 import {
   selectIsKycRequiredForProduct,
   selectKycPhase,
   selectKycSumSub,
-} from './selectors';
+} from './selectors.js';
 
 describe('selectors', () => {
   it('selectKycPhase returns the current phase', () => {

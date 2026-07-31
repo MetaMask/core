@@ -12,10 +12,10 @@ import type {
 import type { Json } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
-import { decryptCredentials, generateKeyPair } from './crypto';
-import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto';
-import type { KycControllerMethodActions } from './KycController-method-action-types';
-import type { KycServiceMethodActions } from './KycService-method-action-types';
+import { decryptCredentials, generateKeyPair } from './crypto.js';
+import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
+import type { KycControllerMethodActions } from './KycController-method-action-types.js';
+import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type {
   KycDisclaimer,
   KycPhase,
@@ -23,7 +23,7 @@ import type {
   KycSessionStatus,
   KycSumSubLauncher,
   KycSumSubStatus,
-} from './types';
+} from './types.js';
 import {
   deriveClientMaterial,
   getOrCreateLocalUserSecret,
@@ -31,8 +31,8 @@ import {
   toBase64Url,
   verifyJwtChain,
   wrapEncryptionKey,
-} from './ukyc';
-import type { UkycLocalUserSecretStore } from './ukyc';
+} from './ukyc.js';
+import type { UkycLocalUserSecretStore } from './ukyc.js';
 
 // === GENERAL ===
 
