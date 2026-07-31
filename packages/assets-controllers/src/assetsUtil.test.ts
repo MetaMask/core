@@ -10,6 +10,7 @@ import type { Hex } from '@metamask/utils';
 
 import * as assetsUtil from './assetsUtil.js';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil.js';
+import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants.js';
 import type { Nft, NftMetadata } from './NftController.js';
 import { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service.js';
 import { getNativeTokenAddress } from './token-prices-service/index.js';
@@ -271,6 +272,20 @@ describe('assetsUtil', () => {
           assetsUtil.SupportedTokenDetectionNetworks.Aurora,
         ),
       ).toBe(true);
+    });
+
+    it('returns true for DeFi Oracle Meta Mainnet (138)', () => {
+      expect(
+        assetsUtil.isTokenDetectionSupportedForNetwork(
+          assetsUtil.SupportedTokenDetectionNetworks.DefiOracleMeta,
+        ),
+      ).toBe(true);
+    });
+
+    it('includes DeFi Oracle Meta Mainnet in the Accounts API v4 allowlist', () => {
+      expect(SUPPORTED_NETWORKS_ACCOUNTS_API_V4).toContain(
+        assetsUtil.SupportedTokenDetectionNetworks.DefiOracleMeta,
+      );
     });
 
     it('returns false for testnets such as Goerli', () => {
