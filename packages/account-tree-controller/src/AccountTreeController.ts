@@ -1514,12 +1514,14 @@ export class AccountTreeController extends BaseController<
           id,
         );
 
-        candidateId ??= id;
+        if (account) {
+          candidateId ??= id;
 
-        if (account && isEvmAccountType(account.type)) {
-          // EVM accounts have a higher priority, so if we find any, we just
-          // use that account!
-          return account;
+          if (isEvmAccountType(account.type)) {
+            // EVM accounts have a higher priority, so if we find any, we just
+            // use that account!
+            return account;
+          }
         }
       }
 
