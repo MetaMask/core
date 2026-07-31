@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AuthConnection.Telegram` (`'telegram'`) to align with client social-login providers that already persist this value on `state.authConnection` ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+
 ## [10.1.0]
 
 ### Added
