@@ -60,7 +60,7 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/accounts-controller": "^39.0.6",
-    "@metamask/assets-controller": "^12.0.0",
+    "@metamask/assets-controller": "^13.0.0",
     "@metamask/assets-controllers": "^110.0.3",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",

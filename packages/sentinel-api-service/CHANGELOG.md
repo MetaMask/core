@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Confirmations joint packages ([#9641](https://github.com/MetaMask/core/pull/9641))
-- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
-
 ## [1.0.0]
 
 ### Added
