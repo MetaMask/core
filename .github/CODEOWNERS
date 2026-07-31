@@ -357,6 +357,7 @@
 /packages/money-account-utils/tsconfig.*                       @MetaMask/earn @MetaMask/core-platform
 /packages/snap-account-service/package.json                    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/CHANGELOG.md                    @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/snap-account-service/tsconfig.*                      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/kyc-controller/package.json                          @MetaMask/universal-kyc @MetaMask/core-platform
 /packages/kyc-controller/CHANGELOG.md                          @MetaMask/universal-kyc @MetaMask/core-platform
-/packages/snap-account-service/tsconfig.*                      @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/kyc-controller/tsconfig.*                            @MetaMask/universal-kyc @MetaMask/core-platform
