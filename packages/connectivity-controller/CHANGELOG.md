@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0]
+
 ### Uncategorized
 
 - chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
@@ -51,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7623](https://github.com/MetaMask/core/pull/7623))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.4.0...HEAD
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.3.0...@metamask/connectivity-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.2.0...@metamask/connectivity-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.1.0...@metamask/connectivity-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/connectivity-controller@0.1.0

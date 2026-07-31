@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [35.0.0]
+
 ### Uncategorized
 
 - refactor: add `.js` import extensions to Core Platform joint packages ([#9642](https://github.com/MetaMask/core/pull/9642))
@@ -1268,7 +1270,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@34.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@35.0.0...HEAD
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@34.0.0...@metamask/network-controller@35.0.0
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@33.0.0...@metamask/network-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@32.0.0...@metamask/network-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.1.0...@metamask/network-controller@32.0.0

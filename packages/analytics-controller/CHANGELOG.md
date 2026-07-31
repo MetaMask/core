@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Uncategorized
 
 - docs(analytics-controller): note geolocation resolves at most once per session ([#9730](https://github.com/MetaMask/core/pull/9730))
@@ -74,7 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.1...@metamask/analytics-controller@2.0.0
 [1.2.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.0...@metamask/analytics-controller@1.2.1
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.1...@metamask/analytics-controller@1.2.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.0...@metamask/analytics-controller@1.1.1

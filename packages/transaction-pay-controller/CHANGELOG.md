@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.1.0]
+
 ### Added
 
 - Add `atomic` field on `TransactionConfig` / `TransactionData` for a generic non-atomic post-Relay flow: when `atomic` is `false`, Relay bridges to an internally derived recipient (`getPaymentOverrideData` recipient for post-quote flows, otherwise the transaction's own `from`) and the second leg is submitted separately after completion, replacing the removed `relay-post-ma-vault` module ([#9497](https://github.com/MetaMask/core/pull/9497))
@@ -1356,7 +1358,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.1.0...HEAD
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.1...@metamask/transaction-pay-controller@26.1.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.0...@metamask/transaction-pay-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.1.1...@metamask/transaction-pay-controller@26.0.0
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.1.0...@metamask/transaction-pay-controller@25.1.1

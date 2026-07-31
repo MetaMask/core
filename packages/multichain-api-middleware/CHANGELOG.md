@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.2]
+
 ### Uncategorized
 
 - chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
@@ -289,7 +291,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.2...HEAD
+[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.1...@metamask/multichain-api-middleware@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.0...@metamask/multichain-api-middleware@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.5...@metamask/multichain-api-middleware@4.0.0
 [3.1.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.4...@metamask/multichain-api-middleware@3.1.5

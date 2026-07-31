@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1]
+
 ## [1.0.0]
 
 ### Added
@@ -101,7 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7668](https://github.com/MetaMask/core/pull/7668), [#7809](https://github.com/MetaMask/core/pull/7809))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@1.0.0...@metamask/config-registry-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.4.1...@metamask/config-registry-controller@1.0.0
 [0.4.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.4.0...@metamask/config-registry-controller@0.4.1
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.2...@metamask/config-registry-controller@0.4.0

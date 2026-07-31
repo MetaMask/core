@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
 ### Changed
 
 - **BREAKING:** `AccountActivityDataSource` is now the highest-priority balance data source and participates in chain-claiming: chains it reports as "up" from `AccountActivityService:statusChanged`. The `AssetsController` messenger must now allow the `AccountActivityService:statusChanged` event ([#9517](https://github.com/MetaMask/core/pull/9517))
@@ -824,7 +826,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.1...@metamask/assets-controller@12.0.0
 [11.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.0...@metamask/assets-controller@11.3.1
 [11.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.1...@metamask/assets-controller@11.3.0
 [11.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.0...@metamask/assets-controller@11.2.1

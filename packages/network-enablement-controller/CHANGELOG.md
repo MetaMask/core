@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.1]
+
 ## [6.0.0]
 
 ### Added
@@ -371,7 +373,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.1...HEAD
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.0...@metamask/network-enablement-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.6.0...@metamask/network-enablement-controller@6.0.0
 [5.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.5.0...@metamask/network-enablement-controller@5.6.0
 [5.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.1...@metamask/network-enablement-controller@5.5.0

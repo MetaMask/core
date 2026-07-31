@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+
 ### Added
 
 - **BREAKING:** Wire analytics into the default `NetworkController` initialization ([#9270](https://github.com/MetaMask/core/pull/9270))
@@ -131,7 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...@metamask/wallet@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.0.0...@metamask/wallet@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.1...@metamask/wallet@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.0...@metamask/wallet@7.0.1

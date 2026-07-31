@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.2]
+
 ### Uncategorized
 
 - chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
@@ -60,7 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
 - Drop unused dependencies `@ethereumjs/tx`, `@ethereumjs/util`, and `fast-json-patch` ([#9139](https://github.com/MetaMask/core/pull/9139))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.0.2...HEAD
+[25.0.2]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.0.1...@metamask/smart-transactions-controller@25.0.2
 [25.0.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.0.0...@metamask/smart-transactions-controller@25.0.1
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@24.2.4...@metamask/smart-transactions-controller@25.0.0
 [24.2.4]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@24.2.3...@metamask/smart-transactions-controller@24.2.4

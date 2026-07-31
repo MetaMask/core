@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [41.2.8]
+
 ### Uncategorized
 
 - refactor: add `.js` import extensions to Confirmations packages ([#9582](https://github.com/MetaMask/core/pull/9582))
@@ -654,7 +656,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.7...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.8...HEAD
+[41.2.8]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.7...@metamask/user-operation-controller@41.2.8
 [41.2.7]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.6...@metamask/user-operation-controller@41.2.7
 [41.2.6]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.5...@metamask/user-operation-controller@41.2.6
 [41.2.5]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.4...@metamask/user-operation-controller@41.2.5

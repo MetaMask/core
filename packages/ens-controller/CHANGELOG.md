@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.1.6]
+
 ### Uncategorized
 
 - refactor: add `.js` import extensions to Confirmations packages ([#9582](https://github.com/MetaMask/core/pull/9582))
@@ -426,7 +428,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.6...HEAD
+[19.1.6]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.5...@metamask/ens-controller@19.1.6
 [19.1.5]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.4...@metamask/ens-controller@19.1.5
 [19.1.4]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.3...@metamask/ens-controller@19.1.4
 [19.1.3]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.2...@metamask/ens-controller@19.1.3

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.4]
+
 ### Uncategorized
 
 - chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
@@ -176,7 +178,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/sample-controllers.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.4...HEAD
+[5.0.4]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.3...@metamask/sample-controllers@5.0.4
 [5.0.3]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.2...@metamask/sample-controllers@5.0.3
 [5.0.2]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.1...@metamask/sample-controllers@5.0.2
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.0...@metamask/sample-controllers@5.0.1

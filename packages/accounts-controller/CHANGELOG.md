@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.0.6]
+
 ### Uncategorized
 
 - chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
@@ -867,7 +869,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.6...HEAD
+[39.0.6]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.5...@metamask/accounts-controller@39.0.6
 [39.0.5]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.4...@metamask/accounts-controller@39.0.5
 [39.0.4]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.3...@metamask/accounts-controller@39.0.4
 [39.0.3]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.2...@metamask/accounts-controller@39.0.3
