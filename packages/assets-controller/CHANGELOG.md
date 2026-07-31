@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.1.0]
+
+### Added
+
+- Add Somnia (`5031`/`0x13a7`) in `MulticallClient` ([#9665](https://github.com/MetaMask/core/pull/9665))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.3` to `^110.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
+
 ## [13.0.0]
 
 ### Added
 
 - Add `getAccountAssetsByIDs(accountId, assetIds)` and `getAccountAssetsByScope(accountId, scope)` methods to look up several of an account's assets in one call — by a list of CAIP-19 asset IDs or by a CAIP-2 chain scope (e.g. `eip155:1`). Both return a record of combined `Asset`s keyed by CAIP-19 asset ID, omitting assets that are not renderable (missing balance/metadata, or hidden). ([#9738](https://github.com/MetaMask/core/pull/9738))
-- Add Somnia (`5031`/`0x13a7`) in `MulticallClient` ([#9665](https://github.com/MetaMask/core/pull/9665))
 
 ### Changed
 
@@ -849,7 +858,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.0...HEAD
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.0.0...@metamask/assets-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@12.0.0...@metamask/assets-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.1...@metamask/assets-controller@12.0.0
 [11.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.0...@metamask/assets-controller@11.3.1

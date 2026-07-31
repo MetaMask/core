@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [110.1.0]
+
 ### Added
 
 - Add Somnia (`5031`/`0x13a7`) entries in `multicall.ts` and `codefi-v2.ts` ([#9665](https://github.com/MetaMask/core/pull/9665))
@@ -3372,7 +3374,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.0...HEAD
+[110.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.3...@metamask/assets-controllers@110.1.0
 [110.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.2...@metamask/assets-controllers@110.0.3
 [110.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.1...@metamask/assets-controllers@110.0.2
 [110.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.0...@metamask/assets-controllers@110.0.1
