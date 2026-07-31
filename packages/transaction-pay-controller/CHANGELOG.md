@@ -38,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^18.0.0` to `^18.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 
+### Fixed
+
+- Fix Relay quote validation simulation to exclude a zero `gas` value from the simulated transaction and to simulate single-step quotes as a single transaction instead of an EIP-7702 batch ([#9723](https://github.com/MetaMask/core/pull/9723))
+
 ## [26.0.1]
 
 ### Changed

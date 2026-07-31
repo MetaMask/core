@@ -331,6 +331,31 @@ describe('validateRelayQuotes', () => {
           }),
         );
       });
+
+      it('omits gas from normal simulation when gas is zero', async () => {
+        getRelaySubmitCallsMock.mockResolvedValue({
+          calls: [
+            {
+              data: '0xdata' as Hex,
+              from: FROM_MOCK,
+              gas: '0x0' as Hex,
+              to: '0xto' as Hex,
+              value: '0x0' as Hex,
+            },
+          ],
+        });
+        const quote = buildQuote({}, {
+          metamask: { gasLimits: [], is7702: false, isExecute: false },
+        } as Partial<RelayQuote>);
+        await validateRelayQuotes({
+          messenger,
+          quotes: [quote],
+          transaction: TRANSACTION_MOCK,
+        });
+        const simulationTx =
+          validateQuoteExecutionMock.mock.calls[0][0].simulation.transactions[0];
+        expect(simulationTx).not.toHaveProperty('gas');
+      });
     });
 
     describe('7702 batch simulation (is7702 true, no executeRequest)', () => {
@@ -340,6 +365,12 @@ describe('validateRelayQuotes', () => {
             data: '0xdata' as Hex,
             from: FROM_MOCK,
             to: '0xdest' as Hex,
+            value: '0x4d2' as Hex,
+          },
+          {
+            data: '0xdata2' as Hex,
+            from: FROM_MOCK,
+            to: '0xdest2' as Hex,
             value: '0x4d2' as Hex,
           },
         ];
@@ -382,6 +413,12 @@ describe('validateRelayQuotes', () => {
             to: '0xdest' as Hex,
             value: '0x4d2' as Hex,
           },
+          {
+            data: '0xdata2' as Hex,
+            from: FROM_MOCK,
+            to: '0xdest2' as Hex,
+            value: '0x4d2' as Hex,
+          },
         ];
 
         getRelaySubmitCallsMock.mockResolvedValue({ calls });
@@ -414,6 +451,12 @@ describe('validateRelayQuotes', () => {
             data: '0xdata' as Hex,
             from: FROM_MOCK,
             to: '0xdest' as Hex,
+            value: '0x4d2' as Hex,
+          },
+          {
+            data: '0xdata2' as Hex,
+            from: FROM_MOCK,
+            to: '0xdest2' as Hex,
             value: '0x4d2' as Hex,
           },
         ];
@@ -463,6 +506,12 @@ describe('validateRelayQuotes', () => {
             to: '0xdest' as Hex,
             value: '0x4d2' as Hex,
           },
+          {
+            data: '0xdata2' as Hex,
+            from: FROM_MOCK,
+            to: '0xdest2' as Hex,
+            value: '0x4d2' as Hex,
+          },
         ];
 
         getRelaySubmitCallsMock.mockResolvedValue({ calls });
@@ -499,6 +548,12 @@ describe('validateRelayQuotes', () => {
             to: '0xdest' as Hex,
             value: '0x4d2' as Hex,
           },
+          {
+            data: '0xdata2' as Hex,
+            from: FROM_MOCK,
+            to: '0xdest2' as Hex,
+            value: '0x4d2' as Hex,
+          },
         ];
 
         getRelaySubmitCallsMock.mockResolvedValue({ calls });
@@ -532,6 +587,65 @@ describe('validateRelayQuotes', () => {
             }),
           }),
         );
+      });
+
+      it('omits gas from 7702 batch simulation when gasLimits[0] is zero', async () => {
+        getRelaySubmitCallsMock.mockResolvedValue({
+          calls: [
+            {
+              data: '0xcall1' as Hex,
+              from: FROM_MOCK,
+              gas: '0x5208' as Hex,
+              to: '0xdest1' as Hex,
+              value: '0x0' as Hex,
+            },
+            {
+              data: '0xcall2' as Hex,
+              from: FROM_MOCK,
+              gas: '0x5208' as Hex,
+              to: '0xdest2' as Hex,
+              value: '0x0' as Hex,
+            },
+          ],
+        });
+        const quote = buildQuote({}, {
+          metamask: { gasLimits: [0], is7702: true, isExecute: false },
+        } as Partial<RelayQuote>);
+        await validateRelayQuotes({
+          messenger,
+          quotes: [quote],
+          transaction: TRANSACTION_MOCK,
+        });
+        const batchTx =
+          validateQuoteExecutionMock.mock.calls[0][0].simulation.transactions[0];
+        expect(batchTx).not.toHaveProperty('gas');
+      });
+
+      it('uses single (non-batch) simulation when is7702 is true but there is only one call', async () => {
+        getRelaySubmitCallsMock.mockResolvedValue({
+          calls: [
+            {
+              data: '0xcall1data' as Hex,
+              from: FROM_MOCK,
+              gas: '0x5208' as Hex,
+              to: '0xcall1to' as Hex,
+              value: '0x0' as Hex,
+            },
+          ],
+        });
+        const quote = buildQuote({}, {
+          metamask: { gasLimits: [21000], is7702: true, isExecute: false },
+        } as Partial<RelayQuote>);
+        await validateRelayQuotes({
+          messenger,
+          quotes: [quote],
+          transaction: TRANSACTION_MOCK,
+        });
+        expect(generateEIP7702BatchTransactionMock).not.toHaveBeenCalled();
+        const simulationTx =
+          validateQuoteExecutionMock.mock.calls[0][0].simulation.transactions[0];
+        expect(simulationTx.data).toBe('0xcall1data');
+        expect(simulationTx.to).toBe('0xcall1to');
       });
     });
 

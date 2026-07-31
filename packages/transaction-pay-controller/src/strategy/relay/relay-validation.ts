@@ -121,7 +121,7 @@ function buildRelayValidationSimulation(
     log('Building execute simulation', context);
     return buildRelayExecuteSimulation(quote, executeRequest);
   }
-  if (quote.original.metamask.is7702) {
+  if (quote.original.metamask.is7702 && calls.length > 1) {
     log('Building 7702 batch simulation', context);
     return buildRelay7702BatchSimulation(quote, calls);
   }
@@ -183,7 +183,7 @@ function buildRelay7702BatchSimulation(
         ...(authList ? { authorizationList: authList } : {}),
         data: batchTx.data,
         from,
-        ...(gas === undefined ? {} : { gas: toHex(gas) }),
+        ...(gas === undefined || gas === 0 ? {} : { gas: toHex(gas) }),
         to: batchTx.to as Hex,
         value: '0x0',
       },
@@ -195,14 +195,17 @@ function buildRelayNormalSimulation(
   calls: TransactionParams[],
 ): QuoteSimulation {
   return {
-    transactions: calls.map((params) => ({
-      data: params.data as Hex | undefined,
-      from: params.from as Hex,
-      gas: params.gas as Hex | undefined,
-      maxFeePerGas: params.maxFeePerGas as Hex | undefined,
-      maxPriorityFeePerGas: params.maxPriorityFeePerGas as Hex | undefined,
-      to: params.to as Hex | undefined,
-      value: params.value as Hex,
-    })),
+    transactions: calls.map((params) => {
+      const gas = params.gas as Hex | undefined;
+      return {
+        data: params.data as Hex | undefined,
+        from: params.from as Hex,
+        ...(gas === undefined || new BigNumber(gas).isZero() ? {} : { gas }),
+        maxFeePerGas: params.maxFeePerGas as Hex | undefined,
+        maxPriorityFeePerGas: params.maxPriorityFeePerGas as Hex | undefined,
+        to: params.to as Hex | undefined,
+        value: params.value as Hex,
+      };
+    }),
   };
 }
