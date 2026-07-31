@@ -10,9 +10,9 @@ import {
   encodeClientMaterial,
 } from './deriveClientMaterial';
 
-const LOCAL_USER_SECRET = new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(
-  42,
-);
+const LOCAL_USER_SECRET = new Uint8Array(
+  UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
+).fill(42);
 const OTHER_LOCAL_USER_SECRET = new Uint8Array(
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
 ).fill(43);

@@ -230,9 +230,7 @@ describe('KycService', () => {
       const response = {
         keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
       };
-      nock(MOCK_FRACTAL_URL)
-        .get('/.well-known/jwks.json')
-        .reply(200, response);
+      nock(MOCK_FRACTAL_URL).get('/.well-known/jwks.json').reply(200, response);
       const { service } = getService();
 
       expect(await service.fetchJwks()).toStrictEqual(response);

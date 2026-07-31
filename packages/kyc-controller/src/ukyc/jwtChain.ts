@@ -1,5 +1,5 @@
-import { ed25519 } from '@noble/curves/ed25519';
 import { bytesToString } from '@metamask/utils';
+import { ed25519 } from '@noble/curves/ed25519';
 
 import { base64UrlToBytes } from './encoding';
 
@@ -54,7 +54,9 @@ function decodeJsonSegment<Type>(segment: string, label: string): Type {
   try {
     return JSON.parse(bytesToString(base64UrlToBytes(segment))) as Type;
   } catch (error) {
-    throw new Error(`UKYC: failed to decode jwtChain ${label}: ${String(error)}`);
+    throw new Error(
+      `UKYC: failed to decode jwtChain ${label}: ${String(error)}`,
+    );
   }
 }
 
@@ -67,10 +69,7 @@ function decodeJsonSegment<Type>(segment: string, label: string): Type {
  * @param jwtChain - The compact-serialized EdDSA JWT from `getWrappingKey`.
  * @returns The verified JWT payload.
  */
-export function verifyJwtChain(
-  keys: Jwk[],
-  jwtChain: string,
-): JwtChainPayload {
+export function verifyJwtChain(keys: Jwk[], jwtChain: string): JwtChainPayload {
   const [headerSegment, payloadSegment, signatureSegment] = jwtChain.split('.');
   if (!headerSegment || !payloadSegment || !signatureSegment) {
     throw new Error(

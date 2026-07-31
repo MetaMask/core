@@ -34,11 +34,7 @@ export type UkycLocalUserSecretStore = {
   /**
    * Writes the base64 string `value` at `path`.
    */
-  set: (
-    path: string,
-    value: string,
-    entropySourceId?: string,
-  ) => Promise<void>;
+  set: (path: string, value: string, entropySourceId?: string) => Promise<void>;
 };
 
 /**

@@ -13,9 +13,9 @@ import {
   signStorageAccessToken,
 } from './storageAccessToken';
 
-const LOCAL_USER_SECRET = new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(
-  42,
-);
+const LOCAL_USER_SECRET = new Uint8Array(
+  UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
+).fill(42);
 const MATERIAL = deriveClientMaterial(LOCAL_USER_SECRET);
 
 const ISSUED_AT = new Date('2026-07-07T00:00:00.000Z');
@@ -44,7 +44,9 @@ describe('UKYC canonicalizeJson', () => {
   });
 
   it('drops undefined members', () => {
-    expect(canonicalizeJson({ a: 1, b: undefined, c: 2 })).toBe('{"a":1,"c":2}');
+    expect(canonicalizeJson({ a: 1, b: undefined, c: 2 })).toBe(
+      '{"a":1,"c":2}',
+    );
   });
 
   it('serializes primitives', () => {

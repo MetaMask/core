@@ -4,9 +4,9 @@ import type { UkycStorageAccessToken } from './storageAccessToken';
 import { signStorageAccessToken } from './storageAccessToken';
 import { buildWrappedRelayPayload } from './wrappedRelayPayload';
 
-const LOCAL_USER_SECRET = new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(
-  42,
-);
+const LOCAL_USER_SECRET = new Uint8Array(
+  UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
+).fill(42);
 const MATERIAL = deriveClientMaterial(LOCAL_USER_SECRET);
 const ISSUED_AT = new Date('2026-07-07T00:00:00.000Z');
 const EXPIRES_AT = new Date('2026-07-07T04:00:00.000Z');

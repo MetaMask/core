@@ -1,5 +1,5 @@
-import { ed25519 } from '@noble/curves/ed25519';
 import { stringToBytes } from '@metamask/utils';
+import { ed25519 } from '@noble/curves/ed25519';
 
 import {
   UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
@@ -111,7 +111,9 @@ export function canonicalizeJson(value: JsonValue): string {
 
   if (typeof value === 'number') {
     if (!Number.isInteger(value)) {
-      throw new Error('UKYC: cannot canonicalize a non-integer number for JCS.');
+      throw new Error(
+        'UKYC: cannot canonicalize a non-integer number for JCS.',
+      );
     }
     return JSON.stringify(value);
   }

@@ -1272,7 +1272,9 @@ describe('KycController', () => {
         const result = await controller.startSumSub();
 
         expect(result).toMatchObject({
-          error: expect.stringContaining('sessionServerPublicKey does not match'),
+          error: expect.stringContaining(
+            'sessionServerPublicKey does not match',
+          ),
         });
         expect(controller.state.sumsub.status).toBe('failed');
         expect(launcher.launch).not.toHaveBeenCalled();
@@ -1375,8 +1377,7 @@ describe('KycController', () => {
           controller.reset();
           // Only the initial createJourney (session setup) should
           // have run.
-          const callsBeforeRefresh =
-            handlers.createJourney.mock.calls.length;
+          const callsBeforeRefresh = handlers.createJourney.mock.calls.length;
           try {
             await onTokenExpiration();
           } catch (error) {
@@ -1847,7 +1848,10 @@ function withController<ReturnValue>(
     'KycService:getWrappingKey',
     handlers.getWrappingKey,
   );
-  rootMessenger.registerActionHandler('KycService:fetchJwks', handlers.fetchJwks);
+  rootMessenger.registerActionHandler(
+    'KycService:fetchJwks',
+    handlers.fetchJwks,
+  );
   rootMessenger.registerActionHandler(
     'KycService:createUkycSession',
     handlers.createUkycSession,

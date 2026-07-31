@@ -1,9 +1,9 @@
+import { base64ToBytes } from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { x25519 } from '@noble/curves/ed25519';
 import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { hexToBytes, randomBytes } from '@noble/hashes/utils';
-import { base64ToBytes } from '@metamask/utils';
 
 import { toBase64Url } from './encoding';
 

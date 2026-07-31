@@ -149,14 +149,14 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 Endpoints:
 
-| Method              | HTTP   | Endpoint                                | Purpose                                                  |
-| ------------------- | ------ | --------------------------------------- | -------------------------------------------------------- |
-| `getGeoCountry`     | —      | (geolocation action)                    | Resolve alpha-3 country                                  |
-| `fetchDisclaimers`  | `GET`  | `/vendors/moonpay/disclaimers?country=` | Terms to accept                                          |
-| `createSession`     | `POST` | `/vendors/moonpay/sessions`             | Create vendor session                                    |
-| `checkKycRequired`  | `POST` | `/vendors/moonpay/kyc-required`         | Is KYC required? (normalizes `required` → `kycRequired`) |
+| Method              | HTTP   | Endpoint                                | Purpose                                                                 |
+| ------------------- | ------ | --------------------------------------- | ----------------------------------------------------------------------- |
+| `getGeoCountry`     | —      | (geolocation action)                    | Resolve alpha-3 country                                                 |
+| `fetchDisclaimers`  | `GET`  | `/vendors/moonpay/disclaimers?country=` | Terms to accept                                                         |
+| `createSession`     | `POST` | `/vendors/moonpay/sessions`             | Create vendor session                                                   |
+| `checkKycRequired`  | `POST` | `/vendors/moonpay/kyc-required`         | Is KYC required? (normalizes `required` → `kycRequired`)                |
 | `createUkycSession` | `POST` | `/sessions`                             | Start SumSub sub-flow (wrapped key + read-only `ukyc_capability_token`) |
-| `createJourney`     | `POST` | `/sessions/{id}/journey`                | Create verification journey → applicant token            |
+| `createJourney`     | `POST` | `/sessions/{id}/journey`                | Create verification journey → applicant token                           |
 
 ### 2.3 `crypto.ts`
 
