@@ -26,7 +26,6 @@ const gatorPermissionsController = new GatorPermissionsController({
       'native-token-periodic',
       'erc20-token-stream',
       'erc20-token-periodic',
-      'erc20-token-revocation',
     ],
     // Optional: override the default gator permissions provider Snap id
     // gatorPermissionsProviderSnapId: 'npm:@metamask/gator-permissions-snap',

@@ -1,4 +1,4 @@
-import { runCommand } from './command';
+import { runCommand } from './command.js';
 
 export async function extractTarGzArchive(
   archivePath: string,

@@ -1,7 +1,7 @@
 import { HttpError } from '@metamask/controller-utils';
 
-import { delay } from '../tests/utils';
-import { PollingWithCockatielPolicy } from './polling-with-policy';
+import { delay } from '../tests/utils.js';
+import { PollingWithCockatielPolicy } from './polling-with-policy.js';
 
 describe('PollingWithCockatielPolicy', () => {
   it('should return the success result', async () => {

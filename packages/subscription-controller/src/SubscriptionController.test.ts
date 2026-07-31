@@ -11,23 +11,23 @@ import {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { generateMockTxMeta } from '../tests/utils';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { generateMockTxMeta } from '../tests/utils.js';
 import {
   controllerName,
   SubscriptionControllerErrorMessage,
-} from './constants';
-import { SubscriptionServiceError } from './errors';
+} from './constants.js';
+import { SubscriptionServiceError } from './errors.js';
 import {
   getDefaultSubscriptionControllerState,
   SubscriptionController,
-} from './SubscriptionController';
+} from './SubscriptionController.js';
 import type {
   AllowedEvents,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerState,
-} from './SubscriptionController';
+} from './SubscriptionController.js';
 import type {
   Subscription,
   PricingResponse,
@@ -43,7 +43,7 @@ import type {
   ProductType,
   RecurringInterval,
   ISubscriptionService,
-} from './types';
+} from './types.js';
 import {
   CANCEL_TYPES,
   MODAL_TYPE,
@@ -52,7 +52,7 @@ import {
   RECURRING_INTERVALS,
   SUBSCRIPTION_STATUSES,
   SubscriptionUserEvent,
-} from './types';
+} from './types.js';
 
 type AllActions = MessengerActions<SubscriptionControllerMessenger>;
 

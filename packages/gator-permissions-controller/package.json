@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gator-permissions-controller",
-  "version": "4.2.3",
+  "version": "5.0.0",
   "description": "Controller for managing gator permissions with profile sync integration",
   "keywords": [
     "Ethereum",
@@ -55,7 +55,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/7715-permission-types": "^0.7.1",
+    "@metamask/7715-permission-types": "^1.0.0",
     "@metamask/abi-utils": "^2.0.3",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/delegation-core": "^2.2.1",
@@ -65,7 +65,7 @@
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/transaction-controller": "^69.2.1",
+    "@metamask/transaction-controller": "^69.3.0",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {

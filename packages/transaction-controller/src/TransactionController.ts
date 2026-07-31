@@ -141,9 +141,9 @@ import {
 import { getBalanceChanges } from './utils/balance-changes.js';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch.js';
 import {
-  generateEIP7702BatchTransaction,
   getDelegationAddress,
   signAuthorizationList,
+  updateEIP7702BatchData,
 } from './utils/eip7702.js';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions.js';
 import {
@@ -701,6 +701,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateSecurityAlertResponse',
   'updateSelectedGasFeeToken',
   'updateTransaction',
+  'updateTransactionMetadata',
   'updateTransactionGasFees',
   'wipeTransactions',
 ] as const;
@@ -1620,6 +1621,32 @@ export class TransactionController extends BaseController<
     }));
 
     log('Transaction updated', { transactionId, note });
+  }
+
+  /**
+   * Updates transaction metadata.
+   *
+   * @param options - Update options.
+   * @param options.transactionId - ID of the transaction to update.
+   * @param options.callback - Function that mutates the transaction metadata.
+   * @param options.skipResimulate - Whether to skip automatic re-simulation.
+   * @returns The updated transaction metadata.
+   */
+  updateTransactionMetadata({
+    transactionId,
+    callback,
+    skipResimulate = false,
+  }: {
+    transactionId: string;
+    callback: (transactionMeta: TransactionMeta) => void;
+    skipResimulate?: boolean;
+  }): Readonly<TransactionMeta> {
+    return this.#updateTransactionInternal(
+      { transactionId, skipResimulateCheck: skipResimulate },
+      (transactionMeta) => {
+        callback(transactionMeta);
+      },
+    );
   }
 
   /**
@@ -2580,63 +2607,70 @@ export class TransactionController extends BaseController<
       transactionData,
     });
 
+    const currentTransaction = this.#getTransaction(transactionId);
+
+    if (!currentTransaction) {
+      throw new Error(
+        `Cannot update transaction as ID not found - ${transactionId}`,
+      );
+    }
+
+    const { nestedTransactions, transactionData: updatedTransactionData } =
+      updateEIP7702BatchData({
+        from: currentTransaction.txParams.from as Hex,
+        transactions: currentTransaction.nestedTransactions ?? [],
+        updates: [{ transactionIndex, transactionData }],
+      });
     const updatedTransactionMeta = this.#updateTransactionInternal(
-      {
-        transactionId,
-      },
+      { transactionId },
       (transactionMeta) => {
-        const { nestedTransactions, txParams } = transactionMeta;
-        const from = txParams.from as Hex;
-        const nestedTransaction = nestedTransactions?.[transactionIndex];
+        transactionMeta.nestedTransactions = nestedTransactions;
+        transactionMeta.txParams.data = updatedTransactionData;
+        transactionMeta.txParams.gas = undefined;
+        transactionMeta.gasLimitNoBuffer = undefined;
+        transactionMeta.gasUsed = undefined;
+        transactionMeta.securityAlertResponse = undefined;
+        transactionMeta.simulationData = undefined;
+        transactionMeta.simulationFails = undefined;
 
-        if (!nestedTransaction) {
-          throw new Error(
-            `Nested transaction not found with index - ${transactionIndex}`,
-          );
+        if (transactionMeta.revert) {
+          delete transactionMeta.revert.gas;
+
+          if (
+            !transactionMeta.revert.simulation &&
+            !transactionMeta.revert.receipt
+          ) {
+            transactionMeta.revert = undefined;
+          }
         }
-
-        nestedTransaction.data = transactionData;
-
-        const batchTransaction = generateEIP7702BatchTransaction(
-          from,
-          nestedTransactions,
-        );
-
-        transactionMeta.txParams.data = batchTransaction.data;
       },
     );
-
     const draftTransaction = cloneDeep({
       ...updatedTransactionMeta,
       txParams: {
         ...updatedTransactionMeta.txParams,
-        // Clear existing gas to force estimation
+        // Clear existing gas to force estimation.
         gas: undefined,
       },
     });
 
     await this.#updateGasEstimate(draftTransaction);
 
-    this.#updateTransactionInternal(
-      {
-        transactionId,
-      },
-      (transactionMeta) => {
-        transactionMeta.txParams.gas = draftTransaction.txParams.gas;
-        transactionMeta.simulationFails = draftTransaction.simulationFails;
-        transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
+    this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      transactionMeta.txParams.gas = draftTransaction.txParams.gas;
+      transactionMeta.simulationFails = draftTransaction.simulationFails;
+      transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
 
-        const draftGasRevert = draftTransaction.revert?.gas;
-        if (draftGasRevert) {
-          transactionMeta.revert = {
-            ...transactionMeta.revert,
-            gas: draftGasRevert,
-          };
-        }
-      },
-    );
+      const draftGasRevert = draftTransaction.revert?.gas;
+      if (draftGasRevert) {
+        transactionMeta.revert = {
+          ...transactionMeta.revert,
+          gas: draftGasRevert,
+        };
+      }
+    });
 
-    return updatedTransactionMeta.txParams.data as Hex;
+    return updatedTransactionData;
   }
 
   /**
