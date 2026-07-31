@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add Somnia (`5031`/`0x13a7`) in `MulticallClient` ([#9665](https://github.com/MetaMask/core/pull/9665))
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.3` to `^110.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
+
 ## [13.0.0]
 
 ### Added
