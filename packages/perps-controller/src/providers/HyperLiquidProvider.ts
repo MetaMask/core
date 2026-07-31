@@ -2337,6 +2337,15 @@ export class HyperLiquidProvider implements PerpsProvider {
   #mapError(error: unknown): Error {
     const { message } = ensureError(error, 'HyperLiquidProvider.mapError');
 
+    // "User or API Wallet 0x... does not exist." carries the user's address, so
+    // it cannot be matched by the static substring table below. It means the
+    // wallet has no Hyperliquid account yet — surface an actionable code the
+    // client can translate ("fund your account") instead of leaking the raw
+    // exchange string to the UI and to failed-trade analytics.
+    if (isHyperLiquidUserNotFoundError(error)) {
+      return new Error(PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND);
+    }
+
     for (const [pattern, code] of Object.entries(this.#errorMappings)) {
       if (message.toLowerCase().includes(pattern.toLowerCase())) {
         return new Error(code);
@@ -3433,14 +3442,26 @@ export class HyperLiquidProvider implements PerpsProvider {
   #handleOrderError(params: HandleOrderErrorParams): OrderResult {
     const { error, symbol, orderType, isBuy } = params;
 
-    this.#deps.logger.error(
-      ensureError(error, 'HyperLiquidProvider.handleOrderError'),
-      this.#getErrorContext('placeOrder', {
-        symbol,
-        orderType,
-        isBuy,
-      }),
-    );
+    // A wallet with no Hyperliquid account is an expected pre-account state,
+    // not an app defect — same policy already applied to every other
+    // user-scoped exchange write in this provider. Keep it out of Sentry; the
+    // failure is still reported to the caller (and to trade analytics) via the
+    // mapped EXCHANGE_ACCOUNT_NOT_FOUND code below.
+    if (isHyperLiquidUserNotFoundError(error)) {
+      this.#deps.debugLogger.log(
+        '[handleOrderError] Wallet has no Hyperliquid account, order cannot be placed',
+        { symbol, orderType, isBuy },
+      );
+    } else {
+      this.#deps.logger.error(
+        ensureError(error, 'HyperLiquidProvider.handleOrderError'),
+        this.#getErrorContext('placeOrder', {
+          symbol,
+          orderType,
+          isBuy,
+        }),
+      );
+    }
 
     const mappedError = this.#mapError(error);
     return createErrorResult(mappedError, { success: false });

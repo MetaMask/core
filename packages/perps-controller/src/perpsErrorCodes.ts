@@ -64,6 +64,10 @@ export const PERPS_ERROR_CODES = {
   NO_ACCOUNT_SELECTED: 'NO_ACCOUNT_SELECTED',
   KEYRING_LOCKED: 'KEYRING_LOCKED',
   INVALID_ADDRESS_FORMAT: 'INVALID_ADDRESS_FORMAT',
+  // Wallet has no account on the exchange yet (HyperLiquid creates accounts
+  // server-side on the first USDC credit). Actionable: the user must fund the
+  // account before any order can be placed.
+  EXCHANGE_ACCOUNT_NOT_FOUND: 'EXCHANGE_ACCOUNT_NOT_FOUND',
   // Transfer/swap errors
   TRANSFER_FAILED: 'TRANSFER_FAILED',
   SWAP_FAILED: 'SWAP_FAILED',
