@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: Change `submitBatchSell` and `submitIntent` quoteResponse parameter from `QuoteResponseV1` to `QuoteResponse` V2 ([#9085](https://github.com/MetaMask/core/pull/9085))
+- Support both `QuoteResponseV1` and `QuoteResponse` quoteResponses in `submitTx`. Controller logic and utils still require V1, but clients can submit quotes in both formats ([#9085](https://github.com/MetaMask/core/pull/9085))
 - Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
 
 ## [74.6.0]
