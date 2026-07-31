@@ -10,13 +10,17 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { SeedlessOnboardingControllerGetStateAction } from '@metamask/seedless-onboarding-controller';
+import { AuthConnection } from '@metamask/seedless-onboarding-controller';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Json } from '@metamask/utils';
 
 import type {
+  LoginIdentifierType,
   LoginResponse,
   ProfileAlias,
   SRPInterface,
+  SrpLoginTag,
   UserProfile,
   UserProfileLineage,
 } from '../../sdk/index.js';
@@ -149,7 +153,8 @@ export type Events =
 // Allowed Actions
 type AllowedActions =
   | KeyringControllerGetStateAction
-  | SnapControllerHandleRequestAction;
+  | SnapControllerHandleRequestAction
+  | SeedlessOnboardingControllerGetStateAction;
 
 type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
 
@@ -249,6 +254,8 @@ export class AuthenticationController extends BaseController<
           getIdentifier: this.#snapGetPublicKey.bind(this),
           signMessage: this.#snapSignMessage.bind(this),
         },
+        getLoginTag: this.#getLoginTag.bind(this),
+        getLoginIdentifierType: this.#getLoginIdentifierType.bind(this),
         metametrics: this.#metametrics,
       },
     );
@@ -321,6 +328,87 @@ export class AuthenticationController extends BaseController<
 
     this.#cachedPrimaryEntropySourceId = primaryId;
     return this.#cachedPrimaryEntropySourceId;
+  }
+
+  /**
+   * Resolves the SRP login tag for `raw_message`.
+   *
+   * - `primary` for the first HD entropy source
+   * - `secondary` for any other entropy source
+   *
+   * @param entropySourceId - Entropy source for this login attempt.
+   * @returns The login tag to append to the signed message.
+   */
+  async #getLoginTag(entropySourceId?: string): Promise<SrpLoginTag> {
+    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    const resolvedId = entropySourceId ?? primaryEntropySourceId;
+
+    return resolvedId === primaryEntropySourceId ? 'primary' : 'secondary';
+  }
+
+  /**
+   * Resolves metametrics `identifier_type` for `/srp/login`
+   * (`SRP` | `GOOGLE` | `APPLE` | `TELEGRAM`).
+   *
+   * This is the auth method for the entropy source, independent of
+   * {@link SrpLoginTag} (`primary` / `secondary`).
+   *
+   * SeedlessOnboarding currently exposes a single vault-level
+   * `authConnection`, which always backs the primary entropy source. Non-
+   * primary sources therefore return `SRP`. If social identities become
+   * per-entropy later, resolve from that metadata instead of assuming
+   * primary === social.
+   *
+   * Soft-fails to `SRP` when SeedlessOnboarding is not registered.
+   *
+   * @param entropySourceId - Entropy source for this login attempt.
+   * @returns The login identifier type.
+   */
+  async #getLoginIdentifierType(
+    entropySourceId?: string,
+  ): Promise<LoginIdentifierType> {
+    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    const resolvedId = entropySourceId ?? primaryEntropySourceId;
+
+    // Social vault authConnection is only associated with the primary source.
+    if (resolvedId !== primaryEntropySourceId) {
+      return 'SRP';
+    }
+
+    return this.#resolveSocialIdentifierType();
+  }
+
+  /**
+   * Maps `SeedlessOnboardingController.state.authConnection` to a login
+   * identifier type when a social vault is present.
+   *
+   * Returns `SRP` if there is no vault, the provider is unrecognized, or
+   * SeedlessOnboardingController is unavailable on the messenger.
+   *
+   * @returns The social provider identifier type, or `SRP`.
+   */
+  #resolveSocialIdentifierType(): LoginIdentifierType {
+    try {
+      const { vault, authConnection } = this.messenger.call(
+        'SeedlessOnboardingController:getState',
+      );
+      if (vault == null) {
+        return 'SRP';
+      }
+
+      switch (authConnection) {
+        case AuthConnection.Google:
+          return 'GOOGLE';
+        case AuthConnection.Apple:
+          return 'APPLE';
+        case AuthConnection.Telegram:
+          return 'TELEGRAM';
+        default:
+          return 'SRP';
+      }
+    } catch {
+      return 'SRP';
+    }
   }
 
   public async performSignIn(): Promise<string[]> {
