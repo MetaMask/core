@@ -1,5 +1,6 @@
 /* eslint-disable jest/no-restricted-matchers */
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { handleFetch } from '@metamask/controller-utils';
 import {
   BtcScope,
   EthAccountType,
@@ -17,11 +18,16 @@ import type { CaipAssetType } from '@metamask/utils';
 import nock from 'nock';
 
 import { flushPromises } from '../../../tests/helpers.js';
-import { handleFetch } from '../../controller-utils/src/index.js';
 import { mockBridgeQuotesErc20NativeV1 } from '../tests/mock-quotes-erc20-native.js';
-import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth.js';
+import {
+  mockBridgeQuotesNativeErc20EthV1,
+  getMockBridgeQuotesNativeErc20EthV2,
+} from '../tests/mock-quotes-native-erc20-eth.js';
 import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
-import { mockBridgeQuotesSolErc20V1 } from '../tests/mock-quotes-sol-erc20.js';
+import {
+  getMockBridgeQuotesSolErc20V2,
+  mockBridgeQuotesSolErc20V1,
+} from '../tests/mock-quotes-sol-erc20.js';
 import { advanceToNthTimerThenFlush } from '../tests/mock-sse.js';
 import { BridgeController } from './bridge-controller.js';
 import {
@@ -724,7 +730,7 @@ describe('BridgeController', function () {
                 resetApproval: false,
               },
             ],
-            quotes: mockBridgeQuotesNativeErc20EthV1,
+            quotes: getMockBridgeQuotesNativeErc20EthV2(),
             quotesLoadingStatus: 1,
           }),
         );
@@ -747,8 +753,8 @@ describe('BridgeController', function () {
               },
             ],
             quotes: [
-              ...mockBridgeQuotesNativeErc20EthV1,
-              ...mockBridgeQuotesNativeErc20EthV1,
+              ...getMockBridgeQuotesNativeErc20EthV2(),
+              ...getMockBridgeQuotesNativeErc20EthV2(),
             ],
             quotesLoadingStatus: 1,
             quoteFetchError: null,
@@ -824,8 +830,8 @@ describe('BridgeController', function () {
 
         expect(stateWithoutTimestamp).toMatchSnapshot();
         expect(quotes).toStrictEqual([
-          ...mockBridgeQuotesNativeErc20EthV1,
-          ...mockBridgeQuotesNativeErc20EthV1,
+          ...getMockBridgeQuotesNativeErc20EthV2(),
+          ...getMockBridgeQuotesNativeErc20EthV2(),
         ]);
         expect(
           quotesLastFetched,
@@ -1006,7 +1012,7 @@ describe('BridgeController', function () {
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
             minimumBalanceForRentExemptionInLamports: '5000',
-            quotes: mockBridgeQuotesSolErc20V1.map((quote) => ({
+            quotes: getMockBridgeQuotesSolErc20V2().map((quote) => ({
               ...quote,
               nonEvmFeesInNative: '0.000000014',
             })),
@@ -1083,7 +1089,7 @@ describe('BridgeController', function () {
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
             minimumBalanceForRentExemptionInLamports: '5000',
-            quotes: mockBridgeQuotesSolErc20V1.map((quote) => ({
+            quotes: getMockBridgeQuotesSolErc20V2().map((quote) => ({
               ...quote,
               nonEvmFeesInNative: '0.000000014',
             })),
@@ -1132,7 +1138,7 @@ describe('BridgeController', function () {
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
             minimumBalanceForRentExemptionInLamports: '0',
-            quotes: mockBridgeQuotesSolErc20V1.map((quote) => ({
+            quotes: getMockBridgeQuotesSolErc20V2().map((quote) => ({
               ...quote,
               nonEvmFeesInNative: '0.000000014',
             })),
@@ -1328,7 +1334,7 @@ describe('BridgeController', function () {
                 resetApproval: false,
               },
             ],
-            quotes: mockBridgeQuotesNativeErc20EthV1,
+            quotes: getMockBridgeQuotesNativeErc20EthV2(),
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
             quotesInitialLoadTime: 11000,
@@ -1370,7 +1376,7 @@ describe('BridgeController', function () {
                 resetApproval: false,
               },
             ],
-            quotes: mockBridgeQuotesNativeErc20EthV1,
+            quotes: getMockBridgeQuotesNativeErc20EthV2(),
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
             quotesInitialLoadTime: 11000,
@@ -1512,7 +1518,7 @@ describe('BridgeController', function () {
                 resetApproval: false,
               },
             ],
-            quotes: mockBridgeQuotesNativeErc20EthV1,
+            quotes: getMockBridgeQuotesNativeErc20EthV2(),
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
             quotesInitialLoadTime: 11000,
@@ -2101,7 +2107,7 @@ describe('BridgeController', function () {
           bridgeController.state;
 
         expect(stateWithoutQuotes).toMatchSnapshot();
-        expect(quotes).toStrictEqual(mockBridgeQuotesNativeErc20EthV1);
+        expect(quotes).toStrictEqual(getMockBridgeQuotesNativeErc20EthV2());
         expect(quotesLastFetched).toBeCloseTo(Date.now() - 10000);
 
         jest.advanceTimersByTime(10000);
@@ -2113,7 +2119,7 @@ describe('BridgeController', function () {
         } = bridgeController.state;
 
         expect(stateWithoutQuotes2).toMatchSnapshot();
-        expect(quotes2).toStrictEqual(mockBridgeQuotesNativeErc20EthV1);
+        expect(quotes2).toStrictEqual(getMockBridgeQuotesNativeErc20EthV2());
 
         expect(quotesLastFetched2).toBe(quotesLastFetched);
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
@@ -2419,9 +2425,7 @@ describe('BridgeController', function () {
           // Verify non-EVM fees
           quotes.forEach((quote) => {
             expect(quote.nonEvmFeesInNative).toBe(
-              isSolanaChainId(quote.quote.srcChainId)
-                ? expectedFees
-                : undefined,
+              isSolanaChainId(quote.chainId) ? expectedFees : undefined,
             );
           });
 
@@ -3579,7 +3583,7 @@ describe('BridgeController', function () {
                   slippage: 0.5,
                 },
               ],
-              quotes: mockBridgeQuotesSolErc20V1,
+              quotes: getMockBridgeQuotesSolErc20V2(),
             },
           },
         },
@@ -3628,7 +3632,7 @@ describe('BridgeController', function () {
                   slippage: 0.5,
                 },
               ],
-              quotes: mockBridgeQuotesSolErc20V1,
+              quotes: getMockBridgeQuotesSolErc20V2(),
             },
           },
         },
@@ -3901,12 +3905,12 @@ describe('BridgeController', function () {
                 srcTokenAddress: 'NATIVE',
                 destTokenAddress: '0x1234',
                 srcTokenAmount: '1000000',
-                walletAddress: undefined as never,
                 slippage: 0.5,
                 aggIds: ['other'],
                 bridgeIds: ['other', 'debridge'],
                 gasIncluded: false,
                 gasIncluded7702: false,
+                walletAddress: undefined as never,
               },
               FeatureId.PERPS,
               null,
@@ -4018,30 +4022,30 @@ describe('BridgeController', function () {
 
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-            [
-              [
-                {
-                  "destChainId": "1",
-                  "destTokenAddress": "0x1234",
-                  "gasIncluded": false,
-                  "gasIncluded7702": false,
-                  "resetApproval": false,
-                  "slippage": 0.5,
-                  "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-                  "srcTokenAddress": "NATIVE",
-                  "srcTokenAmount": "1000000",
-                  "walletAddress": "0x123",
-                },
-                null,
-                "extension",
-                "AUTH_TOKEN",
-                [Function],
-                "https://bridge.api.cx.metamask.io",
-                "unified_swap_bridge",
-                "13.7.0",
-              ],
-            ]
-          `);
+                    [
+                      [
+                        {
+                          "destChainId": "1",
+                          "destTokenAddress": "0x1234",
+                          "gasIncluded": false,
+                          "gasIncluded7702": false,
+                          "resetApproval": false,
+                          "slippage": 0.5,
+                          "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                          "srcTokenAddress": "NATIVE",
+                          "srcTokenAmount": "1000000",
+                          "walletAddress": "0x123",
+                        },
+                        null,
+                        "extension",
+                        "AUTH_TOKEN",
+                        [Function],
+                        "https://bridge.api.cx.metamask.io",
+                        "unified_swap_bridge",
+                        "13.7.0",
+                      ],
+                    ]
+                `);
           expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20V1);
           expect(bridgeController.state).toStrictEqual(expectedControllerState);
         },
@@ -4172,7 +4176,7 @@ describe('BridgeController', function () {
       ],
     };
 
-    const mockQuote = mockBridgeQuotesNativeErc20EthV1[0];
+    const mockQuote = getMockBridgeQuotesNativeErc20EthV2()[0];
 
     beforeEach(() => {
       jest.clearAllMocks();

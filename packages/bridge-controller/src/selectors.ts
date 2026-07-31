@@ -19,7 +19,11 @@ import {
 } from 'reselect';
 
 import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge.js';
-import type { BridgeControllerState, ExchangeRate } from './types.js';
+import type {
+  BridgeControllerState,
+  DeepPartial,
+  ExchangeRate,
+} from './types.js';
 import { RequestStatus, SortOrder } from './types.js';
 import {
   getNativeAssetForChainId,
@@ -39,7 +43,7 @@ import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 import type { QuoteMetadata } from './utils/quote-metadata/types.js';
 import { getDefaultSlippagePercentage } from './utils/slippage.js';
-import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
 
 /**
  * The controller states that provide exchange rates
@@ -93,7 +97,7 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
  */
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
-  selectedQuote: (QuoteResponseV1 & QuoteMetadata) | null;
+  selectedQuote: (QuoteResponse & QuoteMetadata) | null;
 };
 
 type EvmTokenExchangeRate = { price?: number; currency?: string };
@@ -290,7 +294,7 @@ export const selectIsAssetExchangeRateInState = (
 const selectBridgeFeesPerGas = createBridgeSelector(
   [
     (state) => state.gasFeeEstimatesByChainId,
-    (state) => state.quotes?.[0]?.quote.srcChainId,
+    (state) => state.quotes?.[0]?.chainId,
   ],
   (gasFeeEstimatesByChainId, srcChainId) => {
     if (!srcChainId) {
@@ -338,21 +342,20 @@ const selectMetadata = createBridgeSelector(
       calcQuoteMetadata(quote, {
         srcTokenExchangeRate: selectExchangeRateByAssetId(
           exchangeRateSources,
-          quote.quote.srcAsset.assetId,
+          quote.quote.src.asset.assetId,
         ),
         bridgeFeesPerGas,
         destTokenExchangeRate: selectExchangeRateByAssetId(
           exchangeRateSources,
-          quote.quote.destAsset.assetId ??
+          quote.quote.dest.asset.assetId ??
             formatAddressToAssetId(
-              destTokenAddress ?? quote.quote.destAsset.assetId,
+              destTokenAddress ?? quote.quote.dest.asset.assetId,
               destChainId,
             ),
         ),
         nativeExchangeRate: selectExchangeRateByAssetId(
           exchangeRateSources,
-          getNativeAssetForChainId(srcChainId ?? quote.quote.srcChainId)
-            ?.assetId,
+          getNativeAssetForChainId(srcChainId ?? quote.chainId)?.assetId,
         ),
       }),
     );
@@ -373,7 +376,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
     selectBridgeQuotesWithMetadata,
     (_, { sortOrder }: BridgeQuotesClientParams) => sortOrder,
   ],
-  (quotesWithMetadata, sortOrder): (QuoteResponseV1 & QuoteMetadata)[] => {
+  (quotesWithMetadata, sortOrder): (QuoteResponse & QuoteMetadata)[] => {
     switch (sortOrder) {
       case SortOrder.ETA_ASC:
         return orderBy(
@@ -384,31 +387,30 @@ const selectSortedBridgeQuotes = createBridgeSelector(
       default:
         if (
           quotesWithMetadata.every(
-            (quote) =>
-              quote.priceImpact?.valueInCurrency &&
-              quote.priceImpact?.valueInCurrency !== '0',
+            (quote) => quote.quote.priceData?.priceImpact?.amount,
           )
         ) {
           return orderBy(
             quotesWithMetadata,
-            ({ priceImpact }) => Number(priceImpact?.valueInCurrency),
+            ({ quote: { priceData } }) =>
+              Number(priceData?.priceImpact?.amount),
             'asc',
           );
-        }
-        if (
+        } else if (
           quotesWithMetadata.every(
-            (quote) => quote.quote.priceData?.priceImpact,
+            (quote) => quote.quote.priceData?.priceImpact?.valueInCurrency,
           )
         ) {
           return orderBy(
             quotesWithMetadata,
-            ({ quote }) => Number(quote.priceData?.priceImpact),
+            ({ quote: { priceData } }) =>
+              Number(priceData?.priceImpact?.valueInCurrency),
             'asc',
           );
         }
         return orderBy(
           quotesWithMetadata,
-          ({ quote }) => Number(quote.destTokenAmount),
+          ({ quote }) => Number(quote.dest.amount),
           'desc',
         );
     }
@@ -509,21 +511,38 @@ const selectRecommendedQuotes = createBridgeSelector(
       const requestIndex = quote.quoteRequestIndex ?? 0;
       acc[requestIndex] ??= quote;
       return acc;
-    }, Array<(QuoteResponseV1 & QuoteMetadata) | null>(requestCount).fill(null)),
+    }, Array<QuoteResponse | null>(requestCount).fill(null)),
 );
+
 const selectDestAmountSum = createBridgeSelector(
   [selectRecommendedQuotes],
   (recommendedQuotes) => {
-    return sumAmounts(recommendedQuotes.map((quote) => quote?.toTokenAmount));
+    return sumAmounts(recommendedQuotes.map((quote) => quote?.quote.dest));
   },
 );
 
 const selectMinDestAmountSum = createBridgeSelector(
-  [selectRecommendedQuotes],
-  (recommendedQuotes) => {
-    return sumAmounts(
-      recommendedQuotes.map((quote) => quote?.minToTokenAmount),
-    );
+  [selectDestAmountSum],
+  (destAmountSum): DeepPartial<QuoteResponse['quote']['dest']> | undefined => {
+    if (!destAmountSum) {
+      return undefined;
+    }
+
+    const {
+      minAmount,
+      minAmountNormalized,
+      minAmountValueInCurrency,
+      minAmountUsd,
+      asset,
+    } = destAmountSum;
+
+    return {
+      amount: minAmount,
+      normalizedAmount: minAmountNormalized,
+      valueInCurrency: minAmountValueInCurrency,
+      usd: minAmountUsd,
+      asset,
+    };
   },
 );
 

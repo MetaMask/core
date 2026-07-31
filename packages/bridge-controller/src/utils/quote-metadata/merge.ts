@@ -6,6 +6,7 @@ import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { toQuoteMetadataV2 } from './to-quote-metadata-v2.js';
 import type { QuoteMetadata } from './types.js';
+import { toNormalizedAmounts } from './to-normalized-amounts.js';
 
 /**
  * Merges legacy {@link QuoteMetadata} values into the {@link QuoteResponse}
@@ -28,11 +29,13 @@ export function mergeQuoteMetadata<
     legacyQuoteMetadata,
     quoteResponse,
   );
+  const normalizedAmountsV2 = toNormalizedAmounts(quoteResponse);
 
   // Phase 1 of migration uses calcQuoteMetadata's results
   return merge(
     {},
     quoteResponse,
+    normalizedAmountsV2,
     legacyQuoteMetadataV2,
     legacyQuoteMetadata, // return for client testing
   );

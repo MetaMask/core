@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `appendFeesToQuotes` interface now requires a chainId parameter, but still accepts both V1 and V2 quotes
+- **BREAKING:** Use QuoteResponse V2 within the BridgeController; this affects the batch-sell, unified swap/bridge and quickBuy experiences ([#9085](https://github.com/MetaMask/core/pull/9085))
+  - convert quotes to QuoteResponse v2 in `fetchBridgeQuoteStream`
+  - store quotes as QuoteResponse v2 in the BridgeController
+  - `QuoteResponse` export now means v2; v1 is still exported as `QuoteResponseV1`
+  - `fetchBridgeQuoteStream` and `fetchBatchSellTrades` now return `QuoteResponse` v2
+  - `fetchBatchSellTrades` expects V2 quotes, then transforms them to V1 for backend compatibility
 
 - Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.1` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9706](https://github.com/MetaMask/core/pull/9706))
 - Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
