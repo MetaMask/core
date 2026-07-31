@@ -243,6 +243,10 @@ export function validateTypedMessageKeys(data: string): void {
   }
 }
 
+// Numerical fields accept both hex strings and numbers, as some dapps send
+// numbers and `TransactionController` normalizes them downstream.
+const QuantityStruct = union([string(), number()]);
+
 export const TransactionParamsStruct = object({
   accessList: optional(
     array(object({ address: string(), storageKeys: array(string()) })),
@@ -262,15 +266,15 @@ export const TransactionParamsStruct = object({
   chainId: optional(string()),
   data: optional(string()),
   from: string(),
-  gas: optional(union([string(), number()])),
-  gasLimit: optional(string()),
-  gasPrice: optional(string()),
-  maxFeePerGas: optional(string()),
-  maxPriorityFeePerGas: optional(string()),
-  nonce: optional(string()),
+  gas: optional(QuantityStruct),
+  gasLimit: optional(QuantityStruct),
+  gasPrice: optional(QuantityStruct),
+  maxFeePerGas: optional(QuantityStruct),
+  maxPriorityFeePerGas: optional(QuantityStruct),
+  nonce: optional(QuantityStruct),
   to: optional(string()),
   type: optional(string()),
-  value: optional(string()),
+  value: optional(QuantityStruct),
 });
 
 // Upper bound derived from the largest valid eth_sendTransaction payload:
