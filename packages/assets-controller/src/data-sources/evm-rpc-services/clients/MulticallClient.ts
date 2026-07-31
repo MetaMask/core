@@ -546,6 +546,25 @@ export type MulticallClientConfig = {
 };
 
 /**
+ * Function for retrieving the Multicall3 contract address for a given chain ID.
+ *
+ * @param chainId - The chain ID.
+ * @returns The Multicall3 contract address, or undefined if not supported.
+ */
+export type GetMulticall3AddressForChainFunction = (
+  chainId: ChainId,
+) => Hex | undefined;
+
+/**
+ * Options for creating a MulticallClient.
+ */
+export type MulticallClientOptions = {
+  getProvider: GetProviderFunction;
+  getMulticall3AddressForChain: GetMulticall3AddressForChainFunction;
+  config?: MulticallClientConfig;
+};
+
+/**
  * Client for batching RPC calls using Multicall3.
  * Falls back to individual calls on chains without Multicall3 support.
  */
@@ -554,10 +573,13 @@ export class MulticallClient {
 
   readonly #config: Required<MulticallClientConfig>;
 
-  constructor(
-    getProvider: GetProviderFunction,
-    config?: MulticallClientConfig,
-  ) {
+  readonly #getMulticall3AddressForChain: GetMulticall3AddressForChainFunction;
+
+  constructor({
+    getProvider,
+    getMulticall3AddressForChain,
+    config,
+  }: MulticallClientOptions) {
     this.#getProvider = getProvider;
     // Use default values for invalid (non-positive) batch sizes to prevent
     // infinite loops or errors in divideIntoBatches
@@ -573,6 +595,7 @@ export class MulticallClient {
       maxCallsPerBatch,
       timeoutMs,
     };
+    this.#getMulticall3AddressForChain = getMulticall3AddressForChain;
   }
 
   /**
@@ -593,7 +616,9 @@ export class MulticallClient {
       return [];
     }
 
-    const multicallAddress = MULTICALL3_ADDRESS_BY_CHAIN[chainId];
+    const multicallAddress =
+      this.#getMulticall3AddressForChain(chainId) ??
+      MULTICALL3_ADDRESS_BY_CHAIN[chainId];
     const provider = this.#getProvider(chainId);
 
     if (!multicallAddress) {
