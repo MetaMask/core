@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `floorToSizeDecimals(size, szDecimals)` (exported from `@metamask/perps-controller/utils/*`), which rounds an order size down onto an asset's size grid, snapping values that floating-point error leaves just below a grid point. The result is never greater than the input: a value genuinely below a grid point is truncated rather than snapped up ([#9719](https://github.com/MetaMask/core/pull/9719))
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9734](https://github.com/MetaMask/core/pull/9734))
+
 ### Fixed
 
 - Stop `closePosition` from submitting reduce-only orders that HyperLiquid rejects with "Reduce only order would increase position" ([#9719](https://github.com/MetaMask/core/pull/9719))
