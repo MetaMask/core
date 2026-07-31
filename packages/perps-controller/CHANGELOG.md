@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump accounts deps ([#9676](https://github.com/MetaMask/core/pull/9676))
+- refactor: add `.js` import extensions to Perps packages ([#9626](https://github.com/MetaMask/core/pull/9626))
+
 ### Added
 
 - Add `floorToSizeDecimals(size, szDecimals)` (exported from `@metamask/perps-controller/utils/*`), which rounds an order size down onto an asset's size grid, snapping values that floating-point error leaves just below a grid point. The result is never greater than the input: a value genuinely below a grid point is truncated rather than snapped up ([#9719](https://github.com/MetaMask/core/pull/9719))
