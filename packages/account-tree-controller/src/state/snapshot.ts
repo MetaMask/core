@@ -30,7 +30,19 @@ export function createAccountTreeSnapshot(
 }
 
 /**
- * Deep-freezes a value for use in immutable snapshot filtering predicates.
+ * Deep-clones and deep-freezes wallet entries for immutable snapshot storage.
+ *
+ * @param entries - Mutable wallet entries to copy and freeze.
+ * @returns A deep-frozen copy of `entries`.
+ */
+function cloneAndFreezeEntries(
+  entries: AccountTreeWalletEntry[],
+): AccountTreeWalletEntry[] {
+  return deepFreeze(structuredClone(entries));
+}
+
+/**
+ * Recursively freezes a value and its nested properties.
  *
  * @param value - Value to freeze.
  * @returns The frozen value.
@@ -85,6 +97,11 @@ function collectIdMapPairs(
  * {@link AccountTreeSnapshot.deserialize}, or the package-internal
  * {@link createAccountTreeSnapshot} factory.
  *
+ * Wallet and group entries are deep-cloned and deep-frozen once in the
+ * constructor. Filtering predicates receive those read-only views directly;
+ * each filter method returns a new snapshot that repeats the process for its
+ * result.
+ *
  * Holds an ID map (local ↔ payload) populated during export so callers can
  * bridge between internal controller IDs and the stable cross-device IDs that
  * appear in the serialized payload. The map is absent for snapshots produced
@@ -100,7 +117,7 @@ export class AccountTreeSnapshot {
     entries: AccountTreeWalletEntry[],
     idMap: IdMap | null,
   ) {
-    this.#entries = entries;
+    this.#entries = cloneAndFreezeEntries(entries);
     this.#idMap = idMap;
   }
 
@@ -118,7 +135,7 @@ export class AccountTreeSnapshot {
     predicate: (wallet: AccountTreeSnapshotWallet) => boolean,
   ): AccountTreeSnapshot {
     const filteredEntries = this.#entries.filter((entry) =>
-      predicate(deepFreeze(structuredClone(entry)) as AccountTreeSnapshotWallet),
+      predicate(entry as AccountTreeSnapshotWallet),
     );
 
     if (!this.#idMap) {
@@ -156,10 +173,10 @@ export class AccountTreeSnapshot {
       );
     }
 
-    const wallet = this.#entries[walletIndex] as AccountTreeWalletEntry;
+    const wallet = this.#entries[walletIndex];
 
     const filteredGroups = wallet.groups.filter((group) =>
-      predicate(deepFreeze(structuredClone(group)) as AccountTreeSnapshotGroup),
+      predicate(group as AccountTreeSnapshotGroup),
     );
 
     const filteredEntries = [...this.#entries];
@@ -205,13 +222,10 @@ export class AccountTreeSnapshot {
     const filteredEntries: AccountTreeWalletEntry[] = [];
 
     for (const wallet of this.#entries) {
-      const frozenWallet = deepFreeze(
-        structuredClone(wallet),
-      ) as AccountTreeSnapshotWallet;
       const filteredGroups = wallet.groups.filter((group) =>
         predicate(
-          deepFreeze(structuredClone(group)) as AccountTreeSnapshotGroup,
-          frozenWallet,
+          group as AccountTreeSnapshotGroup,
+          wallet as AccountTreeSnapshotWallet,
         ),
       );
 
@@ -270,6 +284,8 @@ export class AccountTreeSnapshot {
 
   /**
    * Serializes the snapshot to a versioned {@link AccountTreePayload}.
+   *
+   * Returns the constructor-frozen wallet tree without copying it again.
    *
    * @returns The versioned payload.
    */

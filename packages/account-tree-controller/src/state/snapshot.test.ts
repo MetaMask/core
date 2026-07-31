@@ -51,6 +51,21 @@ function buildIdMap(): IdMap {
 }
 
 describe('AccountTreeSnapshot', () => {
+  describe('immutability', () => {
+    it('deep-freezes entries at construction so predicates cannot mutate them', () => {
+      const snapshot = createAccountTreeSnapshot([MOCK_MNEMONIC_WALLET], null);
+
+      expect(() =>
+        snapshot.filterWallets((wallet) => {
+          (wallet.metadata as { name: string }).name = 'hacked';
+          return true;
+        }),
+      ).toThrow(TypeError);
+
+      expect(snapshot.serialize().wallets[0]?.metadata.name).toBe('Wallet 1');
+    });
+  });
+
   describe('filterWallets', () => {
     it('returns a snapshot containing only matching entries', () => {
       const snapshot = createAccountTreeSnapshot(
@@ -314,8 +329,9 @@ describe('AccountTreeSnapshot', () => {
       const payload = snapshot.serialize();
       expect(payload.version).toBe(ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION);
       expect(payload.wallets).toHaveLength(2);
-      expect(payload.wallets[0]).toBe(MOCK_MNEMONIC_WALLET);
-      expect(payload.wallets[1]).toBe(MOCK_PRIVATE_KEY_WALLET);
+      expect(payload.wallets[0]).toStrictEqual(MOCK_MNEMONIC_WALLET);
+      expect(payload.wallets[1]).toStrictEqual(MOCK_PRIVATE_KEY_WALLET);
+      expect(Object.isFrozen(payload.wallets)).toBe(true);
     });
 
     it('serializes an empty snapshot', () => {

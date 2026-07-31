@@ -147,8 +147,8 @@ export type DeepReadonly<T> = T extends readonly (infer Item)[]
  * Deeply read-only wallet view passed to {@link AccountTreeSnapshot.filterWallets}
  * and {@link AccountTreeSnapshot.filterAllGroups} predicates.
  *
- * Values are runtime-frozen before the predicate runs, so callers cannot mutate
- * wallet IDs, types, secrets, metadata, or groups.
+ * Entries are deep-cloned and deep-frozen when a snapshot is constructed, so
+ * callers cannot mutate wallet IDs, types, secrets, metadata, or groups.
  */
 export type AccountTreeSnapshotWallet = DeepReadonly<
   AccountWalletMnemonicPayload | AccountWalletPrivateKeyPayload
@@ -158,8 +158,8 @@ export type AccountTreeSnapshotWallet = DeepReadonly<
  * Deeply read-only group view passed to {@link AccountTreeSnapshot.filterGroups}
  * and {@link AccountTreeSnapshot.filterAllGroups} predicates.
  *
- * Values are runtime-frozen before the predicate runs, so callers cannot mutate
- * group IDs, secrets, metadata, or parent wallet references.
+ * Entries are deep-cloned and deep-frozen when a snapshot is constructed, so
+ * callers cannot mutate group IDs, secrets, metadata, or parent wallet references.
  */
 export type AccountTreeSnapshotGroup = DeepReadonly<
   AccountWalletMnemonicGroupEntry | AccountWalletPrivateKeyGroupEntry
