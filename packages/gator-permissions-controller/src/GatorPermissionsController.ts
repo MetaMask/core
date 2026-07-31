@@ -4,7 +4,6 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
@@ -27,10 +26,13 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { DELEGATION_FRAMEWORK_VERSION } from './constants.js';
+import { createPermissionDecodersForContracts } from './decodePermission/decoders/index.js';
+import {
+  delegationContractsByChainId,
+  toEnforcerAddressesByName,
+} from './decodePermission/enforcerAddresses.js';
 import type { DecodedPermission } from './decodePermission/index.js';
 import {
-  createPermissionDecodersForContracts,
   findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
@@ -83,8 +85,6 @@ const DEFAULT_MAX_SYNC_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in mil
  * After this time, event listeners will be cleaned up to prevent memory leaks.
  */
 const PENDING_REVOCATION_TIMEOUT = 2 * 60 * 60 * 1000;
-
-const contractsByChainId = DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
 
 // === CONFIG ===
 
@@ -403,7 +403,6 @@ export class GatorPermissionsController extends BaseController<
   ): Promise<PermissionInfoWithMetadata[]> {
     return updateGrantedPermissionsStatus(grantedPermissions, {
       getProviderForChainId: (chainId) => this.#getProviderForChainId(chainId),
-      contractsByChainId,
     });
   }
 
@@ -584,13 +583,15 @@ export class GatorPermissionsController extends BaseController<
       throw new OriginNotAllowedError({ origin });
     }
 
-    const contracts = contractsByChainId[chainId];
-
-    if (!contracts) {
-      throw new Error(`Contracts not found for chainId: ${chainId}`);
-    }
+    const deploymentContracts = delegationContractsByChainId[chainId];
 
     try {
+      if (!deploymentContracts) {
+        throw new Error(`Contracts not found for chainId: ${chainId}`);
+      }
+
+      const contracts = toEnforcerAddressesByName(deploymentContracts);
+
       const enforcers = caveats.map((caveat) => caveat.enforcer);
       const permissionDecoders =
         createPermissionDecodersForContracts(contracts);

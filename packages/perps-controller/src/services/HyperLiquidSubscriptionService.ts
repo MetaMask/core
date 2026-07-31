@@ -2898,6 +2898,30 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Get the cached positions for one DEX, or null when that DEX has published
+   * none this session.
+   *
+   * A DEX only enters this map once its `clearinghouseState` subscription has
+   * published, so `null` means the absence of a symbol proves nothing about
+   * whether a position exists there.
+   *
+   * Prefer this over `getCachedPositions()` when a decision depends on whether a
+   * specific symbol is absent. The aggregate is only rebuilt once *every*
+   * expected DEX has published (`#aggregateAndNotifySubscribers`), so after a
+   * reconnect — which resets `#initializedDexs` without clearing these caches —
+   * the aggregate can sit frozen at its pre-reconnect contents while this map
+   * keeps receiving per-DEX updates. Deciding "covered" from this map and then
+   * reading the symbol from the aggregate would mix a fresh answer with stale
+   * data.
+   *
+   * @param dexName - DEX identifier, or '' for the main DEX.
+   * @returns That DEX's cached positions, or null if it has not published.
+   */
+  public getCachedPositionsForDex(dexName: string): Position[] | null {
+    return this.#dexPositionsCache.get(dexName) ?? null;
+  }
+
+  /**
    * Get cached positions from WebSocket subscription
    *
    * @returns Cached positions array, or null if not initialized

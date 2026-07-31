@@ -174,6 +174,7 @@ import {
   buildOrdersArray,
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
+  floorToSizeDecimals,
   formatPartialTpslSize,
   validateOrderPrecision,
 } from '../utils/orderCalculations.js';
@@ -3567,6 +3568,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         maxSlippageBps: normalizedMaxSlippageBps,
         szDecimals: assetInfo.szDecimals,
         leverage: params.leverage,
+        reduceOnly: params.reduceOnly,
       });
 
       const { orderPrice, formattedSize, formattedPrice } =
@@ -3663,7 +3665,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         errorMessage.includes('Order must have minimum value of $10') ||
         errorMessage.includes('Order 0: Order must have minimum value');
 
-      if (isMinimumOrderError && retryCount === 0) {
+      // Reduce-only orders are excluded. The retry works by growing the order
+      // 1.5%, which a close cannot do: a full close already submits the whole
+      // position, and a partial close is capped at the size the caller asked to
+      // close, so the retry would either be rejected as "Reduce only order would
+      // increase position" or resubmit an identical order. Surfacing the
+      // minimum-value error names the real problem instead.
+      if (isMinimumOrderError && retryCount === 0 && !params.reduceOnly) {
         let adjustedUsdAmount: string;
         let originalValue: string | undefined;
 
@@ -4218,14 +4226,22 @@ export class HyperLiquidProvider implements PerpsProvider {
         ),
       );
 
-      // Track HIP-3 positions and freed margins for post-close transfers
-      const hip3Transfers: {
+      // Freed-margin transfer for each submitted order, or null when that order
+      // needs none. One entry per order rather than one per HIP-3 position: a
+      // compacted list read with the response-status index credits the wrong
+      // order in a mixed main-DEX/HIP-3 batch.
+      const orderedHip3Transfers: ({
         sourceDex: string;
         freedMargin: number;
-      }[] = [];
+      } | null)[] = [];
 
-      // Build orders array
+      // Build orders array, plus the positions each order closes so response
+      // statuses stay index-aligned when a position is skipped below
       const orders: SDKOrderParams[] = [];
+      const orderedPositions: Position[] = [];
+      // Positions no order could be built for. Reported as failures so a caller
+      // cannot read "closed everything" from a result that left one open.
+      const skippedResults: ClosePositionsResult['results'] = [];
 
       for (const position of positionsToClose) {
         // Extract DEX name for HIP-3 positions
@@ -4259,13 +4275,38 @@ export class HyperLiquidProvider implements PerpsProvider {
         const closeSize = Math.abs(positionSize);
         const totalMarginUsed = parseFloat(position.marginUsed);
 
-        // Track HIP-3 transfers (full position close means all margin is freed)
-        if (isHip3Position && dexName && !this.#useUnifiedAccount) {
-          hip3Transfers.push({
-            sourceDex: dexName,
-            freedMargin: totalMarginUsed,
+        // formatHyperLiquidSize() below rounds half-up, so floor onto the size
+        // grid first: a reduce-only order rounded above the position is rejected
+        // with "Reduce only order would increase position".
+        const flooredCloseSize = floorToSizeDecimals(
+          closeSize,
+          assetInfo.szDecimals,
+        );
+
+        // A dust position worth less than one size increment floors to 0, which
+        // would submit a zero-size order. Skip it rather than sending an order
+        // the exchange must reject; the remaining positions still close, and the
+        // skip is reported as a failure below.
+        if (flooredCloseSize <= 0) {
+          this.#deps.debugLogger.log(
+            'Skipping position smaller than one size increment',
+            { coin: position.symbol, size: position.size },
+          );
+          skippedResults.push({
+            symbol: position.symbol,
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
           });
+          continue;
         }
+
+        // Track this order's HIP-3 transfer, if it needs one (a full position
+        // close frees all of its margin). Pushed below alongside the order so the
+        // two stay index-aligned.
+        const hip3Transfer =
+          isHip3Position && dexName && !this.#useUnifiedAccount
+            ? { sourceDex: dexName, freedMargin: totalMarginUsed }
+            : null;
 
         const currentPrice = await this.#getOrFetchPrice({
           symbol: position.symbol,
@@ -4278,9 +4319,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           ? currentPrice * (1 + slippage)
           : currentPrice * (1 - slippage);
 
-        // Format size and price
         const formattedSize = formatHyperLiquidSize({
-          size: closeSize,
+          size: flooredCloseSize,
           szDecimals: assetInfo.szDecimals,
         });
 
@@ -4298,6 +4338,20 @@ export class HyperLiquidProvider implements PerpsProvider {
           r: true, // reduceOnly
           t: { limit: { tif: 'Ioc' } }, // Immediate or cancel for market-like execution
         });
+        orderedPositions.push(position);
+        orderedHip3Transfers.push(hip3Transfer);
+      }
+
+      // Every position was smaller than one size increment. Return their
+      // failures rather than an empty result, which would be indistinguishable
+      // from "no positions matched".
+      if (orders.length === 0) {
+        return {
+          success: false,
+          successCount: 0,
+          failureCount: skippedResults.length,
+          results: skippedResults,
+        };
       }
 
       // Calculate discounted builder fee if reward discount is active
@@ -4325,7 +4379,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           isStatusObject(stat) &&
           (hasProperty(stat, 'filled') || hasProperty(stat, 'resting')),
       ).length;
-      const failureCount = statuses.length - successCount;
+      const failureCount =
+        statuses.length - successCount + skippedResults.length;
 
       // Handle HIP-3 margin transfers for successful closes
       if (!this.#useUnifiedAccount) {
@@ -4335,11 +4390,13 @@ export class HyperLiquidProvider implements PerpsProvider {
             isStatusObject(status) &&
             (hasProperty(status, 'filled') || hasProperty(status, 'resting'));
 
-          if (isSuccess && hip3Transfers[i]) {
-            const { sourceDex, freedMargin } = hip3Transfers[i];
+          const transfer = orderedHip3Transfers[i];
+
+          if (isSuccess && transfer) {
+            const { sourceDex, freedMargin } = transfer;
             this.#deps.debugLogger.log(
               'Position closed successfully, initiating manual auto-transfer back',
-              { symbol: positionsToClose[i].symbol, freedMargin },
+              { symbol: orderedPositions[i].symbol, freedMargin },
             );
 
             // Non-blocking: Transfer freed margin back to main DEX
@@ -4351,20 +4408,37 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
       }
 
+      // Index submitted and skipped outcomes by symbol so `results` can keep the
+      // order of the requested positions: consumers may correlate them by index.
+      const submittedResults = new Map(
+        statuses.map((status, index) => [
+          orderedPositions[index].symbol,
+          {
+            symbol: orderedPositions[index].symbol,
+            success:
+              isStatusObject(status) &&
+              (hasProperty(status, 'filled') || hasProperty(status, 'resting')),
+            error:
+              isStatusObject(status) && hasProperty(status, 'error')
+                ? String(status.error)
+                : undefined,
+          },
+        ]),
+      );
+      const skippedBySymbol = new Map(
+        skippedResults.map((skipped) => [skipped.symbol, skipped]),
+      );
+
       return {
         success: successCount > 0,
         successCount,
         failureCount,
-        results: statuses.map((status, index) => ({
-          symbol: positionsToClose[index].symbol,
-          success:
-            isStatusObject(status) &&
-            (hasProperty(status, 'filled') || hasProperty(status, 'resting')),
-          error:
-            isStatusObject(status) && hasProperty(status, 'error')
-              ? String(status.error)
-              : undefined,
-        })),
+        results: positionsToClose.flatMap((position) => {
+          const outcome =
+            submittedResults.get(position.symbol) ??
+            skippedBySymbol.get(position.symbol);
+          return outcome ? [outcome] : [];
+        }),
       };
     } catch (error) {
       this.#deps.logger.error(
@@ -4837,6 +4911,85 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Use provided position (from WebSocket) or fetch from cache
       // This avoids unnecessary API calls and prevents 429 rate limiting
       let { position } = params;
+
+      // Re-validate the caller-supplied snapshot against the freshest WebSocket
+      // position cache. Clients pass a throttled snapshot (~1s old on mobile),
+      // so a concurrent TP/SL fill, a liquidation, or a double-tapped close
+      // leaves the snapshot's side/size larger than (or opposite to) the real
+      // position and HyperLiquid rejects the reduce-only order with "Reduce
+      // only order would increase position". Reading the cache never issues a
+      // REST request, so this does not reintroduce 429 rate limiting.
+      if (position && this.#subscriptionService.isPositionsCacheInitialized()) {
+        // Read the symbol's own DEX slice, not the aggregate. The aggregate is
+        // only rebuilt once every expected DEX has published, so after a
+        // WebSocket reconnect — which resets the initialized-DEX set without
+        // clearing these caches — it can sit frozen at pre-reconnect contents
+        // while the per-DEX slices keep updating. Deciding "this DEX is covered"
+        // from the per-DEX map and then reading the position from the aggregate
+        // mixed a fresh answer with stale data: a close could reuse a stale size,
+        // or throw for a position that is open.
+        const dexPositions = this.#subscriptionService.getCachedPositionsForDex(
+          parseAssetName(params.symbol).dex ?? '',
+        );
+        const livePosition = dexPositions?.find(
+          (pos) => pos.symbol === params.symbol,
+        );
+
+        if (livePosition) {
+          if (livePosition.size !== position.size) {
+            this.#deps.debugLogger.log(
+              'Stale close position snapshot: using live WebSocket position',
+              {
+                coin: params.symbol,
+                snapshotSize: position.size,
+                liveSize: livePosition.size,
+              },
+            );
+          }
+
+          position = livePosition;
+        } else if (dexPositions) {
+          // That DEX has published and does not hold this symbol, so the position
+          // is already closed (e.g. a double-tapped close). This is the same read
+          // the lookup above used, so the two can never disagree. Fail here rather
+          // than falling back to REST: the cache is the freshest source, so a REST
+          // lookup can only burn a request that risks 429s and, if it lags, hand
+          // back a position that no longer exists.
+          throw new Error(`No position found for ${params.symbol}`);
+        } else {
+          // The cache holds nothing for this symbol's DEX — a HIP-3 DEX whose
+          // subscription has not published this session — so the symbol's
+          // absence proves nothing. Spend one REST request to get live data
+          // rather than trusting a snapshot the exchange may have moved past.
+          this.#deps.debugLogger.log(
+            'Position cache does not cover this DEX: fetching live positions',
+            { coin: params.symbol },
+          );
+
+          // Query the symbol's own DEX so the outcome carries provenance.
+          // getPositions() fans out across every enabled DEX, flattens the subset
+          // that answered and turns any failure into [], so it cannot distinguish
+          // "this DEX answered and holds nothing" from "this DEX failed or was
+          // never queried" — and those two need opposite decisions.
+          const { answered, positions } = await this.#queryDexPositions(
+            parseAssetName(params.symbol).dex,
+          );
+          const livePositionFromApi = positions.find(
+            (pos) => pos.symbol === params.symbol,
+          );
+
+          if (livePositionFromApi) {
+            position = livePositionFromApi;
+          } else if (answered) {
+            // The DEX answered without this symbol — even with no positions at
+            // all — so it is genuinely closed.
+            throw new Error(`No position found for ${params.symbol}`);
+          }
+          // Otherwise the query failed, so the absence proves nothing: keep the
+          // caller's snapshot rather than block a position that may be closable.
+        }
+      }
+
       if (!position) {
         const positions = await this.getPositions();
         position = positions.find((pos) => pos.symbol === params.symbol);
@@ -4848,12 +5001,32 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       const positionSize = parseFloat(position.size);
       const isBuy = positionSize < 0;
-      const closeSize = params.size ?? Math.abs(positionSize).toString();
+      const absPositionSize = Math.abs(positionSize);
+      // Only an omitted (or empty) size means "close 100%". A supplied size must
+      // be a positive number: silently promoting '0' or 'abc' to a full close
+      // would liquidate the whole position on a caller-side formatting slip.
+      // A supplied size is clamped to the live position size, because
+      // HyperLiquid rejects reduce-only orders that exceed the position and the
+      // caller computed its size from a snapshot that may already be too large.
+      const hasRequestedSize = params.size !== undefined && params.size !== '';
+      let closeSizeNumber = absPositionSize;
+
+      if (hasRequestedSize) {
+        const requestedSize = parseFloat(params.size as string);
+
+        if (!Number.isFinite(requestedSize) || requestedSize <= 0) {
+          throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        }
+
+        closeSizeNumber = Math.min(requestedSize, absPositionSize);
+      }
+
+      const closeSize = closeSizeNumber.toString();
 
       // Capture position details BEFORE closing for freed margin calculation
       const totalMarginUsed = parseFloat(position.marginUsed);
-      const totalPositionSize = Math.abs(positionSize);
-      const closeSizeNum = parseFloat(closeSize);
+      const totalPositionSize = absPositionSize;
+      const closeSizeNum = closeSizeNumber;
       const isHip3Position = position.symbol.includes(':');
       const hip3Dex = isHip3Position ? position.symbol.split(':')[0] : null;
 
@@ -4861,8 +5034,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       const freedMarginRatio = closeSizeNum / totalPositionSize;
       const freedMargin = totalMarginUsed * freedMarginRatio;
 
-      // Get current price for validation if not provided (and not a full close)
-      // Full closes don't need price for validation
+      // Get current price for USD/minimum validation if not provided. A full
+      // close skips *that* validation because it submits the exact live size —
+      // but not the price-staleness guard: calculateFinalPositionSize checks
+      // priceAtCalculation against the live price for every close that supplies
+      // it, using the price placeOrder fetches when none is passed here.
       let { currentPrice } = params;
       if (!currentPrice && params.size && !params.usdAmount) {
         // Partial close without USD or price: use limit price as fallback for validation
@@ -4890,6 +5066,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         freedMargin: freedMargin.toFixed(2),
       });
 
+      // True when the order closes 100% of the position: either no size was
+      // provided, or the requested size covers (or was clamped to) the whole
+      // position.
+      const isFullClose = closeSizeNum >= absPositionSize;
+
       // Execute position close with consistent slippage handling
       const result = await this.placeOrder({
         symbol: params.symbol,
@@ -4898,10 +5079,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         orderType: params.orderType ?? 'market',
         price: params.price,
         reduceOnly: true,
-        isFullClose: !params.size, // True if closing 100% (size not provided)
+        isFullClose,
         // Pass through price and slippage parameters for consistent validation
         currentPrice,
-        usdAmount: params.usdAmount,
+        // A close of the whole position must submit exactly the live position
+        // size. Forwarding usdAmount would make placeOrder recompute the size as
+        // usdAmount / currentPrice — discarding the clamp above, since usdAmount
+        // is the source of truth there — and submit more than the position
+        // holds, which is rejected with "Reduce only order would increase
+        // position". Genuine partial closes keep usdAmount so their size stays
+        // USD-accurate.
+        usdAmount: isFullClose ? undefined : params.usdAmount,
         priceAtCalculation: params.priceAtCalculation,
         maxSlippageBps: params.maxSlippageBps,
       });
@@ -5095,6 +5283,59 @@ export class HyperLiquidProvider implements PerpsProvider {
     // buildAssetMapping uses state.raw for perpDexIndex computation.
     const state = this.#dexDiscoveryCache.update(allDexs);
     return state.validated;
+  }
+
+  /**
+   * Query one DEX's positions directly, preserving whether that DEX answered.
+   *
+   * `getPositions()` fans out across every enabled DEX, flattens the subset that
+   * answered and converts any thrown error into an empty array, so its result
+   * cannot distinguish "this DEX answered and holds no positions" from "this
+   * DEX's request failed or it was never queried". `closePosition` needs that
+   * distinction: the first means the position is closed and the close must fail
+   * before submitting, the second means the absence proves nothing and the
+   * caller's snapshot should stand.
+   *
+   * TP/SL enrichment is skipped, as in standalone mode: the close path only reads
+   * size, side and margin.
+   *
+   * @param dexName - DEX identifier, or null for the main DEX.
+   * @returns Whether the DEX answered, and the positions it reported.
+   */
+  async #queryDexPositions(
+    dexName: string | null,
+  ): Promise<{ answered: boolean; positions: Position[] }> {
+    try {
+      await this.#ensureClientsInitialized();
+      this.#clientService.ensureInitialized();
+
+      const infoClient = this.#clientService.getInfoClient();
+      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      const state = await infoClient.clearinghouseState(
+        dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
+      );
+      const positions = (state.assetPositions ?? [])
+        .filter((assetPos) => assetPos.position.szi !== '0')
+        .map((assetPos) => adaptPositionFromSDK(assetPos));
+
+      this.#deps.debugLogger.log('Target DEX position query answered', {
+        dex: dexName ?? 'main',
+        count: positions.length,
+      });
+
+      return { answered: true, positions };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'Target DEX position query failed; its silence proves nothing',
+        {
+          dex: dexName ?? 'main',
+          error: ensureError(error, 'HyperLiquidProvider.queryDexPositions')
+            .message,
+        },
+      );
+
+      return { answered: false, positions: [] };
+    }
   }
 
   /**

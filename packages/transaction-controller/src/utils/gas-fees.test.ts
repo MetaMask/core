@@ -169,9 +169,31 @@ describe('gas-fees', () => {
         );
       });
 
-      it('are ignored for internal transactions (e.g. swaps and bridges)', async () => {
+      it('are applied for internal wallet transactions', async () => {
+        updateGasFeeRequest.txMeta.isInternal = true;
+        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce(
+          SAVED_GAS_FEES_MOCK,
+        );
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.getSavedGasFees).toHaveBeenCalledTimes(1);
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          '0x1ca35f0e00', // 123 gwei
+        );
+      });
+
+      it.each([
+        TransactionType.swap,
+        TransactionType.swapAndSend,
+        TransactionType.swapApproval,
+        TransactionType.bridge,
+        TransactionType.bridgeApproval,
+      ])('are ignored for %s transactions', async (type) => {
         mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
         updateGasFeeRequest.txMeta.isInternal = true;
+        updateGasFeeRequest.txMeta.type = type;
         updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce(
           SAVED_GAS_FEES_MOCK,
         );

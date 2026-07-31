@@ -115,7 +115,7 @@ describe('transaction helpers', () => {
           'out',
           'eip155:1',
         ),
-      ).toStrictEqual({
+      ).toMatchObject({
         direction: 'out',
         amount: '1',
       });
@@ -140,6 +140,31 @@ describe('transaction helpers', () => {
         amount: '1',
         symbol: 'USDC',
         decimals: 6,
+        assetType: 'erc20',
+      });
+    });
+
+    it('marks native transfers with type native and assetId', () => {
+      expect(
+        getTokenAmountFromTransfer(
+          {
+            from: '0x1',
+            to: '0x2',
+            transferType: 'normal',
+            symbol: 'POL',
+            amount: '1000000000000000000',
+            decimal: 18,
+          },
+          'out',
+          'eip155:137',
+        ),
+      ).toStrictEqual({
+        direction: 'out',
+        amount: '1000000000000000000',
+        symbol: 'POL',
+        decimals: 18,
+        assetType: 'native',
+        assetId: 'eip155:137/slip44:966',
       });
     });
 
@@ -156,7 +181,7 @@ describe('transaction helpers', () => {
           'out',
           'eip155:1',
         ),
-      ).toStrictEqual({
+      ).toMatchObject({
         direction: 'out',
         amount: '1',
         symbol: 'USDC',
@@ -195,6 +220,7 @@ describe('transaction helpers', () => {
         direction: 'out',
         decimals: 18,
         assetId: 'eip155:1/erc20:0x1111111111111111111111111111111111111111',
+        assetType: 'erc20',
       });
     });
 
@@ -209,7 +235,10 @@ describe('transaction helpers', () => {
           'out',
           'eip155:1',
         ),
-      ).toStrictEqual({ direction: 'out', symbol: 'TKN' });
+      ).toMatchObject({
+        direction: 'out',
+        symbol: 'TKN',
+      });
     });
 
     it('returns undefined for unknown tokens', () => {
@@ -251,6 +280,32 @@ describe('transaction helpers', () => {
           type: 'base',
           amount: '2',
           decimals: 18,
+          assetType: 'native',
+        },
+      ]);
+    });
+
+    it('returns native fee assetId when nativeAssetSymbol is on the group', () => {
+      expect(
+        getLocalTransactionFees({
+          nativeAssetSymbol: 'ETH',
+          primaryTransaction: {
+            chainId: '0x1',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x1',
+              effectiveGasPrice: '0x2',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '2',
+          decimals: 18,
+          assetType: 'native',
+          symbol: 'ETH',
+          assetId: 'eip155:1/slip44:60',
         },
       ]);
     });
@@ -265,27 +320,80 @@ describe('transaction helpers', () => {
         } as Parameters<typeof getLocalTransactionFees>[0]),
       ).toBeUndefined();
     });
+
+    it('returns undefined when the chain id cannot be normalized', () => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0xzzzz',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x1',
+              effectiveGasPrice: '0x2',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toBeUndefined();
+    });
   });
 
   describe('getFees', () => {
-    it('returns network fees for supported chains', () => {
+    it('returns network fees with amount and decimals only', () => {
       expect(
-        getFees(
-          {
-            gasUsed: '0x2',
-            effectiveGasPrice: '0x3',
-          } as Parameters<typeof getFees>[0],
-          'eip155:1',
-        ),
+        getFees({
+          chainId: 1,
+          gasUsed: '0x2',
+          effectiveGasPrice: '0x3',
+        } as Parameters<typeof getFees>[0]),
       ).toStrictEqual([
         {
           type: 'base',
           amount: '6',
           decimals: 18,
-          symbol: 'ETH',
-          assetId: 'eip155:1/slip44:60',
+          assetType: 'native',
         },
       ]);
+    });
+
+    it('returns native fee assetId from native value transfers', () => {
+      expect(
+        getFees({
+          chainId: 59144,
+          gasUsed: 341413,
+          effectiveGasPrice: '34544851',
+          valueTransfers: [
+            {
+              from: '0xa',
+              to: '0xb',
+              amount: '1',
+              decimal: 18,
+              contractAddress: '0x0',
+              symbol: 'ETH',
+              name: 'Ether',
+              transferType: 'internal',
+            },
+          ],
+        } as Parameters<typeof getFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: String(341413n * 34544851n),
+          decimals: 18,
+          assetType: 'native',
+          symbol: 'ETH',
+          assetId: 'eip155:59144/slip44:60',
+        },
+      ]);
+    });
+
+    it('returns undefined when the chain id cannot be normalized', () => {
+      expect(
+        getFees({
+          chainId: '0xzzzz',
+          gasUsed: '0x2',
+          effectiveGasPrice: '0x3',
+        } as Parameters<typeof getFees>[0]),
+      ).toBeUndefined();
     });
   });
 
