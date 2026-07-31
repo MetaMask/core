@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [69.4.0]
+
 ### Added
 
 - Export `getEffectiveRecipient` utility that returns the actual recipient of a transaction, decoding it from calldata for ERC-20/ERC-721/ERC-1155 token transfer methods where `txParams.to` is the token contract ([#9699](https://github.com/MetaMask/core/pull/9699))
@@ -2624,7 +2626,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.4.0...HEAD
+[69.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.3.0...@metamask/transaction-controller@69.4.0
 [69.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.2.1...@metamask/transaction-controller@69.3.0
 [69.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.2.0...@metamask/transaction-controller@69.2.1
 [69.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.1.0...@metamask/transaction-controller@69.2.0

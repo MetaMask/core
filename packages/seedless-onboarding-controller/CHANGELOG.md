@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Web3Auth packages ([#9627](https://github.com/MetaMask/core/pull/9627))
-
 ## [10.1.0]
 
 ### Added
