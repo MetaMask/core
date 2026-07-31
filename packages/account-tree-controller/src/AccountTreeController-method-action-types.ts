@@ -131,6 +131,11 @@ export type AccountTreeControllerSetSelectedAccountGroupAction = {
   handler: AccountTreeController['setSelectedAccountGroup'];
 };
 
+/**
+ * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
+ *
+ * @param accountId - The account ID to select the group for.
+ */
 export type AccountTreeControllerSetSelectedAccountGroupByAccountIdAction = {
   type: `AccountTreeController:setSelectedAccountGroupByAccountId`;
   handler: AccountTreeController['setSelectedAccountGroupByAccountId'];
