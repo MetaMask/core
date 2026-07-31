@@ -5991,6 +5991,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/client-controller": "npm:^1.0.1"
+    "@metamask/config-registry-controller": "npm:^1.0.1"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/core-backend": "npm:^8.1.0"
     "@metamask/keyring-api": "npm:^23.7.0"
@@ -7968,7 +7969,7 @@ __metadata:
     "@metamask/keyring-utils": "npm:^3.3.1"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/providers": "npm:^22.1.0"
-    "@metamask/snap-account-service": "npm:^2.1.0"
+    "@metamask/snap-account-service": "npm:^2.1.1"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
@@ -8996,7 +8997,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/snap-account-service@npm:^2.1.0, @metamask/snap-account-service@workspace:packages/snap-account-service":
+"@metamask/snap-account-service@npm:^2.1.1, @metamask/snap-account-service@workspace:packages/snap-account-service":
   version: 0.0.0-use.local
   resolution: "@metamask/snap-account-service@workspace:packages/snap-account-service"
   dependencies:
