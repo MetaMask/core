@@ -354,6 +354,138 @@ describe('AccountActivityDataSource', () => {
       cleanup();
     });
 
+    it('marks assets as userInteractedAssets when the account sent funds in the message', async () => {
+      // Swap: the account pays USDC and receives NEWTOKEN in the same tx.
+      // Both assets must be exempt from spam filtering downstream.
+      const paidAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const receivedAsset =
+        'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+      const account = createMockAccount();
+      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+        groupAccounts: [account],
+        getAssetType: () => 'erc20',
+      });
+
+      triggerBalanceUpdated({
+        address: EVM_ADDRESS,
+        chain: CHAIN_MAINNET,
+        updates: [
+          createBalanceUpdate({
+            asset: { type: paidAsset, unit: 'USDC', decimals: 6 },
+            postBalance: { amount: '0' },
+            transfers: [
+              { from: EVM_ADDRESS, to: '0xpool', amount: '1000000' },
+            ],
+          }),
+          createBalanceUpdate({
+            asset: { type: receivedAsset, unit: 'NEW', decimals: 18 },
+            postBalance: { amount: '1000000000000000000' },
+            transfers: [
+              { from: '0xpool', to: EVM_ADDRESS, amount: '1000000000000000000' },
+            ],
+          }),
+        ],
+      });
+
+      await Promise.resolve();
+
+      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.userInteractedAssets).toStrictEqual([
+        paidAsset,
+        receivedAsset,
+      ]);
+
+      cleanup();
+    });
+
+    it('does not mark userInteractedAssets for incoming-only transfers (airdrops)', async () => {
+      const airdroppedAsset =
+        'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
+      const account = createMockAccount();
+      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+        groupAccounts: [account],
+        getAssetType: () => 'erc20',
+      });
+
+      triggerBalanceUpdated({
+        address: EVM_ADDRESS,
+        chain: CHAIN_MAINNET,
+        updates: [
+          createBalanceUpdate({
+            asset: { type: airdroppedAsset, unit: 'SPAM', decimals: 18 },
+            postBalance: { amount: '1000000000000000000' },
+            transfers: [
+              {
+                from: '0x9999999999999999999999999999999999999999',
+                to: EVM_ADDRESS,
+                amount: '1000000000000000000',
+              },
+            ],
+          }),
+        ],
+      });
+
+      await Promise.resolve();
+
+      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.userInteractedAssets).toBeUndefined();
+      expect(response.assetsBalance[account.id][airdroppedAsset]).toBeDefined();
+
+      cleanup();
+    });
+
+    it('seeds stub assetsInfo for erc20 tokens from websocket updates', async () => {
+      const erc20Asset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const account = createMockAccount();
+      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+        groupAccounts: [account],
+        getAssetType: () => 'erc20',
+      });
+
+      triggerBalanceUpdated({
+        address: EVM_ADDRESS,
+        chain: CHAIN_MAINNET,
+        updates: [
+          createBalanceUpdate({
+            asset: {
+              type: erc20Asset,
+              unit: 'USDC',
+              decimals: 6,
+            },
+            postBalance: { amount: '1000000' },
+          }),
+        ],
+      });
+
+      await Promise.resolve();
+
+      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      const [response] = onAssetsUpdate.mock.calls[0];
+      // eslint-disable-next-line jest/prefer-strict-equal
+      expect(response).toEqual({
+        updateMode: 'merge',
+        assetsBalance: {
+          [account.id]: {
+            [erc20Asset]: { amount: '1' },
+          },
+        },
+        assetsInfo: {
+          [erc20Asset]: {
+            type: 'erc20',
+            symbol: 'USDC',
+            name: 'USDC',
+            decimals: 6,
+          },
+        },
+      });
+
+      cleanup();
+    });
+
     it.each([
       ['address is empty', { address: '' }],
       ['chain is empty', { chain: '' }],

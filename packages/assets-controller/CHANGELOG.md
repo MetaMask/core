@@ -72,6 +72,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Remove `BackendWebsocketDataSource` and its factory/types (`BackendWebsocketDataSource`, `createBackendWebsocketDataSource`, `BackendWebsocketDataSourceOptions`, `BackendWebsocketDataSourceState`). Real-time balance updates and per-chain status are now consumed from `AccountActivityService` via `AccountActivityDataSource`, which manages the WebSocket connection and subscriptions. Consumers no longer need to delegate `BackendWebSocketService` actions/events to the `AssetsController` messenger ([#9517](https://github.com/MetaMask/core/pull/9517))
 
+### Fixed
+
+- Exempt assets acquired through user-initiated activity from occurrence-floor / Blockaid spam filtering while keeping the filter for passive discovery (auto-detection, airdrops):
+  - `AccountActivityDataSource` inspects websocket transfers and lists assets on a new `DataResponse.userInteractedAssets` field when the account sent funds in the same transaction (e.g. a swap), so swap outputs always show even for brand-new tokens below the floor
+  - `TokenDataSource` bypasses spam filtering for `userInteractedAssets` (like custom assets); incoming-only websocket updates (spam airdrops) remain subject to the occurrence floor
+  - Filtered-out spam is now also removed from stub `assetsInfo` on the response, and balance deletions match asset IDs case-insensitively
+
 ## [11.3.1]
 
 ### Changed

@@ -380,6 +380,15 @@ export type DataResponse = {
    * without switching to `updateMode: 'full'`.
    */
   replaceCoveredChainBalances?: boolean;
+  /**
+   * Assets acquired through user-initiated on-chain activity — the user sent
+   * funds in the same transaction (e.g. swap outputs from account-activity
+   * websocket updates). TokenDataSource exempts these from occurrence-floor /
+   * Blockaid spam filtering, like custom assets. Passive incoming transfers
+   * (airdrops) are never listed here and remain subject to spam filtering.
+   * Pipeline-only metadata: not persisted to state.
+   */
+  userInteractedAssets?: Caip19AssetId[];
 };
 
 /**
