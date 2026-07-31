@@ -908,11 +908,25 @@ describe('Quotes Utils', () => {
           bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
           chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
           networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+          strategy: TransactionPayStrategy.Across,
           targetFiat: TOTALS_MOCK.targetAmount.usd,
           tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
           totalFiat: TOTALS_MOCK.total.usd,
         },
       });
+    });
+
+    it('does not persist strategy in metadata when there are no executable quotes', async () => {
+      getQuotesMock.mockResolvedValue([
+        { ...QUOTE_MOCK, strategy: TransactionPayStrategy.None },
+      ]);
+
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.strategy).toBeUndefined();
     });
 
     it('updates metrics in metadata for fiat payment with no payment token', async () => {
@@ -932,6 +946,7 @@ describe('Quotes Utils', () => {
           bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
           chainId: undefined,
           networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+          strategy: TransactionPayStrategy.Across,
           targetFiat: TOTALS_MOCK.targetAmount.usd,
           tokenAddress: undefined,
           totalFiat: TOTALS_MOCK.total.usd,

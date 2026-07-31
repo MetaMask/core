@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `atomic` field on `TransactionConfig` / `TransactionData` for a generic non-atomic post-Relay flow: when `atomic` is `false`, Relay bridges to an internally derived recipient (`getPaymentOverrideData` recipient for post-quote flows, otherwise the transaction's own `from`) and the second leg is submitted separately after completion, replacing the removed `relay-post-ma-vault` module ([#9497](https://github.com/MetaMask/core/pull/9497))
+- Persist the quote strategy in the transaction's `metamaskPay.strategy` metadata so clients can derive pay metrics after `transactionData` is gone (e.g. after a restart) ([#9733](https://github.com/MetaMask/core/pull/9733))
 
 ### Changed
 
