@@ -24,23 +24,17 @@ export type RpcFallbackMiddlewareOptions = {
 const noopNext = async (ctx: Context): Promise<Context> => ctx;
 
 /**
- * RpcFallbackMiddleware recovers what upstream sources left outstanding on the
- * RPC data source, along two axes:
+ * RpcFallbackMiddleware recovers what upstream sources left outstanding on
+ * RPC, along two axes:
  *
- * - **Chain axis:** any chain present in `response.errors` (network error,
- *   unprocessedNetworks, timeout, …) is re-fetched in full (native + custom
- *   assets). Recovered chains are cleared from `response.errors`.
- * - **Asset axis:** any pinned asset in `response.unprocessedCustomAssets` (e.g.
- *   AccountsApi `unprocessedIncludeAssetIds` the backend could not resolve) is
- *   re-fetched with an RPC request scoped to just those assets (passed as
- *   `customAssets`), rather than re-fetching every pin on the chain. Recovered
- *   assets are removed from `response.unprocessedCustomAssets`. Assets whose chain
- *   was already retried on the chain axis are skipped (that fetch already
- *   covers them).
+ * - **Chain axis:** chains in `response.errors` are re-fetched in full and
+ *   cleared from `response.errors` on recovery.
+ * - **Asset axis:** pins in `response.unprocessedCustomAssets` are re-fetched
+ *   with an RPC request scoped to just those assets; recovered entries are
+ *   pruned. Assets on chains already retried above are skipped.
  *
- * Place this immediately after `createParallelBalanceMiddleware` in the fast
- * pipeline, and in the subscription enrichment pipeline so poll updates recover
- * too.
+ * Place immediately after `createParallelBalanceMiddleware` in the fast and
+ * subscription enrichment pipelines.
  */
 export class RpcFallbackMiddleware {
   readonly name = CONTROLLER_NAME;
@@ -75,9 +69,8 @@ export class RpcFallbackMiddleware {
         merged = await this.#recoverErroredChains(ctx, merged, erroredChains);
       }
 
-      // Asset axis: recover specific pinned assets the backend could not
-      // resolve. Skip assets whose chain was already retried above — that
-      // full-chain fetch already includes custom assets.
+      // Asset axis: recover unresolved pins; chains retried above already
+      // cover theirs.
       const assetsToRecover = unprocessedCustomAssets.filter(
         (assetId) => !erroredChains.has(chainIdOfAsset(assetId)),
       );
@@ -89,8 +82,7 @@ export class RpcFallbackMiddleware {
         );
       }
 
-      // Drop asset-axis entries we now have a balance for so downstream sources
-      // do not try them again.
+      // Prune asset-axis entries that now have a balance.
       merged = clearRecoveredAssetIds(merged);
 
       return next({ ...ctx, response: merged });
@@ -115,12 +107,9 @@ export class RpcFallbackMiddleware {
 
     const merged = mergeDataResponses([currentResponse, rpcResult.response]);
 
-    // Clear errors only for chains RPC actually recovered a balance for.
-    // We must inspect rpcResult.response — NOT merged — because merged also
-    // contains balances from the upstream sources (AccountsApi / Websocket /
-    // Staked). If those returned partial data for a chain they also flagged as
-    // errored, and RPC then failed for that same chain, looking at merged would
-    // incorrectly mark the error as recovered.
+    // Clear errors only for chains RPC itself recovered. Inspect
+    // rpcResult.response — NOT merged — or partial upstream data for an
+    // errored chain would mark it recovered even when RPC failed.
     const rpcAssetsBalance = rpcResult.response.assetsBalance;
     if (merged.errors && rpcAssetsBalance) {
       const chainsRecoveredByRpc = new Set<string>();
@@ -152,10 +141,8 @@ export class RpcFallbackMiddleware {
       assetIds: assetsToRecover,
     });
 
-    // Scope the RPC fetch to just the unresolved pins by overriding
-    // `customAssets`. RpcDataSource fetches native + these on each chain in a
-    // single multicall, so this recovers the pins without re-fetching every
-    // other pin on the chain.
+    // Override `customAssets` so RPC fetches just the unresolved pins
+    // (native + pins in one multicall) instead of every pin on the chain.
     const assetRequest: DataRequest = {
       ...ctx.request,
       chainIds: assetChains,
@@ -181,11 +168,11 @@ function chainIdOfAsset(assetId: Caip19AssetId): ChainId {
 }
 
 /**
- * Remove entries from `unprocessedCustomAssets` that now have a balance in the
- * response (recovered by RPC or already covered by a retried chain).
+ * Remove entries from `unprocessedCustomAssets` that now have a balance in
+ * the response.
  *
  * @param response - The merged data response.
- * @returns The response with recovered assets pruned from `unprocessedCustomAssets`.
+ * @returns The response with recovered assets pruned.
  */
 function clearRecoveredAssetIds(response: DataResponse): DataResponse {
   if (

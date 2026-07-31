@@ -115,22 +115,15 @@ export abstract class AbstractDataSource<
   }
 
   /**
-   * Claim the custom (user-pinned) assets this data source commits to serving
-   * for the current subscription cycle. Called by the controller during the
-   * subscription handoff, right after chain assignment; assets claimed here
-   * are not offered to lower-priority data sources. A source that claims an
-   * asset but cannot resolve it at fetch time releases it per-fetch via
-   * `DataResponse.unprocessedCustomAssets` (asset-axis fallback).
-   *
-   * Default: claim the assets whose chain is among this source's assigned
-   * chains — regular chain coverage serves them. Sources that cannot serve
-   * pinned assets (e.g. a push-only websocket) override this to claim none;
-   * sources that can serve assets beyond their assigned chains (e.g. RPC
-   * asset-scoped polling) override it to claim more.
+   * Claim the pinned assets this source commits to serving. Called during the
+   * subscription handoff; claimed assets are not offered to lower-priority
+   * sources. Assets a source cannot resolve at fetch time are released via
+   * `DataResponse.unprocessedCustomAssets`. Default: claim assets on this
+   * source's assigned chains.
    *
    * @param customAssets - Candidate CAIP-19 asset IDs still unclaimed.
    * @param assignedChains - Chains assigned to this source in the handoff.
-   * @returns The subset of `customAssets` this source commits to serving.
+   * @returns The claimed subset of `customAssets`.
    */
   claimCustomAssets(
     customAssets: Caip19AssetId[],

@@ -9,22 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `claimCustomAssets` to `AbstractDataSource`: the subscription handoff in `AssetsController` now assigns data sources on two axes — the chains they can serve AND the pinned custom assets they commit to. Assets a source cannot serve fall through to lower-priority sources in the same pass ([#9600](https://github.com/MetaMask/core/pull/9600))
-- Add an optional `customAssets` option to `AssetsController.getAssets`, overriding which pinned assets are attached to the fetch request (sent to the Accounts API as `includeAssetIds` and to the RPC fallback). When omitted, every asset pinned by the requested accounts is attached, as before. Entries are normalized and still scoped to the requested chains ([#9600](https://github.com/MetaMask/core/pull/9600))
+- Add an optional `customAssets` option to `AssetsController.getAssets`, overriding which pinned assets are attached to the fetch request (sent to the Accounts API as `includeAssetIds` and to the RPC fallback). When omitted, every asset pinned by the requested accounts is attached, as before ([#9600](https://github.com/MetaMask/core/pull/9600))
 
 ### Changed
 
-- `AccountsApiDataSource` now forwards user-pinned custom assets to the Accounts API v6 balances endpoint as `includeAssetIds`, so the backend returns those assets even at a zero balance. Pinned EVM assets the backend could not resolve are reported back as `unprocessedIncludeAssetIds` and surfaced on the new asset-axis signal `DataResponse.unprocessedCustomAssets` (the chain itself is no longer marked as errored) ([#9600](https://github.com/MetaMask/core/pull/9600))
-- The data-source protocol now separates chain-level and asset-level fallback. `DataResponse` gains `unprocessedCustomAssets` (specific requested asset IDs a source could not resolve, distinct from chain-level `errors`). `RpcFallbackMiddleware` recovers `unprocessedCustomAssets` by issuing an RPC request scoped to just those assets (passed as `customAssets`), instead of re-fetching every pin on the chain ([#9600](https://github.com/MetaMask/core/pull/9600))
-- `AssetsController.getAssets` (force-update) no longer runs `RpcFallbackMiddleware` on the fast path. Chains an upstream source leaves outstanding are now recovered by RPC in the background slow pipeline instead: `#getSlowPipelineChainIds` includes both errored chains (e.g. `unprocessedNetworks`) and the chains of any `unprocessedCustomAssets` (pinned assets the backend could not resolve), so RPC fetches them off the fast path ([#9600](https://github.com/MetaMask/core/pull/9600))
-- `AssetsController` subscription/poll balance updates now run the RPC fallback before enrichment (when basic functionality is on), so anything an upstream source leaves outstanding is fetched from RPC during polling: errored chains (e.g. `unprocessedNetworks`) via a full-chain fetch, and pinned assets the backend could not resolve (`unprocessedCustomAssets`) via an asset-scoped fetch. (The poll path has no slow pipeline, so it uses `RpcFallbackMiddleware` directly.) ([#9600](https://github.com/MetaMask/core/pull/9600))
-- `AccountsApiDataSource` now forwards user-hidden assets (from `assetPreferences`) to the Accounts API v6 balances endpoint as `excludeAssetIds`, so the backend drops them from the response even when detected or carrying a non-zero balance. A pinned asset always wins over a hidden one, so any overlap with `includeAssetIds` is dropped from `excludeAssetIds` ([#9600](https://github.com/MetaMask/core/pull/9600))
-- `AssetsController.getAssets` now scopes the `customAssets` on the built request to the requested chain IDs (deduplicated), instead of forwarding every pinned asset of the requested accounts ([#9600](https://github.com/MetaMask/core/pull/9600))
-- `RpcDataSource.fetch` now resolves pin ownership from `AssetsController` state, so each account only fetches the custom assets it actually pinned instead of every pinned asset on the chain across all requested accounts ([#9600](https://github.com/MetaMask/core/pull/9600))
+- Bump `@metamask/phishing-controller` from `^17.3.0` to `^17.3.1` ([#9746](https://github.com/MetaMask/core/pull/9746))
+
+## [13.1.0]
+
+### Added
+
+- Add Somnia (`5031`/`0x13a7`) in `MulticallClient` ([#9665](https://github.com/MetaMask/core/pull/9665))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.3` to `^110.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
+
+## [13.0.0]
+
+### Added
+
+- Add `getAccountAssetsByIDs(accountId, assetIds)` and `getAccountAssetsByScope(accountId, scope)` methods to look up several of an account's assets in one call — by a list of CAIP-19 asset IDs or by a CAIP-2 chain scope (e.g. `eip155:1`). Both return a record of combined `Asset`s keyed by CAIP-19 asset ID, omitting assets that are not renderable (missing balance/metadata, or hidden). ([#9738](https://github.com/MetaMask/core/pull/9738))
+
+### Changed
+
+- **BREAKING:** Rename `getAsset` to `getAccountAssetByID` ([#9738](https://github.com/MetaMask/core/pull/9738))
+- **BREAKING:** `AssetsControllerMessenger` now requires the `ConfigRegistryController:getNetworkConfigByCaip2ChainId` action to be delegated ([#9717](https://github.com/MetaMask/core/pull/9717))
+  - `AssetsController` now uses `ConfigRegistryController:getNetworkConfigByCaip2ChainId` to resolve the multicall3 contract address using `@metamask/config-registry-controller` as primary source, falling back to `MulticallClient`'s hardcoded default addresses for known chains.
+- Bump `@metamask/config-registry-controller` from `^1.0.1` to `^2.0.0` ([#9740](https://github.com/MetaMask/core/pull/9740))
+- Bump `@metamask/network-enablement-controller` from `^6.0.1` to `^6.0.2` ([#9740](https://github.com/MetaMask/core/pull/9740))
+
+## [12.0.0]
+
+### Changed
+
 - **BREAKING:** `AccountActivityDataSource` is now the highest-priority balance data source and participates in chain-claiming: chains it reports as "up" from `AccountActivityService:statusChanged`. The `AssetsController` messenger must now allow the `AccountActivityService:statusChanged` event ([#9517](https://github.com/MetaMask/core/pull/9517))
-  - It also claims pinned custom assets on the chains it claims (inherited `claimCustomAssets` behavior): the activity stream covers every asset of a subscribed account, custom assets included, so pins on active chains are served by its pushes instead of falling through to a polling source ([#9600](https://github.com/MetaMask/core/pull/9600))
-- **BREAKING:** `AccountActivityDataSource.subscribe` now re-creates the account-activity websocket subscription (via the new `AccountActivityService:resubscribe` action from `@metamask/core-backend`) whenever the claimed pinned-asset set changes after the initial handoff, so backend pushes start covering a newly added custom token (and drop a removed one). The `AssetsController` messenger must now allow the `AccountActivityService:resubscribe` action ([#9600](https://github.com/MetaMask/core/pull/9600))
-- `AssetsController.addCustomAsset` now attaches only the newly added asset to the fetch it triggers (via the new `customAssets` option of `getAssets`) instead of every asset pinned by the account on that chain — the other pins are already covered by the re-evaluated subscription and keep their state during the merge ([#9600](https://github.com/MetaMask/core/pull/9600))
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/assets-controllers` from `^110.0.2` to `^110.0.3` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/core-backend` from `^8.0.0` to `^8.1.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-enablement-controller` from `^6.0.0` to `^6.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 
 ### Removed
 
@@ -841,7 +868,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.0...HEAD
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.0.0...@metamask/assets-controller@13.1.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@12.0.0...@metamask/assets-controller@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.1...@metamask/assets-controller@12.0.0
 [11.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.0...@metamask/assets-controller@11.3.1
 [11.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.1...@metamask/assets-controller@11.3.0
 [11.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.0...@metamask/assets-controller@11.2.1

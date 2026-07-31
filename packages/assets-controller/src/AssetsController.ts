@@ -12,11 +12,11 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
+import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
   AccountActivityServiceBalanceUpdatedEvent,
-  AccountActivityServiceResubscribeAction,
   AccountActivityServiceStatusChangedEvent,
   SupportedCurrency,
 } from '@metamask/core-backend';
@@ -188,7 +188,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssets',
   'getAssetsBalance',
   'getAssetMetadata',
-  'getAsset',
+  'getAccountAssetByID',
+  'getAccountAssetsByIDs',
+  'getAccountAssetsByScope',
   'getAssetsPrice',
   'getExchangeRatesForBridge',
   'getStateForTransactionPay',
@@ -324,6 +326,7 @@ type AllowedActions =
   // RpcDataSource
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction
   // StakedBalanceDataSource
   | NetworkEnablementControllerGetStateAction
   // SnapDataSource
@@ -333,10 +336,7 @@ type AllowedActions =
   // PhishingController
   | PhishingControllerBulkScanTokensAction
   // AccountsApiDataSource (Accounts API v6 balances feature flag)
-  | RemoteFeatureFlagControllerGetStateAction
-  // AccountActivityDataSource (re-create the websocket subscription when the
-  // pinned custom-asset set changes)
-  | AccountActivityServiceResubscribeAction;
+  | RemoteFeatureFlagControllerGetStateAction;
 
 type AllowedEvents =
   // AssetsController
@@ -1580,11 +1580,9 @@ export class AssetsController extends BaseController<
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
       updateMode?: AssetsUpdateMode;
       /**
-       * Custom (user-pinned) assets to attach to this fetch instead of every
-       * pinned asset in state for the requested accounts. Use for targeted
-       * fetches (e.g. a newly added token) so data sources don't re-request
-       * pins already covered by the subscription. Entries outside the
-       * requested chains are still dropped.
+       * Pinned assets to attach to this fetch instead of every pin in state.
+       * Use for targeted fetches (e.g. a newly added token). Entries outside
+       * the requested chains are dropped.
        */
       customAssets?: Caip19AssetId[];
     },
@@ -1597,11 +1595,9 @@ export class AssetsController extends BaseController<
       return this.#getAssetsFromState(accounts, chainIds, assetTypes);
     }
 
-    // Custom assets attached to the fetch — the caller's override when
-    // provided, otherwise every asset pinned by the requested accounts. Either
-    // way they are scoped to the requested chains: every data source filters
-    // per chain at fetch time, so pins on other chains would only bloat the
-    // request.
+    // Pinned assets for this fetch: the caller's override when provided,
+    // otherwise every pin of the requested accounts — always scoped to the
+    // requested chains.
     const requestedChains = new Set<string>(chainIds);
     const candidateCustomAssets =
       options?.customAssets ??
@@ -1643,10 +1639,9 @@ export class AssetsController extends BaseController<
       // Snap and RPC are excluded here due to their latency (snap triggers account
       // creation, RPC is slow on many chains). Results are committed to state
       // immediately so the UI can display balances without waiting for them.
-      // Anything an upstream source leaves outstanding — chains it flagged as
-      // errored, and pinned assets the backend could not resolve
-      // (`unprocessedCustomAssets`) — is recovered by RPC in the slow pipeline below
-      // (see `#getSlowPipelineChainIds`), keeping RPC off the fast path.
+      // Errored chains and unresolved pins (`unprocessedCustomAssets`) are
+      // recovered by RPC in the slow pipeline (`#getSlowPipelineChainIds`),
+      // keeping RPC off the fast path.
       //
       // Fast/slow pipelines use merge so partial API snapshots cannot wipe
       // tokens missing from the response (e.g. USDC when only native balance
@@ -1834,25 +1829,149 @@ export class AssetsController extends BaseController<
    * renderable asset (balance + metadata) exists for the account/asset pair.
    * @throws If `accountId` is empty or `assetId` is not a valid CAIP-19 asset ID.
    */
-  getAsset(accountId: AccountId, assetId: Caip19AssetId): Asset | undefined {
-    if (typeof accountId !== 'string' || accountId.length === 0) {
-      throw new Error(
-        'AssetsController.getAsset: accountId must be a non-empty string',
-      );
-    }
+  getAccountAssetByID(
+    accountId: AccountId,
+    assetId: Caip19AssetId,
+  ): Asset | undefined {
+    this.#assertNonEmptyAccountId(accountId, 'getAccountAssetByID');
 
-    let normalizedAssetId: Caip19AssetId;
-    try {
-      normalizedAssetId = normalizeAssetId(assetId);
-    } catch {
-      throw new Error(
-        `AssetsController.getAsset: invalid CAIP-19 assetId "${assetId}"`,
-      );
-    }
+    const normalizedAssetId = this.#normalizeAssetIdOrThrow(
+      assetId,
+      'getAccountAssetByID',
+    );
 
     return this.#getAssetFromState(accountId, normalizedAssetId, {
       assetTypeSet: new Set(['fungible']),
     });
+  }
+
+  /**
+   * Get multiple combined assets (balance + metadata + price + computed
+   * `fiatValue`) for an account directly from controller state.
+   *
+   * Applies the same state-composition and filtering rules as
+   * `getAccountAssetByID` to each requested asset ID. Asset IDs that do not
+   * resolve to a complete renderable asset (missing balance/metadata, hidden,
+   * or otherwise filtered out) are omitted from the result. Reads from
+   * current state only and does not trigger a data-source refresh.
+   *
+   * @param accountId - The account ID (`InternalAccount.id`, not an address).
+   * @param assetIds - The CAIP-19 asset IDs including chain scope
+   * (e.g. `eip155:1/erc20:0x...`).
+   * @returns A record of combined `Asset`s keyed by normalized CAIP-19 asset
+   * ID, containing only the requested assets that resolved.
+   * @throws If `accountId` is empty or any `assetIds` entry is not a valid
+   * CAIP-19 asset ID.
+   */
+  getAccountAssetsByIDs(
+    accountId: AccountId,
+    assetIds: Caip19AssetId[],
+  ): Record<Caip19AssetId, Asset> {
+    this.#assertNonEmptyAccountId(accountId, 'getAccountAssetsByIDs');
+
+    const result = Object.create(null) as Record<Caip19AssetId, Asset>;
+
+    for (const assetId of assetIds) {
+      const normalizedAssetId = this.#normalizeAssetIdOrThrow(
+        assetId,
+        'getAccountAssetsByIDs',
+      );
+
+      const asset = this.#getAssetFromState(accountId, normalizedAssetId, {
+        assetTypeSet: new Set(['fungible']),
+      });
+
+      if (asset) {
+        result[normalizedAssetId] = asset;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get all combined assets (balance + metadata + price + computed
+   * `fiatValue`) an account holds on a given chain scope, directly from
+   * controller state.
+   *
+   * Applies the same state-composition and filtering rules as
+   * `getAccountAssetByID` (hidden or otherwise filtered assets are excluded).
+   * Reads from current state only and does not trigger a data-source refresh.
+   *
+   * @param accountId - The account ID (`InternalAccount.id`, not an address).
+   * @param scope - The CAIP-2 chain ID to filter by (e.g. `eip155:1`).
+   * @returns A record of combined `Asset`s keyed by CAIP-19 asset ID,
+   * containing only the account's assets on the given scope.
+   * @throws If `accountId` is empty or `scope` is not a valid CAIP-2 chain ID.
+   */
+  getAccountAssetsByScope(
+    accountId: AccountId,
+    scope: ChainId,
+  ): Record<Caip19AssetId, Asset> {
+    this.#assertNonEmptyAccountId(accountId, 'getAccountAssetsByScope');
+
+    if (!isCaipChainId(scope)) {
+      throw new Error(
+        `AssetsController.getAccountAssetsByScope: invalid CAIP-2 scope "${String(
+          scope,
+        )}"`,
+      );
+    }
+
+    const result = Object.create(null) as Record<Caip19AssetId, Asset>;
+    const chainIdSet = new Set<ChainId>([scope]);
+    const assetTypeSet = new Set<AssetType>(['fungible']);
+    const accountBalances = this.state.assetsBalance[accountId] ?? {};
+
+    for (const assetId of Object.keys(accountBalances)) {
+      const typedAssetId = assetId as Caip19AssetId;
+
+      const asset = this.#getAssetFromState(accountId, typedAssetId, {
+        chainIdSet,
+        assetTypeSet,
+      });
+
+      if (asset) {
+        result[typedAssetId] = asset;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Throws when the provided account ID is not a non-empty string.
+   *
+   * @param accountId - The account ID to validate.
+   * @param methodName - The public method name used in the error message.
+   */
+  #assertNonEmptyAccountId(accountId: AccountId, methodName: string): void {
+    if (typeof accountId !== 'string' || accountId.length === 0) {
+      throw new Error(
+        `AssetsController.${methodName}: accountId must be a non-empty string`,
+      );
+    }
+  }
+
+  /**
+   * Normalizes a CAIP-19 asset ID, converting normalization failures into a
+   * descriptive error.
+   *
+   * @param assetId - The CAIP-19 asset ID to normalize.
+   * @param methodName - The public method name used in the error message.
+   * @returns The normalized CAIP-19 asset ID.
+   */
+  #normalizeAssetIdOrThrow(
+    assetId: Caip19AssetId,
+    methodName: string,
+  ): Caip19AssetId {
+    try {
+      return normalizeAssetId(assetId);
+    } catch {
+      throw new Error(
+        `AssetsController.${methodName}: invalid CAIP-19 assetId "${assetId}"`,
+      );
+    }
   }
 
   async getAssetsPrice(
@@ -2013,10 +2132,8 @@ export class AssetsController extends BaseController<
       balances[accountId][normalizedAssetId] ??= { amount: '0' };
     });
 
-    // Fetch data for the newly added custom asset (merge to preserve other
-    // chains). Only the new pin is attached to the request — the account's
-    // other pins are already covered by the subscription and keep their state
-    // via `mergeAccountBalances`.
+    // Fetch only the new pin (merge preserves other chains); the account's
+    // other pins are already covered by the subscription.
     const account = this.#getSelectedAccounts().find((a) => a.id === accountId);
     if (account) {
       const chainId = extractChainId(normalizedAssetId);
@@ -2030,8 +2147,7 @@ export class AssetsController extends BaseController<
       });
     }
 
-    // Re-evaluate subscriptions so polls pick up the new customAsset (sent to
-    // AccountsApi as `includeAssetIds`, fetched by RPC on chains it owns).
+    // Re-evaluate subscriptions so polls pick up the new pin.
     this.#subscribeAssets();
   }
 
@@ -2059,8 +2175,7 @@ export class AssetsController extends BaseController<
       }
     });
 
-    // Re-evaluate subscriptions so the removed customAsset is dropped from
-    // subsequent polls (AccountsApi `includeAssetIds` and RPC).
+    // Re-evaluate subscriptions so polls drop the removed pin.
     this.#subscribeAssets();
   }
 
@@ -2097,8 +2212,7 @@ export class AssetsController extends BaseController<
       state.assetPreferences[normalizedAssetId].hidden = true;
     });
 
-    // Re-evaluate subscriptions so subsequent polls send the newly hidden asset
-    // as `excludeAssetIds` and the Accounts API drops it from the response.
+    // Re-evaluate subscriptions so polls exclude the newly hidden asset.
     this.#subscribeAssets();
   }
 
@@ -2122,15 +2236,13 @@ export class AssetsController extends BaseController<
       }
     });
 
-    // Re-evaluate subscriptions so the un-hidden asset is dropped from
-    // `excludeAssetIds` on subsequent polls.
+    // Re-evaluate subscriptions so polls stop excluding the asset.
     this.#subscribeAssets();
   }
 
   /**
-   * Collect all globally hidden asset IDs (from `assetPreferences`). Forwarded
-   * on data requests as `excludeAssetIds` so the Accounts API removes them from
-   * the response even when detected or carrying a non-zero balance.
+   * Collect globally hidden asset IDs (from `assetPreferences`), forwarded on
+   * data requests as `excludeAssetIds`.
    *
    * @returns The CAIP-19 asset IDs the user has hidden.
    */
@@ -2441,10 +2553,8 @@ export class AssetsController extends BaseController<
       this.#accountsApiDataSource.getActiveChainsSync(),
     );
 
-    // Chains carrying pinned assets the backend could not resolve
-    // (`unprocessedCustomAssets`). The chain itself succeeded on the fast path, but
-    // the pin still needs a fresh RPC fetch — route it to the slow pipeline so
-    // RPC resolves it (via `customAssets` in the slow request).
+    // Chains whose pins went unresolved (`unprocessedCustomAssets`): route
+    // them to the slow pipeline so RPC fetches the pins.
     const unprocessedCustomAssetChains = new Set<ChainId>(
       (fastResponse.unprocessedCustomAssets ?? []).map(
         (assetId) => assetId.split('/')[0] as ChainId,
@@ -3043,8 +3153,7 @@ export class AssetsController extends BaseController<
       if (!subscriptionKey.startsWith('ds:')) {
         continue;
       }
-      // Subscription keys take the form `ds:<SourceName>`. Split on `:` and
-      // pick the source-name segment.
+      // Subscription keys take the form `ds:<SourceName>`.
       const [, sourceId] = subscriptionKey.split(':');
       const source = allSources.find((ds) => ds.getName() === sourceId);
       if (source) {
@@ -3093,13 +3202,9 @@ export class AssetsController extends BaseController<
    * Strategy to minimize data source calls:
    * 1. Collect all chains to subscribe based on enabled networks
    * 2. Map chains to accounts based on their scopes
-   * 3. Split by data source (ordered by priority) - each data source gets ONE
-   *    subscription, claiming on two axes: the chains it can serve AND the
-   *    pinned custom assets it commits to (`claimCustomAssets`). Assets a
-   *    source cannot serve fall through to lower-priority sources — e.g. a
-   *    pinned token on a websocket-claimed chain is claimed by RPC, which
-   *    runs an asset-scoped poll for it (websocket pushes cannot cover
-   *    user-imported tokens that never transact).
+   * 3. Split by data source (priority order) - each source gets ONE
+   *    subscription, claiming chains AND pinned assets (`claimCustomAssets`);
+   *    unclaimed assets fall through to lower-priority sources.
    *
    * This ensures we make minimal subscriptions to each data source while covering
    * all accounts, chains, and pinned assets.
@@ -3116,9 +3221,8 @@ export class AssetsController extends BaseController<
       new Set(chainIds),
     );
     const remainingChains = new Set(chainToAccounts.keys());
-    // Pinned custom assets on enabled chains, offered to the sources in
-    // priority order alongside the chains. Assets on disabled chains are not
-    // offered — the user cannot see those balances, polling them is waste.
+    // Pins on enabled chains, offered to the sources in priority order; pins
+    // on disabled chains are not worth polling.
     const remainingCustomAssets = new Set<Caip19AssetId>();
     for (const account of accounts) {
       for (const assetId of this.getCustomAssets(account.id)) {
@@ -3290,10 +3394,8 @@ export class AssetsController extends BaseController<
    * @param chains - Array of chain IDs to subscribe for.
    * @param options - Optional subscription overrides.
    * @param options.subscriptionKey - Custom subscription key (default: `ds:<sourceId>`).
-   * @param options.customAssets - Pinned custom assets this source claimed
-   * (`claimCustomAssets`), forwarded on the poll request so the source serves
-   * them (AccountsApi sends them as `includeAssetIds`; RPC polls them —
-   * asset-scoped when the asset's chain was not assigned to it).
+   * @param options.customAssets - Pinned assets this source claimed
+   * (`claimCustomAssets`), forwarded on the poll request.
    */
   #subscribeDataSource(
     source: AbstractDataSource<string, DataSourceState>,
@@ -3319,8 +3421,7 @@ export class AssetsController extends BaseController<
       customAssetCount: customAssets.length,
     });
 
-    // Globally hidden assets, forwarded so AccountsApi can send them as
-    // `excludeAssetIds` and drop them from the response.
+    // Globally hidden assets, forwarded as `excludeAssetIds`.
     const hiddenAssets = this.#getHiddenAssetIds();
 
     const subscribeReq: SubscriptionRequest = {
@@ -3779,14 +3880,9 @@ export class AssetsController extends BaseController<
               ),
             };
 
-        // When basic functionality is on, recover what the upstream source left
-        // outstanding on RPC before enrichment: errored chains (e.g.
-        // `unprocessedNetworks`) via a full-chain fetch, and pinned assets the
-        // backend could not resolve (AccountsApi `unprocessedIncludeAssetIds`,
-        // surfaced as `unprocessedCustomAssets`) via an asset-scoped fetch. This mirrors
-        // the force-update pipeline so poll/subscription updates fall back to RPC
-        // too. In RPC-only mode (basic functionality off) the poll already uses RPC,
-        // so there is nothing to fall back to.
+        // Recover errored chains and unresolved pins on RPC before enrichment,
+        // mirroring the force-update pipeline. In RPC-only mode the poll
+        // already uses RPC, so there is nothing to fall back to.
         const enrichmentSources: AssetsDataSource[] = [];
         if (this.#isBasicFunctionality()) {
           enrichmentSources.push(this.#rpcFallbackMiddleware);
@@ -3863,7 +3959,15 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssets');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
-    this.messenger.unregisterActionHandler('AssetsController:getAsset');
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getAccountAssetByID',
+    );
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getAccountAssetsByIDs',
+    );
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getAccountAssetsByScope',
+    );
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
     this.messenger.unregisterActionHandler(
       'AssetsController:getExchangeRatesForBridge',

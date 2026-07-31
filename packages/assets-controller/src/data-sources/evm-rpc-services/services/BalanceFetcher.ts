@@ -46,12 +46,9 @@ export type BalancePollingInput = {
   /** Account address */
   accountAddress: Address;
   /**
-   * When present, fetch balances for exactly these assets instead of the
-   * account's tracked `state.assetsBalance` entries. Used by the
-   * asset-scoped RPC poll on chains that another data source claimed in the
-   * chain handoff but whose pinned assets fell through to RPC in the asset
-   * handoff (`claimCustomAssets`). Callers must pass a deterministically
-   * ordered list — the polling input is the polling dedupe key.
+   * When present, fetch exactly these assets instead of the tracked
+   * `assetsBalance` entries (asset-scoped RPC poll). Must be
+   * deterministically ordered — the polling input is the dedupe key.
    */
   assetIds?: CaipAssetType[];
 };
@@ -175,9 +172,8 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       });
     };
 
-    // Asset-scoped poll: fetch exactly the assets pinned on the input — the
-    // regular tracked balances on this chain are another data source's
-    // responsibility and polling them here would double-poll.
+    // Asset-scoped poll: fetch only the input's assets; tracked balances on
+    // this chain are another source's responsibility.
     if (assetIds) {
       for (const assetId of assetIds) {
         collect(assetId);
@@ -187,12 +183,9 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
     const state = this.#messenger.call('AssetsController:getState');
 
-    // Assets tracked with a balance entry. Custom (user-pinned) assets are
-    // covered here too: `addCustomAsset` seeds a zero-balance row and
-    // `mergeAccountBalances` re-seeds it on authoritative replaces, so every
-    // pinned asset on this chain has an entry. Pinned assets on chains
-    // another data source claimed are handled by the asset-scoped poll
-    // (explicit `assetIds`), not this path.
+    // Assets tracked with a balance entry — pins included, since
+    // `addCustomAsset` seeds a zero-balance row. Pins on chains another
+    // source claimed go through the asset-scoped poll instead.
     const accountBalances = state?.assetsBalance?.[accountId];
     if (accountBalances) {
       for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {

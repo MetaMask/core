@@ -55,10 +55,8 @@ export type AssetsBalanceState = {
   assetsBalance: Record<string, Record<string, AssetBalanceEntry>>;
   /**
    * User-added custom assets per account: accountId -> CAIP-19 asset IDs.
-   * Part of the AssetsController state shape but not read by the balance
-   * poll — every pinned asset has a seeded `assetsBalance` row, and
-   * asset-scoped polls receive their assets explicitly via
-   * `BalancePollingInput.assetIds`.
+   * Not read by the balance poll — pins have seeded `assetsBalance` rows,
+   * and asset-scoped polls get assets via `BalancePollingInput.assetIds`.
    */
   customAssets?: Record<string, string[]>;
 };

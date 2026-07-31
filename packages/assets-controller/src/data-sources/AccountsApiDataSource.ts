@@ -431,16 +431,14 @@ export class AccountsApiDataSource extends AbstractDataSource<
         ? { staleTime: 100, gcTime: 100 }
         : undefined;
 
-      // User-pinned custom assets ("display no matter what") on the chains
-      // being fetched. Sent to the v6 endpoint as `includeAssetIds` so the
-      // backend returns them even at a zero balance (see APIPLAT-2499).
+      // User-pinned assets on the fetched chains, sent to v6 as
+      // `includeAssetIds` so the backend returns them even at zero balance
+      // (APIPLAT-2499).
       const includeAssetIds = this.#getIncludeAssetIds(request, chainsToFetch);
 
-      // User-hidden assets on the chains being fetched. Sent to the v6 endpoint
-      // as `excludeAssetIds` so they are dropped from the response even when
-      // detected or carrying a non-zero balance. A pinned asset always wins
-      // over a hidden one (adding a custom asset unhides it), so any overlap
-      // with `includeAssetIds` is removed here defensively.
+      // User-hidden assets on the fetched chains, sent to v6 as
+      // `excludeAssetIds`. A pin wins over a hide, so overlap with
+      // `includeAssetIds` is removed.
       const excludeAssetIds = this.#getExcludeAssetIds(
         request,
         chainsToFetch,
@@ -472,11 +470,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
         }
       }
 
-      // Pinned assets the backend could not resolve (RPC down, contract does
-      // not exist, no `balanceOf`, etc.). Surface them on the asset-axis signal
-      // (`unprocessedCustomAssets`) — NOT `errors` — because the chain itself
-      // succeeded. The RPC fallback fetches just these specific assets without
-      // re-fetching the whole chain, and a fabricated zero balance is avoided.
+      // Pins the backend could not resolve go on `unprocessedCustomAssets` —
+      // not `errors`, the chain succeeded — so the RPC fallback fetches just
+      // these assets.
       const validUnprocessedAssetIds = unprocessedIncludeAssetIds.filter(
         (assetId) => {
           try {
@@ -524,13 +520,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
   }
 
   /**
-   * Collect the user-pinned custom assets that should be sent to the v6
-   * endpoint as `includeAssetIds`. Only EVM (`eip155:`) assets on chains that
-   * are actually being fetched are included; malformed IDs are skipped.
+   * Collect the pinned EVM assets on the fetched chains to send to the v6
+   * endpoint as `includeAssetIds`; malformed IDs are skipped.
    *
-   * @param request - The original data request (carries `customAssets`).
-   * @param chainsToFetch - Chains supported and being requested this fetch.
-   * @returns Deduplicated CAIP-19 asset IDs to pin, or `undefined` when none.
+   * @param request - The data request (carries `customAssets`).
+   * @param chainsToFetch - Chains being requested this fetch.
+   * @returns Deduplicated asset IDs, or `undefined` when none.
    */
   #getIncludeAssetIds(
     request: DataRequest,
@@ -562,15 +557,14 @@ export class AccountsApiDataSource extends AbstractDataSource<
   }
 
   /**
-   * Collect the user-hidden assets that should be sent to the v6 endpoint as
-   * `excludeAssetIds`. Only EVM (`eip155:`) assets on chains that are actually
-   * being fetched are included; malformed IDs are skipped. Any asset that is
-   * also pinned (`includeAssetIds`) is left out so a pin always wins.
+   * Collect the hidden EVM assets on the fetched chains to send to the v6
+   * endpoint as `excludeAssetIds`; malformed IDs are skipped and pinned
+   * assets are left out (a pin wins).
    *
-   * @param request - The original data request (carries `excludeAssetIds`).
-   * @param chainsToFetch - Chains supported and being requested this fetch.
+   * @param request - The data request (carries `excludeAssetIds`).
+   * @param chainsToFetch - Chains being requested this fetch.
    * @param includeAssetIds - Pinned asset IDs that must not be excluded.
-   * @returns Deduplicated CAIP-19 asset IDs to exclude, or `undefined` when none.
+   * @returns Deduplicated asset IDs, or `undefined` when none.
    */
   #getExcludeAssetIds(
     request: DataRequest,
@@ -652,10 +646,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * @param accountIds - CAIP-10 account IDs to fetch balances for.
    * @param fetchOptions - Cache/fetch options (e.g. force update settings).
    * @param request - The original data request containing accounts to map.
-   * @param includeAssetIds - User-pinned CAIP-19 asset IDs the backend must
-   * always return (even at zero balance).
-   * @param excludeAssetIds - User-hidden CAIP-19 asset IDs the backend must
-   * drop from the response (even at a non-zero balance).
+   * @param includeAssetIds - Pinned asset IDs the backend must always return.
+   * @param excludeAssetIds - Hidden asset IDs the backend must drop.
    * @returns Unprocessed networks, unprocessed pinned assets, and processed
    * asset balances by account.
    */
@@ -878,8 +870,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
           }
         }
 
-        // Forward the asset-axis signal so the RPC fallback can recover pinned
-        // assets the backend could not resolve, without re-fetching the chain.
+        // Forward the asset-axis signal so the RPC fallback recovers these pins.
         if (
           response.unprocessedCustomAssets &&
           response.unprocessedCustomAssets.length > 0
@@ -936,12 +927,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   /**
-   * Claim the pinned assets this source can actually serve: EVM assets on its
-   * assigned chains, sent to the v6 endpoint as `includeAssetIds` on every
-   * poll. The v5 endpoint has no `includeAssetIds` support, so when the v6
-   * flag is off nothing is claimed and pinned assets fall through to RPC.
-   * Assets the backend cannot resolve at fetch time are released per-fetch
-   * via `unprocessedIncludeAssetIds` → `unprocessedCustomAssets`.
+   * Claim EVM pins on assigned chains (sent to v6 as `includeAssetIds`).
+   * v5 has no `includeAssetIds`, so with the v6 flag off nothing is claimed
+   * and pins fall through to RPC.
    *
    * @param customAssets - Candidate CAIP-19 asset IDs still unclaimed.
    * @param assignedChains - Chains assigned to this source in the handoff.

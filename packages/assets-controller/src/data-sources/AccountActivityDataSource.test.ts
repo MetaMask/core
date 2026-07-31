@@ -11,8 +11,7 @@ import type {
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
-import type { ChainId, Caip19AssetId, DataRequest } from '../types.js';
-import type { SubscriptionRequest } from './AbstractDataSource.js';
+import type { ChainId, Caip19AssetId } from '../types.js';
 import {
   AccountActivityDataSource,
   createAccountActivityDataSource,
@@ -104,7 +103,6 @@ type SetupResult = {
   onAssetsUpdate: jest.Mock;
   onActiveChainsUpdated: jest.Mock;
   getAssetType: jest.Mock;
-  resubscribeAccountActivity: jest.Mock;
   triggerBalanceUpdated: (payload: {
     address: string;
     chain: string;
@@ -147,7 +145,6 @@ function setup(options: SetupOptions = {}): SetupResult {
     actions: [
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
       'AccountsController:getSelectedAccount',
-      'AccountActivityService:resubscribe',
     ],
     events: [
       'AccountActivityService:balanceUpdated',
@@ -162,11 +159,6 @@ function setup(options: SetupOptions = {}): SetupResult {
   rootMessenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     () => selectedAccount as InternalAccount,
-  );
-  const resubscribeAccountActivity = jest.fn().mockResolvedValue(undefined);
-  rootMessenger.registerActionHandler(
-    'AccountActivityService:resubscribe',
-    resubscribeAccountActivity,
   );
 
   const getAssetType = jest
@@ -208,33 +200,9 @@ function setup(options: SetupOptions = {}): SetupResult {
     onAssetsUpdate,
     onActiveChainsUpdated,
     getAssetType,
-    resubscribeAccountActivity,
     triggerBalanceUpdated,
     triggerStatusChanged,
     cleanup,
-  };
-}
-
-/**
- * Build a SubscriptionRequest carrying the given pinned custom assets.
- *
- * @param customAssets - Pinned CAIP-19 asset IDs claimed by the source.
- * @returns A mock SubscriptionRequest.
- */
-function createSubscriptionRequest(
-  customAssets?: Caip19AssetId[],
-): SubscriptionRequest {
-  return {
-    request: {
-      accounts: [createMockAccount()],
-      chainIds: [CHAIN_MAINNET],
-      assetTypes: ['fungible'],
-      dataTypes: ['balance'],
-      customAssets,
-    } as DataRequest,
-    subscriptionId: 'ds:AccountActivityDataSource',
-    isUpdate: false,
-    onAssetsUpdate: jest.fn(),
   };
 }
 
@@ -283,56 +251,13 @@ describe('AccountActivityDataSource', () => {
   });
 
   describe('subscribe', () => {
-    it('does not fetch or claim chains (push-only source)', async () => {
+    it('resolves without doing anything (no-op)', async () => {
       const { dataSource, onAssetsUpdate, onActiveChainsUpdated, cleanup } =
         setup();
 
-      expect(
-        await dataSource.subscribe(createSubscriptionRequest()),
-      ).toBeUndefined();
+      expect(await dataSource.subscribe()).toBeUndefined();
       expect(onAssetsUpdate).not.toHaveBeenCalled();
       expect(onActiveChainsUpdated).not.toHaveBeenCalled();
-
-      cleanup();
-    });
-
-    it('baselines the pinned assets on the first call without resubscribing', async () => {
-      const { dataSource, resubscribeAccountActivity, cleanup } = setup();
-
-      await dataSource.subscribe(createSubscriptionRequest([ETH_ASSET]));
-
-      // The websocket subscription was just created with current backend
-      // state — no churn on the initial handoff.
-      expect(resubscribeAccountActivity).not.toHaveBeenCalled();
-
-      cleanup();
-    });
-
-    it('triggers an account-activity resubscription when the pinned asset set changes', async () => {
-      const secondAsset =
-        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
-      const { dataSource, resubscribeAccountActivity, cleanup } = setup();
-
-      await dataSource.subscribe(createSubscriptionRequest([]));
-      expect(resubscribeAccountActivity).not.toHaveBeenCalled();
-
-      // A pin was added: the backend must re-derive the assets it pushes.
-      await dataSource.subscribe(createSubscriptionRequest([ETH_ASSET]));
-      expect(resubscribeAccountActivity).toHaveBeenCalledTimes(1);
-
-      // Unchanged set: no churn.
-      await dataSource.subscribe(
-        createSubscriptionRequest([ETH_ASSET, secondAsset]),
-      );
-      expect(resubscribeAccountActivity).toHaveBeenCalledTimes(2);
-      await dataSource.subscribe(
-        createSubscriptionRequest([secondAsset, ETH_ASSET]),
-      );
-      expect(resubscribeAccountActivity).toHaveBeenCalledTimes(2);
-
-      // A pin was removed: resubscribe so the backend can drop it.
-      await dataSource.subscribe(createSubscriptionRequest([ETH_ASSET]));
-      expect(resubscribeAccountActivity).toHaveBeenCalledTimes(3);
 
       cleanup();
     });

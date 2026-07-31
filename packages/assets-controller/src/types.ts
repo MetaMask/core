@@ -339,9 +339,8 @@ export type DataRequest = {
   /** Specific CAIP-19 asset IDs */
   customAssets?: Caip19AssetId[];
   /**
-   * User-hidden CAIP-19 asset IDs (from `assetPreferences`). Sent to the
-   * Accounts API v6 endpoint as `excludeAssetIds` so hidden assets are removed
-   * from the response even when detected or carrying a non-zero balance.
+   * User-hidden CAIP-19 asset IDs, sent to the Accounts API v6 endpoint as
+   * `excludeAssetIds` so they are dropped from the response.
    */
   excludeAssetIds?: Caip19AssetId[];
   /** Force fresh fetch, bypass cache */
@@ -365,11 +364,9 @@ export type DataResponse = {
   /** Errors encountered, keyed by chain ID (chain-axis fallback + telemetry) */
   errors?: Record<ChainId, string>;
   /**
-   * Explicitly requested asset IDs the source could not resolve (asset-axis
-   * fallback). Distinct from `errors`: the chain itself succeeded, but these
-   * specific pinned assets (e.g. AccountsApi `unprocessedIncludeAssetIds`) still
-   * need to be fetched by a downstream source (RPC) without re-fetching the
-   * whole chain.
+   * Pinned asset IDs the source could not resolve (asset-axis fallback).
+   * Unlike `errors` the chain succeeded — only these assets still need a
+   * downstream (RPC) fetch.
    */
   unprocessedCustomAssets?: Caip19AssetId[];
   /** Detected assets (assets that do not have metadata) */

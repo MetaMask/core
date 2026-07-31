@@ -249,13 +249,9 @@ describe('BalanceFetcher', () => {
     });
 
     it('sources the regular poll from assetsBalance only, ignoring state.customAssets', async () => {
-      // Custom assets are guaranteed a seeded assetsBalance row
-      // (addCustomAsset seeds `{ amount: '0' }` and mergeAccountBalances
-      // re-seeds it on authoritative replaces), so the regular poll reads
-      // only assetsBalance. An asset present in state.customAssets but
-      // missing its balance row is NOT fetched — pinned assets on other
-      // sources' chains are handled by the asset-scoped poll (explicit
-      // `assetIds`), not here.
+      // Pins have seeded assetsBalance rows, so the regular poll reads only
+      // assetsBalance; a pin without a row is NOT fetched here (asset-scoped
+      // polls handle those).
       const mockState: AssetsBalanceState = {
         assetsBalance: {
           [TEST_ACCOUNT_ID]: {
@@ -308,10 +304,8 @@ describe('BalanceFetcher', () => {
     });
 
     it('with explicit assetIds fetches exactly those assets and ignores tracked state', async () => {
-      // The asset-scoped poll path: another data source claimed the chain
-      // for regular balances, but RPC claimed the user's pinned customAssets
-      // (claimCustomAssets) and pinned them on the polling input. We must
-      // NOT also poll the regular tracked balances.
+      // Asset-scoped poll path: RPC claimed the pins on a chain another
+      // source owns — it must NOT also poll the tracked balances.
       const mockState: AssetsBalanceState = {
         assetsBalance: {
           [TEST_ACCOUNT_ID]: {

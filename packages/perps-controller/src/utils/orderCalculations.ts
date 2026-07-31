@@ -8,10 +8,17 @@ import {
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { SDKOrderParams } from '../types/hyperliquid-types.js';
 import type { PerpsDebugLogger } from '../types/index.js';
+import type { OrderType } from '../types/perps-types.js';
 import {
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
 } from './hyperLiquidAdapter.js';
+import {
+  getTriggerDirection,
+  isLimitExecutionOrderType,
+  isTriggerOrderType,
+  toSDKTimeInForce,
+} from './orderTypes.js';
 
 /**
  * Optional debug logger for order calculation functions.
@@ -41,6 +48,13 @@ type MaxAllowedAmountParams = {
   assetPrice: number;
   assetSzDecimals: number;
   leverage: number;
+  // Placement type. Only a resting order is margin-checked against its own
+  // submitted price; a marketable order is charged at the fill price. Defaults
+  // to 'market'.
+  orderType?: 'market' | 'limit';
+  // Price a limit order will rest at. Needed to size a limit order that rests
+  // above the market price.
+  limitPrice?: number;
 };
 
 // Advanced order calculation interfaces
@@ -64,14 +78,20 @@ export type CalculateFinalPositionSizeResult = {
 };
 
 export type CalculateOrderPriceAndSizeParams = {
-  orderType: 'market' | 'limit';
+  orderType: OrderType;
   isBuy: boolean;
   finalPositionSize: number;
   currentPrice: number;
   limitPrice?: string;
-  // Max slippage in basis points (e.g. 300 = 3%). Only applied to market orders;
-  // limit orders use limitPrice directly. Falls back to ORDER_SLIPPAGE_CONFIG
-  // .DefaultMarketSlippageBps when omitted on a market order.
+  // Trigger price for stop_*/take_profit_* placements. Required for those types:
+  // `*_limit` executes at `limitPrice`, `*_market` derives a slippage-capped
+  // limit price from this trigger price.
+  triggerPrice?: string;
+  // Max slippage in basis points (e.g. 300 = 3%). Applied to market orders and to
+  // market-executing trigger orders (where it caps the limit price derived from
+  // the trigger price); limit orders use limitPrice directly. Falls back to
+  // ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps for market orders and
+  // .DefaultTpslSlippageBps for market-executing triggers.
   maxSlippageBps?: number;
   szDecimals: number;
 };
@@ -88,10 +108,16 @@ export type BuildOrdersArrayParams = {
   formattedPrice: string;
   formattedSize: string;
   reduceOnly: boolean;
-  orderType: 'market' | 'limit';
+  orderType: OrderType;
+  timeInForce?: 'GTC' | 'IOC' | 'ALO';
   clientOrderId?: string;
+  // Trigger price for stop_*/take_profit_* placements (required for those types)
+  triggerPrice?: string;
   takeProfitPrice?: string;
   stopLossPrice?: string;
+  // Partial TP/SL sizes; default to the full order size when omitted
+  takeProfitSize?: string;
+  stopLossSize?: string;
   szDecimals: number;
   grouping?: 'na' | 'normalTpsl' | 'positionTpsl';
 };
@@ -160,13 +186,33 @@ export function calculateMarginRequired(params: MarginRequiredParams): string {
 }
 
 export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
-  const { spendableBalance, assetPrice, assetSzDecimals, leverage } = params;
+  const {
+    spendableBalance,
+    assetPrice,
+    assetSzDecimals,
+    leverage,
+    orderType = 'market',
+    limitPrice,
+  } = params;
   if (spendableBalance === 0 || !assetPrice || assetSzDecimals === undefined) {
     return 0;
   }
 
-  // The theoretical maximum is simply spendableBalance * leverage
-  const theoreticalMax = spendableBalance * leverage;
+  // HyperLiquid reserves initial margin for a RESTING order against the price
+  // the order is submitted at, not the market price its size was derived from.
+  // A limit order resting above the market price - typically a sell - therefore
+  // needs more margin than a market-priced notional budgets for, and the
+  // exchange refuses it with "insufficient margin to place order". Price the max
+  // off that submitted price instead. A marketable order is charged at the fill
+  // price, so it needs no adjustment.
+  const executionPriceRatio =
+    orderType === 'limit' && limitPrice && limitPrice > assetPrice
+      ? limitPrice / assetPrice
+      : 1;
+
+  // The theoretical maximum is spendableBalance * leverage, expressed in the
+  // market-price notional the caller works with.
+  const theoreticalMax = (spendableBalance * leverage) / executionPriceRatio;
 
   // But we need to account for position size rounding
   // Find the largest whole dollar amount that fits within this limit
@@ -179,7 +225,8 @@ export function getMaxAllowedAmount(params: MaxAllowedAmountParams): number {
     szDecimals: assetSzDecimals,
   });
 
-  const actualNotionalValue = parseFloat(testPositionSize) * assetPrice;
+  const actualNotionalValue =
+    parseFloat(testPositionSize) * assetPrice * executionPriceRatio;
   const requiredMargin = actualNotionalValue / leverage;
 
   // If rounding caused us to exceed available balance, step down by one position increment
@@ -444,6 +491,7 @@ export function calculateOrderPriceAndSize(
     finalPositionSize,
     currentPrice,
     limitPrice,
+    triggerPrice,
     maxSlippageBps,
     szDecimals,
   } = params;
@@ -451,7 +499,40 @@ export function calculateOrderPriceAndSize(
   let orderPrice: number;
   let formattedSize: string;
 
-  if (orderType === 'market') {
+  if (isTriggerOrderType(orderType)) {
+    // Trigger placements price off the trigger, not the live market: the order
+    // rests off-book until the trigger fires.
+    if (!triggerPrice) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
+    }
+
+    const triggerPriceNum = parseFloat(triggerPrice);
+    if (isNaN(triggerPriceNum) || triggerPriceNum <= 0) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE);
+    }
+
+    if (isLimitExecutionOrderType(orderType)) {
+      if (!limitPrice) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_LIMIT_PRICE_REQUIRED);
+      }
+      orderPrice = parseFloat(limitPrice);
+    } else {
+      // Market execution on trigger: HyperLiquid still needs a limit price, used
+      // as a slippage cap. The caller's tolerance wins when supplied; otherwise
+      // the 10% convention of the existing TP/SL children applies.
+      const effectiveBps =
+        maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps;
+      const slippageValue = effectiveBps / BASIS_POINTS_DIVISOR;
+      orderPrice = isBuy
+        ? triggerPriceNum * (1 + slippageValue)
+        : triggerPriceNum * (1 - slippageValue);
+    }
+
+    formattedSize = formatHyperLiquidSize({
+      size: finalPositionSize,
+      szDecimals,
+    });
+  } else if (orderType === 'market') {
     // Market orders: apply slippage buffer to the live price so HyperLiquid
     // receives a worst-case acceptable limit price. Falls back to the
     // documented default if the caller does not provide one.
@@ -486,6 +567,226 @@ export function calculateOrderPriceAndSize(
 }
 
 /**
+ * Build the SDK order-type field for the main order.
+ *
+ * Trigger placements map to the SDK's trigger shape; everything else keeps the
+ * existing Gtc/FrontendMarket limit shape.
+ *
+ * @param params - Order type parameters
+ * @param params.orderType - Placement type
+ * @param params.timeInForce - Time in force; only limit orders may carry one
+ * @param params.triggerPrice - Trigger price (required for trigger placements)
+ * @param params.szDecimals - Asset size decimals, for price formatting
+ * @returns The SDK `t` field for the main order
+ */
+function buildMainOrderTypeField(params: {
+  orderType: OrderType;
+  timeInForce?: 'GTC' | 'IOC' | 'ALO';
+  triggerPrice?: string;
+  szDecimals: number;
+}): SDKOrderParams['t'] {
+  const { orderType, timeInForce, triggerPrice, szDecimals } = params;
+
+  if (!isTriggerOrderType(orderType)) {
+    if (orderType === 'limit') {
+      return { limit: { tif: toSDKTimeInForce(timeInForce) } };
+    }
+    if (timeInForce !== undefined) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED);
+    }
+    return { limit: { tif: 'FrontendMarket' } };
+  }
+
+  if (timeInForce !== undefined) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED);
+  }
+
+  if (!triggerPrice) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
+  }
+
+  return {
+    trigger: {
+      isMarket: !isLimitExecutionOrderType(orderType),
+      triggerPx: formatTriggerPrice({
+        price: triggerPrice,
+        szDecimals,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,
+      }),
+      tpsl: getTriggerDirection(orderType) === 'stop' ? 'sl' : 'tp',
+    },
+  };
+}
+
+/**
+ * Format a price that becomes a `triggerPx`, rejecting one that disappears at
+ * the asset's precision.
+ *
+ * A positive price below the asset's tick (`0.0004` where the asset quotes to
+ * three places) formats to `'0'`, which the exchange rejects. Callers validate
+ * this up front via `validateOrderPrecision`; this is the guard on the build
+ * path itself, so no caller can assemble an order that cannot be accepted.
+ *
+ * @param params - Price parameters
+ * @param params.price - The requested price
+ * @param params.szDecimals - Asset size decimals
+ * @param params.error - Typed error to throw when the price rounds away
+ * @returns The exchange-formatted price, guaranteed positive.
+ */
+function formatTriggerPrice(params: {
+  price: string;
+  szDecimals: number;
+  error: string;
+}): string {
+  const { price, szDecimals, error } = params;
+  const formatted = formatHyperLiquidPrice({ price, szDecimals });
+
+  if (parseFloat(formatted) <= 0) {
+    throw new Error(error);
+  }
+
+  return formatted;
+}
+
+/**
+ * Resolve the size of an attached TP/SL order.
+ *
+ * @param params - Size parameters
+ * @param params.tpslSize - Requested partial size, if any
+ * @param params.formattedSize - Full order size, used when no partial size is given
+ * @param params.szDecimals - Asset size decimals
+ * @returns The exchange-formatted TP/SL order size
+ */
+function formatTpslSize(params: {
+  tpslSize?: string;
+  formattedSize: string;
+  szDecimals: number;
+}): string {
+  const { tpslSize, formattedSize, szDecimals } = params;
+
+  if (tpslSize === undefined) {
+    return formattedSize;
+  }
+
+  // Validation compares the requested size against `params.size`, but a
+  // usdAmount-based order is finally sized from a fresher price, so the parent
+  // can end up smaller than the child that validated cleanly. Clamp so the
+  // attached TP/SL never exceeds the order it protects.
+  const requested = parseFloat(tpslSize);
+  const parentSize = parseFloat(formattedSize);
+  const size =
+    Number.isFinite(parentSize) && Number.isFinite(requested)
+      ? Math.min(requested, parentSize)
+      : requested;
+
+  return formatPartialTpslSize({ size, szDecimals });
+}
+
+/**
+ * Check that an order's prices and partial sizes survive the asset's precision.
+ *
+ * Validation elsewhere sees the values the caller supplied; this sees what the
+ * exchange will actually receive. A positive value below the asset's tick
+ * formats to `'0'`, which either changes the order's meaning (a zero-sized
+ * trigger covers the whole position) or is rejected outright (a zero
+ * `triggerPx`).
+ *
+ * Callers run this before taking any side effect — cancelling the position's
+ * existing triggers, changing leverage, moving HIP-3 margin — so a value that
+ * would only fail once the orders are built cannot leave a position stripped of
+ * its protection, or an account with leverage moved, for an order that was
+ * never going to be accepted.
+ *
+ * @param params - Price and size parameters
+ * @param params.triggerPrice - Trigger price for a trigger placement, if any
+ * @param params.takeProfitPrice - Attached take profit price, if any
+ * @param params.stopLossPrice - Attached stop loss price, if any
+ * @param params.takeProfitSize - Requested partial take profit size, if any
+ * @param params.stopLossSize - Requested partial stop loss size, if any
+ * @param params.szDecimals - Asset size decimals
+ * @returns Validation result with isValid flag and optional error message
+ */
+export function validateOrderPrecision(params: {
+  triggerPrice?: string;
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
+  takeProfitSize?: string;
+  stopLossSize?: string;
+  szDecimals: number;
+}): { isValid: boolean; error?: string } {
+  const {
+    triggerPrice,
+    takeProfitPrice,
+    stopLossPrice,
+    takeProfitSize,
+    stopLossSize,
+    szDecimals,
+  } = params;
+
+  for (const size of [takeProfitSize, stopLossSize]) {
+    if (size === undefined) {
+      continue;
+    }
+
+    if (parseFloat(formatHyperLiquidSize({ size, szDecimals })) <= 0) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+      };
+    }
+  }
+
+  // Prices carry their own precision: an asset quotes to
+  // `MaxPriceDecimals - szDecimals` places, so a positive price under that tick
+  // formats to '0'. Every one of these becomes a `triggerPx` the exchange
+  // rejects outright.
+  const priceChecks: [string | undefined, string][] = [
+    [triggerPrice, PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE],
+    [takeProfitPrice, PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE],
+    [stopLossPrice, PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE],
+  ];
+
+  for (const [price, error] of priceChecks) {
+    if (price === undefined) {
+      continue;
+    }
+
+    if (parseFloat(formatHyperLiquidPrice({ price, szDecimals })) <= 0) {
+      return { isValid: false, error };
+    }
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Format a partial TP/SL size, rejecting one that disappears at the asset
+ * precision.
+ *
+ * Validation only sees the requested size, so a positive value below the
+ * asset's precision (0.0004 against `szDecimals: 3`) passes and then formats to
+ * `'0'`. HyperLiquid reads a zero-sized trigger as covering the whole position,
+ * which would silently turn a partial TP/SL into a full close.
+ *
+ * @param params - Size parameters
+ * @param params.size - The requested partial size
+ * @param params.szDecimals - Asset size decimals
+ * @returns The exchange-formatted size, guaranteed positive.
+ */
+export function formatPartialTpslSize(params: {
+  size: string | number;
+  szDecimals: number;
+}): string {
+  const formatted = formatHyperLiquidSize(params);
+
+  if (parseFloat(formatted) <= 0) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+  }
+
+  return formatted;
+}
+
+/**
  * Builds orders array including main order and optional TP/SL orders
  *
  * @param params - Order construction parameters
@@ -501,9 +802,13 @@ export function buildOrdersArray(
     formattedSize,
     reduceOnly,
     orderType,
+    timeInForce,
     clientOrderId,
+    triggerPrice,
     takeProfitPrice,
     stopLossPrice,
+    takeProfitSize,
+    stopLossSize,
     szDecimals,
     grouping,
   } = params;
@@ -517,10 +822,12 @@ export function buildOrdersArray(
     p: formattedPrice,
     s: formattedSize,
     r: reduceOnly || false,
-    t:
-      orderType === 'limit'
-        ? { limit: { tif: 'Gtc' } }
-        : { limit: { tif: 'FrontendMarket' } },
+    t: buildMainOrderTypeField({
+      orderType,
+      timeInForce,
+      triggerPrice,
+      szDecimals,
+    }),
     c: clientOrderId ? (clientOrderId as Hex) : undefined,
   };
   orders.push(mainOrder);
@@ -534,14 +841,19 @@ export function buildOrdersArray(
         price: parseFloat(takeProfitPrice),
         szDecimals,
       }),
-      s: formattedSize,
+      s: formatTpslSize({
+        tpslSize: takeProfitSize,
+        formattedSize,
+        szDecimals,
+      }),
       r: true,
       t: {
         trigger: {
           isMarket: false,
-          triggerPx: formatHyperLiquidPrice({
-            price: parseFloat(takeProfitPrice),
+          triggerPx: formatTriggerPrice({
+            price: takeProfitPrice,
             szDecimals,
+            error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
           }),
           tpsl: 'tp',
         },
@@ -567,14 +879,15 @@ export function buildOrdersArray(
         price: limitPriceWithSlippage,
         szDecimals,
       }),
-      s: formattedSize,
+      s: formatTpslSize({ tpslSize: stopLossSize, formattedSize, szDecimals }),
       r: true,
       t: {
         trigger: {
           isMarket: true,
-          triggerPx: formatHyperLiquidPrice({
-            price: stopLossPriceNum,
+          triggerPx: formatTriggerPrice({
+            price: stopLossPrice,
             szDecimals,
+            error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
           }),
           tpsl: 'sl',
         },

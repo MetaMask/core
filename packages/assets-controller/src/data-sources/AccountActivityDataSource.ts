@@ -18,10 +18,7 @@ import type {
   DataResponse,
 } from '../types.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
-import type {
-  DataSourceState,
-  SubscriptionRequest,
-} from './AbstractDataSource.js';
+import type { DataSourceState } from './AbstractDataSource.js';
 
 // ============================================================================
 // CONSTANTS
@@ -248,50 +245,19 @@ export class AccountActivityDataSource extends AbstractDataSource<
   // SUBSCRIBE / UNSUBSCRIBE
   // ============================================================================
 
-  // Pinned custom assets on active chains are claimed via the inherited
-  // `claimCustomAssets`: the activity stream covers every asset of a
-  // subscribed account, custom assets included, so pins on chains this
-  // source claims are served by the same pushes.
+  // Pins on active chains are claimed via the inherited `claimCustomAssets`:
+  // the activity stream pushes all activity for the address, pins included.
 
   /**
-   * Sorted-key snapshot of the pinned assets claimed on the last subscribe
-   * call. `null` until the first handoff establishes the baseline.
+   * AADS is event-driven and chain-agnostic: it never participates in the
+   * controller's subscribe/unsubscribe handoff. Incoming `balanceUpdated`
+   * events are routed by resolving the address against the wallet's accounts
+   * (see `#onBalanceUpdated`), and updates are pushed through the injected
+   * `#onAssetsUpdate` callback. This override exists only to satisfy the
+   * abstract contract and is intentionally a no-op.
    */
-  #lastCustomAssetsKey: string | null = null;
-
-  /**
-   * AADS is event-driven: it never fetches on subscribe. Incoming
-   * `balanceUpdated` events are routed by resolving the address against the
-   * wallet's accounts (see `#onBalanceUpdated`), and updates are pushed
-   * through the injected `#onAssetsUpdate` callback.
-   *
-   * The one thing subscribe reacts to is a change in the claimed pinned
-   * assets: the backend derives the asset set it pushes for an address when
-   * the websocket subscription is created, so a pin added or removed after
-   * that requires re-creating the subscription
-   * (`AccountActivityService:resubscribe`) for pushes to cover it. The first
-   * call only records the baseline — the websocket subscription was just
-   * created with current backend state.
-   *
-   * @param subscriptionRequest - The subscription request from the controller
-   * (carries the claimed `customAssets`).
-   */
-  async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
-    const customAssetsKey = [
-      ...(subscriptionRequest.request.customAssets ?? []),
-    ]
-      .sort()
-      .join(',');
-
-    if (this.#lastCustomAssetsKey === customAssetsKey) {
-      return;
-    }
-    const isFirstSubscribe = this.#lastCustomAssetsKey === null;
-    this.#lastCustomAssetsKey = customAssetsKey;
-
-    if (!isFirstSubscribe) {
-      await this.#messenger.call('AccountActivityService:resubscribe');
-    }
+  async subscribe(): Promise<void> {
+    // Intentionally empty — see method doc.
   }
 
   // ============================================================================

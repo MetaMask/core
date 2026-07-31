@@ -53,7 +53,7 @@ const SERVICE_NAME = 'AccountActivityService';
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
-const MESSENGER_EXPOSED_METHODS = ['resubscribe'] as const;
+const MESSENGER_EXPOSED_METHODS = [] as const;
 
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
@@ -105,14 +105,7 @@ export type AccountActivityServiceOptions = {
 // =============================================================================
 
 // Action types for the messaging system
-
-export type AccountActivityServiceResubscribeAction = {
-  type: `AccountActivityService:resubscribe`;
-  handler: AccountActivityService['resubscribe'];
-};
-
-export type AccountActivityServiceActions =
-  AccountActivityServiceResubscribeAction;
+export type AccountActivityServiceActions = never;
 
 // Allowed actions that AccountActivityService can call on other controllers
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
@@ -575,34 +568,6 @@ export class AccountActivityService {
   }
 
   // =============================================================================
-  // Public Methods - Subscription Management
-  // =============================================================================
-
-  /**
-   * Re-create the account-activity subscriptions for the selected account.
-   *
-   * The websocket subscription is address-scoped, so the backend derives the
-   * asset set it pushes for an address when the subscription is created. Call
-   * this after that derivation changes server-side — e.g. after a custom
-   * token is registered with the backend — so pushes start covering it.
-   *
-   * Exposed as the `AccountActivityService:resubscribe` messenger action.
-   * No-op when the websocket is not connected: the next connection subscribes
-   * with fresh state anyway.
-   */
-  async resubscribe(): Promise<void> {
-    const { state } = this.#messenger.call(
-      'BackendWebSocketService:getConnectionInfo',
-    );
-    if (state !== WebSocketState.CONNECTED) {
-      return;
-    }
-
-    await this.#unsubscribeFromAllAccountActivity();
-    await this.#subscribeToSelectedAccount();
-  }
-
-  // =============================================================================
   // Private Methods - Subscription Management
   // =============================================================================
 
@@ -701,7 +666,16 @@ export class AccountActivityService {
    */
   async #handleFeatureFlagsStateChange(): Promise<void> {
     try {
-      await this.resubscribe();
+      const { state } = this.#messenger.call(
+        'BackendWebSocketService:getConnectionInfo',
+      );
+      if (state !== WebSocketState.CONNECTED) {
+        // Not connected: the next connection will subscribe with fresh flags
+        return;
+      }
+
+      await this.#unsubscribeFromAllAccountActivity();
+      await this.#subscribeToSelectedAccount();
     } catch (error) {
       log('Feature flag change handling failed', { error });
     }
