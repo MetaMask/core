@@ -1259,9 +1259,9 @@ describe('AccountTreeController', () => {
     it('returns the EVM account when the selected group has both EVM and non-EVM accounts', () => {
       const { controller } = evmAndNonEvmGroupSetup();
 
-      expect(
-        controller.getAccountFromSelectedAccountGroup(),
-      ).toStrictEqual(MOCK_HD_ACCOUNT_2);
+      expect(controller.getAccountFromSelectedAccountGroup()).toStrictEqual(
+        MOCK_HD_ACCOUNT_2,
+      );
     });
 
     it('returns the first account when the selected group has no EVM account', () => {
@@ -1306,9 +1306,9 @@ describe('AccountTreeController', () => {
         state: nonEvmGroupState,
       });
 
-      expect(
-        controller.getAccountFromSelectedAccountGroup(),
-      ).toStrictEqual(MOCK_TRX_ACCOUNT_1);
+      expect(controller.getAccountFromSelectedAccountGroup()).toStrictEqual(
+        MOCK_TRX_ACCOUNT_1,
+      );
     });
 
     it('returns undefined when no group is selected', () => {
@@ -1319,9 +1319,7 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      expect(
-        controller.getAccountFromSelectedAccountGroup(),
-      ).toBeUndefined();
+      expect(controller.getAccountFromSelectedAccountGroup()).toBeUndefined();
     });
 
     it('returns undefined when the selected group is empty', () => {
@@ -1366,9 +1364,7 @@ describe('AccountTreeController', () => {
         state: emptyGroupState,
       });
 
-      expect(
-        controller.getAccountFromSelectedAccountGroup(),
-      ).toBeUndefined();
+      expect(controller.getAccountFromSelectedAccountGroup()).toBeUndefined();
     });
 
     it('returns the account from persisted state without calling init()', () => {
@@ -1379,9 +1375,9 @@ describe('AccountTreeController', () => {
       });
 
       // init() is NOT called — the account must be resolved from persisted state.
-      expect(
-        controller.getAccountFromSelectedAccountGroup(),
-      ).toStrictEqual(MOCK_HD_ACCOUNT_1);
+      expect(controller.getAccountFromSelectedAccountGroup()).toStrictEqual(
+        MOCK_HD_ACCOUNT_1,
+      );
     });
 
     it('returns the account matching the given CAIP-2 chain ID (non-EVM)', () => {
