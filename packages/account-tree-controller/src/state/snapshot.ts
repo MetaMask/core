@@ -30,18 +30,6 @@ export function createAccountTreeSnapshot(
 }
 
 /**
- * Deep-clones and deep-freezes wallet entries for immutable snapshot storage.
- *
- * @param entries - Mutable wallet entries to copy and freeze.
- * @returns A deep-frozen copy of `entries`.
- */
-function cloneAndFreezeEntries(
-  entries: AccountTreeWalletEntry[],
-): AccountTreeWalletEntry[] {
-  return deepFreeze(structuredClone(entries));
-}
-
-/**
  * Recursively freezes a value and its nested properties.
  *
  * @param value - Value to freeze.
@@ -89,7 +77,7 @@ export class AccountTreeSnapshot {
     entries: AccountTreeWalletEntry[],
     idMap: IdMap | null,
   ) {
-    this.#entries = cloneAndFreezeEntries(entries);
+    this.#entries = deepFreeze(structuredClone(entries));
     this.#idMap = idMap;
   }
 
