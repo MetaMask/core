@@ -915,20 +915,13 @@ export class AnalyticsController extends BaseController<
   /**
    * Replay queued pre-consent events through the delivery path.
    *
-   * Called on opt-in, once analytics is enabled. The queue is cleared before
-   * replaying so events cannot be re-queued or replayed twice.
+   * Only called by {@link #reconcilePreConsentEvents}, which guarantees the
+   * pre-consent queue is enabled and that the user is opted in. The queue is
+   * cleared before replaying so events cannot be re-queued or replayed twice.
+   *
+   * @param queue - The pre-consent event queue to replay.
    */
-  #replayPreConsentEvents(): void {
-    if (!this.#isPreConsentQueueEnabled) {
-      return;
-    }
-
-    const queue = this.state.preConsentEventQueue;
-
-    if (!queue) {
-      return;
-    }
-
+  #replayPreConsentEvents(queue: Record<string, Json>): void {
     this.#clearPreConsentEvents();
 
     for (const [messageId, queuedEvent] of Object.entries(queue)) {
@@ -1019,7 +1012,7 @@ export class AnalyticsController extends BaseController<
     }
 
     if (this.state.optedIn) {
-      this.#replayPreConsentEvents();
+      this.#replayPreConsentEvents(queue);
     } else if (this.state.consentDecisionMade) {
       this.#clearPreConsentEvents();
     }
@@ -1156,7 +1149,11 @@ export class AnalyticsController extends BaseController<
     // it so the queued pre-consent events can be enriched as they replay.
     await this.#maybeResolveLocation();
 
-    this.#replayPreConsentEvents();
+    // Reconcile against the current state rather than replaying blindly: the
+    // consent decision may have changed while geolocation was resolving (e.g.
+    // resetConsentDecision ran during the await), and preserved pre-consent
+    // events must not be delivered once the user is no longer opted in.
+    this.#reconcilePreConsentEvents();
   }
 
   /**

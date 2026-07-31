@@ -1835,6 +1835,49 @@ describe('AnalyticsController', () => {
       // location it would have by now.
       expect(geolocationHandler).not.toHaveBeenCalled();
     });
+
+    it('does not replay pre-consent events if consent is reset while geolocation resolves', async () => {
+      let resolveGeolocation: (data: GeolocationData) => void = () => undefined;
+      const geolocationHandler = jest.fn(
+        () =>
+          new Promise<GeolocationData>((resolve) => {
+            resolveGeolocation = resolve;
+          }),
+      );
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isGeolocationEnabled: true,
+        geolocationHandler,
+      });
+
+      controller.trackEvent(createTestEvent('preconsent_event'));
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+
+      // Opt in, but leave geolocation resolving (do not await yet).
+      const optInPromise = controller.optIn();
+      expect(geolocationHandler).toHaveBeenCalledTimes(1);
+
+      // The user resets their consent decision before geolocation resolves.
+      controller.resetConsentDecision();
+
+      // Geolocation resolves and optIn finishes reconciling.
+      resolveGeolocation(buildGeolocationData(fullGeolocation));
+      await optInPromise;
+
+      // The pre-consent event is not delivered — the user is undecided again —
+      // and it remains queued for a later decision.
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(
+        Object.values(controller.state.preConsentEventQueue ?? {}),
+      ).toHaveLength(1);
+    });
   });
 
   describe('event queue persistence', () => {
