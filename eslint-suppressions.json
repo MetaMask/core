@@ -14,9 +14,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 7
     },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
     "no-negated-condition": {
       "count": 3
     },
