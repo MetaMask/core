@@ -1,10 +1,10 @@
 /* eslint-disable jest/unbound-method */
+import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '../../../config-registry-controller/src/ConfigRegistryController-method-action-types.js';
 import {
   createMockAssetControllerMessenger,
   MockRootMessenger,
