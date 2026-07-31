@@ -9,9 +9,6 @@
   },
   "references": [
     {
-      "path": "./packages/analytics-controller/tsconfig.lint.json"
-    },
-    {
       "path": "./packages/announcement-controller/tsconfig.lint.json"
     },
     {
