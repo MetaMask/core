@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: add `.js` import extensions to Core Platform joint packages ([#9642](https://github.com/MetaMask/core/pull/9642))
+- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+
 ### Added
 
 - **BREAKING:** Add optional `analyticsOptions` constructor option that makes `NetworkController` emit `RPC Service Unavailable` and `RPC Service Degraded` analytics events via the `AnalyticsController:trackEvent` action when an RPC endpoint becomes unavailable or degraded ([#9270](https://github.com/MetaMask/core/pull/9270))
