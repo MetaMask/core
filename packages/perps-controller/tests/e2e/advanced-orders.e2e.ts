@@ -29,6 +29,10 @@ import path from 'path';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
 import type { FrontendOrder } from '../../src/types/hyperliquid-types.js';
+import {
+  formatHyperLiquidPrice,
+  formatHyperLiquidSize,
+} from '../../src/utils/hyperLiquidAdapter.js';
 import { isTriggerOrderType } from '../../src/utils/orderTypes.js';
 import type {
   CaseContext,
@@ -267,8 +271,9 @@ export async function createTestnetRunner(options: {
     cancel: async ({ orderIds }): Promise<void> => {
       // Cancel one at a time and tolerate an order that is already gone. A
       // market order in the matrix fills on submission, so it is no longer
-      // cancellable — that is the expected outcome, not a proof failure. The
-      // contract this runner owes is "nothing left resting", which is met.
+      // cancellable — that is the expected outcome, not a proof failure. But
+      // "nothing left resting" is not the whole contract: a filled parent
+      // leaves a POSITION, which `flatten` below is what actually clears.
       for (const orderId of orderIds) {
         if (!orderId) {
           continue;
@@ -287,6 +292,56 @@ export async function createTestnetRunner(options: {
             throw error;
           }
         }
+      }
+    },
+
+    flatten: async (symbol): Promise<void> => {
+      // A market parent fills instead of resting, so cancelling leaves real
+      // exposure behind. The venue premises run later against this same
+      // account and at least one reasons about the position, so the case must
+      // hand the account back flat rather than merely order-free.
+      const state = await infoClient.clearinghouseState({ user: userAddress });
+      const held = state.assetPositions.find(
+        (entry: { position: { coin: string; szi: string } }) =>
+          entry.position.coin === symbol,
+      );
+      const signedSize = parseFloat(held?.position.szi ?? '0');
+      if (!signedSize) {
+        return;
+      }
+
+      const meta = await infoClient.meta();
+      const asset = meta.universe.find(
+        (entry: { name: string }) => entry.name === symbol,
+      );
+      const szDecimals = asset?.szDecimals ?? 0;
+      const mids = await infoClient.allMids();
+      const mid = parseFloat(mids[symbol]);
+
+      // Close by crossing the book: buy back a short, sell off a long. The
+      // limit is deliberately aggressive so an IOC fills rather than rests.
+      const isBuy = signedSize < 0;
+      const result = await exchangeClient.order({
+        orders: [
+          {
+            a: options.assetId,
+            b: isBuy,
+            p: formatHyperLiquidPrice({
+              price: mid * (isBuy ? 1.05 : 0.95),
+              szDecimals,
+            }),
+            s: formatHyperLiquidSize({
+              size: Math.abs(signedSize),
+              szDecimals,
+            }),
+            r: true,
+            t: { limit: { tif: 'Ioc' } },
+          },
+        ],
+        grouping: 'na',
+      });
+      if (result.status !== 'ok') {
+        throw new Error(`Failed to flatten ${symbol}: ${JSON.stringify(result)}`);
       }
     },
   };

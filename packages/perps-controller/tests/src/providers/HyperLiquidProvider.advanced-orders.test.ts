@@ -1105,6 +1105,43 @@ describe('HyperLiquidProvider', () => {
         expect(result.orderId).toBeUndefined();
       });
 
+      it('keeps the edit successful when the pre-edit baseline read fails', async () => {
+        // The cache already confirmed the order is safe to edit, so the baseline
+        // is wanted only to judge novelty afterwards. Losing it must not sink a
+        // modify that would otherwise succeed — the same soft failure the
+        // post-modify lookup already has.
+        mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([
+          {
+            orderId: '123',
+            symbol: 'BTC',
+            side: 'buy',
+            orderType: 'limit',
+            size: '0.1',
+            originalSize: '0.1',
+            price: '50000',
+            filledSize: '0',
+            remainingSize: '0.1',
+            status: 'open',
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            reduceOnly: false,
+          },
+        ] as never);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            frontendOpenOrders: jest
+              .fn()
+              .mockRejectedValue(new Error('network down')),
+          }) as never,
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+        expect(mockClientService.getExchangeClient().modify).toHaveBeenCalled();
+      });
+
       it('keeps the edit successful when the post-modify read fails', async () => {
         // The modify was accepted; only the identity lookup failed. Turning that
         // into a failed edit would misreport an order that really was changed.

@@ -375,6 +375,18 @@ export type ExchangeRunner = {
   }): Promise<string[]>;
   openOrders(symbol: string): Promise<FrontendOrder[]>;
   cancel(params: { orderIds: string[]; symbol: string }): Promise<void>;
+  /**
+   * Close any position the case left behind.
+   *
+   * Cancelling resting orders is not enough to leave the account as the case
+   * found it: a case whose parent is a market order fills, so it has no resting
+   * id to cancel and opens real exposure instead. The venue premises run later
+   * in the same session and at least one of them reasons about the position, so
+   * leftover exposure would let a premise pass or fail for the wrong reason.
+   *
+   * Optional because the simulated double has no positions to close.
+   */
+  flatten?(symbol: string): Promise<void>;
 };
 
 /**
@@ -562,6 +574,8 @@ export async function runCase(params: {
   }
 
   await runner.cancel({ orderIds: placedOrderIds, symbol });
+  // Leave the account flat, not merely order-free — see ExchangeRunner.flatten.
+  await runner.flatten?.(symbol);
   const remaining = await runner.openOrders(symbol);
   const openOrdersAfterCancel = remaining.map((order) => String(order.oid));
   const cancelled = placedOrderIds.every(

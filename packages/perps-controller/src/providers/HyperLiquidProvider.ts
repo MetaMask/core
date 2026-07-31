@@ -3863,15 +3863,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(params.newOrder.symbol);
 
-      // Fail closed when the cache could not confirm the resting order: an
-      // unverified edit can rebuild a protective stop as a plain order and
-      // report success. REST carries the placement type the cache lacked.
-      // One authoritative read of what is resting before the edit. It verifies
-      // the target when the cache could not, and doubles as the baseline that
-      // tells the replacement apart from orders that were already there.
-      const ordersBeforeEdit = await this.#fetchOpenOrders({ dexName });
+      // What is resting before the edit serves two purposes, and they carry
+      // different weight. Verifying the target is REQUIRED when the cache could
+      // not do it — an unverified edit can rebuild a protective stop as a plain
+      // order — so that read must fail closed. Providing a baseline for the
+      // optional orderId resolution is not: when the cache already confirmed the
+      // order, a failed read must not sink a modify that would otherwise
+      // succeed, exactly as the post-modify lookup does not.
+      let ordersBeforeEdit: FrontendOrder[] | undefined;
 
       if (cachedRestingOrder === undefined) {
+        ordersBeforeEdit = await this.#fetchOpenOrders({ dexName });
         const restingOrder = ordersBeforeEdit.find(
           (order) => order.oid.toString() === params.orderId.toString(),
         );
@@ -3888,6 +3890,17 @@ export class HyperLiquidProvider implements PerpsProvider {
             success: false,
             error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
           };
+        }
+      } else {
+        try {
+          ordersBeforeEdit = await this.#fetchOpenOrders({ dexName });
+        } catch (error) {
+          // Only the optional identity baseline is lost. Without it novelty
+          // cannot be judged, so the id is omitted below rather than guessed.
+          this.#deps.debugLogger.log(
+            'Could not read the pre-edit orders baseline:',
+            error,
+          );
         }
       }
 
@@ -3972,13 +3985,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       // order the venue has already cancelled. Report the replacement when it
       // can be resolved unambiguously, and otherwise omit the optional id
       // rather than fabricate identity.
-      const replacementOrderId = await this.#resolveReplacementOrderId({
-        previousOrders: ordersBeforeEdit,
-        dexName,
-        symbol: params.newOrder.symbol,
-        isBuy: params.newOrder.isBuy,
-        size: formattedSize,
-      });
+      const replacementOrderId =
+        ordersBeforeEdit === undefined
+          ? undefined
+          : await this.#resolveReplacementOrderId({
+              previousOrders: ordersBeforeEdit,
+              dexName,
+              symbol: params.newOrder.symbol,
+              isBuy: params.newOrder.isBuy,
+              size: formattedSize,
+            });
 
       return {
         success: true,
