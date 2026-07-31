@@ -9,13 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Define `QuoteResponse` v2 ([#9085](https://github.com/MetaMask/core/pull/9085))
-  - `validateQuoteResponse` validates data
-- Export `BridgeAsset` and `validateBridgeAsset`, used by QuoteResponse v2, and token endpoints ([#9085](https://github.com/MetaMask/core/pull/9085))
-- Implement coercers between `QuoteResponse` v1 and v2 ([#9085](https://github.com/MetaMask/core/pull/9085))
+- Implement coercers between `QuoteResponse` v1 and v2 ([#9725](https://github.com/MetaMask/core/pull/9725))
   - `toQuoteResponseV2` and `toQuoteResponseV1` convert quote responses to required schema when needed
   - `toQuoteMetadataV2` and `toQuoteMetadataV1` convert quote metadata to required schema when needed
   - `toNormalizedAmounts`converts atomic amounts to human-readable values
+- Define `QuoteResponse` v2 and `validateQuoteResponse` ([#9724](https://github.com/MetaMask/core/pull/9724))
+- Export `BridgeAsset` and `validateBridgeAsset` used by QuoteResponse v2, and token endpoints ([#9724](https://github.com/MetaMask/core/pull/9724))
 
 ### Changed
 
