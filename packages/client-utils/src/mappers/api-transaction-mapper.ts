@@ -224,7 +224,9 @@ export function mapApiTransaction({
         const nativeAsset = getNativeAsset(chainId);
         if (nativeAsset) {
           token = {
-            ...nativeAsset,
+            symbol: nativeAsset.symbol,
+            decimals: nativeAsset.decimals,
+            assetId: nativeAsset.assetId,
             amount: transaction.value,
             direction,
             assetType: 'native',

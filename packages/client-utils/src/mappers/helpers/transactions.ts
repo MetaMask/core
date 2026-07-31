@@ -18,6 +18,7 @@ import type {
   TokenAmount,
   ValueTransfer,
 } from '../../types.js';
+import { nativeTokenDecimals } from '../constants.js';
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
@@ -35,8 +36,6 @@ export type TransactionGroup = {
   primaryTransaction: TransactionMeta;
   transactions: TransactionMeta[];
 };
-
-const nativeTokenDecimals = 18;
 
 function calculateNetworkFee(
   gasUsed: string | number | undefined,
@@ -64,16 +63,14 @@ function toNetworkFee(
     return {
       type: 'base',
       amount,
-      decimals: nativeAsset.decimals,
+      decimals: nativeTokenDecimals,
       assetType: 'native',
       symbol: symbol ?? nativeAsset.symbol,
       assetId: nativeAsset.assetId,
     };
   }
 
-  const assetId = symbol
-    ? resolveNativeAssetId(chainId, symbol)
-    : undefined;
+  const assetId = symbol ? resolveNativeAssetId(chainId, symbol) : undefined;
 
   return {
     type: 'base',

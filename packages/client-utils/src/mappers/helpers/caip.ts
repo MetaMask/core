@@ -11,7 +11,7 @@ import {
 } from '@metamask/utils';
 import { getChainById } from 'eth-chainlist';
 
-import { nativeTokenAddress } from '../constants.js';
+import { nativeTokenAddress, nativeTokenDecimals } from '../constants.js';
 
 const slip44BySymbol = ((): Map<string, string> => {
   const coinTypeBySymbol = new Map<string, string>();
@@ -26,7 +26,10 @@ const slip44BySymbol = ((): Map<string, string> => {
     }
   }
 
-  coinTypeBySymbol.set('POL', coinTypeBySymbol.get('MATIC') as string);
+  const maticCoinType = coinTypeBySymbol.get('MATIC');
+  if (maticCoinType && !coinTypeBySymbol.has('POL')) {
+    coinTypeBySymbol.set('POL', maticCoinType);
+  }
 
   return coinTypeBySymbol;
 })();
@@ -91,6 +94,14 @@ export function resolveNativeAssetId(
   return toCaipAssetType(namespace, reference, 'slip44', assetReference);
 }
 
+/**
+ * Resolves EVM native symbol, decimals, and slip44 asset id for a chain.
+ * Prefers eth-chainlist slip44 except testnet coin type 1, then falls back to
+ * `@metamask/slip44` by native symbol.
+ *
+ * @param chainId - CAIP-2 chain id (eip155 only).
+ * @returns Native asset metadata, or undefined when it cannot be resolved.
+ */
 export function getNativeAsset(chainId: CaipChainId):
   | {
       symbol: string;
@@ -125,7 +136,7 @@ export function getNativeAsset(chainId: CaipChainId):
 
   return {
     symbol: nativeCurrency.symbol,
-    decimals: nativeCurrency.decimals,
+    decimals: nativeCurrency.decimals ?? nativeTokenDecimals,
     assetId: toCaipAssetType(namespace, reference, 'slip44', assetReference),
   };
 }

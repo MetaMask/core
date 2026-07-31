@@ -5,23 +5,11 @@ declare module 'eth-chainlist' {
     networkId?: number;
     slip44?: number;
     nativeCurrency?: {
-      name: string;
-      symbol: string;
-      decimals: number;
+      name?: string;
+      symbol?: string;
+      decimals?: number;
     };
   };
 
   export function getChainById(chainId: number): ChainListEntry | undefined;
-
-  export function getChainByNetworkId(
-    networkId: number,
-  ): ChainListEntry | undefined;
-
-  export function getChainByName(name: string): ChainListEntry | undefined;
-
-  export function getChainByShortName(
-    shortName: string,
-  ): ChainListEntry | undefined;
-
-  export function rawChainData(): ChainListEntry[];
 }

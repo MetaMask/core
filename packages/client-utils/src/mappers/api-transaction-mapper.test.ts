@@ -1006,6 +1006,28 @@ describe('mapApiTransaction', () => {
     });
   });
 
+  it('maps a STANDARD receive with empty valueTransfers to a native receive', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs.mapsAStandardInboundWithoutTransfers,
+    );
+
+    expect(item).toMatchObject({
+      type: 'receive',
+      chainId: 'eip155:1',
+      data: {
+        to: subjectAddress,
+        token: {
+          direction: 'in',
+          amount: '1000000000000000000',
+          decimals: 18,
+          symbol: 'ETH',
+          assetType: 'native',
+          assetId: 'eip155:1/slip44:60',
+        },
+      },
+    });
+  });
+
   it('maps an Across USDT exchange with no native valueTransfers to a swap with native fees', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsAnAcrossUsdtExchangeWithNativeFee,

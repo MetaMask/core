@@ -252,7 +252,8 @@ describe('transaction helpers', () => {
   });
 
   describe('getLocalTransactionFees', () => {
-    it('resolves native fee metadata from chain id when nativeAssetSymbol is omitted', () => {
+    it('resolves fee assetId via ETH symbol when chainlist only has testnet slip44:1', () => {
+      // 0x539 = Geth Testnet (1337); chainlist slip44 is 1, which we skip.
       expect(
         getLocalTransactionFees({
           primaryTransaction: {
@@ -325,6 +326,55 @@ describe('transaction helpers', () => {
           },
         } as Parameters<typeof getLocalTransactionFees>[0]),
       ).toBeUndefined();
+    });
+
+    it('resolves fee assetId from nativeAssetSymbol when the chain is unknown', () => {
+      expect(
+        getLocalTransactionFees({
+          nativeAssetSymbol: 'ETH',
+          primaryTransaction: {
+            chainId: '0x3b9ac9f7',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x1',
+              effectiveGasPrice: '0x2',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '2',
+          decimals: 18,
+          assetType: 'native',
+          symbol: 'ETH',
+          assetId: 'eip155:999999991/slip44:60',
+        },
+      ]);
+    });
+
+    it('keeps the nativeAssetSymbol on fees when it cannot be mapped to an assetId', () => {
+      expect(
+        getLocalTransactionFees({
+          nativeAssetSymbol: 'NOTACOIN',
+          primaryTransaction: {
+            chainId: '0x3b9ac9f7',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x1',
+              effectiveGasPrice: '0x2',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '2',
+          decimals: 18,
+          assetType: 'native',
+          symbol: 'NOTACOIN',
+        },
+      ]);
     });
   });
 
@@ -442,6 +492,22 @@ describe('transaction helpers', () => {
           assetId: 'eip155:43114/slip44:9005',
         },
       ]);
+    });
+
+    it('keeps wei decimals for fees when chainlist nativeCurrency.decimals is not 18', () => {
+      expect(
+        getFees({
+          chainId: 4160,
+          gasUsed: '21000',
+          effectiveGasPrice: '1000000000',
+        } as Parameters<typeof getFees>[0]),
+      ).toMatchObject({
+        0: {
+          amount: '21000000000000',
+          decimals: 18,
+          symbol: 'ALGO',
+        },
+      });
     });
   });
 

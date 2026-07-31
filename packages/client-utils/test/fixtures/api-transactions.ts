@@ -1044,6 +1044,19 @@ const transactions = {
     readable: 'Sent',
     readableExtended: 'Sent',
   },
+  mapsAStandardInboundWithoutTransfers: {
+    hash: '0xstandardinboundwithouttransfers',
+    timestamp: '2026-05-12T13:37:47.000Z',
+    chainId: 1,
+    from: '0x1111111111111111111111111111111111111111',
+    to: addresses.subjectAddress,
+    transactionCategory: 'STANDARD',
+    value: '1000000000000000000',
+    valueTransfers: [],
+    isError: false,
+    gasUsed: 21000,
+    effectiveGasPrice: '1',
+  },
   mapsAnAcrossUsdtExchangeWithNativeFee: {
     hash: '0x34bbaa01262f2e9221913316f4548a4b5981e05ee338ea586fc267a6868f9526',
     timestamp: '2026-07-28T10:29:49.000Z',
@@ -1242,6 +1255,10 @@ const mapArgs = {
   mapsAZeroValueStandardSendWithoutTransfers: {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAZeroValueStandardSendWithoutTransfers,
+  },
+  mapsAStandardInboundWithoutTransfers: {
+    subjectAddress: addresses.subjectAddress,
+    transaction: transactions.mapsAStandardInboundWithoutTransfers,
   },
   mapsAnAcrossUsdtExchangeWithNativeFee: {
     subjectAddress: addresses.subjectAddress,
