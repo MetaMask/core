@@ -131,6 +131,11 @@ export type AccountTreeControllerSetSelectedAccountGroupAction = {
   handler: AccountTreeController['setSelectedAccountGroup'];
 };
 
+export type AccountTreeControllerSetSelectedAccountGroupByAccountIdAction = {
+  type: `AccountTreeController:setSelectedAccountGroupByAccountId`;
+  handler: AccountTreeController['setSelectedAccountGroupByAccountId'];
+};
+
 /**
  * Sets a custom name for an account group.
  *
@@ -237,6 +242,7 @@ export type AccountTreeControllerMethodActions =
   | AccountTreeControllerGetAccountContextAction
   | AccountTreeControllerGetSelectedAccountGroupAction
   | AccountTreeControllerSetSelectedAccountGroupAction
+  | AccountTreeControllerSetSelectedAccountGroupByAccountIdAction
   | AccountTreeControllerSetAccountGroupNameAction
   | AccountTreeControllerSetAccountWalletNameAction
   | AccountTreeControllerSetAccountGroupPinnedAction
