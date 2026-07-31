@@ -30,6 +30,7 @@ export type {
   AccountTreeControllerGetAccountContextAction,
   AccountTreeControllerGetSelectedAccountGroupAction,
   AccountTreeControllerSetSelectedAccountGroupAction,
+  AccountTreeControllerSetSelectedAccountGroupByAccountIdAction,
   AccountTreeControllerSetAccountGroupNameAction,
   AccountTreeControllerSetAccountWalletNameAction,
   AccountTreeControllerSetAccountGroupPinnedAction,
