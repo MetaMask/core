@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.3.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693))
 
+### Fixed
+
+- Address poisoning known recipients now use the actual token recipient decoded from calldata for confirmed ERC-20/ERC-721/ERC-1155 token transfers, instead of the token contract address from `txParams.to` ([#9699](https://github.com/MetaMask/core/pull/9699))
+
 ## [17.3.0]
 
 ### Added

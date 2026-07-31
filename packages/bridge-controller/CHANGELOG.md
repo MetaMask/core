@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Clean up unused utils: `isEvmQuoteResponse`, unsupporteed `XlmScope.Testnet` chainId mapping ([#9085](https://github.com/MetaMask/core/pull/9085))
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.1` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9706](https://github.com/MetaMask/core/pull/9706))
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/assets-controller` from `^11.2.1` to `^11.3.1` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9706](https://github.com/MetaMask/core/pull/9706))
+
 ## [78.0.1]
 
 ### Changed
