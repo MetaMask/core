@@ -49,6 +49,7 @@ import {
   PerpsSigningCache,
 } from '../services/TradingReadinessCache.js';
 import type {
+  FrontendOrder,
   SDKOrderParams,
   MetaResponse,
   PerpsAssetCtx,
@@ -102,6 +103,7 @@ import type {
   OrderResult,
   PerpsMarketData,
   Position,
+  PositionTriggerOrder,
   ReadyToTradeResult,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -123,6 +125,7 @@ import type {
   PerpsReadOptions,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
+import type { OrderType } from '../types/perps-types.js';
 import type {
   ExtendedAssetMeta,
   ExtendedPerpDex,
@@ -143,6 +146,8 @@ import {
   adaptMarketFromSDK,
   adaptOrderFromSDK,
   adaptPositionFromSDK,
+  adaptPositionTriggerOrderFromSDK,
+  adaptTpslLinkageToGrouping,
   buildAssetMapping,
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
@@ -170,7 +175,15 @@ import {
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
   floorToSizeDecimals,
+  formatPartialTpslSize,
+  validateOrderPrecision,
 } from '../utils/orderCalculations.js';
+import {
+  getTriggerExecution,
+  isLimitExecutionOrderType,
+  isTriggerOrderType,
+  toSDKTimeInForce,
+} from '../utils/orderTypes.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -266,7 +279,7 @@ type SubmitOrderWithRollbackParams = {
 type HandleOrderErrorParams = {
   error: unknown;
   symbol: string;
-  orderType: 'market' | 'limit';
+  orderType: OrderType;
   isBuy: boolean;
 };
 
@@ -274,6 +287,107 @@ type GetOrFetchPriceParams = {
   symbol: string;
   dexName: string | null;
 };
+
+/**
+ * Collect the order IDs of every TP/SL child carried by a parent order.
+ *
+ * HyperLiquid lists `normalTpsl` children both nested under their parent and as
+ * top-level entries in `frontendOpenOrders`. Those children protect the pending
+ * parent order rather than the position, so callers use this set to exclude them.
+ *
+ * @param orders - Raw frontend open orders for the account.
+ * @returns The set of child order IDs.
+ */
+function collectChildOrderIds(orders: FrontendOrder[]): Set<number> {
+  const childOrderIds = new Set<number>();
+
+  orders.forEach((order) => {
+    order.children?.forEach((child) => {
+      childOrderIds.add(child.oid);
+    });
+  });
+
+  return childOrderIds;
+}
+
+/**
+ * Group orders by market, so a per-position pass does not rescan every order.
+ *
+ * @param orders - Raw frontend open orders across all DEXs.
+ * @returns Orders keyed by market symbol.
+ */
+function groupOrdersBySymbol(
+  orders: FrontendOrder[],
+): Map<string, FrontendOrder[]> {
+  const bySymbol = new Map<string, FrontendOrder[]>();
+
+  orders.forEach((order) => {
+    const existing = bySymbol.get(order.coin);
+    if (existing) {
+      existing.push(order);
+    } else {
+      bySymbol.set(order.coin, [order]);
+    }
+  });
+
+  return bySymbol;
+}
+
+/**
+ * Build the trigger-order view of a position: position-bound TP/SL plus
+ * standalone (partial) reduce-only triggers on the same market, de-duplicated by
+ * order ID and excluding children of pending parent orders.
+ *
+ * @param params - Collection parameters.
+ * @param params.orders - Raw frontend open orders across all DEXs.
+ * @param params.position - Position the triggers are attached to.
+ * @param params.childOrderIds - Order IDs that belong to a pending parent order.
+ * @returns The take profit and stop loss trigger orders for the position.
+ */
+function collectPositionTriggerOrders(params: {
+  orders: FrontendOrder[];
+  position: Position;
+  childOrderIds: Set<number>;
+}): {
+  takeProfitOrders: PositionTriggerOrder[];
+  stopLossOrders: PositionTriggerOrder[];
+} {
+  const { orders, position, childOrderIds } = params;
+
+  const byOrderId = new Map<string, PositionTriggerOrder>();
+
+  orders.forEach((rawOrder) => {
+    if (
+      rawOrder.coin !== position.symbol ||
+      !rawOrder.isTrigger ||
+      !rawOrder.reduceOnly ||
+      childOrderIds.has(rawOrder.oid)
+    ) {
+      return;
+    }
+
+    const triggerOrder = adaptPositionTriggerOrderFromSDK({
+      rawOrder,
+      positionSize: position.size,
+      entryPrice: position.entryPrice,
+    });
+
+    if (triggerOrder && !byOrderId.has(triggerOrder.orderId)) {
+      byOrderId.set(triggerOrder.orderId, triggerOrder);
+    }
+  });
+
+  const triggerOrders = Array.from(byOrderId.values());
+
+  return {
+    takeProfitOrders: triggerOrders.filter(
+      (order) => order.direction === 'take_profit',
+    ),
+    stopLossOrders: triggerOrders.filter(
+      (order) => order.direction !== 'take_profit',
+    ),
+  };
+}
 
 /**
  * HyperLiquid provider implementation
@@ -3376,6 +3490,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         size: params.size,
         price: params.price,
         orderType: params.orderType,
+        triggerPrice: params.triggerPrice,
+        takeProfitPrice: params.takeProfitPrice,
+        stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
+        tpslLinkage: params.tpslLinkage,
+        grouping: params.grouping,
+        timeInForce: params.timeInForce,
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
@@ -3390,6 +3512,23 @@ export class HyperLiquidProvider implements PerpsProvider {
         symbol: params.symbol,
         dexName,
       });
+
+      // A price or partial size that rounds away at the asset precision is
+      // caught here, as soon as szDecimals is known and before anything is
+      // committed: the signing prompts in #ensureReadyForTrading, the leverage
+      // change in #prepareAssetForTrading, and the HIP-3 margin transfer all
+      // come later.
+      const precision = validateOrderPrecision({
+        triggerPrice: params.triggerPrice,
+        takeProfitPrice: params.takeProfitPrice,
+        stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
+        szDecimals: assetInfo.szDecimals,
+      });
+      if (!precision.isValid) {
+        throw new Error(precision.error);
+      }
 
       // Allow override with UI-provided price (optimization to avoid API call).
       effectivePrice =
@@ -3460,6 +3599,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           finalPositionSize,
           currentPrice: effectivePrice,
           limitPrice: params.price,
+          triggerPrice: params.triggerPrice,
           maxSlippageBps: normalizedMaxSlippageBps,
           szDecimals: assetInfo.szDecimals,
         });
@@ -3510,11 +3650,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         formattedSize,
         reduceOnly: params.reduceOnly ?? false,
         orderType: params.orderType,
+        timeInForce: params.timeInForce,
         clientOrderId: params.clientOrderId,
+        triggerPrice: params.triggerPrice,
         takeProfitPrice: params.takeProfitPrice,
         stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
         szDecimals: assetInfo.szDecimals,
-        grouping: params.grouping,
+        // The provider-agnostic linkage wins; `grouping` is the deprecated
+        // HyperLiquid-shaped spelling kept for existing callers.
+        grouping: params.tpslLinkage
+          ? adaptTpslLinkageToGrouping(params.tpslLinkage)
+          : params.grouping,
       });
 
       // 8. Submit order with atomic rollback
@@ -3599,6 +3747,81 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Read the account's currently resting orders.
+   *
+   * @param params - The lookup parameters.
+   * @param params.dexName - DEX to query, or null for the main DEX.
+   * @returns The raw open orders.
+   */
+  async #fetchOpenOrders(params: {
+    dexName: string | null;
+  }): Promise<FrontendOrder[]> {
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    return await this.#clientService.getInfoClient().frontendOpenOrders({
+      user: userAddress,
+      dex: params.dexName ?? undefined,
+    });
+  }
+
+  /**
+   * Resolve the order id that a `modify` rested the replacement under.
+   *
+   * HyperLiquid does not edit an order in place: it cancels the target and
+   * rests a replacement under a NEW oid, which the SDK's modify response does
+   * not carry. The submitted oid therefore names an order that no longer
+   * exists, so the only honest source of identity is a post-modify read.
+   *
+   * An id is returned only when exactly one newly-rested order carries the
+   * attributes just submitted. Everything else leaves it absent: a market edit
+   * that filled rather than rested, a read that has not caught up yet, or two
+   * equally plausible candidates. Novelty is judged against the pre-edit
+   * snapshot rather than attributes alone, because an order that was already
+   * resting can share a market, side and size with the replacement.
+   *
+   * @param params - The resolution parameters.
+   * @param params.previousOrders - Orders resting immediately before the edit.
+   * @param params.dexName - DEX to query, or null for the main DEX.
+   * @param params.symbol - Market the edit was submitted against.
+   * @param params.isBuy - Direction submitted.
+   * @param params.size - Formatted size submitted.
+   * @returns The replacement order id, or undefined when it cannot be resolved unambiguously.
+   */
+  async #resolveReplacementOrderId(params: {
+    previousOrders: FrontendOrder[];
+    dexName: string | null;
+    symbol: string;
+    isBuy: boolean;
+    size: string;
+  }): Promise<string | undefined> {
+    try {
+      const previousOrderIds = new Set(
+        params.previousOrders.map((order) => order.oid.toString()),
+      );
+      const ordersAfterEdit = await this.#fetchOpenOrders({
+        dexName: params.dexName,
+      });
+      const submittedSize = parseFloat(params.size);
+      const candidates = ordersAfterEdit.filter(
+        (order) =>
+          !previousOrderIds.has(order.oid.toString()) &&
+          order.coin === params.symbol &&
+          (order.side === 'B') === params.isBuy &&
+          parseFloat(order.sz) === submittedSize,
+      );
+
+      return candidates.length === 1 ? candidates[0].oid.toString() : undefined;
+    } catch (error) {
+      // The modify was accepted; only the identity lookup failed. Reporting a
+      // failed edit here would misstate an order that really was changed.
+      this.#deps.debugLogger.log(
+        'Could not resolve the replacement order id after modify:',
+        error,
+      );
+      return undefined;
+    }
+  }
+
+  /**
    * Edit an existing order (pending/unfilled order)
    *
    * Note: This modifies price/size of a pending order. It CANNOT add TP/SL to an existing order.
@@ -3622,22 +3845,95 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
+      // `modify` rebuilds an order as a plain limit/market order, so a trigger
+      // on either side of the edit would be silently dropped. Reject a resting
+      // trigger order as well as an edit *into* one; cancel and re-place instead.
+      if (isTriggerOrderType(params.newOrder.orderType)) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+        };
+      }
+
+      // The WebSocket order cache is the cheap source for the resting order's
+      // placement type, but it may be cold or stale.
+      const cachedRestingOrder = this.#subscriptionService
+        .getOrdersCacheIfInitialized()
+        ?.find((order) => order.orderId === params.orderId.toString());
+      if (cachedRestingOrder?.isTrigger === true) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+        };
+      }
+
       // Validate new order parameters
       const validation = validateOrderParams({
         coin: params.newOrder.symbol,
         size: params.newOrder.size,
         price: params.newOrder.price,
         orderType: params.newOrder.orderType,
+        triggerPrice: params.newOrder.triggerPrice,
+        takeProfitPrice: params.newOrder.takeProfitPrice,
+        stopLossPrice: params.newOrder.stopLossPrice,
+        takeProfitSize: params.newOrder.takeProfitSize,
+        stopLossSize: params.newOrder.stopLossSize,
+        tpslLinkage: params.newOrder.tpslLinkage,
+        grouping: params.newOrder.grouping,
+        timeInForce: params.newOrder.timeInForce,
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
       }
 
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
-
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(params.newOrder.symbol);
+
+      // Initialization only — clients and the asset mapping. The signing half
+      // of readiness is deferred until after the checks below, so a refused
+      // edit never prompts for a signature or writes an approval.
+      await this.#ensureReady();
+
+      // What is resting before the edit serves two purposes, and they carry
+      // different weight. Verifying the target is REQUIRED when the cache could
+      // not do it — an unverified edit can rebuild a protective stop as a plain
+      // order — so that read must fail closed. Providing a baseline for the
+      // optional orderId resolution is not: when the cache already confirmed the
+      // order, a failed read must not sink a modify that would otherwise
+      // succeed, exactly as the post-modify lookup does not.
+      let ordersBeforeEdit: FrontendOrder[] | undefined;
+
+      if (cachedRestingOrder === undefined) {
+        ordersBeforeEdit = await this.#fetchOpenOrders({ dexName });
+        const restingOrder = ordersBeforeEdit.find(
+          (order) => order.oid.toString() === params.orderId.toString(),
+        );
+
+        if (!restingOrder) {
+          return {
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_EDIT_ORDER_UNVERIFIABLE,
+          };
+        }
+
+        if (restingOrder.isTrigger) {
+          return {
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+          };
+        }
+      } else {
+        try {
+          ordersBeforeEdit = await this.#fetchOpenOrders({ dexName });
+        } catch (error) {
+          // Only the optional identity baseline is lost. Without it novelty
+          // cannot be judged, so the id is omitted below rather than guessed.
+          this.#deps.debugLogger.log(
+            'Could not read the pre-edit orders baseline:',
+            error,
+          );
+        }
+      }
 
       // Get asset info and prices (uses cache to avoid redundant API calls)
       const meta = await this.#getCachedMeta({ dexName });
@@ -3689,15 +3985,22 @@ export class HyperLiquidProvider implements PerpsProvider {
         p: formattedPrice,
         s: formattedSize,
         r: params.newOrder.reduceOnly ?? false,
-        // Same TIF logic as placeOrder - see documentation above for details
+        // Same TIF logic as placeOrder - see documentation above for details.
+        // A limit order honours the caller's time in force; validation above has
+        // already rejected one on any other order shape.
         t:
           params.newOrder.orderType === 'limit'
-            ? { limit: { tif: 'Gtc' } } // Standard limit order
+            ? { limit: { tif: toSDKTimeInForce(params.newOrder.timeInForce) } }
             : { limit: { tif: 'FrontendMarket' } }, // True market order
         c: params.newOrder.clientOrderId
           ? (params.newOrder.clientOrderId as Hex)
           : undefined,
       };
+
+      // Every refusal is behind us, so the setup that may prompt for signatures
+      // and write builder-fee/referral approvals can run now — a rejected edit
+      // costs the caller nothing, matching placeOrder and updatePositionTPSL.
+      await this.#ensureReadyForTrading();
 
       // Submit modification via SDK
       const exchangeClient = this.#clientService.getExchangeClient();
@@ -3713,9 +4016,27 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(`Order modification failed: ${JSON.stringify(result)}`);
       }
 
+      // `params.orderId` is the order that was just REPLACED, so returning it
+      // as OrderResult.orderId (documented as the exchange order ID) names an
+      // order the venue has already cancelled. Report the replacement when it
+      // can be resolved unambiguously, and otherwise omit the optional id
+      // rather than fabricate identity.
+      const replacementOrderId =
+        ordersBeforeEdit === undefined
+          ? undefined
+          : await this.#resolveReplacementOrderId({
+              previousOrders: ordersBeforeEdit,
+              dexName,
+              symbol: params.newOrder.symbol,
+              isBuy: params.newOrder.isBuy,
+              size: formattedSize,
+            });
+
       return {
         success: true,
-        orderId: params.orderId.toString(),
+        ...(replacementOrderId === undefined
+          ? {}
+          : { orderId: replacementOrderId }),
       };
     } catch (error) {
       this.#deps.logger.error(
@@ -4185,10 +4506,23 @@ export class HyperLiquidProvider implements PerpsProvider {
    * 1. 'normalTpsl' - Tied to a parent order (set when placing the order)
    * 2. 'positionTpsl' - Tied to a position (can be set/modified after fill)
    *
+   * Partial TP/SL: when `takeProfitSize` or `stopLossSize` is supplied, the
+   * orders cannot use 'positionTpsl' (which always covers the whole position and
+   * requires size 0). They are submitted as standalone reduce-only trigger orders
+   * with 'na' grouping and explicit sizes instead.
+   *
+   * Note that the pre-cancel sweep clears every standalone reduce-only trigger
+   * on the symbol — whether this update is partial or whole-position — not only
+   * the ones this method placed. A trigger the caller placed independently
+   * through `placeOrder` (for example a manual reduce-only stop) is therefore
+   * cancelled too. Only TP/SL children of another pending order are protected.
+   *
    * @param params - The operation parameters.
    * @param params.symbol - Asset symbol of the position
    * @param params.takeProfitPrice - TP price (undefined to remove)
    * @param params.stopLossPrice - SL price (undefined to remove)
+   * @param params.takeProfitSize - Partial TP size (undefined for the whole position)
+   * @param params.stopLossSize - Partial SL size (undefined for the whole position)
    * @returns A promise that resolves to the result.
    */
   async updatePositionTPSL(
@@ -4201,11 +4535,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         symbol,
         takeProfitPrice,
         stopLossPrice,
+        takeProfitSize,
+        stopLossSize,
         position: livePosition,
       } = params;
 
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
+      const isPartialTpsl =
+        takeProfitSize !== undefined || stopLossSize !== undefined;
+
+      // Basic initialization only. The trading setup that can prompt a hardware
+      // wallet and write the referral / builder-fee approvals is deferred until
+      // every validation below has passed, so a rejected update leaves nothing
+      // behind.
+      await this.#ensureReady();
 
       // Use live position (from WebSocket) if available, otherwise fetch via REST
       // Preferring WebSocket data avoids rate limiting issues with the REST API
@@ -4243,13 +4585,83 @@ export class HyperLiquidProvider implements PerpsProvider {
       const positionSize = Math.abs(parseFloat(position.size));
       const isLong = parseFloat(position.size) > 0;
 
-      // Get clients for API calls (ensureReady already called at method start)
+      // Partial TP/SL sizes must be positive, paired with their price, and no
+      // larger than the position they close.
+      const tpslSizeValidation = validateOrderParams({
+        coin: symbol,
+        size: positionSize.toString(),
+        takeProfitPrice,
+        stopLossPrice,
+        takeProfitSize,
+        stopLossSize,
+      });
+      if (!tpslSizeValidation.isValid) {
+        return {
+          success: false,
+          error: tpslSizeValidation.error,
+        };
+      }
+
+      // Get clients for API calls (#ensureReady already called at method start).
+      // Holding the exchange client reference is not itself a write; it is only
+      // used below, after the trading setup has run.
       const infoClient = this.#clientService.getInfoClient();
       const exchangeClient = this.#clientService.getExchangeClient();
       const userAddress = await this.#walletService.getUserAddressWithDefault();
 
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(symbol);
+
+      // Asset info is resolved before the pre-cancel sweep so a partial size
+      // that rounds away at the asset precision is rejected while the
+      // position's existing triggers are still in place. Rejecting it after the
+      // sweep would leave the position unprotected with nothing put back.
+      const meta = await this.#getCachedMeta({ dexName });
+
+      // Check if meta is an error response (string) or doesn't have universe property
+      if (
+        !meta ||
+        typeof meta === 'string' ||
+        !meta.universe ||
+        !Array.isArray(meta.universe)
+      ) {
+        this.#deps.debugLogger.log(
+          'Failed to fetch metadata for asset mapping',
+          {
+            meta,
+            dex: dexName ?? 'main',
+          },
+        );
+        throw new Error(
+          `Failed to fetch market metadata for DEX ${dexName ?? 'main'}`,
+        );
+      }
+
+      // asset.name format: "BTC" for main DEX, "xyz:XYZ100" for HIP-3
+      const assetInfo = meta.universe.find((asset) => asset.name === symbol);
+      if (!assetInfo) {
+        throw new Error(
+          `Asset ${symbol} not found in ${dexName ?? 'main'} DEX universe`,
+        );
+      }
+
+      const precision = validateOrderPrecision({
+        takeProfitPrice,
+        stopLossPrice,
+        takeProfitSize,
+        stopLossSize,
+        szDecimals: assetInfo.szDecimals,
+      });
+      if (!precision.isValid) {
+        return {
+          success: false,
+          error: precision.error,
+        };
+      }
+
+      // Everything is validated: only now run the trading setup that can prompt
+      // for signatures and write the referral / builder-fee approvals.
+      await this.#ensureReadyForTrading();
 
       // Cancel existing TP/SL orders for this position
       // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
@@ -4265,11 +4677,40 @@ export class HyperLiquidProvider implements PerpsProvider {
       const cachedOrders =
         this.#subscriptionService.getOrdersCacheIfInitialized();
 
-      if (cachedOrders === null) {
+      // Replacing TP/SL has to consider standalone ('na' grouping) triggers —
+      // left by a partial update or placed independently — which are not
+      // position-bound. Telling those apart from a pending order's normalTpsl
+      // child requires the parent/child relationship, which only the REST
+      // payload carries. The cache path is therefore only safe when the cache
+      // shows no such trigger on this market: a partial update always places
+      // standalone triggers, and a whole-position update must still clear any
+      // standalone leftovers instead of letting them fire beside the new
+      // position-bound orders.
+      const cacheShowsStandaloneTriggers = Boolean(
+        cachedOrders?.some(
+          (order) =>
+            order.symbol === symbol &&
+            order.reduceOnly === true &&
+            order.isTrigger === true &&
+            order.isPositionTpsl !==
+              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
+            order.detailedOrderType &&
+            (order.detailedOrderType.includes('Take Profit') ||
+              order.detailedOrderType.includes('Stop')),
+        ),
+      );
+
+      if (
+        cachedOrders === null ||
+        isPartialTpsl ||
+        cacheShowsStandaloneTriggers
+      ) {
         // Fallback: Query only the specific DEX (20 weight instead of 40+)
         this.#deps.debugLogger.log(
-          'WebSocket cache not initialized, falling back to single-DEX REST query',
-          { dex: dexName ?? 'main' },
+          cachedOrders === null
+            ? 'WebSocket cache not initialized, falling back to single-DEX REST query'
+            : 'TP/SL update needs parent/child order context: using single-DEX REST query',
+          { dex: dexName ?? 'main', isPartialTpsl },
         );
 
         const orders = await infoClient.frontendOpenOrders({
@@ -4277,13 +4718,23 @@ export class HyperLiquidProvider implements PerpsProvider {
           dex: dexName ?? undefined,
         });
 
+        // Orders that belong to a pending parent order (normalTpsl children) are
+        // also listed at the top level, so collect their IDs to exclude them:
+        // they protect that pending order, not this position.
+        const childOrderIds = collectChildOrderIds(orders);
+
         // Filter using raw SDK response properties
         const tpslOrders = orders.filter(
           (order) =>
             order.coin === symbol &&
             order.reduceOnly &&
-            order.isPositionTpsl ===
-              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
+            // Position-bound TP/SL always qualifies, and so do standalone
+            // triggers on this market (they belong to the position too, whether
+            // this update is partial or whole) — but never another order's
+            // TP/SL children.
+            (order.isPositionTpsl ===
+              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) ||
+              !childOrderIds.has(order.oid)) &&
             order.isTrigger &&
             (order.orderType.includes('Take Profit') ||
               order.orderType.includes('Stop')),
@@ -4335,47 +4786,30 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#deps.debugLogger.log('Cancel result:', cancelResult);
       }
 
-      // Get asset info (dexName already extracted above) - uses cache
-      const meta = await this.#getCachedMeta({ dexName });
-
-      // Check if meta is an error response (string) or doesn't have universe property
-      if (
-        !meta ||
-        typeof meta === 'string' ||
-        !meta.universe ||
-        !Array.isArray(meta.universe)
-      ) {
-        this.#deps.debugLogger.log(
-          'Failed to fetch metadata for asset mapping',
-          {
-            meta,
-            dex: dexName ?? 'main',
-          },
-        );
-        throw new Error(
-          `Failed to fetch market metadata for DEX ${dexName ?? 'main'}`,
-        );
-      }
-
-      // asset.name format: "BTC" for main DEX, "xyz:XYZ100" for HIP-3
-      const assetInfo = meta.universe.find((asset) => asset.name === symbol);
-      if (!assetInfo) {
-        throw new Error(
-          `Asset ${symbol} not found in ${dexName ?? 'main'} DEX universe`,
-        );
-      }
-
       // assetId already validated above when building cancelRequests
 
       // Build orders array for TP/SL
       const orders: SDKOrderParams[] = [];
 
-      const size = TP_SL_CONFIG.UsePositionBoundTpsl
-        ? '0'
-        : formatHyperLiquidSize({
-            size: positionSize,
-            szDecimals: assetInfo.szDecimals,
-          });
+      const fullSize =
+        TP_SL_CONFIG.UsePositionBoundTpsl && !isPartialTpsl
+          ? '0'
+          : formatHyperLiquidSize({
+              size: positionSize,
+              szDecimals: assetInfo.szDecimals,
+            });
+
+      // Partial TP/SL orders carry their own size; the rest cover the position.
+      // A partial size that rounds away at the asset precision is rejected
+      // rather than sent as '0', which the exchange reads as whole-position.
+      const resolveTpslSize = (tpslSize?: string): string =>
+        tpslSize === undefined
+          ? fullSize
+          : formatPartialTpslSize({
+              size: parseFloat(tpslSize),
+              szDecimals: assetInfo.szDecimals,
+            });
+
       // Take Profit order
       if (takeProfitPrice) {
         const tpOrder: SDKOrderParams = {
@@ -4385,7 +4819,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             price: parseFloat(takeProfitPrice),
             szDecimals: assetInfo.szDecimals,
           }),
-          s: size,
+          s: resolveTpslSize(takeProfitSize),
           r: true, // Always reduce-only for position TP
           t: {
             trigger: {
@@ -4410,7 +4844,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             price: parseFloat(stopLossPrice),
             szDecimals: assetInfo.szDecimals,
           }),
-          s: size,
+          s: resolveTpslSize(stopLossSize),
           r: true, // Always reduce-only for position SL
           t: {
             trigger: {
@@ -4453,10 +4887,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
-      // Submit via SDK exchange client with positionTpsl grouping
+      // Submit via SDK exchange client. Position-bound TP/SL uses 'positionTpsl';
+      // partial TP/SL must be standalone reduce-only triggers ('na'), since a
+      // position-bound TP/SL always closes the whole position.
       const result = await exchangeClient.order({
         orders,
-        grouping: 'positionTpsl',
+        grouping: isPartialTpsl ? 'na' : 'positionTpsl',
         builder: {
           b: this.#getBuilderAddress(this.#clientService.isTestnetMode()),
           f: builderFee,
@@ -5042,6 +5478,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Combine all orders from all DEXs for TP/SL lookup
       const allOrders = orderResults.flatMap((result) => result.data);
 
+      // TP/SL children of pending parent orders are listed at the top level too;
+      // they belong to that order, not to a position.
+      const allOrdersChildIds = collectChildOrderIds(allOrders);
+
+      // Grouped once here rather than rescanned per position, mirroring the
+      // positionsBySymbol map on the WebSocket path.
+      const ordersBySymbol = groupOrdersBySymbol(allOrders);
+
       this.#deps.debugLogger.log('Frontend open orders (all DEXs):', {
         count: allOrders.length,
         orders: allOrders.map((ord) => ({
@@ -5088,6 +5532,18 @@ export class HyperLiquidProvider implements PerpsProvider {
             // Look for TP and SL trigger orders
             let takeProfitPrice: string | undefined;
             let stopLossPrice: string | undefined;
+
+            // Trigger orders attached to this position: position-bound TP/SL plus
+            // standalone ('na' grouping) partial TP/SL. A pending order's
+            // normalTpsl children are excluded — they are also listed at the top
+            // level, but they protect that order, not this position (same rule as
+            // the positionOrders filter above).
+            const { takeProfitOrders, stopLossOrders } =
+              collectPositionTriggerOrders({
+                orders: ordersBySymbol.get(position.symbol) ?? [],
+                position,
+                childOrderIds: allOrdersChildIds,
+              });
 
             // Check direct trigger orders
             positionOrders.forEach((order) => {
@@ -5170,6 +5626,10 @@ export class HyperLiquidProvider implements PerpsProvider {
               ...position,
               takeProfitPrice,
               stopLossPrice,
+              takeProfitCount: takeProfitOrders.length,
+              stopLossCount: stopLossOrders.length,
+              takeProfitOrders,
+              stopLossOrders,
             };
           }),
       );
@@ -6847,6 +7307,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         size: params.size,
         price: params.price,
         orderType: params.orderType,
+        triggerPrice: params.triggerPrice,
+        takeProfitPrice: params.takeProfitPrice,
+        stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
+        tpslLinkage: params.tpslLinkage,
+        grouping: params.grouping,
+        timeInForce: params.timeInForce,
       });
       if (!basicValidation.isValid) {
         return basicValidation;
@@ -6883,11 +7351,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           const size = parseFloat(params.size || '0');
           let priceForValidation = params.currentPrice;
 
-          // For limit orders without currentPrice, use limit price as fallback
+          // For limit-executing orders without currentPrice, use limit price as
+          // fallback (plain limit, stop_limit, take_profit_limit)
           if (
             !priceForValidation &&
             params.price &&
-            params.orderType === 'limit'
+            isLimitExecutionOrderType(params.orderType)
           ) {
             priceForValidation = parseFloat(params.price);
             this.#deps.debugLogger.log(
@@ -6895,6 +7364,24 @@ export class HyperLiquidProvider implements PerpsProvider {
               {
                 size,
                 limitPrice: priceForValidation,
+              },
+            );
+          }
+
+          // Market-executing trigger orders (stop_market, take_profit_market)
+          // have no limit price; the trigger price is the best notional estimate.
+          if (
+            !priceForValidation &&
+            params.triggerPrice &&
+            isTriggerOrderType(params.orderType)
+          ) {
+            priceForValidation = parseFloat(params.triggerPrice);
+            this.#deps.debugLogger.log(
+              'Using trigger price for order validation (trigger order):',
+              {
+                size,
+                triggerPrice: priceForValidation,
+                orderType: params.orderType,
               },
             );
           }
@@ -7862,9 +8349,13 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<FeeCalculationResult> {
     const { orderType, isMaker = false, amount, symbol } = params;
 
+    // Trigger placements are charged as their execution kind: a stop_market fills
+    // as a market order (taker), a stop_limit as a limit order.
+    const isMarketExecution = getTriggerExecution(orderType) === 'market';
+
     // Start with base rates from config
     let feeRate =
-      orderType === 'market' || !isMaker ? FEE_RATES.taker : FEE_RATES.maker;
+      isMarketExecution || !isMaker ? FEE_RATES.taker : FEE_RATES.maker;
 
     // Parse symbol to detect HIP-3 DEX (e.g., "xyz:TSLA" → dex="xyz", parsedSymbol="TSLA")
     const { dex, symbol: parsedSymbol } = parseAssetName(symbol);
@@ -7917,7 +8408,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (cached) {
           // Market orders always use taker rate, limit orders check isMaker
           let userFeeRate =
-            orderType === 'market' || !isMaker
+            isMarketExecution || !isMaker
               ? cached.perpsTakerRate
               : cached.perpsMakerRate;
 
@@ -8047,7 +8538,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#userFeeCache.set(userAddress, rates);
         // Market orders always use taker rate, limit orders check isMaker
         let userFeeRate =
-          orderType === 'market' || !isMaker
+          isMarketExecution || !isMaker
             ? rates.perpsTakerRate
             : rates.perpsMakerRate;
 

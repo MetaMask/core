@@ -43,6 +43,19 @@ export const PERPS_ERROR_CODES = {
   ORDER_LEVERAGE_INVALID: 'ORDER_LEVERAGE_INVALID',
   ORDER_LEVERAGE_BELOW_POSITION: 'ORDER_LEVERAGE_BELOW_POSITION',
   ORDER_MAX_VALUE_EXCEEDED: 'ORDER_MAX_VALUE_EXCEEDED',
+  // Validation errors - trigger placement (stop / take profit) and partial TP/SL
+  ORDER_TRIGGER_PRICE_REQUIRED: 'ORDER_TRIGGER_PRICE_REQUIRED', // stop_*/take_profit_* placed without a trigger price
+  ORDER_TRIGGER_PRICE_POSITIVE: 'ORDER_TRIGGER_PRICE_POSITIVE',
+  ORDER_TRIGGER_PRICE_NOT_SUPPORTED: 'ORDER_TRIGGER_PRICE_NOT_SUPPORTED', // Trigger price supplied for a market/limit order
+  ORDER_TRIGGER_TPSL_UNSUPPORTED: 'ORDER_TRIGGER_TPSL_UNSUPPORTED', // Attached TP/SL on a trigger placement
+  ORDER_TPSL_SIZE_INVALID: 'ORDER_TPSL_SIZE_INVALID', // Partial TP/SL size non-positive, larger than the order, or missing its price
+  ORDER_EDIT_TRIGGER_UNSUPPORTED: 'ORDER_EDIT_TRIGGER_UNSUPPORTED', // editOrder cannot turn a resting order into a trigger placement
+  ORDER_TPSL_LINKAGE_CONFLICT: 'ORDER_TPSL_LINKAGE_CONFLICT', // tpslLinkage and the deprecated grouping disagree
+  ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED:
+    'ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED', // Position-linked TP/SL requested on an order placement; use updatePositionTPSL
+  ORDER_TPSL_LINKAGE_REQUIRED: 'ORDER_TPSL_LINKAGE_REQUIRED', // Attached TP/SL requested with no linkage to parent or position
+  ORDER_EDIT_ORDER_UNVERIFIABLE: 'ORDER_EDIT_ORDER_UNVERIFIABLE', // editOrder cannot confirm the resting order's placement type
+  ORDER_TIME_IN_FORCE_NOT_SUPPORTED: 'ORDER_TIME_IN_FORCE_NOT_SUPPORTED', // Time in force supplied for an order shape that cannot carry one
   // HyperLiquid client/service errors
   EXCHANGE_CLIENT_NOT_AVAILABLE: 'EXCHANGE_CLIENT_NOT_AVAILABLE',
   INFO_CLIENT_NOT_AVAILABLE: 'INFO_CLIENT_NOT_AVAILABLE',

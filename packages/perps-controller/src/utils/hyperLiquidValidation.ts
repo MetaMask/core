@@ -12,6 +12,8 @@ import type {
   GetSupportedPathsParams,
   PerpsDebugLogger,
 } from '../types/index.js';
+import type { OrderType, TpslLinkage } from '../types/perps-types.js';
+import { isLimitExecutionOrderType, isTriggerOrderType } from './orderTypes.js';
 
 /**
  * Optional debug logger for validation functions.
@@ -455,12 +457,13 @@ export function getSupportedPaths(
  * Based on HyperLiquid contract specifications.
  *
  * @param maxLeverage - The maximum leverage for the market
- * @param orderType - The order type (market or limit)
+ * @param orderType - The order type; trigger types follow the limit/market
+ * multiplier of their execution mode (e.g. `stop_limit` is treated as a limit order)
  * @returns Maximum order value in USD
  */
 export function getMaxOrderValue(
   maxLeverage: number,
-  orderType: 'market' | 'limit',
+  orderType: OrderType,
 ): number {
   let marketLimit: number;
 
@@ -474,10 +477,23 @@ export function getMaxOrderValue(
     marketLimit = HYPERLIQUID_ORDER_LIMITS.MarketOrderLimits.LowLeverage;
   }
 
-  return orderType === 'limit'
+  return isLimitExecutionOrderType(orderType)
     ? marketLimit * HYPERLIQUID_ORDER_LIMITS.LimitOrderMultiplier
     : marketLimit;
 }
+
+/**
+ * The `grouping` value each provider-agnostic linkage corresponds to, used to
+ * detect a caller supplying both spellings with different meanings.
+ */
+const TPSL_LINKAGE_GROUPING: Record<
+  TpslLinkage,
+  'na' | 'normalTpsl' | 'positionTpsl'
+> = {
+  none: 'na',
+  order: 'normalTpsl',
+  position: 'positionTpsl',
+};
 
 /**
  * Validate order parameters.
@@ -488,14 +504,31 @@ export function getMaxOrderValue(
  * @param params.coin - The trading pair coin symbol
  * @param params.size - The order size as string
  * @param params.price - The order price as string
- * @param params.orderType - The order type (market or limit)
+ * @param params.orderType - The order placement type
+ * @param params.triggerPrice - Trigger price; required for trigger placement types and
+ * rejected for market/limit orders so a stray value can never be silently dropped
+ * @param params.takeProfitPrice - Attached take profit price
+ * @param params.stopLossPrice - Attached stop loss price
+ * @param params.takeProfitSize - Partial take profit size
+ * @param params.stopLossSize - Partial stop loss size
+ * @param params.tpslLinkage - How an attached TP/SL is linked
+ * @param params.grouping - Deprecated protocol-shaped spelling of `tpslLinkage`
+ * @param params.timeInForce - Time in force; only a plain limit order can carry one
  * @returns Validation result with isValid flag and optional error message
  */
 export function validateOrderParams(params: {
   coin?: string;
   size?: string;
   price?: string;
-  orderType?: 'market' | 'limit';
+  orderType?: OrderType;
+  triggerPrice?: string;
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
+  takeProfitSize?: string;
+  stopLossSize?: string;
+  tpslLinkage?: TpslLinkage;
+  grouping?: 'na' | 'normalTpsl' | 'positionTpsl';
+  timeInForce?: 'GTC' | 'IOC' | 'ALO';
 }): { isValid: boolean; error?: string } {
   if (!params.coin) {
     return {
@@ -506,8 +539,16 @@ export function validateOrderParams(params: {
 
   // Note: Size validation removed - validateOrder handles amount validation using USD as source of truth
 
-  // Require price for limit orders
-  if (params.orderType === 'limit' && !params.price) {
+  const { orderType } = params;
+  const isTrigger = orderType !== undefined && isTriggerOrderType(orderType);
+
+  // Require price for orders that execute as limit orders (limit, stop_limit,
+  // take_profit_limit)
+  if (
+    orderType !== undefined &&
+    isLimitExecutionOrderType(orderType) &&
+    !params.price
+  ) {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_LIMIT_PRICE_REQUIRED,
@@ -519,6 +560,162 @@ export function validateOrderParams(params: {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
     };
+  }
+
+  if (isTrigger) {
+    if (!params.triggerPrice) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED,
+      };
+    }
+
+    const triggerPrice = parseFloat(params.triggerPrice);
+    if (isNaN(triggerPrice) || triggerPrice <= 0) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,
+      };
+    }
+
+    // A trigger placement combined with attached TP/SL children is rejected
+    // rather than silently reshaped: the exchange semantics of a triggered
+    // parent owning triggered children are not part of this contract.
+    // Each field is checked explicitly: a falsy-but-present price (e.g. '') is
+    // still an attached TP/SL request and must be rejected, not skipped.
+    if (
+      params.takeProfitPrice !== undefined ||
+      params.stopLossPrice !== undefined
+    ) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_TPSL_UNSUPPORTED,
+      };
+    }
+    // Consistent with the attached-TP/SL check above: a falsy-but-present value
+    // (e.g. '') is still a request to place a trigger, not an absent field.
+  } else if (params.triggerPrice !== undefined) {
+    return {
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_NOT_SUPPORTED,
+    };
+  }
+
+  // `tpslLinkage` supersedes `grouping`, but two spellings that disagree are a
+  // caller mistake — resolving one silently would hide it.
+  if (params.tpslLinkage !== undefined && params.grouping !== undefined) {
+    const expectedGrouping = TPSL_LINKAGE_GROUPING[params.tpslLinkage];
+    if (expectedGrouping !== params.grouping) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_LINKAGE_CONFLICT,
+      };
+    }
+  }
+
+  const hasAttachedTpsl =
+    params.takeProfitPrice !== undefined || params.stopLossPrice !== undefined;
+
+  // Every order in a `positionTpsl` batch has to be a trigger order, and no
+  // shape of order placement produces one. With an attached TP/SL the batch
+  // carries the ordinary parent order the TP/SL protects; without one it is
+  // that parent order alone. HyperLiquid rejects both, so the linkage is
+  // refused outright — it belongs to `updatePositionTPSL`, applied to the
+  // position once the parent has filled.
+  const requestsPositionLinkage =
+    params.tpslLinkage === 'position' || params.grouping === 'positionTpsl';
+  if (requestsPositionLinkage) {
+    return {
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED,
+    };
+  }
+
+  // `na` grouping submits the attached TP/SL as standalone triggers, bound to
+  // neither the parent order nor the resulting position. An unfilled parent
+  // then leaves them behind as orphan reduce-only triggers that fire against
+  // whatever position happens to exist. An attached TP/SL needs a linkage that
+  // links it, so the combination is a caller mistake rather than a mode.
+  const requestsNoLinkage =
+    params.tpslLinkage === 'none' || params.grouping === 'na';
+  if (requestsNoLinkage && hasAttachedTpsl) {
+    return {
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_TPSL_LINKAGE_REQUIRED,
+    };
+  }
+
+  // Only a plain limit order rests on the book long enough for a time in force to
+  // mean anything: a market order fills immediately and a trigger order's
+  // execution is decided when it fires. Rejected here, at step 1 of placement, so
+  // it cannot fire after leverage changes or a HIP-3 margin transfer.
+  if (params.timeInForce !== undefined && orderType !== 'limit') {
+    return {
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED,
+    };
+  }
+
+  const partialTpslValidation = validatePartialTpslSizes(params);
+  if (!partialTpslValidation.isValid) {
+    return partialTpslValidation;
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validate quantity-scoped (partial) TP/SL sizes against the parent order.
+ *
+ * @param params - Order parameters carrying the TP/SL prices and sizes
+ * @param params.size - Parent order size
+ * @param params.takeProfitPrice - Attached take profit price
+ * @param params.stopLossPrice - Attached stop loss price
+ * @param params.takeProfitSize - Partial take profit size
+ * @param params.stopLossSize - Partial stop loss size
+ * @returns Validation result with isValid flag and optional error message
+ */
+function validatePartialTpslSizes(params: {
+  size?: string;
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
+  takeProfitSize?: string;
+  stopLossSize?: string;
+}): { isValid: boolean; error?: string } {
+  const orderSize = params.size ? Math.abs(parseFloat(params.size)) : undefined;
+
+  const entries: { size?: string; price?: string }[] = [
+    { size: params.takeProfitSize, price: params.takeProfitPrice },
+    { size: params.stopLossSize, price: params.stopLossPrice },
+  ];
+
+  for (const entry of entries) {
+    if (entry.size === undefined) {
+      continue;
+    }
+
+    // A size without its price would silently place nothing.
+    if (!entry.price) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+      };
+    }
+
+    const size = parseFloat(entry.size);
+    if (isNaN(size) || size <= 0) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+      };
+    }
+
+    if (orderSize !== undefined && !isNaN(orderSize) && size > orderSize) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+      };
+    }
   }
 
   return { isValid: true };
