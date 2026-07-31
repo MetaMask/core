@@ -113,8 +113,9 @@ export function getNativeAsset(chainId: CaipChainId):
     return undefined;
   }
 
+  const slip44TestnetCoinType = 1;
   const assetReference =
-    typeof slip44 === 'number'
+    typeof slip44 === 'number' && slip44 !== slip44TestnetCoinType
       ? String(slip44)
       : getCoinType(nativeCurrency.symbol);
 

@@ -59,16 +59,28 @@ function toNetworkFee(
   symbol?: string,
 ): Fee {
   const nativeAsset = getNativeAsset(chainId);
-  const resolvedSymbol = symbol ?? nativeAsset?.symbol;
-  const assetId =
-    resolveNativeAssetId(chainId, resolvedSymbol) ?? nativeAsset?.assetId;
+
+  if (nativeAsset) {
+    return {
+      type: 'base',
+      amount,
+      decimals: nativeAsset.decimals,
+      assetType: 'native',
+      symbol: symbol ?? nativeAsset.symbol,
+      assetId: nativeAsset.assetId,
+    };
+  }
+
+  const assetId = symbol
+    ? resolveNativeAssetId(chainId, symbol)
+    : undefined;
 
   return {
     type: 'base',
     amount,
-    decimals: nativeAsset?.decimals ?? nativeTokenDecimals,
+    decimals: nativeTokenDecimals,
     assetType: 'native',
-    ...(resolvedSymbol ? { symbol: resolvedSymbol } : {}),
+    ...(symbol ? { symbol } : {}),
     ...(assetId ? { assetId } : {}),
   };
 }

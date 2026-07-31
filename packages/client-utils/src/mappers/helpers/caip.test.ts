@@ -147,6 +147,22 @@ describe('caip helpers', () => {
       });
     });
 
+    it('ignores chainlist testnet slip44:1 and uses the native symbol coin type', () => {
+      expect(getNativeAsset('eip155:11155111')).toStrictEqual({
+        symbol: 'ETH',
+        decimals: 18,
+        assetId: 'eip155:11155111/slip44:60',
+      });
+    });
+
+    it('prefers chainlist slip44 over the slip44 registry symbol mapping', () => {
+      expect(getNativeAsset('eip155:43114')).toStrictEqual({
+        symbol: 'AVAX',
+        decimals: 18,
+        assetId: 'eip155:43114/slip44:9005',
+      });
+    });
+
     it('returns undefined for unknown chains', () => {
       expect(getNativeAsset('eip155:999999991')).toBeUndefined();
     });

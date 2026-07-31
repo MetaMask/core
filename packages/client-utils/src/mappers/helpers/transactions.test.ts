@@ -405,6 +405,44 @@ describe('transaction helpers', () => {
         },
       ]);
     });
+
+    it('uses ETH slip44:60 for Sepolia fees instead of chainlist testnet coin type 1', () => {
+      expect(
+        getFees({
+          chainId: 11155111,
+          gasUsed: '0x2',
+          effectiveGasPrice: '0x3',
+        } as Parameters<typeof getFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '6',
+          decimals: 18,
+          assetType: 'native',
+          symbol: 'ETH',
+          assetId: 'eip155:11155111/slip44:60',
+        },
+      ]);
+    });
+
+    it('uses chainlist Avalanche slip44:9005 for fees instead of registry AVAX 9000', () => {
+      expect(
+        getFees({
+          chainId: 43114,
+          gasUsed: '0x2',
+          effectiveGasPrice: '0x3',
+        } as Parameters<typeof getFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '6',
+          decimals: 18,
+          assetType: 'native',
+          symbol: 'AVAX',
+          assetId: 'eip155:43114/slip44:9005',
+        },
+      ]);
+    });
   });
 
   describe('getLocalTransactionStatus', () => {
