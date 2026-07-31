@@ -519,9 +519,9 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(
-        getEIP7702UpgradeContractAddress(messenger, '0xaabb' as Hex),
-      ).toBe(CONTRACT_ADDRESS_MOCK);
+      expect(getEIP7702UpgradeContractAddress(messenger, '0xaabb' as Hex)).toBe(
+        CONTRACT_ADDRESS_MOCK,
+      );
     });
 
     it('returns undefined when the chain has no contracts', () => {

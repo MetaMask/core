@@ -166,9 +166,7 @@ describe('simulateQuoteTransactions', () => {
 
     it('strips the execution reverted prefix and surfaces the reason when a message follows', async () => {
       messengerMock.simulateTransactionsMock.mockResolvedValue({
-        transactions: [
-          { error: 'execution reverted: insufficient allowance' },
-        ],
+        transactions: [{ error: 'execution reverted: insufficient allowance' }],
       } as unknown as SentinelSimulationResponse);
 
       await expect(
