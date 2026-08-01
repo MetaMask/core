@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Wire `ShieldController` into the default wallet initialization ([#9616](https://github.com/MetaMask/core/pull/9616))
-  - Adds required `shieldController` slot to `instanceOptions` with `env` and `fetchFunction` (or an injected `backend` override)
-  - Default backend construction uses `ShieldRemoteBackend` with optional `getAccessToken`, `captureException`, polling, history limits, and `normalizeSignatureRequest`
-  - Delegates `AuthenticationController:getBearerToken` plus `TransactionController:stateChange` and `SignatureController:stateChange` on the shared messenger bus
-  - Hosts must register `AuthenticationController` and `SignatureController` on the wallet root messenger and explicitly call `ShieldController:start` after wiring
+- **BREAKING:** Wire `ShieldController` and `ShieldApiService` into the default wallet initialization ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - Adds required `shieldApiService` slot to `instanceOptions` with `fetchFunction` (and optional `env`, polling, and policy configuration).
+  - `shieldController` instance options are now controller-only (`transactionHistoryLimit`, `coverageHistoryLimit`, `normalizeSignatureRequest`).
+  - `ShieldApiService` delegates `AuthenticationController:getBearerToken`; `ShieldController` delegates `ShieldApiService:*` actions plus `TransactionController:stateChange` and `SignatureController:stateChange`.
+  - Hosts must register `AuthenticationController` and `SignatureController` on the wallet root messenger and explicitly call `ShieldController:start` after wiring.
 - **BREAKING:** Wire analytics into the default `NetworkController` initialization ([#9270](https://github.com/MetaMask/core/pull/9270))
   - Adds an optional `instanceOptions.networkController.analyticsOptions` option (`isRpcEndpointUrlPublic` and `rpcServiceEventsSampleRate`, both optional) that the controller uses to emit `RPC Service Unavailable` and `RPC Service Degraded` events.
   - The `Wallet` root messenger now requires the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions. Consumers must register handlers for them on the root messenger; a consumer that does not use analytics can register handlers that do nothing.

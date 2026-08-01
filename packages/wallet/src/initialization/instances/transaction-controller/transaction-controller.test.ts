@@ -125,13 +125,8 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-    shieldController: {
-      backend: {
-        checkCoverage: jest.fn(),
-        checkSignatureCoverage: jest.fn(),
-        logSignature: jest.fn(),
-        logTransaction: jest.fn(),
-      },
+    shieldApiService: {
+      fetchFunction: jest.fn(),
     },
   };
 }

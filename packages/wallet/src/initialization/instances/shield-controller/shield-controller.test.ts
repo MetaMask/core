@@ -1,7 +1,5 @@
 import { Messenger } from '@metamask/messenger';
-import type { ShieldBackend } from '@metamask/shield-controller';
 import {
-  Env,
   getDefaultShieldControllerState,
   ShieldController,
 } from '@metamask/shield-controller';
@@ -21,11 +19,6 @@ const MOCK_COVERAGE_ID = 'coverage-id-1';
 type ActionHandler = (...args: unknown[]) => unknown;
 
 type AnyMessenger = Messenger<string>;
-
-const SHIELD_OPTIONS = {
-  env: Env.PRD,
-  fetchFunction: globalThis.fetch,
-};
 
 function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
   return new Messenger({ namespace: 'Root' });
@@ -49,8 +42,15 @@ function registerActionHandler(
   ).registerActionHandler(actionType, handler);
 }
 
-function createMockBackend(): jest.Mocked<ShieldBackend> {
-  return {
+function registerShieldApiServiceMocks(
+  rootMessenger: RootMessenger<DefaultActions, DefaultEvents>,
+): {
+  checkCoverage: jest.Mock;
+  checkSignatureCoverage: jest.Mock;
+  logSignature: jest.Mock;
+  logTransaction: jest.Mock;
+} {
+  const handlers = {
     checkCoverage: jest.fn().mockResolvedValue({
       coverageId: MOCK_COVERAGE_ID,
       status: 'covered',
@@ -61,9 +61,36 @@ function createMockBackend(): jest.Mocked<ShieldBackend> {
       status: 'covered',
       metrics: {},
     }),
-    logSignature: jest.fn(),
-    logTransaction: jest.fn(),
+    logSignature: jest.fn().mockResolvedValue(undefined),
+    logTransaction: jest.fn().mockResolvedValue(undefined),
   };
+
+  registerActionHandler(
+    rootMessenger,
+    'ShieldApiService',
+    'ShieldApiService:checkCoverage',
+    handlers.checkCoverage,
+  );
+  registerActionHandler(
+    rootMessenger,
+    'ShieldApiService',
+    'ShieldApiService:checkSignatureCoverage',
+    handlers.checkSignatureCoverage,
+  );
+  registerActionHandler(
+    rootMessenger,
+    'ShieldApiService',
+    'ShieldApiService:logSignature',
+    handlers.logSignature,
+  );
+  registerActionHandler(
+    rootMessenger,
+    'ShieldApiService',
+    'ShieldApiService:logTransaction',
+    handlers.logTransaction,
+  );
+
+  return handlers;
 }
 
 function createMockSignatureRequest(): Parameters<
@@ -89,12 +116,14 @@ describe('shieldController', () => {
   });
 
   it('initializes a ShieldController with default state', () => {
-    const messenger = shieldController.getMessenger(getRootMessenger());
+    const rootMessenger = getRootMessenger();
+    registerShieldApiServiceMocks(rootMessenger);
+    const messenger = shieldController.getMessenger(rootMessenger);
 
     const instance = shieldController.init({
       state: undefined,
       messenger,
-      options: SHIELD_OPTIONS,
+      options: {},
     });
 
     expect(instance).toBeInstanceOf(ShieldController);
@@ -102,43 +131,30 @@ describe('shieldController', () => {
   });
 
   it('forwards the provided state to the controller', () => {
-    const messenger = shieldController.getMessenger(getRootMessenger());
+    const rootMessenger = getRootMessenger();
+    registerShieldApiServiceMocks(rootMessenger);
+    const messenger = shieldController.getMessenger(rootMessenger);
 
     const instance = shieldController.init({
       state: {
         orderedTransactionHistory: ['tx-1'],
       },
       messenger,
-      options: SHIELD_OPTIONS,
+      options: {},
     });
 
     expect(instance.state.orderedTransactionHistory).toStrictEqual(['tx-1']);
   });
 
-  it('uses a provided backend override', () => {
-    const messenger = shieldController.getMessenger(getRootMessenger());
-    const mockBackend = createMockBackend();
-
-    const instance = shieldController.init({
-      state: undefined,
-      messenger,
-      options: {
-        backend: mockBackend,
-      },
-    });
-
-    expect(instance).toBeInstanceOf(ShieldController);
-  });
-
   it('forwards transactionHistoryLimit and coverageHistoryLimit', () => {
-    const messenger = shieldController.getMessenger(getRootMessenger());
-    const mockBackend = createMockBackend();
+    const rootMessenger = getRootMessenger();
+    registerShieldApiServiceMocks(rootMessenger);
+    const messenger = shieldController.getMessenger(rootMessenger);
 
     const instance = shieldController.init({
       state: undefined,
       messenger,
       options: {
-        backend: mockBackend,
         transactionHistoryLimit: 5,
         coverageHistoryLimit: 2,
       },
@@ -149,8 +165,8 @@ describe('shieldController', () => {
 
   it('forwards normalizeSignatureRequest to the controller', async () => {
     const rootMessenger = getRootMessenger();
+    const shieldApiService = registerShieldApiServiceMocks(rootMessenger);
     const messenger = shieldController.getMessenger(rootMessenger);
-    const mockBackend = createMockBackend();
     const signatureRequest = createMockSignatureRequest();
     const normalizedSignatureRequest = {
       ...signatureRequest,
@@ -167,7 +183,6 @@ describe('shieldController', () => {
       state: undefined,
       messenger,
       options: {
-        backend: mockBackend,
         normalizeSignatureRequest,
       },
     });
@@ -175,127 +190,24 @@ describe('shieldController', () => {
     await instance.checkSignatureCoverage(signatureRequest);
 
     expect(normalizeSignatureRequest).toHaveBeenCalledWith(signatureRequest);
-    expect(mockBackend.checkSignatureCoverage).toHaveBeenCalledWith({
+    expect(shieldApiService.checkSignatureCoverage).toHaveBeenCalledWith({
       signatureRequest: normalizedSignatureRequest,
     });
   });
 
-  it('wires default getAccessToken to AuthenticationController:getBearerToken', async () => {
-    const rootMessenger = getRootMessenger();
-    registerActionHandler(
-      rootMessenger,
-      'AuthenticationController',
-      'AuthenticationController:getBearerToken',
-      async () => 'test-bearer-token',
-    );
-    const messenger = shieldController.getMessenger(rootMessenger);
-    const fetchFunction = jest.fn(async () => {
-      const callCount = fetchFunction.mock.calls.length;
-      if (callCount === 1) {
-        return new globalThis.Response(
-          JSON.stringify({ coverageId: MOCK_COVERAGE_ID }),
-          { status: 200 },
-        );
-      }
-
-      return new globalThis.Response(
-        JSON.stringify({
-          status: 'covered',
-          metrics: {},
-        }),
-        { status: 200 },
-      );
-    });
-
-    const instance = shieldController.init({
-      state: undefined,
-      messenger,
-      options: {
-        env: Env.PRD,
-        fetchFunction,
-      },
-    });
-
-    await instance.checkCoverage({
-      id: 'tx-1',
-      chainId: '0x1',
-      status: TransactionStatus.Unapproved,
-      time: Date.now(),
-      txParams: {
-        from: '0x0000000000000000000000000000000000000000',
-      },
-    } as never);
-
-    expect(fetchFunction).toHaveBeenCalled();
-    const firstCall = fetchFunction.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
-    const [, requestInit] = firstCall;
-    const headers = new globalThis.Headers(requestInit.headers);
-    expect(headers.get('Authorization')).toBe('Bearer test-bearer-token');
-  });
-
-  it('uses a provided getAccessToken override', async () => {
-    const rootMessenger = getRootMessenger();
-    const messenger = shieldController.getMessenger(rootMessenger);
-    const fetchFunction = jest.fn(async () => {
-      const callCount = fetchFunction.mock.calls.length;
-      if (callCount === 1) {
-        return new globalThis.Response(
-          JSON.stringify({ coverageId: MOCK_COVERAGE_ID }),
-          { status: 200 },
-        );
-      }
-
-      return new globalThis.Response(
-        JSON.stringify({
-          status: 'covered',
-          metrics: {},
-        }),
-        { status: 200 },
-      );
-    });
-    const getAccessToken = jest.fn().mockResolvedValue('override-token');
-
-    const instance = shieldController.init({
-      state: undefined,
-      messenger,
-      options: {
-        env: Env.PRD,
-        fetchFunction,
-        getAccessToken,
-      },
-    });
-
-    await instance.checkCoverage({
-      id: 'tx-1',
-      chainId: '0x1',
-      status: TransactionStatus.Unapproved,
-      time: Date.now(),
-      txParams: {
-        from: '0x0000000000000000000000000000000000000000',
-      },
-    } as never);
-
-    expect(getAccessToken).toHaveBeenCalled();
-    const firstCall = fetchFunction.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
-    const [, requestInit] = firstCall;
-    const headers = new globalThis.Headers(requestInit.headers);
-    expect(headers.get('Authorization')).toBe('Bearer override-token');
-  });
-
-  it('delegates AuthenticationController:getBearerToken and controller state-change events', () => {
+  it('delegates ShieldApiService actions and controller state-change events', () => {
     const parent = getRootMessenger();
     const delegateSpy = jest.spyOn(parent, 'delegate');
     const messenger = shieldController.getMessenger(parent);
 
     expect(delegateSpy).toHaveBeenCalledWith({
       messenger,
-      actions: ['AuthenticationController:getBearerToken'],
+      actions: [
+        'ShieldApiService:checkCoverage',
+        'ShieldApiService:checkSignatureCoverage',
+        'ShieldApiService:logSignature',
+        'ShieldApiService:logTransaction',
+      ],
       events: [
         'TransactionController:stateChange',
         'SignatureController:stateChange',
@@ -305,14 +217,13 @@ describe('shieldController', () => {
 
   it('exposes its actions through the root messenger', () => {
     const rootMessenger = getRootMessenger();
+    registerShieldApiServiceMocks(rootMessenger);
     const messenger = shieldController.getMessenger(rootMessenger);
 
     shieldController.init({
       state: undefined,
       messenger,
-      options: {
-        backend: createMockBackend(),
-      },
+      options: {},
     });
 
     expect(rootMessenger.call('ShieldController:getState')).toStrictEqual(
@@ -322,15 +233,13 @@ describe('shieldController', () => {
 
   it('does not auto-start on initialization', () => {
     const rootMessenger = getRootMessenger();
+    const shieldApiService = registerShieldApiServiceMocks(rootMessenger);
     const messenger = shieldController.getMessenger(rootMessenger);
-    const mockBackend = createMockBackend();
 
     shieldController.init({
       state: undefined,
       messenger,
-      options: {
-        backend: mockBackend,
-      },
+      options: {},
     });
 
     const transactionMessenger = new Messenger({
@@ -356,6 +265,6 @@ describe('shieldController', () => {
       undefined as never,
     );
 
-    expect(mockBackend.checkCoverage).not.toHaveBeenCalled();
+    expect(shieldApiService.checkCoverage).not.toHaveBeenCalled();
   });
 });

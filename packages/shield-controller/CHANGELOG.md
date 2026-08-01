@@ -9,19 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `createShieldRemoteBackend` function that constructs a `ShieldRemoteBackend`, defaulting `getAccessToken` to the `AuthenticationController:getBearerToken` messenger action ([#9616](https://github.com/MetaMask/core/pull/9616))
-  - Also export its options type, `CreateShieldRemoteBackendOptions`.
-- Export the `ShieldBackend` type ([#9616](https://github.com/MetaMask/core/pull/9616))
-- Add `Env` enum, `SHIELD_API_URL_MAP`, and `getShieldApiBaseUrl` for resolving the shield backend API URL per environment
+- Add `ShieldApiService`, a `BaseDataService` that communicates with the Shield API and authenticates via `AuthenticationController:getBearerToken` on its own messenger ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - Exposes `checkCoverage`, `checkSignatureCoverage`, `logSignature`, and `logTransaction` as `ShieldApiService:*` messenger actions.
+  - Also export `ShieldApiServiceMessenger`, related action/event types, and `serviceName`.
+- Add `Env` enum, `SHIELD_API_URL_MAP`, and `getShieldApiBaseUrl` for resolving the shield API URL per environment ([#9616](https://github.com/MetaMask/core/pull/9616))
 
 ### Changed
 
-- **BREAKING:** Replace the `baseUrl` option of `ShieldRemoteBackend` and `createShieldRemoteBackend` with `env`
-  - Pass `Env.DEV`, `Env.UAT`, or `Env.PRD` instead of a URL; the base URL is resolved internally via `getShieldApiBaseUrl`, consistent with `ClaimsController` and `SubscriptionController`.
-  - `env` is optional in `createShieldRemoteBackend` and defaults to `Env.PRD`.
-- **BREAKING:** Add `AuthenticationController:getBearerToken` to the allowed actions of `ShieldControllerMessenger` ([#9616](https://github.com/MetaMask/core/pull/9616))
-  - The action is only called when a backend created via `createShieldRemoteBackend` relies on the default `getAccessToken`, in which case the action must be delegated to the messenger.
-- Add `@metamask/profile-sync-controller` `^28.3.0` as a dependency ([#9616](https://github.com/MetaMask/core/pull/9616))
+- **BREAKING:** Replace `ShieldRemoteBackend` and `createShieldRemoteBackend` with `ShieldApiService` ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - Consumers must instantiate `ShieldApiService` separately and delegate `AuthenticationController:getBearerToken` to its messenger.
+  - `ShieldController` now calls `ShieldApiService:*` actions instead of accepting an injected `backend`.
+- **BREAKING:** Remove `ShieldBackend`, `ShieldRemoteBackend`, `createShieldRemoteBackend`, and `CreateShieldRemoteBackendOptions` exports ([#9616](https://github.com/MetaMask/core/pull/9616))
+- **BREAKING:** Remove `backend` from `ShieldControllerOptions` ([#9616](https://github.com/MetaMask/core/pull/9616))
+- **BREAKING:** Replace `AuthenticationController:getBearerToken` on `ShieldControllerMessenger` with the four `ShieldApiService:*` actions ([#9616](https://github.com/MetaMask/core/pull/9616))
+- Add `@metamask/base-data-service` `^0.1.3` and `@metamask/profile-sync-controller` `^28.3.0` as dependencies ([#9616](https://github.com/MetaMask/core/pull/9616))
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.3.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693))
 - Bump `@metamask/signature-controller` from `^39.2.7` to `^39.2.8` ([#9721](https://github.com/MetaMask/core/pull/9721))
 

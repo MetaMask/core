@@ -1,9 +1,6 @@
 import { Messenger } from '@metamask/messenger';
 import type { ShieldControllerMessenger } from '@metamask/shield-controller';
-import {
-  createShieldRemoteBackend,
-  ShieldController,
-} from '@metamask/shield-controller';
+import { ShieldController } from '@metamask/shield-controller';
 
 import type { InitializationConfiguration } from '../../types.js';
 
@@ -18,17 +15,6 @@ export const shieldController: InitializationConfiguration<
     new ShieldController({
       messenger,
       state,
-      backend:
-        options.backend ??
-        createShieldRemoteBackend({
-          messenger,
-          env: options.env,
-          fetch: options.fetchFunction,
-          getAccessToken: options.getAccessToken,
-          captureException: options.captureException,
-          getCoverageResultTimeout: options.getCoverageResultTimeout,
-          getCoverageResultPollInterval: options.getCoverageResultPollInterval,
-        }),
       transactionHistoryLimit: options.transactionHistoryLimit,
       coverageHistoryLimit: options.coverageHistoryLimit,
       normalizeSignatureRequest: options.normalizeSignatureRequest,
@@ -41,7 +27,12 @@ export const shieldController: InitializationConfiguration<
 
     parent.delegate({
       messenger,
-      actions: ['AuthenticationController:getBearerToken'],
+      actions: [
+        'ShieldApiService:checkCoverage',
+        'ShieldApiService:checkSignatureCoverage',
+        'ShieldApiService:logSignature',
+        'ShieldApiService:logTransaction',
+      ],
       events: [
         // ShieldController subscribes to :stateChange internally; the
         // delegation must match until those controllers migrate to :stateChanged.

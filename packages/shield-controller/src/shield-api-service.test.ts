@@ -1,28 +1,93 @@
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import {
   EthMethod,
   SignatureRequestType,
 } from '@metamask/signature-controller';
 
-import { createMockMessenger } from '../tests/mocks/messenger.js';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
   getRandomCoverageResult,
 } from '../tests/utils.js';
 import {
-  createShieldRemoteBackend,
-  makeInitCoverageCheckBody,
-  parseSignatureRequestMethod,
-  ShieldRemoteBackend,
-} from './backend.js';
-import {
   Env,
   getShieldApiBaseUrl,
   SHIELD_API_URL_MAP,
   SignTypedDataVersion,
 } from './constants.js';
+import type { ShieldApiServiceMessenger } from './shield-api-service.js';
+import {
+  makeInitCoverageCheckBody,
+  parseSignatureRequestMethod,
+  ShieldApiService,
+} from './shield-api-service.js';
 
 const mockCaptureException = jest.fn();
+const MOCK_TOKEN = 'token';
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<ShieldApiServiceMessenger>,
+  MessengerEvents<ShieldApiServiceMessenger>
+>;
+
+function createRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+function createServiceMessenger(
+  rootMessenger: RootMessenger,
+): ShieldApiServiceMessenger {
+  return new Messenger({
+    namespace: 'ShieldApiService',
+    parent: rootMessenger,
+  });
+}
+
+function createService({
+  options = {},
+  getBearerToken = async (): Promise<string> => MOCK_TOKEN,
+}: {
+  options?: Partial<ConstructorParameters<typeof ShieldApiService>[0]>;
+  getBearerToken?: () => Promise<string>;
+} = {}): {
+  service: ShieldApiService;
+  rootMessenger: RootMessenger;
+  messenger: ShieldApiServiceMessenger;
+  getBearerToken: jest.Mock;
+} {
+  const rootMessenger = createRootMessenger();
+  const getBearerTokenMock = jest.fn(getBearerToken);
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    getBearerTokenMock,
+  );
+  const messenger = createServiceMessenger(rootMessenger);
+  rootMessenger.delegate({
+    messenger,
+    actions: ['AuthenticationController:getBearerToken'],
+    events: [],
+  });
+  const service = new ShieldApiService({
+    fetch: globalThis.fetch,
+    env: Env.PRD,
+    captureException: mockCaptureException,
+    messenger,
+    ...options,
+  });
+
+  return {
+    service,
+    rootMessenger,
+    messenger,
+    getBearerToken: getBearerTokenMock,
+  };
+}
 
 /**
  * Setup the test environment.
@@ -39,51 +104,44 @@ function setup({
   getCoverageResultTimeout?: number;
   getCoverageResultPollInterval?: number;
 } = {}): {
-  backend: ShieldRemoteBackend;
+  service: ShieldApiService;
   fetchMock: jest.MockedFunction<typeof fetch>;
-  getAccessToken: jest.Mock;
+  getBearerToken: jest.Mock;
+  rootMessenger: RootMessenger;
 } {
-  // Setup fetch mock.
   const fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
     typeof fetch
   >;
 
-  // Setup access token mock.
-  const getAccessToken = jest.fn().mockResolvedValue('token');
-
-  // Setup backend.
-  const backend = new ShieldRemoteBackend({
-    getAccessToken,
-    getCoverageResultTimeout,
-    getCoverageResultPollInterval,
-    fetch,
-    env: Env.PRD,
-    captureException: mockCaptureException,
+  const { service, getBearerToken, rootMessenger } = createService({
+    options: {
+      getCoverageResultTimeout,
+      getCoverageResultPollInterval,
+    },
   });
 
   return {
-    backend,
-    getAccessToken,
+    service,
+    getBearerToken,
     fetchMock,
+    rootMessenger,
   };
 }
 
-describe('ShieldRemoteBackend', () => {
+describe('ShieldApiService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('should check coverage', async () => {
-    const { backend, fetchMock, getAccessToken } = setup();
+    const { service, fetchMock, getBearerToken } = setup();
 
-    // Mock init coverage check.
     const coverageId = 'coverageId';
     fetchMock.mockResolvedValueOnce({
       status: 200,
       json: jest.fn().mockResolvedValue({ coverageId }),
     } as unknown as Response);
 
-    // Mock get coverage result.
     const result = getRandomCoverageResult();
     fetchMock.mockResolvedValueOnce({
       status: 200,
@@ -91,7 +149,7 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    const coverageResult = await backend.checkCoverage({ txMeta });
+    const coverageResult = await service.checkCoverage({ txMeta });
     expect({
       coverageId: coverageResult.coverageId,
       message: result.message,
@@ -103,29 +161,51 @@ describe('ShieldRemoteBackend', () => {
     });
     expect(typeof coverageResult.metrics.latency).toBe('number');
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(getAccessToken).toHaveBeenCalledTimes(2);
+    expect(getBearerToken).toHaveBeenCalledTimes(2);
+  });
+
+  it('exposes checkCoverage through the messenger', async () => {
+    const coverageId = 'coverageId';
+    const fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
+      typeof fetch
+    >;
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue({ coverageId }),
+    } as unknown as Response);
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
+    } as unknown as Response);
+
+    const { rootMessenger } = createService();
+    const txMeta = generateMockTxMeta();
+
+    const coverageResult = await rootMessenger.call(
+      'ShieldApiService:checkCoverage',
+      { txMeta },
+    );
+
+    expect(coverageResult.coverageId).toBe(coverageId);
   });
 
   it('should check coverage with delay', async () => {
     const pollInterval = 100;
-    const { backend, fetchMock, getAccessToken } = setup({
+    const { service, fetchMock, getBearerToken } = setup({
       getCoverageResultPollInterval: pollInterval,
     });
 
-    // Mock init coverage check.
     const coverageId = 'coverageId';
     fetchMock.mockResolvedValueOnce({
       status: 200,
       json: jest.fn().mockResolvedValue({ coverageId }),
     } as unknown as Response);
 
-    // Mock get coverage result: result unavailable.
     fetchMock.mockResolvedValueOnce({
       status: 404,
       json: jest.fn().mockResolvedValue({ status: 'unavailable' }),
     } as unknown as Response);
 
-    // Mock get coverage result: result available.
     const result = getRandomCoverageResult();
     fetchMock.mockResolvedValueOnce({
       status: 200,
@@ -134,23 +214,22 @@ describe('ShieldRemoteBackend', () => {
 
     const txMeta = generateMockTxMeta();
 
-    // generateMockTxMeta also use Date.now() to set the time, only do this after generateMockTxMeta
-    // Mock Date.now() to control latency measurement
-    // Simulate latency that includes the retry delay (poll interval + processing time)
     let callCount = 0;
     const startTime = 1000;
-    const expectedLatency = pollInterval + 50; // poll interval + processing time
+    const expectedLatency = pollInterval + 50;
     const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
       callCount += 1;
-      // First call: start of #getCoverageResult
-      if (callCount === 1) {
+      // `fetchQuery` during init may call `Date.now()` before polling latency is measured.
+      if (callCount <= 1) {
         return startTime;
       }
-      // Final call: end of #getCoverageResult (after retry delay)
+      if (callCount === 2) {
+        return startTime;
+      }
       return startTime + expectedLatency;
     });
 
-    const coverageResult = await backend.checkCoverage({ txMeta });
+    const coverageResult = await service.checkCoverage({ txMeta });
 
     expect(coverageResult).toMatchObject({
       coverageId,
@@ -159,31 +238,29 @@ describe('ShieldRemoteBackend', () => {
       reasonCode: result.reasonCode,
     });
     expect(coverageResult.metrics.latency).toBe(expectedLatency);
-    // Latency should include the retry delay (at least the poll interval)
     expect(coverageResult.metrics.latency).toBeGreaterThanOrEqual(pollInterval);
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(getAccessToken).toHaveBeenCalledTimes(2);
+    expect(getBearerToken).toHaveBeenCalledTimes(2);
 
     nowSpy.mockRestore();
   });
 
   it('should throw on init coverage check failure', async () => {
-    const { backend, fetchMock, getAccessToken } = setup({
+    const { service, fetchMock, getBearerToken } = setup({
       getCoverageResultTimeout: 0,
     });
 
-    // Mock init coverage check.
     const status = 500;
     fetchMock.mockResolvedValueOnce({
       status,
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
+    await expect(service.checkCoverage({ txMeta })).rejects.toThrow(
       `Failed to init coverage check: ${status}`,
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(getAccessToken).toHaveBeenCalledTimes(1);
+    expect(getBearerToken).toHaveBeenCalledTimes(1);
 
     const capturedError = new Error(
       'Failed to init coverage check',
@@ -196,45 +273,39 @@ describe('ShieldRemoteBackend', () => {
   });
 
   it('should throw on check coverage timeout with coverage status', async () => {
-    const { backend, fetchMock } = setup({
+    const { service, fetchMock } = setup({
       getCoverageResultTimeout: 0,
       getCoverageResultPollInterval: 0,
     });
 
-    // Mock init coverage check.
     fetchMock.mockResolvedValueOnce({
       status: 200,
       json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
     } as unknown as Response);
 
-    // Mock get coverage result: result unavailable.
     fetchMock.mockResolvedValue({
       status: 404,
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
+    await expect(service.checkCoverage({ txMeta })).rejects.toThrow(
       'Failed to get coverage result: 404',
     );
 
-    // Waiting here ensures coverage of the unexpected error and lets us know
-    // that the polling loop is exited as expected.
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
 
   it('should throw on check coverage timeout', async () => {
-    const { backend, fetchMock } = setup({
+    const { service, fetchMock } = setup({
       getCoverageResultTimeout: 0,
       getCoverageResultPollInterval: 0,
     });
 
-    // Mock init coverage check.
     fetchMock.mockResolvedValueOnce({
       status: 200,
       json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
     } as unknown as Response);
 
-    // Mock get coverage result: result unavailable.
     fetchMock.mockResolvedValue({
       status: 412,
       json: jest.fn().mockResolvedValue({
@@ -244,17 +315,15 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
+    await expect(service.checkCoverage({ txMeta })).rejects.toThrow(
       'Failed to get coverage result: Results are not available yet',
     );
 
-    // Waiting here ensures coverage of the unexpected error and lets us know
-    // that the polling loop is exited as expected.
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
 
   it('returns latency in coverageResult', async () => {
-    const { backend, fetchMock } = setup();
+    const { service, fetchMock } = setup();
 
     fetchMock.mockResolvedValueOnce({
       status: 200,
@@ -276,14 +345,14 @@ describe('ShieldRemoteBackend', () => {
     });
 
     const txMeta = generateMockTxMeta();
-    const coverageResult = await backend.checkCoverage({ txMeta });
+    const coverageResult = await service.checkCoverage({ txMeta });
     expect(coverageResult.metrics.latency).toBe(latencyMs);
 
     nowSpy.mockRestore();
   });
 
   it('returns latency in signatureCoverageResult', async () => {
-    const { backend, fetchMock } = setup();
+    const { service, fetchMock } = setup();
 
     fetchMock.mockResolvedValueOnce({
       status: 200,
@@ -305,7 +374,7 @@ describe('ShieldRemoteBackend', () => {
     });
 
     const signatureRequest = generateMockSignatureRequest();
-    const coverageResult = await backend.checkSignatureCoverage({
+    const coverageResult = await service.checkSignatureCoverage({
       signatureRequest,
     });
     expect(coverageResult.metrics.latency).toBe(latencyMs);
@@ -315,16 +384,14 @@ describe('ShieldRemoteBackend', () => {
 
   describe('checkSignatureCoverage', () => {
     it('should check signature coverage', async () => {
-      const { backend, fetchMock, getAccessToken } = setup();
+      const { service, fetchMock, getBearerToken } = setup();
 
-      // Mock init coverage check.
       const coverageId = 'coverageId';
       fetchMock.mockResolvedValueOnce({
         status: 200,
         json: jest.fn().mockResolvedValue({ coverageId }),
       } as unknown as Response);
 
-      // Mock get coverage result.
       const result = getRandomCoverageResult();
       fetchMock.mockResolvedValueOnce({
         status: 200,
@@ -332,7 +399,7 @@ describe('ShieldRemoteBackend', () => {
       } as unknown as Response);
 
       const signatureRequest = generateMockSignatureRequest();
-      const coverageResult = await backend.checkSignatureCoverage({
+      const coverageResult = await service.checkSignatureCoverage({
         signatureRequest,
       });
       expect({
@@ -346,32 +413,32 @@ describe('ShieldRemoteBackend', () => {
       });
       expect(typeof coverageResult.metrics.latency).toBe('number');
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(getAccessToken).toHaveBeenCalledTimes(2);
+      expect(getBearerToken).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('logSignature', () => {
     it('logs signature', async () => {
-      const { backend, fetchMock, getAccessToken } = setup();
+      const { service, fetchMock, getBearerToken } = setup();
 
       fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
 
-      await backend.logSignature({
+      await service.logSignature({
         signatureRequest: generateMockSignatureRequest(),
         signature: '0x00',
         status: 'shown',
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(getAccessToken).toHaveBeenCalledTimes(1);
+      expect(getBearerToken).toHaveBeenCalledTimes(1);
     });
 
     it('throws on status 500', async () => {
-      const { backend, fetchMock } = setup();
+      const { service, fetchMock } = setup();
 
       fetchMock.mockResolvedValueOnce({ status: 500 } as unknown as Response);
 
       await expect(
-        backend.logSignature({
+        service.logSignature({
           signatureRequest: generateMockSignatureRequest(),
           signature: '0x00',
           status: 'shown',
@@ -388,27 +455,27 @@ describe('ShieldRemoteBackend', () => {
 
   describe('logTransaction', () => {
     it('logs transaction', async () => {
-      const { backend, fetchMock, getAccessToken } = setup();
+      const { service, fetchMock, getBearerToken } = setup();
 
       fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
 
-      await backend.logTransaction({
+      await service.logTransaction({
         txMeta: generateMockTxMeta(),
         transactionHash: '0x00',
         rawTransactionHex: '0xdeadbeef',
         status: 'shown',
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(getAccessToken).toHaveBeenCalledTimes(1);
+      expect(getBearerToken).toHaveBeenCalledTimes(1);
     });
 
     it('throws on status 500', async () => {
-      const { backend, fetchMock } = setup();
+      const { service, fetchMock } = setup();
 
       fetchMock.mockResolvedValueOnce({ status: 500 } as unknown as Response);
 
       await expect(
-        backend.logTransaction({
+        service.logTransaction({
           txMeta: generateMockTxMeta(),
           transactionHash: '0x00',
           rawTransactionHex: '0xdeadbeef',
@@ -494,59 +561,25 @@ describe('ShieldRemoteBackend', () => {
     });
   });
 
-  describe('createShieldRemoteBackend', () => {
-    /**
-     * Setup the test environment for the factory.
-     *
-     * @param options - The options for the setup.
-     * @param options.getAccessToken - An access token getter override.
-     * @returns Objects that have been created for testing.
-     */
-    function setupFactory({
-      getAccessToken,
-    }: {
-      getAccessToken?: () => Promise<string>;
-    } = {}): {
-      backend: ShieldRemoteBackend;
-      fetchMock: jest.MockedFunction<typeof fetch>;
-      getBearerToken: jest.Mock;
-    } {
+  describe('authentication', () => {
+    it('uses AuthenticationController:getBearerToken for requests', async () => {
       const fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
         typeof fetch
       >;
-
-      // Mock init coverage check.
       fetchMock.mockResolvedValueOnce({
         status: 200,
         json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
       } as unknown as Response);
-
-      // Mock get coverage result.
       fetchMock.mockResolvedValueOnce({
         status: 200,
         json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
       } as unknown as Response);
 
-      const { messenger, rootMessenger } = createMockMessenger();
-      const getBearerToken = jest.fn().mockResolvedValue('bearer-token');
-      rootMessenger.registerActionHandler(
-        'AuthenticationController:getBearerToken',
-        getBearerToken,
-      );
-
-      const backend = createShieldRemoteBackend({
-        messenger,
-        getAccessToken,
-        fetch,
+      const { service, getBearerToken } = createService({
+        getBearerToken: async () => 'bearer-token',
       });
 
-      return { backend, fetchMock, getBearerToken };
-    }
-
-    it('defaults the access token to AuthenticationController:getBearerToken', async () => {
-      const { backend, fetchMock, getBearerToken } = setupFactory();
-
-      await backend.checkCoverage({ txMeta: generateMockTxMeta() });
+      await service.checkCoverage({ txMeta: generateMockTxMeta() });
 
       expect(getBearerToken).toHaveBeenCalled();
       const [url, requestInit] = fetchMock.mock.calls[0] as [
@@ -558,22 +591,6 @@ describe('ShieldRemoteBackend', () => {
       );
       expect(requestInit.headers).toMatchObject({
         Authorization: 'Bearer bearer-token',
-      });
-    });
-
-    it('uses a provided getAccessToken instead of the messenger', async () => {
-      const getAccessToken = jest.fn().mockResolvedValue('override-token');
-      const { backend, fetchMock, getBearerToken } = setupFactory({
-        getAccessToken,
-      });
-
-      await backend.checkCoverage({ txMeta: generateMockTxMeta() });
-
-      expect(getAccessToken).toHaveBeenCalled();
-      expect(getBearerToken).not.toHaveBeenCalled();
-      const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
-      expect(requestInit.headers).toMatchObject({
-        Authorization: 'Bearer override-token',
       });
     });
   });

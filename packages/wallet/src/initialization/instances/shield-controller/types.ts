@@ -1,7 +1,4 @@
-import type {
-  CreateShieldRemoteBackendOptions,
-  ShieldController,
-} from '@metamask/shield-controller';
+import type { ShieldController } from '@metamask/shield-controller';
 
 type ShieldControllerOptions = ConstructorParameters<
   typeof ShieldController
@@ -14,20 +11,7 @@ type ShieldControllerCommonOptions = Pick<
   | 'normalizeSignatureRequest'
 >;
 
-type ShieldRemoteBackendInstanceOptions = Omit<
-  CreateShieldRemoteBackendOptions,
-  'messenger' | 'fetch'
-> & {
-  fetchFunction: CreateShieldRemoteBackendOptions['fetch'];
-};
-
 /**
- * Per-instance options for the wallet's `ShieldController`. When `backend` is
- * not provided, `fetchFunction` is required so the instance can build a
- * default `ShieldRemoteBackend`; `env` is optional and defaults to production.
+ * Per-instance options for the wallet's `ShieldController`.
  */
-export type ShieldControllerInstanceOptions = ShieldControllerCommonOptions &
-  (
-    | { backend: ShieldControllerOptions['backend'] }
-    | ({ backend?: undefined } & ShieldRemoteBackendInstanceOptions)
-  );
+export type ShieldControllerInstanceOptions = ShieldControllerCommonOptions;

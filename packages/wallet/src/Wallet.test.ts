@@ -28,14 +28,8 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
   },
 };
 
-const SHIELD_CONTROLLER_OPTIONS = {
+const SHIELD_API_SERVICE_OPTIONS = {
   fetchFunction: jest.fn(),
-  backend: {
-    checkCoverage: jest.fn(),
-    checkSignatureCoverage: jest.fn(),
-    logSignature: jest.fn(),
-    logTransaction: jest.fn(),
-  },
 };
 
 function getInstanceOptions(): WalletOptions['instanceOptions'] {
@@ -53,7 +47,7 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-    shieldController: SHIELD_CONTROLLER_OPTIONS,
+    shieldApiService: SHIELD_API_SERVICE_OPTIONS,
   };
 }
 
@@ -197,7 +191,7 @@ describe('Wallet', () => {
 
     const results = await wallet.init();
 
-    expect(results).toHaveLength(2);
+    expect(results).toHaveLength(3);
   });
 
   it('disallows modifying the messenger', async () => {
