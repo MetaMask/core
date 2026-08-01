@@ -4098,10 +4098,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     try {
       this.#deps.debugLogger.log('Canceling order:', params);
 
-      // Hydrate clients and asset mapping before coin validation so a cold
-      // start (e.g. service-worker restart with an empty prefetch map) can
-      // self-heal instead of surfacing ORDER_UNKNOWN_COIN prematurely.
-      await this.#ensureReadyForTrading();
+      // Hydrate the asset map before coin validation so a cold start (e.g.
+      // service-worker restart with an empty prefetch map) can self-heal
+      // without signature prompts on invalid cancels. Trading setup (builder
+      // fee, referral, unified account) runs only after validation passes,
+      // matching placeOrder / editOrder.
+      await this.#ensureReady();
 
       const coinValidation = validateCoinExists(
         params.symbol,
@@ -4110,6 +4112,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (!coinValidation.isValid) {
         throw new Error(coinValidation.error);
       }
+
+      await this.#ensureReadyForTrading();
 
       const exchangeClient = this.#clientService.getExchangeClient();
       const asset = await this.#getAssetIdWithRepair({
