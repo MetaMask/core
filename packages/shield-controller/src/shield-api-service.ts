@@ -22,9 +22,9 @@ import type { AuthorizationList } from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
-import type { ShieldApiServiceMethodActions } from './shield-api-service-method-action-types.js';
 import { Env, getShieldApiBaseUrl, SignTypedDataVersion } from './constants.js';
 import { PollingWithCockatielPolicy } from './polling-with-policy.js';
+import type { ShieldApiServiceMethodActions } from './shield-api-service-method-action-types.js';
 import type {
   CheckCoverageRequest,
   CheckSignatureCoverageRequest,
@@ -481,9 +481,9 @@ export class ShieldApiService extends BaseDataService<
   }
 
   async #authHeaders(): Promise<Record<string, string>> {
-    const token = (await this.messenger.call(
+    const token = await this.messenger.call(
       'AuthenticationController:getBearerToken',
-    ));
+    );
     return {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,

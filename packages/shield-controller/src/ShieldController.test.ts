@@ -7,11 +7,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 
 import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data.js';
-import { MOCK_COVERAGE_ID } from '../tests/mocks/shield-api-service.js';
 import {
   createMockMessenger,
   RootMessenger,
 } from '../tests/mocks/messenger.js';
+import { MOCK_COVERAGE_ID } from '../tests/mocks/shield-api-service.js';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
@@ -49,9 +49,7 @@ function setup({
   controller: ShieldController;
   messenger: ShieldControllerMessenger;
   rootMessenger: RootMessenger;
-  shieldApiService: ReturnType<
-    typeof createMockMessenger
-  >['shieldApiService'];
+  shieldApiService: ReturnType<typeof createMockMessenger>['shieldApiService'];
 } {
   const { messenger, rootMessenger, shieldApiService } = createMockMessenger();
 

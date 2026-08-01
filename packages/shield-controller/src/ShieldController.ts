@@ -20,10 +20,7 @@ import { controllerName } from './constants.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import type { ShieldApiServiceMethodActions } from './shield-api-service-method-action-types.js';
 import type { ShieldControllerMethodActions } from './ShieldController-method-action-types.js';
-import type {
-  CoverageResult,
-  NormalizeSignatureRequestFn,
-} from './types.js';
+import type { CoverageResult, NormalizeSignatureRequestFn } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'ShieldController');
 

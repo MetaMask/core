@@ -1,6 +1,8 @@
 import type { Env, ShieldApiService } from '@metamask/shield-controller';
 
-type ShieldApiServiceOptions = ConstructorParameters<typeof ShieldApiService>[0];
+type ShieldApiServiceOptions = ConstructorParameters<
+  typeof ShieldApiService
+>[0];
 
 type ShieldApiServiceCommonOptions = Pick<
   ShieldApiServiceOptions,

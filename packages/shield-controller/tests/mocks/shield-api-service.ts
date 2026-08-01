@@ -21,7 +21,9 @@ export function createMockShieldApiServiceHandlers(): {
 } {
   return {
     checkCoverage: jest.fn().mockResolvedValue(DEFAULT_COVERAGE_RESULT),
-    checkSignatureCoverage: jest.fn().mockResolvedValue(DEFAULT_COVERAGE_RESULT),
+    checkSignatureCoverage: jest
+      .fn()
+      .mockResolvedValue(DEFAULT_COVERAGE_RESULT),
     logSignature: jest.fn().mockResolvedValue(undefined),
     logTransaction: jest.fn().mockResolvedValue(undefined),
   };
