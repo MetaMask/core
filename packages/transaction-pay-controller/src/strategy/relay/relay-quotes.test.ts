@@ -3885,10 +3885,26 @@ describe('Relay Quotes Utils', () => {
         targetTokenAddress: ARBITRUM_USDC_ADDRESS,
       };
 
-      successfulFetchMock.mockResolvedValue({
-        ok: true,
-        json: async () => QUOTE_MOCK,
-      } as never);
+      // Deposit targets always probe HyperLiquid activation before quoting.
+      // Treat the account as already activated so the destination remapping
+      // assertion is not conflated with the $1 activation top-up.
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            {
+              delta: {
+                type: 'send',
+                user: FROM_MOCK,
+                destination: '0x6b9e773128f453f5c2c60935ee2de2cbc5390a24',
+              },
+            },
+          ],
+        } as never)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
 
       await getRelayQuotes({
         accountSupports7702: true,
@@ -3901,7 +3917,7 @@ describe('Relay Quotes Utils', () => {
       });
 
       const body = JSON.parse(
-        successfulFetchMock.mock.calls[0][1]?.body as string,
+        successfulFetchMock.mock.calls[1][1]?.body as string,
       );
 
       expect(body).toStrictEqual(
