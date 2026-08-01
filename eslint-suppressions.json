@@ -175,7 +175,7 @@
   },
   "packages/assets-controller/src/data-sources/RpcDataSource.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
@@ -800,7 +800,7 @@
   },
   "packages/config-registry-controller/src/index.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/controller-utils/src/create-service-policy.ts": {

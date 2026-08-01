@@ -217,6 +217,9 @@ const PACKAGES: Record<string, PackageInfo> = {
   'money-account-upgrade-controller': {
     teams: ['@MetaMask/earn', '@MetaMask/delegation'],
   },
+  'money-account-utils': {
+    teams: ['@MetaMask/earn'],
+  },
   'multichain-account-service': {
     teams: ['@MetaMask/accounts-engineers'],
   },
@@ -461,6 +464,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('money-account-api-data-service'),
         buildRuleForPackage('chomp-api-service'),
         buildRuleForPackage('money-account-upgrade-controller'),
+        buildRuleForPackage('money-account-utils'),
       ],
     },
     {
@@ -690,6 +694,7 @@ function buildPackageReleaseSection(): CodeownersSection {
     'money-account-controller',
     'chomp-api-service',
     'money-account-upgrade-controller',
+    'money-account-utils',
     'snap-account-service',
   ] as const satisfies (keyof typeof PACKAGES)[];
 
@@ -704,6 +709,7 @@ function buildPackageReleaseSection(): CodeownersSection {
       return [
         { pattern: `${workspacePath}/package.json`, owners },
         { pattern: `${workspacePath}/CHANGELOG.md`, owners },
+        { pattern: `${workspacePath}/tsconfig.*`, owners },
       ];
     }),
   };

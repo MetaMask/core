@@ -95,6 +95,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
 - [`@metamask/money-account-controller`](packages/money-account-controller)
 - [`@metamask/money-account-upgrade-controller`](packages/money-account-upgrade-controller)
+- [`@metamask/money-account-utils`](packages/money-account-utils)
 - [`@metamask/multichain-account-service`](packages/multichain-account-service)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
@@ -200,6 +201,7 @@ linkStyle default opacity:0.5
   money_account_balance_service(["@metamask/money-account-balance-service"]);
   money_account_controller(["@metamask/money-account-controller"]);
   money_account_upgrade_controller(["@metamask/money-account-upgrade-controller"]);
+  money_account_utils(["@metamask/money-account-utils"]);
   multichain_account_service(["@metamask/multichain-account-service"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
@@ -258,6 +260,7 @@ linkStyle default opacity:0.5
   ai_controllers --> base_controller;
   ai_controllers --> messenger;
   analytics_controller --> base_controller;
+  analytics_controller --> geolocation_controller;
   analytics_controller --> messenger;
   analytics_data_regulation_controller --> base_controller;
   analytics_data_regulation_controller --> controller_utils;
@@ -273,6 +276,7 @@ linkStyle default opacity:0.5
   assets_controller --> assets_controllers;
   assets_controller --> base_controller;
   assets_controller --> client_controller;
+  assets_controller --> config_registry_controller;
   assets_controller --> controller_utils;
   assets_controller --> core_backend;
   assets_controller --> keyring_controller;
@@ -444,6 +448,7 @@ linkStyle default opacity:0.5
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
   money_account_upgrade_controller --> network_controller;
+  money_account_utils --> transaction_controller;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;
   multichain_account_service --> keyring_controller;
