@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Exposes `checkCoverage`, `checkSignatureCoverage`, `logSignature`, and `logTransaction` as `ShieldApiService:*` messenger actions.
   - Also export `ShieldApiServiceMessenger`, related action/event types, and `serviceName`.
 - Add `Env` enum, `SHIELD_API_URL_MAP`, and `getShieldApiBaseUrl` for resolving the shield API URL per environment ([#9616](https://github.com/MetaMask/core/pull/9616))
+- Add `@metamask/base-data-service` `^0.1.3` and `@metamask/profile-sync-controller` `^28.3.0` as dependencies ([#9616](https://github.com/MetaMask/core/pull/9616))
 
 ### Changed
 
@@ -22,9 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove `ShieldBackend`, `ShieldRemoteBackend`, `createShieldRemoteBackend`, and `CreateShieldRemoteBackendOptions` exports ([#9616](https://github.com/MetaMask/core/pull/9616))
 - **BREAKING:** Remove `backend` from `ShieldControllerOptions` ([#9616](https://github.com/MetaMask/core/pull/9616))
 - **BREAKING:** Replace `AuthenticationController:getBearerToken` on `ShieldControllerMessenger` with the four `ShieldApiService:*` actions ([#9616](https://github.com/MetaMask/core/pull/9616))
-- Add `@metamask/base-data-service` `^0.1.3` and `@metamask/profile-sync-controller` `^28.3.0` as dependencies ([#9616](https://github.com/MetaMask/core/pull/9616))
-- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.3.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693))
-- Bump `@metamask/signature-controller` from `^39.2.7` to `^39.2.8` ([#9721](https://github.com/MetaMask/core/pull/9721))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.4.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/signature-controller` from `^39.2.7` to `^39.2.9` ([#9721](https://github.com/MetaMask/core/pull/9721), [#9735](https://github.com/MetaMask/core/pull/9735))
 
 ## [5.1.3]
 
