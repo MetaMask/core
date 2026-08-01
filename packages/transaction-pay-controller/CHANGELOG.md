@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Increase HyperCore perps deposit `targetAmountMinimum` by the one-time HyperLiquid activation fee (~$1 USDC) for unactivated accounts so trade-with-token deposits still leave the intended trading margin after the fee is deducted ([#TAT-3400](https://consensyssoftware.atlassian.net/browse/TAT-3400))
+- Increase HyperCore perps deposit `targetAmountMinimum` by the one-time HyperLiquid activation fee (~$1 USDC) for unactivated accounts so trade-with-token deposits still leave the intended trading margin after the fee is deducted ([#9751](https://github.com/MetaMask/core/pull/9751))
 - Fix Relay quote validation ([#9723](https://github.com/MetaMask/core/pull/9723))
   - Keep the quote when validation fails with reason `insufficient-source-balance`, while still surfacing `quoteError`; all other validation-failure reasons continue to remove the quote.
   - Exclude a zero `gas` value from the simulated transaction.

@@ -496,6 +496,33 @@ describe('HyperLiquid Activation', () => {
         expect(result.targetAmountMinimum).toBe('2200000000');
         expect(result.hyperliquidActivationFeeUsd).toBe('2');
       });
+
+      it('does not treat a HyperLiquid-source request as a deposit target', async () => {
+        // Defensive: a perpsDeposit parent with isHyperliquidSource must follow
+        // the withdrawal path, not bump targetAmountMinimum.
+        getConfigMock.mockReturnValue({ enabled: true, amountUsd: 1 });
+        fetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => [],
+        } as never);
+
+        const mixedRequest: QuoteRequest = {
+          ...HYPERLIQUID_SOURCE_REQUEST_MOCK,
+          isHyperliquidSource: true,
+        };
+
+        const result = await applyHyperliquidActivationFee(
+          mixedRequest,
+          MESSENGER_MOCK,
+          PERPS_DEPOSIT_TRANSACTION_MOCK,
+        );
+
+        expect(result.targetAmountMinimum).toBe(
+          HYPERLIQUID_SOURCE_REQUEST_MOCK.targetAmountMinimum,
+        );
+        expect(result.sourceTokenAmount).toBe(REDUCED_AMOUNT_MOCK);
+        expect(result.hyperliquidActivationFeeUsd).toBe('1');
+      });
     });
   });
 });
