@@ -511,6 +511,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     'isolated position does not have sufficient margin available to decrease leverage':
       PERPS_ERROR_CODES.ORDER_LEVERAGE_REDUCTION_FAILED,
     'could not immediately match': PERPS_ERROR_CODES.IOC_CANCEL,
+    'multi-sig required': PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+    'invalid nonce': PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE,
   };
 
   // Track whether clients have been initialized (lazy initialization)
@@ -2393,6 +2395,39 @@ export class HyperLiquidProvider implements PerpsProvider {
     };
   }
 
+  #isMappedAccountModeExchangeError(error: Error): boolean {
+    return (
+      error.message === PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED ||
+      error.message === PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE
+    );
+  }
+
+  async #getTradingErrorContext(
+    method: string,
+    error: Error,
+    extra?: Record<string, unknown>,
+  ): Promise<{
+    tags?: Record<string, string | number>;
+    context?: { name: string; data: Record<string, unknown> };
+    extras?: Record<string, unknown>;
+  }> {
+    const contextExtra = { ...extra };
+    if (this.#isMappedAccountModeExchangeError(error)) {
+      try {
+        const userAddress =
+          await this.#walletService.getUserAddressWithDefault();
+        const abstractionMode =
+          this.#subscriptionService.getCachedAbstractionMode(userAddress);
+        if (abstractionMode) {
+          contextExtra[PERPS_EVENT_PROPERTY.ABSTRACTION_MODE] = abstractionMode;
+        }
+      } catch {
+        // Best-effort context enrichment only.
+      }
+    }
+    return this.#getErrorContext(method, contextExtra);
+  }
+
   /**
    * Get supported deposit routes with complete asset and routing information
    *
@@ -3441,6 +3476,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   #handleOrderError(params: HandleOrderErrorParams): OrderResult {
     const { error, symbol, orderType, isBuy } = params;
+    const mappedError = this.#mapError(error);
 
     // A wallet with no Hyperliquid account is an expected pre-account state,
     // not an app defect — same policy already applied to every other
@@ -3453,17 +3489,32 @@ export class HyperLiquidProvider implements PerpsProvider {
         { symbol, orderType, isBuy },
       );
     } else {
+      const contextExtra: Record<string, unknown> = {
+        symbol,
+        orderType,
+        isBuy,
+      };
+      if (this.#isMappedAccountModeExchangeError(mappedError)) {
+        try {
+          const userAddress = this.#walletService.getUserAddress();
+          if (userAddress) {
+            const abstractionMode =
+              this.#subscriptionService.getCachedAbstractionMode(userAddress);
+            if (abstractionMode) {
+              contextExtra[PERPS_EVENT_PROPERTY.ABSTRACTION_MODE] =
+                abstractionMode;
+            }
+          }
+        } catch {
+          // Best-effort context enrichment only.
+        }
+      }
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.handleOrderError'),
-        this.#getErrorContext('placeOrder', {
-          symbol,
-          orderType,
-          isBuy,
-        }),
+        mappedError,
+        this.#getErrorContext('placeOrder', contextExtra),
       );
     }
 
-    const mappedError = this.#mapError(error);
     return createErrorResult(mappedError, { success: false });
   }
 
@@ -4061,7 +4112,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     try {
       this.#deps.debugLogger.log('Canceling order:', params);
 
-      // Validate coin exists
+      // Hydrate clients and asset mapping before coin validation so a cold
+      // start (e.g. service-worker restart with an empty prefetch map) can
+      // self-heal instead of surfacing ORDER_UNKNOWN_COIN prematurely.
+      await this.#ensureReadyForTrading();
+
       const coinValidation = validateCoinExists(
         params.symbol,
         this.#symbolToAssetId,
@@ -4069,9 +4124,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (!coinValidation.isValid) {
         throw new Error(coinValidation.error);
       }
-
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
 
       const exchangeClient = this.#clientService.getExchangeClient();
       const asset = await this.#getAssetIdWithRepair({
@@ -4096,14 +4148,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         error: success ? undefined : 'Order cancellation failed',
       };
     } catch (error) {
+      const mappedError = this.#mapError(error);
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.cancelOrder'),
-        this.#getErrorContext('cancelOrder', {
+        mappedError,
+        await this.#getTradingErrorContext('cancelOrder', mappedError, {
           orderId: params.orderId,
           coin: params.symbol,
         }),
       );
-      return createErrorResult(error, { success: false });
+      return createErrorResult(mappedError, { success: false });
     }
   }
 
