@@ -95,11 +95,13 @@ export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
 export type SubscriptionControllerEvents =
   SubscriptionControllerStateChangeEvent;
 
+type AllowedEvents = never;
+
 // Messenger
 export type SubscriptionControllerMessenger = Messenger<
   typeof controllerName,
   SubscriptionControllerActions | AllowedActions,
-  SubscriptionControllerEvents
+  SubscriptionControllerEvents | AllowedEvents
 >;
 
 /**
