@@ -3474,7 +3474,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params - The operation parameters.
    * @returns The result of the operation.
    */
-  #handleOrderError(params: HandleOrderErrorParams): OrderResult {
+  async #handleOrderError(
+    params: HandleOrderErrorParams,
+  ): Promise<OrderResult> {
     const { error, symbol, orderType, isBuy } = params;
     const mappedError = this.#mapError(error);
 
@@ -3489,29 +3491,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         { symbol, orderType, isBuy },
       );
     } else {
-      const contextExtra: Record<string, unknown> = {
-        symbol,
-        orderType,
-        isBuy,
-      };
-      if (this.#isMappedAccountModeExchangeError(mappedError)) {
-        try {
-          const userAddress = this.#walletService.getUserAddress();
-          if (userAddress) {
-            const abstractionMode =
-              this.#subscriptionService.getCachedAbstractionMode(userAddress);
-            if (abstractionMode) {
-              contextExtra[PERPS_EVENT_PROPERTY.ABSTRACTION_MODE] =
-                abstractionMode;
-            }
-          }
-        } catch {
-          // Best-effort context enrichment only.
-        }
-      }
       this.#deps.logger.error(
         mappedError,
-        this.#getErrorContext('placeOrder', contextExtra),
+        await this.#getTradingErrorContext('placeOrder', mappedError, {
+          symbol,
+          orderType,
+          isBuy,
+        }),
       );
     }
 
@@ -3762,7 +3748,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           adjustedUsdAmount = (estimatedUsd * 1.015).toFixed(2);
         } else {
           // No price information available - cannot retry
-          return this.#handleOrderError({
+          return await this.#handleOrderError({
             error,
             symbol: params.symbol,
             orderType: params.orderType,
@@ -3788,7 +3774,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
-      return this.#handleOrderError({
+      return await this.#handleOrderError({
         error,
         symbol: params.symbol,
         orderType: params.orderType,

@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `EXCHANGE_ACCOUNT_NOT_FOUND` to `PERPS_ERROR_CODES`, returned by `HyperLiquidProvider.placeOrder` when the wallet has no HyperLiquid account yet (TAT-3343) ([#9709](https://github.com/MetaMask/core/pull/9709))
   - This widens the exported `PerpsErrorCode` union, so consumers that key an exhaustive `Record<PerpsErrorCode, …>` stop compiling until they add an entry for the new code. Both first-party clients do: Mobile's `app/components/UI/Perps/utils/translatePerpsError.ts` and Extension's `ui/components/app/perps/utils/translate-perps-error.ts`.
   - To migrate: add a translation entry for `EXCHANGE_ACCOUNT_NOT_FOUND`. It signals that the wallet has no HyperLiquid account yet, so the message should direct the user to fund the account before trading.
-- Add `EXCHANGE_MULTI_SIG_REQUIRED` and `EXCHANGE_INVALID_NONCE` to `PERPS_ERROR_CODES` for HyperLiquid exchange rejections that previously surfaced as raw `"multi-sig required"` / `"invalid nonce"` strings (TAT-3633)
+- Add `EXCHANGE_MULTI_SIG_REQUIRED` and `EXCHANGE_INVALID_NONCE` to `PERPS_ERROR_CODES` for HyperLiquid exchange rejections that previously surfaced as raw `"multi-sig required"` / `"invalid nonce"` strings (TAT-3633) ([#9750](https://github.com/MetaMask/core/pull/9750))
 
 ### Changed
 
@@ -52,8 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Hydrate trading readiness before coin validation in `HyperLiquidProvider.cancelOrder`, so a cold start with an empty prefetch asset map self-heals instead of returning `ORDER_UNKNOWN_COIN` for valid markets (TAT-3633)
-- Map HyperLiquid `"multi-sig required"` and `"invalid nonce"` exchange rejections to `EXCHANGE_MULTI_SIG_REQUIRED` and `EXCHANGE_INVALID_NONCE`, attaching cached abstraction mode to account-mode error log context (TAT-3633)
+- Hydrate trading readiness before coin validation in `HyperLiquidProvider.cancelOrder`, so a cold start with an empty prefetch asset map self-heals instead of returning `ORDER_UNKNOWN_COIN` for valid markets (TAT-3633) ([#9750](https://github.com/MetaMask/core/pull/9750))
+- Map HyperLiquid `"multi-sig required"` and `"invalid nonce"` exchange rejections to `EXCHANGE_MULTI_SIG_REQUIRED` and `EXCHANGE_INVALID_NONCE`, attaching cached abstraction mode to account-mode error log context (TAT-3633) ([#9750](https://github.com/MetaMask/core/pull/9750))
 - **BREAKING:** `OrderParams.timeInForce` now controls the HyperLiquid time-in-force for plain limit orders instead of being ignored; `GTC`, `IOC`, and post-only `ALO` map to their corresponding SDK values ([#9674](https://github.com/MetaMask/core/pull/9674))
   - Order shapes that cannot carry a time in force — market orders and trigger placements, whose execution is decided when they fire — now reject it with `ORDER_TIME_IN_FORCE_NOT_SUPPORTED`, where previously the field was accepted and ignored for every order type. Callers passing `timeInForce` on anything other than a `limit` order must drop it.
   - The rejection happens in `validateOrderParams`, before `placeOrder` changes leverage on-chain or moves margin to a HIP-3 DEX, so a rejected order leaves no side effects behind.
