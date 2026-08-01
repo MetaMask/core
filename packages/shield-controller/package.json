@@ -63,6 +63,7 @@
     "@metamask/signature-controller": "^39.2.9",
     "@metamask/transaction-controller": "^69.4.0",
     "@metamask/utils": "^11.11.0",
+    "@tanstack/query-core": "^4.43.0",
     "cockatiel": "^3.1.2"
   },
   "devDependencies": {

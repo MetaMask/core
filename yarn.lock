@@ -8901,6 +8901,7 @@ __metadata:
     "@metamask/signature-controller": "npm:^39.2.9"
     "@metamask/transaction-controller": "npm:^69.4.0"
     "@metamask/utils": "npm:^11.11.0"
+    "@tanstack/query-core": "npm:^4.43.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     cockatiel: "npm:^3.1.2"
