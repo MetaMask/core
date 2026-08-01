@@ -566,6 +566,21 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe1();
       unsubscribe2();
     });
+
+    it('reports DEX coverage for positions only once that DEX has published', async () => {
+      // closePosition treats a cache miss as "position closed" only for a
+      // covered DEX, so coverage must be false until data arrives
+      expect(service.getCachedPositionsForDex('')).toBeNull();
+
+      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
+      await jest.runAllTimersAsync();
+
+      expect(service.getCachedPositionsForDex('')).not.toBeNull();
+      // No HIP-3 DEX published, so a miss there proves nothing
+      expect(service.getCachedPositionsForDex('xyz')).toBeNull();
+
+      unsubscribe();
+    });
   });
 
   describe('spotState WebSocket Subscription', () => {

@@ -13,7 +13,10 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
-import { isRelayValidationEnabled } from '../../utils/feature-flags.js';
+import {
+  getEIP7702UpgradeContractAddress,
+  isRelayValidationEnabled,
+} from '../../utils/feature-flags.js';
 import {
   validateQuoteExecution,
   QuoteError,
@@ -67,6 +70,7 @@ export async function validateRelayQuotes(
         quote,
         signal: request.signal,
         simulation: buildRelayValidationSimulation(
+          request.messenger,
           quote,
           calls,
           executeRequest,
@@ -76,7 +80,17 @@ export async function validateRelayQuotes(
       if (request.signal?.aborted) {
         throw error;
       }
-      throw toQuoteError(error);
+      const quoteError = toQuoteError(error);
+      if (quoteError.info.reason === 'insufficient-source-balance') {
+        // Backwards compatibility: keep the entire quote batch (including
+        // quotes that may have passed or not yet been validated) so that
+        // clients can still show quote details alongside the balance error.
+        throw new QuoteError(
+          quoteError.info,
+          request.quotes as TransactionPayQuote<unknown>[],
+        );
+      }
+      throw quoteError;
     }
   }
 }
@@ -100,6 +114,7 @@ function toQuoteError(error: unknown): QuoteError {
 }
 
 function buildRelayValidationSimulation(
+  messenger: TransactionPayControllerMessenger,
   quote: TransactionPayQuote<RelayQuote>,
   calls: TransactionParams[],
   executeRequest?: Omit<RelayExecuteRequest, 'metamask'>,
@@ -113,7 +128,7 @@ function buildRelayValidationSimulation(
   }
   if (quote.original.metamask.is7702) {
     log('Building 7702 batch simulation', context);
-    return buildRelay7702BatchSimulation(quote, calls);
+    return buildRelay7702BatchSimulation(messenger, quote, calls);
   }
   log('Building normal simulation', context);
   return buildRelayNormalSimulation(calls);
@@ -145,10 +160,11 @@ function buildRelayExecuteSimulation(
 }
 
 function buildRelay7702BatchSimulation(
+  messenger: TransactionPayControllerMessenger,
   quote: TransactionPayQuote<RelayQuote>,
   calls: TransactionParams[],
 ): QuoteSimulation {
-  const { from } = quote.request;
+  const { from, sourceChainId } = quote.request;
   const gas = quote.original.metamask.gasLimits[0];
 
   const batchTx = generateEIP7702BatchTransaction(
@@ -160,20 +176,25 @@ function buildRelay7702BatchSimulation(
     })),
   );
 
-  const authList = quote.original.request.authorizationList?.length
-    ? quote.original.request.authorizationList.map((auth) => ({
-        address: auth.address,
-        from,
-      }))
-    : undefined;
+  // The batch call is an ERC-7821 `execute` on the sender's own account, so the
+  // account must appear upgraded for the simulation to succeed. The quote does
+  // not always carry an authorization, and there is no fast way to check the
+  // live upgrade state, so an authorization is always included: the delegator
+  // address comes from the quote when present, otherwise from the configured
+  // EIP-7702 upgrade contract for the chain.
+  const address =
+    quote.original.request.authorizationList?.[0]?.address ??
+    getEIP7702UpgradeContractAddress(messenger, sourceChainId);
+
+  const authorizationList = address ? [{ address, from }] : undefined;
 
   return {
     transactions: [
       {
-        ...(authList ? { authorizationList: authList } : {}),
+        ...(authorizationList ? { authorizationList } : {}),
         data: batchTx.data,
         from,
-        ...(gas === undefined ? {} : { gas: toHex(gas) }),
+        ...(gas === undefined || gas === 0 ? {} : { gas: toHex(gas) }),
         to: batchTx.to as Hex,
         value: '0x0',
       },
@@ -185,14 +206,17 @@ function buildRelayNormalSimulation(
   calls: TransactionParams[],
 ): QuoteSimulation {
   return {
-    transactions: calls.map((params) => ({
-      data: params.data as Hex | undefined,
-      from: params.from as Hex,
-      gas: params.gas as Hex | undefined,
-      maxFeePerGas: params.maxFeePerGas as Hex | undefined,
-      maxPriorityFeePerGas: params.maxPriorityFeePerGas as Hex | undefined,
-      to: params.to as Hex | undefined,
-      value: params.value as Hex,
-    })),
+    transactions: calls.map((params) => {
+      const gas = params.gas as Hex | undefined;
+      return {
+        data: params.data as Hex | undefined,
+        from: params.from as Hex,
+        ...(gas === undefined || new BigNumber(gas).isZero() ? {} : { gas }),
+        maxFeePerGas: params.maxFeePerGas as Hex | undefined,
+        maxPriorityFeePerGas: params.maxPriorityFeePerGas as Hex | undefined,
+        to: params.to as Hex | undefined,
+        value: params.value as Hex,
+      };
+    }),
   };
 }

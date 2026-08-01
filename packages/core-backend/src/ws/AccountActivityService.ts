@@ -57,6 +57,17 @@ const MESSENGER_EXPOSED_METHODS = [] as const;
 
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
+// Window (in ms) over which consecutive system notifications are accumulated
+// before a single batched `statusChanged` event is published. Coalescing bursts
+// of chain up/down notifications avoids flooding consumers.
+const STATUS_CHANGE_DEBOUNCE_MS = 1000;
+
+// Maximum random jitter (in ms) added to the debounce window before publishing.
+// Spreading the publish across a random delay prevents many clients reacting to
+// the same system notification from publishing in lockstep (a thundering herd
+// on downstream consumers).
+const STATUS_CHANGE_JITTER_MS = 1000;
+
 // EVM subscriptions are always enabled.
 const ALWAYS_SUPPORTED_CHAIN_PREFIXES = ['eip155'] as const;
 
@@ -220,6 +231,17 @@ export class AccountActivityService {
 
   // Track chains that are currently up (based on system notifications)
   readonly #chainsUp: Set<string> = new Set();
+
+  // Debouncing for rapid status changes: buffers the latest status per chain
+  // and coalesces bursts of system notifications into fewer downstream
+  // `statusChanged` events.
+  readonly #statusChangeDebouncer: {
+    timer: NodeJS.Timeout | null;
+    pendingChanges: Map<string, 'up' | 'down'>;
+  } = {
+    timer: null,
+    pendingChanges: new Map(),
+  };
 
   // =============================================================================
   // Constructor and Initialization
@@ -421,7 +443,6 @@ export class AccountActivityService {
    */
   #handleSystemNotification(notification: ServerNotificationMessage): void {
     const data = notification.data as SystemNotificationData;
-    const { timestamp } = notification;
 
     // Validate required fields
     if (!data.chainIds || !Array.isArray(data.chainIds) || !data.status) {
@@ -430,7 +451,6 @@ export class AccountActivityService {
       );
     }
 
-    // Track chain status
     if (data.status === 'up') {
       for (const chainId of data.chainIds) {
         this.#chainsUp.add(chainId);
@@ -441,21 +461,65 @@ export class AccountActivityService {
       }
     }
 
-    // Publish status change directly (delta update)
-    this.#messenger.publish(`AccountActivityService:statusChanged`, {
-      chainIds: data.chainIds,
-      status: data.status,
-      timestamp,
-    });
+    for (const chainId of data.chainIds) {
+      this.#statusChangeDebouncer.pendingChanges.set(chainId, data.status);
+    }
 
-    log(
-      `WebSocket status change - Published tracked chains as ${data.status}`,
-      {
-        count: data.chainIds.length,
-        chains: data.chainIds,
-        status: data.status,
-      },
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+    }
+
+    // Debounce window plus a random jitter, so clients reacting to the same
+    // system notification don't publish in lockstep.
+    const delay =
+      STATUS_CHANGE_DEBOUNCE_MS + Math.random() * STATUS_CHANGE_JITTER_MS;
+
+    this.#statusChangeDebouncer.timer = setTimeout(() => {
+      this.#processAccumulatedStatusChanges();
+    }, delay);
+
+    log(`WebSocket status change - Buffered chains as ${data.status}`, {
+      count: data.chainIds.length,
+      chains: data.chainIds,
+      status: data.status,
+    });
+  }
+
+  /**
+   * Publish the buffered status changes as batched `statusChanged` events, one
+   * per status (`up`/`down`), then reset the buffer and timer.
+   */
+  #processAccumulatedStatusChanges(): void {
+    const changes = Array.from(
+      this.#statusChangeDebouncer.pendingChanges.entries(),
     );
+    this.#statusChangeDebouncer.pendingChanges.clear();
+    this.#statusChangeDebouncer.timer = null;
+
+    // Group buffered chains by their latest status. A chain can only appear in
+    // one group because the buffer keeps a single entry per chain.
+    const grouped: Record<'up' | 'down', string[]> = { up: [], down: [] };
+    for (const [chainId, status] of changes) {
+      grouped[status].push(chainId);
+    }
+
+    for (const status of ['up', 'down'] as const) {
+      const chainIds = grouped[status];
+      if (chainIds.length === 0) {
+        continue;
+      }
+
+      this.#messenger.publish(`AccountActivityService:statusChanged`, {
+        chainIds,
+        status,
+      });
+
+      log(`WebSocket status change - Published batched chains as ${status}`, {
+        count: chainIds.length,
+        chains: chainIds,
+        status,
+      });
+    }
   }
 
   /**
@@ -473,19 +537,28 @@ export class AccountActivityService {
       // The system notification will automatically provide the list of chains that are up
       await this.#subscribeToSelectedAccount();
     } else if (state === WebSocketState.DISCONNECTED) {
-      // On disconnect, flush all tracked chains as down
-      const chainsToMarkDown = Array.from(this.#chainsUp);
+      if (this.#statusChangeDebouncer.timer) {
+        clearTimeout(this.#statusChangeDebouncer.timer);
+        this.#statusChangeDebouncer.timer = null;
+      }
 
-      if (chainsToMarkDown.length > 0) {
+      const chainsToMarkDown = new Set(this.#chainsUp);
+      for (const chainId of this.#statusChangeDebouncer.pendingChanges.keys()) {
+        chainsToMarkDown.add(chainId);
+      }
+      this.#statusChangeDebouncer.pendingChanges.clear();
+
+      if (chainsToMarkDown.size > 0) {
+        const chainIds = Array.from(chainsToMarkDown);
         this.#messenger.publish(`AccountActivityService:statusChanged`, {
-          chainIds: chainsToMarkDown,
+          chainIds,
           status: 'down',
           timestamp: Date.now(),
         });
 
         log('WebSocket disconnection - Published tracked chains as down', {
-          count: chainsToMarkDown.length,
-          chains: chainsToMarkDown,
+          count: chainIds.length,
+          chains: chainIds,
         });
 
         // Clear the tracking set since all chains are now down
@@ -628,6 +701,12 @@ export class AccountActivityService {
    * Optimized for fast cleanup during service destruction or mobile app termination
    */
   destroy(): void {
+    // Cancel any pending batched status-change flush
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+      this.#statusChangeDebouncer.timer = null;
+    }
+
     // Clean up system notification callback
     this.#messenger.call(
       'BackendWebSocketService:removeChannelCallback',

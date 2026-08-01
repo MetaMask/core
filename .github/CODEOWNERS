@@ -54,6 +54,7 @@
 /packages/money-account-api-data-service      @MetaMask/earn
 /packages/chomp-api-service                   @MetaMask/earn @MetaMask/delegation
 /packages/money-account-upgrade-controller    @MetaMask/earn @MetaMask/delegation
+/packages/money-account-utils                 @MetaMask/earn
 
 ## Social AI Team
 /packages/ai-controllers        @MetaMask/social-ai
@@ -162,129 +163,196 @@
 ## Package Release related
 /packages/account-tree-controller/package.json                 @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/account-tree-controller/CHANGELOG.md                 @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/account-tree-controller/tsconfig.*                   @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/accounts-controller/package.json                     @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/accounts-controller/CHANGELOG.md                     @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/accounts-controller/tsconfig.*                       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/analytics-controller/package.json                    @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/analytics-controller/CHANGELOG.md                    @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
+/packages/analytics-controller/tsconfig.*                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/analytics-data-regulation-controller/package.json    @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/analytics-data-regulation-controller/CHANGELOG.md    @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
+/packages/analytics-data-regulation-controller/tsconfig.*      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/address-book-controller/package.json                 @MetaMask/confirmations @MetaMask/core-platform
 /packages/address-book-controller/CHANGELOG.md                 @MetaMask/confirmations @MetaMask/core-platform
+/packages/address-book-controller/tsconfig.*                   @MetaMask/confirmations @MetaMask/core-platform
 /packages/announcement-controller/package.json                 @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
 /packages/announcement-controller/CHANGELOG.md                 @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
+/packages/announcement-controller/tsconfig.*                   @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
 /packages/client-utils/package.json                            @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
 /packages/client-utils/CHANGELOG.md                            @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
+/packages/client-utils/tsconfig.*                              @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
 /packages/approval-controller/package.json                     @MetaMask/confirmations @MetaMask/core-platform
 /packages/approval-controller/CHANGELOG.md                     @MetaMask/confirmations @MetaMask/core-platform
+/packages/approval-controller/tsconfig.*                       @MetaMask/confirmations @MetaMask/core-platform
 /packages/assets-controllers/package.json                      @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controllers/CHANGELOG.md                      @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/assets-controllers/tsconfig.*                        @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controller/package.json                       @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controller/CHANGELOG.md                       @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/assets-controller/tsconfig.*                         @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/config-registry-controller/package.json              @MetaMask/networks @MetaMask/core-platform
 /packages/config-registry-controller/CHANGELOG.md              @MetaMask/networks @MetaMask/core-platform
+/packages/config-registry-controller/tsconfig.*                @MetaMask/networks @MetaMask/core-platform
 /packages/delegation-controller/package.json                   @MetaMask/delegation @MetaMask/core-platform
 /packages/delegation-controller/CHANGELOG.md                   @MetaMask/delegation @MetaMask/core-platform
+/packages/delegation-controller/tsconfig.*                     @MetaMask/delegation @MetaMask/core-platform
 /packages/earn-controller/package.json                         @MetaMask/earn @MetaMask/core-platform
 /packages/earn-controller/CHANGELOG.md                         @MetaMask/earn @MetaMask/core-platform
+/packages/earn-controller/tsconfig.*                           @MetaMask/earn @MetaMask/core-platform
 /packages/money-account-balance-service/package.json           @MetaMask/earn @MetaMask/core-platform
 /packages/money-account-balance-service/CHANGELOG.md           @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-balance-service/tsconfig.*             @MetaMask/earn @MetaMask/core-platform
 /packages/money-account-api-data-service/package.json          @MetaMask/earn @MetaMask/core-platform
 /packages/money-account-api-data-service/CHANGELOG.md          @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-api-data-service/tsconfig.*            @MetaMask/earn @MetaMask/core-platform
 /packages/ens-controller/package.json                          @MetaMask/confirmations @MetaMask/core-platform
 /packages/ens-controller/CHANGELOG.md                          @MetaMask/confirmations @MetaMask/core-platform
+/packages/ens-controller/tsconfig.*                            @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/package.json                      @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/CHANGELOG.md                      @MetaMask/confirmations @MetaMask/core-platform
+/packages/gas-fee-controller/tsconfig.*                        @MetaMask/confirmations @MetaMask/core-platform
 /packages/gator-permissions-controller/package.json            @MetaMask/delegation @MetaMask/core-platform
 /packages/gator-permissions-controller/CHANGELOG.md            @MetaMask/delegation @MetaMask/core-platform
+/packages/gator-permissions-controller/tsconfig.*              @MetaMask/delegation @MetaMask/core-platform
 /packages/geolocation-controller/package.json                  @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/geolocation-controller/CHANGELOG.md                  @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/geolocation-controller/tsconfig.*                    @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/keyring-controller/package.json                      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/keyring-controller/CHANGELOG.md                      @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/keyring-controller/tsconfig.*                        @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/passkey-controller/package.json                      @MetaMask/web3auth @MetaMask/core-platform
 /packages/passkey-controller/CHANGELOG.md                      @MetaMask/web3auth @MetaMask/core-platform
+/packages/passkey-controller/tsconfig.*                        @MetaMask/web3auth @MetaMask/core-platform
 /packages/logging-controller/package.json                      @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/CHANGELOG.md                      @MetaMask/confirmations @MetaMask/core-platform
+/packages/logging-controller/tsconfig.*                        @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/package.json                         @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/CHANGELOG.md                         @MetaMask/confirmations @MetaMask/core-platform
+/packages/message-manager/tsconfig.*                           @MetaMask/confirmations @MetaMask/core-platform
 /packages/multichain-account-service/package.json              @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-account-service/CHANGELOG.md              @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/multichain-account-service/tsconfig.*                @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/name-controller/package.json                         @MetaMask/confirmations @MetaMask/core-platform
 /packages/name-controller/CHANGELOG.md                         @MetaMask/confirmations @MetaMask/core-platform
+/packages/name-controller/tsconfig.*                           @MetaMask/confirmations @MetaMask/core-platform
 /packages/notification-services-controller/package.json        @MetaMask/engagement @MetaMask/core-platform
 /packages/notification-services-controller/CHANGELOG.md        @MetaMask/engagement @MetaMask/core-platform
+/packages/notification-services-controller/tsconfig.*          @MetaMask/engagement @MetaMask/core-platform
 /packages/compliance-controller/package.json                   @MetaMask/perps @MetaMask/core-platform
 /packages/compliance-controller/CHANGELOG.md                   @MetaMask/perps @MetaMask/core-platform
+/packages/compliance-controller/tsconfig.*                     @MetaMask/perps @MetaMask/core-platform
 /packages/perps-controller/package.json                        @MetaMask/perps @MetaMask/core-platform
 /packages/perps-controller/CHANGELOG.md                        @MetaMask/perps @MetaMask/core-platform
+/packages/perps-controller/tsconfig.*                          @MetaMask/perps @MetaMask/core-platform
 /packages/phishing-controller/package.json                     @MetaMask/product-safety @MetaMask/core-platform
 /packages/phishing-controller/CHANGELOG.md                     @MetaMask/product-safety @MetaMask/core-platform
+/packages/phishing-controller/tsconfig.*                       @MetaMask/product-safety @MetaMask/core-platform
 /packages/ramps-controller/package.json                        @MetaMask/money-movement @MetaMask/core-platform
 /packages/ramps-controller/CHANGELOG.md                        @MetaMask/money-movement @MetaMask/core-platform
+/packages/ramps-controller/tsconfig.*                          @MetaMask/money-movement @MetaMask/core-platform
 /packages/authenticated-user-storage/package.json              @MetaMask/auth-engineers @MetaMask/core-platform
 /packages/authenticated-user-storage/CHANGELOG.md              @MetaMask/auth-engineers @MetaMask/core-platform
+/packages/authenticated-user-storage/tsconfig.*                @MetaMask/auth-engineers @MetaMask/core-platform
 /packages/profile-metrics-controller/package.json              @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/profile-metrics-controller/CHANGELOG.md              @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
+/packages/profile-metrics-controller/tsconfig.*                @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/profile-sync-controller/package.json                 @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-sync-controller/CHANGELOG.md                 @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/profile-sync-controller/tsconfig.*                   @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/signature-controller/package.json                    @MetaMask/confirmations @MetaMask/core-platform
 /packages/signature-controller/CHANGELOG.md                    @MetaMask/confirmations @MetaMask/core-platform
+/packages/signature-controller/tsconfig.*                      @MetaMask/confirmations @MetaMask/core-platform
 /packages/smart-transactions-controller/package.json           @MetaMask/transactions @MetaMask/core-platform
 /packages/smart-transactions-controller/CHANGELOG.md           @MetaMask/transactions @MetaMask/core-platform
+/packages/smart-transactions-controller/tsconfig.*             @MetaMask/transactions @MetaMask/core-platform
 /packages/sentinel-api-service/package.json                    @MetaMask/confirmations @MetaMask/transactions @MetaMask/core-platform
 /packages/sentinel-api-service/CHANGELOG.md                    @MetaMask/confirmations @MetaMask/transactions @MetaMask/core-platform
+/packages/sentinel-api-service/tsconfig.*                      @MetaMask/confirmations @MetaMask/transactions @MetaMask/core-platform
 /packages/transaction-controller/package.json                  @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/CHANGELOG.md                  @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-controller/tsconfig.*                    @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-controller/package.json              @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-controller/CHANGELOG.md              @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-pay-controller/tsconfig.*                @MetaMask/confirmations @MetaMask/core-platform
 /packages/user-operation-controller/package.json               @MetaMask/confirmations @MetaMask/core-platform
 /packages/user-operation-controller/CHANGELOG.md               @MetaMask/confirmations @MetaMask/core-platform
+/packages/user-operation-controller/tsconfig.*                 @MetaMask/confirmations @MetaMask/core-platform
 /packages/multichain-transactions-controller/package.json      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-transactions-controller/CHANGELOG.md      @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/multichain-transactions-controller/tsconfig.*        @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/bridge-controller/package.json                       @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/bridge-controller/CHANGELOG.md                       @MetaMask/swaps-engineers @MetaMask/core-platform
+/packages/bridge-controller/tsconfig.*                         @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/remote-feature-flag-controller/package.json          @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/remote-feature-flag-controller/CHANGELOG.md          @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/remote-feature-flag-controller/tsconfig.*            @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/storage-service/package.json                         @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/storage-service/CHANGELOG.md                         @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/storage-service/tsconfig.*                           @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/bridge-status-controller/package.json                @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/bridge-status-controller/CHANGELOG.md                @MetaMask/swaps-engineers @MetaMask/core-platform
+/packages/bridge-status-controller/tsconfig.*                  @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/app-metadata-controller/package.json                 @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/app-metadata-controller/CHANGELOG.md                 @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/app-metadata-controller/tsconfig.*                   @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/foundryup/package.json                               @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/foundryup/CHANGELOG.md                               @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
+/packages/foundryup/tsconfig.*                                 @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/bitcoin-regtest-up/package.json                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/bitcoin-regtest-up/CHANGELOG.md                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/bitcoin-regtest-up/tsconfig.*                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/java-tron-up/package.json                            @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/java-tron-up/CHANGELOG.md                            @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/java-tron-up/tsconfig.*                              @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/local-node-utils/package.json                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/local-node-utils/CHANGELOG.md                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/local-node-utils/tsconfig.*                          @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/solana-test-validator-up/package.json                @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/solana-test-validator-up/CHANGELOG.md                @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/solana-test-validator-up/tsconfig.*                  @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/stellar-quickstart-up/package.json                   @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/stellar-quickstart-up/CHANGELOG.md                   @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/stellar-quickstart-up/tsconfig.*                     @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/seedless-onboarding-controller/package.json          @MetaMask/web3auth @MetaMask/core-platform
 /packages/seedless-onboarding-controller/CHANGELOG.md          @MetaMask/web3auth @MetaMask/core-platform
+/packages/seedless-onboarding-controller/tsconfig.*            @MetaMask/web3auth @MetaMask/core-platform
 /packages/shield-controller/package.json                       @MetaMask/web3auth @MetaMask/core-platform
 /packages/shield-controller/CHANGELOG.md                       @MetaMask/web3auth @MetaMask/core-platform
+/packages/shield-controller/tsconfig.*                         @MetaMask/web3auth @MetaMask/core-platform
 /packages/network-enablement-controller/package.json           @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/network-enablement-controller/CHANGELOG.md           @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/network-enablement-controller/tsconfig.*             @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/subscription-controller/package.json                 @MetaMask/web3auth @MetaMask/core-platform
 /packages/subscription-controller/CHANGELOG.md                 @MetaMask/web3auth @MetaMask/core-platform
+/packages/subscription-controller/tsconfig.*                   @MetaMask/web3auth @MetaMask/core-platform
 /packages/core-backend/package.json                            @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/core-backend/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/core-backend/tsconfig.*                              @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/claims-controller/package.json                       @MetaMask/web3auth @MetaMask/core-platform
 /packages/claims-controller/CHANGELOG.md                       @MetaMask/web3auth @MetaMask/core-platform
+/packages/claims-controller/tsconfig.*                         @MetaMask/web3auth @MetaMask/core-platform
 /packages/ai-controllers/package.json                          @MetaMask/social-ai @MetaMask/core-platform
 /packages/ai-controllers/CHANGELOG.md                          @MetaMask/social-ai @MetaMask/core-platform
+/packages/ai-controllers/tsconfig.*                            @MetaMask/social-ai @MetaMask/core-platform
 /packages/client-controller/package.json                       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/client-controller/CHANGELOG.md                       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/client-controller/tsconfig.*                         @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/social-controllers/package.json                      @MetaMask/social-ai @MetaMask/core-platform
 /packages/social-controllers/CHANGELOG.md                      @MetaMask/social-ai @MetaMask/core-platform
+/packages/social-controllers/tsconfig.*                        @MetaMask/social-ai @MetaMask/core-platform
 /packages/money-account-controller/package.json                @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/money-account-controller/CHANGELOG.md                @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/money-account-controller/tsconfig.*                  @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/chomp-api-service/package.json                       @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/chomp-api-service/CHANGELOG.md                       @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
+/packages/chomp-api-service/tsconfig.*                         @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/money-account-upgrade-controller/package.json        @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/money-account-upgrade-controller/CHANGELOG.md        @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
+/packages/money-account-upgrade-controller/tsconfig.*          @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
+/packages/money-account-utils/package.json                     @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-utils/CHANGELOG.md                     @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-utils/tsconfig.*                       @MetaMask/earn @MetaMask/core-platform
 /packages/snap-account-service/package.json                    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/CHANGELOG.md                    @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/snap-account-service/tsconfig.*                      @MetaMask/accounts-engineers @MetaMask/core-platform
