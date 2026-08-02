@@ -17,9 +17,10 @@ import { SubscriptionServiceError } from './errors.js';
 import {
   serviceName,
   SUBSCRIPTION_URL,
-  SubscriptionService,
-  type SubscriptionServiceMessenger,
+  SubscriptionService
+  
 } from './SubscriptionService.js';
+import type {SubscriptionServiceMessenger} from './SubscriptionService.js';
 import type {
   StartSubscriptionRequest,
   StartCryptoSubscriptionRequest,
@@ -175,7 +176,7 @@ function createService({
     fetchMock,
     captureExceptionMock,
     env,
-    testUrl: (() => {
+    testUrl: ((): string => {
       try {
         return getTestUrl(env);
       } catch {
@@ -1164,7 +1165,7 @@ describe('SubscriptionService', () => {
     it('does not duplicate query parameters on retry', async () => {
       const fetchMock = jest.fn();
       let attempts = 0;
-      fetchMock.mockImplementation(async (url: string) => {
+      fetchMock.mockImplementation(async () => {
         attempts += 1;
         if (attempts < DEFAULT_MAX_RETRIES + 1) {
           return createMockResponse({
