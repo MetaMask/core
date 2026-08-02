@@ -29,7 +29,6 @@ const SUBSCRIPTION_SERVICE_OPTIONS = {
   fetchFunction: globalThis.fetch,
 };
 
-
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
     instanceOptions: {

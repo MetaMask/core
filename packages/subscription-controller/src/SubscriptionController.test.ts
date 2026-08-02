@@ -379,7 +379,9 @@ type WithControllerCallback<ReturnValue> = (params: {
   initialState: SubscriptionControllerState;
   messenger: SubscriptionControllerMessenger;
   rootMessenger: RootMessenger;
-  mockService: ReturnType<typeof registerMockSubscriptionService>['mockService'];
+  mockService: ReturnType<
+    typeof registerMockSubscriptionService
+  >['mockService'];
   mockPerformSignOut: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 

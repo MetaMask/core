@@ -1,7 +1,5 @@
 import { Messenger } from '@metamask/messenger';
-import {
-  SubscriptionService,
-} from '@metamask/subscription-controller';
+import { SubscriptionService } from '@metamask/subscription-controller';
 import type { SubscriptionServiceMessenger } from '@metamask/subscription-controller';
 
 import type { InitializationConfiguration } from '../../types.js';

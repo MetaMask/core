@@ -10,8 +10,8 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from '../../defaults.js';
-import { subscriptionController } from './subscription-controller.js';
 import { subscriptionService } from '../subscription-service/subscription-service.js';
+import { subscriptionController } from './subscription-controller.js';
 
 type ActionHandler = (...args: unknown[]) => unknown;
 

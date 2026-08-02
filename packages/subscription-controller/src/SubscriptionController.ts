@@ -760,9 +760,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
     // link rewards to the subscription
-    const response = await this.messenger.call('SubscriptionService:linkRewards', {
-      rewardAccountId: request.rewardAccountId,
-    });
+    const response = await this.messenger.call(
+      'SubscriptionService:linkRewards',
+      {
+        rewardAccountId: request.rewardAccountId,
+      },
+    );
     if (!response.success) {
       throw new Error(SubscriptionControllerErrorMessage.LinkRewardsFailed);
     }
