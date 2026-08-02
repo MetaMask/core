@@ -17,10 +17,9 @@ import { SubscriptionServiceError } from './errors.js';
 import {
   serviceName,
   SUBSCRIPTION_URL,
-  SubscriptionService
-  
+  SubscriptionService,
 } from './SubscriptionService.js';
-import type {SubscriptionServiceMessenger} from './SubscriptionService.js';
+import type { SubscriptionServiceMessenger } from './SubscriptionService.js';
 import type {
   StartSubscriptionRequest,
   StartCryptoSubscriptionRequest,
