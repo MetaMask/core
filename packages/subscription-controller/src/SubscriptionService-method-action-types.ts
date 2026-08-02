@@ -30,6 +30,7 @@ export type SubscriptionServiceCancelSubscriptionAction = {
  * Reverses a pending subscription cancellation.
  *
  * @param params - The uncancel subscription request.
+ * @param params.subscriptionId - The subscription ID to uncancel.
  * @returns The updated subscription.
  */
 export type SubscriptionServiceUnCancelSubscriptionAction = {
