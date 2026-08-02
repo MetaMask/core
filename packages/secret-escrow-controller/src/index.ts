@@ -12,12 +12,17 @@ export type {
   SecretEscrowControllerState,
   SecretEscrowControllerStateChangeEvent,
   SecretEscrowRecord,
+  SnapshotCapableSecretEscrowClient,
 } from './SecretEscrowController.js';
+export type { WrappedPassword } from './crypto.js';
+export { wrapPassword, unwrapPassword } from './crypto.js';
 export type {
   SecretEscrowControllerIsEnrolledAction,
   SecretEscrowControllerEnrollAction,
+  SecretEscrowControllerEnrollAndWrapPasswordAction,
   SecretEscrowControllerStartExportAction,
   SecretEscrowControllerCompleteExportAction,
+  SecretEscrowControllerRecoverPasswordAction,
   SecretEscrowControllerRevokeAction,
   SecretEscrowControllerClearStateAction,
   SecretEscrowControllerMethodActions,

@@ -9,5 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release of `@metamask/secret-escrow-client` with `SecretEscrowClient` types, errors, and in-memory `MockSecretEscrowClient`
+- Mock snapshot export/import for local-dev persistence across process restarts
 
 [Unreleased]: https://github.com/MetaMask/core/

@@ -51,6 +51,7 @@ describe('SecretEscrowController', () => {
   it('returns default empty state', () => {
     expect(getDefaultSecretEscrowControllerState()).toStrictEqual({
       escrowRecord: null,
+      mockClientSnapshot: null,
     });
   });
 
@@ -77,6 +78,7 @@ describe('SecretEscrowController', () => {
       secretEscrowControllerSelectors.selectEscrowRecord(controller.state)
         ?.factor.credentialId,
     ).toBe(TEST_FACTOR.credentialId);
+    expect(controller.state.mockClientSnapshot).not.toBeNull();
 
     const { challenge } = await controller.startExport();
     const released = await controller.completeExport({
@@ -88,6 +90,84 @@ describe('SecretEscrowController', () => {
     await controller.revoke();
     expect(controller.isEnrolled()).toBe(false);
     expect(client.hasUser('user-1')).toBe(false);
+    expect(controller.state.mockClientSnapshot).toBeNull();
+  });
+
+  it('wraps and recovers a wallet password', async () => {
+    const client = new MockSecretEscrowClient();
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+
+    await controller.enrollAndWrapPassword({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+      password: 'wallet-password',
+    });
+
+    expect(
+      secretEscrowControllerSelectors.selectHasWrappedPassword(controller.state),
+    ).toBe(true);
+
+    const { challenge } = await controller.startExport();
+    const password = await controller.recoverPassword({
+      id: TEST_FACTOR.credentialId,
+      challenge,
+    });
+    expect(password).toBe('wallet-password');
+  });
+
+  it('restores mock backend state from a persisted snapshot', async () => {
+    const client = new MockSecretEscrowClient();
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+    await controller.enrollAndWrapPassword({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+      password: 'wallet-password',
+    });
+
+    const restoredClient = new MockSecretEscrowClient();
+    const restored = new SecretEscrowController({
+      messenger: createMessenger(),
+      client: restoredClient,
+      state: controller.state,
+    });
+
+    const { challenge } = await restored.startExport();
+    await expect(
+      restored.recoverPassword({
+        id: TEST_FACTOR.credentialId,
+        challenge,
+      }),
+    ).resolves.toBe('wallet-password');
+  });
+
+  it('rejects recoverPassword when no wrapped password exists', async () => {
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client: new MockSecretEscrowClient(),
+    });
+    await controller.enroll({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+    const { challenge } = await controller.startExport();
+
+    await expect(
+      controller.recoverPassword({
+        id: TEST_FACTOR.credentialId,
+        challenge,
+      }),
+    ).rejects.toMatchObject({
+      code: SecretEscrowErrorCode.NotRegistered,
+    });
   });
 
   it('rejects a second enroll while already enrolled', async () => {
@@ -167,5 +247,49 @@ describe('SecretEscrowController', () => {
     await controller.revoke();
     expect(revokeSpy).not.toHaveBeenCalled();
     expect(controller.isEnrolled()).toBe(false);
+  });
+
+  it('skips mock snapshot persistence for non-snapshot clients', async () => {
+    const client = {
+      register: jest.fn().mockResolvedValue({ secret: new Uint8Array(32) }),
+      exportInit: jest.fn(),
+      exportComplete: jest.fn(),
+      revoke: jest.fn(),
+    };
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+
+    await controller.enroll({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+
+    expect(controller.state.mockClientSnapshot).toBeNull();
+  });
+
+  it('treats a client missing importSnapshot as non-snapshot-capable', async () => {
+    const client = {
+      register: jest.fn().mockResolvedValue({ secret: new Uint8Array(32) }),
+      exportInit: jest.fn(),
+      exportComplete: jest.fn(),
+      revoke: jest.fn(),
+      exportSnapshot: jest.fn(),
+    };
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+
+    await controller.enroll({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+
+    expect(client.exportSnapshot).not.toHaveBeenCalled();
+    expect(controller.state.mockClientSnapshot).toBeNull();
   });
 });

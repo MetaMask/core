@@ -20,4 +20,7 @@ export {
 } from './errors.js';
 export type { SecretEscrowErrorOptions } from './errors.js';
 export { MockSecretEscrowClient } from './MockSecretEscrowClient.js';
-export type { MockSecretEscrowClientOptions } from './MockSecretEscrowClient.js';
+export type {
+  MockSecretEscrowClientOptions,
+  MockSecretEscrowSnapshot,
+} from './MockSecretEscrowClient.js';

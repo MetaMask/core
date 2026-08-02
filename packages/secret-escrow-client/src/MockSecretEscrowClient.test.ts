@@ -372,4 +372,31 @@ describe('MockSecretEscrowClient', () => {
       'No record for missing',
     );
   });
+
+  it('round-trips an export/import snapshot', async () => {
+    const client = new MockSecretEscrowClient();
+    const { secret } = await client.register({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+
+    const snapshot = client.exportSnapshot();
+    const restored = new MockSecretEscrowClient();
+    restored.importSnapshot(snapshot);
+
+    const { challenge } = await restored.exportInit({
+      userId: 'user-1',
+      factorId: 'passkey',
+    });
+    const { secret: released } = await restored.exportComplete({
+      userId: 'user-1',
+      factorId: 'passkey',
+      assertion: {
+        id: TEST_FACTOR.credentialId,
+        challenge,
+      },
+    });
+    expect(bytesToHex(released)).toBe(bytesToHex(secret));
+  });
 });

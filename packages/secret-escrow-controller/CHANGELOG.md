@@ -9,5 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release of `@metamask/secret-escrow-controller` for WebAuthn-gated secret escrow enrollment and export
+- `enrollAndWrapPassword` / `recoverPassword` for social-login password coexistence
+- Optional mock client snapshot persistence in controller state
 
 [Unreleased]: https://github.com/MetaMask/core/

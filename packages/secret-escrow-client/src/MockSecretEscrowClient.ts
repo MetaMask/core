@@ -289,4 +289,42 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
     }
     record.factors = factors;
   }
+
+  /**
+   * Serializes in-memory escrow state for mock persistence across process
+   * restarts. Not for production backends.
+   *
+   * @returns JSON-serializable snapshot.
+   */
+  exportSnapshot(): MockSecretEscrowSnapshot {
+    return {
+      records: Object.fromEntries(this.#records.entries()),
+    };
+  }
+
+  /**
+   * Restores in-memory escrow state from {@link exportSnapshot}.
+   *
+   * @param snapshot - Previously exported snapshot.
+   */
+  importSnapshot(snapshot: MockSecretEscrowSnapshot): void {
+    this.#records.clear();
+    this.#challenges.clear();
+    for (const [userId, record] of Object.entries(snapshot.records)) {
+      this.#records.set(userId, structuredClone(record));
+    }
+  }
 }
+
+/**
+ * Serializable mock backend state (secrets included — mock / local-dev only).
+ */
+export type MockSecretEscrowSnapshot = {
+  records: Record<
+    string,
+    {
+      factors: Record<string, EscrowFactor>;
+      secretHex: string;
+    }
+  >;
+};
