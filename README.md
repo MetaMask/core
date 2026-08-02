@@ -120,6 +120,8 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/react-data-query`](packages/react-data-query)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
+- [`@metamask/secret-escrow-client`](packages/secret-escrow-client)
+- [`@metamask/secret-escrow-controller`](packages/secret-escrow-controller)
 - [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/sentinel-api-service`](packages/sentinel-api-service)
@@ -226,6 +228,8 @@ linkStyle default opacity:0.5
   react_data_query(["@metamask/react-data-query"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
+  secret_escrow_client(["@metamask/secret-escrow-client"]);
+  secret_escrow_controller(["@metamask/secret-escrow-controller"]);
   seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
   sentinel_api_service(["@metamask/sentinel-api-service"]);

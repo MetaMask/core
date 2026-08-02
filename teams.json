@@ -63,6 +63,8 @@
   "metamask/wallet": "team-core-platform",
   "metamask/wallet-cli": "team-core-platform,team-ocap-kernel",
   "metamask/passkey-controller": "team-onboarding",
+  "metamask/secret-escrow-client": "team-onboarding",
+  "metamask/secret-escrow-controller": "team-onboarding",
   "metamask/seedless-onboarding-controller": "team-onboarding",
   "metamask/shield-controller": "team-shield",
   "metamask/subscription-controller": "team-shield",

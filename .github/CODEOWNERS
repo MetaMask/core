@@ -121,6 +121,8 @@
 ## Web3Auth Team
 /packages/seedless-onboarding-controller    @MetaMask/web3auth
 /packages/passkey-controller                @MetaMask/web3auth
+/packages/secret-escrow-client              @MetaMask/web3auth
+/packages/secret-escrow-controller          @MetaMask/web3auth
 /packages/shield-controller                 @MetaMask/web3auth
 /packages/subscription-controller           @MetaMask/web3auth
 /packages/claims-controller                 @MetaMask/web3auth
@@ -155,6 +157,7 @@
 /packages/wallet/src/initialization/instances/keyring-controller/                @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/secret-escrow-controller/          @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/seedless-onboarding-controller/    @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/storage-service/                   @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/transaction-controller/            @MetaMask/confirmations
@@ -223,6 +226,12 @@
 /packages/passkey-controller/package.json                      @MetaMask/web3auth @MetaMask/core-platform
 /packages/passkey-controller/CHANGELOG.md                      @MetaMask/web3auth @MetaMask/core-platform
 /packages/passkey-controller/tsconfig.*                        @MetaMask/web3auth @MetaMask/core-platform
+/packages/secret-escrow-client/package.json                    @MetaMask/web3auth @MetaMask/core-platform
+/packages/secret-escrow-client/CHANGELOG.md                    @MetaMask/web3auth @MetaMask/core-platform
+/packages/secret-escrow-client/tsconfig.*                      @MetaMask/web3auth @MetaMask/core-platform
+/packages/secret-escrow-controller/package.json                @MetaMask/web3auth @MetaMask/core-platform
+/packages/secret-escrow-controller/CHANGELOG.md                @MetaMask/web3auth @MetaMask/core-platform
+/packages/secret-escrow-controller/tsconfig.*                  @MetaMask/web3auth @MetaMask/core-platform
 /packages/logging-controller/package.json                      @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/CHANGELOG.md                      @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/tsconfig.*                        @MetaMask/confirmations @MetaMask/core-platform

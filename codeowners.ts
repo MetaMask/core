@@ -254,6 +254,13 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/web3auth'],
     initializationPath: 'passkey-controller',
   },
+  'secret-escrow-client': {
+    teams: ['@MetaMask/web3auth'],
+  },
+  'secret-escrow-controller': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'secret-escrow-controller',
+  },
   'permission-controller': {
     teams: ['@MetaMask/core-platform'],
   },
@@ -552,6 +559,8 @@ function buildTeamSections(): CodeownersSection[] {
       rules: [
         buildRuleForPackage('seedless-onboarding-controller'),
         buildRuleForPackage('passkey-controller'),
+        buildRuleForPackage('secret-escrow-client'),
+        buildRuleForPackage('secret-escrow-controller'),
         buildRuleForPackage('shield-controller'),
         buildRuleForPackage('subscription-controller'),
         buildRuleForPackage('claims-controller'),
@@ -651,6 +660,8 @@ function buildPackageReleaseSection(): CodeownersSection {
     'geolocation-controller',
     'keyring-controller',
     'passkey-controller',
+    'secret-escrow-client',
+    'secret-escrow-controller',
     'logging-controller',
     'message-manager',
     'multichain-account-service',
