@@ -518,6 +518,32 @@ describe('ClaimsService', () => {
       expect(mockFetchFunction).toHaveBeenCalledTimes(2);
     });
 
+    it('does not cache malformed GET responses', async () => {
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'test-token',
+      );
+      mockFetchFunction
+        .mockResolvedValueOnce({
+          ok: true,
+          json: jest.fn().mockResolvedValue({ invalid: true }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
+        });
+
+      const service = createMockClaimsService();
+
+      await expect(service.fetchClaimsConfigurations()).rejects.toThrow(
+        ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
+      );
+
+      const configurations = await service.fetchClaimsConfigurations();
+
+      expect(configurations).toStrictEqual(MOCK_CONFIGURATIONS);
+      expect(mockFetchFunction).toHaveBeenCalledTimes(2);
+    });
+
     it('publishes cacheUpdated events for cached GET requests', async () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',

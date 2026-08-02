@@ -170,7 +170,7 @@ export class ClaimsService extends BaseDataService<
       );
       const profileKey = bytesToHex(await sha256(stringToBytes(bearerToken)));
 
-      const configurations = await this.fetchQuery({
+      return await this.fetchQuery({
         queryKey: [`${this.name}:fetchClaimsConfigurations`, profileKey],
         queryFn: async () => {
           const url = `${this.getClaimsApiUrl()}/configurations`;
@@ -182,15 +182,15 @@ export class ClaimsService extends BaseDataService<
             throw await getErrorFromResponse(response);
           }
 
-          return response.json();
+          const configurations = await response.json();
+
+          return this.#validateResponse(
+            configurations,
+            ClaimsConfigurationsResponseStruct,
+            ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
+          );
         },
       });
-
-      return this.#validateResponse(
-        configurations,
-        ClaimsConfigurationsResponseStruct,
-        ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
-      );
     } catch (error) {
       return this.#handleError(
         'fetchClaimsConfigurations',
@@ -212,7 +212,7 @@ export class ClaimsService extends BaseDataService<
       );
       const profileKey = bytesToHex(await sha256(stringToBytes(bearerToken)));
 
-      const claims = await this.fetchQuery({
+      return await this.fetchQuery({
         queryKey: [`${this.name}:getClaims`, profileKey],
         queryFn: async () => {
           const url = `${this.getClaimsApiUrl()}/claims`;
@@ -224,21 +224,15 @@ export class ClaimsService extends BaseDataService<
             throw await getErrorFromResponse(response);
           }
 
-          return response.json();
+          const claims = await response.json();
+
+          return this.#validateResponse(
+            claims,
+            array(ClaimStruct),
+            ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS,
+          );
         },
       });
-
-      const [validationError, validatedClaims] = validate(
-        claims,
-        array(ClaimStruct),
-      );
-      if (validationError) {
-        throw new Error(
-          `${ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS}: ${validationError.message}`,
-        );
-      }
-
-      return validatedClaims as Claim[];
     } catch (error) {
       return this.#handleError(
         'getClaims',
@@ -261,7 +255,7 @@ export class ClaimsService extends BaseDataService<
       );
       const profileKey = bytesToHex(await sha256(stringToBytes(bearerToken)));
 
-      const claim = await this.fetchQuery({
+      return await this.fetchQuery({
         queryKey: [`${this.name}:getClaimById`, id, profileKey],
         queryFn: async () => {
           const url = `${this.getClaimsApiUrl()}/claims/byId/${id}`;
@@ -273,15 +267,15 @@ export class ClaimsService extends BaseDataService<
             throw await getErrorFromResponse(response);
           }
 
-          return response.json();
+          const claim = await response.json();
+
+          return this.#validateResponse(
+            claim,
+            ClaimStruct,
+            ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+          );
         },
       });
-
-      return this.#validateResponse(
-        claim,
-        ClaimStruct,
-        ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
-      ) as Claim;
     } catch (error) {
       return this.#handleError(
         'getClaimById',
