@@ -112,8 +112,8 @@ export type SubscriptionServiceMessenger = Messenger<
 
 export type SubscriptionServiceOptions = {
   messenger: SubscriptionServiceMessenger;
+  fetchFunction: typeof fetch;
   env?: Env;
-  fetchFunction?: typeof fetch;
   captureException?: (error: Error) => void;
   queryClientConfig?: QueryClientConfig;
   policyOptions?: CreateServicePolicyOptions;
@@ -153,8 +153,8 @@ export class SubscriptionService extends BaseDataService<
 
   constructor({
     messenger,
+    fetchFunction,
     env = Env.PRD,
-    fetchFunction = fetch,
     captureException,
     queryClientConfig = {},
     policyOptions = {},

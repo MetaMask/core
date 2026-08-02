@@ -2,7 +2,6 @@ import { getDefaultAddressBookControllerState } from '@metamask/address-book-con
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
-import { Env } from '@metamask/subscription-controller';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
 
@@ -25,7 +24,6 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
 };
 
 const SUBSCRIPTION_SERVICE_OPTIONS = {
-  env: Env.DEV,
   fetchFunction: globalThis.fetch,
 };
 
