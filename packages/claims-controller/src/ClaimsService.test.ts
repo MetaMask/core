@@ -410,6 +410,94 @@ describe('ClaimsService', () => {
       expect(mockFetchFunction).toHaveBeenCalledTimes(2);
     });
 
+    it('does not serve cached claims across different bearer tokens', async () => {
+      const tokens = ['profile-a-token', 'profile-b-token'];
+      mockAuthenticationControllerGetBearerToken.mockImplementation(
+        async () => tokens.shift() ?? 'exhausted',
+      );
+      mockFetchFunction
+        .mockResolvedValueOnce({
+          ok: true,
+          json: jest.fn().mockResolvedValue([MOCK_CLAIM_1]),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: jest.fn().mockResolvedValue([MOCK_CLAIM_2]),
+        });
+
+      const service = createMockClaimsService();
+
+      const first = await service.getClaims();
+      const second = await service.getClaims();
+
+      expect(first).toStrictEqual([MOCK_CLAIM_1]);
+      expect(second).toStrictEqual([MOCK_CLAIM_2]);
+      expect(mockFetchFunction).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not share an in-flight getClaims request across different bearer tokens', async () => {
+      const tokens = ['profile-a-token', 'profile-b-token'];
+      mockAuthenticationControllerGetBearerToken.mockImplementation(
+        async () => tokens.shift() ?? 'exhausted',
+      );
+      mockFetchFunction.mockImplementation(async (_url, options) => {
+        const authHeader = (options as { headers: Record<string, string> })
+          .headers.Authorization;
+        await new Promise((resolve) => {
+          setTimeout(resolve, 50);
+        });
+        return {
+          ok: true,
+          json: jest
+            .fn()
+            .mockResolvedValue(
+              authHeader === 'Bearer profile-a-token'
+                ? [MOCK_CLAIM_1]
+                : [MOCK_CLAIM_2],
+            ),
+        };
+      });
+
+      const service = createMockClaimsService();
+
+      const [first, second] = await Promise.all([
+        service.getClaims(),
+        service.getClaims(),
+      ]);
+
+      expect(first).toStrictEqual([MOCK_CLAIM_1]);
+      expect(second).toStrictEqual([MOCK_CLAIM_2]);
+      expect(mockFetchFunction).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not leak the bearer token through cache update events', async () => {
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'sensitive-token',
+      );
+      mockFetchFunction.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue([MOCK_CLAIM_1]),
+      });
+
+      const { messenger } = createMockClaimsServiceMessenger(
+        mockAuthenticationControllerGetBearerToken,
+        mockCaptureException,
+      );
+      const publishSpy = jest.spyOn(messenger, 'publish');
+      const service = new ClaimsService({
+        env: Env.DEV,
+        messenger,
+        fetchFunction: mockFetchFunction,
+      });
+
+      await service.getClaims();
+
+      expect(publishSpy).toHaveBeenCalled();
+      expect(JSON.stringify(publishSpy.mock.calls)).not.toContain(
+        'sensitive-token',
+      );
+    });
+
     it('refetches GET requests after invalidation', async () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',

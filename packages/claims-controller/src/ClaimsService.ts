@@ -10,6 +10,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import { array, validate } from '@metamask/superstruct';
 import type { Struct } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
+import { bytesToHex, sha256, stringToBytes } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ClaimsServiceMethodActions } from './ClaimsService-method-action-types.js';
@@ -164,13 +165,17 @@ export class ClaimsService extends BaseDataService<
    */
   async fetchClaimsConfigurations(): Promise<ClaimsConfigurationsResponse> {
     try {
+      const bearerToken = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      const profileKey = bytesToHex(await sha256(stringToBytes(bearerToken)));
+
       const configurations = await this.fetchQuery({
-        queryKey: [`${this.name}:fetchClaimsConfigurations`],
+        queryKey: [`${this.name}:fetchClaimsConfigurations`, profileKey],
         queryFn: async () => {
-          const headers = await this.getRequestHeaders();
           const url = `${this.getClaimsApiUrl()}/configurations`;
           const response = await this.#fetch(url, {
-            headers,
+            headers: this.#headersForToken(bearerToken),
           });
 
           if (!response.ok) {
@@ -202,13 +207,17 @@ export class ClaimsService extends BaseDataService<
    */
   async getClaims(): Promise<Claim[]> {
     try {
+      const bearerToken = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      const profileKey = bytesToHex(await sha256(stringToBytes(bearerToken)));
+
       const claims = await this.fetchQuery({
-        queryKey: [`${this.name}:getClaims`],
+        queryKey: [`${this.name}:getClaims`, profileKey],
         queryFn: async () => {
-          const headers = await this.getRequestHeaders();
           const url = `${this.getClaimsApiUrl()}/claims`;
           const response = await this.#fetch(url, {
-            headers,
+            headers: this.#headersForToken(bearerToken),
           });
 
           if (!response.ok) {
@@ -247,13 +256,17 @@ export class ClaimsService extends BaseDataService<
    */
   async getClaimById(id: string): Promise<Claim> {
     try {
+      const bearerToken = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      const profileKey = bytesToHex(await sha256(stringToBytes(bearerToken)));
+
       const claim = await this.fetchQuery({
-        queryKey: [`${this.name}:getClaimById`, id],
+        queryKey: [`${this.name}:getClaimById`, id, profileKey],
         queryFn: async () => {
-          const headers = await this.getRequestHeaders();
           const url = `${this.getClaimsApiUrl()}/claims/byId/${id}`;
           const response = await this.#fetch(url, {
-            headers,
+            headers: this.#headersForToken(bearerToken),
           });
 
           if (!response.ok) {
@@ -333,8 +346,12 @@ export class ClaimsService extends BaseDataService<
     const bearerToken = await this.messenger.call(
       'AuthenticationController:getBearerToken',
     );
+    return this.#headersForToken(bearerToken);
+  }
+
+  #headersForToken(token: string): Record<string, string> {
     return {
-      Authorization: `Bearer ${bearerToken}`,
+      Authorization: `Bearer ${token}`,
     };
   }
 
