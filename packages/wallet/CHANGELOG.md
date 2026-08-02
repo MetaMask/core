@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Wire subscription into the default wallet initialization ([#9598](https://github.com/MetaMask/core/pull/9598))
+  - Adds a required `subscriptionService` slot to `instanceOptions` for `env`, `fetchFunction`, and optional `captureException`, `queryClientConfig`, and `policyOptions`.
+  - Adds an optional `subscriptionController` slot to `instanceOptions` for an optional `pollingInterval`.
+  - `SubscriptionService` delegates `AuthenticationController:getBearerToken` from the wallet root messenger; hosts must register `AuthenticationController` on the root messenger for authenticated subscription API calls.
+
 ## [9.0.0]
 
 ### Added
 
-- **BREAKING** Wire `SubscriptionController` into the default wallet initialization ([#9598](https://github.com/MetaMask/core/pull/9598))
-  - Adds a required `subscriptionController` slot to `instanceOptions`, taking either a `subscriptionService`, or the configuration for the default service (`env`, `fetchFunction`, and optionally `getAccessToken` and `captureException`); `pollingInterval` is optional in both cases.
-  - Hosts must register `AuthenticationController` on the wallet root messenger for authenticated subscription API calls.
 - **BREAKING:** Wire analytics into the default `NetworkController` initialization ([#9270](https://github.com/MetaMask/core/pull/9270))
   - Adds an optional `instanceOptions.networkController.analyticsOptions` option (`isRpcEndpointUrlPublic` and `rpcServiceEventsSampleRate`, both optional) that the controller uses to emit `RPC Service Unavailable` and `RPC Service Degraded` events.
   - The `Wallet` root messenger now requires the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions. Consumers must register handlers for them on the root messenger; a consumer that does not use analytics can register handlers that do nothing.

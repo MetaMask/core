@@ -7,22 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Allow `SubscriptionController` to build its own default `SubscriptionService` ([#9598](https://github.com/MetaMask/core/pull/9598))
-  - `SubscriptionControllerOptions` now accepts either a `subscriptionService`, or the service configuration (`env`, `fetchFunction`, and optionally `getAccessToken` and `captureException`) used to construct the default service.
-  - When constructing the default service, `getAccessToken` falls back to calling the `AuthenticationController:getBearerToken` messenger action.
-  - The new options shape is exported as `SubscriptionControllerServiceOptions`.
-
 ### Changed
 
+- **BREAKING:** Refactor subscription API access behind a messenger-backed `SubscriptionService` ([#9598](https://github.com/MetaMask/core/pull/9598))
+  - `SubscriptionService` now extends `BaseDataService`, authenticates via `AuthenticationController:getBearerToken`, exposes all endpoint methods as `SubscriptionService:*` messenger actions, validates responses with `@metamask/superstruct`, and scopes query keys to a bearer-token digest (never the token itself).
+  - New exports: `SubscriptionServiceOptions`, `SubscriptionServiceMessenger`, service action/event types, and `subscriptionServiceName`. Construct `SubscriptionService` with `{ messenger, env?, fetchFunction?, captureException?, queryClientConfig?, policyOptions? }`.
+  - `SubscriptionController` no longer constructs or accepts a `SubscriptionService` instance. `SubscriptionControllerOptions` now accepts only `{ messenger, state?, pollingInterval? }`, and the controller calls `SubscriptionService:*` messenger actions instead of invoking a service directly.
+  - Removed `SubscriptionControllerServiceOptions`, `SubscriptionServiceConfig`, and direct `auth: AuthUtils` construction.
+  - Removed the `AuthenticationController:stateChange` event from `SubscriptionControllerMessenger` (and the `AllowedEvents` type export); the controller never subscribed to this event.
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.4.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
-
-### Removed
-
-- **BREAKING:** Remove the `AuthenticationController:stateChange` event from `SubscriptionControllerMessenger`, along with the `AllowedEvents` type export ([#9598](https://github.com/MetaMask/core/pull/9598))
-  - The controller never subscribed to this event, so it no longer needs to be delegated to the controller's messenger.
 
 ## [6.2.1]
 

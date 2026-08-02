@@ -122,7 +122,7 @@ describe('createWallet', () => {
     expect(instanceOptions.storageService.storage).toBeInstanceOf(
       InMemoryStorageAdapter,
     );
-    expect(instanceOptions.subscriptionController).toStrictEqual({
+    expect(instanceOptions.subscriptionService).toStrictEqual({
       fetchFunction: globalThis.fetch,
     });
     expect(instanceOptions.transactionController?.disableSwaps).toBe(true);

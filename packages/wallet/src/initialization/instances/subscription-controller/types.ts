@@ -1,6 +1,9 @@
-import type { SubscriptionControllerServiceOptions } from '@metamask/subscription-controller';
+import type { SubscriptionControllerOptions } from '@metamask/subscription-controller';
 
-export type SubscriptionControllerInstanceOptions =
-  SubscriptionControllerServiceOptions & {
-    pollingInterval?: number;
-  };
+/**
+ * Per-instance options for the wallet's `SubscriptionController`.
+ */
+export type SubscriptionControllerInstanceOptions = Omit<
+  SubscriptionControllerOptions,
+  'messenger' | 'state'
+>;

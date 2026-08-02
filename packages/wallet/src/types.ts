@@ -15,6 +15,7 @@ import type { RemoteFeatureFlagControllerInstanceOptions } from './initializatio
 import type { SeedlessOnboardingControllerInstanceOptions } from './initialization/instances/seedless-onboarding-controller/types.js';
 import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types.js';
 import type { SubscriptionControllerInstanceOptions } from './initialization/instances/subscription-controller/types.js';
+import type { SubscriptionServiceInstanceOptions } from './initialization/instances/subscription-service/types.js';
 import type { TransactionControllerInstanceOptions } from './initialization/instances/transaction-controller/types.js';
 import type { InitializationConfiguration } from './initialization/types.js';
 
@@ -36,7 +37,8 @@ export type InstanceSpecificOptions = {
   networkController: NetworkControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
-  subscriptionController: SubscriptionControllerInstanceOptions;
+  subscriptionService: SubscriptionServiceInstanceOptions;
+  subscriptionController?: SubscriptionControllerInstanceOptions;
   transactionController?: TransactionControllerInstanceOptions;
   passkeyController?: PasskeyControllerInstanceOptions;
   seedlessOnboardingController?: SeedlessOnboardingControllerInstanceOptions;

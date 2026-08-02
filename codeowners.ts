@@ -352,6 +352,10 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/web3auth'],
     initializationPath: 'subscription-controller',
   },
+  'subscription-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-service',
+  },
   'transaction-controller': {
     teams: ['@MetaMask/confirmations'],
     initializationPath: 'transaction-controller',

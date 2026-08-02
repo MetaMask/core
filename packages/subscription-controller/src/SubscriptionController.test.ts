@@ -15,7 +15,6 @@ import { jestAdvanceTime } from '../../../tests/helpers.js';
 import { generateMockTxMeta } from '../tests/utils.js';
 import {
   controllerName,
-  Env,
   SubscriptionControllerErrorMessage,
 } from './constants.js';
 import { SubscriptionServiceError } from './errors.js';
@@ -28,7 +27,6 @@ import type {
   SubscriptionControllerOptions,
   SubscriptionControllerState,
 } from './SubscriptionController.js';
-import { SUBSCRIPTION_URL } from './SubscriptionService.js';
 import type {
   Subscription,
   PricingResponse,
@@ -43,7 +41,6 @@ import type {
   SubmitSponsorshipIntentsMethodParams,
   ProductType,
   RecurringInterval,
-  ISubscriptionService,
 } from './types.js';
 import {
   CANCEL_TYPES,
@@ -157,6 +154,23 @@ const MOCK_COHORTS = [
   },
 ];
 
+const SUBSCRIPTION_SERVICE_ACTIONS = [
+  'SubscriptionService:getSubscriptions',
+  'SubscriptionService:cancelSubscription',
+  'SubscriptionService:unCancelSubscription',
+  'SubscriptionService:startSubscriptionWithCard',
+  'SubscriptionService:startSubscriptionWithCrypto',
+  'SubscriptionService:updatePaymentMethodCard',
+  'SubscriptionService:updatePaymentMethodCrypto',
+  'SubscriptionService:getSubscriptionsEligibilities',
+  'SubscriptionService:submitUserEvent',
+  'SubscriptionService:assignUserToCohort',
+  'SubscriptionService:submitSponsorshipIntents',
+  'SubscriptionService:linkRewards',
+  'SubscriptionService:getPricing',
+  'SubscriptionService:getBillingPortalUrl',
+] as const;
+
 /**
  * Creates a custom subscription messenger, in case tests need different permissions
  *
@@ -182,7 +196,7 @@ function createCustomSubscriptionMessenger(): {
   rootMessenger.delegate({
     messenger,
     actions: [
-      'AuthenticationController:getBearerToken',
+      ...SUBSCRIPTION_SERVICE_ACTIONS,
       'AuthenticationController:performSignOut',
     ],
   });
@@ -225,13 +239,23 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
   };
 }
 
-/**
- * Creates a mock subscription service for testing.
- *
- * @returns The mock service and related mocks.
- */
-function createMockSubscriptionService(): {
-  mockService: jest.Mocked<ISubscriptionService>;
+function registerMockSubscriptionService(rootMessenger: RootMessenger): {
+  mockService: {
+    getSubscriptions: jest.Mock;
+    cancelSubscription: jest.Mock;
+    unCancelSubscription: jest.Mock;
+    startSubscriptionWithCard: jest.Mock;
+    getPricing: jest.Mock;
+    startSubscriptionWithCrypto: jest.Mock;
+    updatePaymentMethodCard: jest.Mock;
+    updatePaymentMethodCrypto: jest.Mock;
+    getBillingPortalUrl: jest.Mock;
+    getSubscriptionsEligibilities: jest.Mock;
+    submitUserEvent: jest.Mock;
+    submitSponsorshipIntents: jest.Mock;
+    assignUserToCohort: jest.Mock;
+    linkRewards: jest.Mock;
+  };
   mockGetSubscriptions: jest.Mock;
   mockCancelSubscription: jest.Mock;
   mockUnCancelSubscription: jest.Mock;
@@ -257,6 +281,63 @@ function createMockSubscriptionService(): {
   const mockSubmitSponsorshipIntents = jest.fn();
   const mockAssignUserToCohort = jest.fn();
   const mockLinkRewards = jest.fn();
+
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:getSubscriptions',
+    mockGetSubscriptions,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:cancelSubscription',
+    mockCancelSubscription,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:unCancelSubscription',
+    mockUnCancelSubscription,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:startSubscriptionWithCard',
+    mockStartSubscriptionWithCard,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:getPricing',
+    mockGetPricing,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:startSubscriptionWithCrypto',
+    mockStartSubscriptionWithCrypto,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:updatePaymentMethodCard',
+    mockUpdatePaymentMethodCard,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:updatePaymentMethodCrypto',
+    mockUpdatePaymentMethodCrypto,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:getBillingPortalUrl',
+    mockGetBillingPortalUrl,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:getSubscriptionsEligibilities',
+    mockGetSubscriptionsEligibilities,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:submitUserEvent',
+    mockSubmitUserEvent,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:submitSponsorshipIntents',
+    mockSubmitSponsorshipIntents,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:assignUserToCohort',
+    mockAssignUserToCohort,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:linkRewards',
+    mockLinkRewards,
+  );
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -298,7 +379,7 @@ type WithControllerCallback<ReturnValue> = (params: {
   initialState: SubscriptionControllerState;
   messenger: SubscriptionControllerMessenger;
   rootMessenger: RootMessenger;
-  mockService: ReturnType<typeof createMockSubscriptionService>['mockService'];
+  mockService: ReturnType<typeof registerMockSubscriptionService>['mockService'];
   mockPerformSignOut: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -320,11 +401,10 @@ async function withController<ReturnValue>(
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const { messenger, mockPerformSignOut, rootMessenger } =
     createMockSubscriptionMessenger();
-  const { mockService } = createMockSubscriptionService();
+  const { mockService } = registerMockSubscriptionService(rootMessenger);
 
   const controller = new SubscriptionController({
     messenger,
-    subscriptionService: mockService,
     ...rest,
   });
 
@@ -349,8 +429,8 @@ describe('SubscriptionController', () => {
     });
 
     it('should be able to instantiate with initial state', () => {
-      const { mockService } = createMockSubscriptionService();
-      const { messenger } = createMockSubscriptionMessenger();
+      const { messenger, rootMessenger } = createMockSubscriptionMessenger();
+      registerMockSubscriptionService(rootMessenger);
       const initialState: Partial<SubscriptionControllerState> = {
         subscriptions: [MOCK_SUBSCRIPTION],
       };
@@ -358,117 +438,11 @@ describe('SubscriptionController', () => {
       const controller = new SubscriptionController({
         messenger,
         state: initialState,
-        subscriptionService: mockService,
         pollingInterval: 10_000,
       });
 
       expect(controller).toBeDefined();
       expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-    });
-
-    it('should be able to instantiate with custom subscription service', () => {
-      const { messenger } = createMockSubscriptionMessenger();
-      const { mockService } = createMockSubscriptionService();
-
-      const controller = new SubscriptionController({
-        messenger,
-        subscriptionService: mockService,
-      });
-
-      expect(controller).toBeDefined();
-      expect(controller.state).toStrictEqual(
-        getDefaultSubscriptionControllerState(),
-      );
-    });
-
-    it('builds a default subscription service from service configuration', async () => {
-      const { messenger, rootMessenger } = createMockSubscriptionMessenger();
-      rootMessenger.registerActionHandler(
-        'AuthenticationController:getBearerToken',
-        async () => 'test-bearer-token',
-      );
-      const fetchFunction = jest.fn(
-        async () =>
-          new globalThis.Response(
-            JSON.stringify(MOCK_GET_SUBSCRIPTIONS_RESPONSE),
-            {
-              status: 200,
-            },
-          ),
-      );
-
-      const controller = new SubscriptionController({
-        messenger,
-        env: Env.DEV,
-        fetchFunction,
-      });
-      await controller.getSubscriptions();
-
-      expect(fetchFunction).toHaveBeenCalledTimes(1);
-      const [, requestInit] = fetchFunction.mock.calls[0] as unknown as [
-        string,
-        RequestInit,
-      ];
-      const headers = new globalThis.Headers(requestInit.headers);
-      expect(headers.get('Authorization')).toBe('Bearer test-bearer-token');
-    });
-
-    it('defaults to PRD when building the default subscription service without env', async () => {
-      const { messenger, rootMessenger } = createMockSubscriptionMessenger();
-      rootMessenger.registerActionHandler(
-        'AuthenticationController:getBearerToken',
-        async () => 'test-bearer-token',
-      );
-      const fetchFunction = jest.fn(
-        async () =>
-          new globalThis.Response(
-            JSON.stringify(MOCK_GET_SUBSCRIPTIONS_RESPONSE),
-            {
-              status: 200,
-            },
-          ),
-      );
-
-      const controller = new SubscriptionController({
-        messenger,
-        fetchFunction,
-      });
-      await controller.getSubscriptions();
-
-      expect(fetchFunction).toHaveBeenCalledWith(
-        SUBSCRIPTION_URL(Env.PRD, 'subscriptions'),
-        expect.anything(),
-      );
-    });
-
-    it('uses a provided getAccessToken when building the default subscription service', async () => {
-      const { messenger } = createMockSubscriptionMessenger();
-      const getAccessToken = jest.fn(async () => 'custom-access-token');
-      const fetchFunction = jest.fn(
-        async () =>
-          new globalThis.Response(
-            JSON.stringify(MOCK_GET_SUBSCRIPTIONS_RESPONSE),
-            {
-              status: 200,
-            },
-          ),
-      );
-
-      const controller = new SubscriptionController({
-        messenger,
-        env: Env.DEV,
-        fetchFunction,
-        getAccessToken,
-      });
-      await controller.getSubscriptions();
-
-      expect(getAccessToken).toHaveBeenCalled();
-      const [, requestInit] = fetchFunction.mock.calls[0] as unknown as [
-        string,
-        RequestInit,
-      ];
-      const headers = new globalThis.Headers(requestInit.headers);
-      expect(headers.get('Authorization')).toBe('Bearer custom-access-token');
     });
   });
 

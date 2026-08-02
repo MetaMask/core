@@ -6,6 +6,23 @@ import type { InitializationConfiguration } from '../../types.js';
 
 export type { SubscriptionControllerInstanceOptions } from './types.js';
 
+const SUBSCRIPTION_SERVICE_ACTIONS = [
+  'SubscriptionService:getSubscriptions',
+  'SubscriptionService:cancelSubscription',
+  'SubscriptionService:unCancelSubscription',
+  'SubscriptionService:startSubscriptionWithCard',
+  'SubscriptionService:startSubscriptionWithCrypto',
+  'SubscriptionService:updatePaymentMethodCard',
+  'SubscriptionService:updatePaymentMethodCrypto',
+  'SubscriptionService:getSubscriptionsEligibilities',
+  'SubscriptionService:submitUserEvent',
+  'SubscriptionService:assignUserToCohort',
+  'SubscriptionService:submitSponsorshipIntents',
+  'SubscriptionService:linkRewards',
+  'SubscriptionService:getPricing',
+  'SubscriptionService:getBillingPortalUrl',
+] as const;
+
 export const subscriptionController: InitializationConfiguration<
   SubscriptionController,
   SubscriptionControllerMessenger
@@ -26,7 +43,7 @@ export const subscriptionController: InitializationConfiguration<
     parent.delegate({
       messenger,
       actions: [
-        'AuthenticationController:getBearerToken',
+        ...SUBSCRIPTION_SERVICE_ACTIONS,
         'AuthenticationController:performSignOut',
       ],
     });

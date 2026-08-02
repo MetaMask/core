@@ -10,4 +10,5 @@ export { remoteFeatureFlagController } from './remote-feature-flag-controller/re
 export { seedlessOnboardingController } from './seedless-onboarding-controller/seedless-onboarding-controller.js';
 export { storageService } from './storage-service/storage-service.js';
 export { subscriptionController } from './subscription-controller/subscription-controller.js';
+export { subscriptionService } from './subscription-service/subscription-service.js';
 export { transactionController } from './transaction-controller/transaction-controller.js';

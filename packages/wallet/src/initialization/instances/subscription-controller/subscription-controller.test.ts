@@ -1,10 +1,8 @@
 import { Messenger } from '@metamask/messenger';
 import {
-  Env,
   getDefaultSubscriptionControllerState,
   SubscriptionController,
 } from '@metamask/subscription-controller';
-import type { ISubscriptionService } from '@metamask/subscription-controller';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -13,6 +11,7 @@ import type {
   RootMessenger,
 } from '../../defaults.js';
 import { subscriptionController } from './subscription-controller.js';
+import { subscriptionService } from '../subscription-service/subscription-service.js';
 
 type ActionHandler = (...args: unknown[]) => unknown;
 
@@ -40,25 +39,6 @@ function registerActionHandler(
   ).registerActionHandler(actionType, handler);
 }
 
-function createMockSubscriptionService(): jest.Mocked<ISubscriptionService> {
-  return {
-    getSubscriptions: jest.fn(),
-    getPricing: jest.fn(),
-    cancelSubscription: jest.fn(),
-    unCancelSubscription: jest.fn(),
-    startSubscriptionWithCard: jest.fn(),
-    startSubscriptionWithCrypto: jest.fn(),
-    getBillingPortalUrl: jest.fn(),
-    updatePaymentMethodCard: jest.fn(),
-    updatePaymentMethodCrypto: jest.fn(),
-    getSubscriptionsEligibilities: jest.fn(),
-    submitSponsorshipIntents: jest.fn(),
-    submitUserEvent: jest.fn(),
-    assignUserToCohort: jest.fn(),
-    linkRewards: jest.fn(),
-  };
-}
-
 describe('subscriptionController', () => {
   it('is registered as a default initialization configuration', () => {
     expect(Object.values(defaultConfigurations)).toContain(
@@ -72,10 +52,7 @@ describe('subscriptionController', () => {
     const instance = subscriptionController.init({
       state: undefined,
       messenger,
-      options: {
-        env: Env.DEV,
-        fetchFunction: globalThis.fetch,
-      },
+      options: {},
     });
 
     expect(instance).toBeInstanceOf(SubscriptionController);
@@ -94,43 +71,10 @@ describe('subscriptionController', () => {
         trialedProducts: [],
       },
       messenger,
-      options: {
-        env: Env.DEV,
-        fetchFunction: globalThis.fetch,
-      },
+      options: {},
     });
 
     expect(instance.state.customerId).toBe('cus_test');
-  });
-
-  it('constructs a default SubscriptionService from options', () => {
-    const messenger = subscriptionController.getMessenger(getRootMessenger());
-
-    const instance = subscriptionController.init({
-      state: undefined,
-      messenger,
-      options: {
-        env: Env.DEV,
-        fetchFunction: globalThis.fetch,
-      },
-    });
-
-    expect(instance).toBeInstanceOf(SubscriptionController);
-  });
-
-  it('uses a provided subscriptionService override', () => {
-    const messenger = subscriptionController.getMessenger(getRootMessenger());
-    const mockService = createMockSubscriptionService();
-
-    const instance = subscriptionController.init({
-      state: undefined,
-      messenger,
-      options: {
-        subscriptionService: mockService,
-      },
-    });
-
-    expect(instance).toBeInstanceOf(SubscriptionController);
   });
 
   it('forwards pollingInterval to the controller', () => {
@@ -141,8 +85,6 @@ describe('subscriptionController', () => {
       state: undefined,
       messenger,
       options: {
-        env: Env.DEV,
-        fetchFunction: globalThis.fetch,
         pollingInterval,
       },
     });
@@ -156,16 +98,40 @@ describe('subscriptionController', () => {
     const instance = subscriptionController.init({
       state: undefined,
       messenger,
-      options: {
-        env: Env.DEV,
-        fetchFunction: globalThis.fetch,
-      },
+      options: {},
     });
 
     expect(instance.getIntervalLength()).toBe(5 * 60 * 1_000);
   });
 
-  it('wires default getAccessToken to AuthenticationController:getBearerToken', async () => {
+  it('delegates SubscriptionService actions and performSignOut', () => {
+    const parent = getRootMessenger();
+    const delegateSpy = jest.spyOn(parent, 'delegate');
+    const messenger = subscriptionController.getMessenger(parent);
+
+    expect(delegateSpy).toHaveBeenCalledWith({
+      messenger,
+      actions: [
+        'SubscriptionService:getSubscriptions',
+        'SubscriptionService:cancelSubscription',
+        'SubscriptionService:unCancelSubscription',
+        'SubscriptionService:startSubscriptionWithCard',
+        'SubscriptionService:startSubscriptionWithCrypto',
+        'SubscriptionService:updatePaymentMethodCard',
+        'SubscriptionService:updatePaymentMethodCrypto',
+        'SubscriptionService:getSubscriptionsEligibilities',
+        'SubscriptionService:submitUserEvent',
+        'SubscriptionService:assignUserToCohort',
+        'SubscriptionService:submitSponsorshipIntents',
+        'SubscriptionService:linkRewards',
+        'SubscriptionService:getPricing',
+        'SubscriptionService:getBillingPortalUrl',
+        'AuthenticationController:performSignOut',
+      ],
+    });
+  });
+
+  it('calls SubscriptionService actions through the controller messenger', async () => {
     const rootMessenger = getRootMessenger();
     registerActionHandler(
       rootMessenger,
@@ -179,7 +145,7 @@ describe('subscriptionController', () => {
       'AuthenticationController:performSignOut',
       jest.fn(),
     );
-    const messenger = subscriptionController.getMessenger(rootMessenger);
+    const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
     const fetchFunction = jest.fn(
       async () =>
         new globalThis.Response(
@@ -192,38 +158,25 @@ describe('subscriptionController', () => {
         ),
     );
 
-    subscriptionController.init({
+    subscriptionService.init({
       state: undefined,
-      messenger,
+      messenger: serviceMessenger,
       options: {
-        env: Env.DEV,
         fetchFunction,
       },
+    });
+
+    const controllerMessenger =
+      subscriptionController.getMessenger(rootMessenger);
+    subscriptionController.init({
+      state: undefined,
+      messenger: controllerMessenger,
+      options: {},
     });
 
     await rootMessenger.call('SubscriptionController:getSubscriptions');
 
     expect(fetchFunction).toHaveBeenCalled();
-    const [, requestInit] = fetchFunction.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
-    const headers = new globalThis.Headers(requestInit.headers);
-    expect(headers.get('Authorization')).toBe('Bearer test-bearer-token');
-  });
-
-  it('delegates AuthenticationController actions', () => {
-    const parent = getRootMessenger();
-    const delegateSpy = jest.spyOn(parent, 'delegate');
-    const messenger = subscriptionController.getMessenger(parent);
-
-    expect(delegateSpy).toHaveBeenCalledWith({
-      messenger,
-      actions: [
-        'AuthenticationController:getBearerToken',
-        'AuthenticationController:performSignOut',
-      ],
-    });
   });
 
   it('exposes its actions through the root messenger', () => {
@@ -233,10 +186,7 @@ describe('subscriptionController', () => {
     subscriptionController.init({
       state: undefined,
       messenger,
-      options: {
-        env: Env.DEV,
-        fetchFunction: globalThis.fetch,
-      },
+      options: {},
     });
 
     expect(rootMessenger.call('SubscriptionController:getState')).toStrictEqual(

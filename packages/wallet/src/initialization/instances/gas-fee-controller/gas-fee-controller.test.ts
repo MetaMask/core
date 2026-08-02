@@ -218,7 +218,7 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-    subscriptionController: {
+    subscriptionService: {
       env: Env.DEV,
       fetchFunction: globalThis.fetch,
     },

@@ -612,6 +612,7 @@ linkStyle default opacity:0.5
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   subscription_controller --> base_controller;
+  subscription_controller --> base_data_service;
   subscription_controller --> controller_utils;
   subscription_controller --> messenger;
   subscription_controller --> polling_controller;

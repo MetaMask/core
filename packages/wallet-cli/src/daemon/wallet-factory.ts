@@ -83,7 +83,7 @@ export type CreateWalletResult = {
  * - `transactionController` — swaps processing disabled and no client hooks;
  *   see the slot's inline comment for why the daemon relies on the
  *   controller's defaults for everything else.
- * - `subscriptionController` — production subscription API environment and
+ * - `subscriptionService` — production subscription API environment and
  *   platform `fetch`; authenticated calls require host `AuthenticationController`
  *   wiring on the wallet root messenger (not configured in the CLI).
  *
@@ -132,7 +132,7 @@ function buildInstanceOptions(
     storageService: {
       storage: new InMemoryStorageAdapter(),
     },
-    subscriptionController: {
+    subscriptionService: {
       fetchFunction: globalThis.fetch,
     },
     transactionController: {
