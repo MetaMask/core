@@ -541,7 +541,7 @@ describe('ClaimsService', () => {
         env: Env.DEV,
         messenger,
         fetchFunction: mockFetchFunction,
-        captureException: () => {
+        captureException: (_error: Error): void => {
           throw new Error('capture failed');
         },
       });

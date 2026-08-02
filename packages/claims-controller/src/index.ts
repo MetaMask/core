@@ -42,7 +42,6 @@ export type {
   ClaimsServiceGetClaimsApiUrlAction,
   ClaimsServiceGetClaimByIdAction,
   ClaimsServiceGenerateMessageForClaimSignatureAction,
-  ClaimsServiceMethodActions,
 } from './ClaimsService-method-action-types.js';
 
 export type {
