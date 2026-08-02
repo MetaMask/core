@@ -42,9 +42,17 @@ export type {
   ClaimsServiceGetClaimsApiUrlAction,
   ClaimsServiceGetClaimByIdAction,
   ClaimsServiceGenerateMessageForClaimSignatureAction,
+  ClaimsServiceMethodActions,
+} from './ClaimsService-method-action-types.js';
+
+export type {
   ClaimsServiceActions,
   ClaimsServiceConfig,
   ClaimsServiceMessenger,
+  ClaimsServiceInvalidateQueriesAction,
+  ClaimsServiceCacheUpdatedEvent,
+  ClaimsServiceGranularCacheUpdatedEvent,
+  ClaimsServiceEvents,
 } from './ClaimsService.js';
 
 export {

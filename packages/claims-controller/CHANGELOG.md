@@ -10,9 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export `ClaimsControllerOptions` and `ClaimsServiceConfig` types ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `ClaimsService-method-action-types.ts` with generated method action types for `ClaimsService` ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `ClaimsService:invalidateQueries` action and `ClaimsService:cacheUpdated` events via `BaseDataService` ([#9588](https://github.com/MetaMask/core/pull/9588))
 
 ### Changed
 
+- Migrate `ClaimsService` to `BaseDataService` with TanStack Query caching, circuit-breaker policy support, and response validation ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `@metamask/base-data-service` `^0.1.3`, `@metamask/superstruct` `^3.1.0`, and `@tanstack/query-core` `^4.43.0` as dependencies ([#9588](https://github.com/MetaMask/core/pull/9588))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
 - Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.3.0` ([#9119](https://github.com/MetaMask/core/pull/9119), [#9463](https://github.com/MetaMask/core/pull/9463))

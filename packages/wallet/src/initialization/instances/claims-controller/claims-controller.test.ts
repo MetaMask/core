@@ -11,9 +11,9 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from '../../defaults.js';
+import { claimsService } from '../claims-service/claims-service.js';
+import type { ClaimsServiceInstanceOptions } from '../claims-service/types.js';
 import { claimsController } from './claims-controller.js';
-import { claimsService } from './claims-service.js';
-import type { ClaimsServiceInstanceOptions } from './types.js';
 
 const CLAIMS_SERVICE_OPTIONS: ClaimsServiceInstanceOptions = {
   env: Env.DEV,

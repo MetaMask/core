@@ -113,11 +113,12 @@ export function createMockClaimsControllerMessenger({
 }
 
 type AllServiceActions = MessengerActions<ClaimsServiceMessenger>;
+type AllServiceEvents = MessengerEvents<ClaimsServiceMessenger>;
 
 export type RootServiceMessenger = Messenger<
   MockAnyNamespace,
-  AllServiceActions
-  // since there's no events for the service, we don't need to specify them
+  AllServiceActions,
+  AllServiceEvents
 >;
 
 /**
@@ -146,7 +147,7 @@ export function createMockClaimsServiceMessenger(
   const messenger = new Messenger<
     typeof SERVICE_NAME,
     AllServiceActions,
-    never, // No events for the service
+    AllServiceEvents,
     RootServiceMessenger
   >({
     namespace: SERVICE_NAME,

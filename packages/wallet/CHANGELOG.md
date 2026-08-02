@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Move `ClaimsService` wallet initialization into `packages/wallet/src/initialization/instances/claims-service/` ([#9588](https://github.com/MetaMask/core/pull/9588))
+- `instanceOptions.claimsService` now accepts optional `queryClientConfig`, `policyOptions`, and `captureException` forwarded to `ClaimsService` ([#9588](https://github.com/MetaMask/core/pull/9588))
+
 ## [9.0.0]
 
 ### Added

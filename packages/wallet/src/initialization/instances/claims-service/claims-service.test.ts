@@ -64,7 +64,7 @@ describe('claimsService', () => {
     expect(instance).toBeInstanceOf(ClaimsService);
   });
 
-  it('forwards env and fetchFunction to the service', async () => {
+  it('forwards env, fetchFunction, and policy options to the service', async () => {
     const rootMessenger = getRootMessenger();
     const mockGetBearerToken = jest.fn().mockResolvedValue('test-token');
     registerActionHandler(
@@ -74,11 +74,16 @@ describe('claimsService', () => {
       mockGetBearerToken,
     );
 
+    const mockFetch = jest.fn();
     const messenger = claimsService.getMessenger(rootMessenger);
     claimsService.init({
       state: undefined,
       messenger,
-      options: REQUIRED_OPTIONS,
+      options: {
+        ...REQUIRED_OPTIONS,
+        fetchFunction: mockFetch,
+        policyOptions: { maxRetries: 0 },
+      },
     });
 
     const headers = await rootMessenger.call('ClaimsService:getRequestHeaders');
@@ -96,6 +101,7 @@ describe('claimsService', () => {
     expect(delegateSpy).toHaveBeenCalledWith({
       messenger: expect.any(Messenger),
       actions: ['AuthenticationController:getBearerToken'],
+      events: [],
     });
   });
 

@@ -31,6 +31,7 @@ function createMockClaimsService(env: Env = Env.DEV): ClaimsService {
     env,
     messenger,
     fetchFunction: mockFetchFunction,
+    captureException: mockCaptureException,
   });
 }
 
@@ -330,6 +331,223 @@ describe('ClaimsService', () => {
           ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
           new Error('error: Unknown error, statusCode: 500'),
         ),
+      );
+    });
+  });
+
+  describe('caching', () => {
+    const MOCK_CONFIGURATIONS: ClaimsConfigurationsResponse = {
+      validSubmissionWindowDays: 21,
+      networks: [1, 5, 11155111],
+    };
+
+    beforeEach(() => {
+      jest.resetAllMocks();
+    });
+
+    it('deduplicates cached GET requests', async () => {
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'test-token',
+      );
+      mockFetchFunction.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
+      });
+
+      const service = createMockClaimsService();
+
+      await service.fetchClaimsConfigurations();
+      await service.fetchClaimsConfigurations();
+
+      expect(mockFetchFunction).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not cache signature message POST requests', async () => {
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'test-token',
+      );
+      mockFetchFunction.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          message: 'test message',
+          nonce: 'test nonce',
+        }),
+      });
+
+      const service = createMockClaimsService();
+
+      await service.generateMessageForClaimSignature(1, '0x123');
+      await service.generateMessageForClaimSignature(1, '0x123');
+
+      expect(mockFetchFunction).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not deduplicate concurrent signature message POST requests', async () => {
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'test-token',
+      );
+
+      mockFetchFunction.mockImplementation(async () => {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 50);
+        });
+        return {
+          ok: true,
+          json: jest.fn().mockResolvedValue({
+            message: `test message ${mockFetchFunction.mock.calls.length}`,
+            nonce: `test nonce ${mockFetchFunction.mock.calls.length}`,
+          }),
+        };
+      });
+
+      const service = createMockClaimsService();
+
+      await Promise.all([
+        service.generateMessageForClaimSignature(1, '0x123'),
+        service.generateMessageForClaimSignature(1, '0x123'),
+      ]);
+
+      expect(mockFetchFunction).toHaveBeenCalledTimes(2);
+    });
+
+    it('refetches GET requests after invalidation', async () => {
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'test-token',
+      );
+      mockFetchFunction.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue([MOCK_CLAIM_1]),
+      });
+
+      const service = createMockClaimsService();
+
+      await service.getClaims();
+      await service.invalidateQueries({
+        queryKey: [`ClaimsService:getClaims`],
+      });
+      await service.getClaims();
+
+      expect(mockFetchFunction).toHaveBeenCalledTimes(2);
+    });
+
+    it('publishes cacheUpdated events for cached GET requests', async () => {
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'test-token',
+      );
+      mockFetchFunction.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
+      });
+
+      const { messenger } = createMockClaimsServiceMessenger(
+        mockAuthenticationControllerGetBearerToken,
+        mockCaptureException,
+      );
+      const publishSpy = jest.spyOn(messenger, 'publish');
+      const service = new ClaimsService({
+        env: Env.DEV,
+        messenger,
+        fetchFunction: mockFetchFunction,
+      });
+
+      await service.fetchClaimsConfigurations();
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'ClaimsService:cacheUpdated',
+        expect.objectContaining({
+          type: 'updated',
+        }),
+      );
+    });
+  });
+
+  describe('response validation', () => {
+    beforeEach(() => {
+      jest.resetAllMocks();
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'test-token',
+      );
+    });
+
+    it('throws when configurations response is malformed', async () => {
+      mockFetchFunction.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ invalid: true }),
+      });
+
+      const service = createMockClaimsService();
+
+      await expect(service.fetchClaimsConfigurations()).rejects.toThrow(
+        ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
+      );
+    });
+
+    it('throws when claims response is malformed', async () => {
+      mockFetchFunction.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue([{ invalid: true }]),
+      });
+
+      const service = createMockClaimsService();
+
+      await expect(service.getClaims()).rejects.toThrow(
+        ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS,
+      );
+    });
+  });
+
+  describe('captureException', () => {
+    it('falls back to messenger.captureException when config captureException is omitted', async () => {
+      jest.resetAllMocks();
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'test-token',
+      );
+      mockFetchFunction.mockRejectedValue(new Error('Fetch error'));
+
+      const { messenger } = createMockClaimsServiceMessenger(
+        mockAuthenticationControllerGetBearerToken,
+        mockCaptureException,
+      );
+      const service = new ClaimsService({
+        env: Env.DEV,
+        messenger,
+        fetchFunction: mockFetchFunction,
+      });
+
+      await expect(service.getClaimById('1')).rejects.toThrow(
+        ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+      );
+
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        createSentryError(
+          ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+          new Error('Fetch error'),
+        ),
+      );
+    });
+
+    it('ignores errors thrown by captureException', async () => {
+      jest.resetAllMocks();
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'test-token',
+      );
+      mockFetchFunction.mockRejectedValue(new Error('Fetch error'));
+
+      const { messenger } = createMockClaimsServiceMessenger(
+        mockAuthenticationControllerGetBearerToken,
+        jest.fn(),
+      );
+      const service = new ClaimsService({
+        env: Env.DEV,
+        messenger,
+        fetchFunction: mockFetchFunction,
+        captureException: () => {
+          throw new Error('capture failed');
+        },
+      });
+
+      await expect(service.getClaimById('1')).rejects.toThrow(
+        ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
       );
     });
   });

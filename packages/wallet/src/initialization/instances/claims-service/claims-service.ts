@@ -16,6 +16,9 @@ export const claimsService: InitializationConfiguration<
       messenger,
       env: options.env ?? Env.PRD,
       fetchFunction: options.fetchFunction,
+      captureException: options.captureException,
+      queryClientConfig: options.queryClientConfig,
+      policyOptions: options.policyOptions,
     }),
   getMessenger: (parent) => {
     const messenger: ClaimsServiceMessenger = new Messenger({
@@ -26,6 +29,7 @@ export const claimsService: InitializationConfiguration<
     parent.delegate({
       messenger,
       actions: ['AuthenticationController:getBearerToken'],
+      events: [],
     });
 
     return messenger;
