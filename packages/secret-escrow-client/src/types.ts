@@ -133,6 +133,28 @@ export type RevokeParams = {
 };
 
 /**
+ * Wallet password ciphertext wrapped under the escrow secret.
+ *
+ * Stored by clients / mock backends so Social + Passkey can recover the
+ * password after wipe without keeping it only in extension state.
+ */
+export type EscrowWrappedPassword = {
+  ciphertext: string;
+  iv: string;
+};
+
+/**
+ * Public enrollment metadata (never includes the raw escrow secret).
+ */
+export type EscrowEnrollmentMetadata = {
+  userId: string;
+  factorId: string;
+  factor: WebAuthnEscrowFactor;
+  wrappedPassword: EscrowWrappedPassword;
+  enrolledAt: number;
+};
+
+/**
  * Client interface for a WebAuthn-gated secret escrow service.
  *
  * Protocol: `register` → (`exportInit` → WebAuthn `get` → `exportComplete`)*.
@@ -146,4 +168,16 @@ export type SecretEscrowClient = {
     params: ExportCompleteParams,
   ) => Promise<ExportCompleteResult>;
   revoke: (params: RevokeParams) => Promise<void>;
+};
+
+/**
+ * Client that can persist/restore enrollment metadata for wipe recovery.
+ */
+export type EnrollmentCapableSecretEscrowClient = SecretEscrowClient & {
+  putEnrollmentMetadata: (
+    metadata: EscrowEnrollmentMetadata,
+  ) => Promise<void>;
+  getEnrollmentMetadata: (
+    userId: string,
+  ) => Promise<EscrowEnrollmentMetadata | null>;
 };

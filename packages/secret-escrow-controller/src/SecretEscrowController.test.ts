@@ -292,4 +292,82 @@ describe('SecretEscrowController', () => {
     expect(client.exportSnapshot).not.toHaveBeenCalled();
     expect(controller.state.mockClientSnapshot).toBeNull();
   });
+
+  it('hydrates local enrollment from a remote enrollment-capable client', async () => {
+    const metadataStore = new Map<
+      string,
+      {
+        userId: string;
+        factorId: string;
+        factor: WebAuthnEscrowFactor;
+        wrappedPassword: { ciphertext: string; iv: string };
+        enrolledAt: number;
+      }
+    >();
+    const base = new MockSecretEscrowClient();
+    const client = Object.assign(base, {
+      putEnrollmentMetadata: jest.fn(async (metadata) => {
+        metadataStore.set(metadata.userId, metadata);
+      }),
+      getEnrollmentMetadata: jest.fn(async (userId: string) => {
+        return metadataStore.get(userId) ?? null;
+      }),
+    });
+
+    const enrolled = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+    await enrolled.enrollAndWrapPassword({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+      password: 'wallet-password',
+    });
+    expect(client.putEnrollmentMetadata).toHaveBeenCalled();
+
+    // Simulate wipe: new controller, empty local state, same remote client store.
+    const hydrated = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+    expect(await hydrated.hydrateFromRemote('user-1')).toBe(true);
+    expect(hydrated.isEnrolled()).toBe(true);
+
+    const { challenge } = await hydrated.startExport();
+    await expect(
+      hydrated.recoverPassword({
+        id: TEST_FACTOR.credentialId,
+        challenge,
+      }),
+    ).resolves.toBe('wallet-password');
+  });
+
+  it('hydrateFromRemote is a no-op without enrollment-capable client', async () => {
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client: new MockSecretEscrowClient(),
+    });
+    expect(await controller.hydrateFromRemote('user-1')).toBe(false);
+  });
+
+  it('hydrateFromRemote is a no-op when already enrolled or remote has no wrap', async () => {
+    const client = Object.assign(new MockSecretEscrowClient(), {
+      putEnrollmentMetadata: jest.fn(),
+      getEnrollmentMetadata: jest.fn().mockResolvedValue(null),
+    });
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+    await controller.enroll({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+    expect(await controller.hydrateFromRemote('user-1')).toBe(false);
+
+    controller.clearState();
+    expect(await controller.hydrateFromRemote('user-1')).toBe(false);
+  });
 });

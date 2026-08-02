@@ -10,5 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of `@metamask/secret-escrow-client` with `SecretEscrowClient` types, errors, and in-memory `MockSecretEscrowClient`
 - Mock snapshot export/import for local-dev persistence across process restarts
+- `HttpSecretEscrowClient` and file-backed `yarn mock-server` for wipe/rehydration testing
+- Enrollment metadata types for persisting wrapped password outside the extension
 
 [Unreleased]: https://github.com/MetaMask/core/

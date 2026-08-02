@@ -47,6 +47,21 @@ export type SecretEscrowControllerEnrollAndWrapPasswordAction = {
 };
 
 /**
+ * Restores local enrollment from a remote escrow that persists public
+ * metadata (e.g. the file-backed mock HTTP server).
+ *
+ * No-op when already enrolled locally or when the client cannot fetch
+ * enrollment metadata. Used after wallet wipe + social rehydration.
+ *
+ * @param userId - Stable escrow user id.
+ * @returns True when local state was hydrated from remote.
+ */
+export type SecretEscrowControllerHydrateFromRemoteAction = {
+  type: `SecretEscrowController:hydrateFromRemote`;
+  handler: SecretEscrowController['hydrateFromRemote'];
+};
+
+/**
  * Starts an export ceremony and returns the challenge for WebAuthn `get()`.
  *
  * @returns Export challenge.
@@ -103,6 +118,7 @@ export type SecretEscrowControllerMethodActions =
   | SecretEscrowControllerIsEnrolledAction
   | SecretEscrowControllerEnrollAction
   | SecretEscrowControllerEnrollAndWrapPasswordAction
+  | SecretEscrowControllerHydrateFromRemoteAction
   | SecretEscrowControllerStartExportAction
   | SecretEscrowControllerCompleteExportAction
   | SecretEscrowControllerRecoverPasswordAction

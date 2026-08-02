@@ -6,6 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  EnrollmentCapableSecretEscrowClient,
   EscrowAssertion,
   ExportInitResult,
   MockSecretEscrowSnapshot,
@@ -121,6 +122,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'isEnrolled',
   'enroll',
   'enrollAndWrapPassword',
+  'hydrateFromRemote',
   'startExport',
   'completeExport',
   'recoverPassword',
@@ -164,6 +166,23 @@ function isSnapshotCapableClient(
       'function' &&
     typeof (client as SnapshotCapableSecretEscrowClient).importSnapshot ===
       'function'
+  );
+}
+
+/**
+ * Whether a client supports remote enrollment metadata persistence.
+ *
+ * @param client - Escrow client instance.
+ * @returns True when enrollment metadata methods exist.
+ */
+function isEnrollmentCapableClient(
+  client: SecretEscrowClient | SnapshotCapableSecretEscrowClient,
+): client is EnrollmentCapableSecretEscrowClient {
+  return (
+    typeof (client as EnrollmentCapableSecretEscrowClient)
+      .putEnrollmentMetadata === 'function' &&
+    typeof (client as EnrollmentCapableSecretEscrowClient)
+      .getEnrollmentMetadata === 'function'
   );
 }
 
@@ -288,9 +307,54 @@ export class SecretEscrowController extends BaseController<
         // `enroll` above always sets `escrowRecord` before returning.
         state.escrowRecord!.wrappedPassword = wrappedPassword;
       });
+      if (isEnrollmentCapableClient(this.#client)) {
+        await this.#client.putEnrollmentMetadata({
+          userId: params.userId,
+          factorId: params.factorId,
+          factor: structuredClone(params.factor),
+          wrappedPassword,
+          enrolledAt: this.state.escrowRecord!.enrolledAt,
+        });
+      }
     } finally {
       secret.fill(0);
     }
+  }
+
+  /**
+   * Restores local enrollment from a remote escrow that persists public
+   * metadata (e.g. the file-backed mock HTTP server).
+   *
+   * No-op when already enrolled locally or when the client cannot fetch
+   * enrollment metadata. Used after wallet wipe + social rehydration.
+   *
+   * @param userId - Stable escrow user id.
+   * @returns True when local state was hydrated from remote.
+   */
+  async hydrateFromRemote(userId: string): Promise<boolean> {
+    if (this.state.escrowRecord) {
+      return false;
+    }
+    if (!isEnrollmentCapableClient(this.#client)) {
+      return false;
+    }
+
+    const metadata = await this.#client.getEnrollmentMetadata(userId);
+    if (!metadata?.wrappedPassword) {
+      return false;
+    }
+
+    this.update((state) => {
+      state.escrowRecord = {
+        userId: metadata.userId,
+        // Guard against port-IPC `null` factor ids from older enrollments.
+        factorId: metadata.factorId || 'passkey',
+        factor: structuredClone(metadata.factor),
+        enrolledAt: metadata.enrolledAt,
+        wrappedPassword: { ...metadata.wrappedPassword },
+      };
+    });
+    return true;
   }
 
   /**

@@ -1,8 +1,11 @@
 export type {
   Base64URLString,
+  EnrollmentCapableSecretEscrowClient,
   EscrowAssertion,
+  EscrowEnrollmentMetadata,
   EscrowFactor,
   EscrowPublicKeyJwk,
+  EscrowWrappedPassword,
   ExportCompleteParams,
   ExportCompleteResult,
   ExportInitParams,
@@ -24,3 +27,5 @@ export type {
   MockSecretEscrowClientOptions,
   MockSecretEscrowSnapshot,
 } from './MockSecretEscrowClient.js';
+export { HttpSecretEscrowClient } from './HttpSecretEscrowClient.js';
+export type { HttpSecretEscrowClientOptions } from './HttpSecretEscrowClient.js';

@@ -19,6 +19,25 @@ development. It mirrors the CubeSigner C2F `register` / `export_init` /
 `export_complete` flow but only checks credential id + challenge (no
 cryptographic signature verify).
 
+### File-backed HTTP mock (wipe / rehydration)
+
+For Social + Passkey recovery across wallet wipe, run the persistent mock:
+
+```sh
+yarn mock-server
+# listens on http://127.0.0.1:8787
+# store: ./.secret-escrow-mock.json (override with SECRET_ESCROW_MOCK_STORE)
+```
+
+Point the extension at it via `.metamaskrc`:
+
+```
+SECRET_ESCROW_URL=http://127.0.0.1:8787
+```
+
+`HttpSecretEscrowClient` talks to this API. Enrollment also stores the wrapped
+password on the mock so `hydrateFromRemote` can restore local state after wipe.
+
 ## Installation
 
 `yarn add @metamask/secret-escrow-client`
