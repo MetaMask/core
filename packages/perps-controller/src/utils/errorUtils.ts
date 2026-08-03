@@ -99,8 +99,8 @@ export function isHyperLiquidUserNotFoundError(error: unknown): boolean {
  * has been converted to multi-sig (`ApiRequestError: Multi-sig required`).
  * MetaMask signs Perps actions with a single agent/user wallet, so this is a
  * permanent account-shape condition rather than a failure we should retry or
- * forward to Sentry. Hyperliquid is inconsistent about the hyphen across
- * endpoints, so both spellings are matched.
+ * forward to Sentry. Only the hyphenated spelling has been observed from the
+ * venue; the unhyphenated variant is matched defensively.
  *
  * @param error - The caught error.
  * @returns True if the error indicates multi-sig signing is required.
