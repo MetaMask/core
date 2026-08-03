@@ -1067,11 +1067,6 @@ export function getFiatOrderPollTimeoutMs(
  * `sendAsset` step retains enough balance) and surfaced as part of the
  * provider fee. Defaults to disabled with a $1 fee.
  *
- * Perps deposits targeting HyperCore always top up `targetAmountMinimum` by
- * this fee amount for unactivated accounts (independent of `enabled`), so
- * trade-with-token still leaves the intended margin after HyperLiquid deducts
- * the activation fee from the first inbound credit.
- *
  * @param messenger - Controller messenger.
  * @param transactionType - Parent transaction type used to resolve overrides.
  * @returns The activation-fee configuration.

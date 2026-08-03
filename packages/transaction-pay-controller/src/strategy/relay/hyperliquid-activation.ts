@@ -4,12 +4,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  CHAIN_ID_HYPERCORE,
-  HYPERCORE_USDC_ADDRESS,
-  HYPERCORE_USDC_DECIMALS,
-  PERPS_DEPOSIT_TYPES,
-} from '../../constants.js';
+import { HYPERCORE_USDC_DECIMALS } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   QuoteRequest,
@@ -204,60 +199,16 @@ function getEffectiveTransactionType(
 }
 
 /**
- * Whether this quote is a perps deposit whose target is HyperCore USDC.
+ * Reserve the one-time HyperLiquid activation fee for an unactivated HyperCore
+ * source account.
  *
- * `normalizeRequest` remaps Arbitrum-USDC perps deposits to HyperCore before
- * this runs, so the check is against the normalized target.
+ * Reduces the amount sent to the provider so HyperLiquid retains enough balance
+ * for the activation fee on the `sendAsset` step, and records the reserved fee
+ * (USD) so it can be added to the provider fee — keeping the displayed
+ * withdrawal amount unchanged.
  *
- * @param request - Normalized quote request.
- * @param transaction - Parent transaction metadata.
- * @returns True when the quote deposits into HyperCore for a perps deposit type.
- */
-function isHyperliquidDepositTarget(
-  request: QuoteRequest,
-  transaction?: TransactionMeta,
-): boolean {
-  const effectiveType = getEffectiveTransactionType(transaction);
-
-  if (
-    !effectiveType ||
-    !PERPS_DEPOSIT_TYPES.includes(effectiveType as TransactionType)
-  ) {
-    return false;
-  }
-
-  if (request.isHyperliquidSource) {
-    return false;
-  }
-
-  return (
-    request.targetChainId === CHAIN_ID_HYPERCORE &&
-    request.targetTokenAddress.toLowerCase() ===
-      HYPERCORE_USDC_ADDRESS.toLowerCase() &&
-    new BigNumber(request.targetAmountMinimum).gt(0)
-  );
-}
-
-/**
- * Reserve or top up the one-time HyperLiquid activation fee for an unactivated
- * HyperCore account.
- *
- * **Withdrawals** (`isHyperliquidSource`): reduces the amount sent to the
- * provider so HyperLiquid retains enough balance for the activation fee on the
- * `sendAsset` step, and records the reserved fee (USD) so it can be added to
- * the provider fee — keeping the displayed withdrawal amount unchanged. Gated
- * by the remote activation-fee feature flag (default off).
- *
- * **Deposits** (perps deposit types targeting HyperCore USDC): increases
- * `targetAmountMinimum` by the activation fee so the first inbound credit still
- * leaves the intended trading margin after HyperLiquid deducts ~$1 USDC. Trade
- * with token sizes the deposit at exact `marginRequired`; without this bump the
- * auto-placed order fails with insufficient margin for unactivated accounts.
- * Always applied for unactivated deposit targets (correctness); uses the
- * configured fee amount (default $1).
- *
- * No-op when the withdrawal feature flag is disabled, when the account is
- * already activated, or when a withdrawal amount is too small to reserve.
+ * No-op for non-HyperLiquid sources, when the feature flag is disabled, when
+ * the account is already activated, or when the amount is too small to reserve.
  *
  * @param request - Normalized quote request.
  * @param messenger - Controller messenger.
@@ -272,21 +223,16 @@ export async function applyHyperliquidActivationFee(
   transaction?: TransactionMeta,
   signal?: AbortSignal,
 ): Promise<QuoteRequest> {
-  const transactionType = getEffectiveTransactionType(transaction);
-  const isDeposit = isHyperliquidDepositTarget(request, transaction);
-
-  if (!request.isHyperliquidSource && !isDeposit) {
+  if (!request.isHyperliquidSource) {
     return request;
   }
 
   const { enabled, amountUsd } = getHyperliquidActivationFeeConfig(
     messenger,
-    transactionType,
+    getEffectiveTransactionType(transaction),
   );
 
-  // Withdrawals remain behind the remote flag (historical default: off).
-  // Deposits always top up when unactivated — under-funding by $1 is a bug.
-  if (request.isHyperliquidSource && !enabled) {
+  if (!enabled) {
     return request;
   }
 
@@ -297,25 +243,6 @@ export async function applyHyperliquidActivationFee(
   }
 
   const feeRaw = new BigNumber(amountUsd).shiftedBy(HYPERCORE_USDC_DECIMALS);
-
-  if (isDeposit) {
-    const increasedTarget = new BigNumber(request.targetAmountMinimum).plus(
-      feeRaw,
-    );
-
-    log('Increasing HyperLiquid deposit target for activation fee', {
-      amountUsd,
-      originalTargetAmountMinimum: request.targetAmountMinimum,
-      increasedTargetAmountMinimum: increasedTarget.toFixed(0),
-    });
-
-    return {
-      ...request,
-      targetAmountMinimum: increasedTarget.toFixed(0),
-      hyperliquidActivationFeeUsd: String(amountUsd),
-    };
-  }
-
   const reducedAmount = new BigNumber(request.sourceTokenAmount).minus(feeRaw);
 
   // Can't reserve more than the balance — let the original amount through so

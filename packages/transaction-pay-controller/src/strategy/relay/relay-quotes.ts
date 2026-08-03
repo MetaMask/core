@@ -309,6 +309,12 @@ async function getSingleQuote(
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
 
+    // HyperCore perps deposits fund an order that requires the full target as
+    // margin, so the delivered amount must be guaranteed rather than expected.
+    // EXPECTED_OUTPUT only guarantees `target * (1 - slippage)`, which leaves
+    // the follow-on order short and it fails on insufficient margin.
+    const useExactOutput = !useExactInput && isHypercoreDeposit(request);
+
     const useExecute =
       supports7702 &&
       isRelayExecuteEnabled(messenger) &&
@@ -338,7 +344,7 @@ async function getSingleQuote(
         : {}),
       recipient: effectiveRequest.recipient ?? from,
       slippageTolerance,
-      tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
+      tradeType: getTradeType(useExactInput, useExactOutput),
       user: from,
     };
 
@@ -613,6 +619,42 @@ async function processMoneyAccountPostQuote(
  * Hyperliquid-specific rewrites on transaction type.
  * @returns Normalized request.
  */
+/**
+ * Whether the quote deposits into HyperCore USDC.
+ *
+ * `normalizeRequest` remaps Arbitrum-USDC perps deposits to HyperCore before
+ * the quote is built, so the check is against the normalized target.
+ *
+ * @param request - Normalized quote request.
+ * @returns True when the target is HyperCore USDC.
+ */
+function isHypercoreDeposit(request: QuoteRequest): boolean {
+  return (
+    !request.isHyperliquidSource &&
+    request.targetChainId === CHAIN_ID_HYPERCORE &&
+    request.targetTokenAddress.toLowerCase() ===
+      HYPERCORE_USDC_ADDRESS.toLowerCase()
+  );
+}
+
+/**
+ * Resolve the Relay trade type for a quote.
+ *
+ * @param useExactInput - Whether the user specified the amount to send.
+ * @param useExactOutput - Whether the delivered amount must be guaranteed.
+ * @returns The Relay trade type.
+ */
+function getTradeType(
+  useExactInput: boolean,
+  useExactOutput: boolean,
+): RelayQuoteRequest['tradeType'] {
+  if (useExactInput) {
+    return 'EXACT_INPUT';
+  }
+
+  return useExactOutput ? 'EXACT_OUTPUT' : 'EXPECTED_OUTPUT';
+}
+
 function normalizeRequest(
   request: QuoteRequest,
   transaction: TransactionMeta,
