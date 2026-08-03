@@ -264,44 +264,63 @@ export class MultichainAccountWallet<
   }
 
   /**
-   * Create or update a multichain account group state for a given group index and group state.
+   * Create or update a multichain account group state for a given group index
+   * and group state.
    *
-   * @param groupIndex The group's index.
-   * @param groupState The group's state to create or update the group with.
+   * State application is always wrapped in a `withState` call, which
+   * transitions the group through `groupStatus` and then auto-finalizes to
+   * `'aligned'` or `'misaligned'`. The group is created on-demand if it does
+   * not yet exist, so callers do not need to assert its prior existence.
+   *
+   * @param groupIndex - The group's index.
+   * @param groupState - The group's state to create or update the group with.
+   * @param groupStatus - The in-progress status to set on the group while
+   * applying state.
    * @returns The created or updated multichain account group.
    */
-  #createOrUpdateMultichainAccountGroup(
+  async #createOrUpdateMultichainAccountGroup(
     groupIndex: number,
     groupState: GroupState,
-  ): MultichainAccountGroup<Account> {
-    let group = this.#accountGroups.get(groupIndex);
-    if (group) {
-      // NOTE: This will publish an update event automatically.
-      group.update(groupState);
+    groupStatus: 'in-progress:create-accounts' | 'in-progress:alignment',
+  ): Promise<MultichainAccountGroup<Account>> {
+    const group = this.#accountGroups.get(groupIndex);
 
-      this.#log(`Group updated: [${group.id}]`);
+    if (group) {
+      return group.withState(groupStatus, async () => {
+        // NOTE: This will publish an update event automatically.
+        group.update(groupState);
+
+        this.#log(`Group updated: [${group.id}]`);
+
+        return group;
+      });
     } else {
-      group = new MultichainAccountGroup({
+      // Shadow the outer `const` so TypeScript carries the non-undefined type
+      // into the async closure below.
+      const group = new MultichainAccountGroup({
         wallet: this,
         providers: this.#providers,
         groupIndex,
         messenger: this.#messenger,
       });
-      group.init(groupState);
 
       this.#accountGroups.set(groupIndex, group);
 
-      this.#log(`Group created: [${group.id}]`);
+      return group.withState(groupStatus, async () => {
+        group.init(groupState);
 
-      if (this.#initialized) {
-        this.#messenger.publish(
-          'MultichainAccountService:multichainAccountGroupCreated',
-          group,
-        );
-      }
+        this.#log(`Group created: [${group.id}]`);
+
+        if (this.#initialized) {
+          this.#messenger.publish(
+            'MultichainAccountService:multichainAccountGroupCreated',
+            group,
+          );
+        }
+
+        return group;
+      });
     }
-
-    return group;
   }
 
   /**
@@ -460,9 +479,10 @@ export class MultichainAccountWallet<
           const groupState = groupStateByGroupIndex.get(groupIndex);
 
           if (groupState) {
-            const group = this.#createOrUpdateMultichainAccountGroup(
+            const group = await this.#createOrUpdateMultichainAccountGroup(
               groupIndex,
               groupState,
+              'in-progress:create-accounts',
             );
 
             groups.push(group);
@@ -531,17 +551,11 @@ export class MultichainAccountWallet<
         for (let groupIndex = from; groupIndex <= to; groupIndex++) {
           const groupState = groupStateByGroupIndex.get(groupIndex);
           if (groupState) {
-            const existingGroup = this.getMultichainAccountGroup(groupIndex);
-            assert(
-              existingGroup,
-              `Expected group at index ${groupIndex} to exist before alignment`,
+            await this.#createOrUpdateMultichainAccountGroup(
+              groupIndex,
+              groupState,
+              groupStatus,
             );
-            await existingGroup.withState(groupStatus, async () => {
-              this.#createOrUpdateMultichainAccountGroup(
-                groupIndex,
-                groupState,
-              );
-            });
           }
         }
       },
