@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `setSelectedProviderForAsset(assetId, options?)` method and `RampsController:setSelectedProviderForAsset` messenger action ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Switches `providers.selected` to the first provider in `providers.data` that serves the given CAIP-19 asset when the currently selected provider does not, using the existing `providerServesAsset` utility.
+  - Returns `true` if a switch was made, `false` otherwise (no-op when providers are not yet loaded, the current provider already serves the asset, or no alternative provider serves the asset).
+
 ## [18.0.1]
 
 ### Changed

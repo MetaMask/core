@@ -15,7 +15,10 @@ import {
   isHeadlessAllProvidersEnabled,
   normalizeHeadlessProviderId,
 } from './featureFlags.js';
-import { getProvidersServingAsset } from './providerAvailability.js';
+import {
+  getProvidersServingAsset,
+  providerServesAsset,
+} from './providerAvailability.js';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
 import type { RampsErrorCode } from './rampsErrorCodes.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
@@ -815,6 +818,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getRequestState',
   'setUserRegion',
   'setSelectedProvider',
+  'setSelectedProviderForAsset',
   'init',
   'getCountries',
   'getTokens',
@@ -1443,6 +1447,56 @@ export class RampsController extends BaseController<
         state.providerAutoSelected = options?.autoSelected ?? false;
       });
     }
+  }
+
+  /**
+   * Switches to the first provider in state that serves the given asset,
+   * when the currently selected provider does not.
+   *
+   * This is the controller-level equivalent of UB2's BuildQuote tier-1
+   * silent-switch effect and MMPay's `useEnsureCompatibleProvider` hook: it
+   * keeps provider-asset compatibility logic in one place rather than
+   * duplicating `providerServesAsset` + find-and-switch across multiple UI
+   * layers.
+   *
+   * No-op when:
+   * - `providers.data` is empty (providers not yet loaded)
+   * - the currently selected provider already serves the asset
+   * - no provider in the list serves the asset (no safe fallback)
+   *
+   * @param assetId - CAIP-19 asset id of the deposit asset.
+   * @param options - Optional settings forwarded to `setSelectedProvider`.
+   * @param options.autoSelected - When true, marks the new selection as
+   *   system-guessed (soft selection). Defaults to true.
+   * @returns `true` if the selected provider was changed, `false` otherwise.
+   */
+  setSelectedProviderForAsset(
+    assetId: string,
+    options?: { autoSelected?: boolean },
+  ): boolean {
+    const providers = this.state.providers.data;
+    if (!providers?.length) {
+      return false;
+    }
+
+    const selectedProvider = this.state.providers.selected;
+    if (selectedProvider && providerServesAsset(selectedProvider, assetId)) {
+      return false;
+    }
+
+    const compatible = providers.find(
+      (p) =>
+        p.id !== selectedProvider?.id && providerServesAsset(p, assetId),
+    );
+    if (!compatible) {
+      return false;
+    }
+
+    this.setSelectedProvider(compatible, {
+      autoSelected: true,
+      ...options,
+    });
+    return true;
   }
 
   /**
