@@ -45,7 +45,11 @@ import type {
   RampsToken,
   RampsOrder,
 } from './RampsService.js';
-import { RampsOrderStatus } from './RampsService.js';
+import {
+  getDefaultRedirectCallbackUrl,
+  RampsEnvironment,
+  RampsOrderStatus,
+} from './RampsService.js';
 import { RequestStatus } from './RequestCache.js';
 import type {
   TransakAccessToken,
@@ -1387,19 +1391,18 @@ describe('RampsController', () => {
       );
     });
 
-    it('forwards the injected default redirectUrl on the widened path when the caller omits one', async () => {
+    it('forwards the environment-derived default redirectUrl on the widened path when the caller omits one', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
 
       await withController(
         {
           options: {
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
+            environment: RampsEnvironment.Production,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
@@ -1416,27 +1419,28 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // The caller omitted redirectUrl, so the widened path supplies the
-          // injected default and forwards it to the service.
-          expect(forwardedRedirectUrl).toBe(DEFAULT_REDIRECT);
+          // The caller omitted redirectUrl, so the widened path derives the
+          // default from the controller's environment and forwards it.
+          expect(forwardedRedirectUrl).toBe(
+            getDefaultRedirectCallbackUrl(RampsEnvironment.Production),
+          );
         },
       );
     });
 
-    it('prefers an explicit caller redirectUrl over the injected default on the widened path', async () => {
+    it('prefers an explicit caller redirectUrl over the environment-derived default on the widened path', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
       const EXPLICIT_REDIRECT = 'https://explicit.example/callback';
 
       await withController(
         {
           options: {
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
+            environment: RampsEnvironment.Production,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
@@ -1469,12 +1473,10 @@ describe('RampsController', () => {
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
-
       await withController(
         {
           options: {
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
+            environment: RampsEnvironment.Production,
             state: scopeState([buildScopeProvider(NATIVE, 'native')]),
           },
         },
@@ -1496,13 +1498,13 @@ describe('RampsController', () => {
           await callScopedGetQuotes(messenger);
 
           // The disabled flag never widens, so the default is not injected
-          // even when a `getDefaultRedirectUrl` callback is present.
+          // even though the controller has an environment configured.
           expect(forwardedRedirectUrl).toBeUndefined();
         },
       );
     });
 
-    it('forwards undefined on the widened path when no getDefaultRedirectUrl option is provided', async () => {
+    it('derives the default redirectUrl from the default (staging) environment when none is provided', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
@@ -1531,10 +1533,12 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // With no injected callback, the constructor default returns
-          // undefined, so the widened path forwards undefined.
+          // With no environment option, the controller defaults to staging and
+          // the widened path forwards the staging-derived callback URL.
           expect(redirectUrlWasSeen).toBe(true);
-          expect(forwardedRedirectUrl).toBeUndefined();
+          expect(forwardedRedirectUrl).toBe(
+            getDefaultRedirectCallbackUrl(RampsEnvironment.Staging),
+          );
         },
       );
     });

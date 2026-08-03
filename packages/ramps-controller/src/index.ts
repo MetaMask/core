@@ -109,6 +109,7 @@ export {
   RampsApiService,
   RampsOrderStatus,
   RAMPS_SDK_VERSION,
+  getDefaultRedirectCallbackUrl,
 } from './RampsService.js';
 export type {
   RampsServiceGetGeolocationAction,

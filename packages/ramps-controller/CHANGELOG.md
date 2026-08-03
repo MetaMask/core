@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the `getDefaultRedirectCallbackUrl(environment)` helper, which derives the widened Headless Buy default redirect ("fake callback") URL from a `RampsEnvironment` (`on-ramp-content` hosts for production/staging, `on-ramp.dev-api` for development, `localhost:3000` for local) ([#9752](https://github.com/MetaMask/core/pull/9752))
+- Add an optional `environment` option to `RampsControllerOptions` (defaults to `RampsEnvironment.Staging`, matching `RampsService`) that the controller uses to derive the widened-path default redirect URL internally ([#9752](https://github.com/MetaMask/core/pull/9752))
+
+### Removed
+
+- **BREAKING:** Remove the `getDefaultRedirectUrl` callback option from `RampsControllerOptions`; the widened-path default redirect URL is now derived inside the controller from its `environment` via `getDefaultRedirectCallbackUrl`, so clients pass `environment` instead of injecting a URL callback ([#9752](https://github.com/MetaMask/core/pull/9752))
+
 ## [18.0.1]
 
 ### Changed

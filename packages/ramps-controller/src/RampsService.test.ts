@@ -9,7 +9,11 @@ import nock, { cleanAll } from 'nock';
 import { flushPromises } from '../../../tests/helpers.js';
 import packageJson from '../package.json';
 import type { RampsServiceMessenger } from './RampsService.js';
-import { RampsService, RampsEnvironment } from './RampsService.js';
+import {
+  getDefaultRedirectCallbackUrl,
+  RampsService,
+  RampsEnvironment,
+} from './RampsService.js';
 
 const CONTROLLER_VERSION = packageJson.version;
 
@@ -3128,6 +3132,34 @@ describe('RampsService', () => {
 
       await expect(orderPromise).rejects.toThrow("failed with status '500'");
     });
+  });
+});
+
+describe('getDefaultRedirectCallbackUrl', () => {
+  it.each([
+    [
+      RampsEnvironment.Production,
+      'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+    ],
+    [
+      RampsEnvironment.Staging,
+      'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
+    ],
+    [
+      RampsEnvironment.Development,
+      'https://on-ramp.dev-api.cx.metamask.io/regions/fake-callback',
+    ],
+    [RampsEnvironment.Local, 'http://localhost:3000/regions/fake-callback'],
+  ])('derives the callback URL for the %s environment', (environment, url) => {
+    expect(getDefaultRedirectCallbackUrl(environment)).toBe(url);
+  });
+
+  it('throws for an unknown environment', () => {
+    expect(() =>
+      getDefaultRedirectCallbackUrl(
+        'unknown' as unknown as RampsEnvironment,
+      ),
+    ).toThrow('Invalid environment: unknown');
   });
 });
 

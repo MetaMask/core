@@ -750,6 +750,45 @@ function getBaseUrl(
 }
 
 /**
+ * The path served by the ramps content host that redirects back into the
+ * client once a non-native provider's widget flow completes.
+ */
+const FAKE_CALLBACK_PATH = '/regions/fake-callback';
+
+/**
+ * Derives the default redirect ("fake callback") URL for the widened Headless
+ * Buy quote fetch from the ramps environment.
+ *
+ * The quotes API only embeds a `buyURL`/`buyWidget` (the WebView page a
+ * non-native provider needs) when a `redirectUrl` is present, so the widened
+ * aggregator path supplies this default when the caller omits one. Production
+ * and staging serve the callback from the `on-ramp-content` CDN hosts;
+ * development has no `on-ramp-content.dev-api` deployment, so it uses the
+ * `on-ramp.dev-api` host (which serves `/regions/fake-callback` and returns
+ * 200). This intentionally does not reuse {@link getBaseUrl}, whose Regions
+ * host is `on-ramp{-cache}`, not `on-ramp-content`.
+ *
+ * @param environment - The environment to derive the callback URL for.
+ * @returns The default redirect callback URL for that environment.
+ */
+export function getDefaultRedirectCallbackUrl(
+  environment: RampsEnvironment,
+): string {
+  switch (environment) {
+    case RampsEnvironment.Production:
+      return `https://on-ramp-content.api.cx.metamask.io${FAKE_CALLBACK_PATH}`;
+    case RampsEnvironment.Staging:
+      return `https://on-ramp-content.uat-api.cx.metamask.io${FAKE_CALLBACK_PATH}`;
+    case RampsEnvironment.Development:
+      return `https://on-ramp.dev-api.cx.metamask.io${FAKE_CALLBACK_PATH}`;
+    case RampsEnvironment.Local:
+      return `http://localhost:3000${FAKE_CALLBACK_PATH}`;
+    default:
+      throw new Error(`Invalid environment: ${String(environment)}`);
+  }
+}
+
+/**
  * Constructs an API path with a version prefix.
  *
  * @param path - The API endpoint path.
