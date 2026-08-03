@@ -7004,22 +7004,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-hd-keyring@npm:^14.1.1":
-  version: 14.1.1
-  resolution: "@metamask/eth-hd-keyring@npm:14.1.1"
+"@metamask/eth-hd-keyring@npm:^14.1.1, @metamask/eth-hd-keyring@npm:^14.1.2":
+  version: 14.1.2
+  resolution: "@metamask/eth-hd-keyring@npm:14.1.2"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@ethereumjs/util": "npm:^9.1.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
     "@metamask/key-tree": "npm:^10.0.2"
-    "@metamask/keyring-api": "npm:^23.1.0"
-    "@metamask/keyring-sdk": "npm:^2.0.2"
-    "@metamask/keyring-utils": "npm:^3.2.0"
+    "@metamask/keyring-api": "npm:^23.6.0"
+    "@metamask/keyring-sdk": "npm:^2.3.0"
+    "@metamask/keyring-utils": "npm:^4.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
-    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.11.0"
     ethereum-cryptography: "npm:^2.2.1"
-  checksum: 10/f711742682a77990310272013523595822e29bfb61980828d1460ab8af888d7c344bb50f04d2611d801d63438e31532d3d66698c595b4fd3ad512b02056b7234
+  checksum: 10/077d6aacc674903d737948dfb5a3215e912e73afabad14429614ca643269150604b8ded8cbd48601f99b532c07e51c8d6b1036bad304a21a5b2ded3ea7d06c02
   languageName: node
   linkType: hard
 
@@ -7112,16 +7112,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-money-keyring@npm:^2.0.4":
-  version: 2.0.4
-  resolution: "@metamask/eth-money-keyring@npm:2.0.4"
+"@metamask/eth-money-keyring@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "@metamask/eth-money-keyring@npm:3.0.1"
   dependencies:
-    "@metamask/eth-hd-keyring": "npm:^14.1.1"
-    "@metamask/keyring-api": "npm:^23.1.0"
-    "@metamask/keyring-utils": "npm:^3.2.0"
-    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/eth-hd-keyring": "npm:^14.1.2"
+    "@metamask/keyring-api": "npm:^23.6.0"
+    "@metamask/keyring-sdk": "npm:^2.3.0"
+    "@metamask/keyring-utils": "npm:^4.0.0"
+    "@metamask/superstruct": "npm:^3.4.1"
     async-mutex: "npm:^0.5.0"
-  checksum: 10/2e3941355be1750c433cf8106235df1b0785becc47c0c87dfabbe7ed43006fa5d303bca70a1d5a308c0d0b281b75468440ab5c8883d70e12fa3923a5ccba3dd1
+  checksum: 10/98307e38e51d7efcb7bcb485ef9771de8ad31fc83ec681da60112df714d1c999ec59ef7eb3709317d3a4d7edb3226370226b8db0aad9d5c1e12e0575d196d8bc
   languageName: node
   linkType: hard
 
@@ -7532,7 +7533,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^23.1.0, @metamask/keyring-api@npm:^23.2.0, @metamask/keyring-api@npm:^23.5.0, @metamask/keyring-api@npm:^23.6.0, @metamask/keyring-api@npm:^23.7.0":
+"@metamask/keyring-api@npm:^23.1.0, @metamask/keyring-api@npm:^23.5.0, @metamask/keyring-api@npm:^23.6.0, @metamask/keyring-api@npm:^23.7.0":
   version: 23.7.0
   resolution: "@metamask/keyring-api@npm:23.7.0"
   dependencies:
@@ -7609,21 +7610,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-sdk@npm:^2.0.2, @metamask/keyring-sdk@npm:^2.2.0":
-  version: 2.2.0
-  resolution: "@metamask/keyring-sdk@npm:2.2.0"
+"@metamask/keyring-sdk@npm:^2.0.2, @metamask/keyring-sdk@npm:^2.2.0, @metamask/keyring-sdk@npm:^2.3.0":
+  version: 2.3.0
+  resolution: "@metamask/keyring-sdk@npm:2.3.0"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
-    "@metamask/keyring-api": "npm:^23.2.0"
-    "@metamask/keyring-utils": "npm:^3.3.1"
+    "@metamask/keyring-api": "npm:^23.6.0"
+    "@metamask/keyring-utils": "npm:^4.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
-    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.11.0"
     async-mutex: "npm:^0.5.0"
     ethereum-cryptography: "npm:^2.2.1"
     uuid: "npm:^9.0.1"
-  checksum: 10/5cb7f2496f0fc95e85eb97932b69da9c02c232e2310b5f390bfc7c56996bf8516d15db54260e68288f6d6f5604bfacc19b4b82b9b28b7f794a3ab5ee9a1f10d1
+  checksum: 10/38402f3834e0e364e1b17fe30ff64c1a050549239e204260081ddd0fc9228e9632d586819c551f91793d78207fb33f81e06ec3ac24537d511e8b5f1fabe57d21
   languageName: node
   linkType: hard
 
@@ -7659,7 +7660,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^3.2.0, @metamask/keyring-utils@npm:^3.3.1":
+"@metamask/keyring-utils@npm:^3.3.1":
   version: 3.3.1
   resolution: "@metamask/keyring-utils@npm:3.3.1"
   dependencies:
@@ -7883,7 +7884,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^39.0.6"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/eth-money-keyring": "npm:^2.0.4"
+    "@metamask/eth-money-keyring": "npm:^3.0.1"
     "@metamask/keyring-api": "npm:^23.7.0"
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/keyring-utils": "npm:^3.3.1"
