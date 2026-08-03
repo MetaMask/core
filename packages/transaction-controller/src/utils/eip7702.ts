@@ -362,6 +362,13 @@ async function signAuthorization(
   messenger: TransactionControllerMessenger,
   index: number,
 ): Promise<Required<Authorization>> {
+  // Retain pre-signed authorizations (e.g. Money Account upgrades signed by an
+  // account other than `txParams.from`) instead of re-signing with `from`.
+  if (isAuthorizationSigned(authorization)) {
+    log('Retaining pre-signed authorization', authorization);
+    return authorization;
+  }
+
   const finalAuthorization = prepareAuthorization(
     authorization,
     transactionMeta,
@@ -398,6 +405,24 @@ async function signAuthorization(
   log('Signed authorization', result);
 
   return result;
+}
+
+/**
+ * Whether an authorization already includes a complete EIP-7702 signature.
+ *
+ * @param authorization - Authorization to check.
+ * @returns True when chainId, nonce, and signature components are all present.
+ */
+function isAuthorizationSigned(
+  authorization: Authorization,
+): authorization is Required<Authorization> {
+  return Boolean(
+    authorization.chainId &&
+      authorization.nonce !== undefined &&
+      authorization.r &&
+      authorization.s &&
+      authorization.yParity !== undefined,
+  );
 }
 
 /**

@@ -830,6 +830,87 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('merges provided authorizationList with from upgrade authorization', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: false,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(
+        CONTRACT_ADDRESS_MOCK,
+      );
+
+      const providedAuthorization = {
+        address: '0x1234567890123456789012345678901234567890' as const,
+        chainId: '0x1' as const,
+        nonce: '0x5' as const,
+        r: '0xabc' as const,
+        s: '0xdef' as const,
+        yParity: '0x1' as const,
+      };
+
+      request.request.authorizationList = [providedAuthorization];
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: TransactionEnvelopeType.setCode,
+          authorizationList: [
+            { address: CONTRACT_ADDRESS_MOCK },
+            providedAuthorization,
+          ],
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('includes provided authorizationList when from is already upgraded', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: CONTRACT_ADDRESS_MOCK,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      const providedAuthorization = {
+        address: '0x1234567890123456789012345678901234567890' as const,
+        chainId: '0x1' as const,
+        nonce: '0x5' as const,
+        r: '0xabc' as const,
+        s: '0xdef' as const,
+        yParity: '0x1' as const,
+      };
+
+      request.request.authorizationList = [providedAuthorization];
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: TransactionEnvelopeType.setCode,
+          authorizationList: [providedAuthorization],
+        }),
+        expect.anything(),
+      );
+    });
+
     it('does not use type 4 if not upgraded but disableUpgrade set', async () => {
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,

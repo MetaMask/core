@@ -36,6 +36,7 @@ import type {
 import { projectLogger } from '../logger.js';
 import { TransactionEnvelopeType, TransactionType } from '../types.js';
 import type {
+  AuthorizationList,
   NestedTransactionMetadata,
   SecurityAlertResponse,
   TransactionBatchSingleRequest,
@@ -288,6 +289,58 @@ async function getNestedTransactionMeta(
  * @param request - The request object including the user request and necessary callbacks.
  * @returns The batch result object including the batch ID.
  */
+/**
+ * Build the authorization list for an EIP-7702 batch transaction.
+ *
+ * When the batch payer (`from`) requires an upgrade, an unsigned upgrade
+ * authorization for that account is included first. Any caller-provided
+ * authorizations (e.g. a pre-signed Money Account upgrade) are appended so
+ * both can be submitted on the same type-4 transaction.
+ *
+ * @param options - Options bag.
+ * @param options.chainId - Chain ID of the batch.
+ * @param options.messenger - Controller messenger.
+ * @param options.providedAuthorizationList - Optional authorizations from the batch request.
+ * @param options.publicKeyEIP7702 - Public key used to resolve the upgrade contract.
+ * @param options.requiresUpgrade - Whether the batch payer requires an EIP-7702 upgrade.
+ * @returns The combined authorization list, or undefined when none are needed.
+ */
+function buildBatchAuthorizationList({
+  chainId,
+  messenger,
+  providedAuthorizationList,
+  publicKeyEIP7702,
+  requiresUpgrade,
+}: {
+  chainId: Hex;
+  messenger: TransactionControllerMessenger;
+  providedAuthorizationList?: AuthorizationList;
+  publicKeyEIP7702: Hex;
+  requiresUpgrade: boolean;
+}): AuthorizationList | undefined {
+  const authorizationList: AuthorizationList = [];
+
+  if (requiresUpgrade) {
+    const upgradeContractAddress = getEIP7702UpgradeContractAddress(
+      chainId,
+      messenger,
+      publicKeyEIP7702,
+    );
+
+    if (!upgradeContractAddress) {
+      throw rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT);
+    }
+
+    authorizationList.push({ address: upgradeContractAddress });
+  }
+
+  if (providedAuthorizationList?.length) {
+    authorizationList.push(...providedAuthorizationList);
+  }
+
+  return authorizationList.length ? authorizationList : undefined;
+}
+
 async function addTransactionBatchWith7702(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
@@ -300,6 +353,7 @@ async function addTransactionBatchWith7702(
 
   const {
     atomic,
+    authorizationList: providedAuthorizationList,
     batchId: batchIdOverride,
     disableUpgrade,
     from,
@@ -382,19 +436,17 @@ async function addTransactionBatchWith7702(
     maxPriorityFeePerGas: nestedTransactions[0]?.maxPriorityFeePerGas,
   };
 
-  if (requiresUpgrade) {
-    const upgradeContractAddress = getEIP7702UpgradeContractAddress(
-      chainId,
-      messenger,
-      publicKeyEIP7702,
-    );
+  const authorizationList = buildBatchAuthorizationList({
+    chainId,
+    messenger,
+    providedAuthorizationList,
+    publicKeyEIP7702,
+    requiresUpgrade,
+  });
 
-    if (!upgradeContractAddress) {
-      throw rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT);
-    }
-
+  if (authorizationList?.length) {
     txParams.type = TransactionEnvelopeType.setCode;
-    txParams.authorizationList = [{ address: upgradeContractAddress }];
+    txParams.authorizationList = authorizationList;
   }
 
   if (validateSecurity) {

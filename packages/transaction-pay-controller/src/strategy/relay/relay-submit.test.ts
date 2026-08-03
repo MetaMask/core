@@ -546,6 +546,81 @@ describe('Relay Submit Utils', () => {
       });
     });
 
+    it('passes signed authorizationList on batch when same-chain with account override', async () => {
+      const moneyAccountFrom = '0xmoneyaccount' as Hex;
+
+      request.transaction = {
+        ...request.transaction,
+        txParams: { from: moneyAccountFrom },
+      } as TransactionMeta;
+
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+        ],
+      } as never;
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+          authorizationList: [
+            {
+              address: '0xabc',
+              chainId: '0x1',
+              nonce: '0x2',
+              r: '0xr',
+              s: '0xs',
+              yParity: '0x1',
+            },
+          ],
+        }),
+      );
+    });
+
+    it('does not pass authorizationList on batch when from matches transaction from', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+        ],
+      } as never;
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+      );
+    });
+
     it('uses mapped relay deposit type in batch when parent is predictDeposit', async () => {
       request.transaction = {
         ...request.transaction,

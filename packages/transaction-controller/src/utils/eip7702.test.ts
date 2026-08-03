@@ -282,6 +282,39 @@ describe('EIP-7702 Utils', () => {
       );
       expect(result?.[0]?.yParity).toBe('0x1');
     });
+
+    it('retains pre-signed authorizations without re-signing', async () => {
+      const preSignedAuthorization = {
+        address: AUTHORIZATION_LIST_MOCK[0].address,
+        chainId: AUTHORIZATION_LIST_MOCK[0].chainId,
+        nonce: AUTHORIZATION_LIST_MOCK[0].nonce,
+        r: '0xpreSignedR' as Hex,
+        s: '0xpreSignedS' as Hex,
+        yParity: '0x0' as Hex,
+      };
+
+      const result = await signAuthorizationList({
+        authorizationList: [
+          preSignedAuthorization,
+          { address: AUTHORIZATION_LIST_MOCK[0].address },
+        ],
+        messenger: controllerMessenger,
+        transactionMeta: TRANSACTION_META_MOCK,
+      });
+
+      expect(signAuthorizationMock).toHaveBeenCalledTimes(1);
+      expect(result).toStrictEqual([
+        preSignedAuthorization,
+        {
+          address: AUTHORIZATION_LIST_MOCK[0].address,
+          chainId: TRANSACTION_META_MOCK.chainId,
+          nonce: '0x125',
+          r: '0xf85c827a6994663f3ad617193148711d28f5334ee4ed070166028080a040e292',
+          s: '0xda533253143f134643a03405f1af1de1d305526f44ed27e62061368d4ea051cf',
+          yParity: '0x1',
+        },
+      ]);
+    });
   });
 
   describe('decodeAuthorizationSignature', () => {
