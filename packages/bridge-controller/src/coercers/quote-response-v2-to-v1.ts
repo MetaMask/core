@@ -103,6 +103,7 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
     srcTokenAmount: src.amount,
     destTokenAmount: dest.amount,
     minDestTokenAmount: dest.minAmount,
+    ...(intent && { intent }),
     feeData: {
       [FeeType.METABRIDGE]: {
         ...metabridgeFeeData,

@@ -138,6 +138,7 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
     },
     steps: steps?.map(toStepV2),
     ...restQuote,
+    ...(intent && { intent }),
     protocols: bridges,
     aggregator: bridgeId,
   };
