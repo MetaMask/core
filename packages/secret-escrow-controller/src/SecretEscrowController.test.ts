@@ -452,7 +452,7 @@ describe('SecretEscrowController', () => {
     expect(bytesToHex(fromPasskey)).toBe(bytesToHex(secret));
   });
 
-  it('rejects addFactor duplicates and unknown unlock factors', async () => {
+  it('allows password factor rotation and rejects other duplicates', async () => {
     const controller = new SecretEscrowController({
       messenger: createMessenger(),
       client: new MockSecretEscrowClient(),
@@ -463,10 +463,30 @@ describe('SecretEscrowController', () => {
       factor: { type: 'password', password: 'wallet-password' },
     });
 
+    await controller.addFactor({
+      factorId: 'password',
+      factor: { type: 'password', password: 'rotated-password' },
+    });
+
+    await controller.startExport('password');
+    const secret = await controller.unlockWithFactor({
+      factorId: 'password',
+      proof: { type: 'password', password: 'rotated-password' },
+    });
+    expect(secret.byteLength).toBe(32);
+    secret.fill(0);
+
     await expect(
       controller.addFactor({
-        factorId: 'password',
-        factor: { type: 'password', password: 'other' },
+        factorId: 'passkey',
+        factor: TEST_FACTOR,
+      }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+      controller.addFactor({
+        factorId: 'passkey',
+        factor: TEST_FACTOR,
       }),
     ).rejects.toMatchObject({
       code: SecretEscrowErrorCode.AlreadyRegistered,

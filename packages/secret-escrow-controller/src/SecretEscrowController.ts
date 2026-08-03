@@ -140,6 +140,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'createWithWalletSecret',
   'createWithWalletSecretAndWrapPassword',
   'addFactor',
+  'updateWrappedPassword',
   'enroll',
   'enrollAndWrapPassword',
   'hydrateFromRemote',
@@ -365,7 +366,11 @@ export class SecretEscrowController extends BaseController<
     factor: EscrowFactor;
   }): Promise<void> {
     const record = this.#requireEnrolled();
-    if (record.factors[params.factorId]) {
+    const existing = record.factors[params.factorId];
+    if (
+      existing &&
+      (existing.type !== 'password' || params.factor.type !== 'password')
+    ) {
       throw new SecretEscrowError('Secret escrow factor already enrolled', {
         code: SecretEscrowErrorCode.AlreadyRegistered,
       });
@@ -382,6 +387,26 @@ export class SecretEscrowController extends BaseController<
       state.escrowRecord!.factors[params.factorId] = publicFactor;
     });
     this.#persistMockSnapshot();
+    await this.#syncEnrollmentMetadata();
+  }
+
+  /**
+   * Replaces the wrapped wallet password ciphertext under the given escrow
+   * secret `S` (e.g. after rotating the vault password during onboarding).
+   *
+   * @param params - Rewrap parameters.
+   * @param params.password - New wallet password to wrap.
+   * @param params.secret - Escrow-released wallet secret `S`.
+   */
+  async updateWrappedPassword(params: {
+    password: string;
+    secret: Uint8Array;
+  }): Promise<void> {
+    this.#requireEnrolled();
+    const wrappedPassword = wrapPassword(params.password, params.secret);
+    this.update((state) => {
+      state.escrowRecord!.wrappedPassword = wrappedPassword;
+    });
     await this.#syncEnrollmentMetadata();
   }
 

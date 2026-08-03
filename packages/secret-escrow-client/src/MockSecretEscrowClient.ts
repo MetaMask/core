@@ -301,10 +301,15 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
         code: SecretEscrowErrorCode.NotRegistered,
       });
     }
-    if (record.factors[factorId]) {
-      throw new SecretEscrowError(SecretEscrowErrorMessage.AlreadyRegistered, {
-        code: SecretEscrowErrorCode.AlreadyRegistered,
-      });
+    const existing = record.factors[factorId];
+    if (existing) {
+      // Allow rotating a password factor hash (vault password change during
+      // onboarding). Other factor types remain unique.
+      if (existing.type !== 'password' || factor.type !== 'password') {
+        throw new SecretEscrowError(SecretEscrowErrorMessage.AlreadyRegistered, {
+          code: SecretEscrowErrorCode.AlreadyRegistered,
+        });
+      }
     }
     record.factors[factorId] = await toStoredFactor(factor);
   }

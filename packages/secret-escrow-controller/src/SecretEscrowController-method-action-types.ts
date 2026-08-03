@@ -65,6 +65,19 @@ export type SecretEscrowControllerAddFactorAction = {
 };
 
 /**
+ * Replaces the wrapped wallet password ciphertext under the given escrow
+ * secret `S` (e.g. after rotating the vault password during onboarding).
+ *
+ * @param params - Rewrap parameters.
+ * @param params.password - New wallet password to wrap.
+ * @param params.secret - Escrow-released wallet secret `S`.
+ */
+export type SecretEscrowControllerUpdateWrappedPasswordAction = {
+  type: `SecretEscrowController:updateWrappedPassword`;
+  handler: SecretEscrowController['updateWrappedPassword'];
+};
+
+/**
  * Registers the first factor, escrows wallet secret `S`, and wraps the wallet
  * password under `S` for TOPRF coexistence during migration.
  *
@@ -210,6 +223,7 @@ export type SecretEscrowControllerMethodActions =
   | SecretEscrowControllerGenerateWalletSecretAction
   | SecretEscrowControllerCreateWithWalletSecretAction
   | SecretEscrowControllerAddFactorAction
+  | SecretEscrowControllerUpdateWrappedPasswordAction
   | SecretEscrowControllerCreateWithWalletSecretAndWrapPasswordAction
   | SecretEscrowControllerEnrollAction
   | SecretEscrowControllerEnrollAndWrapPasswordAction
