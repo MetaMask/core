@@ -645,7 +645,7 @@ function isHypercoreDeposit(request: QuoteRequest): boolean {
  * @returns The Relay trade type.
  */
 function getTradeType(
-  useExactInput: boolean,
+  useExactInput: boolean | undefined,
   useExactOutput: boolean,
 ): RelayQuoteRequest['tradeType'] {
   if (useExactInput) {
