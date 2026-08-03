@@ -3001,6 +3001,25 @@ describe('HyperLiquidProvider', () => {
         expect(result.results[0].success).toBe(false);
         expect(result.results[0].error).toBe('API error');
       });
+
+      it('maps recognized batch cancel rejections to a standardized code', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest
+              .fn()
+              .mockRejectedValue(new Error('multi-sig required')),
+          }),
+        );
+
+        const result = await provider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+        ]);
+
+        expect(result.success).toBe(false);
+        expect(result.results[0].error).toBe(
+          PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+        );
+      });
     });
 
     describe('closePositions', () => {

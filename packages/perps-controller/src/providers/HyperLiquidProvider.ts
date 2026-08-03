@@ -4130,13 +4130,27 @@ export class HyperLiquidProvider implements PerpsProvider {
         ],
       });
 
-      const success = result.response?.data?.statuses?.[0] === 'success';
+      const status = result.response?.data?.statuses?.[0];
+      if (status === 'success') {
+        return {
+          success: true,
+          orderId: params.orderId,
+        };
+      }
 
-      return {
-        success,
+      // HyperLiquid usually rejects a cancel without throwing: the status entry
+      // carries the raw exchange string (e.g. "multi-sig required"). Map it the
+      // same way as a thrown rejection so callers get a standardized code
+      // instead of a generic message. The SDK types every status as 'success',
+      // so the rejection shape needs the same cast cancelOrders already uses.
+      const rawError =
+        (status as { error?: string } | undefined)?.error ??
+        'Order cancellation failed';
+
+      return createErrorResult(this.#mapError(new Error(rawError)), {
+        success: false,
         orderId: params.orderId,
-        error: success ? undefined : 'Order cancellation failed',
-      };
+      });
     } catch (error) {
       const mappedError = this.#mapError(error);
       this.#deps.logger.error(
@@ -4220,9 +4234,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         })),
       };
     } catch (error) {
+      const mappedError = this.#mapError(error);
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.cancelOrders'),
-        this.#getErrorContext('cancelOrders', {
+        mappedError,
+        await this.#getTradingErrorContext('cancelOrders', mappedError, {
           orderCount: params.length,
         }),
       );
@@ -4237,7 +4252,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           success: false,
           error:
             error instanceof Error
-              ? error.message
+              ? mappedError.message
               : PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
         })),
       };

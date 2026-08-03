@@ -2191,6 +2191,66 @@ describe('HyperLiquidProvider', () => {
           );
         },
       );
+
+      it.each([
+        ['multi-sig required', PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED],
+        ['invalid nonce', PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE],
+      ])(
+        'maps a non-thrown "%s" cancel status rejection to %s',
+        async (exchangeMessage, expectedCode) => {
+          // HyperLiquid usually rejects a cancel by resolving with a status
+          // object rather than throwing, so this is the common failure shape.
+          mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+            createMockExchangeClient({
+              cancel: jest.fn().mockResolvedValue({
+                status: 'ok',
+                response: {
+                  data: { statuses: [{ error: exchangeMessage }] },
+                },
+              }),
+            }),
+          );
+
+          const result = await provider.cancelOrder({
+            orderId: '123',
+            symbol: 'BTC',
+          });
+
+          expect(result.success).toBe(false);
+          expect(result.orderId).toBe('123');
+          expect(result.error).toBe(expectedCode);
+        },
+      );
+
+      it('preserves an unmapped cancel status error string', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest.fn().mockResolvedValue({
+              status: 'ok',
+              response: {
+                data: {
+                  statuses: [
+                    {
+                      error:
+                        'cancel 0: Order was never placed, already canceled, or filled. asset=4',
+                    },
+                  ],
+                },
+              },
+            }),
+          }),
+        );
+
+        const result = await provider.cancelOrder({
+          orderId: '123',
+          symbol: 'BTC',
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(
+          'cancel 0: Order was never placed, already canceled, or filled. asset=4',
+        );
+      });
     });
 
     describe('account-mode exchange error mapping', () => {
