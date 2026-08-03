@@ -4,6 +4,7 @@ import { merge } from 'lodash';
 import { QuoteResponseSchemaV1 } from '../../validators/quote-response-v1.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
+import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import { toQuoteMetadataV2 } from './to-quote-metadata-v2.js';
 import type { QuoteMetadata } from './types.js';
 
