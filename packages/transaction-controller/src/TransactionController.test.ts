@@ -44,7 +44,7 @@ import * as uuidModule from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
 import { FakeProvider } from '../../../tests/fake-provider.js';
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises, jestAdvanceTime } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockFindNetworkClientIdByChainId,
@@ -62,7 +62,10 @@ import {
 import { MethodDataHelper } from './helpers/MethodDataHelper.js';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper.js';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker.js';
-import { shouldResimulate } from './helpers/ResimulateHelper.js';
+import {
+  RESIMULATE_INTERVAL_MS,
+  shouldResimulate,
+} from './helpers/ResimulateHelper.js';
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook.js';
 import type {
   MethodData,
@@ -413,6 +416,7 @@ const METHOD_DATA_MOCK: MethodData = {
 describe('TransactionController', () => {
   afterEach(() => {
     jest.restoreAllMocks();
+    jest.useRealTimers();
   });
 
   const uuidModuleMock = jest.mocked(uuidModule);
@@ -2151,35 +2155,210 @@ describe('TransactionController', () => {
       });
     });
 
-    it('skips simulation when containerTypes includes EnforcedSimulations', async () => {
-      const { controller } = setupController();
+    describe('with enforced simulations', () => {
+      const wrappedParams = {
+        data: '0xabcdef',
+        to: ACCOUNT_2_MOCK,
+        value: '0x123',
+      };
+      const refreshedGasFeeToken = {
+        ...GAS_FEE_TOKEN_MOCK,
+        amount: '0x10',
+      };
 
-      const { transactionMeta } = await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
-        {
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-        },
-      );
+      it('skips balance changes but refreshes gas fee tokens using the wrapped transaction', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [refreshedGasFeeToken],
+          isGasFeeSponsored: false,
+        });
+        shouldResimulateMock.mockReturnValueOnce({
+          blockTime: 123,
+          resimulate: true,
+        });
+        const originalGasUsed = '0x5208';
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          gasUsed: originalGasUsed,
+          isGasFeeSponsored: true,
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+          status: TransactionStatus.unapproved as const,
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
 
-      await flushPromises();
+        await controller.updateEditableParams(transactionMeta.id, {
+          ...wrappedParams,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        });
+        await flushPromises();
 
-      expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
-
-      shouldResimulateMock.mockReturnValue({
-        blockTime: 123,
-        resimulate: true,
+        expect(getBalanceChangesMock).not.toHaveBeenCalled();
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+        expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              containerTypes: [TransactionContainerType.EnforcedSimulations],
+              txParams: expect.objectContaining(wrappedParams),
+            }),
+          }),
+        );
+        expect(controller.state.transactions[0]).toMatchObject({
+          gasFeeTokens: [refreshedGasFeeToken],
+          gasUsed: originalGasUsed,
+          isExternalSign: true,
+          isGasFeeSponsored: true,
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
       });
 
-      await controller.updateEditableParams(transactionMeta.id, {
-        containerTypes: [TransactionContainerType.EnforcedSimulations],
+      it('keeps the selected token during periodic simulation updates', async () => {
+        jest.useFakeTimers();
+        getGasFeeTokensMock.mockResolvedValue({
+          gasFeeTokens: [refreshedGasFeeToken],
+          isGasFeeSponsored: false,
+        });
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isActive: true,
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+          status: TransactionStatus.unapproved as const,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            ...wrappedParams,
+          },
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
+
+        await jestAdvanceTime({ duration: RESIMULATE_INTERVAL_MS });
+
+        expect(getBalanceChangesMock).not.toHaveBeenCalled();
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+        expect(controller.state.transactions[0]).toMatchObject({
+          gasFeeTokens: [refreshedGasFeeToken],
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+        });
+
+        jest.useRealTimers();
       });
 
-      await flushPromises();
+      it('replaces existing tokens with an empty response without clearing the selection', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          isGasFeeSponsored: false,
+        });
+        shouldResimulateMock.mockReturnValueOnce({
+          blockTime: 123,
+          resimulate: true,
+        });
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          gasUsed: '0x5208',
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+          status: TransactionStatus.unapproved as const,
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
 
-      expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+        await controller.updateEditableParams(transactionMeta.id, {
+          data: wrappedParams.data,
+        });
+        await flushPromises();
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+        expect(controller.state.transactions[0]).toMatchObject({
+          gasFeeTokens: [],
+          gasUsed: transactionMeta.gasUsed,
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+        });
+      });
+
+      it('does not apply an older in-flight simulation response after wrapping', async () => {
+        const staleBalanceChanges =
+          createDeferredPromise<
+            Awaited<ReturnType<typeof getBalanceChanges>>
+          >();
+        const staleGasFeeToken = {
+          ...GAS_FEE_TOKEN_MOCK,
+          amount: '0x20',
+        };
+        getBalanceChangesMock.mockReturnValueOnce(staleBalanceChanges.promise);
+        getGasFeeTokensMock.mockImplementation(async ({ transactionMeta }) => {
+          const isWrapped = transactionMeta.containerTypes?.includes(
+            TransactionContainerType.EnforcedSimulations,
+          );
+
+          return {
+            gasFeeTokens: [isWrapped ? refreshedGasFeeToken : staleGasFeeToken],
+            isGasFeeSponsored: false,
+          };
+        });
+        shouldResimulateMock.mockReturnValue({
+          blockTime: 123,
+          resimulate: true,
+        });
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          gasUsed: '0x100',
+          status: TransactionStatus.unapproved as const,
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          data: '0x1111',
+        });
+        await controller.updateEditableParams(transactionMeta.id, {
+          ...wrappedParams,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        });
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
+          refreshedGasFeeToken,
+        ]);
+
+        staleBalanceChanges.resolve({
+          gasUsed: '0x200',
+          simulationData: {
+            ...SIMULATION_DATA_RESULT_MOCK,
+            tokenBalanceChanges: [],
+          },
+        });
+        await flushPromises();
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(2);
+        expect(controller.state.transactions[0]).toMatchObject({
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+          gasFeeTokens: [refreshedGasFeeToken],
+          gasUsed: transactionMeta.gasUsed,
+          txParams: expect.objectContaining(wrappedParams),
+        });
+      });
     });
 
     describe('with beforeSign hook', () => {
@@ -2317,6 +2496,86 @@ describe('TransactionController', () => {
         await flushPromises();
 
         expect(controller.state.transactions[0].gasUsed).toBe(testGasUsed);
+      });
+
+      it('does not apply an older in-flight result after a newer simulation', async () => {
+        const staleBalanceChanges =
+          createDeferredPromise<
+            Awaited<ReturnType<typeof getBalanceChanges>>
+          >();
+        const freshBalanceChanges =
+          createDeferredPromise<
+            Awaited<ReturnType<typeof getBalanceChanges>>
+          >();
+        const staleGasFeeToken = {
+          ...GAS_FEE_TOKEN_MOCK,
+          amount: '0x20',
+        };
+        const freshGasFeeToken = {
+          ...GAS_FEE_TOKEN_MOCK,
+          amount: '0x30',
+        };
+        const freshSimulationData = {
+          ...SIMULATION_DATA_RESULT_MOCK,
+          tokenBalanceChanges: [],
+        };
+        const freshSimulationRevert = { message: 'Fresh revert' };
+        getBalanceChangesMock
+          .mockReturnValueOnce(staleBalanceChanges.promise)
+          .mockReturnValueOnce(freshBalanceChanges.promise);
+        getGasFeeTokensMock.mockImplementation(async ({ transactionMeta }) => {
+          const isFresh = transactionMeta.txParams.data === '0x2222';
+
+          return {
+            gasFeeTokens: [isFresh ? freshGasFeeToken : staleGasFeeToken],
+            isGasFeeSponsored: isFresh,
+          };
+        });
+        shouldResimulateMock.mockReturnValue({
+          blockTime: 123,
+          resimulate: true,
+        });
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          status: TransactionStatus.unapproved as const,
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          data: '0x1111',
+        });
+        await controller.updateEditableParams(transactionMeta.id, {
+          data: '0x2222',
+        });
+
+        freshBalanceChanges.resolve({
+          gasUsed: '0x300',
+          simulationData: freshSimulationData,
+          simulationRevert: freshSimulationRevert,
+        });
+        await flushPromises();
+
+        staleBalanceChanges.resolve({
+          gasUsed: '0x200',
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+          simulationRevert: { message: 'Stale revert' },
+        });
+        await flushPromises();
+
+        expect(controller.state.transactions[0]).toMatchObject({
+          gasFeeTokens: [freshGasFeeToken],
+          gasUsed: '0x300',
+          isExternalSign: true,
+          isGasFeeSponsored: true,
+          revert: { simulation: freshSimulationRevert },
+          simulationData: freshSimulationData,
+          txParams: expect.objectContaining({ data: '0x2222' }),
+        });
       });
 
       it('with getSimulationConfig', async () => {

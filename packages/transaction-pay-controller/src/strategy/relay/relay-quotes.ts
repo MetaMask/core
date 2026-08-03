@@ -314,6 +314,16 @@ async function getSingleQuote(
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
+    const nonAtomicRecipient = await resolveNonAtomicRecipient(
+      transaction,
+      request,
+      messenger,
+    );
+
+    const effectiveRequest = nonAtomicRecipient
+      ? { ...request, recipient: nonAtomicRecipient }
+      : request;
+
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
       destinationChainId: Number(targetChainId),
@@ -326,37 +336,46 @@ async function getSingleQuote(
             metamask: { executeVersion: 2 },
           }
         : {}),
-      recipient: request.recipient ?? from,
+      recipient: effectiveRequest.recipient ?? from,
       slippageTolerance,
       tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: from,
     };
 
-    if (request.isPolymarketDepositWallet) {
-      await applyPolymarketDepositWalletOverrides(body, request, messenger);
+    if (effectiveRequest.isPolymarketDepositWallet) {
+      await applyPolymarketDepositWalletOverrides(
+        body,
+        effectiveRequest,
+        messenger,
+      );
     }
 
-    // Skip transaction processing when skipProcessTransactions (defaulting to
-    // isPostQuote) is true — the original transaction will be included in the
-    // batch separately, not as part of the quote.
-    // Skip for Polymarket deposit wallet flows — the source is already a
-    // bridged token transfer, not a contract call to embed.
-    const shouldProcessTransactions =
-      !(request.skipProcessTransactions ?? request.isPostQuote) &&
-      !request.isPolymarketDepositWallet;
+    const isAtomic = effectiveRequest.atomic !== false;
 
-    if (shouldProcessTransactions) {
-      await processTransactions(transaction, request, body, messenger);
-    } else if (
-      request.isPostQuote &&
-      request.paymentOverride === PaymentOverride.MoneyAccount
+    const processedTransactions = await processTransactions(
+      transaction,
+      effectiveRequest,
+      body,
+      messenger,
+    );
+
+    if (
+      !processedTransactions &&
+      isAtomic &&
+      effectiveRequest.isPostQuote &&
+      effectiveRequest.paymentOverride === PaymentOverride.MoneyAccount
     ) {
-      await processMoneyAccountPostQuote(transaction, request, body, messenger);
-    } else if (request.refundTo) {
+      await processMoneyAccountPostQuote(
+        transaction,
+        effectiveRequest,
+        body,
+        messenger,
+      );
+    } else if (!processedTransactions && effectiveRequest.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
       // failed Relay transactions refund to the correct account (e.g. the Predict
       // Safe proxy) rather than defaulting to the EOA.
-      body.refundTo = request.refundTo;
+      body.refundTo = effectiveRequest.refundTo;
     }
 
     log('Request body', body);
@@ -365,7 +384,7 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    return await normalizeQuote(quote, request, fullRequest);
+    return await normalizeQuote(quote, effectiveRequest, fullRequest);
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -386,19 +405,82 @@ function normalizeAuthorizationList(
 }
 
 /**
+ * Derives the Relay quote recipient for non-atomic flows, where the second leg
+ * runs after settlement so funds must land directly on the account submitting
+ * that leg.
+ *
+ * Post-quote flows (e.g. Perps/Predict withdraw to Money Account) ask the
+ * client `getPaymentOverrideData` callback, which knows the Money Account
+ * address that cannot be derived from the request. Non-post-quote flows (e.g.
+ * max-amount Money Account deposit) use the parent transaction's own `from`,
+ * which is the Money Account rather than the funding EOA in `request.from`.
+ *
+ * @param transaction - Transaction metadata.
+ * @param request - Quote request.
+ * @param messenger - Controller messenger.
+ * @returns The recipient address, or `undefined` for atomic flows.
+ */
+async function resolveNonAtomicRecipient(
+  transaction: TransactionMeta,
+  request: QuoteRequest,
+  messenger: TransactionPayControllerMessenger,
+): Promise<Hex | undefined> {
+  if (request.atomic !== false) {
+    return undefined;
+  }
+
+  if (!request.isPostQuote) {
+    return (transaction.txParams?.from as Hex | undefined) ?? request.from;
+  }
+
+  const { transactionData: transactionDataList } = messenger.call(
+    'TransactionPayController:getState',
+  );
+
+  const transactionData = transactionDataList[transaction.id];
+  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
+
+  const { recipient } = await messenger.call(
+    'TransactionPayController:getPaymentOverrideData',
+    {
+      amount: amountHuman,
+      transaction,
+      transactionData,
+    },
+  );
+
+  return recipient;
+}
+
+/**
  * Add tranasction data to request body if needed.
  *
  * @param transaction - Transaction metadata.
  * @param request - Quote request.
  * @param requestBody  - Request body to populate.
  * @param messenger  - Controller messenger.
+ * @returns `true` when the transaction was embedded in the quote; `false` when
+ * skipped so the caller can route to an alternate handler.
  */
 async function processTransactions(
   transaction: TransactionMeta,
   request: QuoteRequest,
   requestBody: RelayQuoteRequest,
   messenger: TransactionPayControllerMessenger,
-): Promise<void> {
+): Promise<boolean> {
+  // Skip when skipProcessTransactions (defaulting to isPostQuote) is set — the
+  // original transaction is submitted separately, not embedded in the quote.
+  // Skip Polymarket deposit wallet flows — the source is already a bridged
+  // token transfer, not a contract call to embed. Skip non-atomic flows — the
+  // second leg is submitted after Relay settlement.
+  if (
+    (request.skipProcessTransactions ?? request.isPostQuote) === true ||
+    request.isPolymarketDepositWallet === true ||
+    request.atomic === false
+  ) {
+    return false;
+  }
+
   const { nestedTransactions, txParams } = transaction;
   const { isMaxAmount, targetChainId } = request;
   const data = txParams?.data as Hex | undefined;
@@ -422,7 +504,7 @@ async function processTransactions(
 
   if (skipDelegation) {
     log('Skipping delegation as token transfer or Hypercore deposit');
-    return;
+    return true;
   }
 
   if (isMaxAmount) {
@@ -467,6 +549,8 @@ async function processTransactions(
       value: delegation.value,
     },
   ];
+
+  return true;
 }
 
 async function processMoneyAccountPostQuote(

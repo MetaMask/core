@@ -38,9 +38,52 @@ export type AssetsControllerGetAssetMetadataAction = {
  * renderable asset (balance + metadata) exists for the account/asset pair.
  * @throws If `accountId` is empty or `assetId` is not a valid CAIP-19 asset ID.
  */
-export type AssetsControllerGetAssetAction = {
-  type: `AssetsController:getAsset`;
-  handler: AssetsController['getAsset'];
+export type AssetsControllerGetAccountAssetByIDAction = {
+  type: `AssetsController:getAccountAssetByID`;
+  handler: AssetsController['getAccountAssetByID'];
+};
+
+/**
+ * Get multiple combined assets (balance + metadata + price + computed
+ * `fiatValue`) for an account directly from controller state.
+ *
+ * Applies the same state-composition and filtering rules as
+ * `getAccountAssetByID` to each requested asset ID. Asset IDs that do not
+ * resolve to a complete renderable asset (missing balance/metadata, hidden,
+ * or otherwise filtered out) are omitted from the result. Reads from
+ * current state only and does not trigger a data-source refresh.
+ *
+ * @param accountId - The account ID (`InternalAccount.id`, not an address).
+ * @param assetIds - The CAIP-19 asset IDs including chain scope
+ * (e.g. `eip155:1/erc20:0x...`).
+ * @returns A record of combined `Asset`s keyed by normalized CAIP-19 asset
+ * ID, containing only the requested assets that resolved.
+ * @throws If `accountId` is empty or any `assetIds` entry is not a valid
+ * CAIP-19 asset ID.
+ */
+export type AssetsControllerGetAccountAssetsByIDsAction = {
+  type: `AssetsController:getAccountAssetsByIDs`;
+  handler: AssetsController['getAccountAssetsByIDs'];
+};
+
+/**
+ * Get all combined assets (balance + metadata + price + computed
+ * `fiatValue`) an account holds on a given chain scope, directly from
+ * controller state.
+ *
+ * Applies the same state-composition and filtering rules as
+ * `getAccountAssetByID` (hidden or otherwise filtered assets are excluded).
+ * Reads from current state only and does not trigger a data-source refresh.
+ *
+ * @param accountId - The account ID (`InternalAccount.id`, not an address).
+ * @param scope - The CAIP-2 chain ID to filter by (e.g. `eip155:1`).
+ * @returns A record of combined `Asset`s keyed by CAIP-19 asset ID,
+ * containing only the account's assets on the given scope.
+ * @throws If `accountId` is empty or `scope` is not a valid CAIP-2 chain ID.
+ */
+export type AssetsControllerGetAccountAssetsByScopeAction = {
+  type: `AssetsController:getAccountAssetsByScope`;
+  handler: AssetsController['getAccountAssetsByScope'];
 };
 
 export type AssetsControllerGetAssetsPriceAction = {
@@ -155,7 +198,9 @@ export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsAction
   | AssetsControllerGetAssetsBalanceAction
   | AssetsControllerGetAssetMetadataAction
-  | AssetsControllerGetAssetAction
+  | AssetsControllerGetAccountAssetByIDAction
+  | AssetsControllerGetAccountAssetsByIDsAction
+  | AssetsControllerGetAccountAssetsByScopeAction
   | AssetsControllerGetAssetsPriceAction
   | AssetsControllerGetExchangeRatesForBridgeAction
   | AssetsControllerGetStateForTransactionPayAction

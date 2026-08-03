@@ -12,13 +12,12 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
+import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
   AccountActivityServiceBalanceUpdatedEvent,
-  BackendWebSocketServiceActions,
-  BackendWebSocketServiceEvents,
-  BalanceUpdate,
+  AccountActivityServiceStatusChangedEvent,
   SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
@@ -79,9 +78,9 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './data-sources/AbstractDataSource.js';
+import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource.js';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
-import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource.js';
 import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import {
@@ -153,7 +152,6 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils/index.js';
-import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates.js';
 import { emitTrace, withTrace } from './utils/trace.js';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
@@ -192,7 +190,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssets',
   'getAssetsBalance',
   'getAssetMetadata',
-  'getAsset',
+  'getAccountAssetByID',
+  'getAccountAssetsByIDs',
+  'getAccountAssetsByScope',
   'getAssetsPrice',
   'getExchangeRatesForBridge',
   'getStateForTransactionPay',
@@ -328,14 +328,13 @@ type AllowedActions =
   // RpcDataSource
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction
   // StakedBalanceDataSource
   | NetworkEnablementControllerGetStateAction
   // SnapDataSource
   | SnapControllerGetRunnableSnapsAction
   | SnapControllerHandleRequestAction
   | GetPermissions
-  // BackendWebsocketDataSource
-  | BackendWebSocketServiceActions
   // PhishingController
   | PhishingControllerBulkScanTokensAction
   // AccountsApiDataSource (Accounts API v6 balances feature flag)
@@ -365,10 +364,9 @@ type AllowedEvents =
   | AccountsControllerAccountBalancesUpdatedEvent
   | PermissionControllerStateChange
   | SnapControllerSnapInstalledEvent
-  // BackendWebsocketDataSource
-  | BackendWebSocketServiceEvents
-  // AccountActivityService (real-time balance updates for unified assets)
+  // AccountActivityService (real-time balance updates + chain status for unified assets)
   | AccountActivityServiceBalanceUpdatedEvent
+  | AccountActivityServiceStatusChangedEvent
   // AccountsApiDataSource subscribes to react to Snaps → AssetsController
   // migration flag changes (which gate the chains it surfaces as active)
   | RemoteFeatureFlagControllerStateChangeEvent;
@@ -780,7 +778,7 @@ export class AssetsController extends BaseController<
     return [];
   }
 
-  readonly #backendWebsocketDataSource: BackendWebsocketDataSource;
+  readonly #accountActivityDataSource: AccountActivityDataSource;
 
   readonly #accountsApiDataSource: AccountsApiDataSource;
 
@@ -798,13 +796,13 @@ export class AssetsController extends BaseController<
    * @returns The four balance data source instances in priority order.
    */
   get #allBalanceDataSources(): [
-    BackendWebsocketDataSource,
+    AccountActivityDataSource,
     AccountsApiDataSource,
     SnapDataSource,
     RpcDataSource,
   ] {
     return [
-      this.#backendWebsocketDataSource,
+      this.#accountActivityDataSource,
       this.#accountsApiDataSource,
       this.#snapDataSource,
       this.#rpcDataSource,
@@ -895,12 +893,17 @@ export class AssetsController extends BaseController<
       }
     };
 
-    this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
+    this.#accountActivityDataSource = new AccountActivityDataSource({
       messenger: this.messenger,
-      queryApiClient,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
         this.#getAssetType(assetId),
+      onAssetsUpdate: (response, request): Promise<void> =>
+        this.handleAssetsUpdate(
+          response,
+          this.#accountActivityDataSource.getName(),
+          request,
+        ),
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       messenger: this.messenger,
@@ -1180,16 +1183,6 @@ export class AssetsController extends BaseController<
         this.#onTransactionConfirmed(transactionMeta);
       },
     );
-
-    // Real-time post-tx balances from AccountActivityService (same WS payload as
-    // TokenBalancesController; BackendWebsocketDataSource may not receive the
-    // callback when AccountActivityService owns the server subscription).
-    this.messenger.subscribe(
-      'AccountActivityService:balanceUpdated',
-      (event) => {
-        this.#onAccountActivityBalanceUpdated(event);
-      },
-    );
   }
 
   #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
@@ -1246,49 +1239,6 @@ export class AssetsController extends BaseController<
     }).catch((error) => {
       log('Failed to refresh assets after transaction confirmed', { error });
     });
-  }
-
-  #onAccountActivityBalanceUpdated({
-    address,
-    chain,
-    updates,
-  }: {
-    address: string;
-    chain: string;
-    updates: BalanceUpdate[];
-  }): void {
-    const account = this.#getSelectedAccounts().find((a) =>
-      a.address.startsWith('0x')
-        ? a.address.toLowerCase() === address.toLowerCase()
-        : a.address === address,
-    );
-
-    if (!account) {
-      return;
-    }
-
-    const chainId = chain as ChainId;
-    const response = processAccountActivityBalanceUpdates(
-      updates,
-      account.id,
-      (assetId) => this.#getAssetType(assetId),
-    );
-
-    if (!response.assetsBalance) {
-      return;
-    }
-
-    const request: DataRequest = {
-      accountsWithSupportedChains: [{ account, supportedChains: [chainId] }],
-      chainIds: [chainId],
-      dataTypes: ['balance', 'metadata'],
-    };
-
-    this.handleAssetsUpdate(response, 'AccountActivityService', request).catch(
-      (error) => {
-        log('Failed to apply AccountActivityService balance update', { error });
-      },
-    );
   }
 
   /**
@@ -1442,7 +1392,7 @@ export class AssetsController extends BaseController<
     activeChains: ChainId[],
     previousChains: ChainId[],
   ): void {
-    if (!this.#isEnabled()) {
+    if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
       return;
     }
     log('Data source active chains changed', {
@@ -1457,11 +1407,8 @@ export class AssetsController extends BaseController<
     const addedChains = activeChains.filter((ch) => !previousSet.has(ch));
     const removedChains = previous.filter((ch) => !activeChains.includes(ch));
 
+    // Refresh subscriptions to use updated data source availability.
     if (addedChains.length > 0 || removedChains.length > 0) {
-      // Refresh subscriptions to use updated data source availability.
-      // No one-time fetch needed here — #handleEnabledNetworksChanged
-      // handles fetches when the user enables a network, and
-      // #subscribeAssets re-subscribes with the correct chain assignment.
       this.#subscribeAssets();
     }
   }
@@ -1877,25 +1824,149 @@ export class AssetsController extends BaseController<
    * renderable asset (balance + metadata) exists for the account/asset pair.
    * @throws If `accountId` is empty or `assetId` is not a valid CAIP-19 asset ID.
    */
-  getAsset(accountId: AccountId, assetId: Caip19AssetId): Asset | undefined {
-    if (typeof accountId !== 'string' || accountId.length === 0) {
-      throw new Error(
-        'AssetsController.getAsset: accountId must be a non-empty string',
-      );
-    }
+  getAccountAssetByID(
+    accountId: AccountId,
+    assetId: Caip19AssetId,
+  ): Asset | undefined {
+    this.#assertNonEmptyAccountId(accountId, 'getAccountAssetByID');
 
-    let normalizedAssetId: Caip19AssetId;
-    try {
-      normalizedAssetId = normalizeAssetId(assetId);
-    } catch {
-      throw new Error(
-        `AssetsController.getAsset: invalid CAIP-19 assetId "${assetId}"`,
-      );
-    }
+    const normalizedAssetId = this.#normalizeAssetIdOrThrow(
+      assetId,
+      'getAccountAssetByID',
+    );
 
     return this.#getAssetFromState(accountId, normalizedAssetId, {
       assetTypeSet: new Set(['fungible']),
     });
+  }
+
+  /**
+   * Get multiple combined assets (balance + metadata + price + computed
+   * `fiatValue`) for an account directly from controller state.
+   *
+   * Applies the same state-composition and filtering rules as
+   * `getAccountAssetByID` to each requested asset ID. Asset IDs that do not
+   * resolve to a complete renderable asset (missing balance/metadata, hidden,
+   * or otherwise filtered out) are omitted from the result. Reads from
+   * current state only and does not trigger a data-source refresh.
+   *
+   * @param accountId - The account ID (`InternalAccount.id`, not an address).
+   * @param assetIds - The CAIP-19 asset IDs including chain scope
+   * (e.g. `eip155:1/erc20:0x...`).
+   * @returns A record of combined `Asset`s keyed by normalized CAIP-19 asset
+   * ID, containing only the requested assets that resolved.
+   * @throws If `accountId` is empty or any `assetIds` entry is not a valid
+   * CAIP-19 asset ID.
+   */
+  getAccountAssetsByIDs(
+    accountId: AccountId,
+    assetIds: Caip19AssetId[],
+  ): Record<Caip19AssetId, Asset> {
+    this.#assertNonEmptyAccountId(accountId, 'getAccountAssetsByIDs');
+
+    const result = Object.create(null) as Record<Caip19AssetId, Asset>;
+
+    for (const assetId of assetIds) {
+      const normalizedAssetId = this.#normalizeAssetIdOrThrow(
+        assetId,
+        'getAccountAssetsByIDs',
+      );
+
+      const asset = this.#getAssetFromState(accountId, normalizedAssetId, {
+        assetTypeSet: new Set(['fungible']),
+      });
+
+      if (asset) {
+        result[normalizedAssetId] = asset;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get all combined assets (balance + metadata + price + computed
+   * `fiatValue`) an account holds on a given chain scope, directly from
+   * controller state.
+   *
+   * Applies the same state-composition and filtering rules as
+   * `getAccountAssetByID` (hidden or otherwise filtered assets are excluded).
+   * Reads from current state only and does not trigger a data-source refresh.
+   *
+   * @param accountId - The account ID (`InternalAccount.id`, not an address).
+   * @param scope - The CAIP-2 chain ID to filter by (e.g. `eip155:1`).
+   * @returns A record of combined `Asset`s keyed by CAIP-19 asset ID,
+   * containing only the account's assets on the given scope.
+   * @throws If `accountId` is empty or `scope` is not a valid CAIP-2 chain ID.
+   */
+  getAccountAssetsByScope(
+    accountId: AccountId,
+    scope: ChainId,
+  ): Record<Caip19AssetId, Asset> {
+    this.#assertNonEmptyAccountId(accountId, 'getAccountAssetsByScope');
+
+    if (!isCaipChainId(scope)) {
+      throw new Error(
+        `AssetsController.getAccountAssetsByScope: invalid CAIP-2 scope "${String(
+          scope,
+        )}"`,
+      );
+    }
+
+    const result = Object.create(null) as Record<Caip19AssetId, Asset>;
+    const chainIdSet = new Set<ChainId>([scope]);
+    const assetTypeSet = new Set<AssetType>(['fungible']);
+    const accountBalances = this.state.assetsBalance[accountId] ?? {};
+
+    for (const assetId of Object.keys(accountBalances)) {
+      const typedAssetId = assetId as Caip19AssetId;
+
+      const asset = this.#getAssetFromState(accountId, typedAssetId, {
+        chainIdSet,
+        assetTypeSet,
+      });
+
+      if (asset) {
+        result[typedAssetId] = asset;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Throws when the provided account ID is not a non-empty string.
+   *
+   * @param accountId - The account ID to validate.
+   * @param methodName - The public method name used in the error message.
+   */
+  #assertNonEmptyAccountId(accountId: AccountId, methodName: string): void {
+    if (typeof accountId !== 'string' || accountId.length === 0) {
+      throw new Error(
+        `AssetsController.${methodName}: accountId must be a non-empty string`,
+      );
+    }
+  }
+
+  /**
+   * Normalizes a CAIP-19 asset ID, converting normalization failures into a
+   * descriptive error.
+   *
+   * @param assetId - The CAIP-19 asset ID to normalize.
+   * @param methodName - The public method name used in the error message.
+   * @returns The normalized CAIP-19 asset ID.
+   */
+  #normalizeAssetIdOrThrow(
+    assetId: Caip19AssetId,
+    methodName: string,
+  ): Caip19AssetId {
+    try {
+      return normalizeAssetId(assetId);
+    } catch {
+      throw new Error(
+        `AssetsController.${methodName}: invalid CAIP-19 assetId "${assetId}"`,
+      );
+    }
   }
 
   async getAssetsPrice(
@@ -3114,8 +3185,10 @@ export class AssetsController extends BaseController<
       new Set(chainIds),
     );
     const remainingChains = new Set(chainToAccounts.keys());
-    // When basic functionality is on, use all balance data sources; when off, RPC only.
-    const balanceDataSources = this.#isBasicFunctionality()
+    // When basic functionality is on, use all balance data sources; when off,
+    // RPC only.
+    const isBasicFunctionality = this.#isBasicFunctionality();
+    const balanceDataSources = isBasicFunctionality
       ? this.#allBalanceDataSources
       : [this.#rpcDataSource];
 
@@ -3171,7 +3244,7 @@ export class AssetsController extends BaseController<
 
   /**
    * Guarantee that customAssets are **always** polled by RPC, even when
-   * AccountsApi or the websocket data source has claimed the chain in the
+   * AccountsApi or another data source has claimed the chain in the
    * regular handoff. RPC is the sole balance fetcher for user-imported
    * tokens (see `pickRpcCustomAssetsSupplement` for the full rationale),
    * so we run a dedicated subscription in `customAssetsOnly` mode under a
@@ -3601,14 +3674,11 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Refresh data-source `activeChains` after an EVM network switch so API/WS/Rpc
+   * Refresh data-source `activeChains` after an EVM network switch so API/Rpc
    * chain claiming is not stuck on an empty or stale init-time list.
    */
   async #refreshActiveChainsOnNetworkSwitch(): Promise<void> {
-    await Promise.all([
-      this.#accountsApiDataSource.refreshActiveChains(),
-      this.#backendWebsocketDataSource.refreshActiveChains(),
-    ]);
+    await this.#accountsApiDataSource.refreshActiveChains();
     this.#rpcDataSource.refreshActiveChainsFromNetworkState();
   }
 
@@ -3783,13 +3853,13 @@ export class AssetsController extends BaseController<
               ),
             };
 
-        // Graduate custom assets only when AccountsAPI / Websocket reports them.
-        // RPC already fetches custom assets on purpose, and Snap handles non-EVM
-        // chains the rule does not apply to, so skip the middleware for those.
+        // Graduate custom assets only when AccountsAPI / AccountActivity reports
+        // them. RPC already fetches custom assets on purpose, and Snap handles
+        // non-EVM chains the rule does not apply to, so skip the middleware for
+        // those.
         const shouldGraduateCustomAssets =
           sourceId === 'AccountsApiDataSource' ||
-          sourceId === 'BackendWebsocketDataSource' ||
-          sourceId === 'AccountActivityService';
+          sourceId === 'AccountActivityDataSource';
 
         const enrichmentSources: AssetsDataSource[] = [
           ...(shouldGraduateCustomAssets
@@ -3850,7 +3920,7 @@ export class AssetsController extends BaseController<
     });
 
     // Destroy instantiated data sources
-    this.#backendWebsocketDataSource?.destroy?.();
+    this.#accountActivityDataSource?.destroy?.();
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();
     this.#rpcDataSource?.destroy?.();
@@ -3868,7 +3938,15 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssets');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
-    this.messenger.unregisterActionHandler('AssetsController:getAsset');
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getAccountAssetByID',
+    );
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getAccountAssetsByIDs',
+    );
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getAccountAssetsByScope',
+    );
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
     this.messenger.unregisterActionHandler(
       'AssetsController:getExchangeRatesForBridge',
