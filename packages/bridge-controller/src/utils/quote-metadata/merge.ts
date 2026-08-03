@@ -55,7 +55,7 @@ export function mergeQuoteMetadata<
       {},
       legacyQuoteMetadataV2,
       quoteResponse,
-      normalizedAmountsV2,
+      normalizedAmounts,
       fiatQuoteMetadata,
       legacyQuoteMetadata, // return for client testing
     );
