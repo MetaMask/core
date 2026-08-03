@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+
 ### Fixed
 
 - Request `EXACT_OUTPUT` instead of `EXPECTED_OUTPUT` from Relay for HyperCore perps deposits, so the full deposit target is guaranteed to arrive ([#9751](https://github.com/MetaMask/core/pull/9751))
