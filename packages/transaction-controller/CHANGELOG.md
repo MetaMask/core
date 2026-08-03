@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Refresh gas fee token quotes independently of balance changes for enforced-simulation transactions, and prevent stale simulation responses from overwriting newer transaction state.
+- Refresh gas fee token quotes independently of balance changes for enforced-simulation transactions, and prevent stale simulation responses from overwriting newer transaction state. ([#9757](https://github.com/MetaMask/core/pull/9757))
 
 ## [69.4.0]
 
