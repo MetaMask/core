@@ -1485,8 +1485,9 @@ export class RampsController extends BaseController<
     }
 
     const compatible = providers.find(
-      (p) =>
-        p.id !== selectedProvider?.id && providerServesAsset(p, assetId),
+      (provider) =>
+        provider.id !== selectedProvider?.id &&
+        providerServesAsset(provider, assetId),
     );
     if (!compatible) {
       return false;
