@@ -1,6 +1,6 @@
 # `@metamask/money-account-utils`
 
-Shared money account utilities: activity parsing, classification, and mUSD constants.
+Shared money account utilities: mUSD constants and vault transaction builders.
 
 ## Installation
 

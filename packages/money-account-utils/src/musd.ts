@@ -1,5 +1,5 @@
 import { CHAIN_IDS } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 
 /**
  * The mUSD (MetaMask USD) token, minus any client-specific presentation
@@ -44,7 +44,7 @@ export const MUSD_TOKEN_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
 /**
  * The CAIP-19 asset id of the mUSD token on each chain where it is deployed.
  */
-export const MUSD_TOKEN_ASSET_ID_BY_CHAIN: Record<Hex, string> = {
+export const MUSD_TOKEN_ASSET_ID_BY_CHAIN: Record<Hex, CaipAssetType> = {
   [CHAIN_IDS.MAINNET]:
     'eip155:1/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA',
   [CHAIN_IDS.LINEA_MAINNET]:
