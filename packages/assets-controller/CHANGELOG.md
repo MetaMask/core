@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add 0G (`16661`/`0x4115`) in `MulticallClient` ([#9760](https://github.com/MetaMask/core/pull/9760))
-
 ### Changed
 
 - Bump `@metamask/phishing-controller` from `^17.3.0` to `^17.3.1` ([#9746](https://github.com/MetaMask/core/pull/9746))
