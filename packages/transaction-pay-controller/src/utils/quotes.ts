@@ -184,13 +184,14 @@ export async function updateQuotes(
       isPostQuote,
       messenger: messenger as never,
       paymentToken,
+      strategy: executableQuotes[0]?.strategy,
       totals,
       transactionId,
     });
 
     updateTransactionData(transactionId, (data) => {
       data.quotes = quotes as never;
-      data.quoteError = quotes.length ? undefined : error;
+      data.quoteError = error;
       data.quotesLastUpdated = Date.now();
       data.totals = totals;
     });
@@ -222,6 +223,7 @@ export async function updateQuotes(
  * @param request.messenger - Messenger instance.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.selectedFiatPayment - Selected fiat payment method ID.
+ * @param request.strategy - Strategy of the executable quotes.
  * @param request.totals - Calculated totals.
  * @param request.transactionId - ID of the transaction to sync.
  */
@@ -232,6 +234,7 @@ function syncTransaction({
   messenger,
   paymentToken,
   selectedFiatPayment,
+  strategy,
   totals,
   transactionId,
 }: {
@@ -241,6 +244,7 @@ function syncTransaction({
   isPostQuote?: boolean;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
+  strategy?: TransactionPayStrategy;
   totals: TransactionPayTotals;
   transactionId: string;
 }): void {
@@ -278,6 +282,7 @@ function syncTransaction({
         chainId: paymentToken?.chainId,
         isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
+        strategy,
         targetFiat: totals.targetAmount.usd,
         tokenAddress: paymentToken?.address,
         totalFiat: totals.total.usd,
@@ -753,6 +758,22 @@ async function getQuotes(
       error ??= isQuoteError(caughtError)
         ? caughtError.info
         : { message: (caughtError as Error).message, reason: 'no-quotes' };
+
+      if (
+        isQuoteError(caughtError) &&
+        caughtError.info.reason === 'insufficient-source-balance' &&
+        caughtError.quotes?.length
+      ) {
+        log('Keeping quotes despite insufficient source balance', {
+          strategy: name,
+          transactionId,
+        });
+        return {
+          batchTransactions: [],
+          error: caughtError.info,
+          quotes: caughtError.quotes as TransactionPayQuote<Json>[],
+        };
+      }
 
       log('Strategy failed, trying next', {
         error: caughtError,

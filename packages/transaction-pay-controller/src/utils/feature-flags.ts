@@ -202,6 +202,11 @@ type FeatureFlagsExtendedRaw = {
   };
 };
 
+type EIP7702FeatureFlag = {
+  contracts?: Record<Hex, { address: Hex; signature: Hex }[]>;
+  supportedChains?: Hex[];
+};
+
 export type PayStrategiesConfig = {
   across: AcrossConfig;
   server: {
@@ -1105,7 +1110,7 @@ export function isEIP7702Chain(
 ): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
-    | { supportedChains?: Hex[] }
+    | EIP7702FeatureFlag
     | undefined;
 
   const supportedChains = eip7702Flags?.supportedChains ?? [];
@@ -1113,4 +1118,26 @@ export function isEIP7702Chain(
   return supportedChains.some(
     (supported) => supported.toLowerCase() === chainId.toLowerCase(),
   );
+}
+
+/**
+ * Get the EIP-7702 upgrade contract address for a chain from the
+ * `confirmations_eip_7702.contracts` feature flag, if any.
+ *
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID to resolve the upgrade contract for.
+ * @returns The upgrade contract address, or `undefined` when none is set.
+ */
+export function getEIP7702UpgradeContractAddress(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+): Hex | undefined {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
+    | EIP7702FeatureFlag
+    | undefined;
+
+  const contracts = getCaseInsensitive(eip7702Flags?.contracts, chainId);
+
+  return contracts?.[0]?.address;
 }

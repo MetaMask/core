@@ -32,6 +32,7 @@ import type {
   PerpsPlatformDependencies,
 } from '../types/index.js';
 import { ensureError } from '../utils/errorUtils.js';
+import { isLimitExecutionOrderType } from '../utils/orderTypes.js';
 import type { RewardsIntegrationService } from './RewardsIntegrationService.js';
 import type { ServiceContext } from './ServiceContext.js';
 
@@ -212,7 +213,9 @@ export class TradingService {
         ? parseFloat(result.averagePrice)
         : params.trackingData?.marketPrice;
     }
-    if (params.orderType === 'limit' && params.price) {
+    // Trigger limit placements carry a real limit price too, so the companion
+    // property must not go missing when order_type is stop_limit/take_profit_limit.
+    if (isLimitExecutionOrderType(params.orderType) && params.price) {
       properties[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(params.price);
     }
     if (params.trackingData?.source) {
@@ -876,7 +879,8 @@ export class TradingService {
           ? parseFloat(result.averagePrice)
           : params.trackingData?.marketPrice,
       }),
-      ...(params.orderType === 'limit' &&
+      ...(params.orderType &&
+        isLimitExecutionOrderType(params.orderType) &&
         params.price && {
           [PERPS_EVENT_PROPERTY.LIMIT_PRICE]: parseFloat(params.price),
         }),

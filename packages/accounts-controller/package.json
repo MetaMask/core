@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "39.0.5",
+  "version": "39.0.6",
   "description": "Manages internal accounts",
   "keywords": [
     "Ethereum",
@@ -57,14 +57,14 @@
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/eth-snap-keyring": "^23.0.0",
-    "@metamask/keyring-api": "^23.7.0",
+    "@metamask/eth-snap-keyring": "^24.0.0",
+    "@metamask/keyring-api": "^24.0.0",
     "@metamask/keyring-controller": "^27.1.0",
-    "@metamask/keyring-internal-api": "^11.0.2",
+    "@metamask/keyring-internal-api": "^12.0.0",
     "@metamask/keyring-sdk": "^3.0.0",
-    "@metamask/keyring-utils": "^3.3.1",
+    "@metamask/keyring-utils": "^5.0.0",
     "@metamask/messenger": "^2.0.0",
-    "@metamask/network-controller": "^34.0.0",
+    "@metamask/network-controller": "^35.0.0",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.11.0",
     "deepmerge": "^4.2.2",

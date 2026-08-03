@@ -12,6 +12,7 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
+import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
@@ -189,7 +190,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssets',
   'getAssetsBalance',
   'getAssetMetadata',
-  'getAsset',
+  'getAccountAssetByID',
+  'getAccountAssetsByIDs',
+  'getAccountAssetsByScope',
   'getAssetsPrice',
   'getExchangeRatesForBridge',
   'getStateForTransactionPay',
@@ -325,6 +328,7 @@ type AllowedActions =
   // RpcDataSource
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction
   // StakedBalanceDataSource
   | NetworkEnablementControllerGetStateAction
   // SnapDataSource
@@ -1820,25 +1824,149 @@ export class AssetsController extends BaseController<
    * renderable asset (balance + metadata) exists for the account/asset pair.
    * @throws If `accountId` is empty or `assetId` is not a valid CAIP-19 asset ID.
    */
-  getAsset(accountId: AccountId, assetId: Caip19AssetId): Asset | undefined {
-    if (typeof accountId !== 'string' || accountId.length === 0) {
-      throw new Error(
-        'AssetsController.getAsset: accountId must be a non-empty string',
-      );
-    }
+  getAccountAssetByID(
+    accountId: AccountId,
+    assetId: Caip19AssetId,
+  ): Asset | undefined {
+    this.#assertNonEmptyAccountId(accountId, 'getAccountAssetByID');
 
-    let normalizedAssetId: Caip19AssetId;
-    try {
-      normalizedAssetId = normalizeAssetId(assetId);
-    } catch {
-      throw new Error(
-        `AssetsController.getAsset: invalid CAIP-19 assetId "${assetId}"`,
-      );
-    }
+    const normalizedAssetId = this.#normalizeAssetIdOrThrow(
+      assetId,
+      'getAccountAssetByID',
+    );
 
     return this.#getAssetFromState(accountId, normalizedAssetId, {
       assetTypeSet: new Set(['fungible']),
     });
+  }
+
+  /**
+   * Get multiple combined assets (balance + metadata + price + computed
+   * `fiatValue`) for an account directly from controller state.
+   *
+   * Applies the same state-composition and filtering rules as
+   * `getAccountAssetByID` to each requested asset ID. Asset IDs that do not
+   * resolve to a complete renderable asset (missing balance/metadata, hidden,
+   * or otherwise filtered out) are omitted from the result. Reads from
+   * current state only and does not trigger a data-source refresh.
+   *
+   * @param accountId - The account ID (`InternalAccount.id`, not an address).
+   * @param assetIds - The CAIP-19 asset IDs including chain scope
+   * (e.g. `eip155:1/erc20:0x...`).
+   * @returns A record of combined `Asset`s keyed by normalized CAIP-19 asset
+   * ID, containing only the requested assets that resolved.
+   * @throws If `accountId` is empty or any `assetIds` entry is not a valid
+   * CAIP-19 asset ID.
+   */
+  getAccountAssetsByIDs(
+    accountId: AccountId,
+    assetIds: Caip19AssetId[],
+  ): Record<Caip19AssetId, Asset> {
+    this.#assertNonEmptyAccountId(accountId, 'getAccountAssetsByIDs');
+
+    const result = Object.create(null) as Record<Caip19AssetId, Asset>;
+
+    for (const assetId of assetIds) {
+      const normalizedAssetId = this.#normalizeAssetIdOrThrow(
+        assetId,
+        'getAccountAssetsByIDs',
+      );
+
+      const asset = this.#getAssetFromState(accountId, normalizedAssetId, {
+        assetTypeSet: new Set(['fungible']),
+      });
+
+      if (asset) {
+        result[normalizedAssetId] = asset;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get all combined assets (balance + metadata + price + computed
+   * `fiatValue`) an account holds on a given chain scope, directly from
+   * controller state.
+   *
+   * Applies the same state-composition and filtering rules as
+   * `getAccountAssetByID` (hidden or otherwise filtered assets are excluded).
+   * Reads from current state only and does not trigger a data-source refresh.
+   *
+   * @param accountId - The account ID (`InternalAccount.id`, not an address).
+   * @param scope - The CAIP-2 chain ID to filter by (e.g. `eip155:1`).
+   * @returns A record of combined `Asset`s keyed by CAIP-19 asset ID,
+   * containing only the account's assets on the given scope.
+   * @throws If `accountId` is empty or `scope` is not a valid CAIP-2 chain ID.
+   */
+  getAccountAssetsByScope(
+    accountId: AccountId,
+    scope: ChainId,
+  ): Record<Caip19AssetId, Asset> {
+    this.#assertNonEmptyAccountId(accountId, 'getAccountAssetsByScope');
+
+    if (!isCaipChainId(scope)) {
+      throw new Error(
+        `AssetsController.getAccountAssetsByScope: invalid CAIP-2 scope "${String(
+          scope,
+        )}"`,
+      );
+    }
+
+    const result = Object.create(null) as Record<Caip19AssetId, Asset>;
+    const chainIdSet = new Set<ChainId>([scope]);
+    const assetTypeSet = new Set<AssetType>(['fungible']);
+    const accountBalances = this.state.assetsBalance[accountId] ?? {};
+
+    for (const assetId of Object.keys(accountBalances)) {
+      const typedAssetId = assetId as Caip19AssetId;
+
+      const asset = this.#getAssetFromState(accountId, typedAssetId, {
+        chainIdSet,
+        assetTypeSet,
+      });
+
+      if (asset) {
+        result[typedAssetId] = asset;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Throws when the provided account ID is not a non-empty string.
+   *
+   * @param accountId - The account ID to validate.
+   * @param methodName - The public method name used in the error message.
+   */
+  #assertNonEmptyAccountId(accountId: AccountId, methodName: string): void {
+    if (typeof accountId !== 'string' || accountId.length === 0) {
+      throw new Error(
+        `AssetsController.${methodName}: accountId must be a non-empty string`,
+      );
+    }
+  }
+
+  /**
+   * Normalizes a CAIP-19 asset ID, converting normalization failures into a
+   * descriptive error.
+   *
+   * @param assetId - The CAIP-19 asset ID to normalize.
+   * @param methodName - The public method name used in the error message.
+   * @returns The normalized CAIP-19 asset ID.
+   */
+  #normalizeAssetIdOrThrow(
+    assetId: Caip19AssetId,
+    methodName: string,
+  ): Caip19AssetId {
+    try {
+      return normalizeAssetId(assetId);
+    } catch {
+      throw new Error(
+        `AssetsController.${methodName}: invalid CAIP-19 assetId "${assetId}"`,
+      );
+    }
   }
 
   async getAssetsPrice(
@@ -3810,7 +3938,15 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssets');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
-    this.messenger.unregisterActionHandler('AssetsController:getAsset');
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getAccountAssetByID',
+    );
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getAccountAssetsByIDs',
+    );
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getAccountAssetsByScope',
+    );
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
     this.messenger.unregisterActionHandler(
       'AssetsController:getExchangeRatesForBridge',

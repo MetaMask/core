@@ -225,7 +225,26 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
   ]),
   perpDexs: jest.fn().mockResolvedValue([null]),
   allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
-  frontendOpenOrders: jest.fn().mockResolvedValue([]),
+  // editOrder verifies the resting order's placement type before modifying it,
+  // so the account lists the plain limit order the edit tests target.
+  frontendOpenOrders: jest.fn().mockResolvedValue([
+    {
+      coin: 'BTC',
+      side: 'B',
+      limitPx: '50000',
+      sz: '0.1',
+      origSz: '0.1',
+      oid: 123,
+      timestamp: 1_700_000_000_000,
+      isTrigger: false,
+      triggerCondition: 'N/A',
+      triggerPx: '0',
+      children: [],
+      isPositionTpsl: false,
+      reduceOnly: false,
+      orderType: 'Limit',
+    },
+  ]),
   referral: jest.fn().mockResolvedValue({
     referrerState: {
       stage: 'ready',

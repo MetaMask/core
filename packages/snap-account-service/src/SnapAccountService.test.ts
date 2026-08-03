@@ -743,12 +743,11 @@ describe('SnapAccountService', () => {
 
     it('retries on a subsequent call after a failed migration', async () => {
       const { service, mocks } = await setup();
-      const error = new Error('migration boom');
       mocks.KeyringController.withController
-        .mockRejectedValueOnce(error)
+        .mockRejectedValueOnce(new Error('migration boom'))
         .mockResolvedValueOnce(undefined);
 
-      await expect(service.ensureMigrated()).rejects.toThrow(error);
+      await expect(service.ensureMigrated()).rejects.toThrow(SafeError);
       expect(await service.ensureMigrated()).toBeUndefined();
 
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(2);
@@ -756,17 +755,20 @@ describe('SnapAccountService', () => {
 
     it('shares the rejection across concurrent callers but allows a later retry', async () => {
       const { service, mocks } = await setup();
-      const error = new Error('migration boom');
       mocks.KeyringController.withController
-        .mockRejectedValueOnce(error)
+        .mockRejectedValueOnce(new Error('migration boom'))
         .mockResolvedValueOnce(undefined);
 
       const [first, second] = await Promise.allSettled([
         service.ensureMigrated(),
         service.ensureMigrated(),
       ]);
-      expect(first).toStrictEqual({ status: 'rejected', reason: error });
-      expect(second).toStrictEqual({ status: 'rejected', reason: error });
+      expect(first.status).toBe('rejected');
+      expect(second.status).toBe('rejected');
+      expect((first as PromiseRejectedResult).reason).toBeInstanceOf(SafeError);
+      expect((second as PromiseRejectedResult).reason).toBeInstanceOf(
+        SafeError,
+      );
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
 
       expect(await service.ensureMigrated()).toBeUndefined();

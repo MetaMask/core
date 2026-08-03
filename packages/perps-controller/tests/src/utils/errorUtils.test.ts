@@ -1,6 +1,7 @@
 import {
   isAbortError,
   ensureError,
+  isHyperLiquidUserNotFoundError,
   isKeyringLockedError,
 } from '../../../src/utils/errorUtils.js';
 
@@ -97,6 +98,30 @@ describe('errorUtils', () => {
       error.cause = error;
 
       expect(isKeyringLockedError(error)).toBe(false);
+    });
+  });
+
+  describe('isHyperLiquidUserNotFoundError', () => {
+    it('returns true for the Hyperliquid "wallet does not exist" rejection', () => {
+      const error = new Error(
+        'User or API Wallet 0x340ed4af8642491fe02fa28403cad1a53268e510 does not exist.',
+      );
+
+      expect(isHyperLiquidUserNotFoundError(error)).toBe(true);
+    });
+
+    it('returns true for non-Error rejections carrying the same message', () => {
+      expect(
+        isHyperLiquidUserNotFoundError(
+          'user or API wallet 0xabc does not exist',
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false for unrelated "does not exist" errors', () => {
+      expect(
+        isHyperLiquidUserNotFoundError(new Error('Asset BTC does not exist')),
+      ).toBe(false);
     });
   });
 });
