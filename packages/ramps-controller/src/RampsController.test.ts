@@ -1504,7 +1504,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('derives the default redirectUrl from the default (staging) environment when none is provided', async () => {
+    it('derives the default redirectUrl from the environment supplied by the test helper', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
@@ -1533,8 +1533,8 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // With no environment option, the controller defaults to staging and
-          // the widened path forwards the staging-derived callback URL.
+          // The test helper supplies staging when this test does not override
+          // the environment.
           expect(redirectUrlWasSeen).toBe(true);
           expect(forwardedRedirectUrl).toBe(
             getDefaultRedirectCallbackUrl(RampsEnvironment.Staging),
@@ -11456,10 +11456,10 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
  * created ahead of time and then safely destroyed afterward as needed.
  *
  * @param args - Either a function, or an options bag + a function. The options
- * bag contains arguments for the controller constructor. All constructor
- * arguments are optional and will be filled in with defaults in as needed
- * (including `messenger`). The function is called with the new
- * controller, root messenger, and controller messenger.
+ * bag contains arguments for the controller constructor. The helper supplies
+ * a messenger and a deliberate staging environment unless overridden. The
+ * function is called with the new controller, root messenger, and controller
+ * messenger.
  * @returns The same return value as the given function.
  */
 async function withController<ReturnValue>(
@@ -11473,6 +11473,7 @@ async function withController<ReturnValue>(
   const messenger = getMessenger(rootMessenger);
   const controller = new RampsController({
     messenger,
+    environment: RampsEnvironment.Staging,
     ...options,
   });
   return await testFunction({ controller, rootMessenger, messenger });

@@ -692,10 +692,10 @@ export type RampsControllerOptions = {
    * needs) when a `redirectUrl` is present, so on the widened path this default
    * lets aggregator quotes carry a usable widget URL. Only applied on the
    * widened path; an explicit caller `redirectUrl` always wins and the
-   * native-only path never injects. Defaults to {@link RampsEnvironment.Staging},
-   * matching {@link RampsService}.
+   * native-only path never injects. Consumers must pass the same environment
+   * used by {@link RampsService} and by callback-matching UI code.
    */
-  environment?: RampsEnvironment;
+  environment: RampsEnvironment;
 };
 
 // === HELPER FUNCTIONS ===
@@ -956,14 +956,15 @@ export class RampsController extends BaseController<
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
    * @param args.environment - The ramps environment used to derive the default
    * redirect URL for the widened quote fetch when the caller omits
-   * `redirectUrl`. Defaults to {@link RampsEnvironment.Staging}.
+   * `redirectUrl`. Must match the environment used by {@link RampsService} and
+   * by callback-matching UI code.
    */
   constructor({
     messenger,
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
-    environment = RampsEnvironment.Staging,
+    environment,
   }: RampsControllerOptions) {
     super({
       messenger,

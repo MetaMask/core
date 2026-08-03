@@ -3156,9 +3156,7 @@ describe('getDefaultRedirectCallbackUrl', () => {
 
   it('throws for an unknown environment', () => {
     expect(() =>
-      getDefaultRedirectCallbackUrl(
-        'unknown' as unknown as RampsEnvironment,
-      ),
+      getDefaultRedirectCallbackUrl('unknown' as unknown as RampsEnvironment),
     ).toThrow('Invalid environment: unknown');
   });
 });
