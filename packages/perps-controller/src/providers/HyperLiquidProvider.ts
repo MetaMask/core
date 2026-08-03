@@ -4223,15 +4223,20 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: successCount > 0,
         successCount,
         failureCount,
-        results: statuses.map((status, index) => ({
-          orderId: params[index].orderId,
-          symbol: params[index].symbol,
-          success: status === 'success',
-          error:
-            status === 'success'
-              ? undefined
-              : (status as { error: string }).error,
-        })),
+        results: statuses.map((status, index) => {
+          // Map each per-status rejection the same way cancelOrder does, so a
+          // batch cancel reports standardized codes rather than raw exchange
+          // strings for the rejections this provider recognizes.
+          const statusError = (status as { error?: string } | undefined)?.error;
+          return {
+            orderId: params[index].orderId,
+            symbol: params[index].symbol,
+            success: status === 'success',
+            error: statusError
+              ? this.#mapError(new Error(statusError)).message
+              : undefined,
+          };
+        }),
       };
     } catch (error) {
       const mappedError = this.#mapError(error);
