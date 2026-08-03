@@ -24,7 +24,9 @@ export function providerServesAsset(
     return false;
   }
   const target = assetId.toLowerCase();
-  return Object.keys(map).some((key) => key.toLowerCase() === target);
+  return Object.keys(map).some(
+    (key) => key.toLowerCase() === target && map[key] === true,
+  );
 }
 
 /**
