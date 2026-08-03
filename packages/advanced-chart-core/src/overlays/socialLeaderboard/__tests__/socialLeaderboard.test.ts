@@ -34,28 +34,30 @@ const bars: OHLCVBar[] = Array.from({ length: 11 }, (_, i) => ({
 }));
 const LAST_BAR_MS = 10 * HOUR_MS;
 
-interface SetRangeCall {
+type SetRangeCall = {
   range: { from: number; to: number };
   options?: { percentRightMargin?: number };
-}
+};
 
-interface StubChart {
+type StubChart = {
   chart: TVActiveChart;
   setRangeCalls: SetRangeCall[];
   /** Fire the onDataLoaded subscribers, simulating TradingView's load event. */
   fireDataLoaded: () => void;
-}
+};
 
 function makeStubChart(): StubChart {
   const setRangeCalls: SetRangeCall[] = [];
   const subscribers: (() => void)[] = [];
   const subscription: TVSubscription = {
-    subscribe: (_scope, cb) => {
-      subscribers.push(cb as () => void);
+    subscribe: (_scope, callback) => {
+      subscribers.push(callback as () => void);
     },
-    unsubscribe: (_scope, cb) => {
-      const idx = subscribers.indexOf(cb as () => void);
-      if (idx >= 0) subscribers.splice(idx, 1);
+    unsubscribe: (_scope, callback) => {
+      const idx = subscribers.indexOf(callback as () => void);
+      if (idx >= 0) {
+        subscribers.splice(idx, 1);
+      }
     },
   };
   const chart = {
@@ -70,7 +72,7 @@ function makeStubChart(): StubChart {
   return {
     chart,
     setRangeCalls,
-    fireDataLoaded: () => subscribers.slice().forEach((cb) => cb()),
+    fireDataLoaded: () => subscribers.slice().forEach((callback) => callback()),
   };
 }
 
@@ -93,8 +95,8 @@ describe('slbCenterViewport', () => {
     jest.useFakeTimers();
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        setTimeout(() => cb(Date.now()), 16);
+      .mockImplementation((callback: FrameRequestCallback) => {
+        setTimeout(() => callback(Date.now()), 16);
         return 0;
       });
   });
@@ -146,14 +148,16 @@ describe('slbCenterViewport', () => {
 
     // Exactly one call, anchored with percentRightMargin: 0, and no hold loop.
     expect(stub.setRangeCalls).toHaveLength(1);
-    expect(stub.setRangeCalls[0].options).toEqual({ percentRightMargin: 0 });
+    expect(stub.setRangeCalls[0].options).toStrictEqual({
+      percentRightMargin: 0,
+    });
   });
 
   it('historical frame: re-asserts the range across the hold window without percentRightMargin', () => {
     const stub = makeStubChart();
     installWidget(stub.chart);
     // Trade window ends well before the latest bar → historical frame.
-    setVisibleFromMs(1 * HOUR_MS);
+    setVisibleFromMs(Number(HOUR_MS));
     setVisibleToMs(3 * HOUR_MS);
 
     slbCenterViewport(stub.chart);
@@ -180,7 +184,7 @@ describe('slbCenterViewport', () => {
   it('historical frame: the hold loop stops re-asserting after the hold window', () => {
     const stub = makeStubChart();
     installWidget(stub.chart);
-    setVisibleFromMs(1 * HOUR_MS);
+    setVisibleFromMs(Number(HOUR_MS));
     setVisibleToMs(3 * HOUR_MS);
 
     slbCenterViewport(stub.chart);
@@ -188,13 +192,13 @@ describe('slbCenterViewport', () => {
     jest.advanceTimersByTime(2000);
     const settled = stub.setRangeCalls.length;
     jest.advanceTimersByTime(2000);
-    expect(stub.setRangeCalls.length).toBe(settled);
+    expect(stub.setRangeCalls).toHaveLength(settled);
   });
 
   it('historical frame: a stale data generation cancels the hold', () => {
     const stub = makeStubChart();
     installWidget(stub.chart);
-    setVisibleFromMs(1 * HOUR_MS);
+    setVisibleFromMs(Number(HOUR_MS));
     setVisibleToMs(3 * HOUR_MS);
 
     slbCenterViewport(stub.chart);
@@ -204,13 +208,13 @@ describe('slbCenterViewport', () => {
     // A fresh series arrives mid-hold → the in-flight hold must stop.
     bumpOhlcvGeneration();
     jest.advanceTimersByTime(1000);
-    expect(stub.setRangeCalls.length).toBe(before);
+    expect(stub.setRangeCalls).toHaveLength(before);
   });
 
   it('drops the framing when the data generation changed before the load event', () => {
     const stub = makeStubChart();
     installWidget(stub.chart);
-    setVisibleFromMs(1 * HOUR_MS);
+    setVisibleFromMs(Number(HOUR_MS));
     setVisibleToMs(3 * HOUR_MS);
 
     slbCenterViewport(stub.chart);
@@ -229,13 +233,15 @@ describe('slbCenterViewport', () => {
     slbCenterViewport(stub.chart, { immediate: true });
     // Should fire immediately — no need to call fireDataLoaded.
     expect(stub.setRangeCalls).toHaveLength(1);
-    expect(stub.setRangeCalls[0].options).toEqual({ percentRightMargin: 0 });
+    expect(stub.setRangeCalls[0].options).toStrictEqual({
+      percentRightMargin: 0,
+    });
   });
 
   it('immediate mode: historical frame applies hold loop synchronously', () => {
     const stub = makeStubChart();
     installWidget(stub.chart);
-    setVisibleFromMs(1 * HOUR_MS);
+    setVisibleFromMs(Number(HOUR_MS));
     setVisibleToMs(3 * HOUR_MS);
 
     slbCenterViewport(stub.chart, { immediate: true });

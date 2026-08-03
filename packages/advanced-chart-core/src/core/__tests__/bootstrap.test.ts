@@ -35,9 +35,9 @@ const baseConfig: ChartConfig = {
   theme: baseTheme,
 };
 
-interface MockBridge {
+type MockBridge = {
   postMessage: jest.Mock<void, [string]>;
-}
+};
 
 describe('core/bootstrap', () => {
   let bridge: MockBridge;
@@ -49,14 +49,14 @@ describe('core/bootstrap', () => {
     _resetOhlcvIngestionForTests();
     _resetLoadLibraryForTests();
     bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: MockBridge }
-    ).ReactNativeWebView = bridge;
-    (window as unknown as { CONFIG?: ChartConfig }).CONFIG = baseConfig;
+    window.ReactNativeWebView = bridge;
+    window.CONFIG = baseConfig;
 
     // Prevent loadLibrary from actually appending a script.
     const createElementImpl = (tag: string): HTMLElement => {
-      if (tag === 'script') return {} as unknown as HTMLScriptElement;
+      if (tag === 'script') {
+        return {} as unknown as HTMLScriptElement;
+      }
       return {} as HTMLElement;
     };
     jest
@@ -71,19 +71,18 @@ describe('core/bootstrap', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    delete (window as unknown as { CONFIG?: ChartConfig }).CONFIG;
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.CONFIG;
+    delete window.ReactNativeWebView;
   });
 
   it('throws when window.CONFIG is missing', () => {
-    delete (window as unknown as { CONFIG?: ChartConfig }).CONFIG;
-    expect(() => bootstrap()).toThrow(/window.CONFIG is missing/);
+    delete window.CONFIG;
+    expect(() => bootstrap()).toThrow(/window.CONFIG is missing/u);
   });
 
   it('seeds theme state from CONFIG.theme', () => {
     bootstrap();
-    expect(getTheme()).toEqual(baseTheme);
+    expect(getTheme()).toStrictEqual(baseTheme);
   });
 
   it('emits a DEBUG breadcrumb so RN can confirm the modular bundle booted', () => {
@@ -120,7 +119,7 @@ describe('core/bootstrap', () => {
   // --- subPaneHeightRatio ---------------------------------------------------
 
   it('sets subPaneHeightRatio when config provides a number', () => {
-    (window as unknown as { CONFIG?: ChartConfig }).CONFIG = {
+    window.CONFIG = {
       ...baseConfig,
       subPaneHeightRatio: 0.35,
     };
@@ -314,7 +313,7 @@ describe('core/bootstrap', () => {
     _resetHandlersForTests();
     _resetThemeForTests();
     _resetOhlcvIngestionForTests();
-    (window as unknown as { CONFIG?: ChartConfig }).CONFIG = baseConfig;
+    window.CONFIG = baseConfig;
     bootstrap();
 
     // onFirstOhlcvData is called during bootstrap, but we can verify
@@ -383,7 +382,9 @@ describe('core/bootstrap', () => {
     // Override the createElement mock to simulate a script load error
     const mockScript: Record<string, unknown> = {};
     jest.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
-      if (tag === 'script') return mockScript as unknown as HTMLScriptElement;
+      if (tag === 'script') {
+        return mockScript as unknown as HTMLScriptElement;
+      }
       return {} as HTMLElement;
     }) as never);
     jest.spyOn(document.head, 'appendChild').mockImplementation(((

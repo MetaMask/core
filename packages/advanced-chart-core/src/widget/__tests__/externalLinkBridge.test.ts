@@ -5,15 +5,27 @@ import {
   isTradingViewExternalHref,
 } from '../externalLinkBridge.js';
 
-interface MockBridge {
+type MockBridge = {
   postMessage: jest.Mock<void, [string]>;
-}
+};
+
+// Markers the bridge writes onto the real `window`/`document`. Their names are
+// stable external contracts (matching `externalLinkBridge.ts`) and cannot be
+// renamed, so the non-camelCase keys keep the same narrowly-scoped exception
+// the source module uses.
+type WindowWithOpenPatch = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  __mmTvOpenPatched?: boolean;
+} & Window;
+
+type DocumentWithCaptureFlag = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  __mmTvLinkCaptureInstalled?: boolean;
+} & Document;
 
 const installRNBridge = (): MockBridge => {
   const bridge: MockBridge = { postMessage: jest.fn() };
-  (
-    window as unknown as { ReactNativeWebView?: MockBridge }
-  ).ReactNativeWebView = bridge;
+  window.ReactNativeWebView = bridge;
   return bridge;
 };
 
@@ -28,9 +40,7 @@ describe('isTradingViewExternalHostname', () => {
   it.each(['evil.com', '', null, undefined, 'sometradingview.com'])(
     'rejects %s',
     (host) => {
-      expect(
-        isTradingViewExternalHostname(host as string | null | undefined),
-      ).toBe(false);
+      expect(isTradingViewExternalHostname(host)).toBe(false);
     },
   );
 });
@@ -55,16 +65,14 @@ describe('isTradingViewExternalHref', () => {
 describe('installTradingViewExternalOpenBridge', () => {
   beforeEach(() => {
     _resetExternalLinkBridgeForTests();
-    delete (window as unknown as { __mmTvOpenPatched?: boolean })
-      .__mmTvOpenPatched;
+    delete (window as WindowWithOpenPatch).__mmTvOpenPatched;
     jest.useFakeTimers();
   });
 
   afterEach(() => {
     jest.useRealTimers();
     jest.restoreAllMocks();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('patches window.open to redirect TradingView URLs to RN', () => {
@@ -101,7 +109,7 @@ describe('installTradingViewExternalOpenBridge', () => {
   it('debounces repeated TradingView opens within 600ms', () => {
     const bridge = installRNBridge();
     jest.spyOn(document, 'getElementById').mockReturnValue(null);
-    window.open = jest.fn();
+    jest.spyOn(window, 'open').mockImplementation();
 
     installTradingViewExternalOpenBridge();
 
@@ -153,7 +161,7 @@ describe('installTradingViewExternalOpenBridge', () => {
   it('reapplies patches when deferred timeouts fire', () => {
     const bridge = installRNBridge();
     jest.spyOn(document, 'getElementById').mockReturnValue(null);
-    window.open = jest.fn();
+    jest.spyOn(window, 'open').mockImplementation();
 
     installTradingViewExternalOpenBridge();
 
@@ -205,18 +213,15 @@ describe('installTradingViewExternalOpenBridge', () => {
 describe('handleTradingViewLinkCapture (click handler)', () => {
   beforeEach(() => {
     _resetExternalLinkBridgeForTests();
-    delete (window as unknown as { __mmTvOpenPatched?: boolean })
-      .__mmTvOpenPatched;
-    delete (document as unknown as { __mmTvLinkCaptureInstalled?: boolean })
-      .__mmTvLinkCaptureInstalled;
+    delete (window as WindowWithOpenPatch).__mmTvOpenPatched;
+    delete (document as DocumentWithCaptureFlag).__mmTvLinkCaptureInstalled;
     jest.useFakeTimers();
   });
 
   afterEach(() => {
     jest.useRealTimers();
     jest.restoreAllMocks();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('posts CHART_TRADINGVIEW_CLICKED when a TradingView anchor is clicked', () => {

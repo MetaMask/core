@@ -28,15 +28,42 @@ const sampleBars: OHLCVBar[] = [
   { time: 3_000, open: 1, high: 1, low: 1, close: 30 },
 ];
 
-interface MockBridge {
+type MockBridge = {
   postMessage: jest.Mock<void, [string]>;
-}
+};
+
+// Test-shim hooks attached to the mocked TradingView widget/globals. These
+// names mirror the runtime shim contract and cannot be renamed, so they keep
+// the same narrowly-scoped naming-convention exception the source modules use
+// for external markers (see `widget/externalLinkBridge.ts`).
+type CrosshairCallbackHost = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  __crosshairCb: ((params: TVCrosshairParams) => void) | null;
+};
+
+type WidgetWithFire = TVChartingLibraryWidget & {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  __fire: (event: string) => void;
+};
+
+// Minimal shapes for the inline chart mocks below. Annotating the enclosing
+// arrows with these lets the nested mock methods be contextually typed, which
+// satisfies explicit-function-return-type without per-leaf annotations.
+type MockPriceRange = { from: number; to: number };
+type MockTimeScale = { width: () => number };
+type MockPriceScale = {
+  getVisiblePriceRange: () => MockPriceRange;
+  isInverted: () => boolean;
+  getMode: () => number;
+};
+type MockPane = {
+  getMainSourcePriceScale: () => MockPriceScale;
+  getHeight: () => number;
+};
 
 function installBridge(): MockBridge {
   const bridge: MockBridge = { postMessage: jest.fn() };
-  (
-    window as unknown as { ReactNativeWebView?: MockBridge }
-  ).ReactNativeWebView = bridge;
+  window.ReactNativeWebView = bridge;
   return bridge;
 }
 
@@ -54,27 +81,30 @@ function makeChart(width: number): TVActiveChart {
     }),
     // No panes → priceToY returns null → dyPx = 0
     crossHairMoved: () => ({
-      subscribe: (_scope: unknown, cb: (params: TVCrosshairParams) => void) => {
-        (
-          globalThis as unknown as {
-            __crosshairCb: ((params: TVCrosshairParams) => void) | null;
-          }
-        ).__crosshairCb = cb;
+      subscribe: (
+        _scope: unknown,
+        callback: (params: TVCrosshairParams) => void,
+      ): void => {
+        (globalThis as unknown as CrosshairCallbackHost).__crosshairCb =
+          callback;
       },
       unsubscribe: () => undefined,
     }),
   } as unknown as TVActiveChart;
 }
 
-function makeWidget(chart: TVActiveChart): TVChartingLibraryWidget {
+function makeWidget(chart: TVActiveChart): WidgetWithFire {
   const subscribers: Record<string, () => void> = {};
-  return {
+  const widget = {
     activeChart: () => chart,
-    subscribe: (event: TVWidgetEvent, cb: () => void) => {
-      subscribers[event] = cb;
+    subscribe: (event: TVWidgetEvent, callback: () => void): void => {
+      subscribers[event] = callback;
     },
-    __fire: (event: TVWidgetEvent) => subscribers[event]?.(),
-  } as unknown as TVChartingLibraryWidget & { __fire: (e: string) => void };
+  } as unknown as WidgetWithFire;
+  widget.__fire = (event: string): void => {
+    subscribers[event]?.();
+  };
+  return widget;
 }
 
 describe('findTradeMarkerIdNearPoint', () => {
@@ -169,7 +199,7 @@ describe('findTradeMarkerIdNearPoint — edge cases', () => {
   it('falls back to getVisibleRange when getVisibleBarsRange is absent', () => {
     const chart = {
       getVisibleRange: () => ({ from: 1, to: 3 }),
-      getTimeScale: () => ({ width: () => 300 }),
+      getTimeScale: (): MockTimeScale => ({ width: () => 300 }),
     } as unknown as TVActiveChart;
     setWidget(makeWidget(chart));
     setChartReady(true);
@@ -180,7 +210,7 @@ describe('findTradeMarkerIdNearPoint — edge cases', () => {
 
   it('returns null when neither getVisibleBarsRange nor getVisibleRange are available', () => {
     const chart = {
-      getTimeScale: () => ({ width: () => 300 }),
+      getTimeScale: (): MockTimeScale => ({ width: () => 300 }),
     } as unknown as TVActiveChart;
     setWidget(makeWidget(chart));
     setChartReady(true);
@@ -192,8 +222,8 @@ describe('findTradeMarkerIdNearPoint — edge cases', () => {
   it('uses priceToY for Y-distance when offsetY is provided and panes exist', () => {
     const chart = {
       getVisibleBarsRange: () => ({ from: 1, to: 3 }),
-      getTimeScale: () => ({ width: () => 300 }),
-      getPanes: () => [
+      getTimeScale: (): MockTimeScale => ({ width: () => 300 }),
+      getPanes: (): MockPane[] => [
         {
           getMainSourcePriceScale: () => ({
             getVisiblePriceRange: () => ({ from: 0, to: 100 }),
@@ -217,8 +247,8 @@ describe('findTradeMarkerIdNearPoint — edge cases', () => {
   it('handles log scale mode in priceToY', () => {
     const chart = {
       getVisibleBarsRange: () => ({ from: 1, to: 3 }),
-      getTimeScale: () => ({ width: () => 300 }),
-      getPanes: () => [
+      getTimeScale: (): MockTimeScale => ({ width: () => 300 }),
+      getPanes: (): MockPane[] => [
         {
           getMainSourcePriceScale: () => ({
             getVisiblePriceRange: () => ({ from: 10, to: 1000 }),
@@ -234,14 +264,14 @@ describe('findTradeMarkerIdNearPoint — edge cases', () => {
     setMarkers([{ id: 'a', time: 2_000, intent: 'enter' }]);
     getShapesByMarkerId().set('a', { fill: 'f', ring: 'r' });
     // Log mode with valid prices → should compute Y without error
-    expect(findTradeMarkerIdNearPoint(2, 200)).not.toBeUndefined();
+    expect(findTradeMarkerIdNearPoint(2, 200)).toBeDefined();
   });
 
   it('handles inverted price scale', () => {
     const chart = {
       getVisibleBarsRange: () => ({ from: 1, to: 3 }),
-      getTimeScale: () => ({ width: () => 300 }),
-      getPanes: () => [
+      getTimeScale: (): MockTimeScale => ({ width: () => 300 }),
+      getPanes: (): MockPane[] => [
         {
           getMainSourcePriceScale: () => ({
             getVisiblePriceRange: () => ({ from: 0, to: 100 }),
@@ -263,8 +293,8 @@ describe('findTradeMarkerIdNearPoint — edge cases', () => {
   it('returns null when getPanes returns empty array', () => {
     const chart = {
       getVisibleBarsRange: () => ({ from: 1, to: 3 }),
-      getTimeScale: () => ({ width: () => 300 }),
-      getPanes: () => [],
+      getTimeScale: (): MockTimeScale => ({ width: () => 300 }),
+      getPanes: (): MockPane[] => [],
     } as unknown as TVActiveChart;
     setWidget(makeWidget(chart));
     setChartReady(true);
@@ -287,8 +317,8 @@ describe('findTradeMarkerIdNearPoint — edge cases', () => {
   it('uses marker.price when snap returns null price', () => {
     const chart = {
       getVisibleBarsRange: () => ({ from: 1, to: 3 }),
-      getTimeScale: () => ({ width: () => 300 }),
-      getPanes: () => [
+      getTimeScale: (): MockTimeScale => ({ width: () => 300 }),
+      getPanes: (): MockPane[] => [
         {
           getMainSourcePriceScale: () => ({
             getVisiblePriceRange: () => ({ from: 0, to: 100 }),
@@ -316,8 +346,7 @@ describe('attachMarkerHitTest', () => {
     _resetTradeMarkerStateForTests();
     _resetMarkerHitTestForTests();
     setOhlcvData(sampleBars);
-    delete (window as unknown as { ReactNativeWebView?: MockBridge })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('posts TRADE_MARKER_PRESSED on a fresh tap landing on a marker', () => {
@@ -332,18 +361,15 @@ describe('attachMarkerHitTest', () => {
     attachMarkerHitTest(widget, chart);
 
     // Simulate the crosshair capturing a tap point at the marker's time.
-    const cb = (
-      globalThis as unknown as {
-        __crosshairCb: ((params: TVCrosshairParams) => void) | null;
-      }
-    ).__crosshairCb;
-    cb?.({ time: 2, price: 20, offsetY: undefined });
+    const crosshairHandler = (globalThis as unknown as CrosshairCallbackHost)
+      .__crosshairCb;
+    crosshairHandler?.({ time: 2, price: 20, offsetY: undefined });
 
     // Release.
-    (widget as unknown as { __fire: (e: string) => void }).__fire('mouse_up');
+    widget.__fire('mouse_up');
     expect(bridge.postMessage).toHaveBeenCalledTimes(1);
     const call = bridge.postMessage.mock.calls[0][0];
-    expect(JSON.parse(call)).toEqual({
+    expect(JSON.parse(call)).toStrictEqual({
       type: 'TRADE_MARKER_PRESSED',
       payload: { id: 'a' },
     });
@@ -360,14 +386,11 @@ describe('attachMarkerHitTest', () => {
 
     attachMarkerHitTest(widget, chart);
 
-    const cb = (
-      globalThis as unknown as {
-        __crosshairCb: ((params: TVCrosshairParams) => void) | null;
-      }
-    ).__crosshairCb;
-    cb?.({ time: 1, price: 10, offsetY: undefined }); // ~150px away from marker
+    const crosshairHandler = (globalThis as unknown as CrosshairCallbackHost)
+      .__crosshairCb;
+    crosshairHandler?.({ time: 1, price: 10, offsetY: undefined }); // ~150px away from marker
 
-    (widget as unknown as { __fire: (e: string) => void }).__fire('mouse_up');
+    widget.__fire('mouse_up');
     expect(bridge.postMessage).not.toHaveBeenCalled();
   });
 
@@ -381,35 +404,33 @@ describe('attachMarkerHitTest', () => {
     getShapesByMarkerId().set('a', { fill: 'f', ring: 'r' });
 
     attachMarkerHitTest(widget, chart);
-    const cb = (
-      globalThis as unknown as {
-        __crosshairCb: ((params: TVCrosshairParams) => void) | null;
-      }
-    ).__crosshairCb;
-    cb?.({ time: 2, price: 20, offsetY: undefined });
+    const crosshairHandler = (globalThis as unknown as CrosshairCallbackHost)
+      .__crosshairCb;
+    crosshairHandler?.({ time: 2, price: 20, offsetY: undefined });
 
-    (widget as unknown as { __fire: (e: string) => void }).__fire('mouse_up');
-    (widget as unknown as { __fire: (e: string) => void }).__fire('mouse_up');
+    widget.__fire('mouse_up');
+    widget.__fire('mouse_up');
     expect(bridge.postMessage).toHaveBeenCalledTimes(1);
   });
 
   it('ignores crosshair events with missing price or time', () => {
-    installBridge();
+    const bridge = installBridge();
     const chart = makeChart(300);
     const widget = makeWidget(chart);
     setWidget(widget);
     setChartReady(true);
 
     attachMarkerHitTest(widget, chart);
-    const cb = (
-      globalThis as unknown as {
-        __crosshairCb: ((params: TVCrosshairParams) => void) | null;
-      }
-    ).__crosshairCb;
+    const crosshairHandler = (globalThis as unknown as CrosshairCallbackHost)
+      .__crosshairCb;
 
-    cb?.({ time: undefined, price: undefined } as unknown as TVCrosshairParams);
-    (widget as unknown as { __fire: (e: string) => void }).__fire('mouse_up');
-    // No marker pressed — tap point was never recorded
+    crosshairHandler?.({
+      time: undefined,
+      price: undefined,
+    } as unknown as TVCrosshairParams);
+    widget.__fire('mouse_up');
+    // No marker pressed — tap point was never recorded.
+    expect(bridge.postMessage).not.toHaveBeenCalled();
   });
 
   it('reports error when crossHairMoved subscription throws', () => {

@@ -14,10 +14,10 @@ import {
   getShapesByMarkerId,
 } from '../state.js';
 
-interface RecordedShape {
+type RecordedShape = {
   id: string;
   properties: Record<string, unknown>[];
-}
+};
 
 function makeShape(id: string): { shape: TVShape; record: RecordedShape } {
   const record: RecordedShape = { id, properties: [] };
@@ -49,8 +49,8 @@ describe('handlePulseTradeMarker', () => {
     jest.useFakeTimers();
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        setTimeout(() => cb(Date.now()), 16);
+      .mockImplementation((callback: FrameRequestCallback) => {
+        setTimeout(() => callback(Date.now()), 16);
         return 0;
       });
   });
@@ -93,9 +93,10 @@ describe('handlePulseTradeMarker', () => {
     for (let i = 0; i < ringRec.properties.length; i++) {
       const fillSize = fillRec.properties[i]?.size as number | undefined;
       const ringSize = ringRec.properties[i]?.size as number | undefined;
-      if (fillSize != null && ringSize != null) {
-        expect(ringSize).toBeGreaterThanOrEqual(fillSize);
+      if (fillSize === undefined || ringSize === undefined) {
+        continue;
       }
+      expect(ringSize).toBeGreaterThanOrEqual(fillSize);
     }
   });
 
@@ -144,9 +145,7 @@ describe('handlePulseTradeMarker', () => {
 
   it('reports error when widget.activeChart() throws', () => {
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
     const widget = {
       activeChart: () => {
         throw new Error('disposed');
@@ -174,10 +173,12 @@ describe('handlePulseTradeMarker', () => {
     let count = 0;
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
+      .mockImplementation((callback: FrameRequestCallback) => {
         count += 1;
-        if (count > 2) throw new Error('rAF unavailable');
-        setTimeout(() => cb(Date.now()), 16);
+        if (count > 2) {
+          throw new Error('rAF unavailable');
+        }
+        setTimeout(() => callback(Date.now()), 16);
         return 0;
       });
 

@@ -4,12 +4,12 @@ import {
 } from '../loadLibrary.js';
 import { _resetStateForTests } from '../state.js';
 
-interface ScriptStub {
+type ScriptStub = {
   type?: string;
   src?: string;
   onload?: () => void;
   onerror?: () => void;
-}
+};
 
 describe('core/loadLibrary', () => {
   let script: ScriptStub;
@@ -18,11 +18,12 @@ describe('core/loadLibrary', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetLoadLibraryForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
     script = {};
     const createElementImpl = (tag: string): HTMLElement => {
-      if (tag === 'script') return script as unknown as HTMLScriptElement;
+      if (tag === 'script') {
+        return script as unknown as HTMLScriptElement;
+      }
       return {} as HTMLElement;
     };
     jest
@@ -37,19 +38,21 @@ describe('core/loadLibrary', () => {
     jest.restoreAllMocks();
   });
 
-  it('appends the charting_library.js script with the correct URL', () => {
+  it('appends the charting_library.js script with the correct URL', async () => {
     const promise = loadTradingViewLibrary('https://cdn.example.com/');
     expect(script.src).toBe('https://cdn.example.com/charting_library.js');
     expect(appendSpy).toHaveBeenCalledTimes(1);
 
     script.onload?.();
-    return expect(promise).resolves.toBeUndefined();
+    expect(await promise).toBeUndefined();
   });
 
   it('rejects when the script onerror fires', async () => {
     const promise = loadTradingViewLibrary('https://cdn.example.com/');
     script.onerror?.();
-    await expect(promise).rejects.toThrow(/Failed to load TradingView library/);
+    await expect(promise).rejects.toThrow(
+      /Failed to load TradingView library/u,
+    );
   });
 
   it('resolves immediately on subsequent calls once loaded', async () => {
@@ -78,10 +81,10 @@ describe('core/loadLibrary', () => {
   it('rejects subsequent calls if the prior load errored', async () => {
     const first = loadTradingViewLibrary('https://cdn.example.com/');
     script.onerror?.();
-    await expect(first).rejects.toThrow();
+    await expect(first).rejects.toThrow(/Failed to load TradingView library/u);
 
     await expect(
       loadTradingViewLibrary('https://cdn.example.com/'),
-    ).rejects.toThrow(/Failed to load TradingView library/);
+    ).rejects.toThrow(/Failed to load TradingView library/u);
   });
 });

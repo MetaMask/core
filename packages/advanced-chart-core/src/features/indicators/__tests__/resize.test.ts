@@ -47,7 +47,7 @@ describe('features/indicators/resize', () => {
     setWidget({ resize } as unknown as TVChartingLibraryWidget);
 
     const originalRAF = globalThis.requestAnimationFrame;
-    globalThis.requestAnimationFrame = () => {
+    globalThis.requestAnimationFrame = (): number => {
       throw new Error('rAF unavailable');
     };
 

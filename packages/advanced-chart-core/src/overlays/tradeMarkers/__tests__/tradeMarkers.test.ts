@@ -38,20 +38,20 @@ const theme = {
   errorColor: 'rgb(200, 0, 0)',
 } as unknown as ChartTheme;
 
-interface CreateShapeCall {
+type CreateShapeCall = {
   point: { time?: number; price?: number };
   options: Record<string, unknown>;
   resolveWith: (id: string) => void;
-}
+};
 
-interface StubChart {
+type StubChart = {
   chart: TVActiveChart;
   createShapeCalls: CreateShapeCall[];
   removedIds: string[];
   runDataReadyOn: 'immediate' | 'call';
   flushDataReady: () => void;
   drainCreatePromises: () => Promise<void>;
-}
+};
 
 function makeStubChart(): StubChart {
   const createShapeCalls: CreateShapeCall[] = [];
@@ -68,8 +68,8 @@ function makeStubChart(): StubChart {
     removeEntity: (id: string) => {
       removedIds.push(id);
     },
-    dataReady: (cb: () => void) => {
-      dataReadyCb = cb;
+    dataReady: (callback: () => void) => {
+      dataReadyCb = callback;
     },
   } as unknown as TVActiveChart;
   return {
@@ -77,10 +77,10 @@ function makeStubChart(): StubChart {
     createShapeCalls,
     removedIds,
     runDataReadyOn: 'call',
-    flushDataReady: () => {
+    flushDataReady: (): void => {
       dataReadyCb?.();
     },
-    async drainCreatePromises() {
+    async drainCreatePromises(): Promise<void> {
       // Yield until every queued createShape resolves and its `.then` runs.
       for (let i = 0; i < 100; i++) {
         await Promise.resolve();
@@ -120,7 +120,7 @@ describe('snapMarkerToNearestBar', () => {
       { time: 2_000, open: 1, high: 1, low: 1, close: 200 },
     ];
     // Midway 1500 → tie → picks earlier (index 0, close 100).
-    expect(snapMarkerToNearestBar(bars, 1_500)).toEqual({
+    expect(snapMarkerToNearestBar(bars, 1_500)).toStrictEqual({
       timeSec: 1,
       close: 100,
     });
@@ -130,7 +130,7 @@ describe('snapMarkerToNearestBar', () => {
       { time: 1_000, open: 1, high: 1, low: 1, close: 100 },
       { time: 2_000, open: 1, high: 1, low: 1, close: 200 },
     ];
-    expect(snapMarkerToNearestBar(bars, 1_900)).toEqual({
+    expect(snapMarkerToNearestBar(bars, 1_900)).toStrictEqual({
       timeSec: 2,
       close: 200,
     });
@@ -149,7 +149,7 @@ describe('handleSetTradeMarkers', () => {
 
   it('caches markers when the widget is not ready', () => {
     handleSetTradeMarkers({ markers: [entryMarker('a', 2_000)] });
-    expect(getMarkers()).toEqual([entryMarker('a', 2_000)]);
+    expect(getMarkers()).toStrictEqual([entryMarker('a', 2_000)]);
   });
 
   it('null payload clears drawn shapes', () => {
@@ -193,8 +193,8 @@ describe('handleSetTradeMarkers', () => {
     stub.createShapeCalls[1].resolveWith('fill-a');
     await stub.drainCreatePromises();
 
-    expect(getShapeIds()).toEqual(['ring-a', 'fill-a']);
-    expect(getShapesByMarkerId().get('a')).toEqual({
+    expect(getShapeIds()).toStrictEqual(['ring-a', 'fill-a']);
+    expect(getShapesByMarkerId().get('a')).toStrictEqual({
       fill: 'fill-a',
       ring: 'ring-a',
     });
@@ -279,9 +279,10 @@ describe('scheduleTradeMarkerRefresh', () => {
   });
 
   it('no-ops when no markers are cached', () => {
-    scheduleTradeMarkerRefresh();
-    jest.runAllTimers();
-    // Nothing to assert other than no throw.
+    expect(() => {
+      scheduleTradeMarkerRefresh();
+      jest.runAllTimers();
+    }).not.toThrow();
   });
 
   it('debounces to a single placeTradeMarkers call', () => {
@@ -295,9 +296,12 @@ describe('scheduleTradeMarkerRefresh', () => {
     scheduleTradeMarkerRefresh();
     scheduleTradeMarkerRefresh();
     scheduleTradeMarkerRefresh();
-    jest.advanceTimersByTime(200);
+
     // With markers matching drawn set placement is a no-op (dedup check),
-    // but scheduling itself should have run its debounced callback once.
+    // but scheduling itself should have run its debounced callback once
+    // without throwing and left the cached markers intact.
+    expect(() => jest.advanceTimersByTime(200)).not.toThrow();
+    expect(getMarkers()).toStrictEqual([entryMarker('a', 2_000)]);
   });
 });
 
@@ -373,9 +377,7 @@ describe('registerTradeMarkerOverlay lifecycle hooks', () => {
 
   it('reports error when widget.activeChart() throws in placeTradeMarkers', () => {
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
     const widget = {
       activeChart: () => {
         throw new Error('disposed');

@@ -37,8 +37,7 @@ describe('handleSetOHLCVData', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetOhlcvIngestionForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('no-ops when payload is empty', () => {
@@ -82,11 +81,11 @@ describe('handleSetOHLCVData', () => {
   });
 
   it('fires the first-data callback exactly once when no widget exists', () => {
-    const cb = jest.fn();
-    onFirstOhlcvData(cb);
+    const callback = jest.fn();
+    onFirstOhlcvData(callback);
     handleSetOHLCVData({ data: oneMinuteApart(2) });
     handleSetOHLCVData({ data: oneMinuteApart(3) });
-    expect(cb).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledTimes(1);
   });
 
   it('calls chart.resetData when widget is ready and resolution unchanged', () => {
@@ -119,8 +118,8 @@ describe('handleSetOHLCVData', () => {
   it('calls setResolution when the detected resolution changes', () => {
     const resetData = jest.fn();
     let setResCb: () => void = () => undefined;
-    const setResolution = jest.fn().mockImplementation((_res, cb) => {
-      setResCb = cb;
+    const setResolution = jest.fn().mockImplementation((_res, callback) => {
+      setResCb = callback;
     });
     const onDataLoaded = jest
       .fn()
@@ -160,8 +159,8 @@ describe('handleSetOHLCVData', () => {
     const setResCbs: (() => void)[] = [];
     const setResolution = jest
       .fn()
-      .mockImplementation((_res: string, cb: () => void) => {
-        setResCbs.push(cb);
+      .mockImplementation((_res: string, callback: () => void) => {
+        setResCbs.push(callback);
       });
     const onDataLoaded = jest
       .fn()
@@ -258,16 +257,15 @@ describe('applyVisibleRange', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetOhlcvIngestionForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('calls setVisibleRange after onDataLoaded fires when visibleFromMs is set', () => {
     let subscribedCb: (() => void) | undefined;
     const unsubscribe = jest.fn();
     const onDataLoaded = jest.fn().mockReturnValue({
-      subscribe: jest.fn((_scope: unknown, cb: () => void) => {
-        subscribedCb = cb;
+      subscribe: jest.fn((_scope: unknown, callback: () => void) => {
+        subscribedCb = callback;
       }),
       unsubscribe,
     });
@@ -303,21 +301,23 @@ describe('applyVisibleRange', () => {
 
     // Simulate TV firing onDataLoaded.
     expect(subscribedCb).toBeDefined();
-    if (subscribedCb) subscribedCb();
+    if (subscribedCb) {
+      subscribedCb();
+    }
 
     expect(setVisibleRange).toHaveBeenCalledTimes(1);
     const [range, options] = setVisibleRange.mock.calls[0];
     expect(range.from).toBe(Math.floor(1_700_000_000_000 / 1000));
     expect(range.to).toBeGreaterThan(0);
-    expect(options).toEqual({ percentRightMargin: 0 });
+    expect(options).toStrictEqual({ percentRightMargin: 0 });
   });
 
   it('unsubscribes from onDataLoaded once loaded', () => {
     const unsubscribeFn = jest.fn();
     let subscribedCb: (() => void) | undefined;
     const onDataLoaded = jest.fn().mockReturnValue({
-      subscribe: jest.fn((_scope: unknown, cb: () => void) => {
-        subscribedCb = cb;
+      subscribe: jest.fn((_scope: unknown, callback: () => void) => {
+        subscribedCb = callback;
       }),
       unsubscribe: unsubscribeFn,
     });
@@ -338,15 +338,17 @@ describe('applyVisibleRange', () => {
     handleSetOHLCVData({ data: oneMinuteApart(3), visibleFromMs: 100_000 });
 
     expect(subscribedCb).toBeDefined();
-    if (subscribedCb) subscribedCb();
+    if (subscribedCb) {
+      subscribedCb();
+    }
     expect(unsubscribeFn).toHaveBeenCalledWith(null, subscribedCb);
   });
 
   it('skips setVisibleRange when generation changed between subscribe and load', () => {
     let subscribedCb: (() => void) | undefined;
     const onDataLoaded = jest.fn().mockReturnValue({
-      subscribe: jest.fn((_scope: unknown, cb: () => void) => {
-        subscribedCb = cb;
+      subscribe: jest.fn((_scope: unknown, callback: () => void) => {
+        subscribedCb = callback;
       }),
       unsubscribe: jest.fn(),
     });
@@ -371,7 +373,9 @@ describe('applyVisibleRange', () => {
     handleSetOHLCVData({ data: oneMinuteApart(4) });
 
     expect(subscribedCb).toBeDefined();
-    if (subscribedCb) subscribedCb();
+    if (subscribedCb) {
+      subscribedCb();
+    }
     // setVisibleRange is NOT called because generation is stale.
     // It may have been called during the second handleSetOHLCVData (without visibleFromMs),
     // but the stale callback from the first should not call it again.
@@ -408,9 +412,7 @@ describe('applyVisibleRange', () => {
   });
 
   it('reports error when setRightOffset throws', () => {
-    (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView = { postMessage: jest.fn() };
+    window.ReactNativeWebView = { postMessage: jest.fn() };
 
     const setRightOffset = jest.fn().mockImplementation(() => {
       throw new Error('setRightOffset boom');
@@ -435,30 +437,25 @@ describe('applyVisibleRange', () => {
     // Should not throw — the error is caught and forwarded.
     expect(() => handleSetOHLCVData({ data: oneMinuteApart(3) })).not.toThrow();
 
-    const bridge = (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView;
-    const errorCalls = bridge.postMessage.mock.calls.filter(
-      (call: string[]) => {
-        const parsed = JSON.parse(call[0]);
-        return (
-          parsed.type === 'ERROR' &&
-          parsed.payload.message.includes('setRightOffset boom')
-        );
-      },
-    );
+    const errorCalls = (
+      window.ReactNativeWebView?.postMessage as jest.Mock
+    ).mock.calls.filter((call: string[]) => {
+      const parsed = JSON.parse(call[0]);
+      return (
+        parsed.type === 'ERROR' &&
+        parsed.payload.message.includes('setRightOffset boom')
+      );
+    });
     expect(errorCalls.length).toBeGreaterThanOrEqual(1);
   });
 
   it('reports error when setVisibleRange throws inside onDataLoaded callback', () => {
-    (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView = { postMessage: jest.fn() };
+    window.ReactNativeWebView = { postMessage: jest.fn() };
 
     let subscribedCb: (() => void) | undefined;
     const onDataLoaded = jest.fn().mockReturnValue({
-      subscribe: jest.fn((_scope: unknown, cb: () => void) => {
-        subscribedCb = cb;
+      subscribe: jest.fn((_scope: unknown, callback: () => void) => {
+        subscribedCb = callback;
       }),
       unsubscribe: jest.fn(),
     });
@@ -483,24 +480,23 @@ describe('applyVisibleRange', () => {
 
     expect(subscribedCb).toBeDefined();
     expect(() => {
-      if (subscribedCb) subscribedCb();
+      if (subscribedCb) {
+        subscribedCb();
+      }
     }).not.toThrow();
 
-    const bridge = (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView;
-    const errorCalls = bridge.postMessage.mock.calls.filter(
-      (call: string[]) => {
-        const parsed = JSON.parse(call[0]) as {
-          type: string;
-          payload?: { message?: string };
-        };
-        return (
-          parsed.type === 'ERROR' &&
-          parsed.payload?.message?.includes('setVisibleRange boom')
-        );
-      },
-    );
+    const errorCalls = (
+      window.ReactNativeWebView?.postMessage as jest.Mock
+    ).mock.calls.filter((call: string[]) => {
+      const parsed = JSON.parse(call[0]) as {
+        type: string;
+        payload?: { message?: string };
+      };
+      return (
+        parsed.type === 'ERROR' &&
+        parsed.payload?.message?.includes('setVisibleRange boom')
+      );
+    });
     expect(errorCalls.length).toBeGreaterThanOrEqual(1);
   });
 });
@@ -512,8 +508,7 @@ describe('resetMainPriceScaleAutoScale (via handleSetOHLCVData)', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetOhlcvIngestionForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('calls priceScale.setAutoScale(true) via the pane API', () => {
@@ -614,21 +609,18 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetOhlcvIngestionForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('posts CHART_LAYOUT_SETTLED via requestAnimationFrame', () => {
     const postMessage = jest.fn();
-    (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView = { postMessage };
+    window.ReactNativeWebView = { postMessage };
 
     const rafCallbacks: FrameRequestCallback[] = [];
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        rafCallbacks.push(cb);
+      .mockImplementation((frameCallback: FrameRequestCallback) => {
+        rafCallbacks.push(frameCallback);
         return rafCallbacks.length;
       });
 
@@ -668,9 +660,7 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
 
   it('falls back to setTimeout when requestAnimationFrame throws', () => {
     const postMessage = jest.fn();
-    (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView = { postMessage };
+    window.ReactNativeWebView = { postMessage };
 
     jest.useFakeTimers();
 
@@ -709,15 +699,13 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
 
   it('does not post CHART_LAYOUT_SETTLED when widget is not ready', () => {
     const postMessage = jest.fn();
-    (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView = { postMessage };
+    window.ReactNativeWebView = { postMessage };
 
     const rafCallbacks: FrameRequestCallback[] = [];
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        rafCallbacks.push(cb);
+      .mockImplementation((frameCallback: FrameRequestCallback) => {
+        rafCallbacks.push(frameCallback);
         return rafCallbacks.length;
       });
 
@@ -794,14 +782,11 @@ describe('error paths', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetOhlcvIngestionForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('reports error and does not throw when chart.resetData() throws', () => {
-    (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView = { postMessage: jest.fn() };
+    window.ReactNativeWebView = { postMessage: jest.fn() };
 
     const chart = {
       resetData: jest.fn().mockImplementation(() => {
@@ -823,25 +808,20 @@ describe('error paths', () => {
 
     expect(() => handleSetOHLCVData({ data: oneMinuteApart(3) })).not.toThrow();
 
-    const bridge = (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView;
-    const errorCalls = bridge.postMessage.mock.calls.filter(
-      (call: string[]) => {
-        const parsed = JSON.parse(call[0]);
-        return (
-          parsed.type === 'ERROR' &&
-          parsed.payload.message.includes('resetData kaboom')
-        );
-      },
-    );
+    const errorCalls = (
+      window.ReactNativeWebView?.postMessage as jest.Mock
+    ).mock.calls.filter((call: string[]) => {
+      const parsed = JSON.parse(call[0]);
+      return (
+        parsed.type === 'ERROR' &&
+        parsed.payload.message.includes('resetData kaboom')
+      );
+    });
     expect(errorCalls.length).toBeGreaterThanOrEqual(1);
   });
 
   it('resets firstDataDelivered when firstDataCallback throws', () => {
-    (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView = { postMessage: jest.fn() };
+    window.ReactNativeWebView = { postMessage: jest.fn() };
 
     const failingCb = jest.fn().mockImplementation(() => {
       throw new Error('firstDataCallback boom');
@@ -852,18 +832,15 @@ describe('error paths', () => {
     expect(() => handleSetOHLCVData({ data: oneMinuteApart(2) })).not.toThrow();
     expect(failingCb).toHaveBeenCalledTimes(1);
 
-    const bridge = (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView;
-    const errorCalls = bridge.postMessage.mock.calls.filter(
-      (call: string[]) => {
-        const parsed = JSON.parse(call[0]);
-        return (
-          parsed.type === 'ERROR' &&
-          parsed.payload.message.includes('firstDataCallback boom')
-        );
-      },
-    );
+    const errorCalls = (
+      window.ReactNativeWebView?.postMessage as jest.Mock
+    ).mock.calls.filter((call: string[]) => {
+      const parsed = JSON.parse(call[0]);
+      return (
+        parsed.type === 'ERROR' &&
+        parsed.payload.message.includes('firstDataCallback boom')
+      );
+    });
     expect(errorCalls.length).toBeGreaterThanOrEqual(1);
 
     // Because firstDataDelivered was reset, the callback fires again on next data.
@@ -875,16 +852,14 @@ describe('error paths', () => {
   });
 
   it('reports error when setRightOffset throws inside setResolution callback', () => {
-    (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView = { postMessage: jest.fn() };
+    window.ReactNativeWebView = { postMessage: jest.fn() };
 
     let setResCb: () => void = () => undefined;
     const chart = {
       setResolution: jest
         .fn()
-        .mockImplementation((_res: string, cb: () => void) => {
-          setResCb = cb;
+        .mockImplementation((_res: string, callback: () => void) => {
+          setResCb = callback;
         }),
       onDataLoaded: jest
         .fn()
@@ -912,18 +887,15 @@ describe('error paths', () => {
     // Fire the setResolution callback — setRightOffset throws inside applyVisibleRange.
     expect(() => setResCb()).not.toThrow();
 
-    const bridge = (
-      window as unknown as { ReactNativeWebView: { postMessage: jest.Mock } }
-    ).ReactNativeWebView;
-    const errorCalls = bridge.postMessage.mock.calls.filter(
-      (call: string[]) => {
-        const parsed = JSON.parse(call[0]);
-        return (
-          parsed.type === 'ERROR' &&
-          parsed.payload.message.includes('setRightOffset inside setResolution')
-        );
-      },
-    );
+    const errorCalls = (
+      window.ReactNativeWebView?.postMessage as jest.Mock
+    ).mock.calls.filter((call: string[]) => {
+      const parsed = JSON.parse(call[0]);
+      return (
+        parsed.type === 'ERROR' &&
+        parsed.payload.message.includes('setRightOffset inside setResolution')
+      );
+    });
     expect(errorCalls.length).toBeGreaterThanOrEqual(1);
   });
 });

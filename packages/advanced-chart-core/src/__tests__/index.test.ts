@@ -26,9 +26,9 @@ const baseConfig: ChartConfig = {
   theme: baseTheme,
 };
 
-interface MockBridge {
+type MockBridge = {
   postMessage: jest.Mock<void, [string]>;
-}
+};
 
 describe('src/index.ts entry point', () => {
   let bridge: MockBridge;
@@ -39,10 +39,8 @@ describe('src/index.ts entry point', () => {
     _resetThemeForTests();
     _resetOhlcvIngestionForTests();
     bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: MockBridge }
-    ).ReactNativeWebView = bridge;
-    (window as unknown as { CONFIG?: ChartConfig }).CONFIG = baseConfig;
+    window.ReactNativeWebView = bridge;
+    window.CONFIG = baseConfig;
 
     jest
       .spyOn(document, 'createElement')
@@ -61,9 +59,8 @@ describe('src/index.ts entry point', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    delete (window as unknown as { CONFIG?: ChartConfig }).CONFIG;
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.CONFIG;
+    delete window.ReactNativeWebView;
   });
 
   it('calls bootstrap() and emits DEBUG on import', async () => {
@@ -74,7 +71,7 @@ describe('src/index.ts entry point', () => {
   });
 
   it('reports error to RN when bootstrap throws', async () => {
-    delete (window as unknown as { CONFIG?: ChartConfig }).CONFIG;
+    delete window.CONFIG;
     await import('../index.js');
     expect(bridge.postMessage).toHaveBeenCalledWith(
       expect.stringContaining('"type":"ERROR"'),

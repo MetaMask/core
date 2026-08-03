@@ -12,7 +12,6 @@ import {
 import type {
   ChartTheme,
   TVChartingLibraryWidget,
-  TVShapeId,
 } from '../../../core/types.js';
 import {
   _resetHandlersForTests,
@@ -56,7 +55,7 @@ function makeWidget(): {
   const removeEntity = jest.fn();
   const createShape = jest.fn().mockImplementation(() => {
     shapeIdCounter += 1;
-    return Promise.resolve(`shape-${shapeIdCounter}` as TVShapeId);
+    return Promise.resolve(`shape-${shapeIdCounter}`);
   });
   const widget = {
     applyOverrides,
@@ -83,8 +82,7 @@ describe('positionLines/index', () => {
     _resetHandlersForTests();
     _resetDataLifecycleForTests();
     shapeIdCounter = 0;
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('no-ops when widget is not ready', () => {
@@ -137,7 +135,7 @@ describe('positionLines/index', () => {
         (call[1] as Record<string, unknown>).text === 'Entry',
     );
     expect(entryCall).toBeDefined();
-    expect(entryCall[0]).toEqual({ price: 42000 });
+    expect(entryCall[0]).toStrictEqual({ price: 42000 });
     expect(
       (entryCall[1] as Record<string, Record<string, unknown>>).overrides,
     ).not.toHaveProperty('text');
@@ -209,7 +207,7 @@ describe('positionLines/index', () => {
   });
 
   it('clears existing shapes before creating new ones', async () => {
-    const { createShape, removeEntity } = installWidget();
+    const { removeEntity } = installWidget();
 
     handleSetPositionLines({
       position: { side: 'long', entryPrice: 42000 },
@@ -226,14 +224,12 @@ describe('positionLines/index', () => {
 
   it('reports errors from createShape to RN', () => {
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
 
     const throwingWidget = {
       applyOverrides: jest.fn(),
       activeChart: () => ({
-        createShape: () => {
+        createShape: (): never => {
           throw new Error('chart disposed');
         },
         removeEntity: jest.fn(),
@@ -264,7 +260,7 @@ describe('positionLines/index', () => {
   });
 
   it('removes orphaned shapes when generation changes before promise resolves', async () => {
-    const { createShape, removeEntity } = installWidget();
+    const { removeEntity } = installWidget();
 
     // First call creates a shape whose promise is still pending
     handleSetPositionLines({
@@ -280,7 +276,7 @@ describe('positionLines/index', () => {
 
     // The stale shape should be removed immediately, not tracked
     expect(removeEntity).toHaveBeenCalledWith('shape-1');
-    expect(getPositionShapeIds()).toEqual([]);
+    expect(getPositionShapeIds()).toStrictEqual([]);
   });
 
   describe('registerPositionLinesOverlay', () => {
@@ -309,11 +305,11 @@ describe('positionLines/index', () => {
       notifyDataLifecycle('ohlcvReset');
       expect(removeEntity).not.toHaveBeenCalled();
       expect(createShape).toHaveBeenCalledTimes(1);
-      expect(getPositionShapeIds()).toEqual(['shape-1']);
+      expect(getPositionShapeIds()).toStrictEqual(['shape-1']);
 
       handleSetPositionLines({ position: null });
       expect(removeEntity).toHaveBeenCalledWith('shape-1');
-      expect(getPositionShapeIds()).toEqual([]);
+      expect(getPositionShapeIds()).toStrictEqual([]);
     });
   });
 });

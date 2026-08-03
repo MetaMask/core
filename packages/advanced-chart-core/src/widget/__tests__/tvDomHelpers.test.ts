@@ -8,7 +8,7 @@ const mockEl = (className: string): Element =>
     className,
     classList: {
       contains: (token: string): boolean =>
-        className.split(/\s+/).includes(token),
+        className.split(/\s+/u).includes(token),
     },
   }) as unknown as Element;
 
@@ -49,11 +49,9 @@ describe('findOuterChartMarkupTable', () => {
 
 describe('eachChartDocument', () => {
   let mockContainer: HTMLElement | null;
-  let mockIframe: { contentDocument: Document | null } | null;
 
   beforeEach(() => {
     mockContainer = null;
-    mockIframe = null;
     jest
       .spyOn(document, 'getElementById')
       .mockImplementation(((id: string) =>
@@ -86,7 +84,9 @@ describe('eachChartDocument', () => {
   it('continues when fn(document) throws', () => {
     let secondCalled = false;
     eachChartDocument((doc) => {
-      if (doc === document) throw new Error('doc throws');
+      if (doc === document) {
+        throw new Error('doc throws');
+      }
       secondCalled = true;
     });
     // Even with document throwing, we attempted the iframe path

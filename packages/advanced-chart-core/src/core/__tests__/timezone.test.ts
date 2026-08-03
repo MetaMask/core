@@ -13,9 +13,9 @@ const stubIntlTimezone = (zone: string | undefined): void => {
   );
 };
 
-interface ResolvedOptions {
+type ResolvedOptions = {
   timeZone: string | undefined;
-}
+};
 
 describe('resolveUserTimezone', () => {
   afterEach(() => {

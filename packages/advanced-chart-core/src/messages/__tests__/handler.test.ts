@@ -4,23 +4,20 @@ import {
   registerHandler,
 } from '../handler.js';
 
-interface MockBridge {
+type MockBridge = {
   postMessage: jest.Mock<void, [string]>;
-}
+};
 
 const installRNBridge = (): MockBridge => {
   const bridge: MockBridge = { postMessage: jest.fn() };
-  (
-    window as unknown as { ReactNativeWebView?: MockBridge }
-  ).ReactNativeWebView = bridge;
+  window.ReactNativeWebView = bridge;
   return bridge;
 };
 
 describe('messages/handler', () => {
   beforeEach(() => {
     _resetHandlersForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('routes a typed message to the registered handler', () => {

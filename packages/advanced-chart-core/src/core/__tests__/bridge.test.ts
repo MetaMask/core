@@ -1,21 +1,18 @@
 import type { InboundMessage } from '../../messages/contract.js';
 import { onFromRN, postToRN, reportErrorToRN } from '../bridge.js';
 
-interface MockBridge {
+type MockBridge = {
   postMessage: jest.Mock<void, [string]>;
-}
+};
 
 const installRNBridge = (): MockBridge => {
   const bridge: MockBridge = { postMessage: jest.fn() };
-  (
-    window as unknown as { ReactNativeWebView?: MockBridge }
-  ).ReactNativeWebView = bridge;
+  window.ReactNativeWebView = bridge;
   return bridge;
 };
 
 const clearRNBridge = (): void => {
-  delete (window as unknown as { ReactNativeWebView?: MockBridge })
-    .ReactNativeWebView;
+  delete window.ReactNativeWebView;
 };
 
 describe('core/bridge', () => {
@@ -73,16 +70,18 @@ describe('core/bridge', () => {
         .spyOn(window, 'addEventListener')
         .mockImplementation(
           (type: string, listener: EventListenerOrEventListenerObject) => {
-            if (type === 'message')
+            if (type === 'message') {
               listeners.window.push(listener as EventListener);
+            }
           },
         );
       jest
         .spyOn(document, 'addEventListener')
         .mockImplementation(
           (type: string, listener: EventListenerOrEventListenerObject) => {
-            if (type === 'message')
+            if (type === 'message') {
               listeners.document.push(listener as EventListener);
+            }
           },
         );
       jest.spyOn(window, 'removeEventListener').mockImplementation();

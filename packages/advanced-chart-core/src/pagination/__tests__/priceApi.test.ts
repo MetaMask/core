@@ -6,15 +6,13 @@ import {
 } from '../../core/state.js';
 import { fetchOlderBarsFromPriceApi, OHLCV_BASE_URL } from '../priceApi.js';
 
-interface MockBridge {
+type MockBridge = {
   postMessage: jest.Mock<void, [string]>;
-}
+};
 
 const installRNBridge = (): MockBridge => {
   const bridge: MockBridge = { postMessage: jest.fn() };
-  (
-    window as unknown as { ReactNativeWebView?: MockBridge }
-  ).ReactNativeWebView = bridge;
+  window.ReactNativeWebView = bridge;
   return bridge;
 };
 
@@ -27,8 +25,7 @@ const mockFetchOk = (body: unknown): jest.Mock =>
 describe('pagination/priceApi', () => {
   beforeEach(() => {
     _resetStateForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   afterEach(() => {
@@ -37,7 +34,7 @@ describe('pagination/priceApi', () => {
 
   it('returns noData when there is no cursor', async () => {
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
-    expect(result).toEqual({ olderBars: [], noData: true });
+    expect(result).toStrictEqual({ olderBars: [], noData: true });
   });
 
   it('returns noData when hasMore is false', async () => {
@@ -48,7 +45,7 @@ describe('pagination/priceApi', () => {
       vsCurrency: 'usd',
     });
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
-    expect(result).toEqual({ olderBars: [], noData: true });
+    expect(result).toStrictEqual({ olderBars: [], noData: true });
   });
 
   it('fetches older bars via the Price API and merges them into state', async () => {
@@ -98,7 +95,7 @@ describe('pagination/priceApi', () => {
       }) as unknown as typeof fetch;
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
-    expect(result).toEqual({ olderBars: [], noData: true });
+    expect(result).toStrictEqual({ olderBars: [], noData: true });
   });
 
   it('reports network failures to RN and returns noData', async () => {
@@ -114,7 +111,7 @@ describe('pagination/priceApi', () => {
       .mockRejectedValue(new Error('offline')) as unknown as typeof fetch;
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
-    expect(result).toEqual({ olderBars: [], noData: true });
+    expect(result).toStrictEqual({ olderBars: [], noData: true });
     expect(bridge.postMessage).toHaveBeenCalledWith(
       expect.stringContaining('"message":"offline"'),
     );
@@ -159,7 +156,7 @@ describe('pagination/priceApi', () => {
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
-    expect(result).toEqual({ olderBars: [], noData: true });
+    expect(result).toStrictEqual({ olderBars: [], noData: true });
     expect(bridge.postMessage).toHaveBeenCalledWith(
       expect.stringContaining('"message":"OHLCV API error: 429"'),
     );
@@ -186,7 +183,7 @@ describe('pagination/priceApi', () => {
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
-    expect(result).toEqual({ olderBars: [], noData: true });
+    expect(result).toStrictEqual({ olderBars: [], noData: true });
     // Should NOT report error because generation changed
     expect(bridge.postMessage).not.toHaveBeenCalled();
   });
@@ -208,7 +205,7 @@ describe('pagination/priceApi', () => {
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
-    expect(result).toEqual({ olderBars: [], noData: true });
+    expect(result).toStrictEqual({ olderBars: [], noData: true });
     expect(bridge.postMessage).toHaveBeenCalledWith(
       expect.stringContaining('"message":"Unexpected token"'),
     );
@@ -230,7 +227,7 @@ describe('pagination/priceApi', () => {
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
-    expect(result).toEqual({ olderBars: [], noData: true });
+    expect(result).toStrictEqual({ olderBars: [], noData: true });
     expect(bridge.postMessage).toHaveBeenCalledWith(
       expect.stringContaining(
         '"message":"OHLCV API response: invalid payload"',
@@ -277,7 +274,7 @@ describe('pagination/priceApi', () => {
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
-    expect(result).toEqual({ olderBars: [], noData: true });
+    expect(result).toStrictEqual({ olderBars: [], noData: true });
     // State should remain empty — prependOhlcvBars was never called
     expect(getOhlcvData()).toHaveLength(0);
   });

@@ -12,15 +12,13 @@ import {
   _resetRnBackedPaginationForTests,
 } from '../rnBacked.js';
 
-interface MockBridge {
+type MockBridge = {
   postMessage: jest.Mock<void, [string]>;
-}
+};
 
 const installRNBridge = (): MockBridge => {
   const bridge: MockBridge = { postMessage: jest.fn() };
-  (
-    window as unknown as { ReactNativeWebView?: MockBridge }
-  ).ReactNativeWebView = bridge;
+  window.ReactNativeWebView = bridge;
   return bridge;
 };
 
@@ -31,8 +29,7 @@ describe('pagination/rnBacked', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetRnBackedPaginationForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   describe('requestOlderBarsFromRN', () => {
@@ -50,14 +47,14 @@ describe('pagination/rnBacked', () => {
       });
 
       expect(bridge.postMessage).toHaveBeenCalledTimes(1);
-      const msg = JSON.parse(bridge.postMessage.mock.calls[0][0]);
-      expect(msg.type).toBe('FETCH_OLDER_BARS_REQUEST');
-      expect(msg.payload.requestId).toContain('obr-0-1');
-      expect(msg.payload.resolution).toBe('60');
-      expect(msg.payload.fromSec).toBe(50);
-      expect(msg.payload.toSec).toBe(100);
-      expect(msg.payload.countBack).toBe(10);
-      expect(msg.payload.oldestLoadedTimeMs).toBe(100_000);
+      const message = JSON.parse(bridge.postMessage.mock.calls[0][0]);
+      expect(message.type).toBe('FETCH_OLDER_BARS_REQUEST');
+      expect(message.payload.requestId).toContain('obr-0-1');
+      expect(message.payload.resolution).toBe('60');
+      expect(message.payload.fromSec).toBe(50);
+      expect(message.payload.toSec).toBe(100);
+      expect(message.payload.countBack).toBe(10);
+      expect(message.payload.oldestLoadedTimeMs).toBe(100_000);
     });
 
     it('increments requestSeq across calls', () => {
@@ -77,10 +74,10 @@ describe('pagination/rnBacked', () => {
         onResult,
       });
 
-      const msg1 = JSON.parse(bridge.postMessage.mock.calls[0][0]);
-      const msg2 = JSON.parse(bridge.postMessage.mock.calls[1][0]);
-      expect(msg1.payload.requestId).toContain('-1');
-      expect(msg2.payload.requestId).toContain('-2');
+      const message1 = JSON.parse(bridge.postMessage.mock.calls[0][0]);
+      const message2 = JSON.parse(bridge.postMessage.mock.calls[1][0]);
+      expect(message1.payload.requestId).toContain('-1');
+      expect(message2.payload.requestId).toContain('-2');
     });
 
     it('omits countBack when not provided', () => {
@@ -92,14 +89,14 @@ describe('pagination/rnBacked', () => {
         onResult: makeOnResult(),
       });
 
-      const msg = JSON.parse(bridge.postMessage.mock.calls[0][0]);
-      expect(msg.payload.countBack).toBeUndefined();
+      const message = JSON.parse(bridge.postMessage.mock.calls[0][0]);
+      expect(message.payload.countBack).toBeUndefined();
     });
   });
 
   describe('handleFetchOlderBarsResponse', () => {
     it('resolves the pending callback with older bars and prepends to state', () => {
-      installRNBridge();
+      const bridge = installRNBridge();
       setOhlcvData([{ time: 200_000, open: 1, high: 1, low: 1, close: 1 }]);
       const onResult = makeOnResult();
 
@@ -110,11 +107,8 @@ describe('pagination/rnBacked', () => {
         onResult,
       });
 
-      const msg = JSON.parse(
-        (window as unknown as { ReactNativeWebView: MockBridge })
-          .ReactNativeWebView.postMessage.mock.calls[0][0],
-      );
-      const requestId = msg.payload.requestId;
+      const message = JSON.parse(bridge.postMessage.mock.calls[0][0]);
+      const { requestId } = message.payload;
 
       handleFetchOlderBarsResponse({
         requestId,
@@ -127,13 +121,13 @@ describe('pagination/rnBacked', () => {
 
       expect(onResult).toHaveBeenCalledTimes(1);
       expect(onResult.mock.calls[0][0]).toHaveLength(2);
-      expect(onResult.mock.calls[0][1]).toEqual({ noData: false });
+      expect(onResult.mock.calls[0][1]).toStrictEqual({ noData: false });
       expect(getOhlcvData()).toHaveLength(3);
       expect(getOhlcvData()[0].time).toBe(50_000);
     });
 
     it('deduplicates bars that already exist in state', () => {
-      installRNBridge();
+      const bridge = installRNBridge();
       setOhlcvData([
         { time: 100_000, open: 1, high: 1, low: 1, close: 1 },
         { time: 200_000, open: 1, high: 1, low: 1, close: 1 },
@@ -147,13 +141,10 @@ describe('pagination/rnBacked', () => {
         onResult,
       });
 
-      const msg = JSON.parse(
-        (window as unknown as { ReactNativeWebView: MockBridge })
-          .ReactNativeWebView.postMessage.mock.calls[0][0],
-      );
+      const message = JSON.parse(bridge.postMessage.mock.calls[0][0]);
 
       handleFetchOlderBarsResponse({
-        requestId: msg.payload.requestId,
+        requestId: message.payload.requestId,
         seriesGeneration: 0,
         bars: [
           { time: 50_000, open: 2, high: 2, low: 2, close: 2, volume: 10 },
@@ -166,7 +157,7 @@ describe('pagination/rnBacked', () => {
     });
 
     it('drops bars not strictly older than oldestAtDefer', () => {
-      installRNBridge();
+      const bridge = installRNBridge();
       setOhlcvData([{ time: 100_000, open: 1, high: 1, low: 1, close: 1 }]);
       const onResult = makeOnResult();
 
@@ -177,13 +168,10 @@ describe('pagination/rnBacked', () => {
         onResult,
       });
 
-      const msg = JSON.parse(
-        (window as unknown as { ReactNativeWebView: MockBridge })
-          .ReactNativeWebView.postMessage.mock.calls[0][0],
-      );
+      const message = JSON.parse(bridge.postMessage.mock.calls[0][0]);
 
       handleFetchOlderBarsResponse({
-        requestId: msg.payload.requestId,
+        requestId: message.payload.requestId,
         seriesGeneration: 0,
         bars: [
           { time: 150_000, open: 2, high: 2, low: 2, close: 2, volume: 10 },
@@ -191,11 +179,11 @@ describe('pagination/rnBacked', () => {
       });
 
       expect(onResult.mock.calls[0][0]).toHaveLength(0);
-      expect(onResult.mock.calls[0][1]).toEqual({ noData: true });
+      expect(onResult.mock.calls[0][1]).toStrictEqual({ noData: true });
     });
 
     it('resolves noData when generation has changed', () => {
-      installRNBridge();
+      const bridge = installRNBridge();
       const onResult = makeOnResult();
 
       requestOlderBarsFromRN({
@@ -205,15 +193,12 @@ describe('pagination/rnBacked', () => {
         onResult,
       });
 
-      const msg = JSON.parse(
-        (window as unknown as { ReactNativeWebView: MockBridge })
-          .ReactNativeWebView.postMessage.mock.calls[0][0],
-      );
+      const message = JSON.parse(bridge.postMessage.mock.calls[0][0]);
 
       bumpOhlcvGeneration();
 
       handleFetchOlderBarsResponse({
-        requestId: msg.payload.requestId,
+        requestId: message.payload.requestId,
         seriesGeneration: 0,
         bars: [],
       });
@@ -222,7 +207,7 @@ describe('pagination/rnBacked', () => {
     });
 
     it('resolves noData when payload has error flag', () => {
-      installRNBridge();
+      const bridge = installRNBridge();
       const onResult = makeOnResult();
 
       requestOlderBarsFromRN({
@@ -232,13 +217,10 @@ describe('pagination/rnBacked', () => {
         onResult,
       });
 
-      const msg = JSON.parse(
-        (window as unknown as { ReactNativeWebView: MockBridge })
-          .ReactNativeWebView.postMessage.mock.calls[0][0],
-      );
+      const message = JSON.parse(bridge.postMessage.mock.calls[0][0]);
 
       handleFetchOlderBarsResponse({
-        requestId: msg.payload.requestId,
+        requestId: message.payload.requestId,
         seriesGeneration: 0,
         bars: [],
         error: 'something broke',
@@ -248,7 +230,7 @@ describe('pagination/rnBacked', () => {
     });
 
     it('resolves noData when payload has noData flag', () => {
-      installRNBridge();
+      const bridge = installRNBridge();
       const onResult = makeOnResult();
 
       requestOlderBarsFromRN({
@@ -258,13 +240,10 @@ describe('pagination/rnBacked', () => {
         onResult,
       });
 
-      const msg = JSON.parse(
-        (window as unknown as { ReactNativeWebView: MockBridge })
-          .ReactNativeWebView.postMessage.mock.calls[0][0],
-      );
+      const message = JSON.parse(bridge.postMessage.mock.calls[0][0]);
 
       handleFetchOlderBarsResponse({
-        requestId: msg.payload.requestId,
+        requestId: message.payload.requestId,
         seriesGeneration: 0,
         bars: [],
         noData: true,
@@ -274,22 +253,27 @@ describe('pagination/rnBacked', () => {
     });
 
     it('ignores unknown requestId', () => {
-      handleFetchOlderBarsResponse({
-        requestId: 'unknown-id',
-        seriesGeneration: 0,
-        bars: [],
-      });
       // No error, no callback — silent ignore
+      expect(() =>
+        handleFetchOlderBarsResponse({
+          requestId: 'unknown-id',
+          seriesGeneration: 0,
+          bars: [],
+        }),
+      ).not.toThrow();
     });
 
     it('ignores null/invalid payload', () => {
-      handleFetchOlderBarsResponse(
-        null as unknown as import('../../messages/contract.js').FetchOlderBarsResponsePayload,
-      );
-      handleFetchOlderBarsResponse({
-        requestId: 123,
-      } as unknown as import('../../messages/contract.js').FetchOlderBarsResponsePayload);
-      // No error thrown
+      expect(() =>
+        handleFetchOlderBarsResponse(
+          null as unknown as import('../../messages/contract.js').FetchOlderBarsResponsePayload,
+        ),
+      ).not.toThrow();
+      expect(() =>
+        handleFetchOlderBarsResponse({
+          requestId: 123,
+        } as unknown as import('../../messages/contract.js').FetchOlderBarsResponsePayload),
+      ).not.toThrow();
     });
   });
 

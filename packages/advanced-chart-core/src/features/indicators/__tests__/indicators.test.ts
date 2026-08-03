@@ -17,14 +17,14 @@ import {
   handleSetMAVisibility,
 } from '../index.js';
 
-interface ChartMock {
+type ChartMock = {
   createStudy: jest.Mock;
   removeEntity: jest.Mock;
   getStudyById: jest.Mock;
   getAllPanesHeight: jest.Mock;
   setAllPanesHeight: jest.Mock;
   exportData: jest.Mock;
-}
+};
 
 const makeChart = (
   createStudyImpl?: jest.Mock,
@@ -48,9 +48,7 @@ const makeChart = (
 
 const installRNBridge = (): { postMessage: jest.Mock } => {
   const bridge = { postMessage: jest.fn() };
-  (
-    window as unknown as { ReactNativeWebView: typeof bridge }
-  ).ReactNativeWebView = bridge;
+  window.ReactNativeWebView = bridge;
   return bridge;
 };
 
@@ -70,8 +68,9 @@ describe('handleAddIndicator', () => {
     installRNBridge();
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        cb(0);
+      .mockImplementation((callback: FrameRequestCallback) => {
+        const frameTime = 0;
+        callback(frameTime);
         return 0;
       });
   });
@@ -148,8 +147,9 @@ describe('handleSetMAVisibility', () => {
     installRNBridge();
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        cb(0);
+      .mockImplementation((callback: FrameRequestCallback) => {
+        const frameTime = 0;
+        callback(frameTime);
         return 0;
       });
   });

@@ -8,18 +8,18 @@ import {
 import type { ChartTheme, TVChartingLibraryWidget } from '../../core/types.js';
 import { handleSetChartType } from '../chartType.js';
 
-interface ChartMock {
+type ChartMock = {
   setChartType: jest.Mock;
   getSeries: jest.Mock;
   detachToRight: jest.Mock;
-}
+};
 
-interface WidgetMock {
+type WidgetMock = {
   widget: TVChartingLibraryWidget;
   chart: ChartMock;
   applyOverrides: jest.Mock;
   subscribe: jest.Mock;
-}
+};
 
 const baseTheme: ChartTheme = {
   backgroundColor: 'rgb(0,0,0)',
@@ -59,8 +59,7 @@ describe('handleSetChartType', () => {
   beforeEach(() => {
     _resetStateForTests();
     setTheme(baseTheme);
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('persists the type when no widget exists yet', () => {
@@ -94,8 +93,8 @@ describe('handleSetChartType', () => {
   it('re-applies the scale layout on the next animation frame', () => {
     const rafSpy = jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        cb(0);
+      .mockImplementation((onFrame: FrameRequestCallback) => {
+        onFrame(0);
         return 0;
       });
     const { widget, chart, applyOverrides } = makeWidget();
@@ -109,9 +108,7 @@ describe('handleSetChartType', () => {
 
   it('forwards setChartType failures to the ERROR channel', () => {
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
     const { widget } = makeWidget({
       setChartType: jest.fn(() => {
         throw new Error('boom');

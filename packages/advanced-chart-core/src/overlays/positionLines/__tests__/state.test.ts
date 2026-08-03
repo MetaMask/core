@@ -14,26 +14,26 @@ describe('positionLines/state', () => {
   });
 
   it('starts empty', () => {
-    expect(getPositionShapeIds()).toEqual([]);
+    expect(getPositionShapeIds()).toStrictEqual([]);
   });
 
   it('pushPositionShapeId appends IDs', () => {
     pushPositionShapeId('shape-1' as TVShapeId);
     pushPositionShapeId('shape-2' as TVShapeId);
-    expect(getPositionShapeIds()).toEqual(['shape-1', 'shape-2']);
+    expect(getPositionShapeIds()).toStrictEqual(['shape-1', 'shape-2']);
   });
 
   it('clearPositionShapeIds empties the list', () => {
     pushPositionShapeId('shape-1' as TVShapeId);
     pushPositionShapeId('shape-2' as TVShapeId);
     clearPositionShapeIds();
-    expect(getPositionShapeIds()).toEqual([]);
+    expect(getPositionShapeIds()).toStrictEqual([]);
   });
 
   it('_resetPositionLineStateForTests resets to empty', () => {
     pushPositionShapeId('shape-1' as TVShapeId);
     _resetPositionLineStateForTests();
-    expect(getPositionShapeIds()).toEqual([]);
+    expect(getPositionShapeIds()).toStrictEqual([]);
   });
 
   it('bumpGeneration increments and returns the new value', () => {

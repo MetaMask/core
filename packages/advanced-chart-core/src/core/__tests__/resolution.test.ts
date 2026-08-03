@@ -2,10 +2,10 @@ import { detectResolution, INTERVAL_MS_TO_TV } from '../resolution.js';
 
 const bars = (intervals: number[]): { time: number }[] => {
   const out: { time: number }[] = [{ time: 0 }];
-  let t = 0;
+  let time = 0;
   for (const ms of intervals) {
-    t += ms;
-    out.push({ time: t });
+    time += ms;
+    out.push({ time });
   }
   return out;
 };

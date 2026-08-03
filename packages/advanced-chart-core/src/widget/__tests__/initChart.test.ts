@@ -15,8 +15,8 @@ import {
   createChartWidget,
   scheduleChartLayoutSettledNotify,
   ensureLibraryLoaded,
-  type CreateChartWidgetOptions,
 } from '../initChart.js';
+import type { CreateChartWidgetOptions } from '../initChart.js';
 import { initThemeFromConfig } from '../theme.js';
 
 jest.mock('../../core/bridge', () => ({
@@ -32,18 +32,13 @@ jest.mock('../externalLinkBridge', () => ({
   installTradingViewExternalOpenBridge: jest.fn(),
 }));
 
-const { postToRN, reportErrorToRN } = jest.requireMock('../../core/bridge') as {
-  postToRN: jest.Mock;
-  reportErrorToRN: jest.Mock;
-};
+const { postToRN, reportErrorToRN } = jest.requireMock('../../core/bridge');
 
-const { loadTradingViewLibrary } = jest.requireMock(
-  '../../core/loadLibrary',
-) as { loadTradingViewLibrary: jest.Mock };
+const { loadTradingViewLibrary } = jest.requireMock('../../core/loadLibrary');
 
 const { installTradingViewExternalOpenBridge } = jest.requireMock(
   '../externalLinkBridge',
-) as { installTradingViewExternalOpenBridge: jest.Mock };
+);
 
 const baseTheme: ChartTheme = {
   backgroundColor: 'rgb(0, 0, 0)',
@@ -73,8 +68,8 @@ function makeMockWidget(): TVChartingLibraryWidget & {
 } {
   const mock = {
     _onChartReadyCb: null as (() => void) | null,
-    onChartReady(cb: () => void) {
-      mock._onChartReadyCb = cb;
+    onChartReady(callback: () => void): void {
+      mock._onChartReadyCb = callback;
     },
     activeChart: jest.fn(),
     applyOverrides: jest.fn(),
@@ -92,7 +87,6 @@ function installTradingViewGlobal(): jest.Mock {
   return ctor;
 }
 
-/* eslint-disable @metamask/design-tokens/color-no-hex -- generatePaletteShades takes/returns hex */
 describe('generatePaletteShades', () => {
   it('returns exactly 19 shades', () => {
     const shades = generatePaletteShades('#ff8800');
@@ -101,7 +95,8 @@ describe('generatePaletteShades', () => {
 
   it('first shade is lighter than base, last shade is darker', () => {
     const shades = generatePaletteShades('#808080');
-    const parseR = (hex: string) => Number.parseInt(hex.slice(1, 3), 16);
+    const parseR = (hexColor: string): number =>
+      Number.parseInt(hexColor.slice(1, 3), 16);
     expect(parseR(shades[0])).toBeGreaterThan(parseR(shades[9]));
     expect(parseR(shades[18])).toBeLessThan(parseR(shades[9]));
   });
@@ -114,7 +109,7 @@ describe('generatePaletteShades', () => {
   it('all shades are valid hex strings', () => {
     const shades = generatePaletteShades('#123456');
     for (const shade of shades) {
-      expect(shade).toMatch(/^#[0-9a-f]{6}$/);
+      expect(shade).toMatch(/^#[0-9a-f]{6}$/u);
     }
   });
 
@@ -130,7 +125,6 @@ describe('generatePaletteShades', () => {
     expect(shades[18]).toBe('#000000');
   });
 });
-/* eslint-enable @metamask/design-tokens/color-no-hex */
 
 describe('createChartWidget', () => {
   let ctor: jest.Mock;
@@ -333,8 +327,8 @@ describe('scheduleChartLayoutSettledNotify', () => {
     const rafCallbacks: (() => void)[] = [];
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        rafCallbacks.push(cb as unknown as () => void);
+      .mockImplementation((frameCallback: FrameRequestCallback) => {
+        rafCallbacks.push(frameCallback as unknown as () => void);
         return rafCallbacks.length;
       });
 
@@ -353,8 +347,8 @@ describe('scheduleChartLayoutSettledNotify', () => {
     const rafCallbacks: (() => void)[] = [];
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        rafCallbacks.push(cb as unknown as () => void);
+      .mockImplementation((frameCallback: FrameRequestCallback) => {
+        rafCallbacks.push(frameCallback as unknown as () => void);
         return rafCallbacks.length;
       });
 

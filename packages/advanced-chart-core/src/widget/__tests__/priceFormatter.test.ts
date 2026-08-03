@@ -28,7 +28,7 @@ describe('formatSubscriptNotation', () => {
 
 describe('formatCrosshairPrice', () => {
   afterEach(() => {
-    delete (window as unknown as { CONFIG?: ChartConfig }).CONFIG;
+    delete window.CONFIG;
   });
 
   it('handles nullish + NaN', () => {
@@ -57,18 +57,14 @@ describe('formatCrosshairPrice', () => {
   });
 
   it('uses configured market decimals while preserving five significant figures', () => {
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
-      priceDecimals: 4,
-    };
+    window.CONFIG = { priceDecimals: 4 } as ChartConfig;
 
     expect(formatCrosshairPrice(2.1946)).toBe('2.1946');
     expect(formatCrosshairPrice(1234.5678)).toBe('1,234.6');
   });
 
   it('keeps tiny-price subscript notation ahead of configured decimals', () => {
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
-      priceDecimals: 4,
-    };
+    window.CONFIG = { priceDecimals: 4 } as ChartConfig;
 
     expect(formatCrosshairPrice(0.00001234)).toBe('0.0₄1234');
   });
@@ -76,27 +72,21 @@ describe('formatCrosshairPrice', () => {
 
 describe('getConfiguredPriceDecimals', () => {
   afterEach(() => {
-    delete (window as unknown as { CONFIG?: ChartConfig }).CONFIG;
+    delete window.CONFIG;
   });
 
   it('returns null when priceDecimals is missing or invalid', () => {
     expect(getConfiguredPriceDecimals()).toBeNull();
 
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
-      priceDecimals: Number.NaN,
-    };
+    window.CONFIG = { priceDecimals: Number.NaN } as ChartConfig;
     expect(getConfiguredPriceDecimals()).toBeNull();
   });
 
   it('normalizes configured decimals to a non-negative integer', () => {
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
-      priceDecimals: 4.9,
-    };
+    window.CONFIG = { priceDecimals: 4.9 } as ChartConfig;
     expect(getConfiguredPriceDecimals()).toBe(4);
 
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
-      priceDecimals: -2,
-    };
+    window.CONFIG = { priceDecimals: -2 } as ChartConfig;
     expect(getConfiguredPriceDecimals()).toBe(0);
   });
 });
@@ -114,36 +104,28 @@ describe('formatPriceWithConfiguredDecimals', () => {
 
 describe('advancedChartPriceFormatterFactory', () => {
   afterEach(() => {
-    delete (window as unknown as { CONFIG?: ChartConfig }).CONFIG;
+    delete window.CONFIG;
   });
 
   it('returns null when symbolInfo is null', () => {
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
-      useSubscriptPriceFormat: true,
-    };
+    window.CONFIG = { useSubscriptPriceFormat: true } as ChartConfig;
     expect(advancedChartPriceFormatterFactory(null, 0)).toBeNull();
   });
 
   it('returns null for volume symbol', () => {
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
-      useSubscriptPriceFormat: true,
-    };
+    window.CONFIG = { useSubscriptPriceFormat: true } as ChartConfig;
     expect(
       advancedChartPriceFormatterFactory({ format: 'volume' }, 0),
     ).toBeNull();
   });
 
   it('returns null when useSubscriptPriceFormat is off', () => {
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
-      useSubscriptPriceFormat: false,
-    };
+    window.CONFIG = { useSubscriptPriceFormat: false } as ChartConfig;
     expect(advancedChartPriceFormatterFactory({}, 0)).toBeNull();
   });
 
   it('returns a formatter routing through formatCrosshairPrice', () => {
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
-      useSubscriptPriceFormat: true,
-    };
+    window.CONFIG = { useSubscriptPriceFormat: true } as ChartConfig;
     const formatter = advancedChartPriceFormatterFactory({}, 0);
     expect(formatter).not.toBeNull();
     expect(formatter?.format(0.00001234)).toBe('0.0₄1234');
@@ -151,9 +133,7 @@ describe('advancedChartPriceFormatterFactory', () => {
   });
 
   it('returns a formatter when priceDecimals is configured', () => {
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
-      priceDecimals: 4,
-    };
+    window.CONFIG = { priceDecimals: 4 } as ChartConfig;
     const formatter = advancedChartPriceFormatterFactory({}, 0);
     expect(formatter).not.toBeNull();
     expect(formatter?.format(2.1946)).toBe('2.1946');

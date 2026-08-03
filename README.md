@@ -43,6 +43,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
+- [`@metamask/advanced-chart-core`](packages/advanced-chart-core)
 - [`@metamask/ai-controllers`](packages/ai-controllers)
 - [`@metamask/analytics-controller`](packages/analytics-controller)
 - [`@metamask/analytics-data-regulation-controller`](packages/analytics-data-regulation-controller)
@@ -149,6 +150,7 @@ linkStyle default opacity:0.5
   account_tree_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
+  advanced_chart_core(["@metamask/advanced-chart-core"]);
   ai_controllers(["@metamask/ai-controllers"]);
   analytics_controller(["@metamask/analytics-controller"]);
   analytics_data_regulation_controller(["@metamask/analytics-data-regulation-controller"]);

@@ -17,11 +17,11 @@ const sampleBars: OHLCVBar[] = [
   { time: 3_000, open: 1, high: 1, low: 1, close: 30 },
 ];
 
-interface StubChart {
+type StubChart = {
   chart: TVActiveChart;
   visibleRange: { from: number; to: number } | null;
   setRangeCalls: { from: number; to: number }[];
-}
+};
 
 function makeStubChart(
   visibleRange: { from: number; to: number } | null,
@@ -53,8 +53,8 @@ describe('handleFocusTime', () => {
     jest.useFakeTimers();
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        setTimeout(() => cb(Date.now()), 16);
+      .mockImplementation((callback: FrameRequestCallback) => {
+        setTimeout(() => callback(Date.now()), 16);
         return 0;
       });
   });
@@ -88,7 +88,7 @@ describe('handleFocusTime', () => {
     installWidget(stub.chart);
     handleFocusTime({ timeMs: 100_000, animate: false, spanMs: 10_000 });
     expect(stub.setRangeCalls).toHaveLength(1);
-    expect(stub.setRangeCalls[0]).toEqual({ from: 95, to: 105 });
+    expect(stub.setRangeCalls[0]).toStrictEqual({ from: 95, to: 105 });
   });
 
   it('jumps immediately when no current visible range is available', () => {
@@ -97,7 +97,7 @@ describe('handleFocusTime', () => {
     installWidget(stub.chart);
     handleFocusTime({ timeMs: 100_000, spanMs: 10_000 });
     expect(stub.setRangeCalls).toHaveLength(1);
-    expect(stub.setRangeCalls[0]).toEqual({ from: 95, to: 105 });
+    expect(stub.setRangeCalls[0]).toStrictEqual({ from: 95, to: 105 });
   });
 
   it('animates over ~600ms toward target range', () => {
@@ -136,9 +136,7 @@ describe('handleFocusTime', () => {
       },
     } as unknown as TVChartingLibraryWidget;
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
     setWidget(widget);
     setChartReady(true);
 
@@ -169,13 +167,14 @@ describe('handleFocusTime', () => {
   });
 
   it('handles readVisibleRangeSec returning null for invalid range (to <= from)', () => {
+    const setVisibleRange = jest.fn();
     const chart = {
       getVisibleRange: () => ({ from: 10, to: 5 }),
-      setVisibleRange: jest.fn(),
+      setVisibleRange,
     } as unknown as TVActiveChart;
     installWidget(chart);
     handleFocusTime({ timeMs: 100_000, spanMs: 10_000 });
-    expect(chart.setVisibleRange as jest.Mock).toHaveBeenCalled();
+    expect(setVisibleRange).toHaveBeenCalled();
   });
 
   it('uses spanMs from payload when provided', () => {
@@ -184,7 +183,7 @@ describe('handleFocusTime', () => {
     handleFocusTime({ timeMs: 50_000, spanMs: 20_000, animate: false });
     expect(stub.setRangeCalls).toHaveLength(1);
     // spanSec = 20, center = 50 → from = 40, to = 60
-    expect(stub.setRangeCalls[0]).toEqual({ from: 40, to: 60 });
+    expect(stub.setRangeCalls[0]).toStrictEqual({ from: 40, to: 60 });
   });
 
   it('uses current visible span when spanMs is not provided', () => {
@@ -192,7 +191,7 @@ describe('handleFocusTime', () => {
     installWidget(stub.chart);
     handleFocusTime({ timeMs: 100_000, animate: false });
     // Keeps span of 20 (from current), centers on 100
-    expect(stub.setRangeCalls[0]).toEqual({ from: 90, to: 110 });
+    expect(stub.setRangeCalls[0]).toStrictEqual({ from: 90, to: 110 });
   });
 
   it('swallows setVisibleRange errors during animation', () => {
@@ -201,7 +200,9 @@ describe('handleFocusTime', () => {
       getVisibleRange: () => ({ from: 0, to: 10 }),
       setVisibleRange: () => {
         callCount += 1;
-        if (callCount > 2) throw new Error('chart teardown');
+        if (callCount > 2) {
+          throw new Error('chart teardown');
+        }
       },
     } as unknown as TVActiveChart;
     installWidget(chart);
@@ -220,10 +221,12 @@ describe('handleFocusTime', () => {
     let frameCount = 0;
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
+      .mockImplementation((callback: FrameRequestCallback) => {
         frameCount += 1;
-        if (frameCount > 2) throw new Error('rAF unavailable');
-        setTimeout(() => cb(Date.now()), 16);
+        if (frameCount > 2) {
+          throw new Error('rAF unavailable');
+        }
+        setTimeout(() => callback(Date.now()), 16);
         return 0;
       });
 

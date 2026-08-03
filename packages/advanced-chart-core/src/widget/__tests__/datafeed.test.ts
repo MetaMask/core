@@ -5,6 +5,12 @@ import {
   setOhlcvPagination,
   setRnBackedPagination,
 } from '../../core/state.js';
+import type {
+  ChartConfig,
+  PeriodParams,
+  SymbolInfo,
+  TVResolution,
+} from '../../core/types.js';
 import { fetchOlderBarsFromPriceApi } from '../../pagination/priceApi.js';
 import {
   customDatafeed,
@@ -19,12 +25,6 @@ jest.mock('../../pagination/priceApi', () => ({
 jest.mock('../../pagination/rnBacked', () => ({
   requestOlderBarsFromRN: jest.fn(),
 }));
-import type {
-  ChartConfig,
-  PeriodParams,
-  SymbolInfo,
-  TVResolution,
-} from '../../core/types.js';
 
 const stubSymbolInfo = { name: 'X' } as unknown as SymbolInfo;
 
@@ -60,7 +60,7 @@ describe('filterBarsForRange', () => {
     ]);
     const bars = filterBarsForRange(40, 50, 2);
     // No bars in [40,50); fall back to last 2 before 50 → time 20, 30.
-    expect(bars.map((b) => b.time)).toEqual([20, 30]);
+    expect(bars.map((b) => b.time)).toStrictEqual([20, 30]);
   });
 });
 
@@ -72,17 +72,17 @@ describe('customDatafeed', () => {
 
   afterEach(() => {
     jest.useRealTimers();
-    delete (window as unknown as { CONFIG?: ChartConfig }).CONFIG;
+    delete window.CONFIG;
   });
 
   it('onReady reports supported resolutions and flags', () => {
     const callback = jest.fn();
     customDatafeed.onReady(callback);
     jest.runAllTimers();
-    const cfg = callback.mock.calls[0][0];
-    expect(cfg.supported_resolutions).toContain('1');
-    expect(cfg.supported_resolutions).toContain('1D');
-    expect(cfg.supports_marks).toBe(false);
+    const config = callback.mock.calls[0][0];
+    expect(config.supported_resolutions).toContain('1');
+    expect(config.supported_resolutions).toContain('1D');
+    expect(config.supports_marks).toBe(false);
   });
 
   it('resolveSymbol echoes the symbol name with crypto defaults', () => {
@@ -98,9 +98,9 @@ describe('customDatafeed', () => {
   });
 
   it('resolveSymbol uses high-precision scale and Perps tick sizes when priceDecimals is configured', () => {
-    (window as unknown as { CONFIG: Partial<ChartConfig> }).CONFIG = {
+    window.CONFIG = {
       priceDecimals: 4,
-    };
+    } as ChartConfig;
     const onResolve = jest.fn();
     customDatafeed.resolveSymbol('LIT/USD', onResolve, jest.fn());
     jest.runAllTimers();
@@ -175,7 +175,7 @@ describe('customDatafeed', () => {
   it('getBars delegates to RN-backed pagination when enabled', () => {
     const { requestOlderBarsFromRN } = jest.requireMock(
       '../../pagination/rnBacked',
-    ) as { requestOlderBarsFromRN: jest.Mock };
+    );
     setOhlcvData([{ time: 200_000, open: 1, high: 1, low: 1, close: 1 }]);
     setRnBackedPagination({ enabled: true });
 
@@ -254,9 +254,7 @@ describe('forwardRealtimeTick', () => {
 
   it('reports errors from listeners to RN without stopping others', () => {
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
     const bad = jest.fn(() => {
       throw new Error('tick fail');
     });

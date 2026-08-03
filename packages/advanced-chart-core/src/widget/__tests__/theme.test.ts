@@ -41,11 +41,20 @@ const baseTheme: ChartTheme = {
 /**
  * Creates a mock TVChartingLibraryWidget with a full activeChart → getSeries
  * chain so applySeriesStyleProperties can be exercised.
+ *
+ * @param overrides - Optional mock function overrides.
+ * @param overrides.applyOverrides - Mock for widget.applyOverrides.
+ * @param overrides.setChartStyleProperties - Mock for the series setChartStyleProperties.
+ * @returns The mock widget alongside references to its inner mocks.
  */
 function createMockWidget(overrides?: {
   applyOverrides?: jest.Mock;
   setChartStyleProperties?: jest.Mock;
-}) {
+}): {
+  widget: TVChartingLibraryWidget;
+  applyOverrides: jest.Mock;
+  setChartStyleProperties: jest.Mock;
+} {
   const setChartStyleProperties =
     overrides?.setChartStyleProperties ?? jest.fn();
   const applyOverridesFn = overrides?.applyOverrides ?? jest.fn();
@@ -53,7 +62,9 @@ function createMockWidget(overrides?: {
     widget: {
       applyOverrides: applyOverridesFn,
       activeChart: () => ({
-        getSeries: () => ({ setChartStyleProperties }),
+        getSeries: (): { setChartStyleProperties: jest.Mock } => ({
+          setChartStyleProperties,
+        }),
       }),
     } as unknown as TVChartingLibraryWidget,
     applyOverrides: applyOverridesFn,
@@ -145,13 +156,12 @@ describe('initThemeFromConfig + applyThemeColors', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetThemeForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('seeds state.theme', () => {
     initThemeFromConfig(baseTheme);
-    expect(getTheme()).toEqual(baseTheme);
+    expect(getTheme()).toStrictEqual(baseTheme);
   });
 
   it('merges payload fields into the existing theme', () => {
@@ -207,9 +217,7 @@ describe('initThemeFromConfig + applyThemeColors', () => {
   it('reports subscriber errors to RN without stopping other subscribers', () => {
     initThemeFromConfig(baseTheme);
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
 
     const bad = jest.fn(() => {
       throw new Error('subscriber fail');
@@ -238,9 +246,7 @@ describe('initThemeFromConfig + applyThemeColors', () => {
   it('reports widget.applyOverrides errors to RN', () => {
     initThemeFromConfig(baseTheme);
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
     setWidget({
       applyOverrides: () => {
         throw new Error('override fail');
@@ -280,9 +286,7 @@ describe('initThemeFromConfig + applyThemeColors', () => {
   it('reports setChartStyleProperties errors to RN without throwing', () => {
     initThemeFromConfig(baseTheme);
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
 
     const { widget } = createMockWidget({
       setChartStyleProperties: jest.fn(() => {
@@ -317,8 +321,7 @@ describe('flushPendingTheme', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetThemeForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('is a no-op when state.theme is null', () => {
@@ -416,9 +419,7 @@ describe('flushPendingTheme', () => {
   it('reports applyOverrides errors to RN without throwing', () => {
     initThemeFromConfig(baseTheme);
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
 
     const { widget } = createMockWidget({
       applyOverrides: jest.fn(() => {
@@ -437,9 +438,7 @@ describe('flushPendingTheme', () => {
   it('reports setChartStyleProperties errors to RN without throwing', () => {
     initThemeFromConfig(baseTheme);
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
 
     const { widget } = createMockWidget({
       setChartStyleProperties: jest.fn(() => {

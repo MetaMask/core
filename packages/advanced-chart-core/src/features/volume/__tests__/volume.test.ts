@@ -15,12 +15,12 @@ import type {
 } from '../../../core/types.js';
 import { handleToggleVolume } from '../index.js';
 
-interface ChartMock {
+type ChartMock = {
   createStudy: jest.Mock;
   removeEntity: jest.Mock;
   getAllPanesHeight: jest.Mock;
   setAllPanesHeight: jest.Mock;
-}
+};
 
 const makeChart = (
   createStudyImpl?: jest.Mock,
@@ -53,8 +53,9 @@ describe('handleToggleVolume', () => {
     setTheme(theme);
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        cb(0);
+      .mockImplementation((callback: FrameRequestCallback) => {
+        const frameTime = 0;
+        callback(frameTime);
         return 0;
       });
   });
@@ -156,13 +157,13 @@ describe('handleToggleVolume', () => {
 
   it('swallows removeEntity errors on visible=false', () => {
     const { chart } = makeChart();
-    (chart as unknown as ChartMock).removeEntity = jest.fn(() => {
-      throw new Error('disposed');
-    });
+    jest
+      .spyOn(chart as unknown as ChartMock, 'removeEntity')
+      .mockImplementation(() => {
+        throw new Error('disposed');
+      });
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
     setupReadyWidget(chart);
     setVolumeStudyId('vol-existing');
     setVolumeIsOverlay(false);
@@ -177,7 +178,7 @@ describe('handleToggleVolume', () => {
 
   it('does not re-create when same overlay mode is already active', async () => {
     const createStudy = jest.fn().mockResolvedValue('vol-1');
-    const { chart, mock } = makeChart(createStudy);
+    const { chart } = makeChart(createStudy);
     setupReadyWidget(chart);
 
     handleToggleVolume({ visible: true, volumeOverlay: true });
@@ -223,9 +224,7 @@ describe('handleToggleVolume', () => {
     const createStudy = jest.fn().mockRejectedValue(new Error('study fail'));
     const { chart } = makeChart(createStudy);
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
     setupReadyWidget(chart);
 
     handleToggleVolume({ visible: true });
@@ -244,15 +243,17 @@ describe('registerVolumeThemeSync', () => {
     setTheme(theme);
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        cb(0);
+      .mockImplementation((callback: FrameRequestCallback) => {
+        const frameTime = 0;
+        callback(frameTime);
         return 0;
       });
   });
   afterEach(() => jest.restoreAllMocks());
 
   it('recolors volume study when theme changes', async () => {
-    const { registerVolumeThemeSync } = await import('../index.js');
+    const { registerVolumeThemeSync: registerVolumeTheme } =
+      await import('../index.js');
     const { applyThemeColors } = await import('../../../widget/theme.js');
     const applyOverrides = jest.fn();
     const createStudy = jest.fn().mockResolvedValue('vol-sync');
@@ -268,7 +269,7 @@ describe('registerVolumeThemeSync', () => {
     } as unknown as TVChartingLibraryWidget);
     setChartReady(true);
 
-    registerVolumeThemeSync();
+    registerVolumeTheme();
 
     handleToggleVolume({ visible: true, volumeOverlay: true });
     await Promise.resolve();

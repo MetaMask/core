@@ -7,8 +7,7 @@ import {
 describe('core/dataLifecycle', () => {
   beforeEach(() => {
     _resetDataLifecycleForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('notifies listeners when an event fires', () => {
@@ -45,9 +44,7 @@ describe('core/dataLifecycle', () => {
 
   it('reports listener errors to RN without stopping other listeners', () => {
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
 
     const bad = jest.fn(() => {
       throw new Error('boom');

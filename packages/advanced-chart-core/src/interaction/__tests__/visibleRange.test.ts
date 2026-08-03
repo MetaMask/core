@@ -12,15 +12,13 @@ import {
   attachVisibleRangeListeners,
 } from '../visibleRange.js';
 
-interface MockBridge {
+type MockBridge = {
   postMessage: jest.Mock<void, [string]>;
-}
+};
 
 const installRNBridge = (): MockBridge => {
   const bridge: MockBridge = { postMessage: jest.fn() };
-  (
-    window as unknown as { ReactNativeWebView?: MockBridge }
-  ).ReactNativeWebView = bridge;
+  window.ReactNativeWebView = bridge;
   return bridge;
 };
 
@@ -33,19 +31,22 @@ const makeChart = (): {
   let panCb: (() => void) | null = null;
   const chart = {
     getTimeScale: () => ({
-      barSpacingChanged: () => ({
-        subscribe: (_scope: unknown, cb: () => void) => {
-          zoomCb = cb;
+      barSpacingChanged: (): {
+        subscribe: (scope: unknown, callback: () => void) => void;
+        unsubscribe: () => undefined;
+      } => ({
+        subscribe: (_scope: unknown, callback: () => void): void => {
+          zoomCb = callback;
         },
-        unsubscribe: () => undefined,
+        unsubscribe: (): undefined => undefined,
       }),
-      setRightOffset: () => undefined,
+      setRightOffset: (): undefined => undefined,
     }),
     onVisibleRangeChanged: () => ({
-      subscribe: (_scope: unknown, cb: () => void) => {
-        panCb = cb;
+      subscribe: (_scope: unknown, callback: () => void): void => {
+        panCb = callback;
       },
-      unsubscribe: () => undefined,
+      unsubscribe: (): undefined => undefined,
     }),
   } as unknown as TVActiveChart;
   return {
@@ -59,8 +60,7 @@ describe('attachVisibleRangeListeners', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetVisibleRangeForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
     setWidget({} as unknown as TVChartingLibraryWidget);
     setChartReady(true);
     jest.useFakeTimers();
@@ -118,8 +118,8 @@ describe('attachVisibleRangeListeners', () => {
     const bridge = installRNBridge();
     const chart = {
       getTimeScale: () => ({
-        barSpacingChanged: () => ({
-          subscribe: () => {
+        barSpacingChanged: (): { subscribe: () => void } => ({
+          subscribe: (): void => {
             throw new Error('getTimeScale fail');
           },
         }),
@@ -140,12 +140,12 @@ describe('attachVisibleRangeListeners', () => {
     const bridge = installRNBridge();
     const chart = {
       getTimeScale: () => ({
-        barSpacingChanged: () => ({
+        barSpacingChanged: (): { subscribe: jest.Mock } => ({
           subscribe: jest.fn(),
         }),
       }),
       onVisibleRangeChanged: () => ({
-        subscribe: () => {
+        subscribe: (): void => {
           throw new Error('visibleRange fail');
         },
       }),

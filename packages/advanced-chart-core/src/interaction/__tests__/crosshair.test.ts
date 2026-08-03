@@ -11,15 +11,13 @@ import {
   attachTapDismiss,
 } from '../crosshair.js';
 
-interface MockBridge {
+type MockBridge = {
   postMessage: jest.Mock<void, [string]>;
-}
+};
 
 const installRNBridge = (): MockBridge => {
   const bridge: MockBridge = { postMessage: jest.fn() };
-  (
-    window as unknown as { ReactNativeWebView?: MockBridge }
-  ).ReactNativeWebView = bridge;
+  window.ReactNativeWebView = bridge;
   return bridge;
 };
 
@@ -30,15 +28,18 @@ const makeChart = (): {
   let subscriber: ((p: TVCrosshairParams) => void) | null = null;
   const chart = {
     crossHairMoved: () => ({
-      subscribe: (_scope: unknown, cb: (p: TVCrosshairParams) => void) => {
-        subscriber = cb;
+      subscribe: (
+        _scope: unknown,
+        callback: (p: TVCrosshairParams) => void,
+      ): void => {
+        subscriber = callback;
       },
-      unsubscribe: () => undefined,
+      unsubscribe: (): undefined => undefined,
     }),
   } as unknown as TVActiveChart;
   return {
     chart,
-    emit(params: TVCrosshairParams) {
+    emit(params: TVCrosshairParams): void {
       subscriber?.(params);
     },
   };
@@ -56,7 +57,7 @@ const makeWidget = (): {
   } as unknown as TVChartingLibraryWidget;
   return {
     widget,
-    fire(event: TVWidgetEvent) {
+    fire(event: TVWidgetEvent): void {
       subscribers[event]?.();
     },
   };
@@ -66,8 +67,7 @@ describe('attachCrosshairListener', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetCrosshairForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('posts CROSSHAIR_MOVE with the nearest bar as payload.data', () => {
@@ -80,8 +80,8 @@ describe('attachCrosshairListener', () => {
     const { chart, emit } = makeChart();
     attachCrosshairListener(chart);
     emit({ time: 65, price: 1.5, offsetX: 10, offsetY: 20 });
-    const calls = bridge.postMessage.mock.calls;
-    const crosshair = calls.find((c) => c[0].includes('CROSSHAIR_MOVE'));
+    const { calls } = bridge.postMessage.mock;
+    const crosshair = calls.find((call) => call[0].includes('CROSSHAIR_MOVE'));
     expect(crosshair).toBeDefined();
     expect(crosshair?.[0]).toContain('"time":60000');
   });
@@ -104,8 +104,8 @@ describe('attachCrosshairListener', () => {
     emit({ time: 0, price: 1 });
     emit({ time: 0, price: 1 });
     emit({ time: 0, price: 1 });
-    const tooltipCalls = bridge.postMessage.mock.calls.filter((c) =>
-      c[0].includes('"interaction_type":"tooltip"'),
+    const tooltipCalls = bridge.postMessage.mock.calls.filter((call) =>
+      call[0].includes('"interaction_type":"tooltip"'),
     );
     expect(tooltipCalls).toHaveLength(1);
   });
@@ -115,8 +115,7 @@ describe('attachTapDismiss', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetCrosshairForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
     jest.useFakeTimers();
   });
 

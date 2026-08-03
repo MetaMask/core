@@ -85,8 +85,10 @@ const makeChart = (
     const paneIdx = studyPaneMap[id];
     if (paneIdx !== undefined) {
       return {
-        paneIndex: () => paneIdx,
-        onDataLoaded: () => ({ subscribe: jest.fn() }),
+        paneIndex: (): number => paneIdx,
+        onDataLoaded: (): { subscribe: jest.Mock } => ({
+          subscribe: jest.fn(),
+        }),
       };
     }
     return null;
@@ -165,7 +167,9 @@ const defaultTestConfig: Record<string, LegendIndicatorCfg> = {
 const buildTestConfig = (
   colors?: IndicatorColors,
 ): Record<string, LegendIndicatorCfg> => {
-  if (!colors) return defaultTestConfig;
+  if (!colors) {
+    return defaultTestConfig;
+  }
   const macd = colors.MACD ?? {};
   const rsi = colors.RSI ?? {};
   return {
@@ -176,17 +180,17 @@ const buildTestConfig = (
         {
           tvTitle: 'MACD',
           label: 'MACD(12,26)',
-          color: (macd as Record<string, string>).macd ?? null,
+          color: macd.macd ?? null,
         },
         {
           tvTitle: 'Signal',
           label: 'Signal',
-          color: (macd as Record<string, string>).signal ?? null,
+          color: macd.signal ?? null,
         },
         {
           tvTitle: 'Histogram',
           label: 'Hist',
-          color: (macd as Record<string, string>).histogramPositive ?? null,
+          color: macd.histogramPositive ?? null,
         },
       ],
     },
@@ -196,7 +200,7 @@ const buildTestConfig = (
         {
           tvTitle: 'Plot',
           label: 'RSI(14)',
-          color: (rsi as Record<string, string>).plot ?? null,
+          color: rsi.plot ?? null,
         },
       ],
     },
@@ -217,8 +221,9 @@ describe('legend', () => {
     jest.useFakeTimers();
     jest
       .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb: FrameRequestCallback) => {
-        cb(0);
+      .mockImplementation((callback: FrameRequestCallback) => {
+        const frameTime = 0;
+        callback(frameTime);
         return 0;
       });
     _resetStateForTests();
@@ -263,7 +268,7 @@ describe('legend', () => {
       installContainer();
       setupLegendOverlay({ enabled: true });
       setupLegendOverlay({ enabled: true });
-      expect(document.querySelectorAll(`#${OVERLAY_ID}`).length).toBe(1);
+      expect(document.querySelectorAll(`#${OVERLAY_ID}`)).toHaveLength(1);
     });
 
     it('does nothing when tv_chart_container is missing', () => {
@@ -284,14 +289,14 @@ describe('legend', () => {
       installContainer();
       setupLegendOverlay({ enabled: true });
       setupLegendOverlay({ enabled: true });
-      expect(document.querySelectorAll('#mm-hide-legend-buttons').length).toBe(
+      expect(document.querySelectorAll('#mm-hide-legend-buttons')).toHaveLength(
         1,
       );
     });
   });
 
   describe('attachLegendResizeListener', () => {
-    const mockActiveChart = () =>
+    const mockActiveChart = (): TVActiveChart =>
       ({
         getAllPanesHeight: jest.fn().mockReturnValue([300]),
       }) as unknown as TVActiveChart;
@@ -305,8 +310,8 @@ describe('legend', () => {
       });
       let handler: (() => void) | undefined;
       const widget = {
-        subscribe: jest.fn((_event: string, cb: () => void) => {
-          handler = cb;
+        subscribe: jest.fn((_event: string, callback: () => void) => {
+          handler = callback;
         }),
         activeChart: mockActiveChart,
       };
@@ -334,8 +339,8 @@ describe('legend', () => {
     it('does not update layout when overlay element is missing', () => {
       let handler: (() => void) | undefined;
       const widget = {
-        subscribe: jest.fn((_event: string, cb: () => void) => {
-          handler = cb;
+        subscribe: jest.fn((_event: string, callback: () => void) => {
+          handler = callback;
         }),
         activeChart: mockActiveChart,
       };
@@ -431,7 +436,7 @@ describe('legend', () => {
       refreshStudyLegendFromExport();
       await Promise.resolve();
       const overlay = document.getElementById(OVERLAY_ID) as HTMLElement;
-      expect(overlay.querySelectorAll('.legend-pill').length).toBe(3);
+      expect(overlay.querySelectorAll('.legend-pill')).toHaveLength(3);
       expect(overlay.innerHTML).toContain('MACD(12,26)');
       expect(overlay.innerHTML).toContain('Signal');
       expect(overlay.innerHTML).toContain('Hist');
@@ -454,7 +459,7 @@ describe('legend', () => {
       refreshStudyLegendFromExport();
       await Promise.resolve();
       const overlay = document.getElementById(OVERLAY_ID) as HTMLElement;
-      expect(overlay.querySelectorAll('.legend-pill').length).toBe(1);
+      expect(overlay.querySelectorAll('.legend-pill')).toHaveLength(1);
       expect(overlay.innerHTML).toContain('RSI(14)');
       expect(overlay.innerHTML).toContain('65.42');
     });
@@ -482,7 +487,7 @@ describe('legend', () => {
       refreshStudyLegendFromExport();
       await Promise.resolve();
       const overlay = document.getElementById(OVERLAY_ID) as HTMLElement;
-      expect(overlay.querySelectorAll('.legend-pill').length).toBe(1);
+      expect(overlay.querySelectorAll('.legend-pill')).toHaveLength(1);
       expect(overlay.innerHTML).toContain('BB(20,2)');
       expect(overlay.innerHTML).toContain('U:');
       expect(overlay.innerHTML).toContain('M:');
@@ -506,7 +511,7 @@ describe('legend', () => {
       refreshStudyLegendFromExport();
       await Promise.resolve();
       const overlay = document.getElementById(OVERLAY_ID) as HTMLElement;
-      expect(overlay.querySelectorAll('.legend-pill').length).toBe(1);
+      expect(overlay.querySelectorAll('.legend-pill')).toHaveLength(1);
       expect(overlay.innerHTML).toContain('MA(10)');
       expect(overlay.innerHTML).toContain('42.56');
     });
@@ -525,7 +530,7 @@ describe('legend', () => {
       refreshStudyLegendFromExport();
       await Promise.resolve();
       const overlay = document.getElementById(OVERLAY_ID) as HTMLElement;
-      expect(overlay.querySelectorAll('.legend-pill').length).toBe(0);
+      expect(overlay.querySelectorAll('.legend-pill')).toHaveLength(0);
     });
 
     it('renders Volume pill from export data', async () => {
@@ -764,7 +769,7 @@ describe('legend', () => {
       refreshStudyLegendFromExport();
       await Promise.resolve();
       const overlay = document.getElementById(OVERLAY_ID) as HTMLElement;
-      expect(overlay.querySelectorAll('.legend-pill').length).toBe(0);
+      expect(overlay.querySelectorAll('.legend-pill')).toHaveLength(0);
     });
 
     it('skips plots with n/a values', async () => {
@@ -782,7 +787,7 @@ describe('legend', () => {
       refreshStudyLegendFromExport();
       await Promise.resolve();
       const overlay = document.getElementById(OVERLAY_ID) as HTMLElement;
-      expect(overlay.querySelectorAll('.legend-pill').length).toBe(0);
+      expect(overlay.querySelectorAll('.legend-pill')).toHaveLength(0);
     });
 
     it('skips BOL pill when all values are empty', async () => {
@@ -801,7 +806,7 @@ describe('legend', () => {
       refreshStudyLegendFromExport();
       await Promise.resolve();
       const overlay = document.getElementById(OVERLAY_ID) as HTMLElement;
-      expect(overlay.querySelectorAll('.legend-pill').length).toBe(0);
+      expect(overlay.querySelectorAll('.legend-pill')).toHaveLength(0);
     });
 
     it('handles missing overlay element gracefully during render', async () => {
@@ -883,7 +888,7 @@ describe('legend', () => {
     it('produces empty string for Infinity', async () => {
       const html = await renderSingleValue(Infinity);
       expect(html).not.toContain('Infinity');
-      expect(document.querySelectorAll('.legend-pill').length).toBe(0);
+      expect(document.querySelectorAll('.legend-pill')).toHaveLength(0);
     });
   });
 
@@ -927,9 +932,11 @@ describe('legend', () => {
     it('subscribes to onDataLoaded and schedules legend refresh', () => {
       let dataLoadedCb: (() => void) | undefined;
       const study = {
-        onDataLoaded: () => ({
-          subscribe: (_scope: unknown, cb: () => void) => {
-            dataLoadedCb = cb;
+        onDataLoaded: (): {
+          subscribe: (scope: unknown, callback: () => void) => void;
+        } => ({
+          subscribe: (_scope: unknown, callback: () => void): void => {
+            dataLoadedCb = callback;
           },
         }),
       };
@@ -1002,7 +1009,7 @@ describe('legend', () => {
       refreshStudyLegendFromExport();
       await Promise.resolve();
       const overlay = document.getElementById(OVERLAY_ID) as HTMLElement;
-      expect(overlay.querySelectorAll('.legend-pill').length).toBe(4);
+      expect(overlay.querySelectorAll('.legend-pill')).toHaveLength(4);
       const html = overlay.innerHTML;
       expect(html.indexOf('RSI(14)')).toBeLessThan(html.indexOf('MACD(12,26)'));
     });
@@ -1096,13 +1103,16 @@ describe('legend', () => {
         configurable: true,
       });
 
-      const priceScale = { width: () => 50 };
+      const priceScale = { width: (): number => 50 };
       const chart = {
         exportData: jest.fn().mockResolvedValue({ schema: [], data: [] }),
         getStudyById: jest.fn().mockReturnValue(null),
         getAllPanesHeight: jest.fn().mockReturnValue([400]),
         getPanes: () => [
-          { getRightPriceScales: () => [priceScale], getHeight: () => 400 },
+          {
+            getRightPriceScales: (): (typeof priceScale)[] => [priceScale],
+            getHeight: (): number => 400,
+          },
         ],
       } as unknown as TVActiveChart;
       setWidget({
@@ -1170,11 +1180,20 @@ describe('legend', () => {
         configurable: true,
       });
 
-      const priceScale = { width: () => 50 };
+      const priceScale = { width: (): number => 50 };
       const { chart } = makeChart(rsiData, [300, 100], { 'sid-rsi': 1 });
-      (chart as unknown as Record<string, unknown>).getPanes = () => [
-        { getRightPriceScales: () => [priceScale], getHeight: () => 300 },
-        { getRightPriceScales: () => [priceScale], getHeight: () => 100 },
+      (chart as unknown as Record<string, unknown>).getPanes = (): {
+        getRightPriceScales: () => (typeof priceScale)[];
+        getHeight: () => number;
+      }[] => [
+        {
+          getRightPriceScales: (): (typeof priceScale)[] => [priceScale],
+          getHeight: (): number => 300,
+        },
+        {
+          getRightPriceScales: (): (typeof priceScale)[] => [priceScale],
+          getHeight: (): number => 100,
+        },
       ];
       setWidget({
         activeChart: () => chart,
@@ -1217,7 +1236,7 @@ describe('legend', () => {
     const setupWithConfig = (
       chart: TVActiveChart,
       colors?: IndicatorColors,
-    ) => {
+    ): void => {
       installContainer();
       setupLegendOverlay({
         enabled: true,
@@ -1277,7 +1296,7 @@ describe('legend', () => {
       await Promise.resolve();
 
       const mainOverlay = document.getElementById(OVERLAY_ID) as HTMLElement;
-      expect(mainOverlay.querySelectorAll('.legend-pill').length).toBe(0);
+      expect(mainOverlay.querySelectorAll('.legend-pill')).toHaveLength(0);
 
       const rsiOverlay = document.getElementById(`${OVERLAY_ID}-pane-RSI`);
       expect(rsiOverlay).not.toBeNull();

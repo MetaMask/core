@@ -7,8 +7,8 @@ import {
 
 describe('buildVisualOverrides', () => {
   it('returns empty when config is undefined or empty', () => {
-    expect(buildVisualOverrides(undefined)).toEqual({});
-    expect(buildVisualOverrides({})).toEqual({});
+    expect(buildVisualOverrides(undefined)).toStrictEqual({});
+    expect(buildVisualOverrides({})).toStrictEqual({});
   });
 
   it('applies gridLineColor to vert + horz grid overrides', () => {
@@ -22,7 +22,7 @@ describe('buildVisualOverrides', () => {
   });
 
   it('sets a transparent separator when hidePaneSeparator is true', () => {
-    expect(buildVisualOverrides({ hidePaneSeparator: true })).toEqual({
+    expect(buildVisualOverrides({ hidePaneSeparator: true })).toStrictEqual({
       'paneProperties.separatorColor': 'rgba(0,0,0,0)',
     });
   });
@@ -30,15 +30,14 @@ describe('buildVisualOverrides', () => {
   it('passes currentPriceLineColor through', () => {
     expect(
       buildVisualOverrides({ currentPriceLineColor: 'rgb(9,9,9)' }),
-    ).toEqual({ 'mainSeriesProperties.priceLineColor': 'rgb(9,9,9)' });
+    ).toStrictEqual({ 'mainSeriesProperties.priceLineColor': 'rgb(9,9,9)' });
   });
 });
 
 describe('applyVisualOverrides', () => {
   beforeEach(() => {
     _resetStateForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
+    delete window.ReactNativeWebView;
   });
 
   it('is a no-op when no widget exists', () => {
@@ -67,9 +66,7 @@ describe('applyVisualOverrides', () => {
 
   it('reports applyOverrides errors to RN', () => {
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
     setWidget({
       applyOverrides: () => {
         throw new Error('o fail');

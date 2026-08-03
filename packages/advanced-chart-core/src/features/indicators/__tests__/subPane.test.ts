@@ -29,7 +29,7 @@ const makeChart = (
     getStudyById: jest.fn().mockImplementation((id: string) => {
       const paneIdx = studyPaneMap[id];
       if (paneIdx !== undefined) {
-        return { paneIndex: () => paneIdx };
+        return { paneIndex: (): number => paneIdx };
       }
       return null;
     }),
@@ -98,7 +98,7 @@ describe('handleSetSubPaneLayout', () => {
 
     expect(setAll).toHaveBeenCalled();
     const newHeights = setAll.mock.calls[0][0];
-    expect(newHeights.length).toBe(2);
+    expect(newHeights).toHaveLength(2);
     expect(newHeights[0]).toBeGreaterThan(0);
   });
 });

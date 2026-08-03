@@ -4,7 +4,11 @@ import {
   setHasExplicitCurrentPriceLine,
   setWidget,
 } from '../../core/state.js';
-import type { ChartTheme, TVChartingLibraryWidget } from '../../core/types.js';
+import type {
+  ChartConfig,
+  ChartTheme,
+  TVChartingLibraryWidget,
+} from '../../core/types.js';
 import { applyScaleLayout } from '../scaleLayout.js';
 import { _resetThemeForTests, initThemeFromConfig } from '../theme.js';
 
@@ -25,16 +29,16 @@ const baseTheme: ChartTheme = {
   currentPriceColor: 'rgb(34,34,0)',
 };
 
-interface ChartMock {
+type ChartMock = {
   getSeries: jest.Mock;
   detachToRight: jest.Mock;
-}
+};
 
-interface WidgetMock {
+type WidgetMock = {
   widget: TVChartingLibraryWidget;
   chart: ChartMock;
   applyOverrides: jest.Mock;
-}
+};
 
 const makeWidget = (chartImpl: Partial<ChartMock> = {}): WidgetMock => {
   const chart: ChartMock = {
@@ -54,9 +58,8 @@ describe('applyScaleLayout', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetThemeForTests();
-    delete (window as unknown as { ReactNativeWebView?: unknown })
-      .ReactNativeWebView;
-    delete (window as unknown as { CONFIG?: unknown }).CONFIG;
+    delete window.ReactNativeWebView;
+    delete window.CONFIG;
   });
 
   // -- early-return guards ---------------------------------------------------
@@ -175,13 +178,9 @@ describe('applyScaleLayout', () => {
   });
 
   it('uses backgroundColor as separatorColor when hidePaneSeparator=true', () => {
-    (
-      window as unknown as {
-        CONFIG: { features: { hidePaneSeparator: boolean } };
-      }
-    ).CONFIG = {
+    window.CONFIG = {
       features: { hidePaneSeparator: true },
-    };
+    } as ChartConfig;
     initThemeFromConfig(baseTheme);
     const { widget, applyOverrides } = makeWidget();
     setWidget(widget);
@@ -275,13 +274,11 @@ describe('applyScaleLayout', () => {
 
   it('reports applyOverrides errors to RN and skips detachToRight', () => {
     const bridge = { postMessage: jest.fn() };
-    (
-      window as unknown as { ReactNativeWebView: typeof bridge }
-    ).ReactNativeWebView = bridge;
+    window.ReactNativeWebView = bridge;
     initThemeFromConfig(baseTheme);
     const { widget, chart } = makeWidget();
     (widget as unknown as { applyOverrides: () => void }).applyOverrides =
-      () => {
+      (): void => {
         throw new Error('override boom');
       };
     setWidget(widget);
