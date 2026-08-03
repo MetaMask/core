@@ -574,11 +574,7 @@ describe('AccountsApiDataSource', () => {
         'eip155:1/slip44:60',
         '1000000000000000000',
       ),
-      createMockBalanceItem(
-        `eip155:1:${MOCK_ADDRESS}`,
-        stakingAssetId,
-        '0',
-      ),
+      createMockBalanceItem(`eip155:1:${MOCK_ADDRESS}`, stakingAssetId, '0'),
     ];
 
     const { controller } = await setupController({ balances });
