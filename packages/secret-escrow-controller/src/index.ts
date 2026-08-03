@@ -21,6 +21,7 @@ export type {
   SecretEscrowControllerListFactorsAction,
   SecretEscrowControllerGenerateWalletSecretAction,
   SecretEscrowControllerCreateWithWalletSecretAction,
+  SecretEscrowControllerCreateWithWalletSecretAndWrapPasswordAction,
   SecretEscrowControllerAddFactorAction,
   SecretEscrowControllerEnrollAction,
   SecretEscrowControllerEnrollAndWrapPasswordAction,
