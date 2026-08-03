@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add 0G (`16661`/`0x4115`) in `MulticallClient` ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Add 0G (`16661`/`0x4115`) in `MulticallClient` ([#9760](https://github.com/MetaMask/core/pull/9760))
 
 ### Changed
 
