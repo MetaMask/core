@@ -38,6 +38,16 @@ SECRET_ESCROW_URL=http://127.0.0.1:8787
 `HttpSecretEscrowClient` talks to this API. Enrollment also stores the wrapped
 password on the mock so `hydrateFromRemote` can restore local state after wipe.
 
+### Portable zip for testers (no git)
+
+```sh
+yarn mock-server:pack
+# → mock-server/secret-escrow-mock-server.zip
+```
+
+Testers unzip and run `node server.mjs` (or `start.command` / `start.bat`).
+Only Node.js is required.
+
 ## Installation
 
 `yarn add @metamask/secret-escrow-client`

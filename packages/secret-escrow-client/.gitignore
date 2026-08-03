@@ -1,1 +1,7 @@
+# Local mock persistence
 .secret-escrow-mock.json
+
+# Portable mock-server distribution artifacts
+mock-server/portable/
+mock-server/secret-escrow-mock-server.zip
+mock-server/secret-escrow-mock-server/

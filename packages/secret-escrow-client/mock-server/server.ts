@@ -4,6 +4,7 @@
  * Usage:
  *   yarn mock-server
  *   # or: node --import tsx mock-server/server.ts
+ *   # portable zip for testers: yarn mock-server:pack
  *
  * Persists to SECRET_ESCROW_MOCK_STORE (default: ./.secret-escrow-mock.json).
  * Listens on SECRET_ESCROW_MOCK_PORT (default: 8787).
