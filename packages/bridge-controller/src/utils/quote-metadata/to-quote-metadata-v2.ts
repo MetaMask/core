@@ -44,6 +44,12 @@ export const toQuoteMetadataV2 = (
     : undefined;
   const txFeeAsset = quoteResponseV2?.quote?.feeData?.txFee?.[0]?.asset;
 
+  const priceImpactToUse = {
+    usd: priceImpact?.usd ?? cost?.usd,
+    valueInCurrency: priceImpact?.valueInCurrency ?? cost?.valueInCurrency,
+  };
+  const networkFeeToUse = gasFee?.total ?? totalNetworkFee;
+
   return {
     ...rest,
     quote: {
@@ -70,12 +76,12 @@ export const toQuoteMetadataV2 = (
         network: [
           {
             amount: calcTokenValue(
-              gasFee?.total?.amount,
+              networkFeeToUse?.amount,
               nativeAsset?.decimals,
             ),
-            normalizedAmount: gasFee?.total?.amount,
-            valueInCurrency: gasFee?.total?.valueInCurrency,
-            usd: gasFee?.total?.usd,
+            normalizedAmount: networkFeeToUse?.amount,
+            valueInCurrency: networkFeeToUse?.valueInCurrency,
+            usd: networkFeeToUse?.usd,
             asset: nativeAsset,
           },
         ],
@@ -87,9 +93,9 @@ export const toQuoteMetadataV2 = (
                   relayerFee?.amount,
                   nativeAsset?.decimals,
                 ),
-                normalizedAmount: relayerFee?.amount,
-                valueInCurrency: relayerFee?.valueInCurrency,
-                usd: relayerFee?.usd,
+                normalizedAmount: relayerFee.amount,
+                valueInCurrency: relayerFee.valueInCurrency,
+                usd: relayerFee.usd,
                 asset: nativeAsset,
               },
             ],
@@ -111,24 +117,17 @@ export const toQuoteMetadataV2 = (
           }),
       },
       priceData: {
-        ...((priceImpact && Object.values(priceImpact).some(Boolean)) ||
-        (cost && Object.values(cost).some(Boolean))
-          ? {
-              priceImpact: {
-                valueInCurrency:
-                  priceImpact?.valueInCurrency ?? cost?.valueInCurrency,
-                usd: priceImpact?.usd ?? cost?.usd,
-              },
-            }
-          : {}),
-        ...(adjustedReturn && Object.values(adjustedReturn).some(Boolean)
-          ? {
-              adjustedReturn: {
-                valueInCurrency: adjustedReturn?.valueInCurrency,
-                usd: adjustedReturn?.usd,
-              },
-            }
-          : {}),
+        ...(priceImpactToUse &&
+          Object.values(priceImpactToUse).some(Boolean) && {
+            priceImpact: priceImpactToUse,
+          }),
+        ...(adjustedReturn &&
+          Object.values(adjustedReturn).some(Boolean) && {
+            adjustedReturn: {
+              valueInCurrency: adjustedReturn?.valueInCurrency,
+              usd: adjustedReturn?.usd,
+            },
+          }),
         swapRate,
       },
     },
