@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `EXCHANGE_MULTI_SIG_REQUIRED` and `EXCHANGE_INVALID_NONCE` to `PERPS_ERROR_CODES` for HyperLiquid exchange rejections that previously surfaced as raw `"multi-sig required"` / `"invalid nonce"` strings (TAT-3633) ([#9750](https://github.com/MetaMask/core/pull/9750))
   - Like `EXCHANGE_ACCOUNT_NOT_FOUND` above, this widens the exported `PerpsErrorCode` union, so consumers that key an exhaustive `Record<PerpsErrorCode, …>` stop compiling until they add entries for both new codes — including Mobile's `app/components/UI/Perps/utils/translatePerpsError.ts` and Extension's `ui/components/app/perps/utils/translate-perps-error.ts`.
   - To migrate: add translation entries for both codes before bumping. `EXCHANGE_MULTI_SIG_REQUIRED` means the account requires a multi-sig wrapper for exchange writes; `EXCHANGE_INVALID_NONCE` means the action nonce was stale or reused and the request should be retried.
-- Add `isHyperLiquidMultiSigRequiredError(error)` (exported from `@metamask/perps-controller/utils`), which classifies HyperLiquid's `Multi-sig required` rejection — matching both the hyphenated and unhyphenated spellings the venue returns (TAT-3214)
+- Add `isHyperLiquidMultiSigRequiredError(error)` (exported from `@metamask/perps-controller/utils/*`), which classifies HyperLiquid's `Multi-sig required` rejection — matching both the hyphenated and unhyphenated spellings the venue returns (TAT-3214)
 
 ### Changed
 
