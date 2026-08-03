@@ -14,6 +14,8 @@ export type {
   AnalyticsEventProperties,
   AnalyticsDeliveryOptions,
   AnalyticsInvocationCallback,
+  AnalyticsLocationContext,
+  AnalyticsLocationField,
   AnalyticsUserTraits,
   AnalyticsPlatformAdapter,
   AnalyticsTrackingEvent,

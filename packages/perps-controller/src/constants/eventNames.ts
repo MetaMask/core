@@ -254,6 +254,12 @@ export const PERPS_EVENT_VALUE = {
   ORDER_TYPE: {
     MARKET: 'market',
     LIMIT: 'limit',
+    // Trigger placements are emitted verbatim by TradingService, so the enum has
+    // to list them for dashboards keyed on `order_type`.
+    STOP_MARKET: 'stop_market',
+    STOP_LIMIT: 'stop_limit',
+    TAKE_PROFIT_MARKET: 'take_profit_market',
+    TAKE_PROFIT_LIMIT: 'take_profit_limit',
   },
   ORDER_TYPE_CAPITALIZED: {
     MARKET: 'market',

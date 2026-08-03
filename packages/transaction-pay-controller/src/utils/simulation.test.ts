@@ -111,6 +111,89 @@ describe('simulateQuoteTransactions', () => {
         message: 'tx2 route error',
       });
     });
+
+    it('throws a custom error with the return data when execution reverted with return data', async () => {
+      messengerMock.simulateTransactionsMock.mockResolvedValue({
+        transactions: [{ error: 'execution reverted', return: '0xdeadbeef' }],
+      } as unknown as SentinelSimulationResponse);
+
+      await expect(
+        simulateQuoteTransactions(buildRequest()),
+      ).rejects.toMatchObject({
+        name: 'TransactionPaySimulationError',
+        message: 'Custom Error - 0xdeadbeef',
+      });
+    });
+
+    it('throws an unknown reverted error when execution reverted with empty return data', async () => {
+      messengerMock.simulateTransactionsMock.mockResolvedValue({
+        transactions: [{ error: 'execution reverted', return: '0x' }],
+      } as unknown as SentinelSimulationResponse);
+
+      await expect(
+        simulateQuoteTransactions(buildRequest()),
+      ).rejects.toMatchObject({
+        name: 'TransactionPaySimulationError',
+        message: 'Reverted - Unknown Error',
+      });
+    });
+
+    it('throws an unknown reverted error when execution reverted with no return data', async () => {
+      messengerMock.simulateTransactionsMock.mockResolvedValue({
+        transactions: [{ error: 'execution reverted' }],
+      } as unknown as SentinelSimulationResponse);
+
+      await expect(
+        simulateQuoteTransactions(buildRequest()),
+      ).rejects.toMatchObject({
+        name: 'TransactionPaySimulationError',
+        message: 'Reverted - Unknown Error',
+      });
+    });
+
+    it('throws the original error unchanged for non-reverted errors even with return data', async () => {
+      messengerMock.simulateTransactionsMock.mockResolvedValue({
+        transactions: [{ error: 'tx route error', return: '0xdeadbeef' }],
+      } as unknown as SentinelSimulationResponse);
+
+      await expect(
+        simulateQuoteTransactions(buildRequest()),
+      ).rejects.toMatchObject({
+        name: 'TransactionPaySimulationError',
+        message: 'tx route error',
+      });
+    });
+
+    it('strips the execution reverted prefix and surfaces the reason when a message follows', async () => {
+      messengerMock.simulateTransactionsMock.mockResolvedValue({
+        transactions: [{ error: 'execution reverted: insufficient allowance' }],
+      } as unknown as SentinelSimulationResponse);
+
+      await expect(
+        simulateQuoteTransactions(buildRequest()),
+      ).rejects.toMatchObject({
+        name: 'TransactionPaySimulationError',
+        message: 'insufficient allowance',
+      });
+    });
+
+    it('prefers the reason over return data when execution reverted has both', async () => {
+      messengerMock.simulateTransactionsMock.mockResolvedValue({
+        transactions: [
+          {
+            error: 'execution reverted: insufficient allowance',
+            return: '0xdeadbeef',
+          },
+        ],
+      } as unknown as SentinelSimulationResponse);
+
+      await expect(
+        simulateQuoteTransactions(buildRequest()),
+      ).rejects.toMatchObject({
+        name: 'TransactionPaySimulationError',
+        message: 'insufficient allowance',
+      });
+    });
   });
 
   describe('Sentinel call', () => {

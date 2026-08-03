@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **BREAKING:** Align `V6_DEFI_POSITION_TYPES` (and inferred `V6DeFiPositionType`) with Accounts API / Zerion wallet fungible position types: `deposit`, `loan`, `locked`, `staked`, `reward`, `wallet`, `investment` ([#9683](https://github.com/MetaMask/core/pull/9683))
-
 ### Fixed
 
 - `OHLCVService` now flushes grace-period channels when subscribing to a different asset/interval, retries failed WebSocket unsubscribes with backoff before forcing reconnection, and only removes channel tracking after a successful unsubscribe ([#9678](https://github.com/MetaMask/core/pull/9678))
+
+## [8.1.0]
+
+### Changed
+
+- `AccountActivityService` now debounces chain status updates instead of publishing one event per notification ([#9700](https://github.com/MetaMask/core/pull/9700))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [8.0.0]
+
+### Fixed
+
+- **BREAKING:** Align `V6_DEFI_POSITION_TYPES` (and inferred `V6DeFiPositionType`) with Accounts API / Zerion wallet fungible position types: `deposit`, `loan`, `locked`, `staked`, `reward`, `wallet`, `investment` ([#9683](https://github.com/MetaMask/core/pull/9683))
 
 ## [7.0.0]
 
@@ -367,7 +376,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.0.0...@metamask/core-backend@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@7.0.0...@metamask/core-backend@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.5.0...@metamask/core-backend@7.0.0
 [6.5.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.4.0...@metamask/core-backend@6.5.0
 [6.4.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.3...@metamask/core-backend@6.4.0

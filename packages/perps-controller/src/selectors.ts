@@ -13,6 +13,7 @@ import type {
 } from './constants/perpsConfig.js';
 import type { PerpsControllerState } from './PerpsController.js';
 import type {
+  OrderType,
   PerpsSelectedPaymentToken,
   SortDirection,
 } from './types/index.js';
@@ -165,7 +166,7 @@ export const selectPendingTradeConfiguration = createSelector(
         takeProfitPrice?: string;
         stopLossPrice?: string;
         limitPrice?: string;
-        orderType?: 'market' | 'limit';
+        orderType?: OrderType;
         selectedPaymentToken?: PerpsSelectedPaymentToken | null;
       }
     | undefined => {
