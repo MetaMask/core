@@ -312,7 +312,7 @@ export function validateTransactionParams(params: unknown): void {
     new TextEncoder().encode(JSON.stringify(params)).byteLength >
     MAX_TRANSACTION_PARAMS_SIZE_BYTES
   ) {
-    throw rpcErrors.invalidInput('Request too large');
+    throw rpcErrors.invalidParams('Request too large');
   }
 
   validateParams(params, TransactionParamsStruct);
