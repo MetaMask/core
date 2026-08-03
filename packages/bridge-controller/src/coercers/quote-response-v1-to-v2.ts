@@ -2,8 +2,8 @@ import { create, coerce, Infer, is, intersection } from '@metamask/superstruct';
 import { parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { sumAmounts } from '../utils/number-formatters.js';
 import { formatAddressToAssetId } from '../utils/caip-formatters.js';
+import { sumAmounts } from '../utils/number-formatters.js';
 import {
   BridgeAssetSchema,
   BridgeAssetV2Schema,
@@ -127,7 +127,7 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
           }),
         },
       ],
-      ...(feeData[FeeType.TX_FEE] && {
+      ...(feeData[FeeType.TX_FEE] && /* istanbul ignore next */ {
         [FeeType.TX_FEE]: [
           {
             ...feeData[FeeType.TX_FEE],

@@ -1,5 +1,5 @@
 import type { DeepPartial } from '../../types.js';
-import { QuoteResponse } from '../../validators/quote-response.js';
+import type { QuoteResponse } from '../../validators/quote-response.js';
 import { FeeType } from '../../validators/quote.js';
 import { calcTokenAmount } from '../number-formatters.js';
 
