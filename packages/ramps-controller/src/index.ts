@@ -110,8 +110,10 @@ export {
   RampsApiService,
   RampsOrderStatus,
   RAMPS_SDK_VERSION,
+  getDefaultRedirectCallbackUrl,
 } from './RampsService.js';
 export type {
+  RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetPaymentMethodsAction,

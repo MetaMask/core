@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 
+### Fixed
+
+- Refresh gas fee token quotes independently of balance changes for enforced-simulation transactions, and prevent stale simulation responses from overwriting newer transaction state. ([#9757](https://github.com/MetaMask/core/pull/9757))
+
 ## [69.4.0]
 
 ### Added
