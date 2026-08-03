@@ -11,7 +11,6 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { SeedlessOnboardingControllerGetStateAction } from '@metamask/seedless-onboarding-controller';
-import { AuthConnection } from '@metamask/seedless-onboarding-controller';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Json } from '@metamask/utils';
 
@@ -396,12 +395,15 @@ export class AuthenticationController extends BaseController<
         return 'SRP';
       }
 
+      // Match provider strings from SeedlessOnboarding state rather than
+      // importing AuthConnection — a value import would load that package
+      // (and its heavy deps) whenever this controller is imported.
       switch (authConnection) {
-        case AuthConnection.Google:
+        case 'google':
           return 'GOOGLE';
-        case AuthConnection.Apple:
+        case 'apple':
           return 'APPLE';
-        case AuthConnection.Telegram:
+        case 'telegram':
           return 'TELEGRAM';
         default:
           return 'SRP';
