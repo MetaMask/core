@@ -5852,7 +5852,6 @@ __metadata:
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     jest: "npm:^30.4.2"
-    ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
     typescript: "npm:~5.3.3"
