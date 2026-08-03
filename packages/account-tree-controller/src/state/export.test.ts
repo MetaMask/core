@@ -271,7 +271,7 @@ describe('exportState', () => {
     it('returns an empty snapshot', async () => {
       const { context } = setup();
       const snapshot = await exportState(context);
-      expect(snapshot.serialize().wallets).toHaveLength(0);
+      expect(snapshot.serialize().data.wallets).toHaveLength(0);
     });
   });
 
@@ -285,7 +285,7 @@ describe('exportState', () => {
       );
 
       const snapshot = await exportState(context);
-      const wallet = snapshot.serialize().wallets[0];
+      const wallet = snapshot.serialize().data.wallets[0];
 
       expect(wallet?.id).toBe('wallet:stable-entropy-id');
       expect(wallet?.type).toBe('mnemonic');
@@ -301,7 +301,7 @@ describe('exportState', () => {
       );
 
       const snapshot = await exportState(context, { includeSecrets: true });
-      const wallet = snapshot.serialize().wallets[0] as { value?: string };
+      const wallet = snapshot.serialize().data.wallets[0] as { value?: string };
 
       expect(wallet.value).toBeDefined();
       expect(typeof wallet.value).toBe('string');
@@ -400,7 +400,7 @@ describe('exportState', () => {
 
       const { context } = setup({ wallets: mixedWallets });
       const snapshot = await exportState(context);
-      expect(snapshot.serialize().wallets).toHaveLength(0);
+      expect(snapshot.serialize().data.wallets).toHaveLength(0);
     });
   });
 
@@ -415,8 +415,8 @@ describe('exportState', () => {
       const snapshot = await exportState(context);
       const payload = snapshot.serialize();
 
-      expect(payload.wallets).toHaveLength(1);
-      const wallet = payload.wallets[0];
+      expect(payload.data.wallets).toHaveLength(1);
+      const wallet = payload.data.wallets[0];
       expect(wallet?.id).toBe('wallet:private-key');
       expect(wallet?.type).toBe('private-key');
       expect(wallet?.groups).toHaveLength(1);
@@ -436,7 +436,7 @@ describe('exportState', () => {
       });
 
       const snapshot = await exportState(context, { includeSecrets: true });
-      const group = snapshot.serialize().wallets[0]?.groups[0] as {
+      const group = snapshot.serialize().data.wallets[0]?.groups[0] as {
         value?: { privateKey: string; encoding: string; type: string };
       };
 
@@ -482,7 +482,7 @@ describe('exportState', () => {
       mocks.AccountsController.getAccount.mockReturnValue(undefined);
 
       const snapshot = await exportState(context);
-      expect(snapshot.serialize().wallets[0]?.groups).toHaveLength(0);
+      expect(snapshot.serialize().data.wallets[0]?.groups).toHaveLength(0);
     });
 
     it('skips groups with no accounts', async () => {
@@ -519,7 +519,7 @@ describe('exportState', () => {
 
       const { context } = setup({ wallets });
       const snapshot = await exportState(context);
-      expect(snapshot.serialize().wallets[0]?.groups).toHaveLength(0);
+      expect(snapshot.serialize().data.wallets[0]?.groups).toHaveLength(0);
     });
 
     it('populates the idMap with private-key wallet and group pairs', async () => {
@@ -582,10 +582,10 @@ describe('exportState', () => {
       const snapshot = await exportState(context);
       const payload = snapshot.serialize();
 
-      expect(payload.wallets).toHaveLength(1);
-      expect(payload.wallets[0]?.type).toBe('private-key');
-      expect(payload.wallets[0]?.groups).toHaveLength(2);
-      expect(payload.wallets[0]?.groups.map((group) => group.id)).toEqual([
+      expect(payload.data.wallets).toHaveLength(1);
+      expect(payload.data.wallets[0]?.type).toBe('private-key');
+      expect(payload.data.wallets[0]?.groups).toHaveLength(2);
+      expect(payload.data.wallets[0]?.groups.map((group) => group.id)).toEqual([
         'wallet:private-key/0xabc',
         'wallet:private-key/0xdef',
       ]);

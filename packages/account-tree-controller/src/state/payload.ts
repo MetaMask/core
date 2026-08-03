@@ -1,4 +1,6 @@
 import type { KeyringAccount } from '@metamask/keyring-api';
+import type { MigrationChain } from '@metamask/keyring-sdk';
+import { createMigrations } from '@metamask/keyring-sdk';
 import {
   assert,
   array,
@@ -15,6 +17,7 @@ import {
   union,
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
+import type { Json } from '@metamask/utils';
 
 /** Stable cross-device wallet identifier. Format: `wallet:<entropySourceId>`. */
 export type AccountWalletPayloadId = `wallet:${string}`;
@@ -53,9 +56,6 @@ export function parsePayloadGroupId(
     subId: match.groups.subId,
   };
 }
-
-/** Current version of the {@link AccountTreePayload} format. */
-export const ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION = 1 as const;
 
 /** Wallet-level metadata carried in every payload wallet entry. */
 export type AccountWalletPayloadMetadata = { name: string };
@@ -126,9 +126,8 @@ export type AccountTreeWalletEntry =
   | AccountWalletMnemonicPayload
   | AccountWalletPrivateKeyPayload;
 
-/** Versioned, portable snapshot of the full account tree state. */
+/** Portable snapshot of the full account tree state (inner data, without version envelope). */
 export type AccountTreePayload = {
-  version: typeof ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION;
   wallets: AccountTreeWalletEntry[];
 };
 
@@ -253,7 +252,7 @@ const AccountTreeWalletEntryStruct = union([
 ]);
 
 /**
- * Superstruct schema for a versioned {@link AccountTreePayload}.
+ * Superstruct schema for an {@link AccountTreePayload} (inner data, without version envelope).
  *
  * Validates v1 wallet entries (`'mnemonic'` and `'private-key'` only) and
  * rejects unsupported wallet types. Secret fields (`value`, `privateKey`) use
@@ -261,7 +260,6 @@ const AccountTreeWalletEntryStruct = union([
  * from error output.
  */
 export const AccountTreePayloadStruct = object({
-  version: literal(ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION),
   wallets: array(AccountTreeWalletEntryStruct),
 });
 
@@ -309,22 +307,25 @@ export function assertValidAccountTreePayload(
   }
 }
 
-type Migrator = (raw: unknown) => AccountTreePayload;
-
 /**
- * Validates a raw value as a v1 {@link AccountTreePayload}.
+ * Migration chain for {@link AccountTreePayload}.
  *
- * @param raw - Unknown value to validate.
- * @returns The validated payload.
+ * Each `.add()` call appends a step; `migrations.version` equals the number of
+ * steps and serves as the canonical current version written by
+ * {@link AccountTreeSnapshot.serialize}.
+ *
+ * **v1** — validates and returns the v1 payload structure `{ wallets: [...] }`.
  */
-const migrateV1 = (raw: unknown): AccountTreePayload => {
-  assertValidAccountTreePayload(raw);
-  return raw;
-};
+export const migrations: MigrationChain<AccountTreePayload> =
+  createMigrations().add({
+    migrate(data: Json): AccountTreePayload {
+      assertValidAccountTreePayload(data);
+      return data;
+    },
+  });
 
-const MIGRATORS: Record<number, Migrator> = {
-  [ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION]: migrateV1,
-};
+/** Current version of the {@link AccountTreePayload} format, derived from the migration chain. */
+export const ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION = migrations.version;
 
 /**
  * Validates a raw value as an `AccountTreePayload` and runs any necessary version migrations.
@@ -337,35 +338,16 @@ const MIGRATORS: Record<number, Migrator> = {
  * @returns A fully migrated `AccountTreePayload`.
  * @throws If `raw` is not a valid payload, its version is unsupported, or any wallet type is unrecognized.
  */
-export function migrate(raw: unknown): AccountTreePayload {
-  if (typeof raw !== 'object' || raw === null) {
-    throw new Error('Invalid AccountTreePayload: expected an object');
-  }
-
-  const { version } = raw as Record<string, unknown>;
-  if (typeof version !== 'number' || !Number.isInteger(version)) {
-    throw new Error(
-      'Invalid AccountTreePayload: missing numeric version field',
-    );
-  }
-  if (version > ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION) {
-    throw new Error(
-      `Unsupported AccountTreePayload version: ${version} (current: ${ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION})`,
-    );
-  }
-  if (version < ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION) {
-    throw new Error(
-      `Unsupported AccountTreePayload version: ${version} (current: ${ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION})`,
-    );
-  }
-
-  let result: unknown = raw;
-  for (let ver = version; ver <= ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION; ver++) {
-    const migrator = MIGRATORS[ver];
-    if (migrator) {
-      result = migrator(result);
+export async function migrate(raw: unknown): Promise<AccountTreePayload> {
+  try {
+    const { data } = await migrations.apply(raw as Json);
+    return data;
+  } catch (error) {
+    if (error instanceof StructError) {
+      throw new Error(
+        `Invalid AccountTreePayload: ${formatValidationErrorMessages(error)}`,
+      );
     }
+    throw error;
   }
-
-  return result;
 }

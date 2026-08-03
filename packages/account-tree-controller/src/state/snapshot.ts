@@ -1,3 +1,4 @@
+import type { VersionedState } from '@metamask/keyring-sdk';
 import type { IdMap } from './id-map.js';
 import type {
   AccountGroupPayloadId,
@@ -11,7 +12,7 @@ import type {
   AccountWalletPrivateKeyGroupEntry,
   AccountWalletPrivateKeyPayload,
 } from './payload.js';
-import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION, migrate } from './payload.js';
+import { migrations, migrate } from './payload.js';
 
 /**
  * Recursively freezes a value and its nested properties.
@@ -212,17 +213,14 @@ export class AccountTreeSnapshot {
   }
 
   /**
-   * Serializes the snapshot to a versioned {@link AccountTreePayload}.
+   * Serializes the snapshot to a versioned state envelope wrapping the {@link AccountTreePayload}.
    *
    * Returns the constructor-frozen wallet tree without copying it again.
    *
-   * @returns The versioned payload.
+   * @returns The versioned payload envelope.
    */
-  serialize(): AccountTreePayload {
-    return {
-      version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
-      wallets: this.#entries,
-    };
+  serialize(): VersionedState<AccountTreePayload> {
+    return { version: migrations.version, data: { wallets: this.#entries } };
   }
 
   /**
@@ -241,8 +239,8 @@ export class AccountTreeSnapshot {
    * @returns A validated snapshot.
    * @throws If `raw` is not a valid payload or its version is unsupported.
    */
-  static deserialize(raw: unknown): AccountTreeSnapshot {
-    const payload = migrate(raw);
+  static async deserialize(raw: unknown): Promise<AccountTreeSnapshot> {
+    const payload = await migrate(raw);
     return new AccountTreeSnapshot(payload.wallets);
   }
 }

@@ -1,6 +1,5 @@
 import { IdMap } from './id-map.js';
 import type {
-  AccountTreePayload,
   AccountWalletMnemonicPayload,
   AccountWalletPrivateKeyPayload,
 } from './payload.js';
@@ -59,7 +58,9 @@ describe('AccountTreeSnapshot', () => {
         }),
       ).toThrow(TypeError);
 
-      expect(snapshot.serialize().wallets[0]?.metadata.name).toBe('Wallet 1');
+      expect(snapshot.serialize().data.wallets[0]?.metadata.name).toBe(
+        'Wallet 1',
+      );
     });
   });
 
@@ -72,8 +73,8 @@ describe('AccountTreeSnapshot', () => {
       const filtered = snapshot.filterWallets(
         (wallet) => wallet.type === 'mnemonic',
       );
-      expect(filtered.serialize().wallets).toHaveLength(1);
-      expect(filtered.serialize().wallets[0]?.id).toBe(
+      expect(filtered.serialize().data.wallets).toHaveLength(1);
+      expect(filtered.serialize().data.wallets[0]?.id).toBe(
         'wallet:entropy-source-1',
       );
     });
@@ -139,7 +140,7 @@ describe('AccountTreeSnapshot', () => {
         (group) => group.id.endsWith('/0'),
       );
 
-      const wallets = filtered.serialize().wallets;
+      const wallets = filtered.serialize().data.wallets;
       expect(wallets).toHaveLength(2);
       expect(wallets[0]?.groups).toHaveLength(1);
       expect(wallets[0]?.groups[0]?.id).toBe('wallet:entropy-source-1/0');
@@ -157,8 +158,8 @@ describe('AccountTreeSnapshot', () => {
         () => false,
       );
 
-      expect(filtered.serialize().wallets).toHaveLength(1);
-      expect(filtered.serialize().wallets[0]?.type).toBe('private-key');
+      expect(filtered.serialize().data.wallets).toHaveLength(1);
+      expect(filtered.serialize().data.wallets[0]?.type).toBe('private-key');
     });
 
     it('filters private-key wallet groups and preserves the idMap', () => {
@@ -170,7 +171,7 @@ describe('AccountTreeSnapshot', () => {
 
       const filtered = snapshot.filterGroups('wallet:private-key', () => true);
 
-      expect(filtered.serialize().wallets).toHaveLength(2);
+      expect(filtered.serialize().data.wallets).toHaveLength(2);
       expect(filtered.toLocalId('wallet:private-key/0xdeadbeef')).toBe(
         'keyring:simple/0xdeadbeef',
       );
@@ -216,7 +217,7 @@ describe('AccountTreeSnapshot', () => {
         group.id.endsWith('/0'),
       );
 
-      const wallets = filtered.serialize().wallets;
+      const wallets = filtered.serialize().data.wallets;
       expect(wallets).toHaveLength(1);
       expect(wallets[0]?.type).toBe('mnemonic');
       expect(wallets[0]?.groups).toHaveLength(1);
@@ -232,8 +233,8 @@ describe('AccountTreeSnapshot', () => {
         (_group, wallet) => wallet.type === 'private-key',
       );
 
-      expect(filtered.serialize().wallets).toHaveLength(1);
-      expect(filtered.serialize().wallets[0]?.type).toBe('private-key');
+      expect(filtered.serialize().data.wallets).toHaveLength(1);
+      expect(filtered.serialize().data.wallets[0]?.type).toBe('private-key');
     });
 
     it('preserves the idMap when filtering all groups', () => {
@@ -317,69 +318,64 @@ describe('AccountTreeSnapshot', () => {
   });
 
   describe('serialize', () => {
-    it('serializes to a versioned AccountTreePayload', () => {
+    it('serializes to a versioned state envelope wrapping the account tree payload', () => {
       const snapshot = new AccountTreeSnapshot([
         MOCK_MNEMONIC_WALLET,
         MOCK_PRIVATE_KEY_WALLET,
       ]);
       const payload = snapshot.serialize();
       expect(payload.version).toBe(ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION);
-      expect(payload.wallets).toHaveLength(2);
-      expect(payload.wallets[0]).toStrictEqual(MOCK_MNEMONIC_WALLET);
-      expect(payload.wallets[1]).toStrictEqual(MOCK_PRIVATE_KEY_WALLET);
-      expect(Object.isFrozen(payload.wallets)).toBe(true);
+      expect(payload.data.wallets).toHaveLength(2);
+      expect(payload.data.wallets[0]).toStrictEqual(MOCK_MNEMONIC_WALLET);
+      expect(payload.data.wallets[1]).toStrictEqual(MOCK_PRIVATE_KEY_WALLET);
+      expect(Object.isFrozen(payload.data.wallets)).toBe(true);
     });
 
     it('serializes an empty snapshot', () => {
       const snapshot = new AccountTreeSnapshot([]);
       const payload = snapshot.serialize();
       expect(payload.version).toBe(ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION);
-      expect(payload.wallets).toHaveLength(0);
+      expect(payload.data.wallets).toHaveLength(0);
     });
   });
 
   describe('deserialize', () => {
-    it('deserializes a valid v1 payload into a snapshot', () => {
-      const raw: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
-        wallets: [MOCK_MNEMONIC_WALLET],
-      };
-      const snapshot = AccountTreeSnapshot.deserialize(raw);
-      expect(snapshot.serialize().wallets).toHaveLength(1);
-      expect(snapshot.serialize().wallets[0]?.id).toBe(
+    it('deserializes a valid v1 payload into a snapshot', async () => {
+      const raw = { wallets: [MOCK_MNEMONIC_WALLET] };
+      const snapshot = await AccountTreeSnapshot.deserialize(raw);
+      expect(snapshot.serialize().data.wallets).toHaveLength(1);
+      expect(snapshot.serialize().data.wallets[0]?.id).toBe(
         'wallet:entropy-source-1',
       );
     });
 
-    it('returns a snapshot with no idMap (toLocalId returns undefined)', () => {
-      const raw: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
-        wallets: [MOCK_MNEMONIC_WALLET],
-      };
-      const snapshot = AccountTreeSnapshot.deserialize(raw);
+    it('returns a snapshot with no idMap (toLocalId returns undefined)', async () => {
+      const raw = { wallets: [MOCK_MNEMONIC_WALLET] };
+      const snapshot = await AccountTreeSnapshot.deserialize(raw);
       expect(snapshot.toLocalId('wallet:entropy-source-1')).toBeUndefined();
       expect(snapshot.toPayloadId('entropy:wallet-1')).toBeUndefined();
     });
 
-    it('throws for an invalid payload (no version)', () => {
-      expect(() => AccountTreeSnapshot.deserialize({ wallets: [] })).toThrow(
-        'Invalid AccountTreePayload',
+    it('throws for an invalid payload (missing wallets field)', async () => {
+      await expect(
+        AccountTreeSnapshot.deserialize({}),
+      ).rejects.toThrow('Invalid AccountTreePayload');
+    });
+
+    it('throws for a future version in the versioned envelope', async () => {
+      await expect(
+        AccountTreeSnapshot.deserialize({
+          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION + 1,
+          data: { wallets: [] },
+        }),
+      ).rejects.toThrow(
+        `State version ${ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION + 1} is newer than the latest migration version`,
       );
     });
 
-    it('throws for a future version', () => {
-      expect(() =>
+    it('throws for an unsupported wallet type', async () => {
+      await expect(
         AccountTreeSnapshot.deserialize({
-          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION + 1,
-          wallets: [],
-        }),
-      ).toThrow('Unsupported AccountTreePayload version');
-    });
-
-    it('throws for an unsupported wallet type', () => {
-      expect(() =>
-        AccountTreeSnapshot.deserialize({
-          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
               id: 'wallet:ledger',
@@ -389,7 +385,7 @@ describe('AccountTreeSnapshot', () => {
             },
           ],
         }),
-      ).toThrow('Invalid AccountTreePayload');
+      ).rejects.toThrow('Invalid AccountTreePayload');
     });
   });
 });

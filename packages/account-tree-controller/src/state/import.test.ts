@@ -16,7 +16,6 @@ import type {
 } from '../types.js';
 import type { ImportContext } from './import.js';
 import { importState } from './import.js';
-import type { AccountTreePayload } from './payload.js';
 import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
 
@@ -39,8 +38,7 @@ const MOCK_PAYLOAD_WALLET_ID = `wallet:${MOCK_ENTROPY_ID}` as const;
 const TEST_MNEMONIC =
   'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
-const MNEMONIC_PAYLOAD: AccountTreePayload = {
-  version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+const MNEMONIC_PAYLOAD = {
   wallets: [
     {
       id: MOCK_PAYLOAD_WALLET_ID,
@@ -220,11 +218,11 @@ function makeWithKeyringV2Mock(
     );
 }
 
-function importSnapshot(
+async function importSnapshot(
   context: ImportContext,
-  payload: AccountTreePayload,
+  payload: unknown,
 ): ReturnType<typeof importState> {
-  return importState(context, AccountTreeSnapshot.deserialize(payload));
+  return importState(context, await AccountTreeSnapshot.deserialize(payload));
 }
 
 describe('importState', () => {
@@ -293,8 +291,7 @@ describe('importState', () => {
         };
       const { context, mocks } = setup({ wallets: pkOnlyWallets });
 
-      const payload: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payload = {
         wallets: [
           {
             id: 'wallet:entropy-only',
@@ -318,8 +315,7 @@ describe('importState', () => {
         },
       );
 
-      const payloadWithoutMnemonic: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payloadWithoutMnemonic = {
         wallets: [
           {
             id: 'wallet:unknown-entropy',
@@ -348,7 +344,6 @@ describe('importState', () => {
 
       await expect(
         importSnapshot(context, {
-          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
               id: 'wallet:no-match-entropy',
@@ -395,7 +390,6 @@ describe('importState', () => {
 
       await expect(
         importSnapshot(context, {
-          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
               id: 'wallet:no-match',
@@ -424,8 +418,7 @@ describe('importState', () => {
         },
       );
 
-      const payloadWithMnemonic: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payloadWithMnemonic = {
         wallets: [
           {
             id: 'wallet:unknown-entropy',
@@ -486,8 +479,7 @@ describe('importState', () => {
         },
       );
 
-      const payload: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payload = {
         wallets: [
           {
             id: MOCK_PAYLOAD_WALLET_ID,
@@ -567,8 +559,7 @@ describe('importState', () => {
         },
       );
 
-      const payload: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payload = {
         wallets: [
           {
             id: MOCK_PAYLOAD_WALLET_ID,
@@ -641,8 +632,7 @@ describe('importState', () => {
 
       const { context, mocks } = setup({ wallets: pkWallets });
 
-      const payload: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payload = {
         wallets: [
           {
             id: 'wallet:private-key',
@@ -723,8 +713,7 @@ describe('importState', () => {
         },
       );
 
-      const payload: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payload = {
         wallets: [
           {
             id: 'wallet:private-key',
@@ -762,7 +751,6 @@ describe('importState', () => {
 
       await expect(
         importSnapshot(context, {
-          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
               id: 'wallet:private-key',
@@ -784,8 +772,7 @@ describe('importState', () => {
     it('skips a private-key group whose value carries a non-EVM type', async () => {
       const { context, mocks } = setup();
 
-      const payload: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payload = {
         wallets: [
           {
             id: 'wallet:private-key',
@@ -822,8 +809,7 @@ describe('importState', () => {
         [],
       );
 
-      const payload: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payload = {
         wallets: [
           {
             id: 'wallet:private-key',
@@ -854,8 +840,7 @@ describe('importState', () => {
     it('skips a private-key group that has no value and account does not exist locally', async () => {
       const { context, mocks } = setup();
 
-      const payload: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payload = {
         wallets: [
           {
             id: 'wallet:private-key',
@@ -884,8 +869,7 @@ describe('importState', () => {
         [{ id: 'some-account-id' }],
       );
 
-      const payload: AccountTreePayload = {
-        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      const payload = {
         wallets: [
           {
             id: 'wallet:private-key',

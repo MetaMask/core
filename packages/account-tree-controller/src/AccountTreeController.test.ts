@@ -6121,8 +6121,8 @@ describe('AccountTreeController', () => {
       const snapshot = await controller.exportState();
       const payload = snapshot.serialize();
 
-      expect(payload.wallets).toHaveLength(1);
-      const exportedWallet = payload.wallets[0];
+      expect(payload.data.wallets).toHaveLength(1);
+      const exportedWallet = payload.data.wallets[0];
       expect(exportedWallet.type).toBe('mnemonic');
       expect(exportedWallet.metadata.name).toBe('My Custom Wallet');
       expect(exportedWallet.groups[0]?.metadata.name).toBe('My Custom Account');
@@ -6203,7 +6203,7 @@ describe('AccountTreeController', () => {
       const payload = snapshot.serialize();
 
       // Exported mnemonic wallet has no secret value.
-      expect((payload.wallets[0] as { value?: string }).value).toBeUndefined();
+      expect((payload.data.wallets[0] as { value?: string }).value).toBeUndefined();
 
       // Reimport is a no-op for metadata when nothing changed.
       expect(await controller.importState(snapshot)).toBeUndefined();

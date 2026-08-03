@@ -67,7 +67,10 @@ export {
   AccountTreePayloadStruct,
   assertValidAccountTreePayload,
   migrate,
+  migrations,
 } from './state/payload.js';
+
+export type { VersionedState } from '@metamask/keyring-sdk';
 
 export { AccountTreeSnapshot } from './state/snapshot.js';
 export { IdMap } from './state/id-map.js';

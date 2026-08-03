@@ -333,7 +333,7 @@ export async function importState(
 ): Promise<void> {
   const payload = snapshot.serialize();
 
-  for (const wallet of payload.wallets) {
+  for (const wallet of payload.data.wallets) {
     if (wallet.type === 'mnemonic') {
       await importMnemonicWallet(context, wallet);
     } else {
