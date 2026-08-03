@@ -1,5 +1,6 @@
 import { MessageTypes, TypedMessage } from '@metamask/eth-sig-util';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type { Json } from '@metamask/utils';
 
 import { createHandleParams, createRequest } from '../test/util/helpers.js';
 import type {
@@ -116,7 +117,7 @@ describe('wallet', () => {
         params: [txParams],
       });
       await expect(engine.handle(payload)).rejects.toThrow(
-        new Error('Invalid parameters: must provide an Ethereum address.'),
+        'Invalid parameters: must provide an Ethereum address.',
       );
     });
 
@@ -148,6 +149,64 @@ describe('wallet', () => {
       ).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
+    });
+
+    it('throws when params contain an extraneous top-level key', async () => {
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
+      const processTransaction = async (): Promise<string> => testTxHash;
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTransaction }),
+        ],
+      });
+      const payload = {
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: testAddresses[0],
+            to: testAddresses[1],
+            extraKey: 'unexpected',
+          },
+        ],
+      };
+
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(/Invalid params/u);
+    });
+
+    it('throws when params contain deeply nested invalid data', async () => {
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
+      const processTransaction = async (): Promise<string> => testTxHash;
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTransaction }),
+        ],
+      });
+
+      let junk: Json = {};
+      for (let i = 0; i < 1200; i++) {
+        junk = { b: junk };
+      }
+
+      const payload = {
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: testAddresses[0],
+            to: testAddresses[1],
+            value: '0x0',
+            data: '0x095ea7b3',
+            test: junk,
+          },
+        ] as Json[],
+      };
+
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(/Invalid params/u);
     });
 
     it('should not override other request params', async () => {
@@ -257,7 +316,7 @@ describe('wallet', () => {
       await expect(
         engine.handle(...createHandleParams(payload)),
       ).rejects.toThrow(
-        new Error('Invalid parameters: must provide an Ethereum address.'),
+        'Invalid parameters: must provide an Ethereum address.',
       );
     });
 
@@ -286,6 +345,64 @@ describe('wallet', () => {
       ).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
+    });
+
+    it('throws when params contain an extraneous top-level key', async () => {
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
+      const processSignTransaction = async (): Promise<string> => testTxHash;
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processSignTransaction }),
+        ],
+      });
+      const payload = {
+        method: 'eth_signTransaction',
+        params: [
+          {
+            from: testAddresses[0],
+            to: testAddresses[1],
+            extraKey: 'unexpected',
+          },
+        ],
+      };
+
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(/Invalid params/u);
+    });
+
+    it('throws when params contain deeply nested invalid data', async () => {
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
+      const processSignTransaction = async (): Promise<string> => testTxHash;
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processSignTransaction }),
+        ],
+      });
+
+      let junk: Json = {};
+      for (let i = 0; i < 1200; i++) {
+        junk = { b: junk };
+      }
+
+      const payload = {
+        method: 'eth_signTransaction',
+        params: [
+          {
+            from: testAddresses[0],
+            to: testAddresses[1],
+            value: '0x0',
+            data: '0x095ea7b3',
+            test: junk,
+          },
+        ] as Json[],
+      };
+
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(/Invalid params/u);
     });
   });
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/core-backend` from `^8.0.0` to `^8.1.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+### Fixed
+
+- Prefer the subject's fungible `from` movement when mapping keyring send activity, so multi-party Solana txs (e.g. bridge source legs) no longer surface another address's token as the sent asset ([#9749](https://github.com/MetaMask/core/pull/9749))
+
 ## [1.5.0]
 
 ### Added

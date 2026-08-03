@@ -1,5 +1,8 @@
 import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  BatchTransactionParams,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { TransactionPayControllerMessenger } from '../types.js';
@@ -41,20 +44,26 @@ function buildMessenger(
 
 function callSubmit({
   callMock = jest.fn(),
+  depositCalls,
+  moneyAccountAddress,
   sourceAmountRaw = '5000000',
   transaction = TRANSACTION_MOCK,
   vaultDisabled = false,
   fromBlock,
 }: {
   callMock?: jest.Mock;
+  depositCalls?: BatchTransactionParams[];
+  moneyAccountAddress?: Hex;
   sourceAmountRaw?: string;
   transaction?: TransactionMeta;
   vaultDisabled?: boolean;
   fromBlock?: Hex;
 } = {}): Promise<{ transactionHash?: Hex }> {
   return submitMoneyAccountVaultDeposit({
+    depositCalls,
     fromBlock,
     messenger: buildMessenger(callMock),
+    moneyAccountAddress,
     sourceAmountRaw,
     transaction,
     vaultDisabled,
@@ -173,6 +182,87 @@ describe('submitMoneyAccountVaultDeposit', () => {
       expect.anything(),
     );
     expect(result).toStrictEqual({ transactionHash: '0xvault' });
+  });
+
+  it('submits pre-built depositCalls without calling getAmountData', async () => {
+    const depositCalls: BatchTransactionParams[] = [
+      { data: '0xwithdrawApprove' as Hex, to: '0xw-approve' as Hex },
+      { data: '0xwithdrawDeposit' as Hex, to: '0xw-deposit' as Hex },
+    ];
+    const callMock = jest.fn((action: string) => {
+      if (action === 'TransactionController:addTransactionBatch') {
+        return Promise.resolve({ batchId: 'batch-id' });
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const result = await callSubmit({ callMock, depositCalls });
+
+    expect(callMock).not.toHaveBeenCalledWith(
+      'TransactionPayController:getAmountData',
+      expect.anything(),
+    );
+    expect(updateTransactionMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        note: 'Money Account vault deposit: update vault amount',
+      }),
+      expect.any(Function),
+    );
+    expect(callMock).toHaveBeenCalledWith(
+      'TransactionController:addTransactionBatch',
+      expect.objectContaining({
+        from: MONEY_ACCOUNT_ADDRESS_MOCK,
+        transactions: [
+          {
+            params: {
+              data: '0xwithdrawApprove',
+              to: '0xw-approve',
+              value: '0x0',
+            },
+            type: TransactionType.tokenMethodApprove,
+          },
+          {
+            params: {
+              data: '0xwithdrawDeposit',
+              to: '0xw-deposit',
+              value: '0x0',
+            },
+            type: TransactionType.contractInteraction,
+          },
+        ],
+      }),
+    );
+    expect(result).toStrictEqual({ transactionHash: '0xvault' });
+  });
+
+  it('uses moneyAccountAddress override instead of transaction.txParams.from', async () => {
+    const overrideAddress = '0x2222222222222222222222222222222222222222' as Hex;
+    const depositCalls: BatchTransactionParams[] = [
+      { data: '0xd' as Hex, to: '0xt' as Hex },
+    ];
+    const callMock = jest.fn((action: string) => {
+      if (action === 'TransactionController:addTransactionBatch') {
+        return Promise.resolve({ batchId: 'batch-id' });
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    await callSubmit({
+      callMock,
+      depositCalls,
+      moneyAccountAddress: overrideAddress,
+    });
+
+    expect(callMock).toHaveBeenCalledWith(
+      'TransactionController:addTransactionBatch',
+      expect.objectContaining({ from: overrideAddress }),
+    );
+    expect(collectTransactionIdsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      overrideAddress,
+      expect.anything(),
+      expect.any(Function),
+    );
   });
 
   it('skips the vault batch when vaultDisabled is true', async () => {

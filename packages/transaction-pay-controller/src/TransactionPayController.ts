@@ -17,6 +17,7 @@ import type {
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
+  TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
@@ -148,30 +149,23 @@ export class TransactionPayController extends BaseController<
     callback: TransactionConfigCallback,
   ): void {
     this.#updateTransactionData(transactionId, (transactionData) => {
-      const config = {
-        isMaxAmount: transactionData.isMaxAmount,
-        isPostQuote: transactionData.isPostQuote,
-        isHyperliquidSource: transactionData.isHyperliquidSource,
-        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
-        isQuoteRequired: transactionData.isQuoteRequired,
-        refundTo: transactionData.refundTo,
+      const config: TransactionConfig = {
         accountOverride: transactionData.accountOverride,
+        atomic: transactionData.atomic,
+        isHyperliquidSource: transactionData.isHyperliquidSource,
+        isMaxAmount: transactionData.isMaxAmount,
+        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
+        isPostQuote: transactionData.isPostQuote,
+        isQuoteRequired: transactionData.isQuoteRequired,
         paymentOverride: transactionData.paymentOverride,
+        refundTo: transactionData.refundTo,
       };
 
       const previousAccountOverride = config.accountOverride;
 
       callback(config);
 
-      transactionData.accountOverride = config.accountOverride;
-      transactionData.isMaxAmount = config.isMaxAmount;
-      transactionData.isPostQuote = config.isPostQuote;
-      transactionData.isHyperliquidSource = config.isHyperliquidSource;
-      transactionData.isPolymarketDepositWallet =
-        config.isPolymarketDepositWallet;
-      transactionData.isQuoteRequired = config.isQuoteRequired;
-      transactionData.refundTo = config.refundTo;
-      transactionData.paymentOverride = config.paymentOverride;
+      Object.assign(transactionData, config);
 
       if (
         !config.isPostQuote &&

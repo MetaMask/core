@@ -393,6 +393,21 @@ describe('validateQuoteExecution', () => {
   });
 });
 
+describe('QuoteError', () => {
+  it('stores quotes when provided as second argument', () => {
+    const info = { message: 'test', reason: 'simulation-failed' as const };
+    const quotes = [{ strategy: 'relay' }] as never;
+    const error = new QuoteError(info, quotes);
+    expect(error.quotes).toBe(quotes);
+  });
+
+  it('leaves quotes undefined when not provided', () => {
+    const info = { message: 'test', reason: 'simulation-failed' as const };
+    const error = new QuoteError(info);
+    expect(error.quotes).toBeUndefined();
+  });
+});
+
 describe('isQuoteError', () => {
   it('returns true for a QuoteError instance', () => {
     const error = new QuoteError({

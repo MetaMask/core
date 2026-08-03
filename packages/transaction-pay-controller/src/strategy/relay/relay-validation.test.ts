@@ -188,7 +188,7 @@ describe('validateRelayQuotes', () => {
     });
   });
 
-  it('passes through existing QuoteError unchanged', async () => {
+  it('re-wraps insufficient-source-balance QuoteError with request.quotes attached', async () => {
     const quoteError = new QuoteError({
       message: 'Insufficient source balance for quote',
       reason: 'insufficient-source-balance',
@@ -209,7 +209,57 @@ describe('validateRelayQuotes', () => {
         message: 'Insufficient source balance for quote',
         reason: 'insufficient-source-balance',
       },
+      quotes: [quote],
     });
+  });
+
+  it('attaches the entire quote batch (not just the failing quote) when insufficient-source-balance is thrown', async () => {
+    const quoteError = new QuoteError({
+      message: 'Insufficient source balance for quote',
+      reason: 'insufficient-source-balance',
+    });
+
+    // Only the first quote triggers the error; the second has not yet been validated.
+    validateQuoteExecutionMock
+      .mockRejectedValueOnce(quoteError)
+      .mockResolvedValue(undefined);
+
+    const quote1 = buildQuote();
+    const quote2 = buildQuote();
+
+    const thrownError = await validateRelayQuotes({
+      messenger,
+      quotes: [quote1, quote2],
+      transaction: TRANSACTION_MOCK,
+    }).catch((caughtError: unknown) => caughtError);
+
+    expect((thrownError as QuoteError).quotes).toStrictEqual([quote1, quote2]);
+  });
+
+  it('throws QuoteError without quotes for non-insufficient-source-balance reason', async () => {
+    const quoteError = new QuoteError({
+      message: 'Quote simulation failed',
+      reason: 'simulation-failed',
+      detail: ['revert'],
+    });
+
+    validateQuoteExecutionMock.mockRejectedValue(quoteError);
+
+    const quote = buildQuote();
+
+    const thrownError = await validateRelayQuotes({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_MOCK,
+    }).catch((caughtError: unknown) => caughtError);
+
+    expect(thrownError).toMatchObject({
+      info: {
+        message: 'Quote simulation failed',
+        reason: 'simulation-failed',
+      },
+    });
+    expect((thrownError as QuoteError).quotes).toBeUndefined();
   });
 
   it('validates multiple quotes sequentially', async () => {
@@ -280,6 +330,32 @@ describe('validateRelayQuotes', () => {
             },
           }),
         );
+      });
+
+      it('omits gas from normal simulation when gas is zero', async () => {
+        getRelaySubmitCallsMock.mockResolvedValue({
+          calls: [
+            {
+              data: '0xdata' as Hex,
+              from: FROM_MOCK,
+              gas: '0x0' as Hex,
+              to: '0xto' as Hex,
+              value: '0x0' as Hex,
+            },
+          ],
+        });
+        const quote = buildQuote({}, {
+          metamask: { gasLimits: [], is7702: false, isExecute: false },
+        } as Partial<RelayQuote>);
+        await validateRelayQuotes({
+          messenger,
+          quotes: [quote],
+          transaction: TRANSACTION_MOCK,
+        });
+        const simulationTx =
+          validateQuoteExecutionMock.mock.calls[0][0].simulation
+            .transactions[0];
+        expect(simulationTx).not.toHaveProperty('gas');
       });
     });
 
@@ -405,7 +481,61 @@ describe('validateRelayQuotes', () => {
         );
       });
 
-      it('omits authorizationList on transaction when authorizationList is absent', async () => {
+      it('includes authorizationList from the EIP-7702 upgrade contract when the quote has no authorizationList', async () => {
+        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+          ...getDefaultRemoteFeatureFlagControllerState(),
+          remoteFeatureFlags: {
+            confirmations_pay_extended: {
+              payStrategies: { relay: { validationEnabled: true } },
+            },
+            confirmations_eip_7702: {
+              contracts: {
+                [CHAIN_ID_MOCK]: [
+                  { address: '0xdelegator' as Hex, signature: '0xsig' as Hex },
+                ],
+              },
+            },
+          },
+        });
+
+        const calls = [
+          {
+            data: '0xdata' as Hex,
+            from: FROM_MOCK,
+            to: '0xdest' as Hex,
+            value: '0x4d2' as Hex,
+          },
+        ];
+
+        getRelaySubmitCallsMock.mockResolvedValue({ calls });
+
+        const quote = buildQuote({}, {
+          metamask: { gasLimits: [21000], is7702: true, isExecute: false },
+          request: {},
+        } as Partial<RelayQuote>);
+
+        await validateRelayQuotes({
+          messenger,
+          quotes: [quote],
+          transaction: TRANSACTION_MOCK,
+        });
+
+        expect(validateQuoteExecutionMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            simulation: expect.objectContaining({
+              transactions: [
+                expect.objectContaining({
+                  authorizationList: [
+                    { address: '0xdelegator', from: FROM_MOCK },
+                  ],
+                }),
+              ],
+            }),
+          }),
+        );
+      });
+
+      it('omits authorizationList when neither the quote nor the upgrade contract provide an address', async () => {
         const calls = [
           {
             data: '0xdata' as Hex,
@@ -482,6 +612,32 @@ describe('validateRelayQuotes', () => {
             }),
           }),
         );
+      });
+
+      it('omits gas from 7702 batch simulation when gasLimits[0] is zero', async () => {
+        getRelaySubmitCallsMock.mockResolvedValue({
+          calls: [
+            {
+              data: '0xcall1' as Hex,
+              from: FROM_MOCK,
+              gas: '0x5208' as Hex,
+              to: '0xdest1' as Hex,
+              value: '0x0' as Hex,
+            },
+          ],
+        });
+        const quote = buildQuote({}, {
+          metamask: { gasLimits: [0], is7702: true, isExecute: false },
+        } as Partial<RelayQuote>);
+        await validateRelayQuotes({
+          messenger,
+          quotes: [quote],
+          transaction: TRANSACTION_MOCK,
+        });
+        const batchTx =
+          validateQuoteExecutionMock.mock.calls[0][0].simulation
+            .transactions[0];
+        expect(batchTx).not.toHaveProperty('gas');
       });
     });
 
