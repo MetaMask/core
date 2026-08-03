@@ -188,7 +188,7 @@ export type ExportStateOptions = {
   includeSecrets?: boolean;
 };
 
-const AccountWalletPayloadIdSchema = define<AccountWalletPayloadId>(
+const AccountWalletPayloadIdStruct = define<AccountWalletPayloadId>(
   'AccountWalletPayloadId',
   (value) =>
     typeof value === 'string' && value.startsWith('wallet:')
@@ -196,7 +196,7 @@ const AccountWalletPayloadIdSchema = define<AccountWalletPayloadId>(
       : 'Expected a wallet payload ID starting with "wallet:"',
 );
 
-const AccountGroupPayloadIdSchema = define<AccountGroupPayloadId>(
+const AccountGroupPayloadIdStruct = define<AccountGroupPayloadId>(
   'AccountGroupPayloadId',
   (value) =>
     typeof value === 'string' && PAYLOAD_GROUP_ID_REGEX.test(value)
@@ -204,52 +204,52 @@ const AccountGroupPayloadIdSchema = define<AccountGroupPayloadId>(
       : 'Expected a group payload ID in the form "wallet:<id>/<subId>"',
 );
 
-const AccountWalletPayloadMetadataSchema = object({
+const AccountWalletPayloadMetadataStruct = object({
   name: string(),
 });
 
-const AccountWalletGroupPayloadMetadataSchema = object({
+const AccountWalletGroupPayloadMetadataStruct = object({
   name: string(),
   pinned: boolean(),
   hidden: boolean(),
 });
 
-const AccountWalletPrivateKeyValueSchema = object({
+const AccountWalletPrivateKeyValueStruct = object({
   privateKey: sensitive(string()),
   encoding: enums(['hexadecimal', 'base58', 'base32']),
   type: exactOptional(string()),
 });
 
-const AccountWalletMnemonicGroupEntrySchema = object({
-  id: AccountGroupPayloadIdSchema,
+const AccountWalletMnemonicGroupEntryStruct = object({
+  id: AccountGroupPayloadIdStruct,
   groupIndex: integer(),
-  metadata: AccountWalletGroupPayloadMetadataSchema,
+  metadata: AccountWalletGroupPayloadMetadataStruct,
 });
 
-const AccountWalletPrivateKeyGroupEntrySchema = object({
-  id: AccountGroupPayloadIdSchema,
-  value: exactOptional(AccountWalletPrivateKeyValueSchema),
-  metadata: AccountWalletGroupPayloadMetadataSchema,
+const AccountWalletPrivateKeyGroupEntryStruct = object({
+  id: AccountGroupPayloadIdStruct,
+  value: exactOptional(AccountWalletPrivateKeyValueStruct),
+  metadata: AccountWalletGroupPayloadMetadataStruct,
 });
 
-const AccountWalletMnemonicPayloadSchema = object({
-  id: AccountWalletPayloadIdSchema,
+const AccountWalletMnemonicPayloadStruct = object({
+  id: AccountWalletPayloadIdStruct,
   type: literal('mnemonic'),
   value: exactOptional(sensitive(string())),
-  metadata: AccountWalletPayloadMetadataSchema,
-  groups: array(AccountWalletMnemonicGroupEntrySchema),
+  metadata: AccountWalletPayloadMetadataStruct,
+  groups: array(AccountWalletMnemonicGroupEntryStruct),
 });
 
-const AccountWalletPrivateKeyPayloadSchema = object({
-  id: AccountWalletPayloadIdSchema,
+const AccountWalletPrivateKeyPayloadStruct = object({
+  id: AccountWalletPayloadIdStruct,
   type: literal('private-key'),
-  metadata: AccountWalletPayloadMetadataSchema,
-  groups: array(AccountWalletPrivateKeyGroupEntrySchema),
+  metadata: AccountWalletPayloadMetadataStruct,
+  groups: array(AccountWalletPrivateKeyGroupEntryStruct),
 });
 
-const AccountTreeWalletEntrySchema = union([
-  AccountWalletMnemonicPayloadSchema,
-  AccountWalletPrivateKeyPayloadSchema,
+const AccountTreeWalletEntryStruct = union([
+  AccountWalletMnemonicPayloadStruct,
+  AccountWalletPrivateKeyPayloadStruct,
 ]);
 
 /**
@@ -260,14 +260,14 @@ const AccountTreeWalletEntrySchema = union([
  * the Superstruct `sensitive()` wrapper so validation failures redact secrets
  * from error output.
  */
-export const AccountTreePayloadSchema = object({
+export const AccountTreePayloadStruct = object({
   version: literal(ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION),
-  wallets: array(AccountTreeWalletEntrySchema),
+  wallets: array(AccountTreeWalletEntryStruct),
 });
 
-/** Inferred TypeScript type for a value matching {@link AccountTreePayloadSchema}. */
-export type AccountTreePayloadSchemaType = Infer<
-  typeof AccountTreePayloadSchema
+/** Inferred TypeScript type for a value matching {@link AccountTreePayloadStruct}. */
+export type AccountTreePayloadStructType = Infer<
+  typeof AccountTreePayloadStruct
 >;
 
 /**
@@ -297,7 +297,7 @@ export function assertValidAccountTreePayload(
   value: unknown,
 ): asserts value is AccountTreePayload {
   try {
-    assert(value, AccountTreePayloadSchema);
+    assert(value, AccountTreePayloadStruct);
   } catch (error) {
     if (error instanceof StructError) {
       throw new Error(

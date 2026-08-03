@@ -3,7 +3,7 @@ import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import { EthAccountType } from '@metamask/keyring-api';
 import { PrivateKeyExportedAccount } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import { encodeMnemonic, encodeMnemonicWords } from '@metamask/keyring-sdk';
+import { encodeMnemonicWords } from '@metamask/keyring-sdk';
 
 import type {
   AccountTreeControllerMessenger,
@@ -290,10 +290,10 @@ export async function exportState(
         idMap,
       );
 
-      if (!privateKeyWallet) {
-        privateKeyWallet = exported;
-      } else {
+      if (privateKeyWallet) {
         privateKeyWallet.groups.push(...exported.groups);
+      } else {
+        privateKeyWallet = exported;
       }
     } else {
       // AccountWalletType.Snap and hardware keyrings: skipped for now.
