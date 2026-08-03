@@ -9,22 +9,22 @@ import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { AuthenticatedUserStorageServiceMethodActions } from './authenticated-user-storage-method-action-types';
-import type { Environment } from './env';
-import { getUserStorageApiUrl } from './env';
+import type { AuthenticatedUserStorageServiceMethodActions } from './authenticated-user-storage-method-action-types.js';
+import type { Environment } from './env.js';
+import { getUserStorageApiUrl } from './env.js';
 import type {
   AssetsWatchlistBlob,
   ClientType,
   DelegationResponse,
   DelegationSubmission,
   NotificationPreferences,
-} from './types';
+} from './types.js';
 import {
   assertAssetsWatchlistBlob,
   assertAssetsWatchlistBlobForWrite,
   assertDelegationResponseArray,
   assertNotificationPreferences,
-} from './validators';
+} from './validators.js';
 
 // === GENERAL ===
 
@@ -354,7 +354,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
    * @returns The assets-watchlist blob, or `null` if none has been set (404).
    */
   async getAssetsWatchlist(): Promise<AssetsWatchlistBlob | null> {
-    const url = `${getAuthenticatedStorageUrl(this.#environment)}/assets-watchlist`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/assets-watchlist`;
 
     const data = await this.fetchQuery({
       queryKey: [`${this.name}:getAssetsWatchlist`],
@@ -403,7 +403,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
   ): Promise<void> {
     assertAssetsWatchlistBlobForWrite(blob);
 
-    const url = `${getAuthenticatedStorageUrl(this.#environment)}/assets-watchlist`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/assets-watchlist`;
 
     await this.fetchQuery({
       queryKey: [`${this.name}:setAssetsWatchlist`, blob as unknown as Json],

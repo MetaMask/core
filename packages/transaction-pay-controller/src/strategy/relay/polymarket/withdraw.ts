@@ -5,33 +5,33 @@ import {
   CHAIN_ID_POLYGON,
   POLYGON_PUSD_ADDRESS,
   POLYGON_USDCE_ADDRESS,
-} from '../../../constants';
-import { projectLogger } from '../../../logger';
+} from '../../../constants.js';
+import { projectLogger } from '../../../logger.js';
 import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../../types';
-import { getLiveTokenBalance } from '../../../utils/token';
+} from '../../../types.js';
+import { getLiveTokenBalance } from '../../../utils/token.js';
 import type {
   RelayQuote,
   RelayQuoteRequest,
   RelayStatus,
   RelayTransactionStep,
-} from '../types';
+} from '../types.js';
 import {
   encodeApprove,
   encodeUnwrap,
   encodeWrap,
   extractErc20TransferRecipient,
-} from './calldata';
+} from './calldata.js';
 import {
   POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
   POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
   SWEEP_BALANCE_RETRY_ATTEMPTS,
   SWEEP_BALANCE_RETRY_DELAY_MS,
   SWEEP_RELAYER_SETTLE_DELAY_MS,
-} from './constants';
+} from './constants.js';
 
 const log = createModuleLogger(projectLogger, 'polymarket-withdraw');
 

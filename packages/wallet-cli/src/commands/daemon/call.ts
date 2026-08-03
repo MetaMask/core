@@ -2,12 +2,12 @@ import type { Json } from '@metamask/utils';
 import { isJsonRpcFailure } from '@metamask/utils';
 import { Args, Command, Flags } from '@oclif/core';
 
-import { sendCommand } from '../../daemon/daemon-client';
-import { getDaemonPaths } from '../../daemon/paths';
+import { sendCommand } from '../../daemon/daemon-client.js';
+import { getDaemonPaths } from '../../daemon/paths.js';
 import {
   formatJsonRpcError,
   makeDaemonConnectionError,
-} from '../../daemon/utils';
+} from '../../daemon/utils.js';
 
 export default class DaemonCall extends Command {
   static override description = 'Call a messenger action on the wallet daemon';

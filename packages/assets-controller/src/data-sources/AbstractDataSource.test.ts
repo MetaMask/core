@@ -1,10 +1,10 @@
-import type { ChainId } from '../types';
+import type { ChainId } from '../types.js';
 import type {
   ActiveSubscription,
   DataSourceState,
   SubscriptionRequest,
-} from './AbstractDataSource';
-import { AbstractDataSource } from './AbstractDataSource';
+} from './AbstractDataSource.js';
+import { AbstractDataSource } from './AbstractDataSource.js';
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const CHAIN_POLYGON = 'eip155:137' as ChainId;

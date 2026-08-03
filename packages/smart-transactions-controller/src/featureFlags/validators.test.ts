@@ -1,7 +1,7 @@
 import {
   validateSmartTransactionsFeatureFlags,
   validateSmartTransactionsNetworkConfig,
-} from './validators';
+} from './validators.js';
 
 describe('validators', () => {
   describe('validateSmartTransactionsNetworkConfig', () => {

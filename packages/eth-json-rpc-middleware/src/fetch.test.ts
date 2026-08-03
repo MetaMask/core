@@ -2,7 +2,6 @@ import {
   JsonRpcEngineV2,
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
-import { rpcErrors } from '@metamask/rpc-errors';
 import type {
   Json,
   JsonRpcParams,
@@ -10,9 +9,9 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 
-import { createRequest } from '../test/util/helpers';
-import { createFetchMiddleware } from './fetch';
-import type { AbstractRpcServiceLike } from './types';
+import { createRequest } from '../test/util/helpers.js';
+import { createFetchMiddleware } from './fetch.js';
+import type { AbstractRpcServiceLike } from './types.js';
 
 describe('createFetchMiddleware', () => {
   it.each([
@@ -120,14 +119,7 @@ describe('createFetchMiddleware', () => {
             params: [],
           }),
         ),
-      ).rejects.toThrow(
-        rpcErrors.internal({
-          data: {
-            code: -1000,
-            message: 'oops',
-          },
-        }),
-      );
+      ).rejects.toThrow('Internal JSON-RPC error.');
     });
   });
 
@@ -165,20 +157,7 @@ describe('createFetchMiddleware', () => {
             params: [],
           }),
         ),
-      ).rejects.toThrow(
-        rpcErrors.internal({
-          data: {
-            code: -32000,
-            data: {
-              foo: 'bar',
-            },
-            message: 'VM Exception while processing transaction: revert',
-            name: 'RuntimeError',
-            stack:
-              'RuntimeError: VM Exception while processing transaction: revert at exactimate (/Users/elliot/code/metamask/metamask-mobile/node_modules/ganache/dist/node/webpack:/Ganache/ethereum/ethereum/lib/src/helpers/gas-estimator.js:257:23)',
-          },
-        }),
-      );
+      ).rejects.toThrow('Internal JSON-RPC error.');
     });
   });
 
@@ -202,11 +181,7 @@ describe('createFetchMiddleware', () => {
             params: [],
           }),
         ),
-      ).rejects.toThrow(
-        rpcErrors.internal({
-          message: 'oops',
-        }),
-      );
+      ).rejects.toThrow('oops');
     });
   });
 });

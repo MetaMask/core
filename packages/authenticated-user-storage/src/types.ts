@@ -133,7 +133,7 @@ export type NotificationPreferences = {
 // `./validators` and re-exported here so the public type surface remains in
 // `./types`. Keeping the runtime schema and the static type co-located in
 // one file keeps the two in lock-step.
-export type { AssetsWatchlistBlob } from './validators';
+export type { AssetsWatchlistBlob } from './validators.js';
 
 // ---------------------------------------------------------------------------
 // Shared

@@ -1,13 +1,13 @@
 import { isJsonRpcFailure } from '@metamask/utils';
 import { Command } from '@oclif/core';
 
-import { sendCommand } from '../../daemon/daemon-client';
-import { getDaemonPaths } from '../../daemon/paths';
+import { sendCommand } from '../../daemon/daemon-client.js';
+import { getDaemonPaths } from '../../daemon/paths.js';
 import {
   formatJsonRpcError,
   isStringArray,
   makeDaemonConnectionError,
-} from '../../daemon/utils';
+} from '../../daemon/utils.js';
 
 export default class DaemonList extends Command {
   static override description =

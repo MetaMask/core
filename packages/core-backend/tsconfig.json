@@ -7,7 +7,7 @@
   },
   "references": [
     {
-      "path": "../accounts-controller"
+      "path": "../account-tree-controller"
     },
     {
       "path": "../controller-utils"
@@ -20,6 +20,9 @@
     },
     {
       "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
     }
   ],
   "include": ["../../types", "./src"]

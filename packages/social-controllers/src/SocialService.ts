@@ -10,6 +10,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import {
   array,
+  assign,
   boolean,
   enums,
   is,
@@ -21,8 +22,10 @@ import {
   type as structType,
 } from '@metamask/superstruct';
 
-import { serviceName, SocialServiceErrorMessage } from './social-constants';
+import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
+  FeedResponse,
+  FetchFeedOptions,
   FetchFollowersOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
@@ -38,9 +41,9 @@ import type {
   TraderProfileResponse,
   UnfollowOptions,
   UnfollowResponse,
-} from './social-types';
-import { TradeStruct } from './social-types';
-import type { SocialServiceMethodActions } from './SocialService-method-action-types';
+} from './social-types.js';
+import { TradeStruct } from './social-types.js';
+import type { SocialServiceMethodActions } from './SocialService-method-action-types.js';
 
 // ---------------------------------------------------------------------------
 // Superstruct validation schemas
@@ -154,6 +157,27 @@ const PositionsResponseStruct = structType({
   computedAt: optional(nullable(string())),
 });
 
+// A feed item is a position plus the trader who made the trade (`actor`) and
+// the item's creation timestamp. Reuses PositionStruct so the trade/position
+// fields stay in lockstep with the positions endpoints.
+const FeedItemStruct = assign(
+  PositionStruct,
+  structType({
+    actor: ProfileSummaryStruct,
+    timestamp: number(),
+  }),
+);
+
+const FeedPaginationStruct = structType({
+  olderCursor: nullable(string()),
+  newerCursor: nullable(string()),
+});
+
+const FeedResponseStruct = structType({
+  items: array(FeedItemStruct),
+  pagination: FeedPaginationStruct,
+});
+
 const FollowersResponseStruct = structType({
   followers: array(ProfileSummaryStruct),
   count: number(),
@@ -184,10 +208,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchFollowers',
   'fetchFollowing',
   'fetchPositionById',
+  'fetchFeed',
   'follow',
   'unfollow',
   'optOutOfLeaderboard',
   'optInToLeaderboard',
+  'refreshNotificationPreferencesCache',
 ] as const;
 
 export type SocialServiceActions =
@@ -472,6 +498,71 @@ export class SocialService extends BaseDataService<
   }
 
   /**
+   * Fetches a page of the trader-activity feed.
+   *
+   * Calls `GET ${baseUrl}/feed`. For the `following` scope the current user is
+   * identified server-side from the JWT sub claim carried in the Authorization
+   * header; the `leaderboard` scope is generic and shared by all users.
+   *
+   * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+   * from a prior response back as `olderThan` to load older items, and
+   * `pagination.newerCursor` as `newerThan` to fetch newer items.
+   *
+   * @param options - Options bag.
+   * @param options.scope - `following` (default) or `leaderboard`.
+   * @param options.chains - Filter by one or more chains.
+   * @param options.limit - Number of results per page.
+   * @param options.olderThan - Cursor for older items (scroll down).
+   * @param options.newerThan - Cursor for newer items (refresh).
+   * @returns The feed response with items and pagination cursors.
+   */
+  async fetchFeed(options?: FetchFeedOptions): Promise<FeedResponse> {
+    const feedResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchFeed`, options ?? null],
+      staleTime: 0,
+      queryFn: async () => {
+        const { scope, chains, limit, olderThan, newerThan } = options ?? {};
+        const url = new URL(`${this.#v1Url}/feed`);
+        if (scope) {
+          url.searchParams.append('scope', scope);
+        }
+        if (chains) {
+          for (const chain of chains) {
+            url.searchParams.append('chains', chain);
+          }
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
+        if (olderThan) {
+          url.searchParams.append('olderThan', olderThan);
+        }
+        if (newerThan) {
+          url.searchParams.append('newerThan', newerThan);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_FEED_FAILED,
+        );
+        const feedData = await response.json();
+        if (!is(feedData, FeedResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+          );
+        }
+        return feedData as FeedResponse;
+      },
+    });
+
+    return feedResponse;
+  }
+
+  /**
    * Fetches the list of traders the current user is following.
    *
    * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
@@ -626,6 +717,42 @@ export class SocialService extends BaseDataService<
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.LEADERBOARD_OPT_IN_FAILED,
+        );
+        return null;
+      },
+    });
+  }
+
+  /**
+   * Asks the social-api to refresh its cached copy of the current user's
+   * notification preferences.
+   *
+   * Calls `POST ${baseUrl}/notifications/preferences/cache-refresh`. The caller
+   * is identified server-side from the JWT sub claim carried in the
+   * Authorization header, so it can only ever refresh its own entry.
+   *
+   * The client calls this immediately after writing a preference change to
+   * Authenticated User Storage (AUS), which is the source of truth. The social
+   * api re-reads from AUS and repopulates its cache so the change is honoured
+   * near-instantly rather than after the cache TTL lapses. It is a pure
+   * optimisation on top of that bounded TTL: the write has already succeeded by
+   * the time this runs, so callers should treat it as best-effort and must not
+   * roll back the AUS write if it fails.
+   */
+  async refreshNotificationPreferencesCache(): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:refreshNotificationPreferencesCache`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/notifications/preferences/cache-refresh`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED,
         );
         return null;
       },

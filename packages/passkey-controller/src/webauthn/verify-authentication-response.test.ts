@@ -1,7 +1,7 @@
-import { bytesToBase64URL, base64URLToBytes } from '../utils/encoding';
-import { decodeClientDataJSON } from './decode-client-data-json';
-import type { PasskeyAuthenticationResponse } from './types';
-import { verifyAuthenticationResponse } from './verify-authentication-response';
+import { bytesToBase64URL, base64URLToBytes } from '../utils/encoding.js';
+import { decodeClientDataJSON } from './decode-client-data-json.js';
+import type { PasskeyAuthenticationResponse } from './types.js';
+import { verifyAuthenticationResponse } from './verify-authentication-response.js';
 
 const EXPECTED_ORIGIN = 'https://dev.dontneeda.pw';
 const EXPECTED_RP_ID = 'dev.dontneeda.pw';

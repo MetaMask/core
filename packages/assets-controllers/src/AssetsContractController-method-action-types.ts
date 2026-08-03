@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AssetsContractController } from './AssetsContractController';
+import type { AssetsContractController } from './AssetsContractController.js';
 
 /**
  * Get a ERC20Standard instance using the relevant provider instance.

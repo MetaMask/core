@@ -3,7 +3,8 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
+import type { ConfigRegistryControllerGetStateAction } from '@metamask/config-registry-controller';
+import { BuiltInNetworkName, ChainId, toHex } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import type { Messenger } from '@metamask/messenger';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
@@ -16,16 +17,12 @@ import type {
 } from '@metamask/network-controller';
 import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
-import { KnownCaipNamespace } from '@metamask/utils';
+import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 
-import { POPULAR_NETWORKS } from './constants';
-import type { NetworkEnablementControllerMethodActions } from './NetworkEnablementController-method-action-types';
-import { Slip44Service } from './services';
-import {
-  deriveKeys,
-  isOnlyNetworkEnabledInNamespace,
-  isPopularNetwork,
-} from './utils';
+import { POPULAR_NETWORKS } from './constants.js';
+import type { NetworkEnablementControllerMethodActions } from './NetworkEnablementController-method-action-types.js';
+import { Slip44Service } from './services/index.js';
+import { deriveKeys, isOnlyNetworkEnabledInNamespace } from './utils.js';
 
 const controllerName = 'NetworkEnablementController';
 
@@ -40,6 +37,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'listPopularNetworks',
   'listPopularEvmNetworks',
   'listPopularMultichainNetworks',
+  'restoreEnabledNetworkMap',
 ] as const;
 
 /**
@@ -97,7 +95,8 @@ export type NetworkEnablementControllerGetStateAction =
  */
 export type AllowedActions =
   | NetworkControllerGetStateAction
-  | MultichainNetworkControllerGetStateAction;
+  | MultichainNetworkControllerGetStateAction
+  | ConfigRegistryControllerGetStateAction;
 
 export type NetworkEnablementControllerActions =
   | NetworkEnablementControllerGetStateAction
@@ -371,7 +370,7 @@ export class NetworkEnablementController extends BaseController<
       );
 
       // Enable all popular EVM networks that exist in NetworkController configurations
-      POPULAR_NETWORKS.forEach((chainId) => {
+      this.#getPopularEvmChainIds().forEach((chainId) => {
         const { namespace, storageKey } = deriveKeys(chainId);
 
         // Check if network exists in NetworkController configurations
@@ -613,6 +612,33 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Restores the enabled network map to a previously snapshotted state.
+   *
+   * Not a general merge API: only updates keys already present in the current
+   * map. Missing snapshot values default to `false`. Intended for callers with
+   * direct controller access (e.g. extension) to undo `#onAddNetwork` filter
+   * switches when adding a network without changing the active selection.
+   *
+   * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
+   */
+  restoreEnabledNetworkMap(
+    enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
+  ): void {
+    this.update((state) => {
+      Object.entries(state.enabledNetworkMap).forEach(
+        ([namespace, currentNetworks]) => {
+          Object.keys(currentNetworks).forEach((chainId) => {
+            const storageKey = chainId as CaipChainId | Hex;
+            const previousValue = enabledNetworkMap[namespace]?.[storageKey];
+            state.enabledNetworkMap[namespace][storageKey] =
+              previousValue ?? false;
+          });
+        },
+      );
+    });
+  }
+
+  /**
    * Checks if a network is enabled.
    *
    * @param chainId - The chain ID of the network to check. Can be either:
@@ -661,7 +687,7 @@ export class NetworkEnablementController extends BaseController<
     );
 
     // Count how many popular networks are enabled
-    const enabledPopularNetworksCount = POPULAR_NETWORKS.reduce(
+    const enabledPopularNetworksCount = this.#getPopularEvmChainIds().reduce(
       (count, chainId) => {
         // Only check networks that actually exist in NetworkController configurations
         if (!networkControllerState.networkConfigurationsByChainId[chainId]) {
@@ -739,7 +765,8 @@ export class NetworkEnablementController extends BaseController<
       const inPopularNetworksMode = this.#isInPopularNetworksMode();
 
       // Check if the network being added is a popular network
-      const isAddedNetworkPopular = isPopularNetwork(reference);
+      const isAddedNetworkPopular =
+        this.#getPopularEvmChainIds().includes(chainId);
 
       // Keep current selection only if in popular networks mode AND adding a popular network
       const shouldKeepCurrentSelection =
@@ -768,9 +795,50 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Returns the hex chain IDs of EVM networks the config registry currently
+   * marks as "popular" (i.e. featured + active + non-testnet).
+   *
+   * @returns Hex chain IDs of registry-featured EVM networks.
+   */
+  #getRegistryPopularEvmChainIds(): Hex[] {
+    const {
+      configs: { networks },
+    } = this.messenger.call('ConfigRegistryController:getState');
+    return Object.values(networks).reduce<Hex[]>((popularChains, network) => {
+      if (
+        network.config.isFeatured &&
+        network.config.isActive &&
+        !network.config.isTestnet &&
+        network.chainId.startsWith('eip155:')
+      ) {
+        const hexChainId = toHex(parseCaipChainId(network.chainId).reference);
+        popularChains.push(hexChainId);
+      }
+      return popularChains;
+    }, []);
+  }
+
+  /**
+   * Returns the set of popular EVM chain IDs using registry configs as primary source
+   * and the bundled `POPULAR_NETWORKS` as fallback. This ensures that the list of popular networks is always available,
+   * even if the registry is unavailable or doesn't have any featured networks.
+   *
+   * @returns De-duplicated hex chain IDs considered popular.
+   */
+  #getPopularEvmChainIds(): Hex[] {
+    return [
+      ...new Set<Hex>([
+        // `toHex` is used to normalize chain IDs from the bundled POPULAR_NETWORKS.
+        ...POPULAR_NETWORKS.map((chainId) => toHex(chainId)),
+        ...this.#getRegistryPopularEvmChainIds(),
+      ]),
+    ];
+  }
+
+  /**
    * Returns popular EVM network chain IDs in hex form, restricted to networks
-   * that exist in NetworkController (networkConfigurationsByChainId). Source list
-   * is POPULAR_NETWORKS.
+   * that exist in NetworkController (networkConfigurationsByChainId). Source is
+   * the bundled `POPULAR_NETWORKS` unioned with registry-featured EVM chains.
    *
    * @returns Hex chain IDs for popular EVM networks that are configured.
    */
@@ -778,7 +846,7 @@ export class NetworkEnablementController extends BaseController<
     const networkControllerState = this.messenger.call(
       'NetworkController:getState',
     );
-    return POPULAR_NETWORKS.filter(
+    return this.#getPopularEvmChainIds().filter(
       (chainIdHex) =>
         networkControllerState.networkConfigurationsByChainId[chainIdHex],
     );

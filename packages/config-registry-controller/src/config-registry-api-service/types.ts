@@ -8,6 +8,7 @@ import {
   string,
   type,
 } from '@metamask/superstruct';
+import { CaipChainIdStruct, StrictHexStruct } from '@metamask/utils';
 
 const AssetSchema = type({
   assetId: string(),
@@ -50,12 +51,16 @@ const ChainConfigSchema = type({
   priority: number(),
 });
 
+const NetworkContractsSchema = type({
+  multicall3: optional(StrictHexStruct),
+});
+
 /**
  * Schema for a single chain in the CAIP-2 config registry API response.
  * chainId is in CAIP-2 format (e.g. "eip155:1", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp").
  */
 export const RegistryNetworkConfigSchema = type({
-  chainId: string(),
+  chainId: CaipChainIdStruct,
   name: string(),
   imageUrl: string(),
   coingeckoPlatformId: string(),
@@ -64,6 +69,7 @@ export const RegistryNetworkConfigSchema = type({
   rpcProviders: RpcProvidersSchema,
   blockExplorerUrls: BlockExplorerUrlsSchema,
   config: ChainConfigSchema,
+  contracts: optional(NetworkContractsSchema),
 });
 
 /**

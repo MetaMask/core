@@ -55,7 +55,7 @@ runs:
           CURRENT_VERSION=$(echo "$PACKAGE_JSON_AT_BASE" | jq -r .version)
           NEW_VERSION=$(jq -r .version "$package")
 
-          if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+          if [[ "$NEW_VERSION" != "0.0.0" && "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
             ANY_PACKAGE_BUMPED=true
             package_name=$(jq -r ".name" "$package")
             echo "📦 Package \`$package_name\` has a version bump (\`$CURRENT_VERSION\` -> \`$NEW_VERSION\`)"

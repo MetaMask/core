@@ -1,6 +1,6 @@
-import type { ConnectivityControllerState } from './ConnectivityController';
-import { connectivityControllerSelectors } from './selectors';
-import { CONNECTIVITY_STATUSES } from './types';
+import type { ConnectivityControllerState } from './ConnectivityController.js';
+import { connectivityControllerSelectors } from './selectors.js';
+import { CONNECTIVITY_STATUSES } from './types.js';
 
 describe('connectivityControllerSelectors', () => {
   describe('selectConnectivityStatus', () => {

@@ -5,6 +5,14 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [{ "path": "../base-data-service/tsconfig.build.json" }],
-  "include": ["../../types", "./src"]
+  "references": [
+    {
+      "path": "../base-data-service/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    }
+  ],
+  "include": ["../../types", "./src"],
+  "exclude": ["**/*.test.ts", "**/*.tst.ts"]
 }

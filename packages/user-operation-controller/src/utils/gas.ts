@@ -2,13 +2,13 @@ import { hexToBN } from '@metamask/controller-utils';
 import { add0x } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { VALUE_ZERO } from '../constants';
-import { Bundler } from '../helpers/Bundler';
-import { createModuleLogger, projectLogger } from '../logger';
+import { VALUE_ZERO } from '../constants.js';
+import { Bundler } from '../helpers/Bundler.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   PrepareUserOperationResponse,
   UserOperationMetadata,
-} from '../types';
+} from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'gas');
 

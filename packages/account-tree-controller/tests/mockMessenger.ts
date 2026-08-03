@@ -5,7 +5,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { AccountTreeControllerMessenger } from '../src/types';
+import type { AccountTreeControllerMessenger } from '../src/types.js';
 
 type AllAccountTreeControllerActions =
   MessengerActions<AccountTreeControllerMessenger>;

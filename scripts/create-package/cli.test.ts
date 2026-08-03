@@ -1,6 +1,6 @@
-import cli from './cli';
-import { commands, commandMap } from './commands';
-import * as utils from './utils';
+import cli from './cli.js';
+import { commands, commandMap } from './commands.js';
+import * as utils from './utils.js';
 
 jest.mock('./utils');
 
@@ -44,7 +44,7 @@ describe('create-package/cli', () => {
   beforeEach(() => {
     // yargs calls process.exit() with 1 on failure and sometimes 0 on success.
     // We have to intercept it.
-    jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
+    jest.spyOn(process, 'exit').mockImplementation((code) => {
       if (code === 1) {
         throw new Error('exit: 1');
       } else {

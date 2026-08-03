@@ -11,11 +11,11 @@ import { remove0x } from '@metamask/utils';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignEip7702AuthorizationAction,
-} from '../../../keyring-controller/src';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionStatus } from '../types';
-import type { AuthorizationList } from '../types';
-import type { TransactionMeta } from '../types';
+} from '../../../keyring-controller/src/index.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionStatus } from '../types.js';
+import type { AuthorizationList } from '../types.js';
+import type { TransactionMeta } from '../types.js';
 import {
   DELEGATION_PREFIX,
   decodeAuthorizationSignature,
@@ -25,12 +25,13 @@ import {
   getDelegationAddress,
   isAccountUpgradedToEIP7702,
   signAuthorizationList,
-} from './eip7702';
+  updateEIP7702BatchData,
+} from './eip7702.js';
 import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
-} from './feature-flags';
-import { rpcRequest } from './provider';
+} from './feature-flags.js';
+import { rpcRequest } from './provider.js';
 
 jest.mock('../utils/feature-flags');
 
@@ -606,6 +607,75 @@ describe('EIP-7702 Utils', () => {
         delegationAddress: undefined,
         isSupported: false,
       });
+    });
+  });
+
+  describe('updateEIP7702BatchData', () => {
+    it('returns updated nested transactions and regenerated batch data without mutating the input', () => {
+      const nestedTransactions = [
+        {
+          data: '0xaaaa' as Hex,
+          to: ADDRESS_2_MOCK as Hex,
+          value: '0x5678' as Hex,
+        },
+        {
+          data: '0xbbbb' as Hex,
+          to: ADDRESS_3_MOCK as Hex,
+          value: '0xdef0' as Hex,
+        },
+      ];
+
+      const result = updateEIP7702BatchData({
+        from: ADDRESS_MOCK,
+        transactions: nestedTransactions,
+        updates: [
+          { transactionIndex: 0, transactionData: '0x1234' },
+          { transactionIndex: 1, transactionData: '0x9abc' },
+        ],
+      });
+
+      expect(result).toStrictEqual({
+        nestedTransactions: [
+          {
+            data: '0x1234',
+            to: ADDRESS_2_MOCK,
+            value: '0x5678',
+          },
+          {
+            data: '0x9abc',
+            to: ADDRESS_3_MOCK,
+            value: '0xdef0',
+          },
+        ],
+        transactionData: DATA_MOCK,
+      });
+      expect(nestedTransactions.map(({ data }) => data)).toStrictEqual([
+        '0xaaaa',
+        '0xbbbb',
+      ]);
+    });
+
+    it('throws if an update index is duplicated', () => {
+      expect(() =>
+        updateEIP7702BatchData({
+          from: ADDRESS_MOCK,
+          transactions: [{ data: '0xaaaa' }],
+          updates: [
+            { transactionIndex: 0, transactionData: '0x1234' },
+            { transactionIndex: 0, transactionData: '0x5678' },
+          ],
+        }),
+      ).toThrow('Duplicate nested transaction index - 0');
+    });
+
+    it('throws if an update index does not exist', () => {
+      expect(() =>
+        updateEIP7702BatchData({
+          from: ADDRESS_MOCK,
+          transactions: [{ data: '0xaaaa' }],
+          updates: [{ transactionIndex: 1, transactionData: '0x1234' }],
+        }),
+      ).toThrow('Nested transaction not found with index - 1');
     });
   });
 

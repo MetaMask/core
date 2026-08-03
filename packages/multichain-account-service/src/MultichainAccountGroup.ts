@@ -8,15 +8,15 @@ import type { Bip44Account } from '@metamask/account-api';
 import type { AccountSelector } from '@metamask/account-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
 
-import type { Logger } from './logger';
-import { projectLogger as log, createModuleLogger } from './logger';
-import type { ServiceState, StateKeys } from './MultichainAccountService';
-import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { Bip44AccountProvider } from './providers';
+import type { Logger } from './logger.js';
+import { projectLogger as log, createModuleLogger } from './logger.js';
+import type { ServiceState, StateKeys } from './MultichainAccountService.js';
+import type { MultichainAccountWallet } from './MultichainAccountWallet.js';
+import type { Bip44AccountProvider } from './providers/index.js';
 import type {
   MultichainAccountGroupStatus,
   MultichainAccountServiceMessenger,
-} from './types';
+} from './types.js';
 
 export type GroupState =
   ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];

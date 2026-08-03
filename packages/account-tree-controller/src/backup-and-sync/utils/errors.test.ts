@@ -1,4 +1,4 @@
-import { toErrorMessage } from './errors';
+import { toErrorMessage } from './errors.js';
 
 describe('toErrorMessage', () => {
   it('returns the message property for Error instances', () => {

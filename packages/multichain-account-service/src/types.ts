@@ -30,11 +30,14 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import type { SnapAccountServiceEnsureReadyAction } from '@metamask/snap-account-service';
+import type {
+  SnapAccountServiceEnsureReadyAction,
+  SnapAccountServiceGetCapabilitiesAction,
+} from '@metamask/snap-account-service';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 
-import type { serviceName } from './MultichainAccountService';
-import type { MultichainAccountServiceMethodActions } from './MultichainAccountService-method-action-types';
+import type { MultichainAccountServiceMethodActions } from './MultichainAccountService-method-action-types.js';
+import type { serviceName } from './MultichainAccountService.js';
 
 /**
  * All actions that {@link MultichainAccountService} registers so that other
@@ -103,7 +106,8 @@ type AllowedActions =
   | KeyringControllerCreateNewVaultAndRestoreAction
   | KeyringControllerRemoveAccountAction
   | SnapControllerHandleRequestAction
-  | SnapAccountServiceEnsureReadyAction;
+  | SnapAccountServiceEnsureReadyAction
+  | SnapAccountServiceGetCapabilitiesAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}

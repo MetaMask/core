@@ -10,23 +10,22 @@ import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
 import { TokenRwaData } from 'src/token-service';
 
-import { shouldIncludeNativeToken } from '../constants';
-import type { CurrencyRateState } from '../CurrencyRateController';
-import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
-import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
+import { shouldIncludeNativeToken } from '../constants.js';
+import type { CurrencyRateState } from '../CurrencyRateController.js';
+import type { MultichainAssetsControllerState } from '../MultichainAssetsController/index.js';
+import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController/index.js';
+import type { MultichainBalancesControllerState } from '../MultichainBalancesController/index.js';
+import { getNativeTokenAddress } from '../token-prices-service/codefi-v2.js';
+import type { TokenBalancesControllerState } from '../TokenBalancesController.js';
 import type {
-  MultichainAccountBalance,
-  MultichainBalancesControllerState,
-} from '../MultichainBalancesController';
-import type { AccountAssetInfo } from '../MultichainBalancesController/account-asset-info';
-import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
-import type { TokenBalancesControllerState } from '../TokenBalancesController';
-import type { Token, TokenRatesControllerState } from '../TokenRatesController';
-import type { TokensControllerState } from '../TokensController';
+  Token,
+  TokenRatesControllerState,
+} from '../TokenRatesController.js';
+import type { TokensControllerState } from '../TokensController.js';
 import {
   parseBalanceWithDecimals,
   stringifyBalanceWithDecimals,
-} from './stringify-balance';
+} from './stringify-balance.js';
 
 // Asset Tron Filters
 export const TRON_RESOURCE = {
@@ -93,8 +92,6 @@ export type Asset = (
         conversionRate: number;
       }
     | undefined;
-  /** Chain-specific snap enrichment fields from balance `accountAssetInfo`. */
-  accountAssetInfo?: AccountAssetInfo;
   rwaData?: TokenRwaData;
 };
 
@@ -407,8 +404,12 @@ const selectAllMultichainAssets = createAssetListSelector(
         groupAssets[accountGroupId][chainId] ??= [];
         const groupChainAssets = groupAssets[accountGroupId][chainId];
 
-        const balance: MultichainAccountBalance | undefined =
-          multichainBalances[accountId]?.[assetId];
+        const balance:
+          | {
+              amount: string;
+              unit: string;
+            }
+          | undefined = multichainBalances[accountId]?.[assetId];
 
         const decimals = assetMetadata.units?.find(
           (unit) =>
@@ -452,9 +453,6 @@ const selectAllMultichainAssets = createAssetListSelector(
               }
             : undefined,
           chainId,
-          ...(balance?.accountAssetInfo !== undefined && {
-            accountAssetInfo: balance.accountAssetInfo,
-          }),
         });
       }
     }

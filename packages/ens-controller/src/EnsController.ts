@@ -25,7 +25,7 @@ import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
 import { toASCII } from 'punycode/punycode.js';
 
-import type { EnsControllerMethodActions } from './EnsController-method-action-types';
+import type { EnsControllerMethodActions } from './EnsController-method-action-types.js';
 
 const log = createProjectLogger('ens-controller');
 

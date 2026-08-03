@@ -1,5 +1,5 @@
-import type { PerpsControllerState } from '../PerpsController';
-import type { Order, Position } from '../types';
+import type { PerpsControllerState } from '../PerpsController.js';
+import type { Order, Position } from '../types/index.js';
 
 /**
  * ServiceContext

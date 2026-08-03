@@ -2,7 +2,7 @@ import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { findDtsFiles, findTsFiles } from './discovery';
+import { findDtsFiles, findTsFiles } from './discovery.js';
 
 const { withinSandbox } = createSandbox('platform-api-docs/discovery');
 

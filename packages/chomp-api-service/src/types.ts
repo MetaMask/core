@@ -69,11 +69,25 @@ export type CreateWithdrawalParams = {
  * `profileId` is only included when the address was newly associated
  * (`status: 'created'`). When the address was already associated with the
  * authenticated profile (`status: 'active'`), only `address` is returned.
+ * Both cases respond with 201; an address associated with a different
+ * profile responds with 409, which is surfaced as an error.
  */
 export type AssociateAddressResponse = {
   profileId?: string;
   address: Hex;
   status: 'active' | 'created';
+};
+
+/**
+ * One entry returned by GET /v1/auth/address. The endpoint returns an array
+ * of these — the active address associations of the authenticated profile
+ * (the API filters out soft-deleted associations, so `status` is always
+ * `'active'`). Addresses are lowercased.
+ */
+export type ProfileAddressEntry = {
+  profileId: string;
+  address: Hex;
+  status: 'active';
 };
 
 export type AccountUpgradeStatus = 'pending' | 'upgraded';

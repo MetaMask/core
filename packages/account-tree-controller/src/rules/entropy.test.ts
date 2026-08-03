@@ -18,9 +18,9 @@ import type { AccountWalletEntropyObject } from 'src/wallet';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
-} from '../../tests/mockMessenger';
-import type { AccountGroupObjectOf } from '../group';
-import { EntropyRule } from './entropy';
+} from '../../tests/mockMessenger.js';
+import type { AccountGroupObjectOf } from '../group.js';
+import { EntropyRule } from './entropy.js';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,

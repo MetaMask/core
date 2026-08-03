@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TransactionController } from './TransactionController';
+import type { TransactionController } from './TransactionController.js';
 
 /**
  * Handle new method data request.
@@ -132,6 +132,20 @@ export type TransactionControllerEstimateGasBufferedAction = {
 export type TransactionControllerUpdateTransactionAction = {
   type: `TransactionController:updateTransaction`;
   handler: TransactionController['updateTransaction'];
+};
+
+/**
+ * Updates transaction metadata.
+ *
+ * @param options - Update options.
+ * @param options.transactionId - ID of the transaction to update.
+ * @param options.callback - Function that mutates the transaction metadata.
+ * @param options.skipResimulate - Whether to skip automatic re-simulation.
+ * @returns The updated transaction metadata.
+ */
+export type TransactionControllerUpdateTransactionMetadataAction = {
+  type: `TransactionController:updateTransactionMetadata`;
+  handler: TransactionController['updateTransactionMetadata'];
 };
 
 /**
@@ -441,6 +455,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerEstimateGasBufferedAction
   | TransactionControllerUpdateTransactionAction
+  | TransactionControllerUpdateTransactionMetadataAction
   | TransactionControllerFailTransactionAction
   | TransactionControllerUpdateSecurityAlertResponseAction
   | TransactionControllerWipeTransactionsAction

@@ -6,20 +6,23 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { LoginResponse } from '../../sdk';
-import { Platform } from '../../sdk';
-import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
-import { MOCK_USER_PROFILE_LINEAGE_RESPONSE } from '../../sdk/mocks/auth';
-import { AuthenticationController } from './AuthenticationController';
+import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth.js';
+import type { LoginResponse } from '../../sdk/index.js';
+import { Platform } from '../../sdk/index.js';
+import {
+  MOCK_ACCESS_JWT,
+  MOCK_USER_PROFILE_LINEAGE_RESPONSE,
+} from '../../sdk/mocks/auth.js';
+import { AuthenticationController } from './AuthenticationController.js';
 import type {
   AuthenticationControllerMessenger,
   AuthenticationControllerState,
   ProfileSignInInfo,
-} from './AuthenticationController';
+} from './AuthenticationController.js';
 import {
   MOCK_LOGIN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
-} from './mocks/mockResponses';
+} from './mocks/mockResponses.js';
 
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',
@@ -1069,6 +1072,75 @@ describe('AuthenticationController', () => {
     });
   });
 
+  describe('getCustomerServiceToken', () => {
+    it('should throw error if not logged in', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger } = createMockAuthenticationMessenger();
+      const controller = new AuthenticationController({
+        messenger,
+        state: { isSignedIn: false, needsProfilePairing: true },
+        metametrics,
+      });
+
+      await expect(controller.getCustomerServiceToken()).rejects.toThrow(
+        expect.any(Error),
+      );
+    });
+
+    it('should return the customer service token', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      mockAuthenticationFlowEndpoints();
+
+      const { messenger } = createMockAuthenticationMessenger();
+      const originalState = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      const result = await controller.getCustomerServiceToken();
+      expect(result).toBe(MOCK_ACCESS_JWT);
+    });
+
+    it('should throw if the customer service token request fails', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      mockAuthenticationFlowEndpoints({ endpointFail: 'customerService' });
+
+      const { messenger } = createMockAuthenticationMessenger();
+      const originalState = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      await expect(controller.getCustomerServiceToken()).rejects.toThrow(
+        expect.any(Error),
+      );
+    });
+
+    it('should throw error if wallet is locked', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockKeyringControllerGetState } =
+        createMockAuthenticationMessenger();
+
+      const originalState = mockSignedInState();
+
+      mockKeyringControllerGetState.mockReturnValue({ isUnlocked: false });
+
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      await expect(controller.getCustomerServiceToken()).rejects.toThrow(
+        expect.any(Error),
+      );
+    });
+  });
+
   describe('isSignedIn', () => {
     it('should return false if not logged in', () => {
       const metametrics = createMockAuthMetaMetrics();
@@ -1412,13 +1484,14 @@ function createMockAuthenticationMessenger() {
  * @returns mock auth endpoints
  */
 function mockAuthenticationFlowEndpoints(params?: {
-  endpointFail: 'nonce' | 'login' | 'token' | 'lineage';
+  endpointFail: 'nonce' | 'login' | 'token' | 'lineage' | 'customerService';
 }) {
   const {
     mockNonceUrl,
     mockOAuth2TokenUrl,
     mockSrpLoginUrl,
     mockUserProfileLineageUrl,
+    mockCustomerServiceTokenUrl,
   } = arrangeAuthAPIs({
     mockNonceUrl:
       params?.endpointFail === 'nonce' ? { status: 500 } : undefined,
@@ -1428,6 +1501,8 @@ function mockAuthenticationFlowEndpoints(params?: {
       params?.endpointFail === 'token' ? { status: 500 } : undefined,
     mockUserProfileLineageUrl:
       params?.endpointFail === 'lineage' ? { status: 500 } : undefined,
+    mockCustomerServiceTokenUrl:
+      params?.endpointFail === 'customerService' ? { status: 500 } : undefined,
   });
 
   return {
@@ -1435,6 +1510,7 @@ function mockAuthenticationFlowEndpoints(params?: {
     mockOAuth2TokenUrl,
     mockSrpLoginUrl,
     mockUserProfileLineageUrl,
+    mockCustomerServiceTokenUrl,
   };
 }
 

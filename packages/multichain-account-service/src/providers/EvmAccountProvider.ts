@@ -21,16 +21,16 @@ import type { Provider } from '@metamask/network-controller';
 import { add0x, assert, bytesToHex, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { traceFallback } from '../analytics';
-import { TraceName } from '../analytics/traces';
-import { projectLogger as log, WARNING_PREFIX } from '../logger';
-import type { MultichainAccountServiceMessenger } from '../types';
+import { traceFallback } from '../analytics/index.js';
+import { TraceName } from '../analytics/traces.js';
+import { projectLogger as log, WARNING_PREFIX } from '../logger.js';
+import type { MultichainAccountServiceMessenger } from '../types.js';
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
   BaseBip44AccountProvider,
-} from './BaseBip44AccountProvider';
-import { withRetry, withTimeout } from './utils';
+} from './BaseBip44AccountProvider.js';
+import { withRetry, withTimeout } from './utils.js';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 

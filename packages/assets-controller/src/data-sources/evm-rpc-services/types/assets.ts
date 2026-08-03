@@ -1,6 +1,6 @@
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { AccountId, Address, AssetType, ChainId } from './core';
+import type { AccountId, Address, AssetType, ChainId } from './core.js';
 
 /**
  * Core asset definition.

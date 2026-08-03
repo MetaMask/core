@@ -1,10 +1,53 @@
 /**
  * Test result states for SDK validation
  */
-import { CandlePeriod } from '../constants/chartConfig';
+import { CandlePeriod } from '../constants/chartConfig.js';
 
-// Order type enumeration
-export type OrderType = 'market' | 'limit';
+/**
+ * Order type enumeration (placement type).
+ *
+ * - `market` / `limit`: immediate placement.
+ * - `stop_*` / `take_profit_*`: trigger placement — the order rests off-book until
+ *   `OrderParams.triggerPrice` is reached, then executes as a market or limit order
+ *   according to the suffix.
+ *
+ * Provider-agnostic by design: no protocol vocabulary (HyperLiquid's `tpsl`,
+ * `triggerPx`, `isMarket`) appears in the params model.
+ */
+export type OrderType =
+  | 'market'
+  | 'limit'
+  | 'stop_market'
+  | 'stop_limit'
+  | 'take_profit_market'
+  | 'take_profit_limit';
+
+/**
+ * The subset of `OrderType` values that require a trigger price.
+ */
+export type TriggerOrderType = Exclude<OrderType, 'market' | 'limit'>;
+
+/**
+ * Whether a triggered order executes as a market or a limit order.
+ */
+export type OrderExecution = 'market' | 'limit';
+
+/**
+ * How an attached TP/SL relates to what it protects.
+ *
+ * - `none`: the order carries no attached TP/SL.
+ * - `order`: the TP/SL belongs to this order and is cancelled with it.
+ * - `position`: the TP/SL belongs to the resulting position and covers all of it.
+ *
+ * Provider-agnostic replacement for the HyperLiquid-shaped `OrderParams.grouping`.
+ */
+export type TpslLinkage = 'none' | 'order' | 'position';
+
+/**
+ * Which side of the mark price a trigger order fires on.
+ * `stop` protects against adverse moves, `take_profit` realizes gains.
+ */
+export type TriggerDirection = 'stop' | 'take_profit';
 
 export type TestResultStatus =
   | 'idle'
@@ -71,10 +114,10 @@ export type {
   TradingDefaultsConfig,
   FeeRatesConfig,
   HyperLiquidNetwork,
-} from './config';
+} from './config.js';
 
 // Token types
-export type { PerpsToken } from './token';
+export type { PerpsToken } from './token.js';
 
 /**
  * Order form state for the Perps order view

@@ -10,23 +10,23 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import { isValidHexAddress } from '@metamask/utils';
 import type { JsonRpcRequest, Json, Hex } from '@metamask/utils';
 
-import { createWalletGetGrantedExecutionPermissionsHandler } from './methods/wallet-get-granted-execution-permissions';
-import type { ProcessGetGrantedExecutionPermissionsHook } from './methods/wallet-get-granted-execution-permissions';
-import { createWalletGetSupportedExecutionPermissionsHandler } from './methods/wallet-get-supported-execution-permissions';
-import type { ProcessGetSupportedExecutionPermissionsHook } from './methods/wallet-get-supported-execution-permissions';
-import { createWalletRequestExecutionPermissionsHandler } from './methods/wallet-request-execution-permissions';
-import type { ProcessRequestExecutionPermissionsHook } from './methods/wallet-request-execution-permissions';
-import { createWalletRevokeExecutionPermissionHandler } from './methods/wallet-revoke-execution-permission';
-import type { ProcessRevokeExecutionPermissionHook } from './methods/wallet-revoke-execution-permission';
-import { stripArrayTypeIfPresent } from './utils/common';
-import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
+import { createWalletGetGrantedExecutionPermissionsHandler } from './methods/wallet-get-granted-execution-permissions.js';
+import type { ProcessGetGrantedExecutionPermissionsHook } from './methods/wallet-get-granted-execution-permissions.js';
+import { createWalletGetSupportedExecutionPermissionsHandler } from './methods/wallet-get-supported-execution-permissions.js';
+import type { ProcessGetSupportedExecutionPermissionsHook } from './methods/wallet-get-supported-execution-permissions.js';
+import { createWalletRequestExecutionPermissionsHandler } from './methods/wallet-request-execution-permissions.js';
+import type { ProcessRequestExecutionPermissionsHook } from './methods/wallet-request-execution-permissions.js';
+import { createWalletRevokeExecutionPermissionHandler } from './methods/wallet-revoke-execution-permission.js';
+import type { ProcessRevokeExecutionPermissionHook } from './methods/wallet-revoke-execution-permission.js';
+import { stripArrayTypeIfPresent } from './utils/common.js';
+import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize.js';
 import {
   resemblesAddress,
   validateAndNormalizeKeyholder as validateKeyholder,
   validateTypedDataForPrototypePollution,
   validateTypedDataV1ForPrototypePollution,
   validateTypedMessageKeys,
-} from './utils/validation';
+} from './utils/validation.js';
 
 export type TransactionParams = {
   from: string;

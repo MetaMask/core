@@ -1,9 +1,9 @@
-import { Env, Platform } from '../../shared/env';
-import { RateLimitedError } from '../errors';
-import { PAIR_DEDUPE_TTL_MS, SRPJwtBearerAuth } from './flow-srp';
-import { AuthType } from './types';
-import type { AuthConfig, LoginResponse, UserProfile } from './types';
-import * as timeUtils from './utils/time';
+import { Env, Platform } from '../../shared/env.js';
+import { RateLimitedError } from '../errors.js';
+import { PAIR_DEDUPE_TTL_MS, SRPJwtBearerAuth } from './flow-srp.js';
+import { AuthType } from './types.js';
+import type { AuthConfig, LoginResponse, UserProfile } from './types.js';
+import * as timeUtils from './utils/time.js';
 
 jest.setTimeout(15000);
 
@@ -21,12 +21,15 @@ const mockGetNonce = jest.fn();
 const mockAuthenticate = jest.fn();
 const mockAuthorizeOIDC = jest.fn();
 const mockPairProfiles = jest.fn();
+const mockGetCustomerServiceToken = jest.fn();
 
 jest.mock('./services', () => ({
   authenticate: (...args: unknown[]): unknown => mockAuthenticate(...args),
   authorizeOIDC: (...args: unknown[]): unknown => mockAuthorizeOIDC(...args),
   getNonce: (...args: unknown[]): unknown => mockGetNonce(...args),
   getUserProfileLineage: jest.fn(),
+  getCustomerServiceToken: (...args: unknown[]): unknown =>
+    mockGetCustomerServiceToken(...args),
   pairProfiles: (...args: unknown[]): unknown => mockPairProfiles(...args),
 }));
 
@@ -246,6 +249,21 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     const token = await auth.getAccessToken();
     expect(token).toBe('access');
     expect(mockGetNonce).toHaveBeenCalledTimes(1);
+  });
+
+  it('getCustomerServiceToken exchanges the access token via the service', async () => {
+    const { auth } = createAuth();
+    mockGetCustomerServiceToken.mockResolvedValue('cs-access-token');
+
+    const result = await auth.getCustomerServiceToken();
+
+    expect(result).toBe('cs-access-token');
+    // Logs in to obtain the OIDC access token, then exchanges it.
+    expect(mockAuthorizeOIDC).toHaveBeenCalledTimes(1);
+    expect(mockGetCustomerServiceToken).toHaveBeenCalledWith(
+      config.env,
+      'access',
+    );
   });
 });
 

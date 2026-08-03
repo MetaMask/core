@@ -9,8 +9,8 @@ import type {
   AnnouncementControllerEvents,
   AnnouncementControllerMessenger,
   AnnouncementMap,
-} from './AnnouncementController';
-import { AnnouncementController } from './AnnouncementController';
+} from './AnnouncementController.js';
+import { AnnouncementController } from './AnnouncementController.js';
 
 const name = 'AnnouncementController';
 

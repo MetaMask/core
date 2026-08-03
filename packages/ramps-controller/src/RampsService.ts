@@ -7,7 +7,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import packageJson from '../package.json';
-import type { RampsServiceMethodActions } from './RampsService-method-action-types';
+import type { RampsServiceMethodActions } from './RampsService-method-action-types.js';
 
 /**
  * Represents phone number information for a country.

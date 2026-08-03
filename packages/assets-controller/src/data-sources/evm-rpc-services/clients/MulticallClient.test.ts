@@ -1,12 +1,18 @@
 import { defaultAbiCoder, Interface } from '@ethersproject/abi';
+import * as controllerUtils from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import type { Address, BalanceOfRequest, ChainId, Provider } from '../types';
+import type {
+  Address,
+  BalanceOfRequest,
+  ChainId,
+  Provider,
+} from '../types/index.js';
 import {
   decodeAggregate3Response,
   encodeAggregate3,
   MulticallClient,
-} from './MulticallClient';
+} from './MulticallClient.js';
 
 // =============================================================================
 // MOCK PROVIDER
@@ -76,12 +82,16 @@ function buildMockAggregate3Response(
 describe('MulticallClient', () => {
   let mockProvider: jest.Mocked<Provider>;
   let getProviderMock: jest.Mock;
+  const getMulticall3AddressForChainMock = jest.fn().mockReturnValue(undefined);
   let client: MulticallClient;
 
   beforeEach(() => {
     mockProvider = createMockProvider();
     getProviderMock = jest.fn().mockReturnValue(mockProvider);
-    client = new MulticallClient(getProviderMock);
+    client = new MulticallClient({
+      getProvider: getProviderMock,
+      getMulticall3AddressForChain: getMulticall3AddressForChainMock,
+    });
   });
 
   afterEach(() => {
@@ -90,14 +100,21 @@ describe('MulticallClient', () => {
 
   describe('constructor', () => {
     it('should create client with default config', () => {
-      const newClient = new MulticallClient(getProviderMock);
+      const newClient = new MulticallClient({
+        getProvider: getProviderMock,
+        getMulticall3AddressForChain: getMulticall3AddressForChainMock,
+      });
       expect(newClient).toBeDefined();
     });
 
     it('should create client with custom config', () => {
-      const newClient = new MulticallClient(getProviderMock, {
-        maxCallsPerBatch: 100,
-        timeoutMs: 60000,
+      const newClient = new MulticallClient({
+        getProvider: getProviderMock,
+        getMulticall3AddressForChain: getMulticall3AddressForChainMock,
+        config: {
+          maxCallsPerBatch: 100,
+          timeoutMs: 60000,
+        },
       });
       expect(newClient).toBeDefined();
     });
@@ -105,8 +122,12 @@ describe('MulticallClient', () => {
     it('should use default maxCallsPerBatch when 0 is passed', async () => {
       // This tests that passing maxCallsPerBatch: 0 doesn't cause an infinite loop
       // by verifying the client falls back to default (300) instead of using 0
-      const zeroConfigClient = new MulticallClient(getProviderMock, {
-        maxCallsPerBatch: 0,
+      const zeroConfigClient = new MulticallClient({
+        getProvider: getProviderMock,
+        getMulticall3AddressForChain: getMulticall3AddressForChainMock,
+        config: {
+          maxCallsPerBatch: 0,
+        },
       });
 
       const requests: BalanceOfRequest[] = [
@@ -129,15 +150,24 @@ describe('MulticallClient', () => {
     });
 
     it('should use default timeoutMs when 0 is passed', () => {
-      const zeroTimeoutClient = new MulticallClient(getProviderMock, {
-        timeoutMs: 0,
+      const zeroTimeoutClient = new MulticallClient({
+        getProvider: getProviderMock,
+        getMulticall3AddressForChain: getMulticall3AddressForChainMock,
+        config: {
+          timeoutMs: 0,
+        },
       });
+
       expect(zeroTimeoutClient).toBeDefined();
     });
 
     it('should use default maxCallsPerBatch when negative value is passed', async () => {
-      const negativeConfigClient = new MulticallClient(getProviderMock, {
-        maxCallsPerBatch: -5,
+      const negativeConfigClient = new MulticallClient({
+        getProvider: getProviderMock,
+        getMulticall3AddressForChain: getMulticall3AddressForChainMock,
+        config: {
+          maxCallsPerBatch: -5,
+        },
       });
 
       const requests: BalanceOfRequest[] = [
@@ -166,6 +196,31 @@ describe('MulticallClient', () => {
         const result = await client.batchBalanceOf(MAINNET_CHAIN_ID, []);
         expect(result).toStrictEqual([]);
         expect(getProviderMock).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('with Multicall3 supported chain via config-registry', () => {
+      it('should use the provided multicall3 address from config-registry', async () => {
+        const mockAddress = '0x1234567890123456789012345678901234567890';
+        mockProvider.call.mockResolvedValue(
+          buildMockAggregate3Response([
+            { success: true, balance: '1000000000' },
+          ]),
+        );
+        getMulticall3AddressForChainMock.mockReturnValue(mockAddress);
+
+        await client.batchBalanceOf(MAINNET_CHAIN_ID, [
+          { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
+        ]);
+
+        expect(getMulticall3AddressForChainMock).toHaveBeenCalledWith(
+          MAINNET_CHAIN_ID,
+        );
+        expect(mockProvider.call).toHaveBeenCalledWith(
+          expect.objectContaining({
+            to: mockAddress,
+          }),
+        );
       });
     });
 
@@ -210,6 +265,52 @@ describe('MulticallClient', () => {
         expect(result).toHaveLength(2);
         expect(result[0].balance).toBe('1000000000');
         expect(result[1].balance).toBe('2000000000');
+      });
+
+      it('encodes balance call data once per account address in a batch', async () => {
+        const encodeSpy = jest.spyOn(controllerUtils, 'encodeFunctionData');
+        const countBalanceOf = (): number =>
+          encodeSpy.mock.calls.filter(([, method]) => method === 'balanceOf')
+            .length;
+        const countGetEthBalance = (): number =>
+          encodeSpy.mock.calls.filter(
+            ([, method]) => method === 'getEthBalance',
+          ).length;
+        const accountA: Address =
+          '0x1111111111111111111111111111111111111111' as Address;
+        const accountB: Address =
+          '0x2222222222222222222222222222222222222222' as Address;
+
+        const requests: BalanceOfRequest[] = [
+          { tokenAddress: TEST_TOKEN_1, accountAddress: accountA },
+          { tokenAddress: TEST_TOKEN_2, accountAddress: accountA },
+          { tokenAddress: TEST_TOKEN_1, accountAddress: accountB },
+          { tokenAddress: ZERO_ADDRESS, accountAddress: accountA },
+        ];
+
+        const mockResponse = buildMockAggregate3Response([
+          { success: true, balance: '1000000000' },
+          { success: true, balance: '2000000000' },
+          { success: true, balance: '3000000000' },
+          { success: true, balance: '1000000000000000000' },
+        ]);
+
+        mockProvider.call.mockResolvedValue(mockResponse);
+
+        const balanceOfBefore = countBalanceOf();
+        const getEthBalanceBefore = countGetEthBalance();
+
+        await client.batchBalanceOf(MAINNET_CHAIN_ID, requests);
+
+        expect(countBalanceOf() - balanceOfBefore).toBe(2);
+        expect(countGetEthBalance() - getEthBalanceBefore).toBe(1);
+
+        await client.batchBalanceOf(MAINNET_CHAIN_ID, requests);
+
+        expect(countBalanceOf() - balanceOfBefore).toBe(2);
+        expect(countGetEthBalance() - getEthBalanceBefore).toBe(1);
+
+        encodeSpy.mockRestore();
       });
 
       it('should fetch native token balance using getEthBalance', async () => {
@@ -757,8 +858,12 @@ describe('MulticallClient', () => {
 
     describe('batching behavior', () => {
       it('should respect maxCallsPerBatch config', async () => {
-        const smallBatchClient = new MulticallClient(getProviderMock, {
-          maxCallsPerBatch: 2,
+        const smallBatchClient = new MulticallClient({
+          getProvider: getProviderMock,
+          getMulticall3AddressForChain: getMulticall3AddressForChainMock,
+          config: {
+            maxCallsPerBatch: 2,
+          },
         });
 
         const requests: BalanceOfRequest[] = [

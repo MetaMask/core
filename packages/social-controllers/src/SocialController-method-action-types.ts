@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SocialController } from './SocialController';
+import type { SocialController } from './SocialController.js';
 
 /**
  * Fetches the leaderboard and persists the entries to state.

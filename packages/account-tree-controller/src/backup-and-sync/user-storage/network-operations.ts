@@ -1,28 +1,28 @@
 import { SDK } from '@metamask/profile-sync-controller';
 
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountWalletEntropyObject } from '../../wallet';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
 import type {
   BackupAndSyncContext,
   LegacyUserStorageSyncedAccount,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-} from '../types';
-import { toErrorMessage } from '../utils/errors';
+} from '../types.js';
+import { toErrorMessage } from '../utils/errors.js';
 import {
   USER_STORAGE_GROUPS_FEATURE_KEY,
   USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
   USER_STORAGE_WALLETS_FEATURE_KEY,
-} from './constants';
+} from './constants.js';
 import {
   formatWalletForUserStorageUsage,
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
   parseLegacyAccountFromUserStorageResponse,
-} from './format-utils';
-import { executeWithRetry } from './network-utils';
+} from './format-utils.js';
+import { executeWithRetry } from './network-utils.js';
 
 /**
  * Retrieves the wallet from user storage.

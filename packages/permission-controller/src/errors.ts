@@ -10,9 +10,9 @@ import {
   JsonRpcError,
 } from '@metamask/rpc-errors';
 
-import type { CaveatConstraint } from './Caveat';
-import type { PermissionType } from './Permission';
-import type { PermissionDiffMap } from './PermissionController';
+import type { CaveatConstraint } from './Caveat.js';
+import type { PermissionType } from './Permission.js';
+import type { PermissionDiffMap } from './PermissionController.js';
 
 type UnauthorizedArg = {
   data?: Record<string, unknown>;

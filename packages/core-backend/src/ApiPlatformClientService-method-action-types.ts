@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ApiPlatformClientService } from './ApiPlatformClientService';
+import type { ApiPlatformClientService } from './ApiPlatformClientService.js';
 
 /**
  * Returns the shared ApiPlatformClient instance.

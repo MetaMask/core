@@ -7,7 +7,7 @@ import {
 import type { ServicePolicy } from '@metamask/controller-utils';
 import type { IDisposable } from 'cockatiel';
 
-import { BASE_URL } from '../constants';
+import { BASE_URL } from '../constants.js';
 import type {
   FeatureFlags,
   ClientType,
@@ -15,8 +15,8 @@ import type {
   EnvironmentType,
   ServiceResponse,
   ApiDataResponse,
-} from '../remote-feature-flag-controller-types';
-import type { AbstractClientConfigApiService } from './abstract-client-config-api-service';
+} from '../remote-feature-flag-controller-types.js';
+import type { AbstractClientConfigApiService } from './abstract-client-config-api-service.js';
 
 /**
  * This service is responsible for fetching feature flags from the ClientConfig API.

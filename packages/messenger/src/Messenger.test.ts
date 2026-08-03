@@ -1,8 +1,8 @@
 import type { Patch } from 'immer';
 
-import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger';
-import type { ActionConstraint } from './Messenger';
-import type { MockAnyNamespace } from './Messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger.js';
+import type { ActionConstraint } from './Messenger.js';
+import type { MockAnyNamespace } from './Messenger.js';
 
 describe('Messenger', () => {
   describe('registerActionHandler and call', () => {
@@ -1928,6 +1928,77 @@ describe('Messenger', () => {
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
         `A handler for Source:getLength has not been registered`,
       );
+    });
+  });
+
+  describe('delegateAll', () => {
+    it('delegates all listed actions and events', () => {
+      type SourceAction = {
+        type: 'Source:getValue';
+        handler: () => number;
+      };
+      type ChildOwnAction = {
+        type: 'Child:doStuff';
+        handler: () => void;
+      };
+      type SourceEvent = {
+        type: 'Source:stateChange';
+        payload: [{ value: number }];
+      };
+
+      const sourceMessenger = new Messenger<
+        'Source',
+        SourceAction | ChildOwnAction,
+        SourceEvent
+      >({ namespace: 'Source' });
+
+      const childMessenger = new Messenger<
+        'Child',
+        SourceAction | ChildOwnAction,
+        SourceEvent
+      >({ namespace: 'Child' });
+
+      sourceMessenger.registerActionHandler('Source:getValue', () => 42);
+
+      sourceMessenger.delegateAll({
+        messenger: childMessenger,
+        actions: ['Source:getValue'],
+        events: ['Source:stateChange'],
+      });
+
+      // Child can now call the delegated action
+      expect(childMessenger.call('Source:getValue')).toBe(42);
+
+      // Child can now subscribe to the delegated event
+      const subscriber = jest.fn();
+      // eslint-disable-next-line no-restricted-syntax
+      childMessenger.subscribe('Source:stateChange', subscriber);
+      sourceMessenger.publish('Source:stateChange', { value: 1 });
+      expect(subscriber).toHaveBeenCalledWith({ value: 1 });
+    });
+
+    it('delegates actions with an empty events array', () => {
+      type SourceAction = {
+        type: 'Source:getValue';
+        handler: () => number;
+      };
+
+      const sourceMessenger = new Messenger<'Source', SourceAction, never>({
+        namespace: 'Source',
+      });
+      const childMessenger = new Messenger<'Child', SourceAction, never>({
+        namespace: 'Child',
+      });
+
+      sourceMessenger.registerActionHandler('Source:getValue', () => 99);
+
+      sourceMessenger.delegateAll({
+        messenger: childMessenger,
+        actions: ['Source:getValue'],
+        events: [],
+      });
+
+      expect(childMessenger.call('Source:getValue')).toBe(99);
     });
   });
 

@@ -6,8 +6,8 @@ import type {
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
-import { eip7702AuthorizationStep } from './eip-7702-authorization';
+import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
+import { eip7702AuthorizationStep } from './eip-7702-authorization.js';
 
 const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_CHAIN_ID = '0xaa36a7' as Hex; // 11155111 (Sepolia) — non-trivial decimal
@@ -202,6 +202,13 @@ describe('eip7702AuthorizationStep', () => {
       expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
       expect(mocks.createUpgrade).not.toHaveBeenCalled();
     });
+
+    it('marks the failure as terminal', async () => {
+      const { messenger, mocks } = setup();
+      configureProvider(mocks, delegationCode(MOCK_THIRD_PARTY_IMPL));
+
+      await expect(run(messenger)).rejects.toMatchObject({ terminal: true });
+    });
   });
 
   describe('when the account has unexpected non-delegation code', () => {
@@ -215,6 +222,13 @@ describe('eip7702AuthorizationStep', () => {
       );
       expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
       expect(mocks.createUpgrade).not.toHaveBeenCalled();
+    });
+
+    it('marks the failure as terminal', async () => {
+      const { messenger, mocks } = setup();
+      configureProvider(mocks, '0x6080604052' as Hex);
+
+      await expect(run(messenger)).rejects.toMatchObject({ terminal: true });
     });
 
     it('throws when eth_getCode returns a non-hex value', async () => {

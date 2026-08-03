@@ -1,6 +1,6 @@
 import { errorCodes } from '@metamask/rpc-errors';
 
-import { isExecutionRevertedError } from './error';
+import { isExecutionRevertedError } from './error.js';
 
 const executionRevertedError = {
   code: errorCodes.rpc.invalidInput,

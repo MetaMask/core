@@ -25,29 +25,29 @@ import type {
 } from '@metamask/utils';
 import { cloneDeep, isEqual, pick } from 'lodash';
 
-import { CaveatTypes, PermissionKeys } from './constants';
+import { CaveatTypes, PermissionKeys } from './constants.js';
 import {
   setEthAccounts,
   setNonSCACaipAccountIdsInCaip25CaveatValue,
-} from './operators/caip-permission-operator-accounts';
+} from './operators/caip-permission-operator-accounts.js';
 import {
   setChainIdsInCaip25CaveatValue,
   setPermittedEthChainIds,
-} from './operators/caip-permission-operator-permittedChains';
-import { assertIsInternalScopesObject } from './scope/assert';
-import { KnownSessionProperties } from './scope/constants';
+} from './operators/caip-permission-operator-permittedChains.js';
+import { assertIsInternalScopesObject } from './scope/assert.js';
+import { KnownSessionProperties } from './scope/constants.js';
 import {
   isSupportedAccount,
   isSupportedScopeString,
   isSupportedSessionProperty,
-} from './scope/supported';
-import { mergeInternalScopes } from './scope/transform';
-import { parseScopeString } from './scope/types';
+} from './scope/supported.js';
+import { mergeInternalScopes } from './scope/transform.js';
+import { parseScopeString } from './scope/types.js';
 import type {
   ExternalScopeString,
   InternalScopeObject,
   InternalScopesObject,
-} from './scope/types';
+} from './scope/types.js';
 
 /**
  * The CAIP-25 permission caveat value.

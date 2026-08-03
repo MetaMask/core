@@ -9,7 +9,7 @@ import {
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 
-import { walletRevokeSessionHandler } from './wallet-revokeSession';
+import { walletRevokeSessionHandler } from './wallet-revokeSession.js';
 
 const baseRequest: JsonRpcRequest & {
   origin: string;

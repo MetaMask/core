@@ -7,8 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1]
+
+### Fixed
+
+- Fix global catch for migration error ([#9720](https://github.com/MetaMask/core/pull/9720))
+  - The global catch was only used during automatic migration on vault unlock.
+  - It is now properly setup for any migration entry point.
+
+## [2.1.0]
+
 ### Added
 
+- Report migration error in case of failure ([#9696](https://github.com/MetaMask/core/pull/9696))
+  - The migration is a mandatory and it is not supposed to fail.
+  - Reporting should help identifying which step could have failed and help addressing the actual issue.
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.4` to `^7.5.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/account-api` from `^1.0.4` to `^1.1.1` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-snap-sdk` from `^9.2.0` to `^9.2.1` ([#9676](https://github.com/MetaMask/core/pull/9676))
+
+## [2.0.0]
+
+### Added
+
+- Add `getCapabilities` action to expose a Snap's keyring capabilities ([#9377](https://github.com/MetaMask/core/pull/9377))
+  - Reads the capabilities the bridge keyring populated from the Snap's manifest, letting consumers decide whether to drive the Snap through the v1 or v2 keyring path.
 - **BREAKING:** Add `SnapAccountService:getAccount{Assets,Balances,Transactions}`, `SnapAccountService:resolveAccountAddress`, and `SnapAccountService:setSelectedAccounts` messenger actions ([#9390](https://github.com/MetaMask/core/pull/9390))
   - These actions proxy the corresponding `KeyringClient` (v2) methods, with `snapId` as the first parameter to identify the target Snap.
   - Each call goes through `ensureReady` to guarantee the Snap is ready before the request is sent.
@@ -21,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-snap-sdk` from `^9.0.1` to `^9.2.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^23.0.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/account-tree-controller` from `^7.5.3` to `^7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
 
 ## [1.0.0]
 
@@ -126,7 +154,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.1...HEAD
+[2.1.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.0...@metamask/snap-account-service@2.1.1
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.0.0...@metamask/snap-account-service@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@1.0.0...@metamask/snap-account-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.1...@metamask/snap-account-service@1.0.0
 [0.3.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.0...@metamask/snap-account-service@0.3.1
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.2.1...@metamask/snap-account-service@0.3.0

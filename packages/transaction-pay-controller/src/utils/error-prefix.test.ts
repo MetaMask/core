@@ -1,4 +1,4 @@
-import { prefixError } from './error-prefix';
+import { prefixError } from './error-prefix.js';
 
 describe('prefixError', () => {
   it('prefixes Error messages without replacing the Error object', () => {

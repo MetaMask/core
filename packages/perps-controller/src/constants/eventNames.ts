@@ -93,6 +93,7 @@ export const PERPS_EVENT_PROPERTY = {
   VIEW_OCCURRENCES: 'view_occurrences',
   AMOUNT_FILLED: 'amount_filled',
   REMAINING_AMOUNT: 'remaining_amount',
+  NUMBER_POSITIONS_CLOSED: 'number_positions_closed',
 
   // Tutorial carousel navigation properties
   PREVIOUS_SCREEN: 'previous_screen',
@@ -253,6 +254,12 @@ export const PERPS_EVENT_VALUE = {
   ORDER_TYPE: {
     MARKET: 'market',
     LIMIT: 'limit',
+    // Trigger placements are emitted verbatim by TradingService, so the enum has
+    // to list them for dashboards keyed on `order_type`.
+    STOP_MARKET: 'stop_market',
+    STOP_LIMIT: 'stop_limit',
+    TAKE_PROFIT_MARKET: 'take_profit_market',
+    TAKE_PROFIT_LIMIT: 'take_profit_limit',
   },
   ORDER_TYPE_CAPITALIZED: {
     MARKET: 'market',
@@ -287,6 +294,7 @@ export const PERPS_EVENT_VALUE = {
     PERP_MARKET: 'perp_market',
     PERP_MARKET_SEARCH: 'perp_market_search',
     POSITION_SCREEN: 'position_screen',
+    BOTTOM_NAV_BAR: 'bottom_nav_bar',
     TP_SL_VIEW: 'tp_sl_view',
     PERPS_HOME: 'perps_home',
     PERPS_TUTORIAL: 'perps_tutorial',

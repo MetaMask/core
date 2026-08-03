@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [2.4.0]
+
+### Changed
+
+- Convert all Veda vault APR values returned by `getVaultApy` to compounded APY using daily compounding before exposing them to consumers. ([#9684](https://github.com/MetaMask/core/pull/9684))
+- Bump `@metamask/money-account-api-data-service` from `^0.3.0` to `^0.4.0` ([#9677](https://github.com/MetaMask/core/pull/9677))
+- Bump `@metamask/money-account-api-data-service` from `^0.2.0` to `^0.3.0` ([#9592](https://github.com/MetaMask/core/pull/9592))
+
+## [2.3.0]
+
+### Added
+
+- Add `fetchBalanceWithFallback` facade that selects Money API or RPC balance sources from the `moneyAccountBalanceSource` remote feature flag (`api` | `rpc` | `api-only` | `rpc-only`; default `rpc` = RPC primary with Money API fallback). Returns canonical amounts plus `source` and `usedFallback` provenance; reports validation/unavailable source defects via messenger `captureException`; throws `MoneyAccountBalanceFetchError` when all eligible sources fail. ([#9554](https://github.com/MetaMask/core/pull/9554))
+- Permit `MoneyAccountApiDataService:fetchPositions` on the balance service messenger so the facade can read Money API balances. ([#9554](https://github.com/MetaMask/core/pull/9554))
+- Export `CanonicalMoneyAccountBalanceResponse`, balance-source constants/types, and `MoneyAccountBalanceFetchError` / `MoneyAccountBalanceUnavailableError` / `MoneyAccountBalanceValidationError`. ([#9554](https://github.com/MetaMask/core/pull/9554))
+
+### Changed
+
+- Bump `@metamask/money-account-api-data-service` from `^0.1.0` to `^0.2.0` ([#9573](https://github.com/MetaMask/core/pull/9573))
+
+## [2.2.0]
+
+### Added
+
+- Add optional `trace` constructor option to `MoneyAccountBalanceService` for tracing network requests (RPC calls and the Veda APY API fetch). Tracing is best-effort and does not affect query results if it fails. ([#9434](https://github.com/MetaMask/core/pull/9434))
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
@@ -101,7 +134,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.1...HEAD
+[2.4.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.0...@metamask/money-account-balance-service@2.4.1
+[2.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.3.0...@metamask/money-account-balance-service@2.4.0
+[2.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.2.0...@metamask/money-account-balance-service@2.3.0
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.1.2...@metamask/money-account-balance-service@2.2.0
 [2.1.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.1.1...@metamask/money-account-balance-service@2.1.2
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.1.0...@metamask/money-account-balance-service@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.0.0...@metamask/money-account-balance-service@2.1.0

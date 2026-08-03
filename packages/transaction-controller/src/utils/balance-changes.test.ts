@@ -3,22 +3,22 @@ import { Interface } from '@ethersproject/abi';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { simulateTransactions } from '../api/simulation-api';
+import { simulateTransactions } from '../api/simulation-api.js';
 import type {
   SimulationResponseLog,
   SimulationResponseTransaction,
-} from '../api/simulation-api';
-import type { SimulationResponse } from '../api/simulation-api';
+} from '../api/simulation-api.js';
+import type { SimulationResponse } from '../api/simulation-api.js';
 import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
-} from '../errors';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { GetSimulationConfig } from '../types';
-import { SimulationErrorCode, SimulationTokenStandard } from '../types';
-import type { GetBalanceChangesRequest } from './balance-changes';
-import { getBalanceChanges, SupportedToken } from './balance-changes';
-import { rpcRequest } from './provider';
+} from '../errors.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { GetSimulationConfig } from '../types.js';
+import { SimulationErrorCode, SimulationTokenStandard } from '../types.js';
+import type { GetBalanceChangesRequest } from './balance-changes.js';
+import { getBalanceChanges, SupportedToken } from './balance-changes.js';
+import { rpcRequest } from './provider.js';
 
 jest.mock('../api/simulation-api');
 

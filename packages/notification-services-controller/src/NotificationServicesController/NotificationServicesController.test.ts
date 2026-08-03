@@ -26,23 +26,27 @@ import type {
   NotificationServicesPushControllerDeletePushNotificationLinksAction,
   NotificationServicesPushControllerEnablePushNotificationsAction,
   NotificationServicesPushControllerSubscribeToPushNotificationsAction,
-} from '../NotificationServicesPushController';
-import { ADDRESS_1, ADDRESS_2, ADDRESS_3 } from './__fixtures__/mockAddresses';
+} from '../NotificationServicesPushController/index.js';
+import {
+  ADDRESS_1,
+  ADDRESS_2,
+  ADDRESS_3,
+} from './__fixtures__/mockAddresses.js';
 import {
   mockGetOnChainNotificationsConfig,
   mockGetAPINotifications,
   mockFetchFeatureAnnouncementNotifications,
   mockMarkNotificationsAsRead,
   mockCreatePerpNotification,
-} from './__fixtures__/mockServices';
-import { waitFor } from './__fixtures__/test-utils';
-import { TRIGGER_TYPES } from './constants';
-import { createMockSnapNotification } from './mocks';
+} from './__fixtures__/mockServices.js';
+import { waitFor } from './__fixtures__/test-utils.js';
+import { TRIGGER_TYPES } from './constants/index.js';
+import { createMockSnapNotification } from './mocks/index.js';
 import {
   createMockFeatureAnnouncementAPIResult,
   createMockFeatureAnnouncementRaw,
-} from './mocks/mock-feature-announcements';
-import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
+} from './mocks/mock-feature-announcements.js';
+import { createMockNotificationEthSent } from './mocks/mock-raw-notifications.js';
 import {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
   DEFAULT_PERPS_PREFERENCES,
@@ -51,16 +55,16 @@ import {
   NotificationServicesController,
   ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS,
   defaultState,
-} from './NotificationServicesController';
+} from './NotificationServicesController.js';
 import type {
   NotificationServicesControllerMessenger,
   NotificationServicesControllerState,
-} from './NotificationServicesController';
-import { processFeatureAnnouncement } from './processors';
-import { processNotification } from './processors/process-notifications';
-import { processSnapNotification } from './processors/process-snap-notifications';
-import { notificationsConfigCache } from './services/notification-config-cache';
-import type { INotification, OrderInput } from './types';
+} from './NotificationServicesController.js';
+import { processFeatureAnnouncement } from './processors/index.js';
+import { processNotification } from './processors/process-notifications.js';
+import { processSnapNotification } from './processors/process-snap-notifications.js';
+import { notificationsConfigCache } from './services/notification-config-cache.js';
+import type { INotification, OrderInput } from './types/index.js';
 
 // Mock type used for testing purposes
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -451,6 +455,51 @@ describe('NotificationServicesController', () => {
       });
       await waitFor(() => {
         expect(mockSubscribeToPushNotifications).not.toHaveBeenCalled();
+      });
+    });
+
+    it('queues one re-fetch (not concurrent) when pushes arrive while a fetch is in-flight', async () => {
+      const mocks = arrangeMocks();
+      let resolveFetch!: (v: INotification[]) => void;
+      const controller = new NotificationServicesController({
+        messenger: mocks.messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+        state: { isNotificationServicesEnabled: true },
+      });
+      controller.init();
+
+      const fetchSpy = jest
+        .spyOn(controller, 'fetchAndUpdateMetamaskNotifications')
+        .mockImplementationOnce(
+          () =>
+            new Promise<INotification[]>((resolve) => {
+              resolveFetch = resolve;
+            }),
+        )
+        .mockResolvedValue([]);
+
+      // First push — starts the in-flight fetch
+      mocks.globalMessenger.publish(
+        'NotificationServicesPushController:onNewNotifications',
+        [],
+      );
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      // Second and third pushes arrive while fetch is still in-flight — both coalesced into one pending refetch
+      mocks.globalMessenger.publish(
+        'NotificationServicesPushController:onNewNotifications',
+        [],
+      );
+      mocks.globalMessenger.publish(
+        'NotificationServicesPushController:onNewNotifications',
+        [],
+      );
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      // Resolve the first fetch — should trigger exactly one queued re-fetch
+      resolveFetch([]);
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
       });
     });
   });
@@ -1242,6 +1291,7 @@ describe('NotificationServicesController', () => {
       expect(filteredNotifications).toStrictEqual([
         {
           type: TRIGGER_TYPES.SNAP,
+          notification_subtype: TRIGGER_TYPES.SNAP,
           id: expect.any(String),
           createdAt: expect.any(String),
           isRead: false,
@@ -1611,6 +1661,7 @@ describe('NotificationServicesController', () => {
       expect(controller.state.metamaskNotificationsList).toStrictEqual([
         {
           type: TRIGGER_TYPES.SNAP,
+          notification_subtype: TRIGGER_TYPES.SNAP,
           id: expect.any(String),
           createdAt: expect.any(String),
           readDate: null,

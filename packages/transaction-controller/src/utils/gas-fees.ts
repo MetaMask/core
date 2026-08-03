@@ -6,17 +6,23 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   SavedGasFees,
   TransactionParams,
   TransactionMeta,
   GasFeeFlow,
-} from '../types';
-import { GasFeeEstimateType, UserFeeLevel } from '../types';
-import { getGasFeeFlow } from './gas-flow';
-import { rpcRequest } from './provider';
+} from '../types.js';
+import {
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
+  TransactionType,
+  UserFeeLevel,
+} from '../types.js';
+import { getGasFeeFlow } from './gas-flow.js';
+import { rpcRequest } from './provider.js';
+import { SWAP_TRANSACTION_TYPES } from './swaps.js';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
@@ -24,7 +30,9 @@ export type UpdateGasFeesRequest = {
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
-  getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+  getSavedGasFees: (
+    transactionMeta: TransactionMeta,
+  ) => SavedGasFees | undefined;
   messenger: TransactionControllerMessenger;
   txMeta: TransactionMeta;
 };
@@ -39,9 +47,23 @@ type SuggestedGasFees = {
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
   gasPrice?: string;
+
+  /**
+   * Whether the suggested fee was derived from a specific estimate level,
+   * such as `low`/`medium`/`high`. This is `false` for estimate types that
+   * do not support per-level pricing, such as a flat `eth_gasPrice` value,
+   * or when the gas fee flow failed and a raw RPC fallback was used.
+   */
+  isEstimateLevelApplied?: boolean;
 };
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
+
+const SAVED_GAS_FEES_IGNORED_TRANSACTION_TYPES = [
+  ...SWAP_TRANSACTION_TYPES,
+  TransactionType.bridge,
+  TransactionType.bridgeApproval,
+];
 
 /**
  * Update the gas fee properties of the provided transaction meta.
@@ -54,15 +76,20 @@ export async function updateGasFees(
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
-  // User-saved (advanced) gas fees only apply to dApp transactions. Internal
-  // transactions (e.g. swaps and bridges) have their fees dictated by the
-  // aggregator or relay, so applying saved gas fees could underprice them and
-  // cause them to fail or get stuck.
-  const savedGasFees = txMeta.isInternal
-    ? undefined
-    : request.getSavedGasFees(txMeta.chainId);
+  const shouldIgnoreSavedGasFees =
+    SAVED_GAS_FEES_IGNORED_TRANSACTION_TYPES.includes(
+      txMeta.type as TransactionType,
+    );
 
-  const suggestedGasFees = await getSuggestedGasFees(request);
+  const savedGasFees =
+    shouldIgnoreSavedGasFees || hasInitialGasFeeParams(initialParams)
+      ? undefined
+      : request.getSavedGasFees(txMeta);
+
+  const suggestedGasFees = await getSuggestedGasFees({
+    ...request,
+    savedGasFees,
+  });
 
   log('Suggested gas fees', suggestedGasFees);
 
@@ -139,7 +166,7 @@ function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
     return undefined;
   }
 
-  if (savedGasFees) {
+  if (savedGasFees?.maxBaseFee) {
     const maxFeePerGas = gweiDecimalToWeiHex(savedGasFees.maxBaseFee);
     log('Using maxFeePerGas from savedGasFees', maxFeePerGas);
     return maxFeePerGas;
@@ -191,7 +218,7 @@ function getMaxPriorityFeePerGas(
     return undefined;
   }
 
-  if (savedGasFees) {
+  if (savedGasFees?.priorityFee) {
     const maxPriorityFeePerGas = gweiDecimalToWeiHex(savedGasFees.priorityFee);
     log(
       'Using maxPriorityFeePerGas from savedGasFees.priorityFee',
@@ -243,10 +270,16 @@ function getMaxPriorityFeePerGas(
  * @returns The gasPrice value.
  */
 function getGasPrice(request: GetGasFeeRequest): string | undefined {
-  const { eip1559, initialParams, suggestedGasFees } = request;
+  const { eip1559, initialParams, savedGasFees, suggestedGasFees } = request;
 
   if (eip1559) {
     return undefined;
+  }
+
+  if (savedGasFees?.gasPrice) {
+    const gasPrice = gweiDecimalToWeiHex(savedGasFees.gasPrice);
+    log('Using gasPrice from savedGasFees.gasPrice', gasPrice);
+    return gasPrice;
   }
 
   if (initialParams.gasPrice) {
@@ -274,11 +307,26 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
  * @param request - The request object.
  * @returns The user fee level.
  */
-function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
+function getUserFeeLevel(request: GetGasFeeRequest): string | undefined {
   const { initialParams, savedGasFees, suggestedGasFees, txMeta } = request;
 
   if (savedGasFees) {
-    return UserFeeLevel.CUSTOM;
+    const hasCustomOverride =
+      savedGasFees.maxBaseFee !== undefined ||
+      savedGasFees.priorityFee !== undefined ||
+      savedGasFees.gasPrice !== undefined;
+
+    const canUseSavedLevel =
+      !hasCustomOverride &&
+      savedGasFees.level !== undefined &&
+      suggestedGasFees.isEstimateLevelApplied;
+
+    // A custom override on any field, or an estimate type that does not
+    // support per-level pricing (e.g. a flat eth_gasPrice value), means the
+    // fee is no longer purely level-derived, so it must not be tracked as a
+    // live estimate level by the gas fee poller, which would otherwise
+    // overwrite the override or misrepresent the fee as matching the level.
+    return canUseSavedLevel ? savedGasFees.level : UserFeeLevel.CUSTOM;
   }
 
   if (
@@ -338,10 +386,16 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta): void {
  * @returns The suggested gas fees.
  */
 async function getSuggestedGasFees(
-  request: UpdateGasFeesRequest,
+  request: UpdateGasFeesRequest & { savedGasFees?: SavedGasFees },
 ): Promise<SuggestedGasFees> {
-  const { eip1559, gasFeeFlows, getGasFeeEstimates, messenger, txMeta } =
-    request;
+  const {
+    eip1559,
+    gasFeeFlows,
+    getGasFeeEstimates,
+    messenger,
+    savedGasFees,
+    txMeta,
+  } = request;
   const { networkClientId } = txMeta;
 
   if (
@@ -369,16 +423,27 @@ async function getSuggestedGasFees(
     });
 
     const gasFeeEstimateType = response.estimates?.type;
+    const savedGasFeeEstimateLevel = getSavedGasFeeEstimateLevel(savedGasFees);
 
     switch (gasFeeEstimateType) {
       case GasFeeEstimateType.FeeMarket:
-        return response.estimates.medium;
+        return {
+          ...(response.estimates[savedGasFeeEstimateLevel] ??
+            response.estimates.medium),
+          isEstimateLevelApplied: true,
+        };
       case GasFeeEstimateType.Legacy:
         return {
-          gasPrice: response.estimates.medium,
+          gasPrice:
+            response.estimates[savedGasFeeEstimateLevel] ??
+            response.estimates.medium,
+          isEstimateLevelApplied: true,
         };
       case GasFeeEstimateType.GasPrice:
-        return { gasPrice: response.estimates.gasPrice };
+        return {
+          gasPrice: response.estimates.gasPrice,
+          isEstimateLevelApplied: false,
+        };
       default:
         throw new Error(
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -399,4 +464,26 @@ async function getSuggestedGasFees(
   const gasPrice = gasPriceHex ? add0x(gasPriceHex) : undefined;
 
   return { gasPrice };
+}
+
+function hasInitialGasFeeParams(initialParams: TransactionParams): boolean {
+  return [
+    initialParams.maxFeePerGas,
+    initialParams.maxPriorityFeePerGas,
+    initialParams.gasPrice,
+  ].some(Boolean);
+}
+
+function getSavedGasFeeEstimateLevel(
+  savedGasFees: SavedGasFees | undefined,
+): GasFeeEstimateLevel {
+  return isGasFeeEstimateLevel(savedGasFees?.level)
+    ? savedGasFees.level
+    : GasFeeEstimateLevel.Medium;
+}
+
+function isGasFeeEstimateLevel(level: unknown): level is GasFeeEstimateLevel {
+  return Object.values(GasFeeEstimateLevel).includes(
+    level as GasFeeEstimateLevel,
+  );
 }

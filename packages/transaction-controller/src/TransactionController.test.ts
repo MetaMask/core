@@ -42,34 +42,34 @@ import assert from 'assert';
 // eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { flushPromises } from '../../../tests/helpers';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
+import { FakeProvider } from '../../../tests/fake-provider.js';
+import { flushPromises } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
-import { CHAIN_IDS } from './constants';
-import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
-import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
-import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow';
-import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
+} from '../../network-controller/tests/helpers.js';
+import { CHAIN_IDS } from './constants.js';
+import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow.js';
+import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow.js';
+import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow.js';
+import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow.js';
 import {
   updateTransactionGasEstimates,
   GasFeePoller,
-} from './helpers/GasFeePoller';
-import { MethodDataHelper } from './helpers/MethodDataHelper';
-import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
-import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
-import { shouldResimulate } from './helpers/ResimulateHelper';
-import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
+} from './helpers/GasFeePoller.js';
+import { MethodDataHelper } from './helpers/MethodDataHelper.js';
+import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper.js';
+import { PendingTransactionTracker } from './helpers/PendingTransactionTracker.js';
+import { shouldResimulate } from './helpers/ResimulateHelper.js';
+import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook.js';
 import type {
   MethodData,
   TransactionControllerMessenger,
   TransactionControllerOptions,
-} from './TransactionController';
-import { TransactionController } from './TransactionController';
+} from './TransactionController.js';
+import { TransactionController } from './TransactionController.js';
 import type {
   TransactionMeta,
   DappSuggestedGasFees,
@@ -84,7 +84,7 @@ import type {
   GasFeeEstimates,
   SimulationData,
   GetSimulationConfig,
-} from './types';
+} from './types.js';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
@@ -95,35 +95,35 @@ import {
   TransactionStatus,
   TransactionType,
   WalletDevice,
-} from './types';
-import { getBalanceChanges } from './utils/balance-changes';
-import { addTransactionBatch } from './utils/batch';
-import { getDelegationAddress } from './utils/eip7702';
+} from './types.js';
+import { getBalanceChanges } from './utils/balance-changes.js';
+import { addTransactionBatch } from './utils/batch.js';
+import { getDelegationAddress } from './utils/eip7702.js';
 import {
   getSubmitHistoryLimit,
   getTransactionHistoryLimit,
-} from './utils/feature-flags';
-import { updateFirstTimeInteraction } from './utils/first-time-interaction';
+} from './utils/feature-flags.js';
+import { updateFirstTimeInteraction } from './utils/first-time-interaction.js';
+import { getGasFeeTokens } from './utils/gas-fee-tokens.js';
+import { updateGasFees } from './utils/gas-fees.js';
+import { getGasFeeFlow } from './utils/gas-flow.js';
 import {
   addGasBuffer,
   estimateGas,
   estimateGasBatch,
   updateGas,
-} from './utils/gas';
-import { getGasFeeTokens } from './utils/gas-fee-tokens';
-import { updateGasFees } from './utils/gas-fees';
-import { getGasFeeFlow } from './utils/gas-flow';
+} from './utils/gas.js';
 import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
-} from './utils/layer1-gas-fee-flow';
-import { rpcRequest } from './utils/provider';
+} from './utils/layer1-gas-fee-flow.js';
+import { rpcRequest } from './utils/provider.js';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
-} from './utils/swaps';
-import * as transactionTypeUtils from './utils/transaction-type';
-import { ErrorCode } from './utils/validation';
+} from './utils/swaps.js';
+import * as transactionTypeUtils from './utils/transaction-type.js';
+import { ErrorCode } from './utils/validation.js';
 
 type AllTransactionControllerActions =
   MessengerActions<TransactionControllerMessenger>;
@@ -4925,6 +4925,94 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('updateTransactionMetadata', () => {
+    it('updates multiple properties using a callback and returns the updated transaction', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      const result = controller.updateTransactionMetadata({
+        transactionId: TRANSACTION_META_MOCK.id,
+        callback: (transactionMeta) => {
+          transactionMeta.requiredAssets = [
+            {
+              address: ACCOUNT_2_MOCK,
+              amount: '0x1',
+              standard: 'erc20',
+            },
+          ];
+          transactionMeta.txParams.value = '0x2';
+        },
+      });
+
+      expect(result).toStrictEqual(controller.state.transactions[0]);
+      expect(result.requiredAssets).toStrictEqual([
+        {
+          address: ACCOUNT_2_MOCK,
+          amount: '0x1',
+          standard: 'erc20',
+        },
+      ]);
+      expect(result.txParams.value).toBe('0x2');
+    });
+
+    it('does not check whether the update should trigger re-simulation', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      controller.updateTransactionMetadata({
+        transactionId: TRANSACTION_META_MOCK.id,
+        callback: (transactionMeta) => {
+          transactionMeta.txParams.data = '0x1234';
+        },
+        skipResimulate: true,
+      });
+
+      expect(shouldResimulateMock).not.toHaveBeenCalled();
+    });
+
+    it('ignores a transaction returned by the callback', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+      const updatedTransaction = {
+        ...TRANSACTION_META_MOCK,
+        txParams: { ...TRANSACTION_META_MOCK.txParams, value: '0x3' },
+      };
+
+      const result = controller.updateTransactionMetadata({
+        transactionId: TRANSACTION_META_MOCK.id,
+        callback: () => updatedTransaction,
+      });
+
+      expect(result).toStrictEqual(TRANSACTION_META_MOCK);
+    });
+
+    it('throws if the transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.updateTransactionMetadata({
+          transactionId: 'missing-id',
+          callback: () => undefined,
+        }),
+      ).toThrow('Cannot update transaction as ID not found - missing-id');
+    });
+  });
+
   describe('updateTransactionGasFees', () => {
     it('throws if transaction does not exist', async () => {
       const { controller } = setupController();
@@ -7683,6 +7771,104 @@ describe('TransactionController', () => {
       expect(result).not.toContain('4567');
     });
 
+    it('clears stale preparation metadata before gas estimation completes', async () => {
+      const gasPreparation = createDeferredPromise<void>();
+      const receiptRevert = { message: 'Receipt reverted' };
+      const simulationRevert = { message: 'Simulation reverted' };
+      updateGasMock.mockImplementationOnce(async ({ txMeta }) => {
+        await gasPreparation.promise;
+        txMeta.txParams.gas = '0x222';
+        txMeta.gasLimitNoBuffer = '0x200';
+      });
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                gasLimitNoBuffer: '0x100',
+                gasUsed: '0x101',
+                nestedTransactions: [{ to: ACCOUNT_2_MOCK, data: '0x1234' }],
+                revert: {
+                  gas: { message: 'Gas reverted' },
+                  receipt: receiptRevert,
+                  simulation: simulationRevert,
+                },
+                securityAlertResponse: {
+                  reason: 'Previous revision warning',
+                  result_type: 'Warning',
+                },
+                simulationData: SIMULATION_DATA_RESULT_MOCK,
+                simulationFails: {
+                  debug: {},
+                  reason: 'Previous gas estimate failed',
+                },
+                txParams: {
+                  ...TRANSACTION_META_MOCK.txParams,
+                  gas: '0x102',
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      const updatePromise = controller.updateAtomicBatchData({
+        transactionId: TRANSACTION_META_MOCK.id,
+        transactionIndex: 0,
+        transactionData: '0x89AB',
+      });
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction.nestedTransactions?.[0].data).toBe('0x89AB');
+      expect(transaction.txParams.data).toContain('89ab');
+      expect(transaction.txParams.gas).toBeUndefined();
+      expect(transaction.gasLimitNoBuffer).toBeUndefined();
+      expect(transaction.gasUsed).toBeUndefined();
+      expect(transaction.securityAlertResponse).toBeUndefined();
+      expect(transaction.simulationData).toBeUndefined();
+      expect(transaction.simulationFails).toBeUndefined();
+      expect(transaction.revert).toStrictEqual({
+        receipt: receiptRevert,
+        simulation: simulationRevert,
+      });
+
+      gasPreparation.resolve();
+      await updatePromise;
+
+      expect(controller.state.transactions[0].txParams.gas).toBe('0x222');
+      expect(controller.state.transactions[0].gasLimitNoBuffer).toBe('0x200');
+    });
+
+    it('clears stale revert metadata and applies a new gas revert', async () => {
+      updateGasMock.mockImplementationOnce(async ({ txMeta }) => {
+        txMeta.revert = { gas: { message: 'New gas revert' } };
+      });
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                nestedTransactions: [{ to: ACCOUNT_2_MOCK, data: '0x1234' }],
+                revert: { gas: { message: 'Old gas revert' } },
+              },
+            ],
+          },
+        },
+      });
+
+      await controller.updateAtomicBatchData({
+        transactionId: TRANSACTION_META_MOCK.id,
+        transactionIndex: 0,
+        transactionData: '0x89AB',
+      });
+
+      expect(controller.state.transactions[0].revert).toStrictEqual({
+        gas: { message: 'New gas revert' },
+      });
+    });
+
     it('updates gas', async () => {
       const gasMock = '0x1234';
       const gasLimitNoBufferMock = '0x123';
@@ -7710,6 +7896,26 @@ describe('TransactionController', () => {
         options: {
           state: {
             transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      await expect(
+        controller.updateAtomicBatchData({
+          transactionId: TRANSACTION_META_MOCK.id,
+          transactionIndex: 0,
+          transactionData: '0x89AB',
+        }),
+      ).rejects.toThrow('Nested transaction not found');
+    });
+
+    it('throws if the transaction has no nested transactions', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, nestedTransactions: undefined },
+            ],
           },
         },
       });
@@ -8189,6 +8395,28 @@ describe('TransactionController', () => {
         }
       `);
     });
+
+    it('accepts ignored incoming transaction compatibility options', () => {
+      expect(() =>
+        setupController({
+          options: {
+            incomingTransactions: {
+              client: 'extension-test',
+              includeTokenTransfers: false,
+              isEnabled: () => false,
+              updateTransactions: true,
+            },
+          },
+        }),
+      ).not.toThrow();
+    });
+
+    it('keeps incoming transaction polling compatibility methods as no-ops', () => {
+      const { controller } = setupController();
+
+      expect(() => controller.startIncomingTransactionPolling()).not.toThrow();
+      expect(() => controller.stopIncomingTransactionPolling()).not.toThrow();
+    });
   });
 
   describe('messenger actions', () => {
@@ -8349,6 +8577,31 @@ describe('TransactionController', () => {
         );
 
         expect(controller.state.transactions[0].txParams.value).toBe('0x1');
+      });
+    });
+
+    describe('TransactionController:updateTransactionMetadata', () => {
+      it('calls updateTransactionMetadata via messenger', () => {
+        const { controller, messenger } = setupController({
+          options: {
+            state: {
+              transactions: [TRANSACTION_META_MOCK],
+            },
+          },
+        });
+
+        const result = messenger.call(
+          'TransactionController:updateTransactionMetadata',
+          {
+            transactionId: TRANSACTION_META_MOCK.id,
+            callback: (transactionMeta) => {
+              transactionMeta.txParams.value = '0x1';
+            },
+          },
+        );
+
+        expect(result).toStrictEqual(controller.state.transactions[0]);
+        expect(result.txParams.value).toBe('0x1');
       });
     });
 

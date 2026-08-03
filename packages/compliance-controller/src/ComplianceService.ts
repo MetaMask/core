@@ -8,7 +8,7 @@ import type { Infer } from '@metamask/superstruct';
 import { array, boolean, object, string } from '@metamask/superstruct';
 import type { IDisposable } from 'cockatiel';
 
-import type { ComplianceServiceMethodActions } from './ComplianceService-method-action-types';
+import type { ComplianceServiceMethodActions } from './ComplianceService-method-action-types.js';
 
 // === GENERAL ===
 

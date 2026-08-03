@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [69.4.0]
+
+### Added
+
+- Export `getEffectiveRecipient` utility that returns the actual recipient of a transaction, decoding it from calldata for ERC-20/ERC-721/ERC-1155 token transfer methods where `txParams.to` is the token contract ([#9699](https://github.com/MetaMask/core/pull/9699))
+- Add optional `strategy` field to `MetamaskPayMetadata` to persist the MetaMask Pay strategy used to fund the transaction ([#9733](https://github.com/MetaMask/core/pull/9733))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/core-backend` from `^8.0.0` to `^8.1.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/gas-fee-controller` from `^26.3.0` to `^26.3.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [69.3.0]
+
+### Added
+
+- Add `updateTransactionMetadata` for applying coherent transaction metadata updates through the messenger, with an option to skip automatic re-simulation ([#9543](https://github.com/MetaMask/core/pull/9543))
+- Export `updateEIP7702BatchData` for updating nested EIP-7702 batch calldata without mutating the input ([#9543](https://github.com/MetaMask/core/pull/9543))
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^7.0.0` to `^8.0.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+
+### Fixed
+
+- Apply saved gas fee preferences to wallet-initiated transfers while continuing to ignore them for swaps and bridge transactions. ([#9682](https://github.com/MetaMask/core/pull/9682))
+
+## [69.2.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^6.5.0` to `^7.0.0` ([#9593](https://github.com/MetaMask/core/pull/9593))
+
+## [69.2.0]
+
+### Added
+
+- Export `hasTransactionType` helper for checking a transaction's type against the top-level `TransactionMeta` and any nested transactions ([#9570](https://github.com/MetaMask/core/pull/9570))
+
+## [69.1.0]
+
+### Changed
+
+- Query layer 1 gas fee oracles via direct `eth_call` RPC requests instead of an ethers `Contract` backed by `Web3Provider` ([#9505](https://github.com/MetaMask/core/pull/9505))
+  - `Web3Provider` schedules its JSON-RPC dispatch with `setTimeout`, which never fires on React Native iOS when the timer pump is starved, blocking `addTransaction` indefinitely and preventing dapp confirmations from appearing ([MetaMask/metamask-mobile#32863](https://github.com/MetaMask/metamask-mobile/issues/32863))
+
+## [69.0.0]
+
+### Changed
+
+- **BREAKING:** Expand saved gas fee support to allow transaction-scoped lookup, saved gas fee estimate levels, and legacy gas price values. Consumers that provide `getSavedGasFees` must now accept `TransactionMeta` instead of a chain ID. ([#8993](https://github.com/MetaMask/core/pull/8993))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [68.4.0]
+
+### Added
+
+- Export `generateEIP7702BatchTransaction` utility for building an ERC-7821 `execute(mode, calls)` batch transaction from a list of nested transactions ([#9298](https://github.com/MetaMask/core/pull/9298))
+
 ## [68.3.0]
 
 ### Added
@@ -2571,7 +2634,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.4.0...HEAD
+[69.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.3.0...@metamask/transaction-controller@69.4.0
+[69.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.2.1...@metamask/transaction-controller@69.3.0
+[69.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.2.0...@metamask/transaction-controller@69.2.1
+[69.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.1.0...@metamask/transaction-controller@69.2.0
+[69.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.0.0...@metamask/transaction-controller@69.1.0
+[69.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.4.0...@metamask/transaction-controller@69.0.0
+[68.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.3.0...@metamask/transaction-controller@68.4.0
 [68.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.2...@metamask/transaction-controller@68.3.0
 [68.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.1...@metamask/transaction-controller@68.2.2
 [68.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.0...@metamask/transaction-controller@68.2.1

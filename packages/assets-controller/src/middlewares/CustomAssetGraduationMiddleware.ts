@@ -1,14 +1,14 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from '../logger';
-import { forDataTypes } from '../types';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import { forDataTypes } from '../types.js';
 import type {
   AccountId,
   AssetBalance,
   Caip19AssetId,
   Middleware,
-} from '../types';
-import { normalizeAssetId } from '../utils';
+} from '../types.js';
+import { normalizeAssetId } from '../utils/index.js';
 
 const CONTROLLER_NAME = 'CustomAssetGraduationMiddleware';
 
@@ -83,7 +83,7 @@ export class CustomAssetGraduationMiddleware {
 
       // customAssets state is stored with checksummed/normalized asset IDs.
       // AccountsApiDataSource normalizes its response IDs, but
-      // BackendWebsocketDataSource does not — so we normalize the response
+      // AccountActivityDataSource does not — so we normalize the response
       // side here to make the comparison robust to lower-case addresses
       // delivered over the websocket.
       const customSet = new Set(customForAccount);

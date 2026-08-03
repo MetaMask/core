@@ -6,12 +6,27 @@
     "rootDir": "../.."
   },
   "references": [
-    { "path": "../accounts-controller" },
-    { "path": "../chain-agnostic-permission" },
-    { "path": "../json-rpc-engine" },
-    { "path": "../network-controller" },
-    { "path": "../permission-controller" },
-    { "path": "../multichain-transactions-controller" }
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../chain-agnostic-permission"
+    },
+    {
+      "path": "../json-rpc-engine"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../permission-controller"
+    },
+    {
+      "path": "../multichain-transactions-controller"
+    },
+    {
+      "path": "../controller-utils"
+    }
   ],
   "include": ["../../types", "./src"]
 }

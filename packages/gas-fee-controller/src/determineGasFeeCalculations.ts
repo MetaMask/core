@@ -4,8 +4,8 @@ import type {
   GasFeeEstimates,
   GasFeeState as GasFeeCalculations,
   LegacyGasPriceEstimate,
-} from './GasFeeController';
-import { GAS_ESTIMATE_TYPES } from './GasFeeController';
+} from './GasFeeController.js';
+import { GAS_ESTIMATE_TYPES } from './GasFeeController.js';
 
 type DetermineGasFeeCalculationsRequest = {
   isEIP1559Compatible: boolean;

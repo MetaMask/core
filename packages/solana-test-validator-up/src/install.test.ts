@@ -23,8 +23,8 @@ import {
   installSolanaTestValidator,
   parseSolanaTestValidatorInstallCliOptions,
   readSolanaTestValidatorInstallOptionsFromPackageJson,
-} from './install';
-import type { SolanaTestValidatorInstallDependencies } from './install';
+} from './install.js';
+import type { SolanaTestValidatorInstallDependencies } from './install.js';
 
 describe('solana-test-validator-up installer', () => {
   let tempDirs: string[] = [];

@@ -1,8 +1,8 @@
 import { isValidHexAddress } from '@metamask/controller-utils';
 import { add0x, bytesToHex, remove0x } from '@metamask/utils';
 
-import type { DecryptMessageParams } from './DecryptMessageManager';
-import type { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
+import type { DecryptMessageParams } from './DecryptMessageManager.js';
+import type { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager.js';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 /**

@@ -32,11 +32,11 @@ import type {
 import { createProjectLogger, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { APPROVAL_DELAY_MS } from '../constants';
-import type { BridgeStatusControllerMessenger } from '../types';
-import type { QuoteAndTxMetadata } from '../types';
-import { getAccountByAddress } from './accounts';
-import { getNetworkClientIdByChainId } from './network';
+import { APPROVAL_DELAY_MS } from '../constants.js';
+import type { BridgeStatusControllerMessenger } from '../types.js';
+import type { QuoteAndTxMetadata } from '../types.js';
+import { getAccountByAddress } from './accounts.js';
+import { getNetworkClientIdByChainId } from './network.js';
 
 export const isApprovalTx = (type: TransactionType) =>
   type === TransactionType.bridgeApproval ||

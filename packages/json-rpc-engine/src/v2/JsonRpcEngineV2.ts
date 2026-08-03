@@ -7,20 +7,20 @@ import type {
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
-import { deepClone } from './compatibility-utils';
+import { deepClone } from './compatibility-utils.js';
 import type {
   ContextConstraint,
   InferKeyValues,
   MergeContexts,
-} from './MiddlewareContext';
-import { MiddlewareContext } from './MiddlewareContext';
+} from './MiddlewareContext.js';
+import { MiddlewareContext } from './MiddlewareContext.js';
 import {
   isNotification,
   isRequest,
   JsonRpcEngineError,
   stringify,
-} from './utils';
-import type { JsonRpcCall } from './utils';
+} from './utils.js';
+import type { JsonRpcCall } from './utils.js';
 
 // Helper to forbid `id` on notifications
 type WithoutId<Request extends JsonRpcCall> = Request & { id?: never };

@@ -1,17 +1,18 @@
+import { BigNumber } from 'bignumber.js';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from '../constants/eventNames';
-import { isTPSLOrder } from '../constants/orderTypes';
-import { PerpsMeasurementName } from '../constants/performanceMetrics';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
+} from '../constants/eventNames.js';
+import { isTPSLOrder } from '../constants/orderTypes.js';
+import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import {
   PerpsAnalyticsEvent,
   PerpsTraceNames,
   PerpsTraceOperations,
-} from '../types';
+} from '../types/index.js';
 import type {
   PerpsProvider,
   OrderParams,
@@ -29,10 +30,11 @@ import type {
   UpdatePositionTPSLParams,
   PerpsAnalyticsProperties,
   PerpsPlatformDependencies,
-} from '../types';
-import { ensureError } from '../utils/errorUtils';
-import type { RewardsIntegrationService } from './RewardsIntegrationService';
-import type { ServiceContext } from './ServiceContext';
+} from '../types/index.js';
+import { ensureError } from '../utils/errorUtils.js';
+import { isLimitExecutionOrderType } from '../utils/orderTypes.js';
+import type { RewardsIntegrationService } from './RewardsIntegrationService.js';
+import type { ServiceContext } from './ServiceContext.js';
 
 /**
  * Controller-level dependencies for TradingService.
@@ -211,7 +213,9 @@ export class TradingService {
         ? parseFloat(result.averagePrice)
         : params.trackingData?.marketPrice;
     }
-    if (params.orderType === 'limit' && params.price) {
+    // Trigger limit placements carry a real limit price too, so the companion
+    // property must not go missing when order_type is stop_limit/take_profit_limit.
+    if (isLimitExecutionOrderType(params.orderType) && params.price) {
       properties[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(params.price);
     }
     if (params.trackingData?.source) {
@@ -304,6 +308,50 @@ export class TradingService {
       properties,
       this.#buildAttributionProperties(params.trackingData),
     );
+
+    // Emit an additional partially filled trade event when the fill is partial,
+    // mirroring the close path so the fill's partiality is visible in analytics
+    // rather than hidden behind a status=executed event. Classification is based
+    // on the provider's final submitted size (post precision rounding, USD
+    // recalculation, and $10-minimum retry), not the caller's pre-normalization
+    // params.size — the provider transforms the size before submission and a
+    // complete fill of the normalized size must not look partial. When the
+    // provider did not report a submitted size we do not classify (rather than
+    // guess from params.size). The partial event mirrors the close schema:
+    // order_size = submitted size, amount_filled = filled, remaining = the rest.
+    // Compare and subtract the decimal size strings with arbitrary-precision
+    // math (BigNumber): routing them through parseFloat can introduce
+    // binary-float artifacts that collapse distinct values (misclassifying the
+    // fill) or leave e-17 dust in remaining_amount. Only convert to Number for
+    // the emitted analytics values, after the exact decimal subtraction.
+    const submittedSize =
+      result?.submittedSize === undefined
+        ? undefined
+        : new BigNumber(result.submittedSize);
+    const filledSize =
+      result?.filledSize === undefined
+        ? undefined
+        : new BigNumber(result.filledSize);
+    if (
+      result?.success === true &&
+      submittedSize !== undefined &&
+      filledSize !== undefined &&
+      submittedSize.isFinite() &&
+      filledSize.isFinite() &&
+      filledSize.gt(0) &&
+      filledSize.lt(submittedSize)
+    ) {
+      this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
+        ...properties,
+        [PERPS_EVENT_PROPERTY.STATUS]:
+          PERPS_EVENT_VALUE.STATUS.PARTIALLY_FILLED,
+        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: submittedSize.toNumber(),
+        [PERPS_EVENT_PROPERTY.AMOUNT_FILLED]: filledSize.toNumber(),
+        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: submittedSize
+          .minus(filledSize)
+          .toNumber(),
+      });
+    }
 
     this.#deps.metrics.trackPerpsEvent(
       PerpsAnalyticsEvent.TradeTransaction,
@@ -779,6 +827,18 @@ export class TradingService {
     status: string,
     error?: string,
   ): Record<string, unknown> {
+    // Effective leverage = positionUSD / marginUSD, rounded to 1 decimal place.
+    // Computed from the live position rather than the configured leverage so it's
+    // populated for every close, including TP/SL triggers.
+    const positionUSD = Math.abs(parseFloat(position.positionValue));
+    const marginUSD = parseFloat(position.marginUsed);
+    const effectiveLeverage =
+      Number.isFinite(positionUSD) &&
+      Number.isFinite(marginUSD) &&
+      marginUSD > 0
+        ? Math.round((positionUSD / marginUSD) * 10) / 10
+        : undefined;
+
     const baseProperties = {
       [PERPS_EVENT_PROPERTY.STATUS]: status,
       [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
@@ -819,7 +879,8 @@ export class TradingService {
           ? parseFloat(result.averagePrice)
           : params.trackingData?.marketPrice,
       }),
-      ...(params.orderType === 'limit' &&
+      ...(params.orderType &&
+        isLimitExecutionOrderType(params.orderType) &&
         params.price && {
           [PERPS_EVENT_PROPERTY.LIMIT_PRICE]: parseFloat(params.price),
         }),
@@ -836,9 +897,9 @@ export class TradingService {
       ...(params.trackingData?.vipDiscount !== undefined && {
         [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: params.trackingData.vipDiscount,
       }),
-      // Leverage on close events (TAT-3147)
-      ...(position.leverage?.value !== undefined && {
-        [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage.value,
+      // Effective leverage on close events
+      ...(effectiveLeverage !== undefined && {
+        [PERPS_EVENT_PROPERTY.LEVERAGE]: effectiveLeverage,
       }),
       // Discovery attribution + hl_fee_rate (TAT-3080, TAT-3149)
       ...this.#buildAttributionProperties(params.trackingData),
@@ -1925,6 +1986,8 @@ export class TradingService {
             : PERPS_EVENT_VALUE.STATUS.FAILED,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
+        [PERPS_EVENT_PROPERTY.NUMBER_POSITIONS_CLOSED]:
+          operationResult?.successCount ?? 0,
       };
       if (operationError) {
         batchCloseProps[PERPS_EVENT_PROPERTY.ERROR_MESSAGE] =
@@ -2186,6 +2249,19 @@ export class TradingService {
         // Invalidate standalone caches so external hooks refresh
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'positions' });
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'accountState' });
+      } else {
+        // Track failure analytics for a non-throwing provider failure so the
+        // terminal Risk Management event is emitted exactly once here (the
+        // thrown path below handles exceptions).
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.RiskManagement, {
+          [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
+          [PERPS_EVENT_PROPERTY.ASSET]: symbol,
+          [PERPS_EVENT_PROPERTY.ACTION]:
+            parseFloat(amount) > 0 ? 'add_margin' : 'remove_margin',
+          [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
+          [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: result.error ?? 'Unknown error',
+        });
       }
 
       this.#deps.tracer.endTrace({

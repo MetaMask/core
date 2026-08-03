@@ -1,21 +1,21 @@
-import { Env, getEnvUrls } from '../../../sdk';
+import { Env, getEnvUrls } from '../../../sdk/index.js';
 import type {
   UserStorageGenericPathWithFeatureAndKey,
   UserStorageGenericPathWithFeatureOnly,
-} from '../../../shared/storage-schema';
+} from '../../../shared/storage-schema.js';
 import {
   createEntryPath,
   USER_STORAGE_FEATURE_NAMES,
-} from '../../../shared/storage-schema';
+} from '../../../shared/storage-schema.js';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
-} from '../types';
+} from '../types.js';
 import {
   MOCK_ENCRYPTED_STORAGE_DATA,
   MOCK_STORAGE_DATA,
   MOCK_STORAGE_KEY,
-} from './mockStorage';
+} from './mockStorage.js';
 
 type MockResponse = {
   url: string;

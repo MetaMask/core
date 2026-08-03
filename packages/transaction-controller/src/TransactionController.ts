@@ -3,6 +3,7 @@ import type { TypedTxData } from '@ethereumjs/tx';
 import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetStateAction,
+  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
@@ -21,7 +22,11 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
-import type { AccountActivityServiceTransactionUpdatedEvent } from '@metamask/core-backend';
+import type {
+  AccountActivityServiceStatusChangedEvent,
+  AccountActivityServiceTransactionUpdatedEvent,
+  BackendWebSocketServiceConnectionStateChangedEvent,
+} from '@metamask/core-backend';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeControllerFetchGasFeeEstimatesAction,
@@ -66,30 +71,30 @@ import { EventEmitter } from 'events';
 import { cloneDeep, mapValues, merge, noop, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
-import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
-import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
-import { MantleLayer1GasFeeFlow } from './gas-flows/MantleLayer1GasFeeFlow';
-import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
-import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow';
-import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
-import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
+import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow.js';
+import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow.js';
+import { MantleLayer1GasFeeFlow } from './gas-flows/MantleLayer1GasFeeFlow.js';
+import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow.js';
+import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow.js';
+import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow.js';
+import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow.js';
 import {
   GasFeePoller,
   updateTransactionGasProperties,
   updateTransactionGasEstimates,
-} from './helpers/GasFeePoller';
-import { MethodDataHelper } from './helpers/MethodDataHelper';
-import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
-import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
-import type { ResimulateResponse } from './helpers/ResimulateHelper';
+} from './helpers/GasFeePoller.js';
+import { MethodDataHelper } from './helpers/MethodDataHelper.js';
+import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper.js';
+import { PendingTransactionTracker } from './helpers/PendingTransactionTracker.js';
+import type { ResimulateResponse } from './helpers/ResimulateHelper.js';
 import {
   ResimulateHelper,
   hasSimulationDataChanged,
   shouldResimulate,
-} from './helpers/ResimulateHelper';
-import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
-import { projectLogger as log } from './logger';
-import type { TransactionControllerMethodActions } from './TransactionController-method-action-types';
+} from './helpers/ResimulateHelper.js';
+import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook.js';
+import { projectLogger as log } from './logger.js';
+import type { TransactionControllerMethodActions } from './TransactionController-method-action-types.js';
 import type {
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
@@ -124,7 +129,7 @@ import type {
   AddTransactionOptions,
   PublishHookResult,
   GetGasFeeTokensRequest,
-} from './types';
+} from './types.js';
 import {
   GasFeeEstimateLevel,
   TransactionContainerType,
@@ -132,49 +137,53 @@ import {
   TransactionType,
   TransactionStatus,
   SimulationErrorCode,
-} from './types';
-import { getBalanceChanges } from './utils/balance-changes';
-import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
+} from './types.js';
+import { getBalanceChanges } from './utils/balance-changes.js';
+import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch.js';
 import {
-  generateEIP7702BatchTransaction,
   getDelegationAddress,
   signAuthorizationList,
-} from './utils/eip7702';
-import { validateConfirmedExternalTransaction } from './utils/external-transactions';
+  updateEIP7702BatchData,
+} from './utils/eip7702.js';
+import { validateConfirmedExternalTransaction } from './utils/external-transactions.js';
 import {
   getSubmitHistoryLimit,
   getTransactionHistoryLimit,
-} from './utils/feature-flags';
-import { updateFirstTimeInteraction } from './utils/first-time-interaction';
-import type { EstimateGasBatchResult } from './utils/gas';
+} from './utils/feature-flags.js';
+import { updateFirstTimeInteraction } from './utils/first-time-interaction.js';
+import {
+  checkGasFeeTokenBeforePublish,
+  getGasFeeTokens,
+} from './utils/gas-fee-tokens.js';
+import { updateGasFees } from './utils/gas-fees.js';
+import { getGasFeeFlow } from './utils/gas-flow.js';
+import type { EstimateGasBatchResult } from './utils/gas.js';
 import {
   addGasBuffer,
   estimateGas,
   estimateGasBatch,
   updateGas,
-} from './utils/gas';
-import {
-  checkGasFeeTokenBeforePublish,
-  getGasFeeTokens,
-} from './utils/gas-fee-tokens';
-import { updateGasFees } from './utils/gas-fees';
-import { getGasFeeFlow } from './utils/gas-flow';
+} from './utils/gas.js';
 import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
-} from './utils/layer1-gas-fee-flow';
+} from './utils/layer1-gas-fee-flow.js';
 import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
-} from './utils/nonce';
-import { prepareTransaction, serializeTransaction } from './utils/prepare';
-import { getChainId, getNetworkClientId, rpcRequest } from './utils/provider';
-import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
+} from './utils/nonce.js';
+import { prepareTransaction, serializeTransaction } from './utils/prepare.js';
+import {
+  getChainId,
+  getNetworkClientId,
+  rpcRequest,
+} from './utils/provider.js';
+import { getTransactionParamsWithIncreasedGasFee } from './utils/retry.js';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
-} from './utils/swaps';
-import { determineTransactionType } from './utils/transaction-type';
+} from './utils/swaps.js';
+import { determineTransactionType } from './utils/transaction-type.js';
 import {
   normalizeTransactionParams,
   isEIP1559Transaction,
@@ -184,12 +193,12 @@ import {
   normalizeTxError,
   normalizeGasFeeValues,
   setEnvelopeType,
-} from './utils/utils';
+} from './utils/utils.js';
 import {
   ErrorCode,
   validateTransactionOrigin,
   validateTxParams,
-} from './utils/validation';
+} from './utils/validation.js';
 
 /**
  * Metadata for the TransactionController state, describing how to "anonymize"
@@ -313,6 +322,18 @@ export type TransactionControllerActions =
   | TransactionControllerGetStateAction
   | TransactionControllerMethodActions;
 
+/**
+ * @deprecated Incoming transaction support has been removed. These options are ignored.
+ */
+export type IncomingTransactionCompatibilityOptions = {
+  client?: string;
+  includeTokenTransfers?: boolean;
+  isEnabled?: () => boolean;
+  updateTransactions?: boolean;
+  /** @deprecated Ignored as incoming transaction support has been removed. */
+  etherscanApiKeysByChainId?: Record<Hex, string>;
+};
+
 /** TransactionController constructor options. */
 export type TransactionControllerOptions = {
   /** Whether to disable additional processing on swaps transactions. */
@@ -322,12 +343,19 @@ export type TransactionControllerOptions = {
   getPermittedAccounts?: (origin?: string) => Promise<string[]>;
 
   /** Gets the saved gas fee config. */
-  getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
+  getSavedGasFees?: (
+    transactionMeta: TransactionMeta,
+  ) => SavedGasFees | undefined;
 
   /**
    * Gets the transaction simulation configuration.
    */
   getSimulationConfig?: GetSimulationConfig;
+
+  /**
+   * @deprecated Incoming transaction support has been removed. This option is ignored.
+   */
+  incomingTransactions?: IncomingTransactionCompatibilityOptions;
 
   /**
    * Callback to determine whether gas fee updates should be enabled for a given transaction.
@@ -422,7 +450,10 @@ export type AllowedActions =
  * The external events available to the {@link TransactionController}.
  */
 export type AllowedEvents =
+  | AccountActivityServiceStatusChangedEvent
   | AccountActivityServiceTransactionUpdatedEvent
+  | AccountsControllerSelectedAccountChangeEvent
+  | BackendWebSocketServiceConnectionStateChangedEvent
   | NetworkControllerStateChangeEvent;
 
 /**
@@ -670,6 +701,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateSecurityAlertResponse',
   'updateSelectedGasFeeToken',
   'updateTransaction',
+  'updateTransactionMetadata',
   'updateTransactionGasFees',
   'wipeTransactions',
 ] as const;
@@ -700,7 +732,9 @@ export class TransactionController extends BaseController<
 
   readonly #getPermittedAccounts?: (origin?: string) => Promise<string[]>;
 
-  readonly #getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+  readonly #getSavedGasFees: (
+    transactionMeta: TransactionMeta,
+  ) => SavedGasFees | undefined;
 
   readonly #getSimulationConfig: GetSimulationConfig;
 
@@ -794,7 +828,8 @@ export class TransactionController extends BaseController<
       ((): ReturnType<BeforeSignHook> => Promise.resolve({}));
     this.#getPermittedAccounts = getPermittedAccounts;
     this.#getSavedGasFees =
-      getSavedGasFees ?? ((_chainId): SavedGasFees | undefined => undefined);
+      getSavedGasFees ??
+      ((_transactionMeta): SavedGasFees | undefined => undefined);
     this.#getSimulationConfig =
       getSimulationConfig ??
       ((): ReturnType<GetSimulationConfig> => Promise.resolve({}));
@@ -926,6 +961,20 @@ export class TransactionController extends BaseController<
    */
   destroy(): void {
     this.#stopAllTracking();
+  }
+
+  /**
+   * @deprecated Incoming transaction support has been removed. This method is retained as a no-op for backwards compatibility.
+   */
+  startIncomingTransactionPolling(): void {
+    noop();
+  }
+
+  /**
+   * @deprecated Incoming transaction support has been removed. This method is retained as a no-op for backwards compatibility.
+   */
+  stopIncomingTransactionPolling(): void {
+    noop();
   }
 
   /**
@@ -1572,6 +1621,32 @@ export class TransactionController extends BaseController<
     }));
 
     log('Transaction updated', { transactionId, note });
+  }
+
+  /**
+   * Updates transaction metadata.
+   *
+   * @param options - Update options.
+   * @param options.transactionId - ID of the transaction to update.
+   * @param options.callback - Function that mutates the transaction metadata.
+   * @param options.skipResimulate - Whether to skip automatic re-simulation.
+   * @returns The updated transaction metadata.
+   */
+  updateTransactionMetadata({
+    transactionId,
+    callback,
+    skipResimulate = false,
+  }: {
+    transactionId: string;
+    callback: (transactionMeta: TransactionMeta) => void;
+    skipResimulate?: boolean;
+  }): Readonly<TransactionMeta> {
+    return this.#updateTransactionInternal(
+      { transactionId, skipResimulateCheck: skipResimulate },
+      (transactionMeta) => {
+        callback(transactionMeta);
+      },
+    );
   }
 
   /**
@@ -2532,63 +2607,70 @@ export class TransactionController extends BaseController<
       transactionData,
     });
 
+    const currentTransaction = this.#getTransaction(transactionId);
+
+    if (!currentTransaction) {
+      throw new Error(
+        `Cannot update transaction as ID not found - ${transactionId}`,
+      );
+    }
+
+    const { nestedTransactions, transactionData: updatedTransactionData } =
+      updateEIP7702BatchData({
+        from: currentTransaction.txParams.from as Hex,
+        transactions: currentTransaction.nestedTransactions ?? [],
+        updates: [{ transactionIndex, transactionData }],
+      });
     const updatedTransactionMeta = this.#updateTransactionInternal(
-      {
-        transactionId,
-      },
+      { transactionId },
       (transactionMeta) => {
-        const { nestedTransactions, txParams } = transactionMeta;
-        const from = txParams.from as Hex;
-        const nestedTransaction = nestedTransactions?.[transactionIndex];
+        transactionMeta.nestedTransactions = nestedTransactions;
+        transactionMeta.txParams.data = updatedTransactionData;
+        transactionMeta.txParams.gas = undefined;
+        transactionMeta.gasLimitNoBuffer = undefined;
+        transactionMeta.gasUsed = undefined;
+        transactionMeta.securityAlertResponse = undefined;
+        transactionMeta.simulationData = undefined;
+        transactionMeta.simulationFails = undefined;
 
-        if (!nestedTransaction) {
-          throw new Error(
-            `Nested transaction not found with index - ${transactionIndex}`,
-          );
+        if (transactionMeta.revert) {
+          delete transactionMeta.revert.gas;
+
+          if (
+            !transactionMeta.revert.simulation &&
+            !transactionMeta.revert.receipt
+          ) {
+            transactionMeta.revert = undefined;
+          }
         }
-
-        nestedTransaction.data = transactionData;
-
-        const batchTransaction = generateEIP7702BatchTransaction(
-          from,
-          nestedTransactions,
-        );
-
-        transactionMeta.txParams.data = batchTransaction.data;
       },
     );
-
     const draftTransaction = cloneDeep({
       ...updatedTransactionMeta,
       txParams: {
         ...updatedTransactionMeta.txParams,
-        // Clear existing gas to force estimation
+        // Clear existing gas to force estimation.
         gas: undefined,
       },
     });
 
     await this.#updateGasEstimate(draftTransaction);
 
-    this.#updateTransactionInternal(
-      {
-        transactionId,
-      },
-      (transactionMeta) => {
-        transactionMeta.txParams.gas = draftTransaction.txParams.gas;
-        transactionMeta.simulationFails = draftTransaction.simulationFails;
-        transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
+    this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      transactionMeta.txParams.gas = draftTransaction.txParams.gas;
+      transactionMeta.simulationFails = draftTransaction.simulationFails;
+      transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
 
-        const draftGasRevert = draftTransaction.revert?.gas;
-        if (draftGasRevert) {
-          transactionMeta.revert = {
-            ...transactionMeta.revert,
-            gas: draftGasRevert,
-          };
-        }
-      },
-    );
+      const draftGasRevert = draftTransaction.revert?.gas;
+      if (draftGasRevert) {
+        transactionMeta.revert = {
+          ...transactionMeta.revert,
+          gas: draftGasRevert,
+        };
+      }
+    });
 
-    return updatedTransactionMeta.txParams.data as Hex;
+    return updatedTransactionData;
   }
 
   /**

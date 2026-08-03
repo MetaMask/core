@@ -176,6 +176,9 @@
       "path": "./packages/money-account-upgrade-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/money-account-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/multichain-account-service/tsconfig.build.json"
     },
     {
@@ -189,6 +192,9 @@
     },
     {
       "path": "./packages/name-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/network-connection-banner-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/network-controller/tsconfig.build.json"
@@ -249,6 +255,9 @@
     },
     {
       "path": "./packages/selected-network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/sentinel-api-service/tsconfig.build.json"
     },
     {
       "path": "./packages/shield-controller/tsconfig.build.json"

@@ -1,9 +1,9 @@
 import { createMethodMiddleware } from '@metamask/json-rpc-engine';
 
-import * as allExports from '.';
-import type { GetPermissionsHooks } from './wallet-getPermissions';
-import type { RequestPermissionsHooks } from './wallet-requestPermissions';
-import type { RevokePermissionsHooks } from './wallet-revokePermissions';
+import * as allExports from './index.js';
+import type { GetPermissionsHooks } from './wallet-getPermissions.js';
+import type { RequestPermissionsHooks } from './wallet-requestPermissions.js';
+import type { RevokePermissionsHooks } from './wallet-revokePermissions.js';
 
 type Hooks = GetPermissionsHooks &
   RequestPermissionsHooks &

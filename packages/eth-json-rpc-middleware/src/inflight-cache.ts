@@ -5,8 +5,8 @@ import type {
 import { createDeferredPromise } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from './logging-utils';
-import { cacheIdentifierForRequest } from './utils/cache';
+import { projectLogger, createModuleLogger } from './logging-utils.js';
+import { cacheIdentifierForRequest } from './utils/cache.js';
 
 type RequestHandler = [
   (result: Readonly<Json>) => void,

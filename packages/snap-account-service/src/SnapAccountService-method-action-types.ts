@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SnapAccountService } from './SnapAccountService';
+import type { SnapAccountService } from './SnapAccountService.js';
 
 /**
  * Returns the IDs of all currently tracked account-management Snaps —
@@ -48,6 +48,23 @@ export type SnapAccountServiceEnsureReadyAction = {
 export type SnapAccountServiceEnsureMigratedAction = {
   type: `SnapAccountService:ensureMigrated`;
   handler: SnapAccountService['ensureMigrated'];
+};
+
+/**
+ * Returns the keyring capabilities declared by the given Snap. These are
+ * populated by the bridge keyring from the Snap's manifest, and describe
+ * which keyring features the Snap supports (scopes, BIP-44 options, etc.).
+ *
+ * Consumers use this to decide whether to drive the Snap through the v1 or
+ * v2 keyring path. Reading capabilities does not mutate state, so the
+ * lock-free keyring access is used.
+ *
+ * @param snapId - ID of the Snap.
+ * @returns The Snap's keyring capabilities.
+ */
+export type SnapAccountServiceGetCapabilitiesAction = {
+  type: `SnapAccountService:getCapabilities`;
+  handler: SnapAccountService['getCapabilities'];
 };
 
 /**
@@ -136,6 +153,7 @@ export type SnapAccountServiceMethodActions =
   | SnapAccountServiceGetSnapsAction
   | SnapAccountServiceEnsureReadyAction
   | SnapAccountServiceEnsureMigratedAction
+  | SnapAccountServiceGetCapabilitiesAction
   | SnapAccountServiceGetAccountAssetsAction
   | SnapAccountServiceGetAccountBalancesAction
   | SnapAccountServiceGetAccountTransactionsAction

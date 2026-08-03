@@ -5,7 +5,7 @@ import {
   isEvmTxData,
   isStellarTrade,
   hasOwnProp,
-} from '../validators/trade';
+} from '../validators/trade.js';
 
 /**
  * Extracts the transaction data from different trade formats

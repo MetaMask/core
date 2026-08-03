@@ -41,7 +41,7 @@ export function makeDaemonConnectionError(error: unknown): string {
   if (isErrorWithCode(error, 'EACCES') || isErrorWithCode(error, 'EPERM')) {
     return (
       'Cannot connect to the daemon socket: permission denied. ' +
-      'The socket may be owned by another user, or MM_DATA_DIR ' +
+      'The socket may be owned by another user, or MM_DAEMON_DATA_DIR ' +
       'may point to a directory you cannot access.'
     );
   }
@@ -57,6 +57,20 @@ export function makeDaemonConnectionError(error: unknown): string {
  */
 export function formatJsonRpcError(error: JsonRpcError): string {
   return `${error.message} (code ${String(error.code)})`;
+}
+
+/**
+ * Treat an empty string the same as `undefined` — "no value supplied". Used
+ * to normalise `--password ''` and `MM_WALLET_PASSWORD=''` so they trigger
+ * the interactive prompt rather than sending an empty string to the keyring.
+ *
+ * @param value - The value to normalise.
+ * @returns `undefined` if `value` is `undefined` or `''`; `value` otherwise.
+ */
+export function emptyToUndefined(
+  value: string | undefined,
+): string | undefined {
+  return value === '' ? undefined : value;
 }
 
 /**

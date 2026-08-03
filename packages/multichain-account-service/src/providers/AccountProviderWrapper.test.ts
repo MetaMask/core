@@ -2,9 +2,9 @@ import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   MOCK_WALLET_1_ENTROPY_SOURCE,
-} from '../tests';
-import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { EvmAccountProvider } from './EvmAccountProvider';
+} from '../tests/index.js';
+import { AccountProviderWrapper } from './AccountProviderWrapper.js';
+import { EvmAccountProvider } from './EvmAccountProvider.js';
 
 function setup(): {
   wrapper: AccountProviderWrapper;

@@ -1,15 +1,15 @@
 import type { JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import { createAsyncMiddleware } from '..';
-import type { JsonRpcMiddleware as LegacyMiddleware } from '..';
+import { createAsyncMiddleware } from '../index.js';
+import type { JsonRpcMiddleware as LegacyMiddleware } from '../index.js';
 import {
   deepClone,
   fromLegacyRequest,
   makeContext,
   propagateToRequest,
-} from './compatibility-utils';
-import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+} from './compatibility-utils.js';
+import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2.js';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2.js';
 
 /**
  * Convert a {@link JsonRpcEngineV2} into a legacy middleware.

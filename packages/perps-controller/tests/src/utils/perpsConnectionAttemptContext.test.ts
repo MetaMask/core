@@ -2,7 +2,7 @@
 import {
   getPerpsConnectionAttemptContext,
   withPerpsConnectionAttemptContext,
-} from '../../../src/utils/perpsConnectionAttemptContext';
+} from '../../../src/utils/perpsConnectionAttemptContext.js';
 
 describe('perpsConnectionAttemptContext', () => {
   it('returns null when no context is active', () => {
