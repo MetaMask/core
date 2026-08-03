@@ -1459,6 +1459,10 @@ export class RampsController extends BaseController<
    * duplicating `providerServesAsset` + find-and-switch across multiple UI
    * layers.
    *
+   * The compatibility check prefers the current provider's entry in
+   * `providers.data` over the `providers.selected` copy, which can be stale
+   * once a fresh providers list arrives.
+   *
    * No-op when:
    * - `providers.data` is empty (providers not yet loaded)
    * - the currently selected provider already serves the asset
@@ -1479,15 +1483,17 @@ export class RampsController extends BaseController<
       return false;
     }
 
-    const selectedProvider = this.state.providers.selected;
-    if (selectedProvider && providerServesAsset(selectedProvider, assetId)) {
+    const selectedId = this.state.providers.selected?.id;
+    const currentProvider =
+      providers.find((provider) => provider.id === selectedId) ??
+      this.state.providers.selected;
+    if (currentProvider && providerServesAsset(currentProvider, assetId)) {
       return false;
     }
 
     const compatible = providers.find(
       (provider) =>
-        provider.id !== selectedProvider?.id &&
-        providerServesAsset(provider, assetId),
+        provider.id !== selectedId && providerServesAsset(provider, assetId),
     );
     if (!compatible) {
       return false;

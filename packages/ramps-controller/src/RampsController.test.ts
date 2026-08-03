@@ -5061,10 +5061,7 @@ describe('RampsController', () => {
     const ASSET_ID =
       'eip155:143/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
 
-    const makeProvider = (
-      id: string,
-      assetIds: string[] = [],
-    ): Provider => ({
+    const makeProvider = (id: string, assetIds: string[] = []): Provider => ({
       id,
       name: id,
       environmentType: 'PRODUCTION' as const,
@@ -5165,6 +5162,28 @@ describe('RampsController', () => {
       );
     });
 
+    it('switches to a compatible provider when nothing is selected yet', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([incompatible, compatible], null),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+
     it('does not select the currently selected provider as its own replacement', async () => {
       const provider = makeProvider('/providers/transak-native');
 
@@ -5188,10 +5207,12 @@ describe('RampsController', () => {
     it('does not re-select the current provider when its data-list entry serves the asset but the selected copy does not', async () => {
       // Simulates a stale-selected-copy scenario: providers.selected has empty
       // assets while providers.data holds the fresh version of the same provider
-      // with the asset now included. The p.id !== selectedProvider.id guard in
-      // the find() is the only thing that prevents a spurious self-switch.
+      // with the asset now included. The fresh entry is what decides
+      // compatibility, so there is no spurious self-switch.
       const selectedStale = makeProvider('/providers/transak-native');
-      const selectedFresh = makeProvider('/providers/transak-native', [ASSET_ID]);
+      const selectedFresh = makeProvider('/providers/transak-native', [
+        ASSET_ID,
+      ]);
 
       await withController(
         {
@@ -5206,7 +5227,42 @@ describe('RampsController', () => {
           const switched = controller.setSelectedProviderForAsset(ASSET_ID);
 
           expect(switched).toBe(false);
-          expect(controller.state.providers.selected).toStrictEqual(selectedStale);
+          expect(controller.state.providers.selected).toStrictEqual(
+            selectedStale,
+          );
+        },
+      );
+    });
+
+    it('does not switch away when the current provider data-list entry serves the asset and another provider serves it too', async () => {
+      // Same stale-selected-copy scenario, but with a second compatible
+      // provider available: the fresh entry for the current provider must win
+      // over the stale selected copy, so no switch happens.
+      const selectedStale = makeProvider('/providers/transak-native');
+      const selectedFresh = makeProvider('/providers/transak-native', [
+        ASSET_ID,
+      ]);
+      const other = makeProvider('/providers/moonpay', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [selectedFresh, other],
+                selectedStale,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(
+            selectedStale,
+          );
         },
       );
     });

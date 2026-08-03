@@ -97,6 +97,10 @@ export type RampsControllerSetSelectedProviderAction = {
  * duplicating `providerServesAsset` + find-and-switch across multiple UI
  * layers.
  *
+ * The compatibility check prefers the current provider's entry in
+ * `providers.data` over the `providers.selected` copy, which can be stale
+ * once a fresh providers list arrives.
+ *
  * No-op when:
  * - `providers.data` is empty (providers not yet loaded)
  * - the currently selected provider already serves the asset
