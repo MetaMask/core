@@ -59,6 +59,9 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/confirmations'],
     initializationPath: 'approval-controller',
   },
+  'advanced-chart-core': {
+    teams: ['@MetaMask/metamask-assets'],
+  },
   'assets-controller': {
     teams: ['@MetaMask/metamask-assets'],
   },
@@ -425,6 +428,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('assets-controllers'),
         buildRuleForPackage('network-enablement-controller'),
         buildRuleForPackage('assets-controller'),
+        buildRuleForPackage('advanced-chart-core'),
       ],
     },
     {
@@ -638,6 +642,7 @@ function buildPackageReleaseSection(): CodeownersSection {
     'announcement-controller',
     'client-utils',
     'approval-controller',
+    'advanced-chart-core',
     'assets-controllers',
     'assets-controller',
     'config-registry-controller',
