@@ -154,10 +154,9 @@ export async function isAccountUpgradedToEIP7702(
 
   const isSupported = Boolean(
     delegationAddress &&
-      contractAddresses.some(
-        (contract) =>
-          contract.toLowerCase() === delegationAddress.toLowerCase(),
-      ),
+    contractAddresses.some(
+      (contract) => contract.toLowerCase() === delegationAddress.toLowerCase(),
+    ),
   );
 
   return {
@@ -419,10 +418,10 @@ function isAuthorizationSigned(
 ): authorization is Required<Authorization> {
   return Boolean(
     authorization.chainId &&
-      authorization.nonce !== undefined &&
-      authorization.r &&
-      authorization.s &&
-      authorization.yParity !== undefined,
+    authorization.nonce !== undefined &&
+    authorization.r &&
+    authorization.s &&
+    authorization.yParity !== undefined,
   );
 }
 
