@@ -7,7 +7,6 @@ import type { QuoteResponse } from '../../validators/quote-response.js';
 import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import { toQuoteMetadataV2 } from './to-quote-metadata-v2.js';
 import type { QuoteMetadata } from './types.js';
-import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import type { DeepPartial } from '../../types.js';
 
 /**

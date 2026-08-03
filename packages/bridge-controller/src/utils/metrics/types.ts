@@ -272,7 +272,7 @@ type RequiredEventContextFromClientBase = {
     } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.Failed]: (
     | // Tx failed before confirmation
-    (Pick<
+      (Pick<
         RequestMetadata,
         | 'stx_enabled'
         | 'usd_amount_source'
