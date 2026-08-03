@@ -433,10 +433,17 @@ export class OHLCVService {
   }
 
   #scheduleUnsubscribeRetry(channel: string): void {
-    const entry = this.#channels.get(channel) ?? { refCount: 0 };
+    const entry = this.#channels.get(channel);
+    if (!entry) {
+      // The channel was removed (e.g. destroy() or reconnect cleanup) while the
+      // unsubscribe was in flight. Do not resurrect it or start a new retry loop
+      // with an AbortController that teardown can no longer cancel — that could
+      // force a reconnection on the shared WebSocket after teardown.
+      return;
+    }
+
     entry.retryAbort?.abort();
     entry.retryAbort = new AbortController();
-    this.#channels.set(channel, entry);
 
     const { signal } = entry.retryAbort;
 

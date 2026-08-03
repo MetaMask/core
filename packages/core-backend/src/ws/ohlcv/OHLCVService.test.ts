@@ -697,6 +697,36 @@ describe('OHLCVService', () => {
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
       });
     });
+
+    it('should not resurrect a channel or force reconnection when destroy races the grace-period unsubscribe', async () => {
+      await withService(async ({ service, mocks }) => {
+        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+          throw new Error('ws gone');
+        });
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        // Grace timer fires: #performUnsubscribe starts and parks on the mutex.
+        jest.advanceTimersByTime(3000);
+
+        // destroy() runs while #performUnsubscribe is still awaiting the mutex,
+        // clearing the channel map before the retry is scheduled.
+        service.destroy();
+        await completeAsyncOperations();
+
+        // Drive every backoff step. A resurrected retry loop would exhaust its
+        // backoff and force a reconnection on the shared WebSocket.
+        jest.advanceTimersByTime(1000);
+        await completeAsyncOperations();
+        jest.advanceTimersByTime(2000);
+        await completeAsyncOperations();
+        jest.advanceTimersByTime(4000);
+        await completeAsyncOperations();
+
+        expect(mocks.forceReconnection).not.toHaveBeenCalled();
+      });
+    });
   });
 
   // ===========================================================================
