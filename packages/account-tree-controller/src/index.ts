@@ -51,7 +51,7 @@ export {
 
 export type {
   AccountTreePayload,
-  AccountTreePayloadSchemaType,
+  AccountTreePayloadStructType,
   AccountWalletMnemonicPayload,
   AccountWalletPrivateKeyPayload,
   AccountWalletMnemonicGroupEntry,
@@ -64,7 +64,7 @@ export type {
 } from './state/payload.js';
 
 export {
-  AccountTreePayloadSchema,
+  AccountTreePayloadStruct,
   assertValidAccountTreePayload,
   migrate,
 } from './state/payload.js';
