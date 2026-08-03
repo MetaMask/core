@@ -29,11 +29,14 @@ export function mergeQuoteMetadata<
     quoteResponse,
   );
 
+  const normalizedAmounts = toNormalizedAmounts(quoteResponse);
+
   // Phase 1 of migration uses calcQuoteMetadata's results
   return merge(
     {},
     quoteResponse,
-    legacyQuoteMetadataV2,
-    legacyQuoteMetadata, // return for client testing
+    normalizedAmounts,
+    legacyQuoteMetadataV2, // legacy metadata in v2 format
+    legacyQuoteMetadata, // return legacy metadata for client testing
   );
 }

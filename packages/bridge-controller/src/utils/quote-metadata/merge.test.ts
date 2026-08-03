@@ -13,11 +13,23 @@ describe('mergeQuoteMetadata', () => {
       mergedQuote: getMockBridgeQuotesErc20Erc20V2()[0],
     },
     {
-      title: 'with relayer fee',
+      title: 'with relayer fee, included tx fees, and total network fee',
       quoteResponse: merge({}, getMockBridgeQuotesErc20Erc20V2()[0], {
         quote: {
           feeData: {
             relayer: [
+              {
+                amount: '100',
+                usd: '100',
+              },
+            ],
+            txFee: [
+              {
+                amount: '100',
+                usd: '100',
+              },
+            ],
+            network: [
               {
                 amount: '100',
                 usd: '100',
@@ -28,6 +40,11 @@ describe('mergeQuoteMetadata', () => {
       }),
       quoteMetadata: {
         relayerFee: {
+          amount: '.000000000000000105',
+          valueInCurrency: '100',
+          usd: '10',
+        },
+        includedTxFees: {
           amount: '.000000000000000105',
           valueInCurrency: '100',
           usd: '10',
