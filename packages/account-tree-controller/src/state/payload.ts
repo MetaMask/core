@@ -339,15 +339,6 @@ export const ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION = migrations.version;
  * @throws If `raw` is not a valid payload, its version is unsupported, or any wallet type is unrecognized.
  */
 export async function migrate(raw: unknown): Promise<AccountTreePayload> {
-  try {
-    const { data } = await migrations.apply(raw as Json);
-    return data;
-  } catch (error) {
-    if (error instanceof StructError) {
-      throw new Error(
-        `Invalid AccountTreePayload: ${formatValidationErrorMessages(error)}`,
-      );
-    }
-    throw error;
-  }
+  const { data } = await migrations.apply(raw as Json);
+  return data;
 }
