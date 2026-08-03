@@ -64,6 +64,14 @@ import type {
   PatchUserRequestBody,
 } from './TransakService.js';
 
+/**
+ * The default redirect ("fake callback") URL a staging `RampsService` returns.
+ * Written out in full so the tests pin the exact host the widened quote path
+ * forwards, rather than re-deriving it from the code under test.
+ */
+const STAGING_REDIRECT_CALLBACK_URL =
+  'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback';
+
 describe('RampsController', () => {
   const circuitBreakerOpenErrorMessage =
     'Execution prevented because the circuit breaker is open';
@@ -1387,24 +1395,24 @@ describe('RampsController', () => {
       );
     });
 
-    it('forwards the injected default redirectUrl on the widened path when the caller omits one', async () => {
+    it("forwards the service's default redirectUrl on the widened path when the caller omits one", async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
 
       await withController(
         {
           options: {
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
           registerFeatureFlagState(rootMessenger);
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1416,32 +1424,108 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // The caller omitted redirectUrl, so the widened path supplies the
-          // injected default and forwards it to the service.
-          expect(forwardedRedirectUrl).toBe(DEFAULT_REDIRECT);
+          // The caller omitted redirectUrl, so the widened path asks the
+          // service for the callback URL of its environment and forwards it.
+          expect(getDefaultRedirectCallbackUrlSpy).toHaveBeenCalledTimes(1);
+          expect(forwardedRedirectUrl).toBe(
+            'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
+          );
         },
       );
     });
 
-    it('prefers an explicit caller redirectUrl over the injected default on the widened path', async () => {
+    it('rejects the entire getQuotes call when the default-redirect service action is not delegated', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
-      const EXPLICIT_REDIRECT = 'https://explicit.example/callback';
 
       await withController(
         {
           options: {
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
           registerFeatureFlagState(rootMessenger);
+          // Simulate a host that upgraded without adding the new action to
+          // its hand-written messenger delegation list.
+          rootMessenger.unregisterActionHandler(
+            'RampsService:getDefaultRedirectCallbackUrl',
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          await expect(callScopedGetQuotes(messenger)).rejects.toThrow(
+            /A handler for RampsService:getDefaultRedirectCallbackUrl has not been (registered|delegated)/u,
+          );
+        },
+      );
+    });
+
+    it('forwards whichever callback URL the service reports, without rederiving it', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          spyOnDefaultRedirectCallbackUrl(
+            rootMessenger,
+            'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+          );
+          let forwardedRedirectUrl: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // A production service reports the production host, and the
+          // controller passes it through untouched.
+          expect(forwardedRedirectUrl).toBe(
+            'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+          );
+        },
+      );
+    });
+
+    it('prefers an explicit caller redirectUrl and never asks the service on the widened path', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+      const EXPLICIT_REDIRECT = 'https://explicit.example/callback';
+
+      await withController(
+        {
+          options: {
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1455,26 +1539,24 @@ describe('RampsController', () => {
             redirectUrl: EXPLICIT_REDIRECT,
           });
 
-          // An explicit caller redirectUrl always wins; the default is not
-          // applied.
+          // An explicit caller redirectUrl always wins, and the controller
+          // short-circuits before reaching the service.
           expect(forwardedRedirectUrl).toBe(EXPLICIT_REDIRECT);
+          expect(getDefaultRedirectCallbackUrlSpy).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('does not inject the default redirectUrl when the flag is disabled', async () => {
+    it('does not inject the default redirectUrl or ask the service when the flag is disabled', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(NATIVE, 70)],
         sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
-
       await withController(
         {
           options: {
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(NATIVE, 'native')]),
           },
         },
@@ -1484,6 +1566,8 @@ describe('RampsController', () => {
               [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false,
             },
           });
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1495,46 +1579,10 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // The disabled flag never widens, so the default is not injected
-          // even when a `getDefaultRedirectUrl` callback is present.
+          // The disabled flag never widens, so nothing is injected and the
+          // service is not consulted.
           expect(forwardedRedirectUrl).toBeUndefined();
-        },
-      );
-    });
-
-    it('forwards undefined on the widened path when no getDefaultRedirectUrl option is provided', async () => {
-      const response: QuotesResponse = {
-        success: [appBrowserQuote(MOONPAY, 90)],
-        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
-        error: [],
-        customActions: [],
-      };
-
-      await withController(
-        {
-          options: {
-            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          registerFeatureFlagState(rootMessenger);
-          let forwardedRedirectUrl: string | undefined;
-          let redirectUrlWasSeen = false;
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async (params: { redirectUrl?: string }) => {
-              forwardedRedirectUrl = params.redirectUrl;
-              redirectUrlWasSeen = true;
-              return response;
-            },
-          );
-
-          await callScopedGetQuotes(messenger);
-
-          // With no injected callback, the constructor default returns
-          // undefined, so the widened path forwards undefined.
-          expect(redirectUrlWasSeen).toBe(true);
-          expect(forwardedRedirectUrl).toBeUndefined();
+          expect(getDefaultRedirectCallbackUrlSpy).not.toHaveBeenCalled();
         },
       );
     });
@@ -11422,7 +11470,39 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  // Stands in for the real service, which derives this from its environment.
+  rootMessenger.registerActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+    () => STAGING_REDIRECT_CALLBACK_URL,
+  );
+  return rootMessenger;
+}
+
+/**
+ * Replaces the default `RampsService:getDefaultRedirectCallbackUrl` handler
+ * with a spy, so a test can assert whether the controller asked the service
+ * for the default redirect URL at all.
+ *
+ * @param rootMessenger - The root messenger to re-register the handler on.
+ * @param url - The URL the spy returns. Defaults to the staging callback URL.
+ * @returns The spy standing in for the service method.
+ */
+function spyOnDefaultRedirectCallbackUrl(
+  rootMessenger: RootMessenger,
+  url: string = STAGING_REDIRECT_CALLBACK_URL,
+): jest.Mock<string, []> {
+  const handler = jest.fn<string, []>(() => url);
+  rootMessenger.unregisterActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+  );
+  rootMessenger.registerActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+    handler,
+  );
+  return handler;
 }
 
 /**
