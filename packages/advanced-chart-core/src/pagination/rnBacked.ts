@@ -8,18 +8,18 @@
 // handleFetchOlderBarsResponse (~line 5149), resolveAllPendingOlderBarsNoData
 // (~line 5131), and the RN-backed branch of getBars (~line 5412).
 
-import { postToRN, reportErrorToRN } from '../core/bridge';
+import { postToRN, reportErrorToRN } from '../core/bridge.js';
 import {
   getCurrentSymbol,
   getOhlcvData,
   getOhlcvGeneration,
   prependOhlcvBars,
-} from '../core/state';
-import { registerHandler } from '../messages/handler';
-import type { OHLCVBar, GetBarsCallback, TVResolution } from '../core/types';
-import type { FetchOlderBarsResponsePayload } from '../messages/contract';
+} from '../core/state.js';
+import { registerHandler } from '../messages/handler.js';
+import type { OHLCVBar, GetBarsCallback, TVResolution } from '../core/types.js';
+import type { FetchOlderBarsResponsePayload } from '../messages/contract.js';
 
-interface PendingCallback {
+type PendingCallback = {
   onResult: GetBarsCallback;
   oldestAtDefer: number;
   gen: number;
@@ -28,7 +28,7 @@ interface PendingCallback {
 let pendingCallbacks = new Map<string, PendingCallback>();
 let requestSeq = 0;
 
-export interface RequestOlderBarsParams {
+export type RequestOlderBarsParams = {
   resolution: TVResolution;
   fromSec: number;
   toSec: number;
@@ -42,7 +42,7 @@ export function requestOlderBarsFromRN(params: RequestOlderBarsParams): void {
   const oldestAtDefer = all.length > 0 ? all[0].time : 0;
 
   requestSeq += 1;
-  const requestId = 'obr-' + gen + '-' + requestSeq;
+  const requestId = `obr-${  gen  }-${  requestSeq}`;
 
   pendingCallbacks.set(requestId, {
     onResult: params.onResult,
@@ -57,7 +57,9 @@ export function requestOlderBarsFromRN(params: RequestOlderBarsParams): void {
     resolution: params.resolution,
     fromSec: params.fromSec,
     toSec: params.toSec,
-    ...(params.countBack == null ? {} : { countBack: params.countBack }),
+    ...(params.countBack === undefined || params.countBack === null
+      ? {}
+      : { countBack: params.countBack }),
     oldestLoadedTimeMs: oldestAtDefer,
   });
 }
@@ -80,10 +82,10 @@ export function resolveAllPendingOlderBarsNoData(): void {
 export function handleFetchOlderBarsResponse(
   payload: FetchOlderBarsResponsePayload,
 ): void {
-  if (!payload || typeof payload.requestId !== 'string') return;
+  if (!payload || typeof payload.requestId !== 'string') {return;}
 
   const pending = pendingCallbacks.get(payload.requestId);
-  if (!pending) return;
+  if (!pending) {return;}
   pendingCallbacks.delete(payload.requestId);
 
   if (
@@ -131,7 +133,7 @@ export function registerRnBackedPaginationHandler(): void {
   });
 }
 
-export function __resetRnBackedPaginationForTests(): void {
+export function _resetRnBackedPaginationForTests(): void {
   pendingCallbacks = new Map();
   requestSeq = 0;
 }

@@ -13,10 +13,10 @@
 // - Volume study recolor is wired through a subscribe callback so Phase 3's
 //   features/volume/ can register without theme.ts knowing about it.
 
-import { reportErrorToRN } from '../core/bridge';
-import { getWidget, isChartReady, getTheme, setTheme } from '../core/state';
-import type { ChartTheme, TVChartingLibraryWidget } from '../core/types';
-import type { SetThemeColorsPayload } from '../messages/contract';
+import { reportErrorToRN } from '../core/bridge.js';
+import { getWidget, isChartReady, getTheme, setTheme } from '../core/state.js';
+import type { ChartTheme, TVChartingLibraryWidget } from '../core/types.js';
+import type { SetThemeColorsPayload } from '../messages/contract.js';
 
 type ThemeListener = (theme: ChartTheme) => void;
 
@@ -24,7 +24,10 @@ const listeners = new Set<ThemeListener>();
 
 /**
  * Subscribe to theme changes. The callback fires whenever
- * applyThemeColors() updates state.theme. Returns an unsubscribe.
+ * applyThemeColors() updates state.theme.
+ *
+ * @param listener - Callback invoked with the new theme on each change.
+ * @returns A function that unsubscribes the listener.
  */
 export function subscribeTheme(listener: ThemeListener): () => void {
   listeners.add(listener);
@@ -36,6 +39,9 @@ export function subscribeTheme(listener: ThemeListener): () => void {
 /**
  * Returns the series stroke color. Falls back to successColor when
  * lineColor is unset (ambient feature off).
+ *
+ * @param theme - The current chart theme.
+ * @returns The series stroke color.
  */
 export function getThemeLineColor(theme: ChartTheme): string {
   return theme.lineColor || theme.successColor;
@@ -44,6 +50,9 @@ export function getThemeLineColor(theme: ChartTheme): string {
 /**
  * Returns the current-price line color. Honors currentPriceColor when set,
  * else matches the series line color.
+ *
+ * @param theme - The current chart theme.
+ * @returns The current-price line color.
  */
 export function getThemeLastPriceLineColor(theme: ChartTheme): string {
   return theme.currentPriceColor || getThemeLineColor(theme);
@@ -52,6 +61,9 @@ export function getThemeLastPriceLineColor(theme: ChartTheme): string {
 /**
  * Returns the visual color for the current-price line/pill. Falls back
  * through currentPriceColor → lineColor → successColor.
+ *
+ * @param theme - The current chart theme.
+ * @returns The current-price line/pill color.
  */
 export function getCurrentPriceVisualColor(theme: ChartTheme): string {
   return theme.currentPriceColor || theme.lineColor || theme.successColor;
@@ -59,20 +71,30 @@ export function getCurrentPriceVisualColor(theme: ChartTheme): string {
 
 /**
  * Volume up-bar color. Falls back to the candle success color.
+ *
+ * @param theme - The current chart theme.
+ * @returns The volume up-bar color.
  */
 export function getVolumeSuccessColor(theme: ChartTheme): string {
-  return theme.volumeSuccessColor || theme.successColor;
+  return theme.volumeSuccessColor ?? theme.successColor;
 }
 
 /**
  * Volume down-bar color. Falls back to the candle error color.
+ *
+ * @param theme - The current chart theme.
+ * @returns The volume down-bar color.
  */
 export function getVolumeErrorColor(theme: ChartTheme): string {
-  return theme.volumeErrorColor || theme.errorColor;
+  return theme.volumeErrorColor ?? theme.errorColor;
 }
 
 /**
  * Returns the TradingView main-series style overrides for a given line color.
+ *
+ * @param lineColor - The series stroke color.
+ * @param lastPriceLineColor - The current-price line/pill color.
+ * @returns The main-series style overrides.
  */
 export function getSeriesColorOverrides(
   lineColor: string,
@@ -104,6 +126,9 @@ export function getSeriesColorOverrides(
  * Returns the TV built-in scale + crosshair label overrides. With custom
  * chrome removed, TV's built-ins are always enabled (showSeriesLastValue,
  * showPriceScaleCrosshairLabel, showTimeScaleCrosshairLabel).
+ *
+ * @param theme - The current chart theme.
+ * @returns The built-in scale + crosshair label overrides.
  */
 export function getBuiltInScaleLabelOverrides(
   theme: ChartTheme,
@@ -123,6 +148,9 @@ export function getBuiltInScaleLabelOverrides(
 /**
  * Returns the candle-style overrides (up/down colors). Applied on init and on
  * SET_THEME_COLORS.
+ *
+ * @param theme - The current chart theme.
+ * @returns The candle-style (up/down color) overrides.
  */
 export function getCandleStyleOverrides(
   theme: ChartTheme,
@@ -141,6 +169,8 @@ export function getCandleStyleOverrides(
  * Initialize theme state from a CONFIG.theme payload. Called once by
  * bootstrap before the widget is created. Doesn't touch the widget — it
  * only seeds state so the widget constructor (and listeners) can read it.
+ *
+ * @param theme - The initial theme from `CONFIG.theme`.
  */
 export function initThemeFromConfig(theme: ChartTheme): void {
   setTheme(theme);
@@ -149,23 +179,27 @@ export function initThemeFromConfig(theme: ChartTheme): void {
 /**
  * Hot-swap theme colors. Mirrors legacy chartLogic.js handleSetThemeColors
  * but without the chrome-shape updates (those features are deleted).
+ *
+ * @param payload - The partial set of theme colors to hot-swap.
  */
 export function applyThemeColors(payload: SetThemeColorsPayload): void {
   const current = getTheme();
-  if (!current) return;
+  if (!current) {return;}
 
   const updated: ChartTheme = {
     ...current,
-    ...(payload.lineColor != null && { lineColor: payload.lineColor }),
-    ...(payload.successColor != null && { successColor: payload.successColor }),
-    ...(payload.errorColor != null && { errorColor: payload.errorColor }),
-    ...(payload.currentPriceColor != null && {
+    ...(payload.lineColor !== undefined && { lineColor: payload.lineColor }),
+    ...(payload.successColor !== undefined && {
+      successColor: payload.successColor,
+    }),
+    ...(payload.errorColor !== undefined && { errorColor: payload.errorColor }),
+    ...(payload.currentPriceColor !== undefined && {
       currentPriceColor: payload.currentPriceColor,
     }),
-    ...(payload.volumeSuccessColor != null && {
+    ...(payload.volumeSuccessColor !== undefined && {
       volumeSuccessColor: payload.volumeSuccessColor,
     }),
-    ...(payload.volumeErrorColor != null && {
+    ...(payload.volumeErrorColor !== undefined && {
       volumeErrorColor: payload.volumeErrorColor,
     }),
   };
@@ -204,9 +238,9 @@ export function applyThemeColors(payload: SetThemeColorsPayload): void {
  */
 export function flushPendingTheme(): void {
   const theme = getTheme();
-  if (!theme) return;
+  if (!theme) {return;}
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
+  if (!widget || !isChartReady()) {return;}
 
   const lineColor = getThemeLineColor(theme);
   try {
@@ -225,6 +259,9 @@ export function flushPendingTheme(): void {
  * Directly update the live series stroke color for line (2) and baseline (10)
  * chart styles. `applyOverrides` only sets widget-level defaults; this call
  * ensures the already-rendered series picks up the new color immediately.
+ *
+ * @param widget - The TradingView widget to update.
+ * @param lineColor - The series stroke color to apply.
  */
 function applySeriesStyleProperties(
   widget: TVChartingLibraryWidget,
@@ -259,6 +296,6 @@ function notifyListeners(theme: ChartTheme): void {
 }
 
 /** Test-only: clear all subscribers. */
-export function __resetThemeForTests(): void {
+export function _resetThemeForTests(): void {
   listeners.clear();
 }

@@ -118,6 +118,8 @@ export const CANONICAL_TO_TV: Readonly<Record<string, string>> = {
 /**
  * Resolves the device timezone to a TV-supported IANA identifier. Falls back
  * to `Etc/UTC` when Intl fails or the resolved zone isn't in TV's list.
+ *
+ * @returns A TradingView-supported IANA timezone identifier.
  */
 export function resolveUserTimezone(): string {
   try {

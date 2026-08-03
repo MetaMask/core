@@ -5,7 +5,7 @@
 // Phase 2 wires the default Price API paginator; Phase 6 swaps in
 // pagination/rnBacked.ts when consumers opt into the custom strategy.
 
-import { reportErrorToRN, safeStringify } from '../core/bridge';
+import { reportErrorToRN, safeStringify } from '../core/bridge.js';
 import {
   getOhlcvData,
   getOhlcvPagination,
@@ -13,7 +13,7 @@ import {
   getRnBackedPagination,
   registerRealtimeCallback,
   unregisterRealtimeCallback,
-} from '../core/state';
+} from '../core/state.js';
 import type {
   GetBarsCallback,
   GetBarsErrorCallback,
@@ -24,11 +24,11 @@ import type {
   TVBar,
   TVDatafeed,
   TVResolution,
-} from '../core/types';
-import { fetchOlderBarsFromPriceApi } from '../pagination/priceApi';
-import { requestOlderBarsFromRN } from '../pagination/rnBacked';
-import { slbHandleGetBars } from '../overlays/socialLeaderboard';
-import { getConfiguredPriceDecimals } from './priceFormatter';
+} from '../core/types.js';
+import { fetchOlderBarsFromPriceApi } from '../pagination/priceApi.js';
+import { requestOlderBarsFromRN } from '../pagination/rnBacked.js';
+import { slbHandleGetBars } from '../overlays/socialLeaderboard/index.js';
+import { getConfiguredPriceDecimals } from './priceFormatter.js';
 
 const SUPPORTED_RESOLUTIONS: TVResolution[] = [
   '1',
@@ -74,16 +74,21 @@ const PERPS_VARIABLE_TICK_SIZE = [
 ].join(' ');
 
 function getVariableTickSize(): string {
-  return getConfiguredPriceDecimals() !== null
-    ? PERPS_VARIABLE_TICK_SIZE
-    : DEFAULT_VARIABLE_TICK_SIZE;
+  return getConfiguredPriceDecimals() === null
+    ? DEFAULT_VARIABLE_TICK_SIZE
+    : PERPS_VARIABLE_TICK_SIZE;
 }
 
 function getPriceScale(): number {
-  return getConfiguredPriceDecimals() !== null ? 10000000000 : 100;
+  return getConfiguredPriceDecimals() === null ? 100 : 10000000000;
 }
 
-/** Strips internal fields from an OHLCVBar to the shape TV expects. */
+/**
+ * Strips internal fields from an OHLCVBar to the shape TV expects.
+ *
+ * @param bar - The internal OHLCV bar.
+ * @returns The bar in the shape TradingView expects.
+ */
 function toTVBar(bar: OHLCVBar): TVBar {
   return {
     time: bar.time,
@@ -100,6 +105,11 @@ function toTVBar(bar: OHLCVBar): TVBar {
  * Mirrors legacy `filterBarsForRange`: returns bars in [fromMs, toMs); if
  * fewer than countBack bars match, falls back to the last countBack bars
  * before toMs.
+ *
+ * @param fromMs - Inclusive start of the window, in milliseconds.
+ * @param toMs - Exclusive end of the window, in milliseconds.
+ * @param countBack - Minimum number of bars TradingView expects.
+ * @returns The matching bars in the requested window.
  */
 export function filterBarsForRange(
   fromMs: number,
@@ -188,13 +198,14 @@ export const customDatafeed: TVDatafeed = {
       const pag = getOhlcvPagination();
 
       // Strategy C (SLB): all data is pre-loaded by RN — no pagination.
-      if (slbHandleGetBars(onResult)) return;
+      if (slbHandleGetBars(onResult)) {return;}
 
       // Strategy A (Price API / Token Details):
       if (pag.assetId) {
         fetchOlderBarsFromPriceApi({ oldestAtDefer })
           .then(({ olderBars, noData }) => {
             onResult(olderBars, { noData });
+            return undefined;
           })
           .catch((error) => {
             reportErrorToRN(error);
@@ -242,6 +253,8 @@ export const customDatafeed: TVDatafeed = {
 /**
  * Forward a realtime tick to every TradingView subscribeBars listener.
  * Called from widget/ohlcvIngestion.ts on REALTIME_UPDATE.
+ *
+ * @param tick - The realtime bar to forward to listeners.
  */
 export function forwardRealtimeTick(tick: TVBar): void {
   const callbacks = getRealtimeCallbacks();

@@ -5,10 +5,10 @@
 // pane margins + right-scale binding; without it the line chart auto-fits
 // to close-only and looks "zoomed in" vs the candle chart's high/low range.
 
-import { reportErrorToRN } from '../core/bridge';
-import { getWidget, isChartReady, setCurrentChartType } from '../core/state';
-import type { SetChartTypeMessage } from '../messages/contract';
-import { applyScaleLayout } from './scaleLayout';
+import { reportErrorToRN } from '../core/bridge.js';
+import { getWidget, isChartReady, setCurrentChartType } from '../core/state.js';
+import type { SetChartTypeMessage } from '../messages/contract.js';
+import { applyScaleLayout } from './scaleLayout.js';
 
 export function handleSetChartType(
   payload: SetChartTypeMessage['payload'],
@@ -38,4 +38,4 @@ export function handleSetChartType(
   }
 }
 
-export { ChartType } from '../core/types';
+export { ChartType } from '../core/types.js';

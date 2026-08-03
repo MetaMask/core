@@ -1,3 +1,8 @@
+// Property names mirror external contracts (TradingView `LibrarySymbolInfo`,
+// injected `window` globals, RN indicator-color maps), so they intentionally
+// use non-camelCase keys — matching the core convention for external API type
+// files (see `transaction-controller/src/types.ts`).
+/* eslint-disable @typescript-eslint/naming-convention */
 // Shared types for the AdvancedChart WebView modules.
 //
 // These types are local to the WebView bundle. Cross-bridge payload shapes that
@@ -8,7 +13,7 @@
  * CONFIG.theme shape as injected by AdvancedChartTemplate.createConfigScript.
  * Every key may be reassigned by SET_THEME_COLORS at runtime.
  */
-export interface ChartTheme {
+export type ChartTheme = {
   backgroundColor: string;
   borderColor: string;
   textColor: string;
@@ -33,14 +38,14 @@ export interface ChartTheme {
  * Sourced from app/components/UI/Charts/AdvancedChart/indicatorColors.ts on the
  * RN side and injected as CONFIG.indicatorColors.
  */
-export interface IndicatorColors {
+export type IndicatorColors = {
   MA?: Record<string, string>;
   MACD?: Record<string, string>;
   RSI?: Record<string, string>;
   BOL?: Record<string, string>;
 }
 
-export interface ChartFeaturesConfig {
+export type ChartFeaturesConfig = {
   enableDrawingTools?: boolean;
   disabledFeatures?: string[];
   hidePaneSeparator?: boolean;
@@ -63,13 +68,13 @@ export type IndicatorName =
   | 'MA20'
   | 'MA50';
 
-export interface LegendPlotCfg {
+export type LegendPlotCfg = {
   tvTitle: string;
   label: string;
   color: string | null;
 }
 
-export interface LegendIndicatorCfg {
+export type LegendIndicatorCfg = {
   plots: LegendPlotCfg[];
   isMA?: boolean;
   useIndex?: boolean;
@@ -84,7 +89,7 @@ export interface LegendIndicatorCfg {
  * window.CONFIG.legendOverlay. When `enabled` is true the WebView builds a
  * DOM legend overlay above the chart container.
  */
-export interface LegendOverlayConfig {
+export type LegendOverlayConfig = {
   enabled?: boolean;
   /** Per-indicator legend configuration supplied by RN. */
   config?: Record<string, LegendIndicatorCfg>;
@@ -95,7 +100,7 @@ export interface LegendOverlayConfig {
  * consumer's `visualOverrides` prop on the RN side. Empty/undefined keys
  * fall through to TradingView defaults.
  */
-export interface VisualOverridesConfigInline {
+export type VisualOverridesConfigInline = {
   gridLineColor?: string;
   hidePaneSeparator?: boolean;
   currentPriceLineColor?: string;
@@ -109,7 +114,7 @@ export interface VisualOverridesConfigInline {
  * Phase 2 adds `visualOverrides`. Future phases add more keys as they port
  * from the legacy chartLogic.js.
  */
-export interface ChartConfig {
+export type ChartConfig = {
   libraryUrl: string;
   theme: ChartTheme;
   features?: ChartFeaturesConfig;
@@ -128,7 +133,7 @@ export interface ChartConfig {
  */
 export type TVResolution = string; // NOSONAR — intentional semantic alias for TradingView resolution strings
 
-export interface TVTimeRange {
+export type TVTimeRange = {
   type: 'time-range';
   from: number;
   to: number;
@@ -136,8 +141,8 @@ export interface TVTimeRange {
 
 export type TVWidgetEvent = 'mouse_down' | 'mouse_up' | 'panes_height_changed';
 
-export interface TVChartingLibraryWidget {
-  onChartReady(cb: () => void): void;
+export type TVChartingLibraryWidget = {
+  onChartReady(callback: () => void): void;
   activeChart(): TVActiveChart;
   applyOverrides(overrides: Record<string, unknown>): void;
   subscribe(event: TVWidgetEvent, handler: () => void): void;
@@ -146,25 +151,25 @@ export interface TVChartingLibraryWidget {
   resetCache?(): void;
 }
 
-export interface TVSubscription<TArgs extends unknown[] = []> {
-  subscribe(scope: unknown, cb: (...args: TArgs) => void): void;
-  unsubscribe(scope: unknown, cb: (...args: TArgs) => void): void;
+export type TVSubscription<TArgs extends unknown[] = []> = {
+  subscribe(scope: unknown, callback: (...args: TArgs) => void): void;
+  unsubscribe(scope: unknown, callback: (...args: TArgs) => void): void;
 }
 
-export interface TVTimeScale {
+export type TVTimeScale = {
   setRightOffset(offset: number): void;
   barSpacingChanged(): TVSubscription;
   width?(): number;
 }
 
-export interface TVCrosshairParams {
+export type TVCrosshairParams = {
   price?: number;
   time?: number;
   offsetX?: number;
   offsetY?: number;
 }
 
-export interface TVMainSeries {
+export type TVMainSeries = {
   /** Re-attaches the main series to the right price scale. */
   detachToRight(): void;
   /** Directly update style properties for a specific chart type (2=line, 10=baseline, etc.). */
@@ -181,16 +186,16 @@ export type TVShapeId = string; // NOSONAR — intentional semantic alias for Tr
  * Runtime handle to a drawing shape (icon, horizontal_line, etc.).
  * Only the members we call are typed.
  */
-export interface TVShape {
+export type TVShape = {
   setProperties(properties: Record<string, unknown>): void;
 }
 
-export interface TVShapePoint {
+export type TVShapePoint = {
   time?: number;
   price?: number;
 }
 
-export interface TVShapeCreateOptions {
+export type TVShapeCreateOptions = {
   shape: string;
   text?: string;
   icon?: number;
@@ -203,7 +208,7 @@ export interface TVShapeCreateOptions {
   zOrder?: 'top' | 'bottom';
 }
 
-export interface TVPriceScale {
+export type TVPriceScale = {
   getVisiblePriceRange(): { from: number; to: number } | null;
   width?(): number;
   isInverted?(): boolean;
@@ -211,7 +216,7 @@ export interface TVPriceScale {
   setAutoScale?(enabled: boolean): void;
 }
 
-export interface TVPane {
+export type TVPane = {
   getMainSourcePriceScale(): TVPriceScale | null;
   getRightPriceScales?(): TVPriceScale[];
   getHeight(): number;
@@ -219,30 +224,30 @@ export interface TVPane {
 
 export type StudyId = string; // NOSONAR — intentional semantic alias for TradingView study entity IDs
 
-export interface TVStudy {
+export type TVStudy = {
   onDataLoaded(): TVSubscription;
   applyOverrides?(overrides: Record<string, unknown>): void;
   paneIndex?(): number;
 }
 
-export interface TVExportSchemaField {
+export type TVExportSchemaField = {
   type: string;
   sourceId?: StudyId;
   plotTitle?: string;
 }
 
-export interface TVExportData {
+export type TVExportData = {
   schema: TVExportSchemaField[];
   data: number[][];
   displayedData?: string[][];
 }
 
-export interface TVExportDataOptions {
+export type TVExportDataOptions = {
   includeSeries?: boolean;
   includedStudies?: StudyId[];
 }
 
-export interface TVActiveChart {
+export type TVActiveChart = {
   setChartType(type: ChartType): void;
   setResolution(resolution: TVResolution, callback: () => void): void;
   resetData(): void;
@@ -288,7 +293,7 @@ export type TVWidgetConstructor = new (
 ) => TVChartingLibraryWidget;
 
 /** OHLCV bar in milliseconds (matches the SetOHLCVDataPayload in RN). */
-export interface OHLCVBar {
+export type OHLCVBar = {
   time: number;
   open: number;
   high: number;
@@ -298,7 +303,7 @@ export interface OHLCVBar {
 }
 
 /** TradingView-shaped bar payload returned from datafeed.getBars / subscribeBars. */
-export interface TVBar {
+export type TVBar = {
   time: number;
   open: number;
   high: number;
@@ -307,7 +312,7 @@ export interface TVBar {
   volume?: number;
 }
 
-export interface OHLCVPaginationConfig {
+export type OHLCVPaginationConfig = {
   nextCursor: string | null;
   hasMore: boolean;
   assetId: string | null;
@@ -321,7 +326,7 @@ export const enum ChartType {
 }
 
 /** Subset of TV's `LibrarySymbolInfo` we actually return from resolveSymbol. */
-export interface SymbolInfo {
+export type SymbolInfo = {
   name: string;
   ticker: string;
   description: string;
@@ -340,7 +345,7 @@ export interface SymbolInfo {
   data_status: 'streaming' | 'endofday' | 'pulsed' | 'delayed_streaming';
 }
 
-export interface PeriodParams {
+export type PeriodParams = {
   from: number;
   to: number;
   countBack: number;
@@ -356,7 +361,7 @@ export type GetBarsErrorCallback = (reason: string) => void;
 
 export type RealtimeTickCallback = (tick: TVBar) => void;
 
-export interface TVDatafeed {
+export type TVDatafeed = {
   onReady(callback: (config: Record<string, unknown>) => void): void;
   searchSymbols(
     userInput: string,
@@ -386,6 +391,9 @@ export interface TVDatafeed {
 }
 
 declare global {
+  // Global augmentation of the built-in `Window` interface requires `interface`
+  // (declaration merging does not work with a `type` alias).
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
   interface Window {
     CONFIG?: ChartConfig;
     TradingView?: { widget: TVWidgetConstructor };

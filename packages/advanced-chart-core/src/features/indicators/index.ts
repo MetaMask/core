@@ -6,7 +6,7 @@
 // BOL, MA200 + MA visibility variants). Consumers needing TV's native study
 // picker can re-enable header_widget via the disabledFeatures prop.
 
-import { postToRN, reportErrorToRN } from '../../core/bridge';
+import { postToRN, reportErrorToRN } from '../../core/bridge.js';
 import {
   getActiveStudies,
   getMaStudies,
@@ -14,26 +14,26 @@ import {
   isChartReady,
   registerStudy,
   unregisterStudy,
-} from '../../core/state';
-import type { ChartConfig, StudyId, TVActiveChart } from '../../core/types';
+} from '../../core/state.js';
+import type { ChartConfig, StudyId, TVActiveChart } from '../../core/types.js';
 import type {
   AddIndicatorMessage,
   RemoveIndicatorMessage,
   SetMAVisibilityMessage,
-} from '../../messages/contract';
+} from '../../messages/contract.js';
 import {
   removeSubPaneOverlay,
   scheduleLegendRefresh,
   subscribeStudyDataLoaded,
-} from './legend';
-import { scheduleChartWidgetResize } from './resize';
-import { applySubPaneHeightRatio, hasActiveSubPaneIndicators } from './subPane';
+} from './legend.js';
+import { scheduleChartWidgetResize } from './resize.js';
+import { applySubPaneHeightRatio, hasActiveSubPaneIndicators } from './subPane.js';
 import {
   createIndicatorStudy,
   isSubPanePreset,
   MA_LENGTHS,
   resolveStudyPreset,
-} from './studies';
+} from './studies.js';
 
 function isOwnStringKey(key: unknown): key is string {
   return (
@@ -58,11 +58,11 @@ export function handleAddIndicator(
   config: ChartConfig,
 ): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
-  if (!payload?.name) return;
-  const name = payload.name;
-  if (!isOwnStringKey(name)) return;
-  if (getActiveStudies().has(name)) return;
+  if (!widget || !isChartReady()) {return;}
+  if (!payload?.name) {return;}
+  const {name} = payload;
+  if (!isOwnStringKey(name)) {return;}
+  if (getActiveStudies().has(name)) {return;}
 
   const chart = widget.activeChart();
   const preset = resolveStudyPreset(
@@ -80,6 +80,7 @@ export function handleAddIndicator(
       subscribeStudyDataLoaded(chart, studyId);
       scheduleChartWidgetResize();
       notifyIndicatorAdded(name, studyId);
+      return undefined;
     })
     .catch((error) => {
       reportErrorToRN(
@@ -94,14 +95,14 @@ export function handleRemoveIndicator(
   payload: RemoveIndicatorMessage['payload'],
 ): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
-  if (!payload?.name) return;
-  const name = payload.name;
-  if (!isOwnStringKey(name)) return;
-  if (!getActiveStudies().has(name)) return;
+  if (!widget || !isChartReady()) {return;}
+  if (!payload?.name) {return;}
+  const {name} = payload;
+  if (!isOwnStringKey(name)) {return;}
+  if (!getActiveStudies().has(name)) {return;}
 
   const studyId = unregisterStudy(name);
-  if (!studyId) return;
+  if (!studyId) {return;}
 
   try {
     const chart = widget.activeChart();
@@ -130,15 +131,15 @@ export function handleSetMAVisibility(
   config: ChartConfig,
 ): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
-  if (!payload) return;
+  if (!widget || !isChartReady()) {return;}
+  if (!payload) {return;}
 
   const visible = payload.visible || [];
   const chart = widget.activeChart();
 
   const visibleNames = new Set<string>();
   for (const visibleName of visible) {
-    if (isOwnStringKey(visibleName) && MA_LENGTHS[visibleName] != null) {
+    if (isOwnStringKey(visibleName) && MA_LENGTHS[visibleName] !== undefined) {
       visibleNames.add(visibleName);
     }
   }
@@ -150,12 +151,12 @@ export function handleSetMAVisibility(
 function removeMAVariants(chart: TVActiveChart, keep: Set<string>): void {
   const toRemove: string[] = [];
   for (const name of getMaStudies().keys()) {
-    if (!keep.has(name)) toRemove.push(name);
+    if (!keep.has(name)) {toRemove.push(name);}
   }
-  if (toRemove.length === 0) return;
+  if (toRemove.length === 0) {return;}
   for (const name of toRemove) {
     const studyId = unregisterStudy(name);
-    if (!studyId) continue;
+    if (!studyId) {continue;}
     try {
       chart.removeEntity(studyId);
       postToRN('INDICATOR_REMOVED', { name });
@@ -175,8 +176,8 @@ function addMAVariants(
 ): void {
   const promises: Promise<unknown>[] = [];
   for (const name of visible) {
-    if (!isOwnStringKey(name) || MA_LENGTHS[name] == null) continue;
-    if (getMaStudies().has(name)) continue;
+    if (!isOwnStringKey(name) || MA_LENGTHS[name] === undefined) {continue;}
+    if (getMaStudies().has(name)) {continue;}
     const preset = resolveStudyPreset(name, config.indicatorColors);
     promises.push(
       createIndicatorStudy(chart, preset)
@@ -184,18 +185,22 @@ function addMAVariants(
           registerStudy('ma', name, studyId);
           subscribeStudyDataLoaded(chart, studyId);
           notifyIndicatorAdded(name, studyId);
+          return undefined;
         })
-        .catch((err) => {
+        .catch((error) => {
           reportErrorToRN(
-            new Error(`MA creation failed: ${name} - ${String(err)}`),
+            new Error(`MA creation failed: ${name} - ${String(error)}`),
           );
         }),
     );
   }
   if (promises.length > 0) {
-    Promise.all(promises).then(() => {
-      scheduleLegendRefresh();
-      scheduleChartWidgetResize();
-    });
+    Promise.all(promises)
+      .then(() => {
+        scheduleLegendRefresh();
+        scheduleChartWidgetResize();
+        return undefined;
+      })
+      .catch(reportErrorToRN);
   }
 }

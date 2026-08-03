@@ -1,3 +1,8 @@
+// Message type tags and external payload property names are part of the public
+// RN<->WebView contract, so they intentionally use non-camelCase keys — matching
+// the core convention for external contract type files
+// (see `transaction-controller/src/types.ts`).
+/* eslint-disable @typescript-eslint/naming-convention */
 // Versioned message contract between React Native and the WebView IIFE.
 //
 // Strings MUST match RNToWebViewMessageType and WebViewToRNMessageType in
@@ -18,7 +23,7 @@
 //
 // Phase 4 deletes SET_LINE_CHROME alongside the custom-chrome implementation.
 
-import type { ChartType, OHLCVBar, OHLCVPaginationConfig } from '../core/types';
+import type { ChartType, OHLCVBar, OHLCVPaginationConfig } from '../core/types.js';
 
 /** Inbound — React Native → WebView IIFE. */
 export type InboundMessage =
@@ -37,12 +42,12 @@ export type InboundMessage =
   | FocusTimeMessage
   | FetchOlderBarsResponseMessage;
 
-export interface SetThemeColorsMessage {
+export type SetThemeColorsMessage = {
   type: 'SET_THEME_COLORS';
   payload: SetThemeColorsPayload;
 }
 
-export interface SetThemeColorsPayload {
+export type SetThemeColorsPayload = {
   lineColor?: string;
   successColor?: string;
   errorColor?: string;
@@ -51,12 +56,12 @@ export interface SetThemeColorsPayload {
   volumeErrorColor?: string;
 }
 
-export interface SetOHLCVDataMessage {
+export type SetOHLCVDataMessage = {
   type: 'SET_OHLCV_DATA';
   payload: SetOHLCVDataPayload;
 }
 
-export interface SetOHLCVDataPayload {
+export type SetOHLCVDataPayload = {
   data: OHLCVBar[];
   pagination?: OHLCVPaginationConfig;
   /** When enabled, getBars sends FETCH_OLDER_BARS_REQUEST to RN instead of fetching Price API. */
@@ -102,37 +107,37 @@ export interface SetOHLCVDataPayload {
   slbMode?: boolean;
 }
 
-export interface RealtimeUpdateMessage {
+export type RealtimeUpdateMessage = {
   type: 'REALTIME_UPDATE';
   payload: { bar: OHLCVBar };
 }
 
-export interface SetChartTypeMessage {
+export type SetChartTypeMessage = {
   type: 'SET_CHART_TYPE';
   payload: { type: ChartType };
 }
 
-export interface AddIndicatorMessage {
+export type AddIndicatorMessage = {
   type: 'ADD_INDICATOR';
   payload: { name: string; inputs?: Record<string, unknown> };
 }
 
-export interface RemoveIndicatorMessage {
+export type RemoveIndicatorMessage = {
   type: 'REMOVE_INDICATOR';
   payload: { name: string };
 }
 
-export interface SetMAVisibilityMessage {
+export type SetMAVisibilityMessage = {
   type: 'SET_MA_VISIBILITY';
   payload: { visible: string[] };
 }
 
-export interface ToggleVolumeMessage {
+export type ToggleVolumeMessage = {
   type: 'TOGGLE_VOLUME';
   payload: { visible: boolean; volumeOverlay?: boolean };
 }
 
-export interface SetSubPaneLayoutMessage {
+export type SetSubPaneLayoutMessage = {
   type: 'SET_SUB_PANE_LAYOUT';
   payload: { heightRatio: number | null };
 }
@@ -143,34 +148,34 @@ export interface SetSubPaneLayoutMessage {
  * `price` is a fallback anchor when the candle is outside the loaded range.
  * Mirrors the shape RN sends in `TradeMarker` from AdvancedChart.types.ts.
  */
-export interface TradeMarker {
+export type TradeMarker = {
   id: string | number;
   time: number;
   intent: 'enter' | 'exit';
   price?: number;
 }
 
-export interface SetTradeMarkersMessage {
+export type SetTradeMarkersMessage = {
   type: 'SET_TRADE_MARKERS';
   payload: SetTradeMarkersPayload;
 }
 
-export interface SetTradeMarkersPayload {
+export type SetTradeMarkersPayload = {
   /** Full marker set; RN sends every trade, not just the visible window. */
   markers: TradeMarker[] | null;
 }
 
-export interface PulseTradeMarkerMessage {
+export type PulseTradeMarkerMessage = {
   type: 'PULSE_TRADE_MARKER';
   payload: { id: string | number };
 }
 
-export interface FocusTimeMessage {
+export type FocusTimeMessage = {
   type: 'FOCUS_TIME';
   payload: FocusTimePayload;
 }
 
-export interface FocusTimePayload {
+export type FocusTimePayload = {
   timeMs: number;
   /** Optional explicit visible span (ms); omitted → preserve current zoom. */
   spanMs?: number;
@@ -182,7 +187,7 @@ export interface FocusTimePayload {
 
 export type PositionSide = 'long' | 'short';
 
-export interface PositionLines {
+export type PositionLines = {
   side: PositionSide;
   entryPrice?: number;
   currentPrice?: number;
@@ -191,7 +196,7 @@ export interface PositionLines {
   liquidationPrice?: number;
 }
 
-export interface PositionLineColors {
+export type PositionLineColors = {
   currentPrice?: string;
   entry: string;
   takeProfit: string;
@@ -199,24 +204,24 @@ export interface PositionLineColors {
   liquidation: string;
 }
 
-export interface SetPositionLinesMessage {
+export type SetPositionLinesMessage = {
   type: 'SET_POSITION_LINES';
   payload: SetPositionLinesPayload;
 }
 
-export interface SetPositionLinesPayload {
+export type SetPositionLinesPayload = {
   position: PositionLines | null;
   positionLineColors?: PositionLineColors;
 }
 
 // ----- RN-Backed Pagination (Perps) ------------------------------------------
 
-export interface FetchOlderBarsResponseMessage {
+export type FetchOlderBarsResponseMessage = {
   type: 'FETCH_OLDER_BARS_RESPONSE';
   payload: FetchOlderBarsResponsePayload;
 }
 
-export interface FetchOlderBarsResponsePayload {
+export type FetchOlderBarsResponsePayload = {
   requestId: string;
   seriesGeneration: number;
   bars: OHLCVBar[];
@@ -224,7 +229,7 @@ export interface FetchOlderBarsResponsePayload {
   error?: string;
 }
 
-export interface FetchOlderBarsRequestPayload {
+export type FetchOlderBarsRequestPayload = {
   requestId: string;
   seriesGeneration: number;
   symbol: string;
@@ -252,24 +257,22 @@ export type OutboundMessageType =
   | 'ERROR'
   | 'DEBUG';
 
-export interface ChartReadyPayload {
-  // Reserved — RN reads no fields today but the slot stays open for
-  // metadata (e.g. library version) without breaking the contract.
-}
+// Reserved — RN reads no fields today but the slot stays open for
+// metadata (e.g. library version) without breaking the contract.
+export type ChartReadyPayload = Record<string, never>;
 
-export interface ChartLayoutSettledPayload {
-  // Same as ChartReadyPayload.
-}
+// Same as ChartReadyPayload.
+export type ChartLayoutSettledPayload = Record<string, never>;
 
-export interface ChartTradingViewClickedPayload {
+export type ChartTradingViewClickedPayload = {
   url?: string;
 }
 
-export interface ErrorPayload {
+export type ErrorPayload = {
   message: string;
 }
 
-export interface DebugPayload {
+export type DebugPayload = {
   message: string;
   [extra: string]: unknown;
 }
@@ -279,7 +282,7 @@ export interface DebugPayload {
  * the chart. Shape matches `CrosshairData` in AdvancedChart.types.ts so the
  * RN-side parseWebViewMessage decodes our messages without translation.
  */
-export interface CrosshairData {
+export type CrosshairData = {
   time: number;
   open: number;
   high: number;
@@ -288,33 +291,33 @@ export interface CrosshairData {
   volume?: number;
 }
 
-export interface CrosshairMovePayload {
+export type CrosshairMovePayload = {
   /** OHLC of the bar nearest the crosshair; null when the crosshair dismisses. */
   data: CrosshairData | null;
 }
 
 export type ChartInteractionType = 'zoom' | 'pan' | 'tooltip';
 
-export interface ChartInteractedPayload {
+export type ChartInteractedPayload = {
   interaction_type: ChartInteractionType;
 }
 
-export interface IndicatorAddedPayload {
+export type IndicatorAddedPayload = {
   name: string;
   id: string;
 }
 
-export interface IndicatorRemovedPayload {
+export type IndicatorRemovedPayload = {
   name: string;
 }
 
 export type LegendRenderedPayload = Record<string, never>;
 
-export interface TradeMarkerPressedPayload {
+export type TradeMarkerPressedPayload = {
   id: string;
 }
 
-export interface OutboundPayloads {
+export type OutboundPayloads = {
   CHART_READY: ChartReadyPayload;
   CHART_LAYOUT_SETTLED: ChartLayoutSettledPayload;
   CHART_TRADINGVIEW_CLICKED: ChartTradingViewClickedPayload;
@@ -330,13 +333,13 @@ export interface OutboundPayloads {
 }
 
 /** Re-export for callers writing Phase 3 handlers. */
-export type { IndicatorName } from '../core/types';
+export type { IndicatorName } from '../core/types.js';
 
 /** Helper for messages/handler.ts — narrows InboundMessage by type tag. */
-export type InboundMessageOf<T extends InboundMessageType> = Extract<
+export type InboundMessageOf<Type extends InboundMessageType> = Extract<
   InboundMessage,
-  { type: T }
+  { type: Type }
 >;
 
 /** Re-exports for consumers that want to import shapes alongside types. */
-export type { ChartTheme } from '../core/types';
+export type { ChartTheme } from '../core/types.js';

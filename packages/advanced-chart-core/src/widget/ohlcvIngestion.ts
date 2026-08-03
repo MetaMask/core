@@ -13,10 +13,10 @@
 //   those overlays and they hook into their own message types, not into
 //   SET_OHLCV_DATA's reset path.
 
-import { postToRN, reportErrorToRN } from '../core/bridge';
-import { notifyDataLifecycle } from '../core/dataLifecycle';
-import { detectResolution } from '../core/resolution';
-import { getApproxBarDurationSec } from '../core/timeUtils';
+import { postToRN, reportErrorToRN } from '../core/bridge.js';
+import { notifyDataLifecycle } from '../core/dataLifecycle.js';
+import { detectResolution } from '../core/resolution.js';
+import { getApproxBarDurationSec } from '../core/timeUtils.js';
 import {
   appendOrReplaceLastBar,
   bumpHotReloadSeq,
@@ -42,15 +42,15 @@ import {
   setSlbMode,
   setVisibleFromMs,
   setVisibleToMs,
-} from '../core/state';
-import type { TVActiveChart, TVChartingLibraryWidget } from '../core/types';
-import { forwardRealtimeTick } from './datafeed';
-import { resolveAllPendingOlderBarsNoData } from '../pagination/rnBacked';
-import { slbCenterViewport } from '../overlays/socialLeaderboard';
+} from '../core/state.js';
+import type { TVActiveChart, TVChartingLibraryWidget } from '../core/types.js';
+import { forwardRealtimeTick } from './datafeed.js';
+import { resolveAllPendingOlderBarsNoData } from '../pagination/rnBacked.js';
+import { slbCenterViewport } from '../overlays/socialLeaderboard/index.js';
 import type {
   RealtimeUpdateMessage,
   SetOHLCVDataPayload,
-} from '../messages/contract';
+} from '../messages/contract.js';
 
 type FirstDataCallback = () => void;
 
@@ -72,9 +72,11 @@ function claimLegendSettleOwnership(): void {
  * Registers the callback invoked the first time SET_OHLCV_DATA arrives.
  * Bootstrap wires this to widget creation (loads the TV library if needed,
  * then calls createChartWidget).
+ *
+ * @param callback - Invoked once when the first OHLCV data arrives.
  */
-export function onFirstOhlcvData(cb: FirstDataCallback): void {
-  firstDataCallback = cb;
+export function onFirstOhlcvData(callback: FirstDataCallback): void {
+  firstDataCallback = callback;
 }
 
 export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
@@ -91,7 +93,7 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
     setRnBackedPagination(payload.rnBackedPagination);
   }
 
-  const slb = !!payload.slbMode;
+  const slb = Boolean(payload.slbMode);
   setSlbMode(slb);
   if (slb) {
     setSlbCenteringPending(true);
@@ -100,7 +102,7 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
   if (payload.pagination) {
     setOhlcvPagination({
       nextCursor: payload.pagination.nextCursor ?? null,
-      hasMore: !!payload.pagination.hasMore,
+      hasMore: Boolean(payload.pagination.hasMore),
       assetId: payload.pagination.assetId ?? null,
       vsCurrency: payload.pagination.vsCurrency ?? null,
     });
@@ -164,9 +166,9 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
 export function handleRealtimeUpdate(
   payload: RealtimeUpdateMessage['payload'],
 ): void {
-  if (!payload?.bar) return;
+  if (!payload?.bar) {return;}
 
-  const bar = payload.bar;
+  const {bar} = payload;
   appendOrReplaceLastBar(bar);
 
   forwardRealtimeTick({
@@ -192,7 +194,7 @@ function applyVisibleRange(
   }
 
   const fromMs = getVisibleFromMs();
-  if (fromMs == null) {
+  if (fromMs === null) {
     try {
       chart.getTimeScale().setRightOffset(2);
     } catch (error) {
@@ -249,7 +251,7 @@ function emitLayoutSettled(): void {
 
 function resetMainPriceScaleAutoScale(chart: TVActiveChart): void {
   try {
-    if (typeof chart.getPanes !== 'function') return;
+    if (typeof chart.getPanes !== 'function') {return;}
     const panes = chart.getPanes?.();
     const mainPane = panes?.[0];
     if (!mainPane || typeof mainPane.getMainSourcePriceScale !== 'function') {
@@ -277,7 +279,7 @@ function resetDatafeedCacheBeforeHotReload(
 }
 
 /** Test-only: clear the first-data trigger and the delivery flag. */
-export function __resetOhlcvIngestionForTests(): void {
+export function _resetOhlcvIngestionForTests(): void {
   firstDataCallback = null;
   firstDataDelivered = false;
 }

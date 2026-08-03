@@ -9,7 +9,7 @@ import type {
   InboundMessage,
   OutboundMessageType,
   OutboundPayloads,
-} from '../messages/contract';
+} from '../messages/contract.js';
 
 export function safeStringify(value: unknown): string {
   try {
@@ -24,10 +24,13 @@ export function safeStringify(value: unknown): string {
  * Equivalent to legacy `sendToReactNative(type, payload)` at chartLogic.js
  * line ~98. Silently no-ops when window.ReactNativeWebView is absent (e.g.
  * during unit tests in a jsdom environment without the RN bridge stub).
+ *
+ * @param type - The outbound message type tag.
+ * @param payload - The payload associated with the message type.
  */
-export function postToRN<T extends OutboundMessageType>(
-  type: T,
-  payload: OutboundPayloads[T],
+export function postToRN<Type extends OutboundMessageType>(
+  type: Type,
+  payload: OutboundPayloads[Type],
 ): void {
   const bridge = window.ReactNativeWebView;
   if (!bridge) {
@@ -45,6 +48,8 @@ export function postToRN<T extends OutboundMessageType>(
  * Reports a runtime error to React Native via the ERROR channel. Matches the
  * legacy `sendToReactNative('ERROR', { message })` pattern used throughout
  * chartLogic.js.
+ *
+ * @param error - The error (or arbitrary thrown value) to report.
  */
 export function reportErrorToRN(error: unknown): void {
   let message: string;
@@ -68,12 +73,15 @@ export type InboundMessageHandler = (message: InboundMessage) => void;
  *
  * The returned function unsubscribes — useful for tests; the real bundle
  * subscribes once at bootstrap and never unsubscribes.
+ *
+ * @param handler - Callback invoked with each well-formed inbound message.
+ * @returns A function that removes the registered listeners.
  */
 export function onFromRN(handler: InboundMessageHandler): () => void {
   const dispatch = (event: MessageEvent): void => {
     // RN WebView inline HTML: native bridge messages arrive with an empty
     // or "null" origin. Reject messages from real web origins.
-    const origin = event.origin;
+    const {origin} = event;
     if (origin && origin !== 'null' && !origin.startsWith('file:')) {
       return;
     }
@@ -112,4 +120,4 @@ export function onFromRN(handler: InboundMessageHandler): () => void {
 }
 
 /** Re-export for callers that want the type tag union. */
-export type { InboundMessageType } from '../messages/contract';
+export type { InboundMessageType } from '../messages/contract.js';

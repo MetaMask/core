@@ -6,7 +6,7 @@
 // Token Details; consumers needing TV's full study picker can re-enable
 // header_widget via the disabledFeatures prop.
 
-import type { IndicatorColors, StudyId, TVActiveChart } from '../../core/types';
+import type { IndicatorColors, StudyId, TVActiveChart } from '../../core/types.js';
 
 /**
  * Built-in MA visibility periods. Used by SET_MA_VISIBILITY to keep the
@@ -33,11 +33,11 @@ export function getMAColor(
   indicatorColors: IndicatorColors | undefined,
 ): string {
   const fromConfig = indicatorColors?.MA?.[name];
-  if (fromConfig) return fromConfig;
+  if (fromConfig) {return fromConfig;}
   return DEFAULT_MA_COLORS[name] ?? DEFAULT_MA_COLORS.MA200;
 }
 
-export interface StudyPreset {
+export type StudyPreset = {
   studyName: string;
   inputs: Record<string, unknown>;
   overrides: Record<string, unknown>;
@@ -46,27 +46,27 @@ export interface StudyPreset {
 }
 
 function macdPreset(colors: IndicatorColors | undefined): StudyPreset {
-  const c = colors?.MACD ?? {};
+  const palette = colors?.MACD ?? {};
   return {
     studyName: 'MACD',
     inputs: { in_0: 12, in_1: 26, in_2: 9 },
     overrides: {
-      'MACD.color': c.macd,
-      'Signal.color': c.signal,
-      'Histogram.color.0': c.histogramPositive,
-      'Histogram.color.1': c.histogramNegative,
+      'MACD.color': palette.macd,
+      'Signal.color': palette.signal,
+      'Histogram.color.0': palette.histogramPositive,
+      'Histogram.color.1': palette.histogramNegative,
     },
     paneTarget: 'sub',
   };
 }
 
 function rsiPreset(colors: IndicatorColors | undefined): StudyPreset {
-  const c = colors?.RSI ?? {};
+  const palette = colors?.RSI ?? {};
   return {
     studyName: 'Relative Strength Index',
     inputs: { in_0: 14 },
     overrides: {
-      'Plot.color': c.plot,
+      'Plot.color': palette.plot,
       'hlines background.visible': false,
     },
     paneTarget: 'sub',
@@ -74,14 +74,14 @@ function rsiPreset(colors: IndicatorColors | undefined): StudyPreset {
 }
 
 function bolPreset(colors: IndicatorColors | undefined): StudyPreset {
-  const c = colors?.BOL ?? {};
+  const palette = colors?.BOL ?? {};
   return {
     studyName: 'Bollinger Bands',
     inputs: { in_0: 20, in_1: 2 },
     overrides: {
-      'Upper.color': c.upper,
-      'Basis.color': c.basis,
-      'Lower.color': c.lower,
+      'Upper.color': palette.upper,
+      'Basis.color': palette.basis,
+      'Lower.color': palette.lower,
     },
   };
 }
@@ -121,6 +121,11 @@ function fallbackPreset(
  * Resolves the createStudy preset for one of the curated indicators. Unknown
  * names fall back to a generic preset that uses the name verbatim as the
  * study name and the inputs as provided.
+ *
+ * @param name - The curated indicator name (e.g. `MACD`, `MA50`).
+ * @param indicatorColors - Optional per-indicator color overrides.
+ * @param inputsOverride - Inputs used for the fallback preset on unknown names.
+ * @returns The resolved study preset.
  */
 export function resolveStudyPreset(
   name: string,
@@ -156,6 +161,10 @@ export function isSubPanePreset(preset: StudyPreset): boolean {
 /**
  * Creates the indicator study on the given chart, returning the studyId once
  * TradingView resolves the create promise.
+ *
+ * @param chart - The active TradingView chart.
+ * @param preset - The study preset describing name, inputs and overrides.
+ * @returns A promise resolving to the created study id.
  */
 export function createIndicatorStudy(
   chart: TVActiveChart,

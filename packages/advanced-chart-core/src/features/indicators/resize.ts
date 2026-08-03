@@ -4,12 +4,12 @@
 // the legacy staggered sequence — TradingView doesn't always align on the
 // first tick after createStudy resolves.
 
-import { getWidget } from '../../core/state';
+import { getWidget } from '../../core/state.js';
 
 export function scheduleChartWidgetResize(): void {
   const run = (): void => {
     const widget = getWidget();
-    if (!widget) return;
+    if (!widget) {return;}
     try {
       widget.resize();
     } catch {

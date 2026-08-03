@@ -13,17 +13,17 @@
 // - No custom DOM crosshair-label drawing (Phase 4 deleted that)
 // - No marker hit-test bookkeeping (Phase 5's overlays/tradeMarkers owns it)
 
-import { postToRN, reportErrorToRN } from '../core/bridge';
-import { getOhlcvData } from '../core/state';
+import { postToRN, reportErrorToRN } from '../core/bridge.js';
+import { getOhlcvData } from '../core/state.js';
 import type {
   OHLCVBar,
   TVActiveChart,
   TVChartingLibraryWidget,
   TVCrosshairParams,
-} from '../core/types';
-import type { CrosshairData } from '../messages/contract';
+} from '../core/types.js';
+import type { CrosshairData } from '../messages/contract.js';
 
-interface CrosshairSession {
+type CrosshairSession = {
   visible: boolean;
   shownAt: number;
   dismissUntil: number;
@@ -45,7 +45,7 @@ const DISMISS_WINDOW_MS = 800;
 const DISMISS_RN_DELAY_MS = 50;
 
 function nearestBar(timeSec: number, data: OHLCVBar[]): OHLCVBar | null {
-  if (data.length === 0) return null;
+  if (data.length === 0) {return null;}
   const targetMs = timeSec * 1000;
   let best: OHLCVBar | null = null;
   let bestDiff = Infinity;
@@ -60,7 +60,7 @@ function nearestBar(timeSec: number, data: OHLCVBar[]): OHLCVBar | null {
 }
 
 function toCrosshairData(bar: OHLCVBar | null): CrosshairData | null {
-  if (!bar) return null;
+  if (!bar) {return null;}
   return {
     time: bar.time,
     open: bar.open,
@@ -75,6 +75,8 @@ function toCrosshairData(bar: OHLCVBar | null): CrosshairData | null {
  * Subscribes the chart's crosshair-move event. Each tick posts CROSSHAIR_MOVE
  * with the nearest OHLCV bar shaped as CrosshairData, or null when the
  * crosshair dismisses or when we're inside the post-tap dismiss window.
+ *
+ * @param chart - The active TradingView chart to subscribe to.
  */
 export function attachCrosshairListener(chart: TVActiveChart): void {
   try {
@@ -109,6 +111,8 @@ export function attachCrosshairListener(chart: TVActiveChart): void {
  * crosshair dismisses the OHLCV bar on the RN side. TV's built-in crosshair
  * line will stay on the chart (no TV API for programmatic dismiss); only the
  * RN-side OHLCV bar reads `CROSSHAIR_MOVE { data: null }` to hide itself.
+ *
+ * @param widget - The TradingView widget to subscribe to.
  */
 export function attachTapDismiss(widget: TVChartingLibraryWidget): void {
   try {
@@ -117,13 +121,13 @@ export function attachTapDismiss(widget: TVChartingLibraryWidget): void {
       session.dismissUntil = 0;
     });
     widget.subscribe('mouse_up', () => {
-      if (!session.visible) return;
+      if (!session.visible) {return;}
       const pressDuration = Date.now() - session.mouseDownAt;
-      if (pressDuration >= SHORT_TAP_MS) return;
+      if (pressDuration >= SHORT_TAP_MS) {return;}
       // Avoid dismissing the bar in response to the synthetic mouse-up that
       // fires when a long-press finally releases — only dismiss if the bar
       // has been visible long enough to be a deliberate "second tap".
-      if (Date.now() - session.shownAt < SYNTHETIC_CLICK_GUARD_MS) return;
+      if (Date.now() - session.shownAt < SYNTHETIC_CLICK_GUARD_MS) {return;}
       session.visible = false;
       session.shownAt = 0;
       session.dismissUntil = Date.now() + DISMISS_WINDOW_MS;
@@ -138,7 +142,7 @@ export function attachTapDismiss(widget: TVChartingLibraryWidget): void {
 }
 
 /** Test-only: reset the module-local crosshair session state. */
-export function __resetCrosshairForTests(): void {
+export function _resetCrosshairForTests(): void {
   session.visible = false;
   session.shownAt = 0;
   session.dismissUntil = 0;

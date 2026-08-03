@@ -11,7 +11,7 @@
 // they need from core/state.ts. Errors inside a subscriber are logged
 // to RN so a broken overlay doesn't take the widget down with it.
 
-import { reportErrorToRN } from './bridge';
+import { reportErrorToRN } from './bridge.js';
 
 export type DataLifecycleEvent =
   | 'ohlcvReset'
@@ -34,7 +34,7 @@ export function onDataLifecycle(
   return () => {
     const bucket = listeners[event];
     const idx = bucket.indexOf(listener);
-    if (idx !== -1) bucket.splice(idx, 1);
+    if (idx !== -1) {bucket.splice(idx, 1);}
   };
 }
 
@@ -50,7 +50,7 @@ export function notifyDataLifecycle(event: DataLifecycleEvent): void {
 }
 
 /** Test-only: clear every listener across every event. */
-export function __resetDataLifecycleForTests(): void {
+export function _resetDataLifecycleForTests(): void {
   listeners.ohlcvReset = [];
   listeners.ohlcvPrepended = [];
   listeners.visibleRangeChanged = [];

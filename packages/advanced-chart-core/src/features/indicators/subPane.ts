@@ -4,38 +4,38 @@
 // applySubPaneHeightRatio (~line 750). The consumer-supplied ratio
 // (subPaneHeightRatio prop) governs the size of RSI/MACD sub-panes.
 
-import { reportErrorToRN } from '../../core/bridge';
+import { reportErrorToRN } from '../../core/bridge.js';
 import {
   getActiveStudies,
   getSubPaneHeightRatio,
   getWidget,
   isChartReady,
   setSubPaneHeightRatio,
-} from '../../core/state';
-import type { TVActiveChart } from '../../core/types';
-import type { SetSubPaneLayoutMessage } from '../../messages/contract';
+} from '../../core/state.js';
+import type { TVActiveChart } from '../../core/types.js';
+import type { SetSubPaneLayoutMessage } from '../../messages/contract.js';
 
 const MIN_MAIN_PX = 72;
 
 export function hasActiveSubPaneIndicators(): boolean {
   const widget = getWidget();
-  if (!widget) return false;
+  if (!widget) {return false;}
   const chart = widget.activeChart();
   for (const studyId of getActiveStudies().values()) {
     const study = chart.getStudyById(studyId);
     const paneIdx = study?.paneIndex?.();
-    if (paneIdx !== undefined && paneIdx > 0) return true;
+    if (paneIdx !== undefined && paneIdx > 0) {return true;}
   }
   return false;
 }
 
 export function applySubPaneHeightRatio(chart: TVActiveChart): void {
   const ratio = getSubPaneHeightRatio();
-  if (ratio === null) return;
+  if (ratio === null) {return;}
   try {
     const heights = chart.getAllPanesHeight();
-    if (heights.length < 2) return;
-    const total = heights.reduce((sum, h) => sum + h, 0);
+    if (heights.length < 2) {return;}
+    const total = heights.reduce((sum, height) => sum + height, 0);
     const bottomCount = heights.length - 1;
 
     let bottomTotal = Math.round(total * ratio * bottomCount);
@@ -48,12 +48,12 @@ export function applySubPaneHeightRatio(chart: TVActiveChart): void {
     const newHeights = [main];
     let remaining = bottomTotal;
     for (let i = 0; i < bottomCount; i++) {
-      const h =
+      const paneHeight =
         i === bottomCount - 1
           ? remaining
           : Math.floor(bottomTotal / bottomCount);
-      newHeights.push(h);
-      remaining -= h;
+      newHeights.push(paneHeight);
+      remaining -= paneHeight;
     }
     chart.setAllPanesHeight(newHeights);
   } catch (error) {
@@ -64,7 +64,7 @@ export function applySubPaneHeightRatio(chart: TVActiveChart): void {
 export function handleSetSubPaneLayout(
   payload: SetSubPaneLayoutMessage['payload'],
 ): void {
-  if (payload.heightRatio == null) {
+  if (payload.heightRatio === null || payload.heightRatio === undefined) {
     setSubPaneHeightRatio(null);
     return;
   }

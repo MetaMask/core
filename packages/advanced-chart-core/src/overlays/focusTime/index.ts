@@ -10,7 +10,7 @@
 // is no `suppressChartUserInteraction` counterpart here — analytics
 // gating during the animation lived in the deleted line-chrome path.
 
-import { reportErrorToRN } from '../../core/bridge';
+import { reportErrorToRN } from '../../core/bridge.js';
 import {
   getOhlcvData,
   getSlbMode,
@@ -18,14 +18,14 @@ import {
   getVisibleToMs,
   getWidget,
   isChartReady,
-} from '../../core/state';
+} from '../../core/state.js';
 import {
   getApproxBarDurationSec,
   normalizeChartUnixSec,
-} from '../../core/timeUtils';
-import { registerHandler } from '../../messages/handler';
-import type { TVActiveChart } from '../../core/types';
-import type { FocusTimePayload } from '../../messages/contract';
+} from '../../core/timeUtils.js';
+import { registerHandler } from '../../messages/handler.js';
+import type { TVActiveChart } from '../../core/types.js';
+import type { FocusTimePayload } from '../../messages/contract.js';
 
 const ANIM_MS = 600;
 const FALLBACK_BARS = 60;
@@ -34,23 +34,25 @@ const VISIBLE_INSET = 0.08;
 
 let animGeneration = 0;
 
-function easeInOutQuart(t: number): number {
-  return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
+function easeInOutQuart(progress: number): number {
+  return progress < 0.5
+    ? 8 * progress * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 4) / 2;
 }
 
-interface VisibleRangeSec {
+type VisibleRangeSec = {
   from: number;
   to: number;
 }
 
 function readVisibleRangeSec(chart: TVActiveChart): VisibleRangeSec | null {
-  if (typeof chart.getVisibleRange !== 'function') return null;
+  if (typeof chart.getVisibleRange !== 'function') {return null;}
   try {
     const vr = chart.getVisibleRange();
-    if (!vr) return null;
+    if (!vr) {return null;}
     const from = normalizeChartUnixSec(vr.from);
     const to = normalizeChartUnixSec(vr.to);
-    if (from === null || to === null || to <= from) return null;
+    if (from === null || to === null || to <= from) {return null;}
     return { from, to };
   } catch {
     return null;
@@ -67,8 +69,8 @@ function applyRange(chart: TVActiveChart, from: number, to: number): void {
 
 export function handleFocusTime(payload: FocusTimePayload): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
-  if (!payload || !Number.isFinite(payload.timeMs)) return;
+  if (!widget || !isChartReady()) {return;}
+  if (!payload || !Number.isFinite(payload.timeMs)) {return;}
 
   let chart: TVActiveChart;
   try {
@@ -77,7 +79,7 @@ export function handleFocusTime(payload: FocusTimePayload): void {
     reportErrorToRN(error);
     return;
   }
-  if (!chart || typeof chart.setVisibleRange !== 'function') return;
+  if (!chart || typeof chart.setVisibleRange !== 'function') {return;}
 
   const centerSec = payload.timeMs / 1000;
   const current = readVisibleRangeSec(chart);
@@ -98,7 +100,7 @@ export function handleFocusTime(payload: FocusTimePayload): void {
     // trade stays in context with all other trades visible.
     const slbFromMs = getVisibleFromMs();
     const slbToMs = getVisibleToMs();
-    if (slbFromMs != null && slbToMs != null) {
+    if (slbFromMs !== null && slbToMs !== null) {
       spanSec = (slbToMs - slbFromMs) / 1000;
     } else if (current) {
       spanSec = current.to - current.from;
@@ -128,8 +130,8 @@ export function handleFocusTime(payload: FocusTimePayload): void {
   const startTs = Date.now();
 
   const step = (): void => {
-    if (gen !== animGeneration) return;
-    if (!getWidget() || !isChartReady()) return;
+    if (gen !== animGeneration) {return;}
+    if (!getWidget() || !isChartReady()) {return;}
     const elapsed = Date.now() - startTs;
     const progress = elapsed >= ANIM_MS ? 1 : elapsed / ANIM_MS;
     const eased = easeInOutQuart(progress);
@@ -161,6 +163,6 @@ export function registerFocusTimeOverlay(): void {
 }
 
 /** Test-only: reset the animation generation counter. */
-export function __resetFocusTimeForTests(): void {
+export function _resetFocusTimeForTests(): void {
   animGeneration = 0;
 }

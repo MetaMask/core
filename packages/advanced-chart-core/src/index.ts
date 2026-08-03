@@ -8,8 +8,8 @@
 // Future phases register their handlers / overlays / features inside their
 // own modules; this file stays a thin entry point.
 
-import { bootstrap } from './core/bootstrap';
-import { reportErrorToRN } from './core/bridge';
+import { bootstrap } from './core/bootstrap.js';
+import { reportErrorToRN } from './core/bridge.js';
 
 try {
   bootstrap();

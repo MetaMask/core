@@ -15,9 +15,9 @@ import type {
   RealtimeTickCallback,
   StudyId,
   TVChartingLibraryWidget,
-} from './types';
+} from './types.js';
 
-interface CoreState {
+type CoreState = {
   widget: TVChartingLibraryWidget | null;
   isChartReady: boolean;
   currentSymbol: string;
@@ -245,9 +245,9 @@ export function setVisibleToMs(ms: number | null): void {
 
 export function registerRealtimeCallback(
   listenerGuid: string,
-  cb: RealtimeTickCallback,
+  callback: RealtimeTickCallback,
 ): void {
-  state.realtimeCallbacks[listenerGuid] = cb;
+  state.realtimeCallbacks[listenerGuid] = callback;
 }
 
 export function unregisterRealtimeCallback(listenerGuid: string): void {
@@ -391,7 +391,7 @@ export function setHasExplicitCurrentPriceLine(has: boolean): void {
  * WebView is created fresh per mount (the RN side recreates the HTML when
  * the theme or feature flags change).
  */
-export function __resetStateForTests(): void {
+export function _resetStateForTests(): void {
   state.widget = null;
   state.isChartReady = false;
   state.currentSymbol = 'ASSET';

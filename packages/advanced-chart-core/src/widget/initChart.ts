@@ -13,8 +13,8 @@
 // Phase 1's job is the constructor call + onChartReady hook + library load
 // orchestration. Phase 2 wires the datafeed.
 
-import { postToRN, reportErrorToRN } from '../core/bridge';
-import { loadTradingViewLibrary } from '../core/loadLibrary';
+import { postToRN, reportErrorToRN } from '../core/bridge.js';
+import { loadTradingViewLibrary } from '../core/loadLibrary.js';
 import {
   getWidget,
   setWidget,
@@ -24,53 +24,57 @@ import {
   getCurrentChartType,
   getTheme,
   getHasExplicitCurrentPriceLine,
-} from '../core/state';
-import { resolveUserTimezone } from '../core/timezone';
+} from '../core/state.js';
+import { resolveUserTimezone } from '../core/timezone.js';
 import {
-  ChartType,
-  type ChartConfig,
-  type ChartFeaturesConfig,
-  type ChartTheme,
-  type TVChartingLibraryWidget,
-} from '../core/types';
+  ChartType
+  
+  
+  
+  
+} from '../core/types.js';
+import type {ChartConfig, ChartFeaturesConfig, ChartTheme, TVChartingLibraryWidget} from '../core/types.js';
 import {
   getBuiltInScaleLabelOverrides,
   getSeriesColorOverrides,
   getCandleStyleOverrides,
   getThemeLineColor,
   getThemeLastPriceLineColor,
-} from './theme';
-import { installTradingViewExternalOpenBridge } from './externalLinkBridge';
+} from './theme.js';
+import { installTradingViewExternalOpenBridge } from './externalLinkBridge.js';
 
 /**
  * Generates a 19-shade palette from a base hex color, light→base→dark.
  * Used for TradingView `custom_themes.dark.color{1,3}`. Ported verbatim
  * from chartLogic.js `generatePaletteShades` (~line 999).
+ *
+ * @param hexColor - The base color as a `#rrggbb` hex string.
+ * @returns An array of 19 `#rrggbb` shades from light to dark.
  */
-export function generatePaletteShades(hex: string): string[] {
-  const r = Number.parseInt(hex.slice(1, 3), 16);
-  const g = Number.parseInt(hex.slice(3, 5), 16);
-  const b = Number.parseInt(hex.slice(5, 7), 16);
+export function generatePaletteShades(hexColor: string): string[] {
+  const red = Number.parseInt(hexColor.slice(1, 3), 16);
+  const green = Number.parseInt(hexColor.slice(3, 5), 16);
+  const blue = Number.parseInt(hexColor.slice(5, 7), 16);
   const shades: string[] = [];
   for (let i = 0; i < 19; i++) {
-    const t = i / 18;
-    let sr: number;
-    let sg: number;
-    let sb: number;
-    if (t < 0.5) {
-      const f = 1 - t * 2;
-      sr = Math.round(r + (255 - r) * f);
-      sg = Math.round(g + (255 - g) * f);
-      sb = Math.round(b + (255 - b) * f);
+    const ratio = i / 18;
+    let shadeRed: number;
+    let shadeGreen: number;
+    let shadeBlue: number;
+    if (ratio < 0.5) {
+      const factor = 1 - ratio * 2;
+      shadeRed = Math.round(red + (255 - red) * factor);
+      shadeGreen = Math.round(green + (255 - green) * factor);
+      shadeBlue = Math.round(blue + (255 - blue) * factor);
     } else {
-      const f2 = (t - 0.5) * 2;
-      sr = Math.round(r * (1 - f2));
-      sg = Math.round(g * (1 - f2));
-      sb = Math.round(b * (1 - f2));
+      const factor = (ratio - 0.5) * 2;
+      shadeRed = Math.round(red * (1 - factor));
+      shadeGreen = Math.round(green * (1 - factor));
+      shadeBlue = Math.round(blue * (1 - factor));
     }
-    shades.push(
-      '#' + ((1 << 24) + (sr << 16) + (sg << 8) + sb).toString(16).slice(1),
-    );
+    const packed =
+      0x100_0000 + shadeRed * 0x1_0000 + shadeGreen * 0x100 + shadeBlue;
+    shades.push(`#${packed.toString(16).slice(1)}`);
   }
   return shades;
 }
@@ -104,7 +108,7 @@ function buildWidgetOverrides(
   theme: ChartTheme,
   features?: ChartFeaturesConfig,
 ): Record<string, unknown> {
-  const gridLineColor = theme.gridLineColor || 'transparent';
+  const gridLineColor = theme.gridLineColor ?? 'transparent';
   const showLegend = features?.showBuiltInLegend === true;
   return {
     'paneProperties.background': theme.backgroundColor,
@@ -146,7 +150,7 @@ function buildWidgetOverrides(
   };
 }
 
-export interface CreateChartWidgetOptions {
+export type CreateChartWidgetOptions = {
   /** Datafeed object; Phase 1 has no real datafeed — Phase 2 supplies one. */
   datafeed: unknown;
   /**
@@ -166,12 +170,16 @@ export interface CreateChartWidgetOptions {
  * Builds the TradingView widget. Returns the widget; the caller is expected
  * to store it via setWidget(). Emits CHART_READY + CHART_LAYOUT_SETTLED to
  * RN when the widget reports onChartReady.
+ *
+ * @param config - The resolved chart configuration.
+ * @param options - Widget construction options (datafeed, formatters, etc.).
+ * @returns The constructed TradingView widget.
  */
 export function createChartWidget(
   config: ChartConfig,
   options: CreateChartWidgetOptions,
 ): TVChartingLibraryWidget {
-  const TradingView = window.TradingView;
+  const {TradingView} = window;
   if (!TradingView) {
     throw new Error('TradingView library not loaded');
   }
@@ -183,7 +191,8 @@ export function createChartWidget(
   const features = config.features ?? {};
   const disabledFeatures = resolveDisabledFeatures(features);
 
-  const widget = new TradingView.widget({
+  const TvWidget = TradingView.widget;
+  const widget = new TvWidget({
     symbol: getCurrentSymbol(),
     interval: getCurrentResolution(),
     timeframe: options.timeframe,
@@ -224,8 +233,8 @@ export function createChartWidget(
     if (storedType !== ChartType.Candles) {
       try {
         widget.activeChart().setChartType(storedType);
-      } catch (e) {
-        reportErrorToRN(e);
+      } catch (error) {
+        reportErrorToRN(error);
       }
     }
 
@@ -277,6 +286,8 @@ export function scheduleChartLayoutSettledNotify(): void {
 /**
  * Ensures library is loaded, then awaits caller-provided pre-widget setup.
  * Phase 2's ohlcvIngestion calls this once SET_OHLCV_DATA arrives.
+ *
+ * @param libraryUrl - Base URL to load the TradingView library from.
  */
 export async function ensureLibraryLoaded(libraryUrl: string): Promise<void> {
   await loadTradingViewLibrary(libraryUrl);

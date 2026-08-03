@@ -8,6 +8,9 @@
  * Find the outermost `.chart-markup-table` element in a document — the
  * container that wraps the price + time axes. Skips inner panes and axis
  * containers so consumers can reason about chart bounds.
+ *
+ * @param doc - The document to search, or null/undefined.
+ * @returns The outermost chart-markup-table element, or null when not found.
  */
 export function findOuterChartMarkupTable(
   doc: Document | null | undefined,
@@ -18,9 +21,9 @@ export function findOuterChartMarkupTable(
   const list = doc.querySelectorAll('.chart-markup-table');
   for (const el of Array.from(list)) {
     const className = el.className ? String(el.className) : '';
-    if (el.classList.contains('pane')) continue;
-    if (className.includes('price-axis-container')) continue;
-    if (className.includes('time-axis')) continue;
+    if (el.classList.contains('pane')) {continue;}
+    if (className.includes('price-axis-container')) {continue;}
+    if (className.includes('time-axis')) {continue;}
     return el;
   }
   return list.length ? list[0] : null;
@@ -31,6 +34,8 @@ export function findOuterChartMarkupTable(
  * same-origin iframe. TradingView's chart can mount in either the host doc
  * or a same-origin iframe depending on `iframe_loading_same_origin`; helpers
  * that traverse DOM should hit both.
+ *
+ * @param fn - Callback invoked with each chart document.
  */
 export function eachChartDocument(fn: (doc: Document) => void): void {
   try {

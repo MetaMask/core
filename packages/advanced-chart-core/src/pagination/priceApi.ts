@@ -8,20 +8,20 @@
 // the layout-settle pending machinery and trade-marker refresh hook (those
 // belong to later phases / are gone after Phase 4).
 
-import { reportErrorToRN } from '../core/bridge';
-import { notifyDataLifecycle } from '../core/dataLifecycle';
+import { reportErrorToRN } from '../core/bridge.js';
+import { notifyDataLifecycle } from '../core/dataLifecycle.js';
 import {
   bumpOhlcvGeneration,
   getOhlcvGeneration,
   getOhlcvPagination,
   prependOhlcvBars,
   setOhlcvPagination,
-} from '../core/state';
-import type { OHLCVBar } from '../core/types';
+} from '../core/state.js';
+import type { OHLCVBar } from '../core/types.js';
 
 export const OHLCV_BASE_URL = 'https://price.api.cx.metamask.io/v3/ohlcv-chart';
 
-export interface PriceApiCandle {
+export type PriceApiCandle = {
   timestamp: number;
   open: number;
   high: number;
@@ -30,18 +30,18 @@ export interface PriceApiCandle {
   volume?: number;
 }
 
-export interface PriceApiResponse {
+export type PriceApiResponse = {
   data: PriceApiCandle[];
   nextCursor?: string | null;
   hasNext?: boolean;
 }
 
-export interface FetchOlderBarsRequest {
+export type FetchOlderBarsRequest = {
   /** Oldest known bar.time (ms) when the request was deferred — used to slice the response. */
   oldestAtDefer: number;
 }
 
-export interface FetchOlderBarsResult {
+export type FetchOlderBarsResult = {
   /** Bars strictly older than `oldestAtDefer`. */
   olderBars: OHLCVBar[];
   /** True when there are no older bars to deliver (let TV mark `noData: true`). */
@@ -56,6 +56,9 @@ export interface FetchOlderBarsResult {
  *
  * Aborts with `noData: true` when ohlcvGeneration changes mid-flight (a newer
  * SET_OHLCV_DATA has invalidated this fetch).
+ *
+ * @param request - The pagination request describing the cursor and window.
+ * @returns The older-bars slice plus a `noData` flag.
  */
 export async function fetchOlderBarsFromPriceApi(
   request: FetchOlderBarsRequest,
@@ -110,19 +113,19 @@ export async function fetchOlderBarsFromPriceApi(
     return { olderBars: [], noData: true };
   }
 
-  const newBars: OHLCVBar[] = parsed.data.map((c) => ({
-    time: c.timestamp,
-    open: c.open,
-    high: c.high,
-    low: c.low,
-    close: c.close,
-    volume: c.volume,
+  const newBars: OHLCVBar[] = parsed.data.map((candle) => ({
+    time: candle.timestamp,
+    open: candle.open,
+    high: candle.high,
+    low: candle.low,
+    close: candle.close,
+    volume: candle.volume,
   }));
 
   setOhlcvPagination({
     ...pag,
     nextCursor: parsed.nextCursor ?? null,
-    hasMore: !!parsed.hasNext,
+    hasMore: Boolean(parsed.hasNext),
   });
 
   if (newBars.length > 0) {

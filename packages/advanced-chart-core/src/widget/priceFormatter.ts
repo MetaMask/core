@@ -22,8 +22,8 @@ const SUBSCRIPT_DIGITS = [
   '₉',
 ] as const;
 
-function toSubscriptDigits(n: number): string {
-  return String(n)
+function toSubscriptDigits(value: number): string {
+  return String(value)
     .split('')
     .map((digit) => SUBSCRIPT_DIGITS[Number.parseInt(digit, 10)] ?? digit)
     .join('');
@@ -33,17 +33,20 @@ function toSubscriptDigits(n: number): string {
  * For values strictly between 0 and 0.0001, produces the compact
  * `0.0₆12345` notation. Returns `null` when the value doesn't qualify so
  * callers can fall through to Intl formatting.
+ *
+ * @param abs - The absolute price value to format.
+ * @returns The subscript-notation string, or null when it doesn't qualify.
  */
 export function formatSubscriptNotation(abs: number): string | null {
-  if (!(abs > 0 && abs < 0.0001)) return null;
+  if (!(abs > 0 && abs < 0.0001)) {return null;}
   const priceStr = abs.toFixed(20);
-  const match = /^0\.0*([1-9]\d*)/.exec(priceStr);
-  if (!match) return null;
+  const match = /^0\.0*([1-9]\d*)/u.exec(priceStr);
+  if (!match) {return null;}
   const leadingZeros = priceStr.indexOf(match[1]) - 2;
-  if (leadingZeros < 4) return null;
-  const sig = match[1];
+  if (leadingZeros < 4) {return null;}
+  const significant = match[1];
   const significantDigits =
-    sig.slice(0, 4).replace(/0{1,4}$/, '') || sig.slice(0, 2);
+    significant.slice(0, 4).replace(/0{1,4}$/u, '') || significant.slice(0, 2);
   return `0.0${toSubscriptDigits(leadingZeros)}${significantDigits}`;
 }
 
@@ -59,12 +62,12 @@ export function formatPriceWithConfiguredDecimals(
   price: unknown,
   maxDecimals: number,
 ): string {
-  const p = Number(price);
-  if (p === 0) {
+  const numericPrice = Number(price);
+  if (numericPrice === 0) {
     return '0';
   }
 
-  const abs = Math.abs(p);
+  const abs = Math.abs(numericPrice);
   let decimals = maxDecimals;
 
   if (abs >= 1) {
@@ -72,7 +75,7 @@ export function formatPriceWithConfiguredDecimals(
     decimals = Math.min(maxDecimals, Math.max(0, 5 - integerDigits));
   }
 
-  const rounded = Number(p.toFixed(decimals));
+  const rounded = Number(numericPrice.toFixed(decimals));
   return new Intl.NumberFormat('en-US', {
     style: 'decimal',
     minimumFractionDigits: 0,
@@ -83,34 +86,40 @@ export function formatPriceWithConfiguredDecimals(
 /**
  * Formats a price for the TV built-in price scale + crosshair label. Zero-
  * safe. Numbers below 0.0001 use subscript notation; others use Intl decimal.
+ *
+ * @param price - The raw price value from TradingView.
+ * @returns The formatted price string (empty string for invalid input).
  */
 export function formatCrosshairPrice(price: unknown): string {
   if (price === undefined || price === null || Number.isNaN(Number(price))) {
     return '';
   }
-  const p = Number(price);
-  if (p === 0) return '0.00';
-  const abs = Math.abs(p);
+  const numericPrice = Number(price);
+  if (numericPrice === 0) {return '0.00';}
+  const abs = Math.abs(numericPrice);
   const sub = formatSubscriptNotation(abs);
   if (sub) {
-    return p < 0 ? `-${sub}` : sub;
+    return numericPrice < 0 ? `-${sub}` : sub;
   }
   const configuredPriceDecimals = getConfiguredPriceDecimals();
   if (configuredPriceDecimals !== null) {
-    return formatPriceWithConfiguredDecimals(p, configuredPriceDecimals);
+    return formatPriceWithConfiguredDecimals(
+      numericPrice,
+      configuredPriceDecimals,
+    );
   }
   return new Intl.NumberFormat('en-US', {
     style: 'decimal',
     minimumFractionDigits: 2,
     maximumFractionDigits: abs >= 1 ? 2 : 4,
-  }).format(p);
+  }).format(numericPrice);
 }
 
-interface TVSymbolInfo {
+type TVSymbolInfo = {
   format?: string;
 }
 
-interface TVPriceFormatter {
+type TVPriceFormatter = {
   format(price: number, signPositive?: boolean): string;
 }
 
@@ -119,6 +128,10 @@ interface TVPriceFormatter {
  * TV fall back to its default) when subscript formatting is disabled or when
  * the symbol is a volume series. Otherwise returns a formatter that routes
  * through `formatCrosshairPrice`.
+ *
+ * @param symbolInfo - The TradingView symbol info (or null).
+ * @param _minTick - The minimum tick size; currently unused.
+ * @returns A price formatter, or null to use TradingView's default.
  */
 export function advancedChartPriceFormatterFactory(
   symbolInfo: TVSymbolInfo | null,
@@ -135,7 +148,7 @@ export function advancedChartPriceFormatterFactory(
     return null;
   }
   return {
-    format(price) {
+    format(price): string {
       return formatCrosshairPrice(price);
     },
   };

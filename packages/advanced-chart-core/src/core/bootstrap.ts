@@ -14,62 +14,62 @@
 // 6. On first SET_OHLCV_DATA: createChartWidget with the default datafeed,
 //    apply visual overrides, attach crosshair + visible-range listeners.
 
-import { onFromRN, postToRN, reportErrorToRN } from './bridge';
-import { loadTradingViewLibrary } from './loadLibrary';
-import { dispatchInboundMessage, registerHandler } from '../messages/handler';
+import { onFromRN, postToRN, reportErrorToRN } from './bridge.js';
+import { loadTradingViewLibrary } from './loadLibrary.js';
+import { dispatchInboundMessage, registerHandler } from '../messages/handler.js';
 import {
   applyThemeColors,
   flushPendingTheme,
   initThemeFromConfig,
-} from '../widget/theme';
-import { customDatafeed } from '../widget/datafeed';
-import { advancedChartPriceFormatterFactory } from '../widget/priceFormatter';
-import { getApproxBarDurationSec } from './timeUtils';
+} from '../widget/theme.js';
+import { customDatafeed } from '../widget/datafeed.js';
+import { advancedChartPriceFormatterFactory } from '../widget/priceFormatter.js';
+import { getApproxBarDurationSec } from './timeUtils.js';
 import {
   handleRealtimeUpdate,
   handleSetOHLCVData,
   onFirstOhlcvData,
-} from '../widget/ohlcvIngestion';
-import { handleSetChartType } from '../widget/chartType';
-import { applyVisualOverrides } from '../widget/visualOverrides';
+} from '../widget/ohlcvIngestion.js';
+import { handleSetChartType } from '../widget/chartType.js';
+import { applyVisualOverrides } from '../widget/visualOverrides.js';
 import {
   createChartWidget,
   scheduleChartLayoutSettledNotify,
-} from '../widget/initChart';
+} from '../widget/initChart.js';
 import {
   attachCrosshairListener,
   attachTapDismiss,
-} from '../interaction/crosshair';
-import { attachVisibleRangeListeners } from '../interaction/visibleRange';
-import { applyScaleLayout } from '../widget/scaleLayout';
+} from '../interaction/crosshair.js';
+import { attachVisibleRangeListeners } from '../interaction/visibleRange.js';
+import { applyScaleLayout } from '../widget/scaleLayout.js';
 import {
   handleAddIndicator,
   handleRemoveIndicator,
   handleSetMAVisibility,
-} from '../features/indicators';
-import { handleSetSubPaneLayout } from '../features/indicators/subPane';
+} from '../features/indicators/index.js';
+import { handleSetSubPaneLayout } from '../features/indicators/subPane.js';
 import {
   attachLegendResizeListener,
   setupLegendOverlay,
-} from '../features/indicators/legend';
+} from '../features/indicators/legend.js';
 import {
   handleToggleVolume,
   registerVolumeThemeSync,
-} from '../features/volume';
-import { registerTradeMarkerOverlay } from '../overlays/tradeMarkers';
-import { registerTradeMarkerPulseHandler } from '../overlays/tradeMarkers/animation';
-import { attachMarkerHitTest } from '../overlays/tradeMarkers/markerHitTest';
-import { registerFocusTimeOverlay } from '../overlays/focusTime';
-import { registerPositionLinesOverlay } from '../overlays/positionLines';
-import { slbScheduleInitialCentering } from '../overlays/socialLeaderboard';
-import { registerRnBackedPaginationHandler } from '../pagination/rnBacked';
+} from '../features/volume/index.js';
+import { registerTradeMarkerOverlay } from '../overlays/tradeMarkers/index.js';
+import { registerTradeMarkerPulseHandler } from '../overlays/tradeMarkers/animation.js';
+import { attachMarkerHitTest } from '../overlays/tradeMarkers/markerHitTest.js';
+import { registerFocusTimeOverlay } from '../overlays/focusTime/index.js';
+import { registerPositionLinesOverlay } from '../overlays/positionLines/index.js';
+import { slbScheduleInitialCentering } from '../overlays/socialLeaderboard/index.js';
+import { registerRnBackedPaginationHandler } from '../pagination/rnBacked.js';
 import {
   getOhlcvData,
   getVisibleFromMs,
   getVisibleToMs,
   setSubPaneHeightRatio,
-} from './state';
-import type { ChartConfig } from './types';
+} from './state.js';
+import type { ChartConfig } from './types.js';
 
 /**
  * When RN passes an explicit visible-range start (e.g. a specific period like
@@ -77,12 +77,15 @@ import type { ChartConfig } from './types';
  * initial view snaps to that window instead of defaulting to `Date.now()`.
  * Padded by 2 bar durations so the last bar isn't glued to the right edge.
  * Ported from chartLogic.js initChart's `tfOption` computation (~line 5284).
+ *
+ * @returns A `time-range` timeframe pinned to the requested window, or
+ * `undefined` when RN did not pass an explicit visible-range start.
  */
 function buildInitialTimeframe():
   | { type: 'time-range'; from: number; to: number }
   | undefined {
   const visibleFromMs = getVisibleFromMs();
-  if (visibleFromMs == null) return undefined;
+  if (visibleFromMs === null) {return undefined;}
   const visibleToMs = getVisibleToMs() ?? Date.now();
   const initBarPadSec = getApproxBarDurationSec(getOhlcvData()) * 2;
   return {
@@ -107,6 +110,8 @@ function readConfig(): ChartConfig {
  * Phase 1 + 2 bootstrap. Returns the resolved CONFIG so callers (and tests)
  * can inspect what booted. Idempotent on its inbound subscription — the
  * WebView is not expected to bootstrap twice.
+ *
+ * @returns The resolved chart configuration read from `window.CONFIG`.
  */
 export function bootstrap(): ChartConfig {
   const config = readConfig();
@@ -164,7 +169,7 @@ export function bootstrap(): ChartConfig {
   onFirstOhlcvData(() => {
     loadTradingViewLibrary(config.libraryUrl)
       .then(() => {
-        createChartWidget(config, {
+        return createChartWidget(config, {
           datafeed: customDatafeed,
           customFormatters: {
             priceFormatterFactory: advancedChartPriceFormatterFactory,
@@ -180,7 +185,7 @@ export function bootstrap(): ChartConfig {
               // Match legacy onChartReady: when no explicit visible range
               // was passed, pin a 2-bar gap on the right. TV's default is
               // wider, leaving the chart visibly offset left.
-              if (getVisibleFromMs() == null) {
+              if (getVisibleFromMs() === null) {
                 try {
                   chart.getTimeScale().setRightOffset(2);
                 } catch (rightOffsetError) {

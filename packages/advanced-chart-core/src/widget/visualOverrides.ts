@@ -7,10 +7,10 @@
 // Centralising here lets Perps (Phase 6) feed surface-specific overrides via
 // the same path.
 
-import { reportErrorToRN } from '../core/bridge';
-import { getWidget } from '../core/state';
+import { reportErrorToRN } from '../core/bridge.js';
+import { getWidget } from '../core/state.js';
 
-export interface VisualOverridesConfig {
+export type VisualOverridesConfig = {
   /** Color applied to vertical + horizontal grid lines. */
   gridLineColor?: string;
   /** When true, the line between sub-panes is hidden (set to transparent). */
@@ -25,21 +25,24 @@ export interface VisualOverridesConfig {
 /**
  * Builds the TradingView override object from a VisualOverridesConfig.
  * Returned shape is suitable for passing into TradingView's `applyOverrides`.
+ *
+ * @param config - The visual overrides configuration, or undefined.
+ * @returns A TradingView overrides object (empty when no config is given).
  */
 export function buildVisualOverrides(
   config: VisualOverridesConfig | undefined,
 ): Record<string, unknown> {
-  if (!config) return {};
+  if (!config) {return {};}
   const overrides: Record<string, unknown> = {};
 
-  if (config.gridLineColor != null) {
+  if (config.gridLineColor !== undefined) {
     overrides['paneProperties.vertGridProperties.color'] = config.gridLineColor;
     overrides['paneProperties.horzGridProperties.color'] = config.gridLineColor;
   }
   if (config.hidePaneSeparator) {
     overrides['paneProperties.separatorColor'] = 'rgba(0,0,0,0)';
   }
-  if (config.currentPriceLineColor != null) {
+  if (config.currentPriceLineColor !== undefined) {
     overrides['mainSeriesProperties.priceLineColor'] =
       config.currentPriceLineColor;
   }
@@ -49,14 +52,16 @@ export function buildVisualOverrides(
 /**
  * Apply visual overrides to a live widget. Safe to call before chart-ready —
  * TradingView queues overrides internally. Errors are forwarded to RN.
+ *
+ * @param config - The visual overrides configuration, or undefined.
  */
 export function applyVisualOverrides(
   config: VisualOverridesConfig | undefined,
 ): void {
   const widget = getWidget();
-  if (!widget) return;
+  if (!widget) {return;}
   const overrides = buildVisualOverrides(config);
-  if (Object.keys(overrides).length === 0) return;
+  if (Object.keys(overrides).length === 0) {return;}
   try {
     widget.applyOverrides(overrides);
   } catch (error) {

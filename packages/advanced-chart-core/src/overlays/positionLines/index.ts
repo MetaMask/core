@@ -4,26 +4,26 @@
 // Ported from chartLogic.js handleSetPositionLines (~line 2624),
 // clearPositionLines (~line 2608), and positionShapeIds state.
 
-import { reportErrorToRN } from '../../core/bridge';
+import { reportErrorToRN } from '../../core/bridge.js';
 import {
   getWidget,
   isChartReady,
   getTheme,
   setHasExplicitCurrentPriceLine,
   getHasExplicitCurrentPriceLine,
-} from '../../core/state';
-import { registerHandler } from '../../messages/handler';
-import { getThemeLastPriceLineColor } from '../../widget/theme';
-import type { SetPositionLinesPayload } from '../../messages/contract';
+} from '../../core/state.js';
+import { registerHandler } from '../../messages/handler.js';
+import { getThemeLastPriceLineColor } from '../../widget/theme.js';
+import type { SetPositionLinesPayload } from '../../messages/contract.js';
 import {
   getPositionShapeIds,
   clearPositionShapeIds,
   pushPositionShapeId,
   bumpGeneration,
   getGeneration,
-} from './state';
+} from './state.js';
 
-interface PositionLineConfig {
+type PositionLineConfig = {
   price: number;
   text?: string;
   color: string;
@@ -53,7 +53,7 @@ function clearPositionLines(): void {
 
 export function handleSetPositionLines(payload: SetPositionLinesPayload): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
+  if (!widget || !isChartReady()) {return;}
 
   bumpGeneration();
   clearPositionLines();
@@ -70,8 +70,8 @@ export function handleSetPositionLines(payload: SetPositionLinesPayload): void {
     return;
   }
 
-  const position = payload.position;
-  setHasExplicitCurrentPriceLine(!!position.currentPrice);
+  const {position} = payload;
+  setHasExplicitCurrentPriceLine(Boolean(position.currentPrice));
 
   try {
     widget.applyOverrides({
@@ -82,11 +82,11 @@ export function handleSetPositionLines(payload: SetPositionLinesPayload): void {
   }
 
   const theme = getTheme();
-  if (!theme) return;
+  if (!theme) {return;}
 
-  const colors = payload.positionLineColors || ({} as Record<string, string>);
+  const colors = payload.positionLineColors ?? ({} as Record<string, string>);
   const currentPriceColor =
-    (colors as Record<string, string | undefined>).currentPrice ||
+    (colors as Record<string, string | undefined>).currentPrice ??
     getThemeLastPriceLineColor(theme);
   const entryColor = colors.entry || theme.borderColor;
   const takeProfitColor = colors.takeProfit || theme.successColor;
@@ -168,7 +168,9 @@ export function handleSetPositionLines(payload: SetPositionLinesPayload): void {
             disableSelection: true,
             disableSave: true,
             disableUndo: true,
-            ...(line.text != null ? { text: line.text } : {}),
+            ...(line.text !== undefined && line.text !== null
+              ? { text: line.text }
+              : {}),
             overrides: {
               linecolor: line.color,
               linestyle: line.lineStyle,
@@ -182,16 +184,17 @@ export function handleSetPositionLines(payload: SetPositionLinesPayload): void {
           },
         )
         .then((entityId) => {
-          if (!entityId) return;
+          if (!entityId) {return undefined;}
           if (getGeneration() !== gen) {
             try {
               chart.removeEntity(entityId);
             } catch {
               // Shape may already be gone
             }
-            return;
+            return undefined;
           }
           pushPositionShapeId(entityId);
+          return undefined;
         })
         .catch(() => {
           // Shape creation can fail silently

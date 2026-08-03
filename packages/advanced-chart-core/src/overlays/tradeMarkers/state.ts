@@ -7,15 +7,15 @@
 // no other module can read or mutate it — the trade-marker lifecycle is
 // entirely owned here.
 
-import type { TVShapeId } from '../../core/types';
-import type { TradeMarker } from '../../messages/contract';
+import type { TVShapeId } from '../../core/types.js';
+import type { TradeMarker } from '../../messages/contract.js';
 
-export interface MarkerShapePair {
+export type MarkerShapePair = {
   fill: TVShapeId | null;
   ring: TVShapeId | null;
 }
 
-interface TradeMarkerState {
+type TradeMarkerState = {
   /** Flat list of all drawn entity ids (rings + fills) for bulk removeEntity. */
   shapeIds: TVShapeId[];
   /** marker.id → the ring + fill entity ids for that marker. */
@@ -84,7 +84,7 @@ export function getPulseGeneration(): number {
 }
 
 /** Test-only: reset every slice between test cases. */
-export function __resetTradeMarkerStateForTests(): void {
+export function _resetTradeMarkerStateForTests(): void {
   state.shapeIds = [];
   state.shapesByMarkerId = new Map();
   state.markers = null;

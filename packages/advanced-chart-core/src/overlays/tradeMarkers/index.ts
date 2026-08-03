@@ -16,25 +16,25 @@
 // with every shape at zOrder 'top' keeps a black rim visible between
 // touching circles (otherwise adjacent fills merge into one blob).
 
-import { reportErrorToRN } from '../../core/bridge';
-import { onDataLifecycle } from '../../core/dataLifecycle';
+import { reportErrorToRN } from '../../core/bridge.js';
+import { onDataLifecycle } from '../../core/dataLifecycle.js';
 import {
   getOhlcvData,
   getTheme,
   getWidget,
   isChartReady,
-} from '../../core/state';
-import { registerHandler } from '../../messages/handler';
+} from '../../core/state.js';
+import { registerHandler } from '../../messages/handler.js';
 import type {
   ChartTheme,
   OHLCVBar,
   TVActiveChart,
   TVShapeId,
-} from '../../core/types';
+} from '../../core/types.js';
 import type {
   SetTradeMarkersPayload,
   TradeMarker,
-} from '../../messages/contract';
+} from '../../messages/contract.js';
 import {
   bumpPlacementGeneration,
   clearShapes,
@@ -45,7 +45,7 @@ import {
   pushShapeId,
   setMarkers,
   setShapesForMarkerId,
-} from './state';
+} from './state.js';
 
 /** FontAwesome fa-circle glyph — same icon used elsewhere for the line-end dot. */
 const TRADE_MARKER_ICON = 0xf111;
@@ -65,28 +65,32 @@ let refreshDebounce: ReturnType<typeof setTimeout> | null = null;
  * — the candle the trade actually falls within. Returns null when the
  * series is empty, `tMs` is non-finite, or the nearest close is not a
  * number.
+ *
+ * @param data - The OHLCV bar series to search.
+ * @param tMs - The target time in milliseconds.
+ * @returns The nearest bar's time (seconds) and close, or null.
  */
 export function snapMarkerToNearestBar(
   data: readonly OHLCVBar[],
   tMs: number,
 ): { timeSec: number; close: number } | null {
-  if (!data.length || !Number.isFinite(tMs)) return null;
+  if (!data.length || !Number.isFinite(tMs)) {return null;}
 
   let lo = 0;
   let hi = data.length - 1;
   while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (data[mid].time < tMs) lo = mid + 1;
-    else hi = mid;
+    const mid = Math.floor((lo + hi) / 2);
+    if (data[mid].time < tMs) {lo = mid + 1;}
+    else {hi = mid;}
   }
   let best = lo;
   if (lo > 0) {
     const prevDiff = tMs - data[lo - 1].time;
     const curDiff = data[lo].time - tMs;
-    if (prevDiff <= curDiff) best = lo - 1;
+    if (prevDiff <= curDiff) {best = lo - 1;}
   }
   const close = Number(data[best].close);
-  if (!Number.isFinite(close)) return null;
+  if (!Number.isFinite(close)) {return null;}
   return { timeSec: Math.floor(data[best].time / 1000), close };
 }
 
@@ -117,7 +121,7 @@ function removeEntitySafe(
   chart: TVActiveChart,
   entityId: TVShapeId | null | undefined,
 ): void {
-  if (!entityId) return;
+  if (!entityId) {return;}
   try {
     chart.removeEntity(entityId);
   } catch {
@@ -127,7 +131,7 @@ function removeEntitySafe(
 
 export function clearTradeMarkers(): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
+  if (!widget || !isChartReady()) {return;}
 
   try {
     const chart = widget.activeChart();
@@ -160,7 +164,7 @@ export function handleSetTradeMarkers(payload: SetTradeMarkersPayload): void {
   placeTradeMarkers();
 }
 
-interface DesiredMarker {
+type DesiredMarker = {
   id: string;
   timeSec: number;
   price: number;
@@ -171,9 +175,9 @@ function resolveSnappedPrice(
   snapped: { timeSec: number; close: number } | null,
   markerPrice: number | undefined,
 ): number | null {
-  if (snapped !== null) return snapped.close;
-  if (markerPrice != null && Number.isFinite(markerPrice)) {
-    return markerPrice as number;
+  if (snapped !== null) {return snapped.close;}
+  if (markerPrice !== undefined && Number.isFinite(markerPrice)) {
+    return markerPrice;
   }
   return null;
 }
@@ -183,18 +187,19 @@ function collectDesiredMarkers(
   data: readonly OHLCVBar[],
   theme: ChartTheme,
 ): DesiredMarker[] {
-  if (!data.length) return [];
+  if (!data.length) {return [];}
   const firstT = data[0].time;
   const lastBar = data.at(-1);
-  if (!lastBar) return [];
+  if (!lastBar) {return [];}
   const lastT = lastBar.time;
 
   const eligible = markers.filter(
-    (m) =>
-      m?.id != null &&
-      Number.isFinite(m.time) &&
-      m.time >= firstT &&
-      m.time <= lastT,
+    (marker) =>
+      marker?.id !== undefined &&
+      marker?.id !== null &&
+      Number.isFinite(marker.time) &&
+      marker.time >= firstT &&
+      marker.time <= lastT,
   );
 
   const ordered = eligible.slice().sort((a, b) => a.time - b.time);
@@ -203,7 +208,7 @@ function collectDesiredMarkers(
     const snapped = snapMarkerToNearestBar(data, marker.time);
     const timeSec = snapped ? snapped.timeSec : Math.floor(marker.time / 1000);
     const rawPrice = resolveSnappedPrice(snapped, marker.price);
-    if (rawPrice === null) continue;
+    if (rawPrice === null) {continue;}
     const color =
       marker.intent === 'exit' ? theme.errorColor : theme.successColor;
     desired.push({
@@ -218,7 +223,7 @@ function collectDesiredMarkers(
 
 export function placeTradeMarkers(): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
+  if (!widget || !isChartReady()) {return;}
   let chart: TVActiveChart;
   try {
     chart = widget.activeChart();
@@ -226,32 +231,32 @@ export function placeTradeMarkers(): void {
     reportErrorToRN(error);
     return;
   }
-  if (!chart) return;
+  if (!chart) {return;}
 
   const markers = getMarkers() ?? [];
   const data = getOhlcvData();
-  if (!data.length) return; // no candles loaded yet — re-runs after data / pan
+  if (!data.length) {return;} // no candles loaded yet — re-runs after data / pan
   const theme = getTheme();
-  if (!theme) return;
+  if (!theme) {return;}
 
   const desired = collectDesiredMarkers(markers, data, theme);
 
   // Skip when the drawn set already matches — prevents pan flicker.
   const desiredKey = desired
-    .map((d) => d.id)
+    .map((desiredMarker) => desiredMarker.id)
     .sort((a, b) => a.localeCompare(b))
     .join('|');
   const drawnKey = Array.from(getShapesByMarkerId().keys())
     .sort((a, b) => a.localeCompare(b))
     .join('|');
-  if (desiredKey === drawnKey) return;
+  if (desiredKey === drawnKey) {return;}
 
   const gen = bumpPlacementGeneration();
   clearTradeMarkers();
 
   const paint = (): void => {
-    if (gen !== getPlacementGeneration()) return;
-    if (!getWidget() || !isChartReady()) return;
+    if (gen !== getPlacementGeneration()) {return;}
+    if (!getWidget() || !isChartReady()) {return;}
     let activeChart: TVActiveChart;
     try {
       activeChart = widget.activeChart();
@@ -259,13 +264,13 @@ export function placeTradeMarkers(): void {
       reportErrorToRN(error);
       return;
     }
-    if (!activeChart) return;
+    if (!activeChart) {return;}
 
     // Draw ring1 → fill1 → ring2 → fill2 sequentially. Every new shape is
     // created at zOrder 'top', so the next ring lands ON TOP of the
     // previous fill — keeps a black seam between touching circles.
     const drawRingAndFill = async (marker: DesiredMarker): Promise<void> => {
-      if (gen !== getPlacementGeneration()) return;
+      if (gen !== getPlacementGeneration()) {return;}
 
       const ringId = await createTradeMarkerIcon(
         activeChart,
@@ -294,8 +299,8 @@ export function placeTradeMarkers(): void {
         return;
       }
 
-      if (ringId) pushShapeId(ringId);
-      if (fillId) pushShapeId(fillId);
+      if (ringId) {pushShapeId(ringId);}
+      if (fillId) {pushShapeId(fillId);}
       setShapesForMarkerId(marker.id, {
         fill: fillId ?? null,
         ring: ringId ?? null,
@@ -324,8 +329,8 @@ export function placeTradeMarkers(): void {
 }
 
 export function scheduleTradeMarkerRefresh(): void {
-  if (!getMarkers()) return;
-  if (refreshDebounce) clearTimeout(refreshDebounce);
+  if (!getMarkers()) {return;}
+  if (refreshDebounce) {clearTimeout(refreshDebounce);}
   refreshDebounce = setTimeout(() => {
     refreshDebounce = null;
     placeTradeMarkers();
@@ -359,7 +364,7 @@ export function registerTradeMarkerOverlay(): void {
 }
 
 /** Test-only: clear any pending refresh so timers don't leak between cases. */
-export function __resetTradeMarkerRefreshForTests(): void {
-  if (refreshDebounce) clearTimeout(refreshDebounce);
+export function _resetTradeMarkerRefreshForTests(): void {
+  if (refreshDebounce) {clearTimeout(refreshDebounce);}
   refreshDebounce = null;
 }

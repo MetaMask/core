@@ -6,18 +6,22 @@
 // isTradingViewExternalHostname, isTradingViewExternalHref,
 // installTradingViewExternalOpenBridge (lines ~2016-2122).
 
-import { postToRN } from '../core/bridge';
-import { eachChartDocument } from './tvDomHelpers';
+import { postToRN } from '../core/bridge.js';
+import { eachChartDocument } from './tvDomHelpers.js';
 
 const TV_EXTERNAL_BRIDGE_DEBOUNCE_MS = 600;
 
-interface WindowWithOpenPatch extends Window {
+type WindowWithOpenPatch = {
+  // Marker written onto the real `window`/iframe objects; name is kept stable.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   __mmTvOpenPatched?: boolean;
-}
+} & Window
 
-interface DocumentWithCaptureFlag extends Document {
+type DocumentWithCaptureFlag = {
+  // Marker written onto the real `document` objects; name is kept stable.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   __mmTvLinkCaptureInstalled?: boolean;
-}
+} & Document
 
 // Module-local debounce timestamp; replaces window.__mmLastTvExternalBridgeAt.
 let lastBridgeAt = 0;
@@ -25,23 +29,23 @@ let lastBridgeAt = 0;
 export function isTradingViewExternalHostname(
   hostname: string | null | undefined,
 ): boolean {
-  if (!hostname) return false;
-  const h = String(hostname).toLowerCase();
+  if (!hostname) {return false;}
+  const host = String(hostname).toLowerCase();
   return (
-    h === 'tradingview.com' ||
-    h === 'www.tradingview.com' ||
-    h.endsWith('.tradingview.com')
+    host === 'tradingview.com' ||
+    host === 'www.tradingview.com' ||
+    host.endsWith('.tradingview.com')
   );
 }
 
 export function isTradingViewExternalHref(
   href: string | null | undefined,
 ): boolean {
-  if (!href) return false;
+  if (!href) {return false;}
   try {
     const base = window.location?.href ?? 'https://localhost/';
-    const u = new URL(href, base);
-    return isTradingViewExternalHostname(u.hostname);
+    const parsed = new URL(href, base);
+    return isTradingViewExternalHostname(parsed.hostname);
   } catch {
     return false;
   }
@@ -53,13 +57,13 @@ function sendTradingViewClicked(url?: string): void {
 
 function handleTradingViewLinkCapture(ev: Event): void {
   const target = ev.target as Element | null;
-  if (!target || typeof target.closest !== 'function') return;
-  const anchor = target.closest('a') as HTMLAnchorElement | null;
+  if (!target || typeof target.closest !== 'function') {return;}
+  const anchor = target.closest('a');
   if (!anchor?.href || !isTradingViewExternalHref(anchor.href)) {
     return;
   }
   const now = Date.now();
-  if (now - lastBridgeAt < TV_EXTERNAL_BRIDGE_DEBOUNCE_MS) return;
+  if (now - lastBridgeAt < TV_EXTERNAL_BRIDGE_DEBOUNCE_MS) {return;}
   lastBridgeAt = now;
   try {
     ev.preventDefault();
@@ -71,15 +75,20 @@ function handleTradingViewLinkCapture(ev: Event): void {
 }
 
 function patchWindowOpen(win: WindowWithOpenPatch | null | undefined): void {
-  if (!win?.open || win.__mmTvOpenPatched) return;
+  if (!win?.open || win.__mmTvOpenPatched) {return;}
   win.__mmTvOpenPatched = true;
   const origOpen = win.open.bind(win);
-  win.open = function patchedOpen(
+  win.open = (
     url?: string | URL,
     target?: string,
     features?: string,
-  ): Window | null {
-    if (url != null && url !== '' && isTradingViewExternalHref(String(url))) {
+  ): Window | null => {
+    if (
+      url !== null &&
+      url !== undefined &&
+      url !== '' &&
+      isTradingViewExternalHref(String(url))
+    ) {
       const now = Date.now();
       if (now - lastBridgeAt < TV_EXTERNAL_BRIDGE_DEBOUNCE_MS) {
         return null;
@@ -133,6 +142,6 @@ export function installTradingViewExternalOpenBridge(): void {
 }
 
 /** Test-only: reset module state between tests. */
-export function __resetExternalLinkBridgeForTests(): void {
+export function _resetExternalLinkBridgeForTests(): void {
   lastBridgeAt = 0;
 }

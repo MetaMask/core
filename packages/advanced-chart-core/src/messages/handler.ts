@@ -8,8 +8,8 @@
 //
 // Phase 1 routes SET_THEME_COLORS via widget/theme.ts.
 
-import { reportErrorToRN } from '../core/bridge';
-import type { InboundMessage, InboundMessageType } from './contract';
+import { reportErrorToRN } from '../core/bridge.js';
+import type { InboundMessage, InboundMessageType } from './contract.js';
 
 type AnyHandler = (payload: unknown) => void;
 
@@ -19,10 +19,15 @@ const handlers = new Map<string, AnyHandler>();
  * Register a handler for a single inbound message type. Subsequent calls
  * with the same type replace the previous handler (intentional — there's
  * one owner per message type by convention).
+ *
+ * @param type - The inbound message type to register a handler for.
+ * @param handler - Callback invoked with the payload for that message type.
  */
-export function registerHandler<T extends InboundMessageType>(
-  type: T,
-  handler: (payload: Extract<InboundMessage, { type: T }>['payload']) => void,
+export function registerHandler<Type extends InboundMessageType>(
+  type: Type,
+  handler: (
+    payload: Extract<InboundMessage, { type: Type }>['payload'],
+  ) => void,
 ): void {
   handlers.set(type, handler as AnyHandler);
 }
@@ -33,10 +38,12 @@ export function registerHandler<T extends InboundMessageType>(
  * dispatcher doesn't need to know what's coming.
  *
  * Errors inside a handler are forwarded to RN via ERROR.
+ *
+ * @param message - The inbound message to route to its registered handler.
  */
 export function dispatchInboundMessage(message: InboundMessage): void {
   const handler = handlers.get(message.type);
-  if (!handler) return;
+  if (!handler) {return;}
   try {
     handler(message.payload as unknown);
   } catch (error) {
@@ -45,6 +52,6 @@ export function dispatchInboundMessage(message: InboundMessage): void {
 }
 
 /** Test-only: clear all registered handlers. */
-export function __resetHandlersForTests(): void {
+export function _resetHandlersForTests(): void {
   handlers.clear();
 }

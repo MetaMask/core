@@ -11,23 +11,23 @@
 //   conditionals — TV built-in always on now)
 // - Drops DOM overflow unclip / hide-price-scale-buttons (no chrome to hide)
 
-import { reportErrorToRN } from '../core/bridge';
+import { reportErrorToRN } from '../core/bridge.js';
 import {
   getTheme,
   getWidget,
   isChartReady,
   getHasExplicitCurrentPriceLine,
-} from '../core/state';
-import type { ChartType, TVChartingLibraryWidget } from '../core/types';
-import { getThemeLastPriceLineColor } from './theme';
+} from '../core/state.js';
+import type { ChartType, TVChartingLibraryWidget } from '../core/types.js';
+import { getThemeLastPriceLineColor } from './theme.js';
 
 const PANE_TOP_MARGIN = 12;
 const PANE_BOTTOM_MARGIN = 8;
 
 function buildScaleLayoutOverrides(): Record<string, unknown> {
   const theme = getTheme();
-  if (!theme) return {};
-  const gridLineColor = theme.gridLineColor || 'transparent';
+  if (!theme) {return {};}
+  const gridLineColor = theme.gridLineColor ?? 'transparent';
   const hidePaneSeparator = window.CONFIG?.features?.hidePaneSeparator === true;
   const separatorColor = hidePaneSeparator
     ? theme.backgroundColor
@@ -67,10 +67,12 @@ function buildScaleLayoutOverrides(): Record<string, unknown> {
 /**
  * Apply the scale-layout overrides plus re-attach the main series to the
  * right price scale. Safe to call multiple times. Errors are forwarded to RN.
+ *
+ * @param _type - Reserved for the chart type; currently unused.
  */
 export function applyScaleLayout(_type?: ChartType): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
+  if (!widget || !isChartReady()) {return;}
   try {
     widget.applyOverrides(buildScaleLayoutOverrides());
   } catch (error) {

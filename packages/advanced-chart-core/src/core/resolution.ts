@@ -3,7 +3,7 @@
 // Ported verbatim from chartLogic.js INTERVAL_MS_TO_TV + detectResolution
 // (lines ~463-505). Phase 2 consumes this from widget/ohlcvIngestion.ts.
 
-import type { TVResolution } from './types';
+import type { TVResolution } from './types.js';
 
 /** OHLCV bar interval in milliseconds → TradingView resolution code. */
 export const INTERVAL_MS_TO_TV: Readonly<Record<number, TVResolution>> = {
@@ -29,6 +29,9 @@ const DEFAULT_RESOLUTION: TVResolution = '5';
  * Picks the closest matching TV resolution for an OHLCV bar series.
  * Uses the median diff over the first few bars so a single gap doesn't skew
  * the result (matches legacy chartLogic.js detectResolution semantics).
+ *
+ * @param data - The OHLCV bar series (each bar carries a `time` in ms).
+ * @returns The closest matching TradingView resolution.
  */
 export function detectResolution(data: { time: number }[]): TVResolution {
   if (data.length < 2) {

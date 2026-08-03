@@ -10,25 +10,25 @@
 // stays self-contained and interaction/* has no knowledge of the
 // overlay's data.
 
-import { postToRN, reportErrorToRN } from '../../core/bridge';
-import { getOhlcvData, getWidget, isChartReady } from '../../core/state';
-import { normalizeChartUnixSec } from '../../core/timeUtils';
+import { postToRN, reportErrorToRN } from '../../core/bridge.js';
+import { getOhlcvData, getWidget, isChartReady } from '../../core/state.js';
+import { normalizeChartUnixSec } from '../../core/timeUtils.js';
 import type {
   OHLCVBar,
   TVActiveChart,
   TVChartingLibraryWidget,
   TVCrosshairParams,
-} from '../../core/types';
-import type { TradeMarker } from '../../messages/contract';
-import { getMarkers, getShapesByMarkerId } from './state';
-import { snapMarkerToNearestBar } from './index';
+} from '../../core/types.js';
+import type { TradeMarker } from '../../messages/contract.js';
+import { getMarkers, getShapesByMarkerId } from './state.js';
+import { snapMarkerToNearestBar } from './index.js';
 
 /** Pixel radius (Euclidean) for matching a tap to a marker. */
 const TAP_RADIUS_PX = 26;
 /** Max delay between last crosshair point and mouse_up to consider it a tap. */
 const TAP_MAX_AGE_MS = 700;
 
-interface LastTapPoint {
+type LastTapPoint = {
   timeSec: number;
   offsetY: number | undefined;
   at: number;
@@ -36,7 +36,7 @@ interface LastTapPoint {
 
 let lastTapPoint: LastTapPoint | null = null;
 
-interface VisibleTimeRangeSec {
+type VisibleTimeRangeSec = {
   lo: number;
   hi: number;
 }
@@ -44,14 +44,17 @@ interface VisibleTimeRangeSec {
 /**
  * Extract a normalized time range from a TradingView bar/visible range result.
  * Returns the range or null if the values are missing or non-normalizable.
+ *
+ * @param raw - The raw TradingView range (`{ from, to }`) or nullish.
+ * @returns The normalized `{ lo, hi }` range in seconds, or null.
  */
 function normalizeRange(
   raw: { from?: number; to?: number } | null | undefined,
 ): VisibleTimeRangeSec | null {
-  if (raw?.from === undefined || raw?.to === undefined) return null;
+  if (raw?.from === undefined || raw?.to === undefined) {return null;}
   const from = normalizeChartUnixSec(raw.from);
   const to = normalizeChartUnixSec(raw.to);
-  if (from === null || to === null) return null;
+  if (from === null || to === null) {return null;}
   return { lo: Math.min(from, to), hi: Math.max(from, to) };
 }
 
@@ -61,7 +64,7 @@ function getVisibleTimeRangeSec(
   try {
     if (typeof chart.getVisibleBarsRange === 'function') {
       const result = normalizeRange(chart.getVisibleBarsRange());
-      if (result) return result;
+      if (result) {return result;}
     }
   } catch {
     // fall through to getVisibleRange
@@ -79,77 +82,100 @@ function getVisibleTimeRangeSec(
 /**
  * Compute the Y coordinate for a price given a linear price scale.
  * Returns null when the height is non-positive or the scale range is degenerate.
+ *
+ * @param lo - Lower bound of the visible price range.
+ * @param hi - Upper bound of the visible price range.
+ * @param price - The price to map to a Y coordinate.
+ * @param height - The pane height in pixels.
+ * @param inverted - Whether the price scale is inverted.
+ * @returns The Y coordinate in pixels.
  */
 function linearPriceToY(
   lo: number,
   hi: number,
   price: number,
-  h: number,
+  height: number,
   inverted: boolean,
 ): number | null {
-  if (inverted) return ((price - lo) / (hi - lo)) * h;
-  return ((hi - price) / (hi - lo)) * h;
+  if (inverted) {return ((price - lo) / (hi - lo)) * height;}
+  return ((hi - price) / (hi - lo)) * height;
 }
 
 /**
  * Compute the Y coordinate for a price given a logarithmic price scale.
  * Returns null when any value is non-positive or the log range is degenerate.
+ *
+ * @param lo - Lower bound of the visible price range.
+ * @param hi - Upper bound of the visible price range.
+ * @param price - The price to map to a Y coordinate.
+ * @param height - The pane height in pixels.
+ * @param inverted - Whether the price scale is inverted.
+ * @returns The Y coordinate in pixels.
  */
 function logPriceToY(
   lo: number,
   hi: number,
   price: number,
-  h: number,
+  height: number,
   inverted: boolean,
 ): number {
   const logLo = Math.log(lo);
   const logHi = Math.log(hi);
   const logP = Math.log(price);
-  if (logHi === logLo) return inverted ? 0 : h / 2;
-  const t = (logP - logLo) / (logHi - logLo);
-  return inverted ? t * h : (1 - t) * h;
+  if (logHi === logLo) {return inverted ? 0 : height / 2;}
+  const ratio = (logP - logLo) / (logHi - logLo);
+  return inverted ? ratio * height : (1 - ratio) * height;
 }
 
 /**
  * Y coordinate (main-pane overlay pixels) for a price. Mirrors chartLogic.js
  * `getPriceYForLastCloseOverlay`. Returns null when the pane / scale /
  * range isn't available. Log-scale mode uses log mapping.
+ *
+ * @param chart - The active TradingView chart.
+ * @param price - The price to map to a Y coordinate.
+ * @returns The Y coordinate in main-pane overlay pixels, or null.
  */
 function priceToY(chart: TVActiveChart, price: number): number | null {
-  if (!Number.isFinite(price)) return null;
-  if (typeof chart.getPanes !== 'function') return null;
+  if (!Number.isFinite(price)) {return null;}
+  if (typeof chart.getPanes !== 'function') {return null;}
   try {
     const panes = chart.getPanes();
-    if (!panes?.length) return null;
+    if (!panes?.length) {return null;}
     const pane = panes[0];
     const scale = pane.getMainSourcePriceScale();
-    if (!scale) return null;
+    if (!scale) {return null;}
     const range = scale.getVisiblePriceRange();
     if (range?.from === undefined || range?.to === undefined) {
       return null;
     }
     const lo = Math.min(range.from, range.to);
     const hi = Math.max(range.from, range.to);
-    const h = pane.getHeight();
-    if (!h || h <= 0) return null;
+    const height = pane.getHeight();
+    if (!height || height <= 0) {return null;}
     const clamped = Math.min(hi, Math.max(lo, price));
     const inverted =
       typeof scale.isInverted === 'function' && scale.isInverted();
     const mode = typeof scale.getMode === 'function' ? scale.getMode() : 0;
     if (mode === 1 && lo > 0 && hi > 0 && clamped > 0) {
-      return logPriceToY(lo, hi, clamped, h, inverted);
+      return logPriceToY(lo, hi, clamped, height, inverted);
     }
-    return linearPriceToY(lo, hi, clamped, h, inverted);
+    return linearPriceToY(lo, hi, clamped, height, inverted);
   } catch {
     return null;
   }
 }
 
-/** Resolve the plot width (in pixels) from the chart's time scale. */
+/**
+ * Resolve the plot width (in pixels) from the chart's time scale.
+ *
+ * @param chart - The active TradingView chart.
+ * @returns The plot width in pixels, or 0 when unavailable.
+ */
 function getPlotWidth(chart: TVActiveChart): number {
   try {
     const ts = chart.getTimeScale();
-    if (ts && typeof ts.width === 'function') return ts.width();
+    if (ts && typeof ts.width === 'function') {return ts.width();}
   } catch {
     // ignore — caller treats 0 as unavailable
   }
@@ -159,19 +185,35 @@ function getPlotWidth(chart: TVActiveChart): number {
 /**
  * Resolve the price to use for Y-distance calculation for a marker.
  * Returns null when no usable price is available.
+ *
+ * @param snapped - The snapped bar (`{ close }`) or null.
+ * @param markerPrice - The marker's own price, if any.
+ * @returns The resolved price, or null when none is usable.
  */
 function resolveMarkerPrice(
   snapped: { close: number } | null,
   markerPrice: number | undefined | null,
 ): number | null {
-  if (snapped != null) return snapped.close;
-  if (markerPrice != null && Number.isFinite(markerPrice)) return markerPrice;
+  if (snapped !== null) {return snapped.close;}
+  if (
+    markerPrice !== undefined &&
+    markerPrice !== null &&
+    Number.isFinite(markerPrice)
+  ) {
+    return markerPrice;
+  }
   return null;
 }
 
 /**
  * Compute the Y pixel distance between a marker and the tap point.
  * Returns 0 when Y cannot be determined (falls back to X-only matching).
+ *
+ * @param chart - The active TradingView chart.
+ * @param offsetY - The tap Y offset in pixels, if any.
+ * @param snapped - The snapped bar for the marker, or null.
+ * @param markerPrice - The marker's own price, if any.
+ * @returns The signed Y pixel distance, or 0 when undeterminable.
  */
 function computeYDistance(
   chart: TVActiveChart,
@@ -179,15 +221,15 @@ function computeYDistance(
   snapped: { timeSec: number; close: number } | null,
   markerPrice: number | undefined | null,
 ): number {
-  if (offsetY == null || !Number.isFinite(offsetY)) return 0;
+  if (offsetY === undefined || !Number.isFinite(offsetY)) {return 0;}
   const price = resolveMarkerPrice(snapped, markerPrice);
-  if (price == null) return 0;
+  if (price === null) {return 0;}
   const markerY = priceToY(chart, price);
-  if (markerY == null || !Number.isFinite(markerY)) return 0;
+  if (markerY === null || !Number.isFinite(markerY)) {return 0;}
   return markerY - offsetY;
 }
 
-interface HitTestContext {
+type HitTestContext = {
   chart: TVActiveChart;
   range: VisibleTimeRangeSec;
   pxPerSec: number;
@@ -201,12 +243,18 @@ function computeMarkerDistance(
   ctx: HitTestContext,
   marker: TradeMarker,
 ): { key: string; dist: number } | null {
-  if (marker?.id == null || !Number.isFinite(marker?.time)) return null;
+  if (
+    marker?.id === undefined ||
+    marker?.id === null ||
+    !Number.isFinite(marker?.time)
+  ) {
+    return null;
+  }
   const markerKey = String(marker.id);
-  if (!ctx.drawn.has(markerKey)) return null;
+  if (!ctx.drawn.has(markerKey)) {return null;}
   const snapped = snapMarkerToNearestBar(ctx.data, marker.time);
   const mSec = snapped ? snapped.timeSec : marker.time / 1000;
-  if (mSec < ctx.range.lo || mSec > ctx.range.hi) return null;
+  if (mSec < ctx.range.lo || mSec > ctx.range.hi) {return null;}
   const dxPx = (mSec - ctx.timeSec) * ctx.pxPerSec;
   const dyPx = computeYDistance(ctx.chart, ctx.offsetY, snapped, marker.price);
   return { key: markerKey, dist: Math.hypot(dxPx, dyPx) };
@@ -217,10 +265,10 @@ export function findTradeMarkerIdNearPoint(
   offsetY: number | undefined,
 ): string | null {
   const markers = getMarkers();
-  if (!markers?.length) return null;
+  if (!markers?.length) {return null;}
   const widget = getWidget();
-  if (!widget || !isChartReady()) return null;
-  if (!Number.isFinite(timeSec)) return null;
+  if (!widget || !isChartReady()) {return null;}
+  if (!Number.isFinite(timeSec)) {return null;}
 
   let chart: TVActiveChart;
   try {
@@ -228,16 +276,16 @@ export function findTradeMarkerIdNearPoint(
   } catch {
     return null;
   }
-  if (!chart) return null;
+  if (!chart) {return null;}
 
   const range = getVisibleTimeRangeSec(chart);
-  if (!range || range.hi <= range.lo) return null;
+  if (!range || range.hi <= range.lo) {return null;}
 
   const plotW = getPlotWidth(chart);
-  if (plotW <= 0) return null;
+  if (plotW <= 0) {return null;}
 
   const drawn = getShapesByMarkerId();
-  if (!drawn.size) return null;
+  if (!drawn.size) {return null;}
 
   const ctx: HitTestContext = {
     chart,
@@ -266,6 +314,9 @@ export function findTradeMarkerIdNearPoint(
  * (to hit-test and emit TRADE_MARKER_PRESSED). The captured point is
  * consumed on release so a subsequent mouse_up without a fresh crosshair
  * update can't re-fire the same press.
+ *
+ * @param widget - The TradingView widget to subscribe to.
+ * @param chart - The active TradingView chart.
  */
 export function attachMarkerHitTest(
   widget: TVChartingLibraryWidget,
@@ -289,10 +340,10 @@ export function attachMarkerHitTest(
     widget.subscribe('mouse_up', () => {
       const tap = lastTapPoint;
       lastTapPoint = null;
-      if (!tap) return;
-      if (Date.now() - tap.at > TAP_MAX_AGE_MS) return;
+      if (!tap) {return;}
+      if (Date.now() - tap.at > TAP_MAX_AGE_MS) {return;}
       const pressedId = findTradeMarkerIdNearPoint(tap.timeSec, tap.offsetY);
-      if (pressedId != null) {
+      if (pressedId !== null) {
         postToRN('TRADE_MARKER_PRESSED', { id: pressedId });
       }
     });
@@ -302,6 +353,6 @@ export function attachMarkerHitTest(
 }
 
 /** Test-only: forget any captured tap between test cases. */
-export function __resetMarkerHitTestForTests(): void {
+export function _resetMarkerHitTestForTests(): void {
   lastTapPoint = null;
 }

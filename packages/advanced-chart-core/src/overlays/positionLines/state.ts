@@ -2,7 +2,7 @@
 // Kept separate from core/state.ts per convention: overlay-specific state
 // lives in the overlay's own state module.
 
-import type { TVShapeId } from '../../core/types';
+import type { TVShapeId } from '../../core/types.js';
 
 let shapeIds: TVShapeId[] = [];
 let generation = 0;
@@ -28,7 +28,7 @@ export function getGeneration(): number {
   return generation;
 }
 
-export function __resetPositionLineStateForTests(): void {
+export function _resetPositionLineStateForTests(): void {
   shapeIds = [];
   generation = 0;
 }

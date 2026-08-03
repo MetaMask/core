@@ -39,7 +39,7 @@
 //   Token Details, Perps, or any other consumer. When `slbMode` is false
 //   (or omitted), this module is inert.
 
-import { reportErrorToRN } from '../../core/bridge';
+import { reportErrorToRN } from '../../core/bridge.js';
 import {
   getOhlcvData,
   getOhlcvGeneration,
@@ -50,9 +50,9 @@ import {
   setSlbCenteringPending,
   getWidget,
   isChartReady,
-} from '../../core/state';
-import { getApproxBarDurationSec } from '../../core/timeUtils';
-import type { TVActiveChart } from '../../core/types';
+} from '../../core/state.js';
+import { getApproxBarDurationSec } from '../../core/timeUtils.js';
+import type { TVActiveChart } from '../../core/types.js';
 
 /**
  * How long (ms) to keep re-asserting the centered visible range for a
@@ -76,6 +76,10 @@ let centerHoldGeneration = 0;
  * Deliberately omits the `{ percentRightMargin: 0 }` option: passing it makes
  * TradingView anchor to the latest candle and ignore an older from/to, so a
  * historical frame (an old position's trades) would snap back to "today".
+ *
+ * @param chart - The active TradingView chart.
+ * @param fromSec - Left edge of the range, in unix seconds.
+ * @param toSec - Right edge of the range, in unix seconds.
  */
 function holdCenteredVisibleRange(
   chart: TVActiveChart,
@@ -88,9 +92,9 @@ function holdCenteredVisibleRange(
   const startTs = Date.now();
 
   const apply = (): void => {
-    if (gen !== centerHoldGeneration) return;
-    if (dataGeneration !== getOhlcvGeneration()) return;
-    if (!getWidget() || !isChartReady()) return;
+    if (gen !== centerHoldGeneration) {return;}
+    if (dataGeneration !== getOhlcvGeneration()) {return;}
+    if (!getWidget() || !isChartReady()) {return;}
     try {
       chart.setVisibleRange({ from: fromSec, to: toSec });
     } catch {
@@ -122,22 +126,26 @@ function holdCenteredVisibleRange(
  * When `options.immediate` is true, applies centering synchronously instead of
  * waiting for `onDataLoaded`. Used after `setResolution` where TradingView has
  * already completed its data cycle by the time the callback fires.
+ *
+ * @param chart - The active TradingView chart.
+ * @param options - Optional centering options.
+ * @param options.immediate - When true, centers synchronously.
  */
 export function slbCenterViewport(
   chart: TVActiveChart,
   options?: { immediate?: boolean },
 ): void {
-  if (!getSlbMode() || !isSlbCenteringPending()) return;
+  if (!getSlbMode() || !isSlbCenteringPending()) {return;}
 
   const fromMs = getVisibleFromMs();
   const toMs = getVisibleToMs();
-  if (fromMs == null || toMs == null) return;
+  if (fromMs === null || toMs === null) {return;}
 
   const capturedGeneration = getOhlcvGeneration();
 
   const applyCenter = (): void => {
-    if (capturedGeneration !== getOhlcvGeneration()) return;
-    if (!isSlbCenteringPending()) return;
+    if (capturedGeneration !== getOhlcvGeneration()) {return;}
+    if (!isSlbCenteringPending()) {return;}
 
     const data = getOhlcvData();
     const barPadSec = getApproxBarDurationSec(data) * 2;
@@ -153,9 +161,10 @@ export function slbCenterViewport(
     // frame sticks. A frame ending at/after the latest bar is the trailing window:
     // TV doesn't fight it, so a single anchored call is enough.
     const lastBar = data.at(-1);
-    const lastBarSec = lastBar != null ? Math.floor(lastBar.time / 1000) : null;
+    const lastBarSec =
+      lastBar === undefined ? null : Math.floor(lastBar.time / 1000);
     const isHistoricalFrame =
-      lastBarSec != null && Math.ceil(toMs / 1000) < lastBarSec;
+      lastBarSec !== null && Math.ceil(toMs / 1000) < lastBarSec;
 
     try {
       if (isHistoricalFrame) {
@@ -186,7 +195,7 @@ export function slbCenterViewport(
 }
 
 /** Test-only: reset the center-hold generation counter between cases. */
-export function __resetSocialLeaderboardForTests(): void {
+export function _resetSocialLeaderboardForTests(): void {
   centerHoldGeneration = 0;
 }
 
@@ -197,10 +206,10 @@ export function __resetSocialLeaderboardForTests(): void {
  * loaded with `slbMode` active — for all other consumers this is a no-op.
  */
 export function slbScheduleInitialCentering(): void {
-  if (!getSlbMode() || !isSlbCenteringPending()) return;
+  if (!getSlbMode() || !isSlbCenteringPending()) {return;}
 
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
+  if (!widget || !isChartReady()) {return;}
 
   try {
     const chart = widget.activeChart();
@@ -219,11 +228,14 @@ export function slbScheduleInitialCentering(): void {
  *
  * Returns `true` if it handled the request (caller should return early),
  * or `false` if the caller should fall through to the other strategies.
+ *
+ * @param onResult - TradingView getBars result callback.
+ * @returns `true` when handled, `false` to fall through to other strategies.
  */
 export function slbHandleGetBars(
   onResult: (bars: never[], meta: { noData: boolean }) => void,
 ): boolean {
-  if (!getSlbMode()) return false;
+  if (!getSlbMode()) {return false;}
   onResult([], { noData: true });
   return true;
 }

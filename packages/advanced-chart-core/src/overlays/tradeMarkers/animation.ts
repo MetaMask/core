@@ -6,17 +6,17 @@
 // pulse (or a full marker rebuild) starts, so we never leave a shape
 // stuck at the peak size.
 
-import { reportErrorToRN } from '../../core/bridge';
-import { getWidget, isChartReady } from '../../core/state';
-import { registerHandler } from '../../messages/handler';
-import type { TVActiveChart, TVShape } from '../../core/types';
-import type { PulseTradeMarkerMessage } from '../../messages/contract';
+import { reportErrorToRN } from '../../core/bridge.js';
+import { getWidget, isChartReady } from '../../core/state.js';
+import { registerHandler } from '../../messages/handler.js';
+import type { TVActiveChart, TVShape } from '../../core/types.js';
+import type { PulseTradeMarkerMessage } from '../../messages/contract.js';
 import {
   bumpPulseGeneration,
   getPulseGeneration,
   getShapesByMarkerId,
-} from './state';
-import { TRADE_MARKER_RING_SIZE, TRADE_MARKER_SIZE } from './index';
+} from './state.js';
+import { TRADE_MARKER_RING_SIZE, TRADE_MARKER_SIZE } from './index.js';
 
 /** Pulse duration (ms). */
 const PULSE_MS = 1100;
@@ -26,7 +26,7 @@ const PULSE_PEAK = 22;
 const PULSE_CYCLES = 2;
 
 function getShape(chart: TVActiveChart, id: string | null): TVShape | null {
-  if (id == null || typeof chart.getShapeById !== 'function') return null;
+  if (id === null || typeof chart.getShapeById !== 'function') {return null;}
   try {
     return chart.getShapeById(id);
   } catch {
@@ -35,7 +35,7 @@ function getShape(chart: TVActiveChart, id: string | null): TVShape | null {
 }
 
 function setSize(shape: TVShape | null, size: number): void {
-  if (!shape) return;
+  if (!shape) {return;}
   try {
     shape.setProperties({ size: Math.round(size) });
   } catch {
@@ -47,14 +47,14 @@ export function handlePulseTradeMarker(
   payload: PulseTradeMarkerMessage['payload'],
 ): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) return;
-  if (payload?.id == null) return;
+  if (!widget || !isChartReady()) {return;}
+  if (payload?.id === null || payload?.id === undefined) {return;}
 
   const markerId = String(payload.id);
   const record = getShapesByMarkerId().get(markerId);
-  if (!record) return;
+  if (!record) {return;}
   const { fill: fillId, ring: ringId } = record;
-  if (fillId == null && ringId == null) return;
+  if (fillId === null && ringId === null) {return;}
 
   let chart: TVActiveChart;
   try {
@@ -65,7 +65,7 @@ export function handlePulseTradeMarker(
   }
   const fillShape = getShape(chart, fillId);
   const ringShape = getShape(chart, ringId);
-  if (!fillShape && !ringShape) return;
+  if (!fillShape && !ringShape) {return;}
 
   const gen = bumpPulseGeneration();
   const startTs = Date.now();
@@ -78,18 +78,19 @@ export function handlePulseTradeMarker(
   };
 
   const step = (): void => {
-    if (gen !== getPulseGeneration()) return;
-    if (!getWidget() || !isChartReady()) return;
+    if (gen !== getPulseGeneration()) {return;}
+    if (!getWidget() || !isChartReady()) {return;}
     // Abort if the markers were rebuilt — record ids now point elsewhere.
     const current = getShapesByMarkerId().get(markerId);
-    if (current?.fill !== fillId || current?.ring !== ringId) return;
+    if (current?.fill !== fillId || current?.ring !== ringId) {return;}
 
-    const t = (Date.now() - startTs) / PULSE_MS;
-    if (t >= 1) {
+    const elapsed = (Date.now() - startTs) / PULSE_MS;
+    if (elapsed >= 1) {
       applySize(TRADE_MARKER_SIZE);
       return;
     }
-    const envelope = Math.abs(Math.sin(Math.PI * PULSE_CYCLES * t)) * (1 - t);
+    const envelope =
+      Math.abs(Math.sin(Math.PI * PULSE_CYCLES * elapsed)) * (1 - elapsed);
     applySize(TRADE_MARKER_SIZE + (PULSE_PEAK - TRADE_MARKER_SIZE) * envelope);
     try {
       requestAnimationFrame(step);
