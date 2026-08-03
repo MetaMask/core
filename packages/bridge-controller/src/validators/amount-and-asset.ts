@@ -1,14 +1,14 @@
 import { type, optional, union, string, Infer } from '@metamask/superstruct';
 
 import { BridgeAssetV2Schema } from './bridge-asset.js';
-import { NumberStringSchema, FloatStringSchema } from './number.js';
+import { PositiveNumberStringSchema, FloatStringSchema } from './number.js';
 
 export const AmountsAndAssetSchema = type({
   /*
    * The atomic amount of the asset
    * @example "1000000000000000000"
    */
-  amount: NumberStringSchema,
+  amount: PositiveNumberStringSchema,
   asset: BridgeAssetV2Schema,
   /*
    * The normalized amount of the asset
