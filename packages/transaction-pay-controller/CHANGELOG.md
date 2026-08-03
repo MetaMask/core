@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Use the typed required amount for Money Account `isMaxAmount` source calculations instead of the pay token's on-chain balance, so Max deposits funded from the money account (e.g. Send to Perps) keep the full withdrawable total (mUSD + vmUSD) and can use `EXACT_INPUT` ([#9707](https://github.com/MetaMask/core/pull/9707))
 - Fix Relay quote validation ([#9723](https://github.com/MetaMask/core/pull/9723))
   - Keep the quote when validation fails with reason `insufficient-source-balance`, while still surfacing `quoteError`; all other validation-failure reasons continue to remove the quote.
   - Exclude a zero `gas` value from the simulated transaction.
@@ -42,10 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/ramps-controller` from `^18.0.0` to `^18.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
-
-### Fixed
-
-- Use the typed required amount for Money Account `isMaxAmount` source calculations instead of the pay token's on-chain balance, so Max deposits funded from the money account (e.g. Send to Perps) keep the full withdrawable total (mUSD + vmUSD) and can use `EXACT_INPUT` ([#9707](https://github.com/MetaMask/core/pull/9707))
 
 ## [26.0.1]
 
