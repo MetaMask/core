@@ -222,6 +222,7 @@ export {
   formatChainIdToHex,
   formatAddressToCaipReference,
   formatAddressToAssetId,
+  formatChainIdToDec,
 } from './utils/caip-formatters.js';
 
 export { extractTradeData } from './utils/trade-utils.js';
