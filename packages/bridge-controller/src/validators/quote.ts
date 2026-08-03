@@ -17,7 +17,7 @@ import { ChainIdSchema, BridgeAssetSchema } from './bridge-asset.js';
 import { IntentSchema } from './intent.js';
 import {
   TruthyDigitStringSchema,
-  NumberStringSchema,
+  PositiveNumberStringSchema,
   FloatStringSchema,
 } from './number.js';
 import { RefuelDataSchema, StepSchema, StepSchemaV2 } from './step.js';
@@ -44,8 +44,8 @@ export const FeeDataSchema = type({
 });
 
 export const TxFeeGasLimitsSchema = type({
-  maxFeePerGas: NumberStringSchema,
-  maxPriorityFeePerGas: NumberStringSchema,
+  maxFeePerGas: PositiveNumberStringSchema,
+  maxPriorityFeePerGas: PositiveNumberStringSchema,
 });
 
 export const GaslessPropertiesSchema = type({
