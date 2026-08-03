@@ -305,17 +305,22 @@ export class BaseDataService<
       // explicit `pageParam` (see below).
       initialPageParam?: TPageParam;
       getNextPageParam?: GetNextPageParamFunction<TPageParam, TQueryFnData>;
-      getPreviousPageParam?: GetPreviousPageParamFunction<TPageParam, TQueryFnData>;
+      getPreviousPageParam?: GetPreviousPageParamFunction<
+        TPageParam,
+        TQueryFnData
+      >;
     },
     pageParam?: TPageParam,
   ): Promise<TData> {
     const cache = this.#queryClient.getQueryCache();
 
-    const query = cache.find<TQueryFnData, TError, InfiniteData<TData, TPageParam>>(
-      {
-        queryKey: options.queryKey,
-      },
-    );
+    const query = cache.find<
+      TQueryFnData,
+      TError,
+      InfiniteData<TData, TPageParam>
+    >({
+      queryKey: options.queryKey,
+    });
 
     if (!query?.state.data || pageParam === undefined) {
       const result = await this.#queryClient.fetchInfiniteQuery<
