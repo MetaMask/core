@@ -67,9 +67,31 @@ describe('HttpSecretEscrowClient', () => {
     const { secret } = await client.exportComplete({
       userId: 'user-1',
       factorId: 'passkey',
-      assertion: { id: 'cred-1', challenge: 'chal' },
+      proof: {
+        type: 'webauthn',
+        assertion: { id: 'cred-1', challenge: 'chal' },
+      },
     });
     expect(hexToBytes(bytesToHex(secret))).toEqual(SECRET);
+  });
+
+  it('adds a factor via HTTP', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(204));
+    const client = new HttpSecretEscrowClient({
+      baseUrl: 'http://127.0.0.1:8787',
+      fetch: fetchMock,
+    });
+
+    await client.addFactor({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8787/v1/add_factor',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('revokes and puts/gets enrollment metadata', async () => {

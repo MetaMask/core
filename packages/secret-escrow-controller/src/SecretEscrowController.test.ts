@@ -48,10 +48,38 @@ function createMessenger(): SecretEscrowControllerMessenger {
 }
 
 describe('SecretEscrowController', () => {
-  it('returns default empty state', () => {
-    expect(getDefaultSecretEscrowControllerState()).toStrictEqual({
-      escrowRecord: null,
-      mockClientSnapshot: null,
+  it('returns empty factors when not enrolled', () => {
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client: new MockSecretEscrowClient(),
+    });
+    expect(controller.listFactors()).toEqual({});
+    expect(
+      secretEscrowControllerSelectors.selectFactors(controller.state),
+    ).toEqual({});
+  });
+
+  it('hydrates with a fallback factor id and factors map', async () => {
+    const client = Object.assign(new MockSecretEscrowClient(), {
+      putEnrollmentMetadata: jest.fn(),
+      getEnrollmentMetadata: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        factorId: '',
+        factor: TEST_FACTOR,
+        wrappedPassword: { ciphertext: 'c', iv: 'i' },
+        enrolledAt: 42,
+      }),
+    });
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+
+    expect(await controller.hydrateFromRemote('user-1')).toBe(true);
+    expect(controller.state.escrowRecord).toMatchObject({
+      factorId: 'passkey',
+      factors: { passkey: TEST_FACTOR },
+      wrappedPassword: { ciphertext: 'c', iv: 'i' },
     });
   });
 
@@ -252,6 +280,7 @@ describe('SecretEscrowController', () => {
   it('skips mock snapshot persistence for non-snapshot clients', async () => {
     const client = {
       register: jest.fn().mockResolvedValue({ secret: new Uint8Array(32) }),
+      addFactor: jest.fn(),
       exportInit: jest.fn(),
       exportComplete: jest.fn(),
       revoke: jest.fn(),
@@ -273,6 +302,7 @@ describe('SecretEscrowController', () => {
   it('treats a client missing importSnapshot as non-snapshot-capable', async () => {
     const client = {
       register: jest.fn().mockResolvedValue({ secret: new Uint8Array(32) }),
+      addFactor: jest.fn(),
       exportInit: jest.fn(),
       exportComplete: jest.fn(),
       revoke: jest.fn(),
@@ -369,5 +399,146 @@ describe('SecretEscrowController', () => {
 
     controller.clearState();
     expect(await controller.hydrateFromRemote('user-1')).toBe(false);
+  });
+
+  it('creates with wallet secret S and unlocks via password or passkey (1-of-N)', async () => {
+    const client = new MockSecretEscrowClient();
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+
+    const secret = controller.generateWalletSecret();
+    expect(secret).toHaveLength(32);
+
+    const enrolled = await controller.createWithWalletSecret({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+      secret,
+    });
+    expect(bytesToHex(enrolled)).toBe(bytesToHex(secret));
+    expect(controller.listFactors()).toEqual({
+      password: { type: 'password' },
+    });
+    expect(
+      secretEscrowControllerSelectors.selectFactors(controller.state),
+    ).toEqual({ password: { type: 'password' } });
+
+    await controller.addFactor({
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+    expect(Object.keys(controller.listFactors()).sort()).toEqual([
+      'passkey',
+      'password',
+    ]);
+
+    await controller.startExport('password');
+    const fromPassword = await controller.unlockWithFactor({
+      factorId: 'password',
+      proof: { type: 'password', password: 'wallet-password' },
+    });
+    expect(bytesToHex(fromPassword)).toBe(bytesToHex(secret));
+
+    const { challenge } = await controller.startExport('passkey');
+    const fromPasskey = await controller.unlockWithFactor({
+      factorId: 'passkey',
+      proof: {
+        type: 'webauthn',
+        assertion: { id: TEST_FACTOR.credentialId, challenge },
+      },
+    });
+    expect(bytesToHex(fromPasskey)).toBe(bytesToHex(secret));
+  });
+
+  it('rejects addFactor duplicates and unknown unlock factors', async () => {
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client: new MockSecretEscrowClient(),
+    });
+    await controller.createWithWalletSecret({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+    });
+
+    await expect(
+      controller.addFactor({
+        factorId: 'password',
+        factor: { type: 'password', password: 'other' },
+      }),
+    ).rejects.toMatchObject({
+      code: SecretEscrowErrorCode.AlreadyRegistered,
+    });
+
+    await expect(controller.startExport('missing')).rejects.toMatchObject({
+      code: SecretEscrowErrorCode.UnknownFactor,
+    });
+
+    await expect(
+      controller.unlockWithFactor({
+        factorId: 'missing',
+        proof: { type: 'password', password: 'wallet-password' },
+      }),
+    ).rejects.toMatchObject({
+      code: SecretEscrowErrorCode.UnknownFactor,
+    });
+  });
+
+  it('migrates persisted records missing the factors map', () => {
+    const client = new MockSecretEscrowClient();
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+      state: {
+        escrowRecord: {
+          userId: 'user-1',
+          factorId: 'passkey',
+          factor: TEST_FACTOR,
+          enrolledAt: 1,
+        } as never,
+      },
+    });
+
+    expect(controller.listFactors()).toEqual({
+      passkey: TEST_FACTOR,
+    });
+  });
+
+  it('skips remote enrollment sync when the default factor is not webauthn', async () => {
+    const base = new MockSecretEscrowClient();
+    await base.register({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+    });
+    const client = Object.assign(base, {
+      putEnrollmentMetadata: jest.fn(),
+      getEnrollmentMetadata: jest.fn(),
+    });
+
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+      state: {
+        escrowRecord: {
+          userId: 'user-1',
+          factorId: 'password',
+          factor: { type: 'password' },
+          factors: { password: { type: 'password' } },
+          enrolledAt: 1,
+          wrappedPassword: { ciphertext: 'c', iv: 'i' },
+        },
+      },
+    });
+
+    await controller.addFactor({
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+
+    expect(client.putEnrollmentMetadata).not.toHaveBeenCalled();
+    expect(controller.listFactors().passkey).toEqual(TEST_FACTOR);
   });
 });

@@ -18,7 +18,9 @@ import { bytesToHex, hexToBytes } from '@metamask/utils';
 import { MockSecretEscrowClient } from '../src/MockSecretEscrowClient.ts';
 import type {
   EscrowEnrollmentMetadata,
+  EscrowFactor,
   EscrowWrappedPassword,
+  FactorProof,
   WebAuthnEscrowFactor,
 } from '../src/types.ts';
 import {
@@ -35,6 +37,7 @@ type StoreFile = {
       factor: WebAuthnEscrowFactor;
       wrappedPassword: EscrowWrappedPassword;
       enrolledAt: number;
+      factors?: EscrowEnrollmentMetadata['factors'];
     }
   >;
 };
@@ -114,6 +117,29 @@ function sendError(res: ServerResponse, error: unknown): void {
   });
 }
 
+/**
+ * Resolves export proof from the new `proof` body or legacy `assertion` body.
+ *
+ * @param body - Export complete request body.
+ * @returns Factor proof, or undefined when neither field is present.
+ */
+function resolveProof(body: {
+  proof?: FactorProof;
+  assertion?: {
+    id: string;
+    challenge: string;
+    response?: Record<string, string>;
+  };
+}): FactorProof | undefined {
+  if (body.proof) {
+    return body.proof;
+  }
+  if (body.assertion) {
+    return { type: 'webauthn', assertion: body.assertion };
+  }
+  return undefined;
+}
+
 loadStore();
 
 const server = createServer(async (req, res) => {
@@ -151,6 +177,7 @@ const server = createServer(async (req, res) => {
         factor: enrollment.factor,
         wrappedPassword: enrollment.wrappedPassword,
         enrolledAt: enrollment.enrolledAt,
+        factors: enrollment.factors ?? client.listFactors(userId),
       };
       sendJson(res, 200, metadata);
       return;
@@ -171,6 +198,7 @@ const server = createServer(async (req, res) => {
         factor: body.factor,
         wrappedPassword: body.wrappedPassword,
         enrolledAt: body.enrolledAt ?? Date.now(),
+        factors: body.factors ?? client.listFactors(userId),
       };
       saveStore();
       sendJson(res, 204);
@@ -181,7 +209,7 @@ const server = createServer(async (req, res) => {
       const body = (await readJson(req)) as {
         userId: string;
         factorId: string;
-        factor: WebAuthnEscrowFactor;
+        factor: EscrowFactor;
         secretHex?: string;
       };
       const { secret } = await client.register({
@@ -193,6 +221,18 @@ const server = createServer(async (req, res) => {
       saveStore();
       sendJson(res, 200, { secretHex: bytesToHex(secret) });
       secret.fill(0);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/v1/add_factor') {
+      const body = (await readJson(req)) as {
+        userId: string;
+        factorId: string;
+        factor: EscrowFactor;
+      };
+      await client.addFactor(body);
+      saveStore();
+      sendJson(res, 204);
       return;
     }
 
@@ -211,13 +251,26 @@ const server = createServer(async (req, res) => {
       const body = (await readJson(req)) as {
         userId: string;
         factorId: string;
-        assertion: {
+        proof?: FactorProof;
+        assertion?: {
           id: string;
           challenge: string;
           response?: Record<string, string>;
         };
       };
-      const { secret } = await client.exportComplete(body);
+      const proof = resolveProof(body);
+      if (!proof) {
+        sendJson(res, 400, {
+          code: SecretEscrowErrorCode.AssertionFailed,
+          message: 'Missing factor proof',
+        });
+        return;
+      }
+      const { secret } = await client.exportComplete({
+        userId: body.userId,
+        factorId: body.factorId,
+        proof,
+      });
       saveStore();
       sendJson(res, 200, { secretHex: bytesToHex(secret) });
       secret.fill(0);

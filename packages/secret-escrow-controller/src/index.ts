@@ -18,10 +18,16 @@ export type { WrappedPassword } from './crypto.js';
 export { wrapPassword, unwrapPassword } from './crypto.js';
 export type {
   SecretEscrowControllerIsEnrolledAction,
+  SecretEscrowControllerListFactorsAction,
+  SecretEscrowControllerGenerateWalletSecretAction,
+  SecretEscrowControllerCreateWithWalletSecretAction,
+  SecretEscrowControllerAddFactorAction,
   SecretEscrowControllerEnrollAction,
   SecretEscrowControllerEnrollAndWrapPasswordAction,
+  SecretEscrowControllerHydrateFromRemoteAction,
   SecretEscrowControllerStartExportAction,
   SecretEscrowControllerCompleteExportAction,
+  SecretEscrowControllerUnlockWithFactorAction,
   SecretEscrowControllerRecoverPasswordAction,
   SecretEscrowControllerRevokeAction,
   SecretEscrowControllerClearStateAction,

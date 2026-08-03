@@ -1,21 +1,27 @@
 export type {
+  AddFactorParams,
   Base64URLString,
   EnrollmentCapableSecretEscrowClient,
   EscrowAssertion,
   EscrowEnrollmentMetadata,
   EscrowFactor,
+  EscrowFactorPublic,
   EscrowPublicKeyJwk,
   EscrowWrappedPassword,
   ExportCompleteParams,
   ExportCompleteResult,
   ExportInitParams,
   ExportInitResult,
+  FactorProof,
+  PasswordEscrowFactor,
+  PasswordEscrowFactorPublic,
   RegisterParams,
   RegisterResult,
   RevokeParams,
   SecretEscrowClient,
   WebAuthnEscrowFactor,
 } from './types.js';
+export { toPublicEscrowFactor } from './types.js';
 export {
   SecretEscrowError,
   SecretEscrowErrorCode,

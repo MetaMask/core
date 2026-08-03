@@ -16,8 +16,58 @@ export type SecretEscrowControllerIsEnrolledAction = {
 };
 
 /**
+ * Lists enrolled public factors from local state.
+ *
+ * @returns Factor id → public metadata map.
+ */
+export type SecretEscrowControllerListFactorsAction = {
+  type: `SecretEscrowController:listFactors`;
+  handler: SecretEscrowController['listFactors'];
+};
+
+/**
+ * Generates a 32-byte wallet secret `S` suitable for escrow registration.
+ *
+ * @returns Fresh random secret (caller must clear after use).
+ */
+export type SecretEscrowControllerGenerateWalletSecretAction = {
+  type: `SecretEscrowController:generateWalletSecret`;
+  handler: SecretEscrowController['generateWalletSecret'];
+};
+
+/**
+ * Registers the first factor and escrows wallet secret `S`.
+ *
+ * Additional factors use {@link addFactor} (1-of-N).
+ *
+ * @param params - Creation parameters.
+ * @param params.userId - Stable escrow user id.
+ * @param params.factorId - Factor id (e.g. `"password"` or `"passkey"`).
+ * @param params.factor - Factor payload (password includes plaintext once).
+ * @param params.secret - Optional 32-byte `S`; generated when omitted.
+ * @returns The escrowed wallet secret (caller must clear after use).
+ */
+export type SecretEscrowControllerCreateWithWalletSecretAction = {
+  type: `SecretEscrowController:createWithWalletSecret`;
+  handler: SecretEscrowController['createWithWalletSecret'];
+};
+
+/**
+ * Adds another factor to an existing escrow enrollment (1-of-N).
+ *
+ * @param params - Add-factor parameters.
+ * @param params.factorId - New factor id.
+ * @param params.factor - Factor payload.
+ */
+export type SecretEscrowControllerAddFactorAction = {
+  type: `SecretEscrowController:addFactor`;
+  handler: SecretEscrowController['addFactor'];
+};
+
+/**
  * Registers a WebAuthn factor with the escrow and persists local metadata.
  *
+ * @deprecated Prefer {@link createWithWalletSecret} for new flows.
  * @param params - Enrollment parameters.
  * @param params.userId - Stable escrow user id.
  * @param params.factorId - Factor id (e.g. `"passkey"`).
@@ -33,6 +83,8 @@ export type SecretEscrowControllerEnrollAction = {
 /**
  * Enrolls a WebAuthn factor and wraps the wallet password under the escrow
  * secret for later Social + Passkey recovery.
+ *
+ * Legacy coexistence bridge while TOPRF remains password-based.
  *
  * @param params - Enrollment parameters including plaintext password.
  * @param params.userId - Stable escrow user id.
@@ -62,8 +114,9 @@ export type SecretEscrowControllerHydrateFromRemoteAction = {
 };
 
 /**
- * Starts an export ceremony and returns the challenge for WebAuthn `get()`.
+ * Starts an export ceremony and returns the challenge for the factor proof.
  *
+ * @param factorId - Optional factor id; defaults to the enrolled default.
  * @returns Export challenge.
  */
 export type SecretEscrowControllerStartExportAction = {
@@ -72,7 +125,9 @@ export type SecretEscrowControllerStartExportAction = {
 };
 
 /**
- * Completes export with a WebAuthn assertion and returns the escrowed secret.
+ * Completes export with a WebAuthn assertion for the default factor.
+ *
+ * Legacy helper — prefer {@link unlockWithFactor} for multi-factor flows.
  *
  * @param assertion - Assertion from `navigator.credentials.get()` (or mock).
  * @returns Released secret (caller must clear after use).
@@ -83,7 +138,24 @@ export type SecretEscrowControllerCompleteExportAction = {
 };
 
 /**
+ * Completes export for any enrolled factor (1-of-N) and returns wallet secret `S`.
+ *
+ * Caller must have already called {@link startExport} for the same factor.
+ *
+ * @param params - Unlock parameters.
+ * @param params.factorId - Factor to prove.
+ * @param params.proof - Factor proof (webauthn assertion or password).
+ * @returns Released wallet secret (caller must clear after use).
+ */
+export type SecretEscrowControllerUnlockWithFactorAction = {
+  type: `SecretEscrowController:unlockWithFactor`;
+  handler: SecretEscrowController['unlockWithFactor'];
+};
+
+/**
  * Recovers the wrapped wallet password after a successful WebAuthn assertion.
+ *
+ * Legacy coexistence bridge only.
  *
  * @param assertion - Assertion from `navigator.credentials.get()` (or mock).
  * @returns Plaintext wallet password (caller must clear after use).
@@ -116,11 +188,16 @@ export type SecretEscrowControllerClearStateAction = {
  */
 export type SecretEscrowControllerMethodActions =
   | SecretEscrowControllerIsEnrolledAction
+  | SecretEscrowControllerListFactorsAction
+  | SecretEscrowControllerGenerateWalletSecretAction
+  | SecretEscrowControllerCreateWithWalletSecretAction
+  | SecretEscrowControllerAddFactorAction
   | SecretEscrowControllerEnrollAction
   | SecretEscrowControllerEnrollAndWrapPasswordAction
   | SecretEscrowControllerHydrateFromRemoteAction
   | SecretEscrowControllerStartExportAction
   | SecretEscrowControllerCompleteExportAction
+  | SecretEscrowControllerUnlockWithFactorAction
   | SecretEscrowControllerRecoverPasswordAction
   | SecretEscrowControllerRevokeAction
   | SecretEscrowControllerClearStateAction;

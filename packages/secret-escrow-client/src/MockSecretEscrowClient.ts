@@ -6,12 +6,16 @@ import {
   SecretEscrowErrorMessage,
 } from './errors.js';
 import type {
+  AddFactorParams,
   EscrowAssertion,
   EscrowFactor,
+  EscrowFactorPublic,
   ExportCompleteParams,
   ExportCompleteResult,
   ExportInitParams,
   ExportInitResult,
+  FactorProof,
+  PasswordEscrowFactor,
   RegisterParams,
   RegisterResult,
   RevokeParams,
@@ -22,9 +26,16 @@ import type {
 const SECRET_BYTE_LENGTH = 32;
 const CHALLENGE_BYTE_LENGTH = 32;
 
+/**
+ * Server-side stored factor (password kept as hash only).
+ */
+type StoredFactor =
+  | WebAuthnEscrowFactor
+  | { type: 'password'; passwordHash: string };
+
 type StoredEscrowRecord = {
-  factors: Record<string, EscrowFactor>;
-  /** Hex-encoded secret. */
+  factors: Record<string, StoredFactor>;
+  /** Hex-encoded wallet secret `S`. */
   secretHex: string;
 };
 
@@ -68,13 +79,37 @@ function defaultRandomBytes(length: number): Uint8Array {
 }
 
 /**
+ * Deterministic mock password hash (not for production).
+ *
+ * @param password - Plaintext password.
+ * @returns Hex hash string.
+ */
+async function hashPassword(password: string): Promise<string> {
+  const data = new TextEncoder().encode(password);
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
+  return bytesToHex(new Uint8Array(digest));
+}
+
+/**
  * Type guard for {@link WebAuthnEscrowFactor}.
  *
  * @param factor - Factor to check.
  * @returns Whether the factor is a webauthn factor.
  */
-function isWebAuthnFactor(factor: EscrowFactor): factor is WebAuthnEscrowFactor {
+function isWebAuthnFactor(
+  factor: EscrowFactor | StoredFactor,
+): factor is WebAuthnEscrowFactor {
   return factor.type === 'webauthn';
+}
+
+/**
+ * Type guard for password factor at register time.
+ *
+ * @param factor - Factor to check.
+ * @returns Whether the factor is a password factor with plaintext.
+ */
+function isPasswordFactor(factor: EscrowFactor): factor is PasswordEscrowFactor {
+  return factor.type === 'password';
 }
 
 /**
@@ -103,14 +138,40 @@ function assertValidWebAuthnFactor(factor: WebAuthnEscrowFactor): void {
 }
 
 /**
- * Validates that an assertion matches the pending challenge and registered
- * credential (mock verification).
+ * Validates and converts a register-time factor into a stored factor.
+ *
+ * @param factor - Factor from the client.
+ * @returns Server-side stored factor.
+ */
+async function toStoredFactor(factor: EscrowFactor): Promise<StoredFactor> {
+  if (isWebAuthnFactor(factor)) {
+    assertValidWebAuthnFactor(factor);
+    return structuredClone(factor);
+  }
+  if (isPasswordFactor(factor)) {
+    if (!factor.password) {
+      throw new SecretEscrowError(SecretEscrowErrorMessage.InvalidFactor, {
+        code: SecretEscrowErrorCode.InvalidFactor,
+      });
+    }
+    return {
+      type: 'password',
+      passwordHash: await hashPassword(factor.password),
+    };
+  }
+  throw new SecretEscrowError(SecretEscrowErrorMessage.InvalidFactor, {
+    code: SecretEscrowErrorCode.InvalidFactor,
+  });
+}
+
+/**
+ * Validates a WebAuthn assertion against the pending challenge (mock).
  *
  * @param factor - Registered webauthn factor.
  * @param assertion - Client assertion.
  * @param expectedChallenge - Challenge from exportInit.
  */
-function assertMockAssertion(
+function assertMockWebAuthnProof(
   factor: WebAuthnEscrowFactor,
   assertion: EscrowAssertion,
   expectedChallenge: string,
@@ -126,10 +187,59 @@ function assertMockAssertion(
 }
 
 /**
+ * Validates a factor proof against the stored factor and pending challenge.
+ *
+ * @param stored - Stored factor.
+ * @param proof - Client proof.
+ * @param expectedChallenge - Challenge from exportInit.
+ */
+async function assertMockProof(
+  stored: StoredFactor,
+  proof: FactorProof,
+  expectedChallenge: string,
+): Promise<void> {
+  if (stored.type === 'webauthn') {
+    if (proof.type !== 'webauthn') {
+      throw new SecretEscrowError(SecretEscrowErrorMessage.AssertionFailed, {
+        code: SecretEscrowErrorCode.AssertionFailed,
+      });
+    }
+    assertMockWebAuthnProof(stored, proof.assertion, expectedChallenge);
+    return;
+  }
+
+  if (proof.type !== 'password') {
+    throw new SecretEscrowError(SecretEscrowErrorMessage.AssertionFailed, {
+      code: SecretEscrowErrorCode.AssertionFailed,
+    });
+  }
+  const hash = await hashPassword(proof.password);
+  if (hash !== stored.passwordHash) {
+    throw new SecretEscrowError(SecretEscrowErrorMessage.AssertionFailed, {
+      code: SecretEscrowErrorCode.AssertionFailed,
+    });
+  }
+}
+
+/**
+ * Public view of a stored factor.
+ *
+ * @param stored - Stored factor.
+ * @returns Public factor metadata.
+ */
+function storedToPublic(stored: StoredFactor): EscrowFactorPublic {
+  if (stored.type === 'password') {
+    return { type: 'password' };
+  }
+  return structuredClone(stored);
+}
+
+/**
  * In-memory {@link SecretEscrowClient} for tests and local development.
  *
- * Mimics the CubeSigner C2F register / export_init / export_complete protocol
- * without network I/O or real WebAuthn signature verification.
+ * Supports password + webauthn factors with **1-of-N** export (any enrolled
+ * factor can release wallet secret `S`). Mimics CubeSigner C2F without real
+ * WebAuthn signature verification.
  */
 export class MockSecretEscrowClient implements SecretEscrowClient {
   readonly #records = new Map<string, StoredEscrowRecord>();
@@ -143,7 +253,7 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
   }
 
   /**
-   * Registers a factor and escrows a secret for `userId`.
+   * Registers the first factor and escrows wallet secret `S` for `userId`.
    *
    * @param params - Registration parameters.
    * @returns The escrowed secret (generated when not provided).
@@ -157,12 +267,7 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
       });
     }
 
-    if (!isWebAuthnFactor(factor)) {
-      throw new SecretEscrowError(SecretEscrowErrorMessage.InvalidFactor, {
-        code: SecretEscrowErrorCode.InvalidFactor,
-      });
-    }
-    assertValidWebAuthnFactor(factor);
+    const storedFactor = await toStoredFactor(factor);
 
     let secret: Uint8Array;
     if (providedSecret === undefined) {
@@ -176,7 +281,7 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
     }
 
     this.#records.set(userId, {
-      factors: { [factorId]: structuredClone(factor) },
+      factors: { [factorId]: storedFactor },
       secretHex: bytesToHex(secret),
     });
 
@@ -184,10 +289,31 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
   }
 
   /**
+   * Adds another factor to an existing user (1-of-N).
+   *
+   * @param params - Add-factor parameters.
+   */
+  async addFactor(params: AddFactorParams): Promise<void> {
+    const { userId, factorId, factor } = params;
+    const record = this.#records.get(userId);
+    if (!record) {
+      throw new SecretEscrowError(SecretEscrowErrorMessage.NotRegistered, {
+        code: SecretEscrowErrorCode.NotRegistered,
+      });
+    }
+    if (record.factors[factorId]) {
+      throw new SecretEscrowError(SecretEscrowErrorMessage.AlreadyRegistered, {
+        code: SecretEscrowErrorCode.AlreadyRegistered,
+      });
+    }
+    record.factors[factorId] = await toStoredFactor(factor);
+  }
+
+  /**
    * Issues an export challenge for the given factor.
    *
    * @param params - Export init parameters.
-   * @returns Challenge string for the WebAuthn ceremony.
+   * @returns Challenge string for the factor ceremony.
    */
   async exportInit(params: ExportInitParams): Promise<ExportInitResult> {
     const { userId, factorId } = params;
@@ -211,7 +337,7 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
   }
 
   /**
-   * Completes export after a (mock-verified) assertion and returns the secret.
+   * Completes export after a verified factor proof and returns wallet secret `S`.
    *
    * @param params - Export complete parameters.
    * @returns The released escrow secret.
@@ -219,7 +345,7 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
   async exportComplete(
     params: ExportCompleteParams,
   ): Promise<ExportCompleteResult> {
-    const { userId, factorId, assertion } = params;
+    const { userId, factorId, proof } = params;
     const pending = this.#challenges.get(userId);
     if (!pending || pending.factorId !== factorId) {
       throw new SecretEscrowError(SecretEscrowErrorMessage.NoChallenge, {
@@ -234,14 +360,14 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
       });
     }
 
-    const factor = record.factors[factorId];
-    if (!factor || !isWebAuthnFactor(factor)) {
+    const stored = record.factors[factorId];
+    if (!stored) {
       throw new SecretEscrowError(SecretEscrowErrorMessage.UnknownFactor, {
         code: SecretEscrowErrorCode.UnknownFactor,
       });
     }
 
-    assertMockAssertion(factor, assertion, pending.challenge);
+    await assertMockProof(stored, proof, pending.challenge);
     this.#challenges.delete(userId);
 
     return { secret: hexToBytes(record.secretHex) };
@@ -255,6 +381,24 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
   async revoke(params: RevokeParams): Promise<void> {
     this.#records.delete(params.userId);
     this.#challenges.delete(params.userId);
+  }
+
+  /**
+   * Lists public factor metadata for a user.
+   *
+   * @param userId - Escrow user id.
+   * @returns Public factors map, or empty object when unknown.
+   */
+  listFactors(userId: string): Record<string, EscrowFactorPublic> {
+    const record = this.#records.get(userId);
+    if (!record) {
+      return {};
+    }
+    const out: Record<string, EscrowFactorPublic> = {};
+    for (const [id, stored] of Object.entries(record.factors)) {
+      out[id] = storedToPublic(stored);
+    }
+    return out;
   }
 
   /**
@@ -280,14 +424,21 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
    * Test helper: replace stored factors for a user.
    *
    * @param userId - Escrow user id.
-   * @param factors - New factors map.
+   * @param factors - New factors map (public / register shapes).
    */
-  setFactorsForTests(userId: string, factors: Record<string, EscrowFactor>): void {
+  async setFactorsForTests(
+    userId: string,
+    factors: Record<string, EscrowFactor>,
+  ): Promise<void> {
     const record = this.#records.get(userId);
     if (!record) {
       throw new Error(`No record for ${userId}`);
     }
-    record.factors = factors;
+    const stored: Record<string, StoredFactor> = {};
+    for (const [id, factor] of Object.entries(factors)) {
+      stored[id] = await toStoredFactor(factor);
+    }
+    record.factors = stored;
   }
 
   /**
@@ -297,9 +448,10 @@ export class MockSecretEscrowClient implements SecretEscrowClient {
    * @returns JSON-serializable snapshot.
    */
   exportSnapshot(): MockSecretEscrowSnapshot {
-    return {
+    // Clone so immer-persisted controller state cannot freeze live records.
+    return structuredClone({
       records: Object.fromEntries(this.#records.entries()),
-    };
+    });
   }
 
   /**
@@ -323,7 +475,7 @@ export type MockSecretEscrowSnapshot = {
   records: Record<
     string,
     {
-      factors: Record<string, EscrowFactor>;
+      factors: Record<string, StoredFactor>;
       secretHex: string;
     }
   >;

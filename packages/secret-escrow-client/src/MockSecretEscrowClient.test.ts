@@ -6,6 +6,7 @@ import {
   SecretEscrowErrorCode,
 } from './errors.js';
 import type { WebAuthnEscrowFactor } from './types.js';
+import { toPublicEscrowFactor } from './types.js';
 
 const TEST_FACTOR: WebAuthnEscrowFactor = {
   type: 'webauthn',
@@ -40,9 +41,12 @@ describe('MockSecretEscrowClient', () => {
     const { secret: releasedSecret } = await client.exportComplete({
       userId: 'user-1',
       factorId: 'passkey',
-      assertion: {
-        id: TEST_FACTOR.credentialId,
-        challenge,
+      proof: {
+        type: 'webauthn',
+        assertion: {
+          id: TEST_FACTOR.credentialId,
+          challenge,
+        },
       },
     });
 
@@ -63,6 +67,80 @@ describe('MockSecretEscrowClient', () => {
     expect(bytesToHex(secret)).toBe(bytesToHex(provided));
   });
 
+  it('registers a password factor and releases S with the correct password', async () => {
+    const client = new MockSecretEscrowClient();
+    const { secret: enrolledSecret } = await client.register({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+    });
+
+    expect(client.listFactors('user-1')).toEqual({
+      password: { type: 'password' },
+    });
+
+    const { challenge } = await client.exportInit({
+      userId: 'user-1',
+      factorId: 'password',
+    });
+    const { secret } = await client.exportComplete({
+      userId: 'user-1',
+      factorId: 'password',
+      proof: { type: 'password', password: 'wallet-password' },
+    });
+    expect(bytesToHex(secret)).toBe(bytesToHex(enrolledSecret));
+    // Challenge is issued for anti-replay even for password factors.
+    expect(challenge).toBeTruthy();
+  });
+
+  it('supports 1-of-N: either password or passkey can release S', async () => {
+    const client = new MockSecretEscrowClient();
+    const { secret: enrolledSecret } = await client.register({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+    });
+    await client.addFactor({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+
+    expect(Object.keys(client.listFactors('user-1')).sort()).toEqual([
+      'passkey',
+      'password',
+    ]);
+
+    const passwordExport = await client.exportInit({
+      userId: 'user-1',
+      factorId: 'password',
+    });
+    const { secret: fromPassword } = await client.exportComplete({
+      userId: 'user-1',
+      factorId: 'password',
+      proof: { type: 'password', password: 'wallet-password' },
+    });
+    expect(bytesToHex(fromPassword)).toBe(bytesToHex(enrolledSecret));
+
+    const passkeyExport = await client.exportInit({
+      userId: 'user-1',
+      factorId: 'passkey',
+    });
+    const { secret: fromPasskey } = await client.exportComplete({
+      userId: 'user-1',
+      factorId: 'passkey',
+      proof: {
+        type: 'webauthn',
+        assertion: {
+          id: TEST_FACTOR.credentialId,
+          challenge: passkeyExport.challenge,
+        },
+      },
+    });
+    expect(bytesToHex(fromPasskey)).toBe(bytesToHex(enrolledSecret));
+    expect(passwordExport.challenge).toBeTruthy();
+  });
+
   it('rejects a second registration for the same user', async () => {
     const client = new MockSecretEscrowClient();
     await client.register({
@@ -73,6 +151,35 @@ describe('MockSecretEscrowClient', () => {
 
     await expect(
       client.register({
+        userId: 'user-1',
+        factorId: 'passkey',
+        factor: TEST_FACTOR,
+      }),
+    ).rejects.toMatchObject({
+      code: SecretEscrowErrorCode.AlreadyRegistered,
+    });
+  });
+
+  it('rejects addFactor for an unknown user or duplicate factor id', async () => {
+    const client = new MockSecretEscrowClient();
+
+    await expect(
+      client.addFactor({
+        userId: 'missing',
+        factorId: 'passkey',
+        factor: TEST_FACTOR,
+      }),
+    ).rejects.toMatchObject({
+      code: SecretEscrowErrorCode.NotRegistered,
+    });
+
+    await client.register({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+    await expect(
+      client.addFactor({
         userId: 'user-1',
         factorId: 'passkey',
         factor: TEST_FACTOR,
@@ -149,9 +256,12 @@ describe('MockSecretEscrowClient', () => {
       client.exportComplete({
         userId: 'user-1',
         factorId: 'passkey',
-        assertion: {
-          id: TEST_FACTOR.credentialId,
-          challenge: 'nope',
+        proof: {
+          type: 'webauthn',
+          assertion: {
+            id: TEST_FACTOR.credentialId,
+            challenge: 'nope',
+          },
         },
       }),
     ).rejects.toMatchObject({
@@ -175,9 +285,12 @@ describe('MockSecretEscrowClient', () => {
       client.exportComplete({
         userId: 'user-1',
         factorId: 'passkey',
-        assertion: {
-          id: 'wrong-credential',
-          challenge,
+        proof: {
+          type: 'webauthn',
+          assertion: {
+            id: 'wrong-credential',
+            challenge,
+          },
         },
       }),
     ).rejects.toMatchObject({
@@ -207,20 +320,97 @@ describe('MockSecretEscrowClient', () => {
     });
   });
 
-  it('rejects a non-webauthn factor type', async () => {
+  it('rejects an empty password factor and unknown factor types', async () => {
     const client = new MockSecretEscrowClient();
 
     await expect(
       client.register({
         userId: 'user-1',
-        factorId: 'passkey',
+        factorId: 'password',
         factor: {
           type: 'password',
+          password: '',
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: SecretEscrowErrorCode.InvalidFactor,
+    });
+
+    await expect(
+      client.register({
+        userId: 'user-2',
+        factorId: 'otp',
+        factor: {
+          type: 'otp',
         } as unknown as WebAuthnEscrowFactor,
       }),
     ).rejects.toMatchObject({
       code: SecretEscrowErrorCode.InvalidFactor,
     });
+  });
+
+  it('rejects mismatched proof types and wrong passwords', async () => {
+    const client = new MockSecretEscrowClient();
+    await client.register({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+    });
+    await client.addFactor({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+
+    const passwordChallenge = await client.exportInit({
+      userId: 'user-1',
+      factorId: 'password',
+    });
+    await expect(
+      client.exportComplete({
+        userId: 'user-1',
+        factorId: 'password',
+        proof: {
+          type: 'webauthn',
+          assertion: {
+            id: TEST_FACTOR.credentialId,
+            challenge: passwordChallenge.challenge,
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: SecretEscrowErrorCode.AssertionFailed,
+    });
+
+    const again = await client.exportInit({
+      userId: 'user-1',
+      factorId: 'password',
+    });
+    await expect(
+      client.exportComplete({
+        userId: 'user-1',
+        factorId: 'password',
+        proof: { type: 'password', password: 'wrong' },
+      }),
+    ).rejects.toMatchObject({
+      code: SecretEscrowErrorCode.AssertionFailed,
+    });
+    expect(again.challenge).toBeTruthy();
+
+    const passkeyChallenge = await client.exportInit({
+      userId: 'user-1',
+      factorId: 'passkey',
+    });
+    await expect(
+      client.exportComplete({
+        userId: 'user-1',
+        factorId: 'passkey',
+        proof: { type: 'password', password: 'wallet-password' },
+      }),
+    ).rejects.toMatchObject({
+      code: SecretEscrowErrorCode.AssertionFailed,
+    });
+    expect(passkeyChallenge.challenge).toBeTruthy();
   });
 
   it('rejects exportComplete when the challenge does not match', async () => {
@@ -239,9 +429,12 @@ describe('MockSecretEscrowClient', () => {
       client.exportComplete({
         userId: 'user-1',
         factorId: 'passkey',
-        assertion: {
-          id: TEST_FACTOR.credentialId,
-          challenge: 'wrong-challenge',
+        proof: {
+          type: 'webauthn',
+          assertion: {
+            id: TEST_FACTOR.credentialId,
+            challenge: 'wrong-challenge',
+          },
         },
       }),
     ).rejects.toMatchObject({
@@ -285,9 +478,12 @@ describe('MockSecretEscrowClient', () => {
       client.exportComplete({
         userId: 'user-1',
         factorId: 'passkey',
-        assertion: {
-          id: TEST_FACTOR.credentialId,
-          challenge: 'anything',
+        proof: {
+          type: 'webauthn',
+          assertion: {
+            id: TEST_FACTOR.credentialId,
+            challenge: 'anything',
+          },
         },
       }),
     ).rejects.toMatchObject({
@@ -312,9 +508,12 @@ describe('MockSecretEscrowClient', () => {
       client.exportComplete({
         userId: 'user-1',
         factorId: 'passkey',
-        assertion: {
-          id: TEST_FACTOR.credentialId,
-          challenge,
+        proof: {
+          type: 'webauthn',
+          assertion: {
+            id: TEST_FACTOR.credentialId,
+            challenge,
+          },
         },
       }),
     ).rejects.toMatchObject({
@@ -333,19 +532,38 @@ describe('MockSecretEscrowClient', () => {
       userId: 'user-1',
       factorId: 'passkey',
     });
-    client.setFactorsForTests('user-1', {});
+    await client.setFactorsForTests('user-1', {});
 
     await expect(
       client.exportComplete({
         userId: 'user-1',
         factorId: 'passkey',
-        assertion: {
-          id: TEST_FACTOR.credentialId,
-          challenge,
+        proof: {
+          type: 'webauthn',
+          assertion: {
+            id: TEST_FACTOR.credentialId,
+            challenge,
+          },
         },
       }),
     ).rejects.toMatchObject({
       code: SecretEscrowErrorCode.UnknownFactor,
+    });
+  });
+
+  it('setFactorsForTests can replace factors with a password factor', async () => {
+    const client = new MockSecretEscrowClient();
+    await client.register({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+    await client.setFactorsForTests('user-1', {
+      password: { type: 'password', password: 'wallet-password' },
+    });
+
+    expect(client.listFactors('user-1')).toEqual({
+      password: { type: 'password' },
     });
   });
 
@@ -366,9 +584,9 @@ describe('MockSecretEscrowClient', () => {
     });
   });
 
-  it('setFactorsForTests throws when the user is missing', () => {
+  it('setFactorsForTests throws when the user is missing', async () => {
     const client = new MockSecretEscrowClient();
-    expect(() => client.setFactorsForTests('missing', {})).toThrow(
+    await expect(client.setFactorsForTests('missing', {})).rejects.toThrow(
       'No record for missing',
     );
   });
@@ -392,11 +610,23 @@ describe('MockSecretEscrowClient', () => {
     const { secret: released } = await restored.exportComplete({
       userId: 'user-1',
       factorId: 'passkey',
-      assertion: {
-        id: TEST_FACTOR.credentialId,
-        challenge,
+      proof: {
+        type: 'webauthn',
+        assertion: {
+          id: TEST_FACTOR.credentialId,
+          challenge,
+        },
       },
     });
     expect(bytesToHex(released)).toBe(bytesToHex(secret));
+  });
+
+  it('lists empty factors for unknown users and strips password plaintext', () => {
+    const client = new MockSecretEscrowClient();
+    expect(client.listFactors('missing')).toEqual({});
+    expect(
+      toPublicEscrowFactor({ type: 'password', password: 'secret' }),
+    ).toEqual({ type: 'password' });
+    expect(toPublicEscrowFactor(TEST_FACTOR)).toEqual(TEST_FACTOR);
   });
 });

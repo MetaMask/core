@@ -8,7 +8,10 @@ import type { Messenger } from '@metamask/messenger';
 import type {
   EnrollmentCapableSecretEscrowClient,
   EscrowAssertion,
+  EscrowFactor,
+  EscrowFactorPublic,
   ExportInitResult,
+  FactorProof,
   MockSecretEscrowSnapshot,
   SecretEscrowClient,
   WebAuthnEscrowFactor,
@@ -16,6 +19,7 @@ import type {
 import {
   SecretEscrowError,
   SecretEscrowErrorCode,
+  toPublicEscrowFactor,
 } from '@metamask/secret-escrow-client';
 
 import { controllerName } from './constants.js';
@@ -24,21 +28,32 @@ import { unwrapPassword, wrapPassword } from './crypto.js';
 import type { SecretEscrowControllerMethodActions } from './SecretEscrowController-method-action-types.js';
 
 /**
- * Persisted metadata for an enrolled escrow factor.
+ * Persisted metadata for enrolled escrow factors.
  *
- * Never includes the raw escrow secret. May include a password ciphertext
- * wrapped under that secret for social-login recovery.
+ * Never includes the raw wallet secret `S`. May include a password ciphertext
+ * wrapped under that secret for the legacy Social + Passkey coexistence path
+ * (TOPRF still password-based).
  */
 export type SecretEscrowRecord = {
   userId: string;
+  /**
+   * Default factor id for legacy {@link SecretEscrowController.startExport} /
+   * {@link SecretEscrowController.completeExport} / recoverPassword.
+   */
   factorId: string;
-  factor: WebAuthnEscrowFactor;
+  /**
+   * Public metadata for the default factor (legacy single-factor field).
+   */
+  factor: EscrowFactorPublic;
+  /**
+   * All enrolled factors (1-of-N release policy).
+   */
+  factors: Record<string, EscrowFactorPublic>;
   enrolledAt: number;
   /**
    * Wallet password encrypted under the escrow secret.
    *
-   * Stored so Social + Passkey can recover the password for TOPRF without
-   * typing it. Safe to persist: useless without the escrow-released secret.
+   * Legacy bridge only — new flows escrow wallet secret `S` directly.
    */
   wrappedPassword?: WrappedPassword;
 };
@@ -120,15 +135,22 @@ const secretEscrowControllerMetadata = {
 
 const MESSENGER_EXPOSED_METHODS = [
   'isEnrolled',
+  'listFactors',
+  'generateWalletSecret',
+  'createWithWalletSecret',
+  'addFactor',
   'enroll',
   'enrollAndWrapPassword',
   'hydrateFromRemote',
   'startExport',
   'completeExport',
+  'unlockWithFactor',
   'recoverPassword',
   'revoke',
   'clearState',
 ] as const;
+
+const WALLET_SECRET_BYTE_LENGTH = 32;
 
 /**
  * Returns default state for {@link SecretEscrowController}.
@@ -148,6 +170,9 @@ export const secretEscrowControllerSelectors = {
   selectEscrowRecord: (
     state: SecretEscrowControllerState,
   ): SecretEscrowRecord | null => state.escrowRecord,
+  selectFactors: (
+    state: SecretEscrowControllerState,
+  ): Record<string, EscrowFactorPublic> => state.escrowRecord?.factors ?? {},
   selectHasWrappedPassword: (state: SecretEscrowControllerState): boolean =>
     Boolean(state.escrowRecord?.wrappedPassword),
 };
@@ -187,12 +212,25 @@ function isEnrollmentCapableClient(
 }
 
 /**
- * Orchestrates WebAuthn-gated secret escrow enrollment and export for
- * social-login passkey recovery.
+ * Whether a public factor is a WebAuthn factor (legacy enrollment metadata).
  *
- * Prefer {@link enrollAndWrapPassword} / {@link recoverPassword} for the
- * social coexistence path (password remains the TOPRF factor; passkey unlocks
- * a wrapped copy via escrow).
+ * @param factor - Public factor metadata.
+ * @returns True when the factor is webauthn.
+ */
+function isWebAuthnPublicFactor(
+  factor: EscrowFactorPublic,
+): factor is WebAuthnEscrowFactor {
+  return factor.type === 'webauthn';
+}
+
+/**
+ * Orchestrates factor-gated wallet secret escrow for social-login recovery.
+ *
+ * Prefer {@link createWithWalletSecret} + {@link addFactor} +
+ * {@link unlockWithFactor} for the multi-factor (1-of-N) wallet secret `S`
+ * path. Prefer {@link enrollAndWrapPassword} / {@link recoverPassword} for
+ * the legacy Social + Passkey coexistence bridge (password remains the TOPRF
+ * factor; passkey unlocks a wrapped copy via escrow).
  */
 export class SecretEscrowController extends BaseController<
   typeof controllerName,
@@ -212,6 +250,19 @@ export class SecretEscrowController extends BaseController<
       },
     });
     this.#client = client;
+
+    // Migrate older persisted records that only had a single factor field.
+    const existingRecord = this.state.escrowRecord as
+      | (SecretEscrowRecord & { factors?: Record<string, EscrowFactorPublic> })
+      | null;
+    if (existingRecord && !existingRecord.factors) {
+      this.update((draft) => {
+        draft.escrowRecord = {
+          ...existingRecord,
+          factors: { [existingRecord.factorId]: existingRecord.factor },
+        };
+      });
+    }
 
     if (
       isSnapshotCapableClient(client) &&
@@ -236,19 +287,41 @@ export class SecretEscrowController extends BaseController<
   }
 
   /**
-   * Registers a WebAuthn factor with the escrow and persists local metadata.
+   * Lists enrolled public factors from local state.
    *
-   * @param params - Enrollment parameters.
-   * @param params.userId - Stable escrow user id.
-   * @param params.factorId - Factor id (e.g. `"passkey"`).
-   * @param params.factor - Public WebAuthn factor metadata.
-   * @param params.secret - Optional 32-byte secret; generated by escrow when omitted.
-   * @returns The escrowed secret (caller must clear after use).
+   * @returns Factor id → public metadata map.
    */
-  async enroll(params: {
+  listFactors(): Record<string, EscrowFactorPublic> {
+    return this.state.escrowRecord?.factors ?? {};
+  }
+
+  /**
+   * Generates a 32-byte wallet secret `S` suitable for escrow registration.
+   *
+   * @returns Fresh random secret (caller must clear after use).
+   */
+  generateWalletSecret(): Uint8Array {
+    const secret = new Uint8Array(WALLET_SECRET_BYTE_LENGTH);
+    globalThis.crypto.getRandomValues(secret);
+    return secret;
+  }
+
+  /**
+   * Registers the first factor and escrows wallet secret `S`.
+   *
+   * Additional factors use {@link addFactor} (1-of-N).
+   *
+   * @param params - Creation parameters.
+   * @param params.userId - Stable escrow user id.
+   * @param params.factorId - Factor id (e.g. `"password"` or `"passkey"`).
+   * @param params.factor - Factor payload (password includes plaintext once).
+   * @param params.secret - Optional 32-byte `S`; generated when omitted.
+   * @returns The escrowed wallet secret (caller must clear after use).
+   */
+  async createWithWalletSecret(params: {
     userId: string;
     factorId: string;
-    factor: WebAuthnEscrowFactor;
+    factor: EscrowFactor;
     secret?: Uint8Array;
   }): Promise<Uint8Array> {
     if (this.state.escrowRecord) {
@@ -264,11 +337,13 @@ export class SecretEscrowController extends BaseController<
       secret: params.secret,
     });
 
+    const publicFactor = toPublicEscrowFactor(params.factor);
     this.update((state) => {
       state.escrowRecord = {
         userId: params.userId,
         factorId: params.factorId,
-        factor: structuredClone(params.factor),
+        factor: publicFactor,
+        factors: { [params.factorId]: publicFactor },
         enrolledAt: Date.now(),
       };
     });
@@ -278,8 +353,62 @@ export class SecretEscrowController extends BaseController<
   }
 
   /**
+   * Adds another factor to an existing escrow enrollment (1-of-N).
+   *
+   * @param params - Add-factor parameters.
+   * @param params.factorId - New factor id.
+   * @param params.factor - Factor payload.
+   */
+  async addFactor(params: {
+    factorId: string;
+    factor: EscrowFactor;
+  }): Promise<void> {
+    const record = this.#requireEnrolled();
+    if (record.factors[params.factorId]) {
+      throw new SecretEscrowError('Secret escrow factor already enrolled', {
+        code: SecretEscrowErrorCode.AlreadyRegistered,
+      });
+    }
+
+    await this.#client.addFactor({
+      userId: record.userId,
+      factorId: params.factorId,
+      factor: params.factor,
+    });
+
+    const publicFactor = toPublicEscrowFactor(params.factor);
+    this.update((state) => {
+      state.escrowRecord!.factors[params.factorId] = publicFactor;
+    });
+    this.#persistMockSnapshot();
+    await this.#syncEnrollmentMetadata();
+  }
+
+  /**
+   * Registers a WebAuthn factor with the escrow and persists local metadata.
+   *
+   * @deprecated Prefer {@link createWithWalletSecret} for new flows.
+   * @param params - Enrollment parameters.
+   * @param params.userId - Stable escrow user id.
+   * @param params.factorId - Factor id (e.g. `"passkey"`).
+   * @param params.factor - Public WebAuthn factor metadata.
+   * @param params.secret - Optional 32-byte secret; generated by escrow when omitted.
+   * @returns The escrowed secret (caller must clear after use).
+   */
+  async enroll(params: {
+    userId: string;
+    factorId: string;
+    factor: WebAuthnEscrowFactor;
+    secret?: Uint8Array;
+  }): Promise<Uint8Array> {
+    return this.createWithWalletSecret(params);
+  }
+
+  /**
    * Enrolls a WebAuthn factor and wraps the wallet password under the escrow
    * secret for later Social + Passkey recovery.
+   *
+   * Legacy coexistence bridge while TOPRF remains password-based.
    *
    * @param params - Enrollment parameters including plaintext password.
    * @param params.userId - Stable escrow user id.
@@ -295,7 +424,7 @@ export class SecretEscrowController extends BaseController<
     password: string;
     secret?: Uint8Array;
   }): Promise<void> {
-    const secret = await this.enroll({
+    const secret = await this.createWithWalletSecret({
       userId: params.userId,
       factorId: params.factorId,
       factor: params.factor,
@@ -304,18 +433,10 @@ export class SecretEscrowController extends BaseController<
     try {
       const wrappedPassword = wrapPassword(params.password, secret);
       this.update((state) => {
-        // `enroll` above always sets `escrowRecord` before returning.
+        // `createWithWalletSecret` above always sets `escrowRecord` before returning.
         state.escrowRecord!.wrappedPassword = wrappedPassword;
       });
-      if (isEnrollmentCapableClient(this.#client)) {
-        await this.#client.putEnrollmentMetadata({
-          userId: params.userId,
-          factorId: params.factorId,
-          factor: structuredClone(params.factor),
-          wrappedPassword,
-          enrolledAt: this.state.escrowRecord!.enrolledAt,
-        });
-      }
+      await this.#syncEnrollmentMetadata();
     } finally {
       secret.fill(0);
     }
@@ -344,12 +465,21 @@ export class SecretEscrowController extends BaseController<
       return false;
     }
 
+    const factorId = metadata.factorId || 'passkey';
+    const factor = structuredClone(metadata.factor);
+    const factors =
+      metadata.factors ??
+      ({
+        [factorId]: factor,
+      } as Record<string, EscrowFactorPublic>);
+
     this.update((state) => {
       state.escrowRecord = {
         userId: metadata.userId,
         // Guard against port-IPC `null` factor ids from older enrollments.
-        factorId: metadata.factorId || 'passkey',
-        factor: structuredClone(metadata.factor),
+        factorId,
+        factor,
+        factors,
         enrolledAt: metadata.enrolledAt,
         wrappedPassword: { ...metadata.wrappedPassword },
       };
@@ -358,36 +488,73 @@ export class SecretEscrowController extends BaseController<
   }
 
   /**
-   * Starts an export ceremony and returns the challenge for WebAuthn `get()`.
+   * Starts an export ceremony and returns the challenge for the factor proof.
    *
+   * @param factorId - Optional factor id; defaults to the enrolled default.
    * @returns Export challenge.
    */
-  async startExport(): Promise<ExportInitResult> {
+  async startExport(factorId?: string): Promise<ExportInitResult> {
     const record = this.#requireEnrolled();
+    const resolvedFactorId = factorId ?? record.factorId;
+    if (!record.factors[resolvedFactorId]) {
+      throw new SecretEscrowError('Unknown escrow factor id', {
+        code: SecretEscrowErrorCode.UnknownFactor,
+      });
+    }
     return this.#client.exportInit({
       userId: record.userId,
-      factorId: record.factorId,
+      factorId: resolvedFactorId,
     });
   }
 
   /**
-   * Completes export with a WebAuthn assertion and returns the escrowed secret.
+   * Completes export with a WebAuthn assertion for the default factor.
+   *
+   * Legacy helper — prefer {@link unlockWithFactor} for multi-factor flows.
    *
    * @param assertion - Assertion from `navigator.credentials.get()` (or mock).
    * @returns Released secret (caller must clear after use).
    */
   async completeExport(assertion: EscrowAssertion): Promise<Uint8Array> {
     const record = this.#requireEnrolled();
+    return this.unlockWithFactor({
+      factorId: record.factorId,
+      proof: { type: 'webauthn', assertion },
+    });
+  }
+
+  /**
+   * Completes export for any enrolled factor (1-of-N) and returns wallet secret `S`.
+   *
+   * Caller must have already called {@link startExport} for the same factor.
+   *
+   * @param params - Unlock parameters.
+   * @param params.factorId - Factor to prove.
+   * @param params.proof - Factor proof (webauthn assertion or password).
+   * @returns Released wallet secret (caller must clear after use).
+   */
+  async unlockWithFactor(params: {
+    factorId: string;
+    proof: FactorProof;
+  }): Promise<Uint8Array> {
+    const record = this.#requireEnrolled();
+    if (!record.factors[params.factorId]) {
+      throw new SecretEscrowError('Unknown escrow factor id', {
+        code: SecretEscrowErrorCode.UnknownFactor,
+      });
+    }
     const { secret } = await this.#client.exportComplete({
       userId: record.userId,
-      factorId: record.factorId,
-      assertion,
+      factorId: params.factorId,
+      proof: params.proof,
     });
     return secret;
   }
 
   /**
    * Recovers the wrapped wallet password after a successful WebAuthn assertion.
+   *
+   * Legacy coexistence bridge only.
    *
    * @param assertion - Assertion from `navigator.credentials.get()` (or mock).
    * @returns Plaintext wallet password (caller must clear after use).
@@ -448,6 +615,27 @@ export class SecretEscrowController extends BaseController<
     const snapshot = this.#client.exportSnapshot();
     this.update((state) => {
       state.mockClientSnapshot = snapshot;
+    });
+  }
+
+  /**
+   * Pushes public enrollment metadata to a remote-capable client (legacy wrap).
+   */
+  async #syncEnrollmentMetadata(): Promise<void> {
+    const record = this.state.escrowRecord;
+    if (!record?.wrappedPassword || !isEnrollmentCapableClient(this.#client)) {
+      return;
+    }
+    if (!isWebAuthnPublicFactor(record.factor)) {
+      return;
+    }
+    await this.#client.putEnrollmentMetadata({
+      userId: record.userId,
+      factorId: record.factorId,
+      factor: structuredClone(record.factor),
+      wrappedPassword: record.wrappedPassword,
+      enrolledAt: record.enrolledAt,
+      factors: structuredClone(record.factors),
     });
   }
 }

@@ -3,9 +3,9 @@ import { bytesToHex, hexToBytes } from '@metamask/utils';
 import {
   SecretEscrowError,
   SecretEscrowErrorCode,
-  SecretEscrowErrorMessage,
 } from './errors.js';
 import type {
+  AddFactorParams,
   EscrowAssertion,
   EscrowEnrollmentMetadata,
   EscrowWrappedPassword,
@@ -63,6 +63,13 @@ export class HttpSecretEscrowClient implements SecretEscrowClient {
       body,
     });
     return { secret: hexToBytes(result.secretHex) };
+  }
+
+  async addFactor(params: AddFactorParams): Promise<void> {
+    await this.#request<void>('/v1/add_factor', {
+      method: 'POST',
+      body: params,
+    });
   }
 
   async exportInit(params: ExportInitParams): Promise<ExportInitResult> {

@@ -31,30 +31,51 @@ export type WebAuthnEscrowFactor = {
 };
 
 /**
- * Factor types supported by the escrow client.
+ * Password factor for escrow registration.
  *
- * Additional factor kinds (password, OIDC) can be added later without changing
- * the register / export flow.
+ * `password` is required at register / addFactor time. Public listings never
+ * include it — only `{ type: 'password' }`.
  */
-export type EscrowFactor = WebAuthnEscrowFactor;
+export type PasswordEscrowFactor = {
+  type: 'password';
+  password: string;
+};
 
 /**
- * Parameters for registering a factor and escrowing a secret.
+ * Public password factor metadata (safe to persist / list).
+ */
+export type PasswordEscrowFactorPublic = {
+  type: 'password';
+};
+
+/**
+ * Factor payload accepted by register / addFactor.
+ */
+export type EscrowFactor = WebAuthnEscrowFactor | PasswordEscrowFactor;
+
+/**
+ * Factor metadata safe to persist in client state or list to the UI.
+ */
+export type EscrowFactorPublic = WebAuthnEscrowFactor | PasswordEscrowFactorPublic;
+
+/**
+ * Parameters for registering the first factor and escrowing wallet secret `S`.
+ *
+ * Additional factors are added with {@link SecretEscrowClient.addFactor}
+ * (1-of-N release policy).
  */
 export type RegisterParams = {
   /** Stable escrow user id (typically derived from social / seedless identity). */
   userId: string;
-  /** Client-chosen id for this factor (e.g. `"passkey"`). */
+  /** Client-chosen id for this factor (e.g. `"passkey"` or `"password"`). */
   factorId: string;
-  /** Public factor metadata used to verify later assertions. */
+  /** Factor metadata (password factors include plaintext password once). */
   factor: EscrowFactor;
   /**
-   * Optional 32-byte secret to escrow.
+   * Optional 32-byte wallet secret `S`.
    *
    * When omitted, the escrow generates a cryptographically random secret and
-   * returns it once in {@link RegisterResult}. Callers that wrap a wallet
-   * password should either supply `secret` or consume the returned value
-   * immediately and clear it.
+   * returns it once in {@link RegisterResult}.
    */
   secret?: Uint8Array;
 };
@@ -63,8 +84,17 @@ export type RegisterParams = {
  * Result of a successful {@link SecretEscrowClient.register} call.
  */
 export type RegisterResult = {
-  /** Escrowed secret (caller must clear after use). */
+  /** Escrowed wallet secret `S` (caller must clear after use). */
   secret: Uint8Array;
+};
+
+/**
+ * Parameters for adding another factor to an existing escrow user (1-of-N).
+ */
+export type AddFactorParams = {
+  userId: string;
+  factorId: string;
+  factor: EscrowFactor;
 };
 
 /**
@@ -80,16 +110,16 @@ export type ExportInitParams = {
  */
 export type ExportInitResult = {
   /**
-   * Challenge for `navigator.credentials.get()`.
+   * Challenge for the factor ceremony.
    *
-   * Mock backends use base64url; production backends may return hex — clients
-   * should treat this as an opaque challenge string unless documented otherwise.
+   * Required for WebAuthn `get()`; password factors may ignore it but still
+   * consume the pending challenge on exportComplete (anti-replay).
    */
   challenge: Base64URLString;
 };
 
 /**
- * Minimal assertion payload accepted by the escrow.
+ * Minimal WebAuthn assertion payload accepted by the escrow.
  *
  * Production backends expect a full WebAuthn `PublicKeyCredential` JSON with
  * `response.{clientDataJSON,authenticatorData,signature}`. The mock verifies
@@ -109,19 +139,26 @@ export type EscrowAssertion = {
 };
 
 /**
- * Parameters for completing a secret export after WebAuthn assertion.
+ * Proof presented to complete an export for a given factor (1-of-N).
+ */
+export type FactorProof =
+  | { type: 'webauthn'; assertion: EscrowAssertion }
+  | { type: 'password'; password: string };
+
+/**
+ * Parameters for completing a secret export after factor verification.
  */
 export type ExportCompleteParams = {
   userId: string;
   factorId: string;
-  assertion: EscrowAssertion;
+  proof: FactorProof;
 };
 
 /**
  * Result of {@link SecretEscrowClient.exportComplete}.
  */
 export type ExportCompleteResult = {
-  /** Released escrow secret (caller must clear after use). */
+  /** Released wallet secret `S` (caller must clear after use). */
   secret: Uint8Array;
 };
 
@@ -135,8 +172,8 @@ export type RevokeParams = {
 /**
  * Wallet password ciphertext wrapped under the escrow secret.
  *
- * Stored by clients / mock backends so Social + Passkey can recover the
- * password after wipe without keeping it only in extension state.
+ * Legacy bridge: Social + Passkey coexistence while TOPRF still uses password.
+ * New flows escrow wallet secret `S` directly and do not need this.
  */
 export type EscrowWrappedPassword = {
   ciphertext: string;
@@ -145,6 +182,9 @@ export type EscrowWrappedPassword = {
 
 /**
  * Public enrollment metadata (never includes the raw escrow secret).
+ *
+ * Legacy single-factor shape used by the password-wrap bridge. Prefer listing
+ * factors from the escrow when using multi-factor `S` flows.
  */
 export type EscrowEnrollmentMetadata = {
   userId: string;
@@ -152,17 +192,20 @@ export type EscrowEnrollmentMetadata = {
   factor: WebAuthnEscrowFactor;
   wrappedPassword: EscrowWrappedPassword;
   enrolledAt: number;
+  /** Optional multi-factor public map when available. */
+  factors?: Record<string, EscrowFactorPublic>;
 };
 
 /**
- * Client interface for a WebAuthn-gated secret escrow service.
+ * Client interface for a factor-gated secret escrow service.
  *
- * Protocol: `register` → (`exportInit` → WebAuthn `get` → `exportComplete`)*.
- * Release of the secret must require a valid factor assertion — never OAuth /
- * bearer token alone.
+ * Protocol: `register` (+ `addFactor`*) → (`exportInit` → factor proof →
+ * `exportComplete`)*. Release of `S` requires a valid factor proof — never
+ * OAuth / bearer token alone. Policy: **1-of-N** (any enrolled factor).
  */
 export type SecretEscrowClient = {
   register: (params: RegisterParams) => Promise<RegisterResult>;
+  addFactor: (params: AddFactorParams) => Promise<void>;
   exportInit: (params: ExportInitParams) => Promise<ExportInitResult>;
   exportComplete: (
     params: ExportCompleteParams,
@@ -181,3 +224,16 @@ export type EnrollmentCapableSecretEscrowClient = SecretEscrowClient & {
     userId: string,
   ) => Promise<EscrowEnrollmentMetadata | null>;
 };
+
+/**
+ * Strips secrets from a factor for public persistence / UI listing.
+ *
+ * @param factor - Factor as registered (may include password plaintext).
+ * @returns Public factor metadata.
+ */
+export function toPublicEscrowFactor(factor: EscrowFactor): EscrowFactorPublic {
+  if (factor.type === 'password') {
+    return { type: 'password' };
+  }
+  return structuredClone(factor);
+}
