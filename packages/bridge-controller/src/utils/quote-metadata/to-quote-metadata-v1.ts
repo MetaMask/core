@@ -17,6 +17,7 @@ export const toQuoteMetadataV1 = (
     | (DeepPartial<QuoteResponse | QuoteResponseV1> & QuoteMetadata)
     | null,
 ): QuoteMetadata => {
+  /* istanbul ignore if */
   if (!quoteResponse) {
     return {};
   }

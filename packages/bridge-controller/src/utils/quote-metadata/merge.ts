@@ -4,6 +4,7 @@ import { merge } from 'lodash';
 import { QuoteResponseSchemaV1 } from '../../validators/quote-response-v1.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
+import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import { toQuoteMetadataV2 } from './to-quote-metadata-v2.js';
 import type { QuoteMetadata } from './types.js';
 
@@ -29,11 +30,14 @@ export function mergeQuoteMetadata<
     quoteResponse,
   );
 
+  const normalizedAmounts = toNormalizedAmounts(quoteResponse);
+
   // Phase 1 of migration uses calcQuoteMetadata's results
   return merge(
     {},
     quoteResponse,
-    legacyQuoteMetadataV2,
-    legacyQuoteMetadata, // return for client testing
+    normalizedAmounts,
+    legacyQuoteMetadataV2, // legacy metadata in v2 format
+    legacyQuoteMetadata, // return legacy metadata for client testing
   );
 }

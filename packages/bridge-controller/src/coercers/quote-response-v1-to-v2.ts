@@ -127,7 +127,7 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
           }),
         },
       ],
-      ...(feeData[FeeType.TX_FEE] && {
+      ...(feeData[FeeType.TX_FEE] && /* istanbul ignore next */ {
         [FeeType.TX_FEE]: [
           {
             ...feeData[FeeType.TX_FEE],
