@@ -2559,7 +2559,7 @@ describe('TradingService', () => {
     });
   });
 
-  describe('consolidated analytics pipeline (TAT-3463)', () => {
+  describe('consolidated analytics pipeline', () => {
     const mockClosePosition: Position = {
       symbol: 'BTC',
       size: '0.5',
@@ -2582,7 +2582,7 @@ describe('TradingService', () => {
           calledEvent === event && props.status === status,
       );
 
-    describe('status=submitted before provider round-trip (TAT-3134)', () => {
+    describe('status=submitted before provider round-trip', () => {
       it('emits a submitted trade event before placeOrder', async () => {
         mockProvider.placeOrder.mockResolvedValue({
           success: true,
@@ -2732,7 +2732,7 @@ describe('TradingService', () => {
       ).toEqual(expect.objectContaining({ asset: 'BTC', status: 'executed' }));
     });
 
-    it('populates metamask_fee on flip success from trackingData (TAT-3146)', async () => {
+    it('populates metamask_fee on flip success from trackingData', async () => {
       mockProvider.placeOrder.mockResolvedValue({
         success: true,
         orderId: 'flip-1',
@@ -2834,7 +2834,7 @@ describe('TradingService', () => {
       expect(closeProps?.leverage).toBeUndefined();
     });
 
-    describe('hl_fee_rate on trade + close (TAT-3149)', () => {
+    describe('hl_fee_rate on trade + close', () => {
       it('includes hl_fee_rate when present in trackingData', async () => {
         mockProvider.placeOrder.mockResolvedValue({
           success: true,
@@ -3237,7 +3237,7 @@ describe('TradingService', () => {
       });
     });
 
-    describe('bulk_action_id on batch close/cancel (TAT-3150)', () => {
+    describe('bulk_action_id on batch close/cancel', () => {
       it('attaches bulk_action_id to the batch close summary event', async () => {
         mockGetPositions.mockResolvedValue([mockClosePosition]);
         (mockProvider.closePositions as jest.Mock).mockResolvedValue({
@@ -3322,7 +3322,7 @@ describe('TradingService', () => {
       });
     });
 
-    it('propagates entry_point/discovery_source/perp_discovery_source on trade events (TAT-3080)', async () => {
+    it('propagates entry_point/discovery_source/perp_discovery_source on trade events', async () => {
       mockProvider.placeOrder.mockResolvedValue({
         success: true,
         orderId: 'order-1',

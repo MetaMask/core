@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.3.1]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.3.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.4.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
 
 ### Fixed
 
@@ -630,7 +632,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.1...HEAD
+[17.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.0...@metamask/phishing-controller@17.3.1
 [17.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.1...@metamask/phishing-controller@17.3.0
 [17.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.0...@metamask/phishing-controller@17.2.1
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.1.2...@metamask/phishing-controller@17.2.0

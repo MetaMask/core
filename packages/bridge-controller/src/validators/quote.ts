@@ -7,6 +7,8 @@ import {
   number,
   array,
   nullable,
+  partial,
+  pick,
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 
@@ -141,22 +143,21 @@ export const QuoteSchemaV2 = intersection([
       }),
     ]),
     priceData: optional(
-      type({
-        swapRate: optional(FloatStringSchema),
-        priceImpact: optional(
-          type({
-            usd: optional(nullable(FloatStringSchema)),
-            amount: optional(nullable(FloatStringSchema)),
-            valueInCurrency: optional(FloatStringSchema),
-          }),
-        ),
-        adjustedReturn: optional(
-          type({
-            usd: nullable(optional(FloatStringSchema)),
-            valueInCurrency: nullable(optional(FloatStringSchema)),
-          }),
-        ),
-      }),
+      partial(
+        type({
+          swapRate: FloatStringSchema,
+          priceImpact: intersection([
+            type({
+              amount: optional(FloatStringSchema),
+            }),
+            pick(AmountsAndAssetSchema, ['usd', 'valueInCurrency']),
+          ]),
+          adjustedReturn: pick(AmountsAndAssetSchema, [
+            'usd',
+            'valueInCurrency',
+          ]),
+        }),
+      ),
     ),
     feeData: type({
       [FeeType.METABRIDGE]: array(
