@@ -672,6 +672,7 @@ export enum RampsApiService {
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getDefaultRedirectCallbackUrl',
   'getGeolocation',
   'getCountries',
   'getTokens',
@@ -767,6 +768,14 @@ const FAKE_CALLBACK_PATH = '/regions/fake-callback';
  * `on-ramp.dev-api` host (which serves `/regions/fake-callback` and returns
  * 200). This intentionally does not reuse {@link getBaseUrl}, whose Regions
  * host is `on-ramp{-cache}`, not `on-ramp-content`.
+ *
+ * This is the canonical environment-to-callback map for the whole package.
+ * Prefer the `RampsService:getDefaultRedirectCallbackUrl` messenger action at
+ * runtime so the value always follows the environment the service is actually
+ * configured with. Call this function directly only where a synchronous,
+ * messenger-free value is needed (for example client UI that matches the
+ * callback URL in a WebView), and pass the same environment the service was
+ * constructed with.
  *
  * @param environment - The environment to derive the callback URL for.
  * @returns The default redirect callback URL for that environment.
@@ -936,6 +945,36 @@ export class RampsService {
       return this.#baseUrlOverride;
     }
     return getBaseUrl(this.#environment, service);
+  }
+
+  /**
+   * Returns the default redirect ("fake callback") URL for this service's
+   * environment.
+   *
+   * The quotes API only embeds a `buyURL`/`buyWidget` (the WebView page a
+   * non-native provider needs) when a `redirectUrl` is present, so callers
+   * that omit one (MM Pay's widened Headless Buy fetch) use this value.
+   * Exposing it here makes the service's environment the single runtime source
+   * of truth, so the callback can never point at a different environment than
+   * the one the quotes themselves came from.
+   *
+   * `baseUrlOverride` deliberately does not apply. That option overrides the
+   * ramps API base URL for local development. In production and staging the
+   * callback lives on a different host (`on-ramp-content` versus
+   * `on-ramp{-cache}`), so an API override says nothing about where
+   * `/regions/fake-callback` lives. In development the callback already shares
+   * the API host family (`on-ramp.dev-api`). The redirect URL is also handed
+   * to the provider and matched by client UI to detect flow completion, so
+   * returning an unrelated local API origin here would break completion
+   * detection rather than help it. Point `environment` at
+   * {@link RampsEnvironment.Local} for a localhost callback, noting that URL
+   * is pinned to `http://localhost:3000` and does not follow a non-3000
+   * `baseUrlOverride`.
+   *
+   * @returns The default redirect callback URL for the configured environment.
+   */
+  getDefaultRedirectCallbackUrl(): string {
+    return getDefaultRedirectCallbackUrl(this.#environment);
   }
 
   /**

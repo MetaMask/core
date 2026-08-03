@@ -112,6 +112,7 @@ export {
   getDefaultRedirectCallbackUrl,
 } from './RampsService.js';
 export type {
+  RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetPaymentMethodsAction,

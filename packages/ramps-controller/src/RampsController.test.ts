@@ -45,11 +45,7 @@ import type {
   RampsToken,
   RampsOrder,
 } from './RampsService.js';
-import {
-  getDefaultRedirectCallbackUrl,
-  RampsEnvironment,
-  RampsOrderStatus,
-} from './RampsService.js';
+import { RampsOrderStatus } from './RampsService.js';
 import { RequestStatus } from './RequestCache.js';
 import type {
   TransakAccessToken,
@@ -67,6 +63,14 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
 } from './TransakService.js';
+
+/**
+ * The default redirect ("fake callback") URL a staging `RampsService` returns.
+ * Written out in full so the tests pin the exact host the widened quote path
+ * forwards, rather than re-deriving it from the code under test.
+ */
+const STAGING_REDIRECT_CALLBACK_URL =
+  'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback';
 
 describe('RampsController', () => {
   const circuitBreakerOpenErrorMessage =
@@ -1391,7 +1395,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('forwards the environment-derived default redirectUrl on the widened path when the caller omits one', async () => {
+    it("forwards the service's default redirectUrl on the widened path when the caller omits one", async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
@@ -1402,12 +1406,13 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            environment: RampsEnvironment.Production,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
           registerFeatureFlagState(rootMessenger);
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1419,16 +1424,90 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // The caller omitted redirectUrl, so the widened path derives the
-          // default from the controller's environment and forwards it.
+          // The caller omitted redirectUrl, so the widened path asks the
+          // service for the callback URL of its environment and forwards it.
+          expect(getDefaultRedirectCallbackUrlSpy).toHaveBeenCalledTimes(1);
           expect(forwardedRedirectUrl).toBe(
-            getDefaultRedirectCallbackUrl(RampsEnvironment.Production),
+            'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
           );
         },
       );
     });
 
-    it('prefers an explicit caller redirectUrl over the environment-derived default on the widened path', async () => {
+    it('rejects the entire getQuotes call when the default-redirect service action is not delegated', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          // Simulate a host that upgraded without adding the new action to
+          // its hand-written messenger delegation list.
+          rootMessenger.unregisterActionHandler(
+            'RampsService:getDefaultRedirectCallbackUrl',
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          await expect(callScopedGetQuotes(messenger)).rejects.toThrow(
+            /A handler for RampsService:getDefaultRedirectCallbackUrl has not been (registered|delegated)/u,
+          );
+        },
+      );
+    });
+
+    it('forwards whichever callback URL the service reports, without rederiving it', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          spyOnDefaultRedirectCallbackUrl(
+            rootMessenger,
+            'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+          );
+          let forwardedRedirectUrl: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // A production service reports the production host, and the
+          // controller passes it through untouched.
+          expect(forwardedRedirectUrl).toBe(
+            'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+          );
+        },
+      );
+    });
+
+    it('prefers an explicit caller redirectUrl and never asks the service on the widened path', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
@@ -1440,12 +1519,13 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            environment: RampsEnvironment.Production,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
           registerFeatureFlagState(rootMessenger);
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1459,14 +1539,15 @@ describe('RampsController', () => {
             redirectUrl: EXPLICIT_REDIRECT,
           });
 
-          // An explicit caller redirectUrl always wins; the default is not
-          // applied.
+          // An explicit caller redirectUrl always wins, and the controller
+          // short-circuits before reaching the service.
           expect(forwardedRedirectUrl).toBe(EXPLICIT_REDIRECT);
+          expect(getDefaultRedirectCallbackUrlSpy).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('does not inject the default redirectUrl when the flag is disabled', async () => {
+    it('does not inject the default redirectUrl or ask the service when the flag is disabled', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(NATIVE, 70)],
         sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
@@ -1476,7 +1557,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            environment: RampsEnvironment.Production,
             state: scopeState([buildScopeProvider(NATIVE, 'native')]),
           },
         },
@@ -1486,6 +1566,8 @@ describe('RampsController', () => {
               [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false,
             },
           });
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1497,48 +1579,10 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // The disabled flag never widens, so the default is not injected
-          // even though the controller has an environment configured.
+          // The disabled flag never widens, so nothing is injected and the
+          // service is not consulted.
           expect(forwardedRedirectUrl).toBeUndefined();
-        },
-      );
-    });
-
-    it('derives the default redirectUrl from the environment supplied by the test helper', async () => {
-      const response: QuotesResponse = {
-        success: [appBrowserQuote(MOONPAY, 90)],
-        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
-        error: [],
-        customActions: [],
-      };
-
-      await withController(
-        {
-          options: {
-            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          registerFeatureFlagState(rootMessenger);
-          let forwardedRedirectUrl: string | undefined;
-          let redirectUrlWasSeen = false;
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async (params: { redirectUrl?: string }) => {
-              forwardedRedirectUrl = params.redirectUrl;
-              redirectUrlWasSeen = true;
-              return response;
-            },
-          );
-
-          await callScopedGetQuotes(messenger);
-
-          // The test helper supplies staging when this test does not override
-          // the environment.
-          expect(redirectUrlWasSeen).toBe(true);
-          expect(forwardedRedirectUrl).toBe(
-            getDefaultRedirectCallbackUrl(RampsEnvironment.Staging),
-          );
+          expect(getDefaultRedirectCallbackUrlSpy).not.toHaveBeenCalled();
         },
       );
     });
@@ -11426,7 +11470,39 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  // Stands in for the real service, which derives this from its environment.
+  rootMessenger.registerActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+    () => STAGING_REDIRECT_CALLBACK_URL,
+  );
+  return rootMessenger;
+}
+
+/**
+ * Replaces the default `RampsService:getDefaultRedirectCallbackUrl` handler
+ * with a spy, so a test can assert whether the controller asked the service
+ * for the default redirect URL at all.
+ *
+ * @param rootMessenger - The root messenger to re-register the handler on.
+ * @param url - The URL the spy returns. Defaults to the staging callback URL.
+ * @returns The spy standing in for the service method.
+ */
+function spyOnDefaultRedirectCallbackUrl(
+  rootMessenger: RootMessenger,
+  url: string = STAGING_REDIRECT_CALLBACK_URL,
+): jest.Mock<string, []> {
+  const handler = jest.fn<string, []>(() => url);
+  rootMessenger.unregisterActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+  );
+  rootMessenger.registerActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+    handler,
+  );
+  return handler;
 }
 
 /**
@@ -11456,10 +11532,10 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
  * created ahead of time and then safely destroyed afterward as needed.
  *
  * @param args - Either a function, or an options bag + a function. The options
- * bag contains arguments for the controller constructor. The helper supplies
- * a messenger and a deliberate staging environment unless overridden. The
- * function is called with the new controller, root messenger, and controller
- * messenger.
+ * bag contains arguments for the controller constructor. All constructor
+ * arguments are optional and will be filled in with defaults in as needed
+ * (including `messenger`). The function is called with the new
+ * controller, root messenger, and controller messenger.
  * @returns The same return value as the given function.
  */
 async function withController<ReturnValue>(
@@ -11473,7 +11549,6 @@ async function withController<ReturnValue>(
   const messenger = getMessenger(rootMessenger);
   const controller = new RampsController({
     messenger,
-    environment: RampsEnvironment.Staging,
     ...options,
   });
   return await testFunction({ controller, rootMessenger, messenger });
