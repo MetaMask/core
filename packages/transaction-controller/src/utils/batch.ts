@@ -450,6 +450,9 @@ async function addTransactionBatchWith7702(
   }
 
   if (validateSecurity) {
+    // `delegationMock` applies to the batch payer (`from`) only. When
+    // `requiresUpgrade` is true, that upgrade authorization is always first in
+    // the list. Caller-provided auths for other accounts must not be used here.
     const securityRequest: ValidateSecurityRequest = {
       method: 'eth_sendTransaction',
       params: [
@@ -459,7 +462,9 @@ async function addTransactionBatchWith7702(
           type: TransactionEnvelopeType.feeMarket,
         },
       ],
-      delegationMock: txParams.authorizationList?.[0]?.address,
+      delegationMock: requiresUpgrade
+        ? authorizationList?.[0]?.address
+        : undefined,
       origin,
     };
 

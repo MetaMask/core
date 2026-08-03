@@ -1471,6 +1471,47 @@ describe('Batch Utils', () => {
           CHAIN_ID_MOCK,
         );
       });
+
+      it('does not use provided foreign authorization as delegation mock when from is upgraded', async () => {
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: CONTRACT_ADDRESS_MOCK,
+          isSupported: true,
+        });
+
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
+
+        generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+          TRANSACTION_BATCH_PARAMS_MOCK,
+        );
+
+        const providedAuthorization = {
+          address: '0x1234567890123456789012345678901234567890' as const,
+          chainId: '0x1' as const,
+          nonce: '0x5' as const,
+          r: '0xabc' as const,
+          s: '0xdef' as const,
+          yParity: '0x1' as const,
+        };
+
+        request.request.authorizationList = [providedAuthorization];
+
+        const validateSecurityMock = jest.fn();
+        validateSecurityMock.mockResolvedValueOnce({});
+
+        request.request.validateSecurity = validateSecurityMock;
+
+        await addTransactionBatch(request);
+
+        expect(validateSecurityMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            delegationMock: undefined,
+          }),
+          CHAIN_ID_MOCK,
+        );
+      });
     });
 
     describe('with publish batch hook', () => {
