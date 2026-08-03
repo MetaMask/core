@@ -19,6 +19,8 @@ export type {
   RegisterResult,
   RevokeParams,
   SecretEscrowClient,
+  TotpEscrowFactor,
+  TotpEscrowFactorPublic,
   WebAuthnEscrowFactor,
 } from './types.js';
 export { toPublicEscrowFactor } from './types.js';
@@ -35,3 +37,11 @@ export type {
 } from './MockSecretEscrowClient.js';
 export { HttpSecretEscrowClient } from './HttpSecretEscrowClient.js';
 export type { HttpSecretEscrowClientOptions } from './HttpSecretEscrowClient.js';
+export {
+  buildTotpOtpAuthUri,
+  computeTotpCode,
+  decodeBase32,
+  encodeBase32,
+  generateTotpSecret,
+  verifyTotpCode,
+} from './totp.js';

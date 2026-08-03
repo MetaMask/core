@@ -5,6 +5,7 @@ import {
   SecretEscrowError,
   SecretEscrowErrorCode,
 } from './errors.js';
+import { computeTotpCode, generateTotpSecret } from './totp.js';
 import type { WebAuthnEscrowFactor } from './types.js';
 import { toPublicEscrowFactor } from './types.js';
 
@@ -347,6 +348,37 @@ describe('MockSecretEscrowClient', () => {
     ).rejects.toMatchObject({
       code: SecretEscrowErrorCode.InvalidFactor,
     });
+  });
+
+  it('adds a TOTP factor and releases S with a valid code', async () => {
+    const client = new MockSecretEscrowClient();
+    const { secret } = await client.register({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+    });
+
+    const totpSecret = generateTotpSecret(() => new Uint8Array(20).fill(3));
+    await client.addFactor({
+      userId: 'user-1',
+      factorId: 'totp',
+      factor: { type: 'totp', secret: totpSecret },
+    });
+
+    const now = 1_700_000_000;
+    const code = await computeTotpCode(totpSecret, now);
+    jest.spyOn(Date, 'now').mockReturnValue(now * 1000);
+
+    await client.exportInit({ userId: 'user-1', factorId: 'totp' });
+    const { secret: released } = await client.exportComplete({
+      userId: 'user-1',
+      factorId: 'totp',
+      proof: { type: 'totp', code },
+    });
+    expect(bytesToHex(released)).toBe(bytesToHex(secret));
+    released.fill(0);
+    secret.fill(0);
+    jest.restoreAllMocks();
   });
 
   it('rejects mismatched proof types and wrong passwords', async () => {

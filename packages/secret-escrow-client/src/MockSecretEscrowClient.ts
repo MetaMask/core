@@ -5,6 +5,7 @@ import {
   SecretEscrowErrorCode,
   SecretEscrowErrorMessage,
 } from './errors.js';
+import { verifyTotpCode } from './totp.js';
 import type {
   AddFactorParams,
   EscrowAssertion,
@@ -20,6 +21,7 @@ import type {
   RegisterResult,
   RevokeParams,
   SecretEscrowClient,
+  TotpEscrowFactor,
   WebAuthnEscrowFactor,
 } from './types.js';
 
@@ -27,11 +29,12 @@ const SECRET_BYTE_LENGTH = 32;
 const CHALLENGE_BYTE_LENGTH = 32;
 
 /**
- * Server-side stored factor (password kept as hash only).
+ * Server-side stored factor (password / totp secrets kept hashed or raw for mock).
  */
 type StoredFactor =
   | WebAuthnEscrowFactor
-  | { type: 'password'; passwordHash: string };
+  | { type: 'password'; passwordHash: string }
+  | { type: 'totp'; secret: string };
 
 type StoredEscrowRecord = {
   factors: Record<string, StoredFactor>;
@@ -113,6 +116,16 @@ function isPasswordFactor(factor: EscrowFactor): factor is PasswordEscrowFactor 
 }
 
 /**
+ * Type guard for TOTP factor at register time.
+ *
+ * @param factor - Factor to check.
+ * @returns Whether the factor is a TOTP factor with a shared secret.
+ */
+function isTotpFactor(factor: EscrowFactor): factor is TotpEscrowFactor {
+  return factor.type === 'totp';
+}
+
+/**
  * Validates a webauthn factor shape (mock does not verify the public key
  * cryptographically — that belongs on the real escrow).
  *
@@ -157,6 +170,17 @@ async function toStoredFactor(factor: EscrowFactor): Promise<StoredFactor> {
     return {
       type: 'password',
       passwordHash: await hashPassword(factor.password),
+    };
+  }
+  if (isTotpFactor(factor)) {
+    if (!factor.secret) {
+      throw new SecretEscrowError(SecretEscrowErrorMessage.InvalidFactor, {
+        code: SecretEscrowErrorCode.InvalidFactor,
+      });
+    }
+    return {
+      type: 'totp',
+      secret: factor.secret.replace(/\s+/gu, '').toUpperCase(),
     };
   }
   throw new SecretEscrowError(SecretEscrowErrorMessage.InvalidFactor, {
@@ -208,6 +232,21 @@ async function assertMockProof(
     return;
   }
 
+  if (stored.type === 'totp') {
+    if (proof.type !== 'totp') {
+      throw new SecretEscrowError(SecretEscrowErrorMessage.AssertionFailed, {
+        code: SecretEscrowErrorCode.AssertionFailed,
+      });
+    }
+    const valid = await verifyTotpCode(stored.secret, proof.code);
+    if (!valid) {
+      throw new SecretEscrowError(SecretEscrowErrorMessage.AssertionFailed, {
+        code: SecretEscrowErrorCode.AssertionFailed,
+      });
+    }
+    return;
+  }
+
   if (proof.type !== 'password') {
     throw new SecretEscrowError(SecretEscrowErrorMessage.AssertionFailed, {
       code: SecretEscrowErrorCode.AssertionFailed,
@@ -231,15 +270,18 @@ function storedToPublic(stored: StoredFactor): EscrowFactorPublic {
   if (stored.type === 'password') {
     return { type: 'password' };
   }
+  if (stored.type === 'totp') {
+    return { type: 'totp' };
+  }
   return structuredClone(stored);
 }
 
 /**
  * In-memory {@link SecretEscrowClient} for tests and local development.
  *
- * Supports password + webauthn factors with **1-of-N** export (any enrolled
- * factor can release wallet secret `S`). Mimics CubeSigner C2F without real
- * WebAuthn signature verification.
+ * Supports password, webauthn, and TOTP factors with **1-of-N** export (any
+ * enrolled factor can release wallet secret `S`). Mimics CubeSigner C2F without
+ * real WebAuthn signature verification.
  */
 export class MockSecretEscrowClient implements SecretEscrowClient {
   readonly #records = new Map<string, StoredEscrowRecord>();

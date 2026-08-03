@@ -49,14 +49,42 @@ export type PasswordEscrowFactorPublic = {
 };
 
 /**
+ * TOTP factor for escrow registration.
+ *
+ * `secret` is the shared base32 secret, required at register / addFactor time.
+ * Public listings never include it — only `{ type: 'totp' }`.
+ *
+ * TOTP release of `S` requires the escrow backend; it is not a local vault
+ * unlock factor on its own.
+ */
+export type TotpEscrowFactor = {
+  type: 'totp';
+  /** Base32-encoded shared secret (RFC 4648). */
+  secret: string;
+};
+
+/**
+ * Public TOTP factor metadata (safe to persist / list).
+ */
+export type TotpEscrowFactorPublic = {
+  type: 'totp';
+};
+
+/**
  * Factor payload accepted by register / addFactor.
  */
-export type EscrowFactor = WebAuthnEscrowFactor | PasswordEscrowFactor;
+export type EscrowFactor =
+  | WebAuthnEscrowFactor
+  | PasswordEscrowFactor
+  | TotpEscrowFactor;
 
 /**
  * Factor metadata safe to persist in client state or list to the UI.
  */
-export type EscrowFactorPublic = WebAuthnEscrowFactor | PasswordEscrowFactorPublic;
+export type EscrowFactorPublic =
+  | WebAuthnEscrowFactor
+  | PasswordEscrowFactorPublic
+  | TotpEscrowFactorPublic;
 
 /**
  * Parameters for registering the first factor and escrowing wallet secret `S`.
@@ -143,7 +171,8 @@ export type EscrowAssertion = {
  */
 export type FactorProof =
   | { type: 'webauthn'; assertion: EscrowAssertion }
-  | { type: 'password'; password: string };
+  | { type: 'password'; password: string }
+  | { type: 'totp'; code: string };
 
 /**
  * Parameters for completing a secret export after factor verification.
@@ -234,6 +263,9 @@ export type EnrollmentCapableSecretEscrowClient = SecretEscrowClient & {
 export function toPublicEscrowFactor(factor: EscrowFactor): EscrowFactorPublic {
   if (factor.type === 'password') {
     return { type: 'password' };
+  }
+  if (factor.type === 'totp') {
+    return { type: 'totp' };
   }
   return structuredClone(factor);
 }
