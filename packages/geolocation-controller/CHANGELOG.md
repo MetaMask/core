@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Changed
 
 - **BREAKING:** Resolve the user's country, region, and timezone via the `v2` geolocation endpoint through new `GeolocationController:getGeolocationData` and `GeolocationApiService:fetchGeolocationData` actions that return a `GeolocationData` object, along with matching `GeolocationControllerState` fields ([#9691](https://github.com/MetaMask/core/pull/9691))
@@ -43,7 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8037](https://github.com/MetaMask/core/pull/8037))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.3...@metamask/geolocation-controller@1.0.0
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.2...@metamask/geolocation-controller@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.1...@metamask/geolocation-controller@0.1.2
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.0...@metamask/geolocation-controller@0.1.1

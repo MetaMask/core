@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+
+## [6.0.2]
+
+### Changed
+
+- Bump `@metamask/config-registry-controller` from `^1.0.1` to `^2.0.0` ([#9740](https://github.com/MetaMask/core/pull/9740))
+
+## [6.0.1]
+
+### Changed
+
+- Bump `@metamask/config-registry-controller` from `^1.0.0` to `^1.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/multichain-network-controller` from `^3.2.1` to `^3.2.2` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
 ## [6.0.0]
 
 ### Added
@@ -371,7 +390,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.2...HEAD
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.1...@metamask/network-enablement-controller@6.0.2
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.0...@metamask/network-enablement-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.6.0...@metamask/network-enablement-controller@6.0.0
 [5.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.5.0...@metamask/network-enablement-controller@5.6.0
 [5.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.1...@metamask/network-enablement-controller@5.5.0

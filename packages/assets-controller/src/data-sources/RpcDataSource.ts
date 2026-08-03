@@ -17,6 +17,9 @@ import {
   isCaipChainId,
   parseCaipAssetType,
   parseCaipChainId,
+  hexToNumber,
+  toCaipChainId,
+  KnownCaipNamespace,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BigNumberJS from 'bignumber.js';
@@ -272,8 +275,20 @@ export class RpcDataSource extends AbstractDataSource<
     });
 
     // Initialize MulticallClient with a provider getter
-    this.#multicallClient = new MulticallClient((hexChainId: string) => {
-      return this.#getMulticallProvider(hexChainId);
+    this.#multicallClient = new MulticallClient({
+      getProvider: (hexChainId: string): RpcProvider => {
+        return this.#getMulticallProvider(hexChainId);
+      },
+      getMulticall3AddressForChain: (hexChainId: Hex): Hex | undefined =>
+        // The messenger is not being called from a constructor, so this is safe.
+        // eslint-disable-next-line no-restricted-syntax
+        this.#messenger.call(
+          'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+          toCaipChainId(
+            KnownCaipNamespace.Eip155,
+            hexToNumber(hexChainId).toString(),
+          ),
+        )?.contracts?.multicall3,
     });
 
     // Create messenger adapters for BalanceFetcher and TokenDetector
@@ -284,6 +299,8 @@ export class RpcDataSource extends AbstractDataSource<
         assetsBalance: Record<string, Record<string, { amount: string }>>;
         customAssets?: Record<string, string[]>;
       } => {
+        // The messenger is not being called from a constructor, so this is safe.
+        // eslint-disable-next-line no-restricted-syntax
         const state = this.#messenger.call('AssetsController:getState');
         return {
           assetsBalance: (state.assetsBalance ?? {}) as Record<

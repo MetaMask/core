@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `RampsService.getDefaultRedirectCallbackUrl()` and the matching `RampsService:getDefaultRedirectCallbackUrl` messenger action (plus the exported `RampsServiceGetDefaultRedirectCallbackUrlAction` type), which return the widened Headless Buy default redirect ("fake callback") URL for the environment the service was constructed with. The method is synchronous. ([#9752](https://github.com/MetaMask/core/pull/9752))
+  - `baseUrlOverride` deliberately does not apply. It overrides the ramps API host for local development, which in production and staging is not the host that serves `/regions/fake-callback` (`on-ramp-content` versus `on-ramp{-cache}`), and the redirect URL is matched by client UI to detect flow completion. For development the callback already shares the API host family (`on-ramp.dev-api`). Use `RampsEnvironment.Local` for a localhost callback, noting it is pinned to `http://localhost:3000` and does not follow a non-3000 `baseUrlOverride`.
+- Add the exported `getDefaultRedirectCallbackUrl(environment)` helper, the canonical environment-to-callback map that `RampsService` uses: `on-ramp-content` hosts for production and staging, `on-ramp.dev-api` for development (there is no `on-ramp-content.dev-api` deployment), and `localhost:3000` for local. Client code that needs the value synchronously, without the messenger, can call it directly with the same environment the service was given. ([#9752](https://github.com/MetaMask/core/pull/9752))
+
+### Changed
+
+- **BREAKING:** `RampsController` now calls `RampsService:getDefaultRedirectCallbackUrl` on the widened quote path, so hosts must delegate that action to the controller's messenger. It is included in the exported `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS` list; hosts that spell out their delegated action list instead of spreading that constant have to add it, or the entire `RampsController:getQuotes` call rejects with a messenger "handler has not been delegated" error (including MM Pay's fiat quote path, which omits `redirectUrl` and relies on widening). ([#9752](https://github.com/MetaMask/core/pull/9752))
+  - The action is only called when the `moneyHeadlessAllProviders` widening is in effect and the caller omitted `redirectUrl`. An explicit `redirectUrl` and the native-only path never reach the service.
+
+### Removed
+
+- **BREAKING:** Remove the `getDefaultRedirectUrl` callback option from `RampsControllerOptions`. The controller asks `RampsService` for the default redirect URL instead, which keeps the environment a single runtime source of truth so the callback host cannot drift from the API host the service is talking to. ([#9752](https://github.com/MetaMask/core/pull/9752))
+  - Mobile should drop the `getDefaultRedirectUrl: () => getRampCallbackBaseUrl()` argument from its `RampsController` init once it upgrades, and reimplement `getRampCallbackBaseUrl()` as `getDefaultRedirectCallbackUrl(getRampsEnvironment())` so the UI callback matcher and the controller default resolve from the same environment source.
+
+## [18.0.1]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
 ## [18.0.0]
 
 ### Removed
@@ -474,7 +496,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.1...HEAD
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.0...@metamask/ramps-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.2.0...@metamask/ramps-controller@18.0.0
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.1.0...@metamask/ramps-controller@17.2.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.0.0...@metamask/ramps-controller@17.1.0
