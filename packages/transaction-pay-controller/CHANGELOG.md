@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Request `EXACT_OUTPUT` instead of `EXPECTED_OUTPUT` from Relay for HyperCore perps deposits, so the full deposit target is guaranteed to arrive ([#9751](https://github.com/MetaMask/core/pull/9751))
+  - `EXPECTED_OUTPUT` only guarantees `target * (1 - slippage)` on the destination, so a deposit sized to the exact margin required could arrive short and the follow-on order would fail with insufficient margin.
+
+## [26.2.0]
+
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^13.0.0` to `^13.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
@@ -14,8 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Request `EXACT_OUTPUT` instead of `EXPECTED_OUTPUT` from Relay for HyperCore perps deposits, so the full deposit target is guaranteed to arrive ([#9751](https://github.com/MetaMask/core/pull/9751))
-  - `EXPECTED_OUTPUT` only guarantees `target * (1 - slippage)` on the destination, so a deposit sized to the exact margin required could arrive short and the follow-on order would fail with insufficient margin.
+- Use the typed required amount for Money Account `isMaxAmount` source calculations instead of the pay token's on-chain balance, so Max deposits funded from the money account (e.g. Send to Perps) keep the full withdrawable total (mUSD + vmUSD) and can use `EXACT_INPUT` ([#9707](https://github.com/MetaMask/core/pull/9707))
 - Fix Relay quote validation ([#9723](https://github.com/MetaMask/core/pull/9723))
   - Keep the quote when validation fails with reason `insufficient-source-balance`, while still surfacing `quoteError`; all other validation-failure reasons continue to remove the quote.
   - Exclude a zero `gas` value from the simulated transaction.
@@ -1383,7 +1389,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.2.0...HEAD
+[26.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.1.1...@metamask/transaction-pay-controller@26.2.0
 [26.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.1.0...@metamask/transaction-pay-controller@26.1.1
 [26.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.1...@metamask/transaction-pay-controller@26.1.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.0...@metamask/transaction-pay-controller@26.0.1
