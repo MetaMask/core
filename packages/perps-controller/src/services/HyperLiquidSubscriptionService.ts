@@ -1292,6 +1292,18 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Return the cached HL abstraction mode for the given user address.
+   *
+   * @param userAddress - The EVM address to look up.
+   * @returns Cached abstraction mode, or null when unresolved.
+   */
+  public getCachedAbstractionMode(
+    userAddress: string,
+  ): HyperLiquidAbstractionMode | null {
+    return this.#getAbstractionModeForUser(userAddress);
+  }
+
+  /**
    * Record a user's resolved abstraction mode and immediately re-aggregate.
    * Call after the provider has confirmed the on-chain mode (already-enabled
    * or just-migrated) so the WS-driven aggregator picks up the correct fold
