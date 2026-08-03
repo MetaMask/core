@@ -5185,6 +5185,32 @@ describe('RampsController', () => {
       );
     });
 
+    it('does not re-select the current provider when its data-list entry serves the asset but the selected copy does not', async () => {
+      // Simulates a stale-selected-copy scenario: providers.selected has empty
+      // assets while providers.data holds the fresh version of the same provider
+      // with the asset now included. The p.id !== selectedProvider.id guard in
+      // the find() is the only thing that prevents a spurious self-switch.
+      const selectedStale = makeProvider('/providers/transak-native');
+      const selectedFresh = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([selectedFresh], selectedStale),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(selectedStale);
+        },
+      );
+    });
+
     it('matches the asset case-insensitively (API key lowercase, caller assetId checksummed)', async () => {
       const incompatible = makeProvider('/providers/coinbase');
       // The providers API returns lowercase keys; the caller passes checksummed assetId.
