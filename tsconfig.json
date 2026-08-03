@@ -18,6 +18,9 @@
       "path": "./packages/address-book-controller"
     },
     {
+      "path": "./packages/advanced-chart-core"
+    },
+    {
       "path": "./packages/ai-controllers"
     },
     {
