@@ -138,6 +138,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'listFactors',
   'generateWalletSecret',
   'createWithWalletSecret',
+  'createWithWalletSecretAndWrapPassword',
   'addFactor',
   'enroll',
   'enrollAndWrapPassword',
@@ -385,6 +386,41 @@ export class SecretEscrowController extends BaseController<
   }
 
   /**
+   * Registers the first factor, escrows wallet secret `S`, and wraps the wallet
+   * password under `S` for TOPRF coexistence during migration.
+   *
+   * @param params - Creation parameters including plaintext password to wrap.
+   * @param params.userId - Stable escrow user id.
+   * @param params.factorId - Factor id (e.g. `"password"` or `"passkey"`).
+   * @param params.factor - Factor payload.
+   * @param params.password - Wallet password to wrap.
+   * @param params.secret - Optional 32-byte `S`; generated when omitted.
+   */
+  async createWithWalletSecretAndWrapPassword(params: {
+    userId: string;
+    factorId: string;
+    factor: EscrowFactor;
+    password: string;
+    secret?: Uint8Array;
+  }): Promise<void> {
+    const secret = await this.createWithWalletSecret({
+      userId: params.userId,
+      factorId: params.factorId,
+      factor: params.factor,
+      secret: params.secret,
+    });
+    try {
+      const wrappedPassword = wrapPassword(params.password, secret);
+      this.update((state) => {
+        state.escrowRecord!.wrappedPassword = wrappedPassword;
+      });
+      await this.#syncEnrollmentMetadata();
+    } finally {
+      secret.fill(0);
+    }
+  }
+
+  /**
    * Registers a WebAuthn factor with the escrow and persists local metadata.
    *
    * @deprecated Prefer {@link createWithWalletSecret} for new flows.
@@ -424,22 +460,7 @@ export class SecretEscrowController extends BaseController<
     password: string;
     secret?: Uint8Array;
   }): Promise<void> {
-    const secret = await this.createWithWalletSecret({
-      userId: params.userId,
-      factorId: params.factorId,
-      factor: params.factor,
-      secret: params.secret,
-    });
-    try {
-      const wrappedPassword = wrapPassword(params.password, secret);
-      this.update((state) => {
-        // `createWithWalletSecret` above always sets `escrowRecord` before returning.
-        state.escrowRecord!.wrappedPassword = wrappedPassword;
-      });
-      await this.#syncEnrollmentMetadata();
-    } finally {
-      secret.fill(0);
-    }
+    await this.createWithWalletSecretAndWrapPassword(params);
   }
 
   /**
@@ -557,9 +578,13 @@ export class SecretEscrowController extends BaseController<
    * Legacy coexistence bridge only.
    *
    * @param assertion - Assertion from `navigator.credentials.get()` (or mock).
+   * @param factorId - Optional factor id; defaults to the enrolled default.
    * @returns Plaintext wallet password (caller must clear after use).
    */
-  async recoverPassword(assertion: EscrowAssertion): Promise<string> {
+  async recoverPassword(
+    assertion: EscrowAssertion,
+    factorId?: string,
+  ): Promise<string> {
     const record = this.#requireEnrolled();
     if (!record.wrappedPassword) {
       throw new SecretEscrowError('No wrapped password enrolled', {
@@ -567,7 +592,11 @@ export class SecretEscrowController extends BaseController<
       });
     }
 
-    const secret = await this.completeExport(assertion);
+    const resolvedFactorId = factorId ?? record.factorId;
+    const secret = await this.unlockWithFactor({
+      factorId: resolvedFactorId,
+      proof: { type: 'webauthn', assertion },
+    });
     try {
       return unwrapPassword(record.wrappedPassword, secret);
     } finally {
@@ -620,19 +649,26 @@ export class SecretEscrowController extends BaseController<
 
   /**
    * Pushes public enrollment metadata to a remote-capable client (legacy wrap).
+   *
+   * Uses any enrolled WebAuthn factor for the legacy `factor` field so password-
+   * first enrollments can sync after a passkey is added.
    */
   async #syncEnrollmentMetadata(): Promise<void> {
     const record = this.state.escrowRecord;
     if (!record?.wrappedPassword || !isEnrollmentCapableClient(this.#client)) {
       return;
     }
-    if (!isWebAuthnPublicFactor(record.factor)) {
+    const webauthnEntry = Object.entries(record.factors).find(([, factor]) =>
+      isWebAuthnPublicFactor(factor),
+    );
+    if (!webauthnEntry || !isWebAuthnPublicFactor(webauthnEntry[1])) {
       return;
     }
+    const [factorId, factor] = webauthnEntry;
     await this.#client.putEnrollmentMetadata({
       userId: record.userId,
-      factorId: record.factorId,
-      factor: structuredClone(record.factor),
+      factorId,
+      factor: structuredClone(factor),
       wrappedPassword: record.wrappedPassword,
       enrolledAt: record.enrolledAt,
       factors: structuredClone(record.factors),

@@ -65,6 +65,23 @@ export type SecretEscrowControllerAddFactorAction = {
 };
 
 /**
+ * Registers the first factor, escrows wallet secret `S`, and wraps the wallet
+ * password under `S` for TOPRF coexistence during migration.
+ *
+ * @param params - Creation parameters including plaintext password to wrap.
+ * @param params.userId - Stable escrow user id.
+ * @param params.factorId - Factor id (e.g. `"password"` or `"passkey"`).
+ * @param params.factor - Factor payload.
+ * @param params.password - Wallet password to wrap.
+ * @param params.secret - Optional 32-byte `S`; generated when omitted.
+ */
+export type SecretEscrowControllerCreateWithWalletSecretAndWrapPasswordAction =
+  {
+    type: `SecretEscrowController:createWithWalletSecretAndWrapPassword`;
+    handler: SecretEscrowController['createWithWalletSecretAndWrapPassword'];
+  };
+
+/**
  * Registers a WebAuthn factor with the escrow and persists local metadata.
  *
  * @deprecated Prefer {@link createWithWalletSecret} for new flows.
@@ -158,6 +175,7 @@ export type SecretEscrowControllerUnlockWithFactorAction = {
  * Legacy coexistence bridge only.
  *
  * @param assertion - Assertion from `navigator.credentials.get()` (or mock).
+ * @param factorId - Optional factor id; defaults to the enrolled default.
  * @returns Plaintext wallet password (caller must clear after use).
  */
 export type SecretEscrowControllerRecoverPasswordAction = {
@@ -192,6 +210,7 @@ export type SecretEscrowControllerMethodActions =
   | SecretEscrowControllerGenerateWalletSecretAction
   | SecretEscrowControllerCreateWithWalletSecretAction
   | SecretEscrowControllerAddFactorAction
+  | SecretEscrowControllerCreateWithWalletSecretAndWrapPasswordAction
   | SecretEscrowControllerEnrollAction
   | SecretEscrowControllerEnrollAndWrapPasswordAction
   | SecretEscrowControllerHydrateFromRemoteAction

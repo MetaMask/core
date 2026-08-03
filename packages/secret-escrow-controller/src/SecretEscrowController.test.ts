@@ -506,13 +506,8 @@ describe('SecretEscrowController', () => {
     });
   });
 
-  it('skips remote enrollment sync when the default factor is not webauthn', async () => {
+  it('syncs remote enrollment metadata from a webauthn factor after password-first create', async () => {
     const base = new MockSecretEscrowClient();
-    await base.register({
-      userId: 'user-1',
-      factorId: 'password',
-      factor: { type: 'password', password: 'wallet-password' },
-    });
     const client = Object.assign(base, {
       putEnrollmentMetadata: jest.fn(),
       getEnrollmentMetadata: jest.fn(),
@@ -521,24 +516,56 @@ describe('SecretEscrowController', () => {
     const controller = new SecretEscrowController({
       messenger: createMessenger(),
       client,
-      state: {
-        escrowRecord: {
-          userId: 'user-1',
-          factorId: 'password',
-          factor: { type: 'password' },
-          factors: { password: { type: 'password' } },
-          enrolledAt: 1,
-          wrappedPassword: { ciphertext: 'c', iv: 'i' },
-        },
-      },
     });
+
+    await controller.createWithWalletSecretAndWrapPassword({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+      password: 'wallet-password',
+    });
+    expect(client.putEnrollmentMetadata).not.toHaveBeenCalled();
 
     await controller.addFactor({
       factorId: 'passkey',
       factor: TEST_FACTOR,
     });
 
-    expect(client.putEnrollmentMetadata).not.toHaveBeenCalled();
-    expect(controller.listFactors().passkey).toEqual(TEST_FACTOR);
+    expect(client.putEnrollmentMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        factorId: 'passkey',
+        factor: TEST_FACTOR,
+        factors: {
+          password: { type: 'password' },
+          passkey: TEST_FACTOR,
+        },
+      }),
+    );
+  });
+
+  it('recovers a wrapped password using an explicit passkey factor id', async () => {
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client: new MockSecretEscrowClient(),
+    });
+    await controller.createWithWalletSecretAndWrapPassword({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+      password: 'wallet-password',
+    });
+    await controller.addFactor({
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+    });
+
+    const { challenge } = await controller.startExport('passkey');
+    await expect(
+      controller.recoverPassword(
+        { id: TEST_FACTOR.credentialId, challenge },
+        'passkey',
+      ),
+    ).resolves.toBe('wallet-password');
   });
 });
