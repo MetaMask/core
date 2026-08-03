@@ -65,9 +65,10 @@ describe('AccountTreeSnapshot', () => {
 
   describe('filterWallets', () => {
     it('returns a snapshot containing only matching entries', () => {
-      const snapshot = new AccountTreeSnapshot(
-        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-      );
+      const snapshot = new AccountTreeSnapshot([
+        MOCK_MNEMONIC_WALLET,
+        MOCK_PRIVATE_KEY_WALLET,
+      ]);
       const filtered = snapshot.filterWallets(
         (wallet) => wallet.type === 'mnemonic',
       );
@@ -78,9 +79,10 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('preserves absent idMap when filtering', () => {
-      const snapshot = new AccountTreeSnapshot(
-        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-      );
+      const snapshot = new AccountTreeSnapshot([
+        MOCK_MNEMONIC_WALLET,
+        MOCK_PRIVATE_KEY_WALLET,
+      ]);
       const filtered = snapshot.filterWallets(() => true);
       expect(filtered.toLocalId('wallet:entropy-source-1')).toBeUndefined();
     });
@@ -127,9 +129,10 @@ describe('AccountTreeSnapshot', () => {
 
   describe('filterGroups', () => {
     it('filters groups within a single wallet and leaves others unchanged', () => {
-      const snapshot = new AccountTreeSnapshot(
-        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-      );
+      const snapshot = new AccountTreeSnapshot([
+        MOCK_MNEMONIC_WALLET,
+        MOCK_PRIVATE_KEY_WALLET,
+      ]);
 
       const filtered = snapshot.filterGroups(
         'wallet:entropy-source-1',
@@ -144,9 +147,10 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('removes the wallet when all groups are filtered out', () => {
-      const snapshot = new AccountTreeSnapshot(
-        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-      );
+      const snapshot = new AccountTreeSnapshot([
+        MOCK_MNEMONIC_WALLET,
+        MOCK_PRIVATE_KEY_WALLET,
+      ]);
 
       const filtered = snapshot.filterGroups(
         'wallet:entropy-source-1',
@@ -164,10 +168,7 @@ describe('AccountTreeSnapshot', () => {
         map,
       );
 
-      const filtered = snapshot.filterGroups(
-        'wallet:private-key',
-        () => true,
-      );
+      const filtered = snapshot.filterGroups('wallet:private-key', () => true);
 
       expect(filtered.serialize().wallets).toHaveLength(2);
       expect(filtered.toLocalId('wallet:private-key/0xdeadbeef')).toBe(
@@ -198,17 +199,18 @@ describe('AccountTreeSnapshot', () => {
     it('throws when the wallet ID is not in the snapshot', () => {
       const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET]);
 
-      expect(() =>
-        snapshot.filterGroups('wallet:missing', () => true),
-      ).toThrow('wallet "wallet:missing" not found in snapshot');
+      expect(() => snapshot.filterGroups('wallet:missing', () => true)).toThrow(
+        'wallet "wallet:missing" not found in snapshot',
+      );
     });
   });
 
   describe('filterAllGroups', () => {
     it('filters groups across all wallets and removes empty wallets', () => {
-      const snapshot = new AccountTreeSnapshot(
-        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-      );
+      const snapshot = new AccountTreeSnapshot([
+        MOCK_MNEMONIC_WALLET,
+        MOCK_PRIVATE_KEY_WALLET,
+      ]);
 
       const filtered = snapshot.filterAllGroups((group) =>
         group.id.endsWith('/0'),
@@ -221,9 +223,10 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('provides the parent wallet to the predicate', () => {
-      const snapshot = new AccountTreeSnapshot(
-        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-      );
+      const snapshot = new AccountTreeSnapshot([
+        MOCK_MNEMONIC_WALLET,
+        MOCK_PRIVATE_KEY_WALLET,
+      ]);
 
       const filtered = snapshot.filterAllGroups(
         (_group, wallet) => wallet.type === 'private-key',
@@ -315,9 +318,10 @@ describe('AccountTreeSnapshot', () => {
 
   describe('serialize', () => {
     it('serializes to a versioned AccountTreePayload', () => {
-      const snapshot = new AccountTreeSnapshot(
-        [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-      );
+      const snapshot = new AccountTreeSnapshot([
+        MOCK_MNEMONIC_WALLET,
+        MOCK_PRIVATE_KEY_WALLET,
+      ]);
       const payload = snapshot.serialize();
       expect(payload.version).toBe(ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION);
       expect(payload.wallets).toHaveLength(2);

@@ -94,9 +94,7 @@ async function exportMnemonicWalletObject(
         // Compute the stable entropy source ID from the keyring's mnemonic (BIP-39 seed).
         entropySourceId: await hdKeyring.toEntropySourceId(),
         // No need to include the mnemonic here if we're not exporting secrets.
-        mnemonic: includeMnemonic
-          ? hdKeyring.mnemonic
-          : undefined,
+        mnemonic: includeMnemonic ? hdKeyring.mnemonic : undefined,
       };
     },
   );

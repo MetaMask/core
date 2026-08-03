@@ -538,7 +538,8 @@ describe('exportState', () => {
     });
 
     it('merges multiple simple-keyring wallets into one private-key payload entry', async () => {
-      const secondPkWalletId = 'keyring:simple:legacy' as typeof MOCK_PK_WALLET_ID;
+      const secondPkWalletId =
+        'keyring:simple:legacy' as typeof MOCK_PK_WALLET_ID;
       const secondPkGroupId = toAccountGroupId(secondPkWalletId, '0xdef');
 
       const wallets: AccountTreeControllerState['accountTree']['wallets'] = {

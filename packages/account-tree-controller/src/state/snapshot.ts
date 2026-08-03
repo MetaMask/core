@@ -1,3 +1,4 @@
+import type { IdMap } from './id-map.js';
 import type {
   AccountGroupPayloadId,
   AccountTreePayload,
@@ -11,7 +12,6 @@ import type {
   AccountWalletPrivateKeyPayload,
 } from './payload.js';
 import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION, migrate } from './payload.js';
-import type { IdMap } from './id-map.js';
 
 /**
  * Recursively freezes a value and its nested properties.
