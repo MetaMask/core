@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: add `.js` import extensions to Web3Auth packages ([#9627](https://github.com/MetaMask/core/pull/9627))
+
 ### Added
 
 - Add `AuthConnection.Telegram` (`'telegram'`) to align with client social-login providers that already persist this value on `state.authConnection` ([#9737](https://github.com/MetaMask/core/pull/9737))
