@@ -169,6 +169,40 @@ describe('permissionController', () => {
     });
   });
 
+  it('has every external action it declares delegated to its messenger', () => {
+    const messenger = permissionController.getMessenger(getRootMessenger());
+
+    // A delegated action with no handler reports "has not been registered";
+    // one missing from the allowlist reports "has not been delegated to". A
+    // dropped entry still type-checks, so only this distinction catches it.
+    expect(() =>
+      messenger.call(
+        'ApprovalController:addRequest',
+        { origin: 'https://metamask.io', type: 'test' },
+        false,
+      ),
+    ).toThrow('has not been registered');
+    expect(() =>
+      messenger.call('ApprovalController:hasRequest', { id: 'test-id' }),
+    ).toThrow('has not been registered');
+    expect(() =>
+      messenger.call('ApprovalController:acceptRequest', 'test-id'),
+    ).toThrow('has not been registered');
+    expect(() =>
+      messenger.call(
+        'ApprovalController:rejectRequest',
+        'test-id',
+        new Error('rejected'),
+      ),
+    ).toThrow('has not been registered');
+    expect(() =>
+      messenger.call(
+        'SubjectMetadataController:getSubjectMetadata',
+        'https://metamask.io',
+      ),
+    ).toThrow('has not been registered');
+  });
+
   it('can reach the actions delegated to its messenger', () => {
     const rootMessenger = getRootMessenger();
 

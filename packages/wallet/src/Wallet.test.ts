@@ -10,6 +10,7 @@ import * as initializationModule from './initialization/initialization.js';
 import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
 import { subjectMetadataController } from './initialization/instances/subject-metadata-controller/subject-metadata-controller.js';
 import type { InitializationConfiguration } from './initialization/types.js';
+import type { WalletOptions } from './types.js';
 import { importSecretRecoveryPhrase } from './utilities.js';
 import { Wallet } from './Wallet.js';
 
@@ -25,8 +26,35 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
   },
 };
 
-async function setupWallet(): Promise<Wallet> {
-  const wallet = new Wallet({
+const PERSISTED_SUBJECT_ORIGIN = 'https://metamask.io';
+
+const PERSISTED_PERMISSIONED_SUBJECT_STATE = {
+  PermissionController: {
+    subjects: {
+      [PERSISTED_SUBJECT_ORIGIN]: {
+        origin: PERSISTED_SUBJECT_ORIGIN,
+        permissions: { somePermission: {} },
+      },
+    },
+  },
+  SubjectMetadataController: {
+    subjectMetadata: {
+      [PERSISTED_SUBJECT_ORIGIN]: {
+        origin: PERSISTED_SUBJECT_ORIGIN,
+        name: 'MetaMask',
+        subjectType: null,
+        extensionId: null,
+        iconUrl: null,
+      },
+    },
+  },
+};
+
+function createWallet(
+  options: Omit<WalletOptions, 'instanceOptions'> = {},
+): Wallet {
+  return new Wallet({
+    ...options,
     instanceOptions: {
       connectivityController: {
         connectivityAdapter: new AlwaysOnlineAdapter(),
@@ -43,6 +71,10 @@ async function setupWallet(): Promise<Wallet> {
       remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
     },
   });
+}
+
+async function setupWallet(): Promise<Wallet> {
+  const wallet = createWallet();
 
   await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_SRP);
 
@@ -530,111 +562,35 @@ describe('Wallet', () => {
       ).toStrictEqual({ subjectMetadata: {} });
     });
 
-    it('hydrates persisted subject metadata, consulting the wired PermissionController for retention', () => {
-      // Constructing the controller from persisted state calls
-      // `PermissionController:hasPermissions`, so this proves the default
-      // wiring initializes `PermissionController` before
-      // `SubjectMetadataController` (otherwise construction would throw).
-      const origin = 'https://metamask.io';
-
-      const wallet = new Wallet({
-        state: {
-          PermissionController: {
-            subjects: {
-              [origin]: { origin, permissions: { somePermission: {} } },
-            },
-          },
-          SubjectMetadataController: {
-            subjectMetadata: {
-              [origin]: {
-                origin,
-                name: 'MetaMask',
-                subjectType: null,
-                extensionId: null,
-                iconUrl: null,
-              },
-            },
-          },
-        },
-        instanceOptions: {
-          connectivityController: {
-            connectivityAdapter: new AlwaysOnlineAdapter(),
-          },
-          gasFeeController: {
-            clientId: 'test',
-          },
-          networkController: {
-            infuraProjectId: 'fake-infura-project-id',
-          },
-          storageService: {
-            storage: new InMemoryStorageAdapter(),
-          },
-          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-        },
-      });
-
-      // The subject holds permissions, so its metadata is retained on hydration.
-      expect(
-        Object.keys(wallet.state.SubjectMetadataController.subjectMetadata),
-      ).toContain(origin);
-    });
-
-    it('is constructed after the default PermissionController even when overridden', () => {
-      // An override hydrates via `PermissionController:hasPermissions`, so it
-      // must run after the default `PermissionController`, not ahead of it.
-      const origin = 'https://metamask.io';
-
-      let wallet: Wallet | undefined;
-
-      expect(() => {
-        wallet = new Wallet({
-          initializationConfigurations: [
-            subjectMetadataController as InitializationConfiguration<
-              unknown,
-              unknown
-            >,
-          ],
-          state: {
-            PermissionController: {
-              subjects: {
-                [origin]: { origin, permissions: { somePermission: {} } },
-              },
-            },
-            SubjectMetadataController: {
-              subjectMetadata: {
-                [origin]: {
-                  origin,
-                  name: 'MetaMask',
-                  subjectType: null,
-                  extensionId: null,
-                  iconUrl: null,
-                },
-              },
-            },
-          },
-          instanceOptions: {
-            connectivityController: {
-              connectivityAdapter: new AlwaysOnlineAdapter(),
-            },
-            gasFeeController: {
-              clientId: 'test',
-            },
-            networkController: {
-              infuraProjectId: 'fake-infura-project-id',
-            },
-            storageService: {
-              storage: new InMemoryStorageAdapter(),
-            },
-            remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-          },
+    // Hydrating persisted metadata calls `PermissionController:hasPermissions`,
+    // so construction throws unless `PermissionController` came first.
+    it.each([
+      {
+        description: 'from the defaults',
+        initializationConfigurations: undefined,
+      },
+      {
+        description: 'when overridden',
+        initializationConfigurations: [
+          subjectMetadataController as InitializationConfiguration<
+            unknown,
+            unknown
+          >,
+        ],
+      },
+    ])(
+      'hydrates persisted subject metadata $description, consulting the wired PermissionController for retention',
+      ({ initializationConfigurations }) => {
+        const wallet = createWallet({
+          initializationConfigurations,
+          state: PERSISTED_PERMISSIONED_SUBJECT_STATE,
         });
-      }).not.toThrow();
 
-      expect(
-        Object.keys(
-          (wallet as Wallet).state.SubjectMetadataController.subjectMetadata,
-        ),
-      ).toContain(origin);
-    });
+        // The subject holds permissions, so its metadata survives hydration.
+        expect(
+          Object.keys(wallet.state.SubjectMetadataController.subjectMetadata),
+        ).toContain(PERSISTED_SUBJECT_ORIGIN);
+      },
+    );
   });
 });

@@ -37,11 +37,9 @@ export const permissionController: InitializationConfiguration<
         parent,
       });
 
-    // Only what `PermissionControllerMessenger` declares. Permission
-    // specifications whose side effects call further actions (e.g. the Snaps
-    // specifications, which reach `SnapController:*`) need a wider allowlist
-    // than this, so such a consumer must override this configuration rather
-    // than rely on the default.
+    // Snaps specifications reach `SnapController:*` through side effects, which
+    // `DefaultActions` does not declare — so widening this allowlist means
+    // replacing the whole configuration, not appending to it.
     parent.delegate({
       messenger: permissionControllerMessenger,
       actions: [

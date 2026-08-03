@@ -11,12 +11,7 @@ import type {
 } from '../../defaults.js';
 import type { InitializationConfiguration } from '../../types.js';
 
-/**
- * Default maximum number of distinct permissionless subjects to cache metadata
- * for before the oldest is evicted. `100` matches the value MetaMask clients
- * currently use; clients can override via
- * `instanceOptions.subjectMetadataController.subjectCacheLimit`.
- */
+// `100` matches the value both the extension and mobile use.
 const DEFAULT_SUBJECT_CACHE_LIMIT = 100;
 
 export const subjectMetadataController: InitializationConfiguration<
@@ -24,6 +19,8 @@ export const subjectMetadataController: InitializationConfiguration<
   SubjectMetadataControllerMessenger
 > = {
   name: 'SubjectMetadataController',
+  // Hydrating persisted metadata calls `PermissionController:hasPermissions`;
+  // see the ordering note in `instances/index.ts`.
   init: ({ state, messenger, options }) =>
     new SubjectMetadataController({
       state,
@@ -38,12 +35,6 @@ export const subjectMetadataController: InitializationConfiguration<
         parent,
       });
 
-    // Hydration calls `PermissionController:hasPermissions`, so
-    // `PermissionController` must be constructed first. `initialize` builds
-    // defaults from `Object.values(defaultConfigurations)`, whose keys a module
-    // namespace object always sorts alphabetically — so `permissionController`
-    // precedes `subjectMetadataController` regardless of declaration order —
-    // and `initialize` keeps that position under overrides.
     parent.delegate({
       messenger: subjectMetadataControllerMessenger,
       actions: ['PermissionController:hasPermissions'],

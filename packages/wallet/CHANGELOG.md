@@ -10,13 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Wire `PermissionController` and `SubjectMetadataController` into the default wallet initialization ([#9300](https://github.com/MetaMask/core/pull/9300))
-  - The default `Wallet` now constructs both controllers and registers their `PermissionController:*` and `SubjectMetadataController:*` messenger actions. Consumers that pass their own `messenger` and already wire either controller must remove their own before upgrading, or the duplicate registration will collide.
-  - Adds optional `instanceOptions.permissionController` (`caveatSpecifications`, `permissionSpecifications`, `unrestrictedMethods`) and `instanceOptions.subjectMetadataController.subjectCacheLimit`. Each defaults to an empty set, and `subjectCacheLimit` defaults to `100`, so the default `PermissionController` gates nothing until a consumer injects specifications.
-  - The delegated action allowlist covers only what `PermissionControllerMessenger` declares. A consumer whose `permissionSpecifications` invoke additional actions through the side-effect messenger (for example, the Snaps `wallet_snap` specifications, which call `SnapController:getPermittedSnaps` and `SnapController:installSnaps`) must override the `PermissionController` configuration via `initializationConfigurations` to widen the allowlist.
+  - Consumers that pass their own `messenger` and already wire either controller must remove their own before upgrading, or the duplicate action registration will collide.
+  - Adds optional `instanceOptions.permissionController` (`caveatSpecifications`, `permissionSpecifications`, `unrestrictedMethods`) and `instanceOptions.subjectMetadataController.subjectCacheLimit`. Specifications default to empty, so no permission can be granted until a consumer injects them; `subjectCacheLimit` defaults to `100`.
+  - Consumers restoring persisted state must restore the `PermissionController` key alongside the `SubjectMetadataController` key, since subject metadata is retained only for origins holding permissions.
+  - Consumers whose `permissionSpecifications` invoke actions that `PermissionControllerMessenger` does not declare (for example the Snaps `wallet_snap` specifications) must replace the `PermissionController` configuration via `initializationConfigurations`.
+- Export the `InitializationConfiguration` type, which a consumer needs in order to supply `initializationConfigurations` ([#9300](https://github.com/MetaMask/core/pull/9300))
 
 ### Changed
 
-- A configuration that overrides a default is now initialized in that default's position rather than ahead of all defaults, preserving construction-order dependencies between default controllers (e.g. `PermissionController` before `SubjectMetadataController`) ([#9300](https://github.com/MetaMask/core/pull/9300))
+- **BREAKING:** A configuration passed to `initializationConfigurations` that overrides a default is now initialized in that default's position rather than ahead of all defaults, preserving construction-order dependencies between default controllers (e.g. `PermissionController` before `SubjectMetadataController`) ([#9300](https://github.com/MetaMask/core/pull/9300))
+  - An override that relied on being constructed before every other default must now account for its default's position; configurations that do not override a default are still initialized first.
+- `initialize` now throws when two entries in `initializationConfigurations` share a `name` ([#9300](https://github.com/MetaMask/core/pull/9300))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 
 ## [9.0.0]

@@ -1,3 +1,7 @@
+// `initialize` constructs defaults in this order, and some depend on an earlier
+// one (`PermissionController` before `SubjectMetadataController`). Keep it
+// alphabetical: the ESM build sorts namespace keys per spec, but the CommonJS
+// build preserves the order below, so only declaration order holds for both.
 export { accountsController } from './accounts-controller/accounts-controller.js';
 export { addressBookController } from './address-book-controller/address-book-controller.js';
 export { approvalController } from './approval-controller/approval-controller.js';

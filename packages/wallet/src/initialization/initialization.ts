@@ -29,26 +29,34 @@ export function initialize(options: InitializeOptions): DefaultInstances {
     defaultConfigurations,
   ) as InitializationConfiguration<unknown, unknown>[];
 
-  const overrideConfigurationsByName = new Map(
-    initializationConfigurations.map((config) => [config.name, config]),
-  );
-  const defaultConfigurationNames = new Set(
+  // Resolving two configurations with the same name would mean silently
+  // discarding one, so reject it instead of picking a winner.
+  const seenNames = new Set<string>();
+  for (const { name } of initializationConfigurations) {
+    if (seenNames.has(name)) {
+      throw new Error(`Duplicate initialization configuration name: ${name}`);
+    }
+    seenNames.add(name);
+  }
+
+  const defaultNames = new Set(
     defaultConfigurationEntries.map((config) => config.name),
   );
-
-  // Overrides keep their default's position so construction order between
-  // defaults is preserved (e.g. `PermissionController` before
-  // `SubjectMetadataController`). Non-default configs are additive and run first.
-  const additionalConfigurations = initializationConfigurations.filter(
-    (config) => !defaultConfigurationNames.has(config.name),
-  );
-  const mergedDefaultConfigurations = defaultConfigurationEntries.map(
-    (config) => overrideConfigurationsByName.get(config.name) ?? config,
+  const overridesByName = new Map(
+    initializationConfigurations.map((config) => [config.name, config]),
   );
 
-  const configurationEntries = additionalConfigurations.concat(
-    mergedDefaultConfigurations,
-  );
+  const configurationEntries = [
+    // A configuration that does not override a default is additive, and runs
+    // before the defaults — a default may depend on an action it registers.
+    ...initializationConfigurations.filter(
+      (config) => !defaultNames.has(config.name),
+    ),
+    // An override takes its default's slot; see `instances/index.ts`.
+    ...defaultConfigurationEntries.map(
+      (config) => overridesByName.get(config.name) ?? config,
+    ),
+  ];
 
   const instances: Record<string, unknown> = {};
 
