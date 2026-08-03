@@ -9,18 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Define `QuoteResponse` v2 and `validateQuoteResponse` ([#9724](https://github.com/MetaMask/core/pull/9724))
-- Export `BridgeAsset` and `validateBridgeAsset` used by QuoteResponse v2, and token endpoints ([#9724](https://github.com/MetaMask/core/pull/9724))
 - Implement coercers between `QuoteResponse` v1 and v2 ([#9725](https://github.com/MetaMask/core/pull/9725))
   - `toQuoteResponseV2` and `toQuoteResponseV1` convert quote responses to required schema when needed
   - `toQuoteMetadataV2` and `toQuoteMetadataV1` convert quote metadata to required schema when needed
   - `toNormalizedAmounts`converts atomic amounts to human-readable values
-- Selector compatibility ([#9727](https://github.com/MetaMask/core/pull/9727))
-  - deprecate cost and use priceImpact
-
-### Removed
-
-- Clean up unused unsupporteed `XlmScope.Testnet` chainId mapping ([#9085](https://github.com/MetaMask/core/pull/9085))
+- Define `QuoteResponse` v2 and `validateQuoteResponse` ([#9724](https://github.com/MetaMask/core/pull/9724))
+- Export `BridgeAsset` and `validateBridgeAsset` used by QuoteResponse v2, and token endpoints ([#9724](https://github.com/MetaMask/core/pull/9724))
 
 ### Changed
 
@@ -31,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `QuoteResponse` export now means v2; v1 is still exported as `QuoteResponseV1`
   - `fetchBridgeQuoteStream` and `fetchBatchSellTrades` now return `QuoteResponse` v2
   - `fetchBatchSellTrades` expects V2 quotes, then transforms them to V1 for backend compatibility
+- Update `calcQuoteMetadata` util to handle both V1 and V2 quotes. Legacy metadata calculators continue to use the V1 schema ([#9727](https://github.com/MetaMask/core/pull/9727))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/assets-controller` from `^13.0.0` to `^13.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
 - Bump `@metamask/assets-controllers` from `^110.0.3` to `^110.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
