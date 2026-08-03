@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/phishing-controller` from `^17.3.0` to `^17.3.1` ([#9746](https://github.com/MetaMask/core/pull/9746))
+
+## [13.1.0]
+
+### Added
+
+- Add Somnia (`5031`/`0x13a7`) in `MulticallClient` ([#9665](https://github.com/MetaMask/core/pull/9665))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.3` to `^110.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
+
+## [13.0.0]
+
+### Added
+
+- Add `getAccountAssetsByIDs(accountId, assetIds)` and `getAccountAssetsByScope(accountId, scope)` methods to look up several of an account's assets in one call — by a list of CAIP-19 asset IDs or by a CAIP-2 chain scope (e.g. `eip155:1`). Both return a record of combined `Asset`s keyed by CAIP-19 asset ID, omitting assets that are not renderable (missing balance/metadata, or hidden). ([#9738](https://github.com/MetaMask/core/pull/9738))
+
+### Changed
+
+- **BREAKING:** Rename `getAsset` to `getAccountAssetByID` ([#9738](https://github.com/MetaMask/core/pull/9738))
+- **BREAKING:** `AssetsControllerMessenger` now requires the `ConfigRegistryController:getNetworkConfigByCaip2ChainId` action to be delegated ([#9717](https://github.com/MetaMask/core/pull/9717))
+  - `AssetsController` now uses `ConfigRegistryController:getNetworkConfigByCaip2ChainId` to resolve the multicall3 contract address using `@metamask/config-registry-controller` as primary source, falling back to `MulticallClient`'s hardcoded default addresses for known chains.
+- Bump `@metamask/config-registry-controller` from `^1.0.1` to `^2.0.0` ([#9740](https://github.com/MetaMask/core/pull/9740))
+- Bump `@metamask/network-enablement-controller` from `^6.0.1` to `^6.0.2` ([#9740](https://github.com/MetaMask/core/pull/9740))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** `AccountActivityDataSource` is now the highest-priority balance data source and participates in chain-claiming: chains it reports as "up" from `AccountActivityService:statusChanged`. The `AssetsController` messenger must now allow the `AccountActivityService:statusChanged` event ([#9517](https://github.com/MetaMask/core/pull/9517))
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/assets-controllers` from `^110.0.2` to `^110.0.3` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/core-backend` from `^8.0.0` to `^8.1.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-enablement-controller` from `^6.0.0` to `^6.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+### Removed
+
+- **BREAKING:** Remove `BackendWebsocketDataSource` and its factory/types (`BackendWebsocketDataSource`, `createBackendWebsocketDataSource`, `BackendWebsocketDataSourceOptions`, `BackendWebsocketDataSourceState`). Real-time balance updates and per-chain status are now consumed from `AccountActivityService` via `AccountActivityDataSource`, which manages the WebSocket connection and subscriptions. Consumers no longer need to delegate `BackendWebSocketService` actions/events to the `AssetsController` messenger ([#9517](https://github.com/MetaMask/core/pull/9517))
+
 ## [11.3.1]
 
 ### Changed
@@ -816,7 +862,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.0...HEAD
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.0.0...@metamask/assets-controller@13.1.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@12.0.0...@metamask/assets-controller@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.1...@metamask/assets-controller@12.0.0
 [11.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.0...@metamask/assets-controller@11.3.1
 [11.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.1...@metamask/assets-controller@11.3.0
 [11.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.0...@metamask/assets-controller@11.2.1
