@@ -18,14 +18,13 @@ import {
   withdrawMethodIds,
   wrapMethodIds,
 } from './constants.js';
-import { formatAddressToAssetId } from './helpers/caip.js';
+import { formatAddressToAssetId, getNativeAsset } from './helpers/caip.js';
 import {
   getFees,
   getNftPaymentTransfer,
   getTokenAmountFromTransfer,
   getTokenMetadataFromKnownToken,
   parseValueTransfers,
-  withFallbackTokenAssetId,
 } from './helpers/transactions.js';
 
 /**
@@ -216,7 +215,35 @@ export function mapApiTransaction({
         !equalsIgnoreCase(from, subjectAddress));
 
     const transfer = isReceive ? receivedTransfer : sentTransfer;
-    const direction = isReceive ? 'in' : 'out';
+    const direction: TokenAmount['direction'] = isReceive ? 'in' : 'out';
+    let token = getToken(transfer, direction);
+
+    if (!token) {
+      // Zero-value sends can omit valueTransfers
+      if (transactionCategory === 'STANDARD') {
+        const nativeAsset = getNativeAsset(chainId);
+        if (nativeAsset) {
+          token = {
+            symbol: nativeAsset.symbol,
+            decimals: nativeAsset.decimals,
+            assetId: nativeAsset.assetId,
+            amount: transaction.value,
+            direction,
+            assetType: 'native',
+          };
+        }
+      }
+    } else if (
+      !token.assetId &&
+      transfer?.transferType !== 'normal' &&
+      transfer?.transferType !== 'internal'
+    ) {
+      // ERC-20 transfer missing contractAddress — fall back to tx.to.
+      const assetId = formatAddressToAssetId(transaction.to, chainId);
+      if (assetId) {
+        token = { ...token, assetId };
+      }
+    }
 
     return {
       type: isReceive ? 'receive' : 'send',
@@ -224,12 +251,7 @@ export function mapApiTransaction({
       data: {
         from: transfer?.from ?? from,
         to: transfer?.to ?? transaction.to,
-        token: withFallbackTokenAssetId(
-          getToken(transfer, direction),
-          transaction.to,
-          transfer?.transferType,
-          chainId,
-        ),
+        token,
         fees: getFees(transaction),
       },
     };

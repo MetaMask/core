@@ -80,6 +80,7 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
     aggregator,
     src,
     dest,
+    intent,
     ...restQuote
   } = value;
 
@@ -121,11 +122,12 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
     ...(src.walletAddress && /* istanbul ignore next */ {
       walletAddress: src.walletAddress,
     }),
-    ...(value.priceData?.priceImpact?.amount && /* istanbul ignore next */ {
+    ...(priceData?.priceImpact?.amount && /* istanbul ignore next */ {
       priceData: {
-        priceImpact: value.priceData.priceImpact.amount,
+        priceImpact: priceData.priceImpact.amount,
       },
     }),
+    ...(intent && /* istanbul ignore next */ { intent }),
     /**
      * @deprecated This field is deprecated.
      */

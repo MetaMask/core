@@ -21,11 +21,11 @@ export const MinimalAssetSchema = type({
    */
   assetId: CaipAssetTypeStruct,
   /**
-   * The symbol of token object
+   * The symbol of the asset
    */
   symbol: string(),
   /**
-   * The name for the network
+   * The name of the asset
    */
   name: string(),
   decimals: number(),
