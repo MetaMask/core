@@ -276,6 +276,7 @@ linkStyle default opacity:0.5
   assets_controller --> assets_controllers;
   assets_controller --> base_controller;
   assets_controller --> client_controller;
+  assets_controller --> config_registry_controller;
   assets_controller --> controller_utils;
   assets_controller --> core_backend;
   assets_controller --> keyring_controller;

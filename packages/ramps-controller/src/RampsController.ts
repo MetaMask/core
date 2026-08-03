@@ -20,6 +20,7 @@ import type { RampsControllerMethodActions } from './RampsController-method-acti
 import type { RampsErrorCode } from './rampsErrorCodes.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
 import type {
+  RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetTokensAction,
@@ -127,6 +128,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   | RampsServiceActions['type']
   | TransakServiceActions['type']
 )[] = [
+  'RampsService:getDefaultRedirectCallbackUrl',
   'RampsService:getGeolocation',
   'RampsService:getCountries',
   'RampsService:getTokens',
@@ -595,6 +597,7 @@ export type RampsControllerActions =
  */
 type AllowedActions =
   | RemoteFeatureFlagControllerGetStateAction
+  | RampsServiceGetDefaultRedirectCallbackUrlAction
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
@@ -681,17 +684,6 @@ export type RampsControllerOptions = {
   requestCacheTTL?: number;
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
-  /**
-   * Optional callback returning the default redirect URL to use for the widened
-   * quote fetch when the caller omits `redirectUrl`. The quotes API only
-   * embeds a `buyURL`/`buyWidget` (the WebView page a non-native provider needs)
-   * when a `redirectUrl` is present, so supplying this default lets widened
-   * aggregator quotes carry a usable widget URL. Only applied on the
-   * widened path; an explicit caller `redirectUrl` always wins and the
-   * native-only default never injects. Defaults to a callback returning
-   * `undefined` when omitted.
-   */
-  getDefaultRedirectUrl?: () => string | undefined;
 };
 
 // === HELPER FUNCTIONS ===
@@ -879,13 +871,6 @@ export class RampsController extends BaseController<
   readonly #requestCacheMaxSize: number;
 
   /**
-   * Resolves the default redirect URL for the widened quote fetch when
-   * the caller omits `redirectUrl`. Defaults to `() => undefined` when no
-   * callback is injected.
-   */
-  readonly #getDefaultRedirectUrl: () => string | undefined;
-
-  /**
    * Map of pending requests for deduplication.
    * Key is the cache key, value is the pending request with abort controller.
    */
@@ -951,16 +936,12 @@ export class RampsController extends BaseController<
    * controller. Missing properties will be filled in with defaults.
    * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
-   * @param args.getDefaultRedirectUrl - Optional callback returning the default
-   * redirect URL used for the widened quote fetch when the caller omits
-   * `redirectUrl`. Defaults to a callback returning `undefined`.
    */
   constructor({
     messenger,
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
-    getDefaultRedirectUrl,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -976,8 +957,6 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
-    this.#getDefaultRedirectUrl =
-      getDefaultRedirectUrl ?? ((): string | undefined => undefined);
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -2000,13 +1979,17 @@ export class RampsController extends BaseController<
     const normalizedWalletAddress = options.walletAddress.trim();
 
     // The quotes API only embeds a `buyURL`/`buyWidget` when a `redirectUrl` is
-    // present, so on the widened path (where MM Pay omits one) supply the
-    // injected default so aggregator quotes carry a usable widget URL. An
-    // explicit caller `redirectUrl` always wins, and the native-only path
-    // (flag off) never injects.
+    // present, so on the widened path (where MM Pay omits one) ask the service
+    // for the callback URL of the environment it is configured with, so
+    // aggregator quotes carry a usable widget URL that always matches the
+    // environment the quotes came from. An explicit caller `redirectUrl`
+    // always wins, and the native-only path (flag off) never injects, so
+    // neither reaches the service.
     const effectiveRedirectUrl =
       options.redirectUrl ??
-      (widenToAllProviders ? this.#getDefaultRedirectUrl() : undefined);
+      (widenToAllProviders
+        ? this.messenger.call('RampsService:getDefaultRedirectCallbackUrl')
+        : undefined);
 
     const cacheKey = createCacheKey('getQuotes', [
       normalizedRegion,
