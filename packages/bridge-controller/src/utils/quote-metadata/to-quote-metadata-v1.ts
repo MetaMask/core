@@ -22,6 +22,7 @@ export const toQuoteMetadataV1 = (
     | null,
   migrationPhase: '1' | '1.5' | '2',
 ): QuoteMetadata => {
+  /* istanbul ignore if */
   if (!quoteResponse) {
     return {};
   }

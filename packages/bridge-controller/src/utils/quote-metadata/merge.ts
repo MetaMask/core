@@ -4,6 +4,7 @@ import { merge } from 'lodash';
 import { QuoteResponseSchemaV1 } from '../../validators/quote-response-v1.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
+import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import { toQuoteMetadataV2 } from './to-quote-metadata-v2.js';
 import type { QuoteMetadata } from './types.js';
 import { toNormalizedAmounts } from './to-normalized-amounts.js';
@@ -34,7 +35,8 @@ export function mergeQuoteMetadata<
     legacyQuoteMetadata,
     quoteResponse,
   );
-  const normalizedAmountsV2 = toNormalizedAmounts(quoteResponse);
+
+  const normalizedAmounts = toNormalizedAmounts(quoteResponse);
 
   if (migrationPhase === '2') {
     // TODO Phase 2 of migration only uses metadata from the API response
@@ -64,8 +66,8 @@ export function mergeQuoteMetadata<
   return merge(
     {},
     quoteResponse,
-    normalizedAmountsV2,
-    legacyQuoteMetadataV2,
-    legacyQuoteMetadata, // return for client testing
+    normalizedAmounts,
+    legacyQuoteMetadataV2, // legacy metadata in v2 format
+    legacyQuoteMetadata, // return legacy metadata for client testing
   );
 }
