@@ -12,6 +12,7 @@ import type {
   EscrowFactorPublic,
   ExportInitResult,
   FactorProof,
+  LocalPasskeyRecord,
   MockSecretEscrowSnapshot,
   SecretEscrowClient,
   WebAuthnEscrowFactor,
@@ -56,6 +57,11 @@ export type SecretEscrowRecord = {
    * Legacy bridge only — new flows escrow wallet secret `S` directly.
    */
   wrappedPassword?: WrappedPassword;
+  /**
+   * Local offline-unlock wrap (password under passkey), mirrored to remote
+   * enrollment metadata for wipe/rehydration.
+   */
+  localPasskeyRecord?: LocalPasskeyRecord;
 };
 
 /**
@@ -144,6 +150,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'enroll',
   'enrollAndWrapPassword',
   'hydrateFromRemote',
+  'setLocalPasskeyRecord',
+  'clearLocalPasskeyRecord',
   'startExport',
   'completeExport',
   'unlockWithFactor',
@@ -529,9 +537,43 @@ export class SecretEscrowController extends BaseController<
         factors,
         enrolledAt: metadata.enrolledAt,
         wrappedPassword: { ...metadata.wrappedPassword },
+        ...(metadata.localPasskeyRecord
+          ? {
+              localPasskeyRecord: structuredClone(metadata.localPasskeyRecord),
+            }
+          : {}),
       };
     });
     return true;
+  }
+
+  /**
+   * Stores (or replaces) the local offline passkey wrap and syncs remote metadata.
+   *
+   * @param localPasskeyRecord - PasskeyController passkeyRecord to persist for wipe recovery.
+   */
+  async setLocalPasskeyRecord(
+    localPasskeyRecord: LocalPasskeyRecord,
+  ): Promise<void> {
+    this.#requireEnrolled();
+    this.update((state) => {
+      state.escrowRecord!.localPasskeyRecord =
+        structuredClone(localPasskeyRecord);
+    });
+    await this.#syncEnrollmentMetadata();
+  }
+
+  /**
+   * Clears the local offline passkey wrap from escrow state and remote metadata.
+   */
+  async clearLocalPasskeyRecord(): Promise<void> {
+    if (!this.state.escrowRecord?.localPasskeyRecord) {
+      return;
+    }
+    this.update((state) => {
+      delete state.escrowRecord!.localPasskeyRecord;
+    });
+    await this.#syncEnrollmentMetadata();
   }
 
   /**
@@ -717,6 +759,11 @@ export class SecretEscrowController extends BaseController<
       wrappedPassword: record.wrappedPassword,
       enrolledAt: record.enrolledAt,
       factors: structuredClone(record.factors),
+      ...(record.localPasskeyRecord
+        ? {
+            localPasskeyRecord: structuredClone(record.localPasskeyRecord),
+          }
+        : {}),
     });
   }
 }

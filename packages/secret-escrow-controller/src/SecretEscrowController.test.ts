@@ -373,6 +373,76 @@ describe('SecretEscrowController', () => {
     ).resolves.toBe('wallet-password');
   });
 
+  it('syncs and restores localPasskeyRecord across wipe hydrate', async () => {
+    const metadataStore = new Map<
+      string,
+      {
+        userId: string;
+        factorId: string;
+        factor: WebAuthnEscrowFactor;
+        wrappedPassword: { ciphertext: string; iv: string };
+        enrolledAt: number;
+        localPasskeyRecord?: {
+          credential: {
+            id: string;
+            publicKey: string;
+            counter: number;
+            aaguid: string;
+          };
+          encryptedVaultKey: { ciphertext: string; iv: string };
+          keyDerivation: { method: 'userHandle' };
+        };
+      }
+    >();
+    const base = new MockSecretEscrowClient();
+    const client = Object.assign(base, {
+      putEnrollmentMetadata: jest.fn(async (metadata) => {
+        metadataStore.set(metadata.userId, metadata);
+      }),
+      getEnrollmentMetadata: jest.fn(async (userId: string) => {
+        return metadataStore.get(userId) ?? null;
+      }),
+    });
+
+    const enrolled = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+    await enrolled.enrollAndWrapPassword({
+      userId: 'user-1',
+      factorId: 'passkey',
+      factor: TEST_FACTOR,
+      password: 'wallet-password',
+    });
+
+    const localPasskeyRecord = {
+      credential: {
+        id: TEST_FACTOR.credentialId,
+        publicKey: 'pk',
+        counter: 0,
+        aaguid: 'aaguid',
+      },
+      encryptedVaultKey: { ciphertext: 'ct', iv: 'iv' },
+      keyDerivation: { method: 'userHandle' as const },
+    };
+    await enrolled.setLocalPasskeyRecord(localPasskeyRecord);
+    expect(client.putEnrollmentMetadata).toHaveBeenLastCalledWith(
+      expect.objectContaining({ localPasskeyRecord }),
+    );
+
+    const hydrated = new SecretEscrowController({
+      messenger: createMessenger(),
+      client,
+    });
+    expect(await hydrated.hydrateFromRemote('user-1')).toBe(true);
+    expect(hydrated.state.escrowRecord?.localPasskeyRecord).toEqual(
+      localPasskeyRecord,
+    );
+
+    await hydrated.clearLocalPasskeyRecord();
+    expect(hydrated.state.escrowRecord?.localPasskeyRecord).toBeUndefined();
+  });
+
   it('hydrateFromRemote is a no-op without enrollment-capable client', async () => {
     const controller = new SecretEscrowController({
       messenger: createMessenger(),

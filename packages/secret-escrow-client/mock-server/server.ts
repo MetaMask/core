@@ -39,6 +39,7 @@ type StoreFile = {
       wrappedPassword: EscrowWrappedPassword;
       enrolledAt: number;
       factors?: EscrowEnrollmentMetadata['factors'];
+      localPasskeyRecord?: EscrowEnrollmentMetadata['localPasskeyRecord'];
     }
   >;
 };
@@ -179,6 +180,9 @@ const server = createServer(async (req, res) => {
         wrappedPassword: enrollment.wrappedPassword,
         enrolledAt: enrollment.enrolledAt,
         factors: enrollment.factors ?? client.listFactors(userId),
+        ...(enrollment.localPasskeyRecord
+          ? { localPasskeyRecord: enrollment.localPasskeyRecord }
+          : {}),
       };
       sendJson(res, 200, metadata);
       return;
@@ -200,6 +204,9 @@ const server = createServer(async (req, res) => {
         wrappedPassword: body.wrappedPassword,
         enrolledAt: body.enrolledAt ?? Date.now(),
         factors: body.factors ?? client.listFactors(userId),
+        ...(body.localPasskeyRecord
+          ? { localPasskeyRecord: body.localPasskeyRecord }
+          : {}),
       };
       saveStore();
       sendJson(res, 204);

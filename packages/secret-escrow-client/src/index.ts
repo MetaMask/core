@@ -13,6 +13,7 @@ export type {
   ExportInitParams,
   ExportInitResult,
   FactorProof,
+  LocalPasskeyRecord,
   PasswordEscrowFactor,
   PasswordEscrowFactorPublic,
   RegisterParams,

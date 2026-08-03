@@ -144,6 +144,25 @@ export type SecretEscrowControllerHydrateFromRemoteAction = {
 };
 
 /**
+ * Stores the local offline passkey wrap on the escrow record and syncs remote
+ * enrollment metadata (for wipe/rehydration).
+ *
+ * @param localPasskeyRecord - PasskeyController passkeyRecord to persist.
+ */
+export type SecretEscrowControllerSetLocalPasskeyRecordAction = {
+  type: `SecretEscrowController:setLocalPasskeyRecord`;
+  handler: SecretEscrowController['setLocalPasskeyRecord'];
+};
+
+/**
+ * Clears the local offline passkey wrap from escrow state and remote metadata.
+ */
+export type SecretEscrowControllerClearLocalPasskeyRecordAction = {
+  type: `SecretEscrowController:clearLocalPasskeyRecord`;
+  handler: SecretEscrowController['clearLocalPasskeyRecord'];
+};
+
+/**
  * Starts an export ceremony and returns the challenge for the factor proof.
  *
  * @param factorId - Optional factor id; defaults to the enrolled default.
@@ -239,6 +258,8 @@ export type SecretEscrowControllerMethodActions =
   | SecretEscrowControllerEnrollAction
   | SecretEscrowControllerEnrollAndWrapPasswordAction
   | SecretEscrowControllerHydrateFromRemoteAction
+  | SecretEscrowControllerSetLocalPasskeyRecordAction
+  | SecretEscrowControllerClearLocalPasskeyRecordAction
   | SecretEscrowControllerStartExportAction
   | SecretEscrowControllerCompleteExportAction
   | SecretEscrowControllerUnlockWithFactorAction

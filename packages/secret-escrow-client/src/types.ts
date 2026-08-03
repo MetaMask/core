@@ -223,6 +223,35 @@ export type EscrowEnrollmentMetadata = {
   enrolledAt: number;
   /** Optional multi-factor public map when available. */
   factors?: Record<string, EscrowFactorPublic>;
+  /**
+   * Optional local offline-unlock wrap (password encrypted under the passkey).
+   * Survives wipe via remote metadata so hydrate can restore PasskeyController
+   * state without re-enrolling WebAuthn.
+   */
+  localPasskeyRecord?: LocalPasskeyRecord;
+};
+
+/**
+ * PasskeyController `passkeyRecord` shape persisted for offline unlock after wipe.
+ *
+ * Kept structurally compatible with `@metamask/passkey-controller` without a
+ * package dependency from this client.
+ */
+export type LocalPasskeyRecord = {
+  credential: {
+    id: Base64URLString;
+    publicKey: Base64URLString;
+    counter: number;
+    transports?: string[];
+    aaguid: string;
+  };
+  encryptedVaultKey: {
+    ciphertext: string;
+    iv: string;
+  };
+  keyDerivation:
+    | { method: 'prf'; prfSalt: Base64URLString }
+    | { method: 'userHandle' };
 };
 
 /**
