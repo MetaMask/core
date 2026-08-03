@@ -39,8 +39,11 @@ export const subjectMetadataController: InitializationConfiguration<
       });
 
     // Hydration calls `PermissionController:hasPermissions`, so
-    // `PermissionController` must be constructed first. It sorts earlier in
-    // `instances/index.ts`, and `initialize` keeps that order under overrides.
+    // `PermissionController` must be constructed first. `initialize` builds
+    // defaults from `Object.values(defaultConfigurations)`, whose keys a module
+    // namespace object always sorts alphabetically — so `permissionController`
+    // precedes `subjectMetadataController` regardless of declaration order —
+    // and `initialize` keeps that position under overrides.
     parent.delegate({
       messenger: subjectMetadataControllerMessenger,
       actions: ['PermissionController:hasPermissions'],

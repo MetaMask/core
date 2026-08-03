@@ -560,6 +560,9 @@ describe('Wallet', () => {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
           },
+          gasFeeController: {
+            clientId: 'test',
+          },
           networkController: {
             infuraProjectId: 'fake-infura-project-id',
           },
@@ -612,6 +615,9 @@ describe('Wallet', () => {
           instanceOptions: {
             connectivityController: {
               connectivityAdapter: new AlwaysOnlineAdapter(),
+            },
+            gasFeeController: {
+              clientId: 'test',
             },
             networkController: {
               infuraProjectId: 'fake-infura-project-id',

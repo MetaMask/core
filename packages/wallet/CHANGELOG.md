@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Wire `PermissionController` and `SubjectMetadataController` into the default wallet initialization ([#9300](https://github.com/MetaMask/core/pull/9300))
-  - Adds optional `instanceOptions.permissionController` (`caveatSpecifications`, `permissionSpecifications`, `unrestrictedMethods`) and `instanceOptions.subjectMetadataController.subjectCacheLimit`.
+  - The default `Wallet` now constructs both controllers and registers their `PermissionController:*` and `SubjectMetadataController:*` messenger actions. Consumers that pass their own `messenger` and already wire either controller must remove their own before upgrading, or the duplicate registration will collide.
+  - Adds optional `instanceOptions.permissionController` (`caveatSpecifications`, `permissionSpecifications`, `unrestrictedMethods`) and `instanceOptions.subjectMetadataController.subjectCacheLimit`. Each defaults to an empty set, and `subjectCacheLimit` defaults to `100`, so the default `PermissionController` gates nothing until a consumer injects specifications.
+  - The delegated action allowlist covers only what `PermissionControllerMessenger` declares. A consumer whose `permissionSpecifications` invoke additional actions through the side-effect messenger (for example, the Snaps `wallet_snap` specifications, which call `SnapController:getPermittedSnaps` and `SnapController:installSnaps`) must override the `PermissionController` configuration via `initializationConfigurations` to widen the allowlist.
 
 ### Changed
 
@@ -80,9 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
 - Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
-=======
-- A configuration that overrides a default is now initialized in that default's position rather than ahead of all defaults, preserving construction-order dependencies between default controllers (e.g. `PermissionController` before `SubjectMetadataController`) ([#9300](https://github.com/MetaMask/core/pull/9300))
->>>>>>> 0b8cac1b5b (fix(wallet): initialize overriding configurations in their default's position)
 
 ## [5.0.0]
 

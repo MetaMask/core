@@ -257,7 +257,10 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'permission-controller': {
     teams: ['@MetaMask/core-platform'],
-    initializationPath: ['permission-controller', 'subject-metadata-controller'],
+    initializationPath: [
+      'permission-controller',
+      'subject-metadata-controller',
+    ],
   },
   'permission-log-controller': {
     teams: ['@MetaMask/core-platform'],
@@ -610,8 +613,7 @@ function buildInitializationSection(): CodeownersSection {
   return {
     title: 'Initialization',
     rules: Object.values(PACKAGES)
-      .filter((info) => info.initializationPath !== undefined)
-      .flatMap(({ teams, initializationPath }) =>
+      .flatMap(({ teams, initializationPath = [] }) =>
         [initializationPath].flat().map((instancePath) => ({
           pattern: `/packages/wallet/src/initialization/instances/${instancePath}/`,
           owners: teams,

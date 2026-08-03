@@ -103,6 +103,61 @@ describe('permissionController', () => {
     expect(instance.getPermissions(origin)).toHaveProperty('wallet_noop');
   });
 
+  it('forwards injected caveat specifications to the controller', () => {
+    const messenger = permissionController.getMessenger(getRootMessenger());
+    const origin = 'https://metamask.io';
+
+    const instance = permissionController.init({
+      state: undefined,
+      messenger,
+      options: {
+        caveatSpecifications: {
+          noopCaveat: {
+            type: 'noopCaveat',
+            decorator: (methodImplementation) => methodImplementation,
+            validator: ({ value }) => {
+              if (value !== 'allowed') {
+                throw new Error('Invalid noopCaveat value');
+              }
+            },
+          },
+        },
+        permissionSpecifications: {
+          wallet_noop: {
+            permissionType: PermissionType.RestrictedMethod,
+            targetName: 'wallet_noop',
+            allowedCaveats: ['noopCaveat'],
+            methodImplementation: () => null,
+          },
+        },
+      },
+    });
+
+    // The injected caveat's validator only runs if its specification was
+    // forwarded to the controller.
+    expect(() =>
+      instance.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_noop: {
+            caveats: [{ type: 'noopCaveat', value: 'rejected' }],
+          },
+        },
+      }),
+    ).toThrow('Invalid noopCaveat value');
+
+    instance.grantPermissions({
+      subject: { origin },
+      approvedPermissions: {
+        wallet_noop: { caveats: [{ type: 'noopCaveat', value: 'allowed' }] },
+      },
+    });
+
+    expect(
+      instance.getCaveat(origin, 'wallet_noop', 'noopCaveat'),
+    ).toStrictEqual({ type: 'noopCaveat', value: 'allowed' });
+  });
+
   it('exposes its actions through the root messenger', () => {
     const rootMessenger = getRootMessenger();
     const messenger = permissionController.getMessenger(rootMessenger);
