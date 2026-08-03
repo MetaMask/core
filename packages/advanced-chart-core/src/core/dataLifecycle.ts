@@ -34,7 +34,9 @@ export function onDataLifecycle(
   return () => {
     const bucket = listeners[event];
     const idx = bucket.indexOf(listener);
-    if (idx !== -1) {bucket.splice(idx, 1);}
+    if (idx !== -1) {
+      bucket.splice(idx, 1);
+    }
   };
 }
 

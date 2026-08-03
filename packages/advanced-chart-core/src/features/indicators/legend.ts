@@ -25,7 +25,6 @@ import {
   isChartReady,
   setLegendOwnsLayoutSettle,
 } from '../../core/state.js';
-import { eachChartDocument } from '../../widget/tvDomHelpers.js';
 import type {
   LegendIndicatorCfg,
   LegendOverlayConfig,
@@ -34,6 +33,7 @@ import type {
   TVActiveChart,
   TVExportData,
 } from '../../core/types.js';
+import { eachChartDocument } from '../../widget/tvDomHelpers.js';
 
 const OVERLAY_ID = 'study-legend-overlay';
 const OVERLAY_LEFT_PX = 8;
@@ -62,7 +62,9 @@ export function setupLegendOverlay(
 ): void {
   legendOverlayEnabled = Boolean(config?.enabled);
   legendConfig = config?.config;
-  if (!legendOverlayEnabled) {return;}
+  if (!legendOverlayEnabled) {
+    return;
+  }
   createOverlayElement();
   injectHideLegendButtonsCSS();
 }
@@ -83,7 +85,9 @@ export function attachLegendResizeListener(widget: {
   try {
     widget.subscribe('panes_height_changed', () => {
       const el = document.getElementById(OVERLAY_ID);
-      if (el) {updateLegendOverlayLayout();}
+      if (el) {
+        updateLegendOverlayLayout();
+      }
       repositionSubPaneOverlays(widget.activeChart());
     });
   } catch {
@@ -93,9 +97,13 @@ export function attachLegendResizeListener(widget: {
 
 function createOverlayElement(): void {
   const existing = document.getElementById(OVERLAY_ID);
-  if (existing) {existing.remove();}
+  if (existing) {
+    existing.remove();
+  }
   const container = document.getElementById('tv_chart_container');
-  if (!container) {return;}
+  if (!container) {
+    return;
+  }
   const div = document.createElement('div');
   div.id = OVERLAY_ID;
   div.style.cssText =
@@ -108,10 +116,14 @@ function createOverlayElement(): void {
 
 function injectHideLegendButtonsCSS(): void {
   const styleId = 'mm-hide-legend-buttons';
-  if (document.getElementById(styleId)) {return;}
+  if (document.getElementById(styleId)) {
+    return;
+  }
   let targetDoc: Document = document;
   eachChartDocument((doc) => {
-    if (targetDoc === document && doc !== document) {targetDoc = doc;}
+    if (targetDoc === document && doc !== document) {
+      targetDoc = doc;
+    }
   });
   const style = targetDoc.createElement('style');
   style.id = styleId;
@@ -151,12 +163,12 @@ function getLegendAltColor(): string {
 type StudyValueEntry = {
   title: string;
   value: string;
-}
+};
 
 type StudyDataEntry = {
   name: string;
   values: StudyValueEntry[];
-}
+};
 
 function isEmptyValue(value: string): boolean {
   return !value || value === '' || value === 'n/a' || value === '∅';
@@ -188,12 +200,16 @@ function buildHTML(entries: StudyDataEntry[]): string {
 
   for (const entry of entries) {
     const indicatorConfig = presets[entry.name];
-    if (!indicatorConfig) {continue;}
+    if (!indicatorConfig) {
+      continue;
+    }
 
     if (indicatorConfig.isMA) {
       const ma = indicatorConfig.plots[0];
       const value = plotValue(indicatorConfig, ma, 0, entry.values);
-      if (isEmptyValue(value)) {continue;}
+      if (isEmptyValue(value)) {
+        continue;
+      }
       pills.push(wrapPill(`${ma.label} ${value}`, ma.color ?? undefined));
       continue;
     }
@@ -204,19 +220,25 @@ function buildHTML(entries: StudyDataEntry[]): string {
       let hasValues = false;
       indicatorConfig.plots.forEach((plot, idx) => {
         const value = plotValue(indicatorConfig, plot, idx, entry.values);
-        if (isEmptyValue(value)) {return;}
+        if (isEmptyValue(value)) {
+          return;
+        }
         hasValues = true;
         inner +=
           `<span style="color:${labelColor}">&nbsp;${plot.label}</span>` +
           `<span style="color:${altColor}">&nbsp;${value}</span>`;
       });
-      if (hasValues) {pills.push(wrapPill(inner));}
+      if (hasValues) {
+        pills.push(wrapPill(inner));
+      }
       continue;
     }
 
     indicatorConfig.plots.forEach((plot, idx) => {
       const value = plotValue(indicatorConfig, plot, idx, entry.values);
-      if (isEmptyValue(value)) {return;}
+      if (isEmptyValue(value)) {
+        return;
+      }
       const color = plot.color ?? successColor;
       const inner =
         `<span style="color:${color}">${plot.label}</span>` +
@@ -238,7 +260,9 @@ function collectStudyIdMap(): Record<string, string> {
     map[String(id)] = name;
   }
   const vol = getVolumeStudyId();
-  if (vol) {map[String(vol)] = 'Volume';}
+  if (vol) {
+    map[String(vol)] = 'Volume';
+  }
   return map;
 }
 
@@ -249,27 +273,45 @@ function buildOrderedEntries(
   for (const [name, studyId] of getLegendStudyOrder().entries()) {
     const sid = String(studyId);
     const values = byStudy[sid];
-    if (values) {result.push({ name, values });}
+    if (values) {
+      result.push({ name, values });
+    }
   }
   return result;
 }
 
 function formatLegendValue(value: number): string {
-  if (!Number.isFinite(value)) {return '';}
+  if (!Number.isFinite(value)) {
+    return '';
+  }
   const abs = Math.abs(value);
-  if (abs >= 1e9) {return `${(value / 1e9).toFixed(2)}B`;}
-  if (abs >= 1e6) {return `${(value / 1e6).toFixed(2)}M`;}
-  if (abs >= 1e4) {return `${(value / 1e3).toFixed(1)}K`;}
-  if (abs >= 1000) {return value.toFixed(2);}
-  if (abs >= 1) {return value.toFixed(2);}
-  if (abs >= 0.01) {return value.toFixed(4);}
+  if (abs >= 1e9) {
+    return `${(value / 1e9).toFixed(2)}B`;
+  }
+  if (abs >= 1e6) {
+    return `${(value / 1e6).toFixed(2)}M`;
+  }
+  if (abs >= 1e4) {
+    return `${(value / 1e3).toFixed(1)}K`;
+  }
+  if (abs >= 1000) {
+    return value.toFixed(2);
+  }
+  if (abs >= 1) {
+    return value.toFixed(2);
+  }
+  if (abs >= 0.01) {
+    return value.toFixed(4);
+  }
   return value.toPrecision(4);
 }
 
 function hasAnyEmpty(entries: StudyDataEntry[]): boolean {
   for (const entry of entries) {
     for (const value of entry.values) {
-      if (isEmptyValue(value.value)) {return true;}
+      if (isEmptyValue(value.value)) {
+        return true;
+      }
     }
   }
   return false;
@@ -297,7 +339,9 @@ function clearTimer(): void {
 function startTimeout(gen: number): void {
   clearTimer();
   timeoutId = setTimeout(() => {
-    if (gen !== exportGeneration) {return;}
+    if (gen !== exportGeneration) {
+      return;
+    }
     retryCount = 0;
     clearTimer();
     notifyLegendRendered();
@@ -313,7 +357,9 @@ function scheduleRetry(gen: number): void {
   }
   retryCount += 1;
   setTimeout(() => {
-    if (gen === exportGeneration) {refreshStudyLegendFromExport();}
+    if (gen === exportGeneration) {
+      refreshStudyLegendFromExport();
+    }
   }, RETRY_DELAY_MS);
 }
 
@@ -351,24 +397,36 @@ function renderOverlay(entries: StudyDataEntry[]): void {
 
   const activeNames = new Set(subPaneEntries.map((subPane) => subPane.name));
   for (const name of subPaneOverlays.keys()) {
-    if (!activeNames.has(name)) {removeSubPaneOverlay(name);}
+    if (!activeNames.has(name)) {
+      removeSubPaneOverlay(name);
+    }
   }
 
   for (const { name, paneIdx, entry } of subPaneEntries) {
     const overlay = ensureSubPaneOverlay(name, paneIdx, chart ?? undefined);
-    if (overlay) {overlay.innerHTML = buildHTML([entry]);}
+    if (overlay) {
+      overlay.innerHTML = buildHTML([entry]);
+    }
   }
 
   updateLegendOverlayLayout();
-  if (chart) {repositionSubPaneOverlays(chart);}
+  if (chart) {
+    repositionSubPaneOverlays(chart);
+  }
 }
 
 export function refreshStudyLegendFromExport(): void {
-  if (!legendOverlayEnabled) {return;}
+  if (!legendOverlayEnabled) {
+    return;
+  }
   const widget = getWidget();
-  if (!widget || !isChartReady()) {return;}
+  if (!widget || !isChartReady()) {
+    return;
+  }
   const overlay = document.getElementById(OVERLAY_ID);
-  if (!overlay) {return;}
+  if (!overlay) {
+    return;
+  }
 
   const studyIdMap = collectStudyIdMap();
   const studyIds = Object.keys(studyIdMap);
@@ -382,7 +440,9 @@ export function refreshStudyLegendFromExport(): void {
 
   exportGeneration += 1;
   const gen = exportGeneration;
-  if (retryCount === 0) {startTimeout(gen);}
+  if (retryCount === 0) {
+    startTimeout(gen);
+  }
 
   const chart = widget.activeChart();
   chart
@@ -414,7 +474,9 @@ function resolveDisplayValue(
       : '';
   if (displayedData && displayedData.length > 0) {
     const dispRow = displayedData.at(-1);
-    if (dispRow?.[colIndex]) {displayVal = dispRow[colIndex];}
+    if (dispRow?.[colIndex]) {
+      displayVal = dispRow[colIndex];
+    }
   }
   return displayVal;
 }
@@ -426,10 +488,16 @@ function buildStudyMap(
   const byStudy: Record<string, StudyValueEntry[]> = {};
   for (let index = 0; index < data.schema.length; index++) {
     const field = data.schema[index];
-    if (field.type === 'time' || field.type === 'userTime') {continue;}
+    if (field.type === 'time' || field.type === 'userTime') {
+      continue;
+    }
     const sid = field.sourceId ? String(field.sourceId) : '';
-    if (!sid) {continue;}
-    if (!byStudy[sid]) {byStudy[sid] = [];}
+    if (!sid) {
+      continue;
+    }
+    if (!byStudy[sid]) {
+      byStudy[sid] = [];
+    }
     const displayVal = resolveDisplayValue(
       lastRow[index],
       index,
@@ -521,10 +589,14 @@ function ensureSubPaneOverlay(
   chart?: TVActiveChart,
 ): HTMLDivElement | null {
   const existing = subPaneOverlays.get(name);
-  if (existing && document.contains(existing)) {return existing;}
+  if (existing && document.contains(existing)) {
+    return existing;
+  }
 
   const container = document.getElementById('tv_chart_container');
-  if (!container) {return null;}
+  if (!container) {
+    return null;
+  }
 
   const div = document.createElement('div');
   div.id = subPaneOverlayId(name);
@@ -547,7 +619,9 @@ export function removeSubPaneOverlay(name: string): void {
 }
 
 function removeAllSubPaneOverlays(): void {
-  for (const el of subPaneOverlays.values()) {el.remove();}
+  for (const el of subPaneOverlays.values()) {
+    el.remove();
+  }
   subPaneOverlays.clear();
 }
 
@@ -570,10 +644,14 @@ const SCALE_GAP = 4;
 
 function getPriceScaleWidth(): number {
   const widget = getWidget();
-  if (!widget) {return FALLBACK_SCALE_WIDTH;}
+  if (!widget) {
+    return FALLBACK_SCALE_WIDTH;
+  }
   const chart = widget.activeChart();
   const panes = chart.getPanes?.();
-  if (!panes || panes.length === 0) {return FALLBACK_SCALE_WIDTH;}
+  if (!panes || panes.length === 0) {
+    return FALLBACK_SCALE_WIDTH;
+  }
   const scales = panes[0].getRightPriceScales?.();
   const width = scales?.[0]?.width?.();
   return width && width > 0 ? width : FALLBACK_SCALE_WIDTH;
@@ -581,15 +659,21 @@ function getPriceScaleWidth(): number {
 
 export function updateLegendOverlayLayout(): void {
   const container = document.getElementById('tv_chart_container');
-  if (!container) {return;}
+  if (!container) {
+    return;
+  }
   const containerWidth = container.clientWidth;
-  if (containerWidth <= 0) {return;}
+  if (containerWidth <= 0) {
+    return;
+  }
 
   const scaleWidth = getPriceScaleWidth();
   const maxWidth = `${containerWidth - OVERLAY_LEFT_PX - scaleWidth - SCALE_GAP}px`;
 
   const overlay = document.getElementById(OVERLAY_ID);
-  if (overlay) {overlay.style.maxWidth = maxWidth;}
+  if (overlay) {
+    overlay.style.maxWidth = maxWidth;
+  }
 
   for (const el of subPaneOverlays.values()) {
     el.style.maxWidth = maxWidth;

@@ -26,14 +26,14 @@ import {
   getHasExplicitCurrentPriceLine,
 } from '../core/state.js';
 import { resolveUserTimezone } from '../core/timezone.js';
-import {
-  ChartType
-  
-  
-  
-  
+import { ChartType } from '../core/types.js';
+import type {
+  ChartConfig,
+  ChartFeaturesConfig,
+  ChartTheme,
+  TVChartingLibraryWidget,
 } from '../core/types.js';
-import type {ChartConfig, ChartFeaturesConfig, ChartTheme, TVChartingLibraryWidget} from '../core/types.js';
+import { installTradingViewExternalOpenBridge } from './externalLinkBridge.js';
 import {
   getBuiltInScaleLabelOverrides,
   getSeriesColorOverrides,
@@ -41,7 +41,6 @@ import {
   getThemeLineColor,
   getThemeLastPriceLineColor,
 } from './theme.js';
-import { installTradingViewExternalOpenBridge } from './externalLinkBridge.js';
 
 /**
  * Generates a 19-shade palette from a base hex color, light→base→dark.
@@ -164,7 +163,7 @@ export type CreateChartWidgetOptions = {
   timezone?: string;
   /** Callback fired exactly once when the widget is ready. */
   onReady?: (widget: TVChartingLibraryWidget) => void;
-}
+};
 
 /**
  * Builds the TradingView widget. Returns the widget; the caller is expected
@@ -179,7 +178,7 @@ export function createChartWidget(
   config: ChartConfig,
   options: CreateChartWidgetOptions,
 ): TVChartingLibraryWidget {
-  const {TradingView} = window;
+  const { TradingView } = window;
   if (!TradingView) {
     throw new Error('TradingView library not loaded');
   }

@@ -23,7 +23,7 @@ type DebounceState = {
   zoomTimer: ReturnType<typeof setTimeout> | null;
   panTimer: ReturnType<typeof setTimeout> | null;
   zoomLastFiredAt: number;
-}
+};
 
 const debounce: DebounceState = {
   zoomTimer: null,
@@ -32,13 +32,17 @@ const debounce: DebounceState = {
 };
 
 function fireZoom(): void {
-  if (!getWidget() || !isChartReady()) {return;}
+  if (!getWidget() || !isChartReady()) {
+    return;
+  }
   postToRN('CHART_INTERACTED', { interaction_type: 'zoom' });
   debounce.zoomLastFiredAt = Date.now();
 }
 
 function firePan(): void {
-  if (!getWidget() || !isChartReady()) {return;}
+  if (!getWidget() || !isChartReady()) {
+    return;
+  }
   if (Date.now() - debounce.zoomLastFiredAt < PAN_SKIP_AFTER_ZOOM_MS) {
     return;
   }
@@ -46,7 +50,9 @@ function firePan(): void {
 }
 
 function scheduleZoom(): void {
-  if (debounce.zoomTimer) {clearTimeout(debounce.zoomTimer);}
+  if (debounce.zoomTimer) {
+    clearTimeout(debounce.zoomTimer);
+  }
   debounce.zoomTimer = setTimeout(() => {
     debounce.zoomTimer = null;
     fireZoom();
@@ -54,8 +60,12 @@ function scheduleZoom(): void {
 }
 
 function schedulePan(): void {
-  if (Date.now() - debounce.zoomLastFiredAt < PAN_SKIP_AFTER_ZOOM_MS) {return;}
-  if (debounce.panTimer) {clearTimeout(debounce.panTimer);}
+  if (Date.now() - debounce.zoomLastFiredAt < PAN_SKIP_AFTER_ZOOM_MS) {
+    return;
+  }
+  if (debounce.panTimer) {
+    clearTimeout(debounce.panTimer);
+  }
   debounce.panTimer = setTimeout(() => {
     debounce.panTimer = null;
     firePan();
@@ -88,8 +98,12 @@ export function attachVisibleRangeListeners(chart: TVActiveChart): void {
 
 /** Test-only: reset the debounce state between cases. */
 export function _resetVisibleRangeForTests(): void {
-  if (debounce.zoomTimer) {clearTimeout(debounce.zoomTimer);}
-  if (debounce.panTimer) {clearTimeout(debounce.panTimer);}
+  if (debounce.zoomTimer) {
+    clearTimeout(debounce.zoomTimer);
+  }
+  if (debounce.panTimer) {
+    clearTimeout(debounce.panTimer);
+  }
   debounce.zoomTimer = null;
   debounce.panTimer = null;
   debounce.zoomLastFiredAt = 0;

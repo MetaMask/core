@@ -25,9 +25,9 @@ import type {
   TVDatafeed,
   TVResolution,
 } from '../core/types.js';
+import { slbHandleGetBars } from '../overlays/socialLeaderboard/index.js';
 import { fetchOlderBarsFromPriceApi } from '../pagination/priceApi.js';
 import { requestOlderBarsFromRN } from '../pagination/rnBacked.js';
-import { slbHandleGetBars } from '../overlays/socialLeaderboard/index.js';
 import { getConfiguredPriceDecimals } from './priceFormatter.js';
 
 const SUPPORTED_RESOLUTIONS: TVResolution[] = [
@@ -198,7 +198,9 @@ export const customDatafeed: TVDatafeed = {
       const pag = getOhlcvPagination();
 
       // Strategy C (SLB): all data is pre-loaded by RN — no pagination.
-      if (slbHandleGetBars(onResult)) {return;}
+      if (slbHandleGetBars(onResult)) {
+        return;
+      }
 
       // Strategy A (Price API / Token Details):
       if (pag.assetId) {

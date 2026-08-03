@@ -20,8 +20,8 @@ import type {
   TVCrosshairParams,
 } from '../../core/types.js';
 import type { TradeMarker } from '../../messages/contract.js';
-import { getMarkers, getShapesByMarkerId } from './state.js';
 import { snapMarkerToNearestBar } from './index.js';
+import { getMarkers, getShapesByMarkerId } from './state.js';
 
 /** Pixel radius (Euclidean) for matching a tap to a marker. */
 const TAP_RADIUS_PX = 26;
@@ -32,14 +32,14 @@ type LastTapPoint = {
   timeSec: number;
   offsetY: number | undefined;
   at: number;
-}
+};
 
 let lastTapPoint: LastTapPoint | null = null;
 
 type VisibleTimeRangeSec = {
   lo: number;
   hi: number;
-}
+};
 
 /**
  * Extract a normalized time range from a TradingView bar/visible range result.
@@ -51,10 +51,14 @@ type VisibleTimeRangeSec = {
 function normalizeRange(
   raw: { from?: number; to?: number } | null | undefined,
 ): VisibleTimeRangeSec | null {
-  if (raw?.from === undefined || raw?.to === undefined) {return null;}
+  if (raw?.from === undefined || raw?.to === undefined) {
+    return null;
+  }
   const from = normalizeChartUnixSec(raw.from);
   const to = normalizeChartUnixSec(raw.to);
-  if (from === null || to === null) {return null;}
+  if (from === null || to === null) {
+    return null;
+  }
   return { lo: Math.min(from, to), hi: Math.max(from, to) };
 }
 
@@ -64,7 +68,9 @@ function getVisibleTimeRangeSec(
   try {
     if (typeof chart.getVisibleBarsRange === 'function') {
       const result = normalizeRange(chart.getVisibleBarsRange());
-      if (result) {return result;}
+      if (result) {
+        return result;
+      }
     }
   } catch {
     // fall through to getVisibleRange
@@ -97,7 +103,9 @@ function linearPriceToY(
   height: number,
   inverted: boolean,
 ): number | null {
-  if (inverted) {return ((price - lo) / (hi - lo)) * height;}
+  if (inverted) {
+    return ((price - lo) / (hi - lo)) * height;
+  }
   return ((hi - price) / (hi - lo)) * height;
 }
 
@@ -122,7 +130,9 @@ function logPriceToY(
   const logLo = Math.log(lo);
   const logHi = Math.log(hi);
   const logP = Math.log(price);
-  if (logHi === logLo) {return inverted ? 0 : height / 2;}
+  if (logHi === logLo) {
+    return inverted ? 0 : height / 2;
+  }
   const ratio = (logP - logLo) / (logHi - logLo);
   return inverted ? ratio * height : (1 - ratio) * height;
 }
@@ -137,14 +147,22 @@ function logPriceToY(
  * @returns The Y coordinate in main-pane overlay pixels, or null.
  */
 function priceToY(chart: TVActiveChart, price: number): number | null {
-  if (!Number.isFinite(price)) {return null;}
-  if (typeof chart.getPanes !== 'function') {return null;}
+  if (!Number.isFinite(price)) {
+    return null;
+  }
+  if (typeof chart.getPanes !== 'function') {
+    return null;
+  }
   try {
     const panes = chart.getPanes();
-    if (!panes?.length) {return null;}
+    if (!panes?.length) {
+      return null;
+    }
     const pane = panes[0];
     const scale = pane.getMainSourcePriceScale();
-    if (!scale) {return null;}
+    if (!scale) {
+      return null;
+    }
     const range = scale.getVisiblePriceRange();
     if (range?.from === undefined || range?.to === undefined) {
       return null;
@@ -152,7 +170,9 @@ function priceToY(chart: TVActiveChart, price: number): number | null {
     const lo = Math.min(range.from, range.to);
     const hi = Math.max(range.from, range.to);
     const height = pane.getHeight();
-    if (!height || height <= 0) {return null;}
+    if (!height || height <= 0) {
+      return null;
+    }
     const clamped = Math.min(hi, Math.max(lo, price));
     const inverted =
       typeof scale.isInverted === 'function' && scale.isInverted();
@@ -175,7 +195,9 @@ function priceToY(chart: TVActiveChart, price: number): number | null {
 function getPlotWidth(chart: TVActiveChart): number {
   try {
     const ts = chart.getTimeScale();
-    if (ts && typeof ts.width === 'function') {return ts.width();}
+    if (ts && typeof ts.width === 'function') {
+      return ts.width();
+    }
   } catch {
     // ignore — caller treats 0 as unavailable
   }
@@ -194,7 +216,9 @@ function resolveMarkerPrice(
   snapped: { close: number } | null,
   markerPrice: number | undefined | null,
 ): number | null {
-  if (snapped !== null) {return snapped.close;}
+  if (snapped !== null) {
+    return snapped.close;
+  }
   if (
     markerPrice !== undefined &&
     markerPrice !== null &&
@@ -221,11 +245,17 @@ function computeYDistance(
   snapped: { timeSec: number; close: number } | null,
   markerPrice: number | undefined | null,
 ): number {
-  if (offsetY === undefined || !Number.isFinite(offsetY)) {return 0;}
+  if (offsetY === undefined || !Number.isFinite(offsetY)) {
+    return 0;
+  }
   const price = resolveMarkerPrice(snapped, markerPrice);
-  if (price === null) {return 0;}
+  if (price === null) {
+    return 0;
+  }
   const markerY = priceToY(chart, price);
-  if (markerY === null || !Number.isFinite(markerY)) {return 0;}
+  if (markerY === null || !Number.isFinite(markerY)) {
+    return 0;
+  }
   return markerY - offsetY;
 }
 
@@ -237,7 +267,7 @@ type HitTestContext = {
   data: readonly OHLCVBar[];
   timeSec: number;
   offsetY: number | undefined;
-}
+};
 
 function computeMarkerDistance(
   ctx: HitTestContext,
@@ -251,10 +281,14 @@ function computeMarkerDistance(
     return null;
   }
   const markerKey = String(marker.id);
-  if (!ctx.drawn.has(markerKey)) {return null;}
+  if (!ctx.drawn.has(markerKey)) {
+    return null;
+  }
   const snapped = snapMarkerToNearestBar(ctx.data, marker.time);
   const mSec = snapped ? snapped.timeSec : marker.time / 1000;
-  if (mSec < ctx.range.lo || mSec > ctx.range.hi) {return null;}
+  if (mSec < ctx.range.lo || mSec > ctx.range.hi) {
+    return null;
+  }
   const dxPx = (mSec - ctx.timeSec) * ctx.pxPerSec;
   const dyPx = computeYDistance(ctx.chart, ctx.offsetY, snapped, marker.price);
   return { key: markerKey, dist: Math.hypot(dxPx, dyPx) };
@@ -265,10 +299,16 @@ export function findTradeMarkerIdNearPoint(
   offsetY: number | undefined,
 ): string | null {
   const markers = getMarkers();
-  if (!markers?.length) {return null;}
+  if (!markers?.length) {
+    return null;
+  }
   const widget = getWidget();
-  if (!widget || !isChartReady()) {return null;}
-  if (!Number.isFinite(timeSec)) {return null;}
+  if (!widget || !isChartReady()) {
+    return null;
+  }
+  if (!Number.isFinite(timeSec)) {
+    return null;
+  }
 
   let chart: TVActiveChart;
   try {
@@ -276,16 +316,24 @@ export function findTradeMarkerIdNearPoint(
   } catch {
     return null;
   }
-  if (!chart) {return null;}
+  if (!chart) {
+    return null;
+  }
 
   const range = getVisibleTimeRangeSec(chart);
-  if (!range || range.hi <= range.lo) {return null;}
+  if (!range || range.hi <= range.lo) {
+    return null;
+  }
 
   const plotW = getPlotWidth(chart);
-  if (plotW <= 0) {return null;}
+  if (plotW <= 0) {
+    return null;
+  }
 
   const drawn = getShapesByMarkerId();
-  if (!drawn.size) {return null;}
+  if (!drawn.size) {
+    return null;
+  }
 
   const ctx: HitTestContext = {
     chart,
@@ -340,8 +388,12 @@ export function attachMarkerHitTest(
     widget.subscribe('mouse_up', () => {
       const tap = lastTapPoint;
       lastTapPoint = null;
-      if (!tap) {return;}
-      if (Date.now() - tap.at > TAP_MAX_AGE_MS) {return;}
+      if (!tap) {
+        return;
+      }
+      if (Date.now() - tap.at > TAP_MAX_AGE_MS) {
+        return;
+      }
       const pressedId = findTradeMarkerIdNearPoint(tap.timeSec, tap.offsetY);
       if (pressedId !== null) {
         postToRN('TRADE_MARKER_PRESSED', { id: pressedId });

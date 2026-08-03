@@ -14,14 +14,14 @@ import {
   setVolumeIsOverlay,
   setVolumeStudyId,
 } from '../../core/state.js';
-import { scheduleLegendRefresh } from '../indicators/legend.js';
-import type { ToggleVolumeMessage } from '../../messages/contract.js';
 import type { ChartTheme, TVActiveChart } from '../../core/types.js';
+import type { ToggleVolumeMessage } from '../../messages/contract.js';
 import {
   getVolumeErrorColor,
   getVolumeSuccessColor,
   subscribeTheme,
 } from '../../widget/theme.js';
+import { scheduleLegendRefresh } from '../indicators/legend.js';
 
 const MIN_VOLUME_PX = 56;
 const MIN_MAIN_PX = 72;
@@ -46,7 +46,9 @@ function buildVolumeOverrides(useOverlay: boolean): Record<string, unknown> {
 function applySubPaneHeights(chart: TVActiveChart): void {
   try {
     const heights = chart.getAllPanesHeight();
-    if (heights.length !== 2) {return;}
+    if (heights.length !== 2) {
+      return;
+    }
     const total = heights[0] + heights[1];
     let vol = Math.max(Math.round(total * VOLUME_RATIO), MIN_VOLUME_PX);
     let main = total - vol;
@@ -65,8 +67,12 @@ function applySubPaneHeights(chart: TVActiveChart): void {
 
 function createVolumeStudy(useOverlay: boolean): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) {return;}
-  if (getVolumeStudyId()) {return;}
+  if (!widget || !isChartReady()) {
+    return;
+  }
+  if (getVolumeStudyId()) {
+    return;
+  }
 
   const chart = widget.activeChart();
   const overrides = buildVolumeOverrides(useOverlay);
@@ -79,7 +85,9 @@ function createVolumeStudy(useOverlay: boolean): void {
   promise
     .then((studyId) => {
       setVolumeStudyId(studyId);
-      if (!useOverlay) {applySubPaneHeights(chart);}
+      if (!useOverlay) {
+        applySubPaneHeights(chart);
+      }
       scheduleLegendRefresh();
       return undefined;
     })
@@ -90,7 +98,9 @@ export function handleToggleVolume(
   payload: ToggleVolumeMessage['payload'],
 ): void {
   const widget = getWidget();
-  if (!widget || !isChartReady() || !payload) {return;}
+  if (!widget || !isChartReady() || !payload) {
+    return;
+  }
 
   const useOverlay = payload.volumeOverlay === true;
 
@@ -131,9 +141,13 @@ export function handleToggleVolume(
 
 function recolorVolumeStudy(theme: ChartTheme): void {
   const studyId = getVolumeStudyId();
-  if (!studyId) {return;}
+  if (!studyId) {
+    return;
+  }
   const widget = getWidget();
-  if (!widget || !isChartReady()) {return;}
+  if (!widget || !isChartReady()) {
+    return;
+  }
   try {
     const study = widget.activeChart().getStudyById(studyId);
     if (study && typeof study.applyOverrides === 'function') {

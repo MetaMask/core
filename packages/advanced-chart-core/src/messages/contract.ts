@@ -23,7 +23,11 @@
 //
 // Phase 4 deletes SET_LINE_CHROME alongside the custom-chrome implementation.
 
-import type { ChartType, OHLCVBar, OHLCVPaginationConfig } from '../core/types.js';
+import type {
+  ChartType,
+  OHLCVBar,
+  OHLCVPaginationConfig,
+} from '../core/types.js';
 
 /** Inbound — React Native → WebView IIFE. */
 export type InboundMessage =
@@ -45,7 +49,7 @@ export type InboundMessage =
 export type SetThemeColorsMessage = {
   type: 'SET_THEME_COLORS';
   payload: SetThemeColorsPayload;
-}
+};
 
 export type SetThemeColorsPayload = {
   lineColor?: string;
@@ -54,12 +58,12 @@ export type SetThemeColorsPayload = {
   currentPriceColor?: string;
   volumeSuccessColor?: string;
   volumeErrorColor?: string;
-}
+};
 
 export type SetOHLCVDataMessage = {
   type: 'SET_OHLCV_DATA';
   payload: SetOHLCVDataPayload;
-}
+};
 
 export type SetOHLCVDataPayload = {
   data: OHLCVBar[];
@@ -105,42 +109,42 @@ export type SetOHLCVDataPayload = {
    * 4. else -> noData: true
    */
   slbMode?: boolean;
-}
+};
 
 export type RealtimeUpdateMessage = {
   type: 'REALTIME_UPDATE';
   payload: { bar: OHLCVBar };
-}
+};
 
 export type SetChartTypeMessage = {
   type: 'SET_CHART_TYPE';
   payload: { type: ChartType };
-}
+};
 
 export type AddIndicatorMessage = {
   type: 'ADD_INDICATOR';
   payload: { name: string; inputs?: Record<string, unknown> };
-}
+};
 
 export type RemoveIndicatorMessage = {
   type: 'REMOVE_INDICATOR';
   payload: { name: string };
-}
+};
 
 export type SetMAVisibilityMessage = {
   type: 'SET_MA_VISIBILITY';
   payload: { visible: string[] };
-}
+};
 
 export type ToggleVolumeMessage = {
   type: 'TOGGLE_VOLUME';
   payload: { visible: boolean; volumeOverlay?: boolean };
-}
+};
 
 export type SetSubPaneLayoutMessage = {
   type: 'SET_SUB_PANE_LAYOUT';
   payload: { heightRatio: number | null };
-}
+};
 
 /**
  * A single trade marker anchored to a candle in `time` (unix ms). `intent`
@@ -153,27 +157,27 @@ export type TradeMarker = {
   time: number;
   intent: 'enter' | 'exit';
   price?: number;
-}
+};
 
 export type SetTradeMarkersMessage = {
   type: 'SET_TRADE_MARKERS';
   payload: SetTradeMarkersPayload;
-}
+};
 
 export type SetTradeMarkersPayload = {
   /** Full marker set; RN sends every trade, not just the visible window. */
   markers: TradeMarker[] | null;
-}
+};
 
 export type PulseTradeMarkerMessage = {
   type: 'PULSE_TRADE_MARKER';
   payload: { id: string | number };
-}
+};
 
 export type FocusTimeMessage = {
   type: 'FOCUS_TIME';
   payload: FocusTimePayload;
-}
+};
 
 export type FocusTimePayload = {
   timeMs: number;
@@ -181,7 +185,7 @@ export type FocusTimePayload = {
   spanMs?: number;
   /** false disables the slide animation (jump instead). Default true. */
   animate?: boolean;
-}
+};
 
 // ----- Position Lines (Perps) ------------------------------------------------
 
@@ -194,7 +198,7 @@ export type PositionLines = {
   takeProfitPrice?: number;
   stopLossPrice?: number;
   liquidationPrice?: number;
-}
+};
 
 export type PositionLineColors = {
   currentPrice?: string;
@@ -202,24 +206,24 @@ export type PositionLineColors = {
   takeProfit: string;
   stopLoss: string;
   liquidation: string;
-}
+};
 
 export type SetPositionLinesMessage = {
   type: 'SET_POSITION_LINES';
   payload: SetPositionLinesPayload;
-}
+};
 
 export type SetPositionLinesPayload = {
   position: PositionLines | null;
   positionLineColors?: PositionLineColors;
-}
+};
 
 // ----- RN-Backed Pagination (Perps) ------------------------------------------
 
 export type FetchOlderBarsResponseMessage = {
   type: 'FETCH_OLDER_BARS_RESPONSE';
   payload: FetchOlderBarsResponsePayload;
-}
+};
 
 export type FetchOlderBarsResponsePayload = {
   requestId: string;
@@ -227,7 +231,7 @@ export type FetchOlderBarsResponsePayload = {
   bars: OHLCVBar[];
   noData?: boolean;
   error?: string;
-}
+};
 
 export type FetchOlderBarsRequestPayload = {
   requestId: string;
@@ -238,7 +242,7 @@ export type FetchOlderBarsRequestPayload = {
   toSec: number;
   countBack?: number;
   oldestLoadedTimeMs: number;
-}
+};
 
 export type InboundMessageType = InboundMessage['type'];
 
@@ -266,16 +270,16 @@ export type ChartLayoutSettledPayload = Record<string, never>;
 
 export type ChartTradingViewClickedPayload = {
   url?: string;
-}
+};
 
 export type ErrorPayload = {
   message: string;
-}
+};
 
 export type DebugPayload = {
   message: string;
   [extra: string]: unknown;
-}
+};
 
 /**
  * Crosshair OHLC data forwarded from the WebView when the user scrubs over
@@ -289,33 +293,33 @@ export type CrosshairData = {
   low: number;
   close: number;
   volume?: number;
-}
+};
 
 export type CrosshairMovePayload = {
   /** OHLC of the bar nearest the crosshair; null when the crosshair dismisses. */
   data: CrosshairData | null;
-}
+};
 
 export type ChartInteractionType = 'zoom' | 'pan' | 'tooltip';
 
 export type ChartInteractedPayload = {
   interaction_type: ChartInteractionType;
-}
+};
 
 export type IndicatorAddedPayload = {
   name: string;
   id: string;
-}
+};
 
 export type IndicatorRemovedPayload = {
   name: string;
-}
+};
 
 export type LegendRenderedPayload = Record<string, never>;
 
 export type TradeMarkerPressedPayload = {
   id: string;
-}
+};
 
 export type OutboundPayloads = {
   CHART_READY: ChartReadyPayload;
@@ -330,7 +334,7 @@ export type OutboundPayloads = {
   FETCH_OLDER_BARS_REQUEST: FetchOlderBarsRequestPayload;
   ERROR: ErrorPayload;
   DEBUG: DebugPayload;
-}
+};
 
 /** Re-export for callers writing Phase 3 handlers. */
 export type { IndicatorName } from '../core/types.js';

@@ -15,15 +15,15 @@ import {
   getOhlcvGeneration,
   prependOhlcvBars,
 } from '../core/state.js';
-import { registerHandler } from '../messages/handler.js';
 import type { OHLCVBar, GetBarsCallback, TVResolution } from '../core/types.js';
 import type { FetchOlderBarsResponsePayload } from '../messages/contract.js';
+import { registerHandler } from '../messages/handler.js';
 
 type PendingCallback = {
   onResult: GetBarsCallback;
   oldestAtDefer: number;
   gen: number;
-}
+};
 
 let pendingCallbacks = new Map<string, PendingCallback>();
 let requestSeq = 0;
@@ -34,7 +34,7 @@ export type RequestOlderBarsParams = {
   toSec: number;
   countBack?: number;
   onResult: GetBarsCallback;
-}
+};
 
 export function requestOlderBarsFromRN(params: RequestOlderBarsParams): void {
   const gen = getOhlcvGeneration();
@@ -42,7 +42,7 @@ export function requestOlderBarsFromRN(params: RequestOlderBarsParams): void {
   const oldestAtDefer = all.length > 0 ? all[0].time : 0;
 
   requestSeq += 1;
-  const requestId = `obr-${  gen  }-${  requestSeq}`;
+  const requestId = `obr-${gen}-${requestSeq}`;
 
   pendingCallbacks.set(requestId, {
     onResult: params.onResult,
@@ -82,10 +82,14 @@ export function resolveAllPendingOlderBarsNoData(): void {
 export function handleFetchOlderBarsResponse(
   payload: FetchOlderBarsResponsePayload,
 ): void {
-  if (!payload || typeof payload.requestId !== 'string') {return;}
+  if (!payload || typeof payload.requestId !== 'string') {
+    return;
+  }
 
   const pending = pendingCallbacks.get(payload.requestId);
-  if (!pending) {return;}
+  if (!pending) {
+    return;
+  }
   pendingCallbacks.delete(payload.requestId);
 
   if (

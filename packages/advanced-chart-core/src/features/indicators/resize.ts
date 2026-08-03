@@ -9,7 +9,9 @@ import { getWidget } from '../../core/state.js';
 export function scheduleChartWidgetResize(): void {
   const run = (): void => {
     const widget = getWidget();
-    if (!widget) {return;}
+    if (!widget) {
+      return;
+    }
     try {
       widget.resize();
     } catch {

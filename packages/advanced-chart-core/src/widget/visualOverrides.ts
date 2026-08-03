@@ -20,7 +20,7 @@ export type VisualOverridesConfig = {
   /** Volume bar colours (Phase 3 / Phase 6 consumers). */
   volumeUpColor?: string;
   volumeDownColor?: string;
-}
+};
 
 /**
  * Builds the TradingView override object from a VisualOverridesConfig.
@@ -32,7 +32,9 @@ export type VisualOverridesConfig = {
 export function buildVisualOverrides(
   config: VisualOverridesConfig | undefined,
 ): Record<string, unknown> {
-  if (!config) {return {};}
+  if (!config) {
+    return {};
+  }
   const overrides: Record<string, unknown> = {};
 
   if (config.gridLineColor !== undefined) {
@@ -59,9 +61,13 @@ export function applyVisualOverrides(
   config: VisualOverridesConfig | undefined,
 ): void {
   const widget = getWidget();
-  if (!widget) {return;}
+  if (!widget) {
+    return;
+  }
   const overrides = buildVisualOverrides(config);
-  if (Object.keys(overrides).length === 0) {return;}
+  if (Object.keys(overrides).length === 0) {
+    return;
+  }
   try {
     widget.applyOverrides(overrides);
   } catch (error) {

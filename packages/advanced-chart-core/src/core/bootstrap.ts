@@ -14,61 +14,64 @@
 // 6. On first SET_OHLCV_DATA: createChartWidget with the default datafeed,
 //    apply visual overrides, attach crosshair + visible-range listeners.
 
-import { onFromRN, postToRN, reportErrorToRN } from './bridge.js';
-import { loadTradingViewLibrary } from './loadLibrary.js';
-import { dispatchInboundMessage, registerHandler } from '../messages/handler.js';
-import {
-  applyThemeColors,
-  flushPendingTheme,
-  initThemeFromConfig,
-} from '../widget/theme.js';
-import { customDatafeed } from '../widget/datafeed.js';
-import { advancedChartPriceFormatterFactory } from '../widget/priceFormatter.js';
-import { getApproxBarDurationSec } from './timeUtils.js';
-import {
-  handleRealtimeUpdate,
-  handleSetOHLCVData,
-  onFirstOhlcvData,
-} from '../widget/ohlcvIngestion.js';
-import { handleSetChartType } from '../widget/chartType.js';
-import { applyVisualOverrides } from '../widget/visualOverrides.js';
-import {
-  createChartWidget,
-  scheduleChartLayoutSettledNotify,
-} from '../widget/initChart.js';
-import {
-  attachCrosshairListener,
-  attachTapDismiss,
-} from '../interaction/crosshair.js';
-import { attachVisibleRangeListeners } from '../interaction/visibleRange.js';
-import { applyScaleLayout } from '../widget/scaleLayout.js';
 import {
   handleAddIndicator,
   handleRemoveIndicator,
   handleSetMAVisibility,
 } from '../features/indicators/index.js';
-import { handleSetSubPaneLayout } from '../features/indicators/subPane.js';
 import {
   attachLegendResizeListener,
   setupLegendOverlay,
 } from '../features/indicators/legend.js';
+import { handleSetSubPaneLayout } from '../features/indicators/subPane.js';
 import {
   handleToggleVolume,
   registerVolumeThemeSync,
 } from '../features/volume/index.js';
-import { registerTradeMarkerOverlay } from '../overlays/tradeMarkers/index.js';
-import { registerTradeMarkerPulseHandler } from '../overlays/tradeMarkers/animation.js';
-import { attachMarkerHitTest } from '../overlays/tradeMarkers/markerHitTest.js';
+import {
+  attachCrosshairListener,
+  attachTapDismiss,
+} from '../interaction/crosshair.js';
+import { attachVisibleRangeListeners } from '../interaction/visibleRange.js';
+import {
+  dispatchInboundMessage,
+  registerHandler,
+} from '../messages/handler.js';
 import { registerFocusTimeOverlay } from '../overlays/focusTime/index.js';
 import { registerPositionLinesOverlay } from '../overlays/positionLines/index.js';
 import { slbScheduleInitialCentering } from '../overlays/socialLeaderboard/index.js';
+import { registerTradeMarkerPulseHandler } from '../overlays/tradeMarkers/animation.js';
+import { registerTradeMarkerOverlay } from '../overlays/tradeMarkers/index.js';
+import { attachMarkerHitTest } from '../overlays/tradeMarkers/markerHitTest.js';
 import { registerRnBackedPaginationHandler } from '../pagination/rnBacked.js';
+import { handleSetChartType } from '../widget/chartType.js';
+import { customDatafeed } from '../widget/datafeed.js';
+import {
+  createChartWidget,
+  scheduleChartLayoutSettledNotify,
+} from '../widget/initChart.js';
+import {
+  handleRealtimeUpdate,
+  handleSetOHLCVData,
+  onFirstOhlcvData,
+} from '../widget/ohlcvIngestion.js';
+import { advancedChartPriceFormatterFactory } from '../widget/priceFormatter.js';
+import { applyScaleLayout } from '../widget/scaleLayout.js';
+import {
+  applyThemeColors,
+  flushPendingTheme,
+  initThemeFromConfig,
+} from '../widget/theme.js';
+import { applyVisualOverrides } from '../widget/visualOverrides.js';
+import { onFromRN, postToRN, reportErrorToRN } from './bridge.js';
+import { loadTradingViewLibrary } from './loadLibrary.js';
 import {
   getOhlcvData,
   getVisibleFromMs,
   getVisibleToMs,
   setSubPaneHeightRatio,
 } from './state.js';
+import { getApproxBarDurationSec } from './timeUtils.js';
 import type { ChartConfig } from './types.js';
 
 /**
@@ -85,7 +88,9 @@ function buildInitialTimeframe():
   | { type: 'time-range'; from: number; to: number }
   | undefined {
   const visibleFromMs = getVisibleFromMs();
-  if (visibleFromMs === null) {return undefined;}
+  if (visibleFromMs === null) {
+    return undefined;
+  }
   const visibleToMs = getVisibleToMs() ?? Date.now();
   const initBarPadSec = getApproxBarDurationSec(getOhlcvData()) * 2;
   return {

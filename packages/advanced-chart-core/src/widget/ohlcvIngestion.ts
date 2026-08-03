@@ -16,7 +16,6 @@
 import { postToRN, reportErrorToRN } from '../core/bridge.js';
 import { notifyDataLifecycle } from '../core/dataLifecycle.js';
 import { detectResolution } from '../core/resolution.js';
-import { getApproxBarDurationSec } from '../core/timeUtils.js';
 import {
   appendOrReplaceLastBar,
   bumpHotReloadSeq,
@@ -43,14 +42,15 @@ import {
   setVisibleFromMs,
   setVisibleToMs,
 } from '../core/state.js';
+import { getApproxBarDurationSec } from '../core/timeUtils.js';
 import type { TVActiveChart, TVChartingLibraryWidget } from '../core/types.js';
-import { forwardRealtimeTick } from './datafeed.js';
-import { resolveAllPendingOlderBarsNoData } from '../pagination/rnBacked.js';
-import { slbCenterViewport } from '../overlays/socialLeaderboard/index.js';
 import type {
   RealtimeUpdateMessage,
   SetOHLCVDataPayload,
 } from '../messages/contract.js';
+import { slbCenterViewport } from '../overlays/socialLeaderboard/index.js';
+import { resolveAllPendingOlderBarsNoData } from '../pagination/rnBacked.js';
+import { forwardRealtimeTick } from './datafeed.js';
 
 type FirstDataCallback = () => void;
 
@@ -166,9 +166,11 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
 export function handleRealtimeUpdate(
   payload: RealtimeUpdateMessage['payload'],
 ): void {
-  if (!payload?.bar) {return;}
+  if (!payload?.bar) {
+    return;
+  }
 
-  const {bar} = payload;
+  const { bar } = payload;
   appendOrReplaceLastBar(bar);
 
   forwardRealtimeTick({
@@ -251,7 +253,9 @@ function emitLayoutSettled(): void {
 
 function resetMainPriceScaleAutoScale(chart: TVActiveChart): void {
   try {
-    if (typeof chart.getPanes !== 'function') {return;}
+    if (typeof chart.getPanes !== 'function') {
+      return;
+    }
     const panes = chart.getPanes?.();
     const mainPane = panes?.[0];
     if (!mainPane || typeof mainPane.getMainSourcePriceScale !== 'function') {

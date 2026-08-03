@@ -12,9 +12,9 @@ import {
   setHasExplicitCurrentPriceLine,
   getHasExplicitCurrentPriceLine,
 } from '../../core/state.js';
+import type { SetPositionLinesPayload } from '../../messages/contract.js';
 import { registerHandler } from '../../messages/handler.js';
 import { getThemeLastPriceLineColor } from '../../widget/theme.js';
-import type { SetPositionLinesPayload } from '../../messages/contract.js';
 import {
   getPositionShapeIds,
   clearPositionShapeIds,
@@ -32,7 +32,7 @@ type PositionLineConfig = {
   showLabel: boolean;
   showPrice: boolean;
   horzLabelsAlign: string;
-}
+};
 
 function clearPositionLines(): void {
   const widget = getWidget();
@@ -53,7 +53,9 @@ function clearPositionLines(): void {
 
 export function handleSetPositionLines(payload: SetPositionLinesPayload): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) {return;}
+  if (!widget || !isChartReady()) {
+    return;
+  }
 
   bumpGeneration();
   clearPositionLines();
@@ -70,7 +72,7 @@ export function handleSetPositionLines(payload: SetPositionLinesPayload): void {
     return;
   }
 
-  const {position} = payload;
+  const { position } = payload;
   setHasExplicitCurrentPriceLine(Boolean(position.currentPrice));
 
   try {
@@ -82,7 +84,9 @@ export function handleSetPositionLines(payload: SetPositionLinesPayload): void {
   }
 
   const theme = getTheme();
-  if (!theme) {return;}
+  if (!theme) {
+    return;
+  }
 
   const colors = payload.positionLineColors ?? ({} as Record<string, string>);
   const currentPriceColor =
@@ -184,7 +188,9 @@ export function handleSetPositionLines(payload: SetPositionLinesPayload): void {
           },
         )
         .then((entityId) => {
-          if (!entityId) {return undefined;}
+          if (!entityId) {
+            return undefined;
+          }
           if (getGeneration() !== gen) {
             try {
               chart.removeEntity(entityId);

@@ -26,7 +26,9 @@ const PANE_BOTTOM_MARGIN = 8;
 
 function buildScaleLayoutOverrides(): Record<string, unknown> {
   const theme = getTheme();
-  if (!theme) {return {};}
+  if (!theme) {
+    return {};
+  }
   const gridLineColor = theme.gridLineColor ?? 'transparent';
   const hidePaneSeparator = window.CONFIG?.features?.hidePaneSeparator === true;
   const separatorColor = hidePaneSeparator
@@ -72,7 +74,9 @@ function buildScaleLayoutOverrides(): Record<string, unknown> {
  */
 export function applyScaleLayout(_type?: ChartType): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) {return;}
+  if (!widget || !isChartReady()) {
+    return;
+  }
   try {
     widget.applyOverrides(buildScaleLayoutOverrides());
   } catch (error) {

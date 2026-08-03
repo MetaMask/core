@@ -66,7 +66,7 @@ type CoreState = {
    * fire it after the first successful render post-reset.
    */
   legendOwnsLayoutSettle: boolean;
-}
+};
 
 const emptyPagination = (): OHLCVPaginationConfig => ({
   nextCursor: null,

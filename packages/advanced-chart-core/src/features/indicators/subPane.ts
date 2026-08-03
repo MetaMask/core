@@ -19,22 +19,30 @@ const MIN_MAIN_PX = 72;
 
 export function hasActiveSubPaneIndicators(): boolean {
   const widget = getWidget();
-  if (!widget) {return false;}
+  if (!widget) {
+    return false;
+  }
   const chart = widget.activeChart();
   for (const studyId of getActiveStudies().values()) {
     const study = chart.getStudyById(studyId);
     const paneIdx = study?.paneIndex?.();
-    if (paneIdx !== undefined && paneIdx > 0) {return true;}
+    if (paneIdx !== undefined && paneIdx > 0) {
+      return true;
+    }
   }
   return false;
 }
 
 export function applySubPaneHeightRatio(chart: TVActiveChart): void {
   const ratio = getSubPaneHeightRatio();
-  if (ratio === null) {return;}
+  if (ratio === null) {
+    return;
+  }
   try {
     const heights = chart.getAllPanesHeight();
-    if (heights.length < 2) {return;}
+    if (heights.length < 2) {
+      return;
+    }
     const total = heights.reduce((sum, height) => sum + height, 0);
     const bottomCount = heights.length - 1;
 

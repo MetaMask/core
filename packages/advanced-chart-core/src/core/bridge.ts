@@ -81,7 +81,7 @@ export function onFromRN(handler: InboundMessageHandler): () => void {
   const dispatch = (event: MessageEvent): void => {
     // RN WebView inline HTML: native bridge messages arrive with an empty
     // or "null" origin. Reject messages from real web origins.
-    const {origin} = event;
+    const { origin } = event;
     if (origin && origin !== 'null' && !origin.startsWith('file:')) {
       return;
     }

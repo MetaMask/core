@@ -43,7 +43,9 @@ export function registerHandler<Type extends InboundMessageType>(
  */
 export function dispatchInboundMessage(message: InboundMessage): void {
   const handler = handlers.get(message.type);
-  if (!handler) {return;}
+  if (!handler) {
+    return;
+  }
   try {
     handler(message.payload as unknown);
   } catch (error) {

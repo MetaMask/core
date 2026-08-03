@@ -63,7 +63,9 @@ export function getApproxBarDurationSec(
   }
   const prev = bars.at(-2);
   const last = bars.at(-1);
-  if (!prev || !last) {return DEFAULT_BAR_DURATION_SEC;}
+  if (!prev || !last) {
+    return DEFAULT_BAR_DURATION_SEC;
+  }
   const lastMs = Math.abs(last.time - prev.time);
   return Math.max(MIN_BAR_DURATION_SEC, Math.round(lastMs / 1000));
 }

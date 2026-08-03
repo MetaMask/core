@@ -38,12 +38,18 @@ function toSubscriptDigits(value: number): string {
  * @returns The subscript-notation string, or null when it doesn't qualify.
  */
 export function formatSubscriptNotation(abs: number): string | null {
-  if (!(abs > 0 && abs < 0.0001)) {return null;}
+  if (!(abs > 0 && abs < 0.0001)) {
+    return null;
+  }
   const priceStr = abs.toFixed(20);
   const match = /^0\.0*([1-9]\d*)/u.exec(priceStr);
-  if (!match) {return null;}
+  if (!match) {
+    return null;
+  }
   const leadingZeros = priceStr.indexOf(match[1]) - 2;
-  if (leadingZeros < 4) {return null;}
+  if (leadingZeros < 4) {
+    return null;
+  }
   const significant = match[1];
   const significantDigits =
     significant.slice(0, 4).replace(/0{1,4}$/u, '') || significant.slice(0, 2);
@@ -95,7 +101,9 @@ export function formatCrosshairPrice(price: unknown): string {
     return '';
   }
   const numericPrice = Number(price);
-  if (numericPrice === 0) {return '0.00';}
+  if (numericPrice === 0) {
+    return '0.00';
+  }
   const abs = Math.abs(numericPrice);
   const sub = formatSubscriptNotation(abs);
   if (sub) {
@@ -117,11 +125,11 @@ export function formatCrosshairPrice(price: unknown): string {
 
 type TVSymbolInfo = {
   format?: string;
-}
+};
 
 type TVPriceFormatter = {
   format(price: number, signPositive?: boolean): string;
-}
+};
 
 /**
  * TradingView `custom_formatters.priceFormatterFactory`. Returns null (letting

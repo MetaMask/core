@@ -184,7 +184,9 @@ export function initThemeFromConfig(theme: ChartTheme): void {
  */
 export function applyThemeColors(payload: SetThemeColorsPayload): void {
   const current = getTheme();
-  if (!current) {return;}
+  if (!current) {
+    return;
+  }
 
   const updated: ChartTheme = {
     ...current,
@@ -238,9 +240,13 @@ export function applyThemeColors(payload: SetThemeColorsPayload): void {
  */
 export function flushPendingTheme(): void {
   const theme = getTheme();
-  if (!theme) {return;}
+  if (!theme) {
+    return;
+  }
   const widget = getWidget();
-  if (!widget || !isChartReady()) {return;}
+  if (!widget || !isChartReady()) {
+    return;
+  }
 
   const lineColor = getThemeLineColor(theme);
   try {

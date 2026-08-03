@@ -13,7 +13,7 @@ import type { TradeMarker } from '../../messages/contract.js';
 export type MarkerShapePair = {
   fill: TVShapeId | null;
   ring: TVShapeId | null;
-}
+};
 
 type TradeMarkerState = {
   /** Flat list of all drawn entity ids (rings + fills) for bulk removeEntity. */
@@ -26,7 +26,7 @@ type TradeMarkerState = {
   placementGeneration: number;
   /** Bumped on every pulse; a newer pulse cancels the previous animation loop. */
   pulseGeneration: number;
-}
+};
 
 const state: TradeMarkerState = {
   shapeIds: [],

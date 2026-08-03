@@ -21,9 +21,15 @@ export function findOuterChartMarkupTable(
   const list = doc.querySelectorAll('.chart-markup-table');
   for (const el of Array.from(list)) {
     const className = el.className ? String(el.className) : '';
-    if (el.classList.contains('pane')) {continue;}
-    if (className.includes('price-axis-container')) {continue;}
-    if (className.includes('time-axis')) {continue;}
+    if (el.classList.contains('pane')) {
+      continue;
+    }
+    if (className.includes('price-axis-container')) {
+      continue;
+    }
+    if (className.includes('time-axis')) {
+      continue;
+    }
     return el;
   }
   return list.length ? list[0] : null;

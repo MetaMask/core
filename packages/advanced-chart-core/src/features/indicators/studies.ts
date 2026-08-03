@@ -6,7 +6,11 @@
 // Token Details; consumers needing TV's full study picker can re-enable
 // header_widget via the disabledFeatures prop.
 
-import type { IndicatorColors, StudyId, TVActiveChart } from '../../core/types.js';
+import type {
+  IndicatorColors,
+  StudyId,
+  TVActiveChart,
+} from '../../core/types.js';
 
 /**
  * Built-in MA visibility periods. Used by SET_MA_VISIBILITY to keep the
@@ -33,7 +37,9 @@ export function getMAColor(
   indicatorColors: IndicatorColors | undefined,
 ): string {
   const fromConfig = indicatorColors?.MA?.[name];
-  if (fromConfig) {return fromConfig;}
+  if (fromConfig) {
+    return fromConfig;
+  }
   return DEFAULT_MA_COLORS[name] ?? DEFAULT_MA_COLORS.MA200;
 }
 
@@ -43,7 +49,7 @@ export type StudyPreset = {
   overrides: Record<string, unknown>;
   /** 'sub' places the study in a dedicated pane below the main series. */
   paneTarget?: 'main' | 'sub';
-}
+};
 
 function macdPreset(colors: IndicatorColors | undefined): StudyPreset {
   const palette = colors?.MACD ?? {};

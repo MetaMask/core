@@ -23,9 +23,9 @@ import {
   getApproxBarDurationSec,
   normalizeChartUnixSec,
 } from '../../core/timeUtils.js';
-import { registerHandler } from '../../messages/handler.js';
 import type { TVActiveChart } from '../../core/types.js';
 import type { FocusTimePayload } from '../../messages/contract.js';
+import { registerHandler } from '../../messages/handler.js';
 
 const ANIM_MS = 600;
 const FALLBACK_BARS = 60;
@@ -43,16 +43,22 @@ function easeInOutQuart(progress: number): number {
 type VisibleRangeSec = {
   from: number;
   to: number;
-}
+};
 
 function readVisibleRangeSec(chart: TVActiveChart): VisibleRangeSec | null {
-  if (typeof chart.getVisibleRange !== 'function') {return null;}
+  if (typeof chart.getVisibleRange !== 'function') {
+    return null;
+  }
   try {
     const vr = chart.getVisibleRange();
-    if (!vr) {return null;}
+    if (!vr) {
+      return null;
+    }
     const from = normalizeChartUnixSec(vr.from);
     const to = normalizeChartUnixSec(vr.to);
-    if (from === null || to === null || to <= from) {return null;}
+    if (from === null || to === null || to <= from) {
+      return null;
+    }
     return { from, to };
   } catch {
     return null;
@@ -69,8 +75,12 @@ function applyRange(chart: TVActiveChart, from: number, to: number): void {
 
 export function handleFocusTime(payload: FocusTimePayload): void {
   const widget = getWidget();
-  if (!widget || !isChartReady()) {return;}
-  if (!payload || !Number.isFinite(payload.timeMs)) {return;}
+  if (!widget || !isChartReady()) {
+    return;
+  }
+  if (!payload || !Number.isFinite(payload.timeMs)) {
+    return;
+  }
 
   let chart: TVActiveChart;
   try {
@@ -79,7 +89,9 @@ export function handleFocusTime(payload: FocusTimePayload): void {
     reportErrorToRN(error);
     return;
   }
-  if (!chart || typeof chart.setVisibleRange !== 'function') {return;}
+  if (!chart || typeof chart.setVisibleRange !== 'function') {
+    return;
+  }
 
   const centerSec = payload.timeMs / 1000;
   const current = readVisibleRangeSec(chart);
@@ -130,8 +142,12 @@ export function handleFocusTime(payload: FocusTimePayload): void {
   const startTs = Date.now();
 
   const step = (): void => {
-    if (gen !== animGeneration) {return;}
-    if (!getWidget() || !isChartReady()) {return;}
+    if (gen !== animGeneration) {
+      return;
+    }
+    if (!getWidget() || !isChartReady()) {
+      return;
+    }
     const elapsed = Date.now() - startTs;
     const progress = elapsed >= ANIM_MS ? 1 : elapsed / ANIM_MS;
     const eased = easeInOutQuart(progress);

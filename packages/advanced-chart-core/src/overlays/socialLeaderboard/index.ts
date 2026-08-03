@@ -92,9 +92,15 @@ function holdCenteredVisibleRange(
   const startTs = Date.now();
 
   const apply = (): void => {
-    if (gen !== centerHoldGeneration) {return;}
-    if (dataGeneration !== getOhlcvGeneration()) {return;}
-    if (!getWidget() || !isChartReady()) {return;}
+    if (gen !== centerHoldGeneration) {
+      return;
+    }
+    if (dataGeneration !== getOhlcvGeneration()) {
+      return;
+    }
+    if (!getWidget() || !isChartReady()) {
+      return;
+    }
     try {
       chart.setVisibleRange({ from: fromSec, to: toSec });
     } catch {
@@ -135,17 +141,25 @@ export function slbCenterViewport(
   chart: TVActiveChart,
   options?: { immediate?: boolean },
 ): void {
-  if (!getSlbMode() || !isSlbCenteringPending()) {return;}
+  if (!getSlbMode() || !isSlbCenteringPending()) {
+    return;
+  }
 
   const fromMs = getVisibleFromMs();
   const toMs = getVisibleToMs();
-  if (fromMs === null || toMs === null) {return;}
+  if (fromMs === null || toMs === null) {
+    return;
+  }
 
   const capturedGeneration = getOhlcvGeneration();
 
   const applyCenter = (): void => {
-    if (capturedGeneration !== getOhlcvGeneration()) {return;}
-    if (!isSlbCenteringPending()) {return;}
+    if (capturedGeneration !== getOhlcvGeneration()) {
+      return;
+    }
+    if (!isSlbCenteringPending()) {
+      return;
+    }
 
     const data = getOhlcvData();
     const barPadSec = getApproxBarDurationSec(data) * 2;
@@ -206,10 +220,14 @@ export function _resetSocialLeaderboardForTests(): void {
  * loaded with `slbMode` active — for all other consumers this is a no-op.
  */
 export function slbScheduleInitialCentering(): void {
-  if (!getSlbMode() || !isSlbCenteringPending()) {return;}
+  if (!getSlbMode() || !isSlbCenteringPending()) {
+    return;
+  }
 
   const widget = getWidget();
-  if (!widget || !isChartReady()) {return;}
+  if (!widget || !isChartReady()) {
+    return;
+  }
 
   try {
     const chart = widget.activeChart();
@@ -235,7 +253,9 @@ export function slbScheduleInitialCentering(): void {
 export function slbHandleGetBars(
   onResult: (bars: never[], meta: { noData: boolean }) => void,
 ): boolean {
-  if (!getSlbMode()) {return false;}
+  if (!getSlbMode()) {
+    return false;
+  }
   onResult([], { noData: true });
   return true;
 }

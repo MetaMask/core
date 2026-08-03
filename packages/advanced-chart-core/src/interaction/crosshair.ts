@@ -29,7 +29,7 @@ type CrosshairSession = {
   dismissUntil: number;
   tooltipInteractSent: boolean;
   mouseDownAt: number;
-}
+};
 
 const session: CrosshairSession = {
   visible: false,
@@ -45,7 +45,9 @@ const DISMISS_WINDOW_MS = 800;
 const DISMISS_RN_DELAY_MS = 50;
 
 function nearestBar(timeSec: number, data: OHLCVBar[]): OHLCVBar | null {
-  if (data.length === 0) {return null;}
+  if (data.length === 0) {
+    return null;
+  }
   const targetMs = timeSec * 1000;
   let best: OHLCVBar | null = null;
   let bestDiff = Infinity;
@@ -60,7 +62,9 @@ function nearestBar(timeSec: number, data: OHLCVBar[]): OHLCVBar | null {
 }
 
 function toCrosshairData(bar: OHLCVBar | null): CrosshairData | null {
-  if (!bar) {return null;}
+  if (!bar) {
+    return null;
+  }
   return {
     time: bar.time,
     open: bar.open,
@@ -121,13 +125,19 @@ export function attachTapDismiss(widget: TVChartingLibraryWidget): void {
       session.dismissUntil = 0;
     });
     widget.subscribe('mouse_up', () => {
-      if (!session.visible) {return;}
+      if (!session.visible) {
+        return;
+      }
       const pressDuration = Date.now() - session.mouseDownAt;
-      if (pressDuration >= SHORT_TAP_MS) {return;}
+      if (pressDuration >= SHORT_TAP_MS) {
+        return;
+      }
       // Avoid dismissing the bar in response to the synthetic mouse-up that
       // fires when a long-press finally releases — only dismiss if the bar
       // has been visible long enough to be a deliberate "second tap".
-      if (Date.now() - session.shownAt < SYNTHETIC_CLICK_GUARD_MS) {return;}
+      if (Date.now() - session.shownAt < SYNTHETIC_CLICK_GUARD_MS) {
+        return;
+      }
       session.visible = false;
       session.shownAt = 0;
       session.dismissUntil = Date.now() + DISMISS_WINDOW_MS;

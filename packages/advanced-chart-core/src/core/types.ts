@@ -31,7 +31,7 @@ export type ChartTheme = {
   volumeSuccessColor?: string;
   volumeErrorColor?: string;
   gridLineColor?: string;
-}
+};
 
 /**
  * Indicator color palette for MA / MACD / RSI / BOL.
@@ -43,14 +43,14 @@ export type IndicatorColors = {
   MACD?: Record<string, string>;
   RSI?: Record<string, string>;
   BOL?: Record<string, string>;
-}
+};
 
 export type ChartFeaturesConfig = {
   enableDrawingTools?: boolean;
   disabledFeatures?: string[];
   hidePaneSeparator?: boolean;
   showBuiltInLegend?: boolean;
-}
+};
 
 /**
  * Indicator names this chart understands. Phase 3 supports the built-in
@@ -72,7 +72,7 @@ export type LegendPlotCfg = {
   tvTitle: string;
   label: string;
   color: string | null;
-}
+};
 
 export type LegendIndicatorCfg = {
   plots: LegendPlotCfg[];
@@ -82,7 +82,7 @@ export type LegendIndicatorCfg = {
   title?: string;
   /** When true, legend pills render in the study's own sub-pane overlay. */
   subPaneLegend?: boolean;
-}
+};
 
 /**
  * Optional consumer-supplied legend overlay config inlined as
@@ -93,7 +93,7 @@ export type LegendOverlayConfig = {
   enabled?: boolean;
   /** Per-indicator legend configuration supplied by RN. */
   config?: Record<string, LegendIndicatorCfg>;
-}
+};
 
 /**
  * Visual overrides applied via TradingView's `applyOverrides`. Set by the
@@ -106,7 +106,7 @@ export type VisualOverridesConfigInline = {
   currentPriceLineColor?: string;
   volumeUpColor?: string;
   volumeDownColor?: string;
-}
+};
 
 /**
  * Shape of window.CONFIG as inlined by AdvancedChartTemplate before this IIFE
@@ -125,7 +125,7 @@ export type ChartConfig = {
   legendOverlay?: LegendOverlayConfig;
   /** Optional sub-pane height ratio in (0, 1] for RSI/MACD sub-panes. */
   subPaneHeightRatio?: number;
-}
+};
 
 /**
  * Minimal TradingView types we touch in Phase 1. Full types ship with the
@@ -137,7 +137,7 @@ export type TVTimeRange = {
   type: 'time-range';
   from: number;
   to: number;
-}
+};
 
 export type TVWidgetEvent = 'mouse_down' | 'mouse_up' | 'panes_height_changed';
 
@@ -149,25 +149,25 @@ export type TVChartingLibraryWidget = {
   resize(): void;
   remove(): void;
   resetCache?(): void;
-}
+};
 
 export type TVSubscription<TArgs extends unknown[] = []> = {
   subscribe(scope: unknown, callback: (...args: TArgs) => void): void;
   unsubscribe(scope: unknown, callback: (...args: TArgs) => void): void;
-}
+};
 
 export type TVTimeScale = {
   setRightOffset(offset: number): void;
   barSpacingChanged(): TVSubscription;
   width?(): number;
-}
+};
 
 export type TVCrosshairParams = {
   price?: number;
   time?: number;
   offsetX?: number;
   offsetY?: number;
-}
+};
 
 export type TVMainSeries = {
   /** Re-attaches the main series to the right price scale. */
@@ -177,7 +177,7 @@ export type TVMainSeries = {
     chartStyle: number,
     properties: Record<string, unknown>,
   ): void;
-}
+};
 
 /** Entity id returned by TradingView's `createShape`. */
 export type TVShapeId = string; // NOSONAR — intentional semantic alias for TradingView shape entity IDs
@@ -188,12 +188,12 @@ export type TVShapeId = string; // NOSONAR — intentional semantic alias for Tr
  */
 export type TVShape = {
   setProperties(properties: Record<string, unknown>): void;
-}
+};
 
 export type TVShapePoint = {
   time?: number;
   price?: number;
-}
+};
 
 export type TVShapeCreateOptions = {
   shape: string;
@@ -206,7 +206,7 @@ export type TVShapeCreateOptions = {
   disableUndo?: boolean;
   showInObjectsTree?: boolean;
   zOrder?: 'top' | 'bottom';
-}
+};
 
 export type TVPriceScale = {
   getVisiblePriceRange(): { from: number; to: number } | null;
@@ -214,13 +214,13 @@ export type TVPriceScale = {
   isInverted?(): boolean;
   getMode?(): number;
   setAutoScale?(enabled: boolean): void;
-}
+};
 
 export type TVPane = {
   getMainSourcePriceScale(): TVPriceScale | null;
   getRightPriceScales?(): TVPriceScale[];
   getHeight(): number;
-}
+};
 
 export type StudyId = string; // NOSONAR — intentional semantic alias for TradingView study entity IDs
 
@@ -228,24 +228,24 @@ export type TVStudy = {
   onDataLoaded(): TVSubscription;
   applyOverrides?(overrides: Record<string, unknown>): void;
   paneIndex?(): number;
-}
+};
 
 export type TVExportSchemaField = {
   type: string;
   sourceId?: StudyId;
   plotTitle?: string;
-}
+};
 
 export type TVExportData = {
   schema: TVExportSchemaField[];
   data: number[][];
   displayedData?: string[][];
-}
+};
 
 export type TVExportDataOptions = {
   includeSeries?: boolean;
   includedStudies?: StudyId[];
-}
+};
 
 export type TVActiveChart = {
   setChartType(type: ChartType): void;
@@ -286,7 +286,7 @@ export type TVActiveChart = {
   getVisibleBarsRange?(): { from: number; to: number } | null;
   getPanes?(): TVPane[];
   dataReady?(callback: () => void): void;
-}
+};
 
 export type TVWidgetConstructor = new (
   options: Record<string, unknown>,
@@ -300,7 +300,7 @@ export type OHLCVBar = {
   low: number;
   close: number;
   volume?: number;
-}
+};
 
 /** TradingView-shaped bar payload returned from datafeed.getBars / subscribeBars. */
 export type TVBar = {
@@ -310,14 +310,14 @@ export type TVBar = {
   low: number;
   close: number;
   volume?: number;
-}
+};
 
 export type OHLCVPaginationConfig = {
   nextCursor: string | null;
   hasMore: boolean;
   assetId: string | null;
   vsCurrency: string | null;
-}
+};
 
 /** Chart type integers used by TradingView's setChartType / currentChartType. */
 export const enum ChartType {
@@ -343,14 +343,14 @@ export type SymbolInfo = {
   supported_resolutions: string[];
   volume_precision: number;
   data_status: 'streaming' | 'endofday' | 'pulsed' | 'delayed_streaming';
-}
+};
 
 export type PeriodParams = {
   from: number;
   to: number;
   countBack: number;
   firstDataRequest: boolean;
-}
+};
 
 export type GetBarsCallback = (
   bars: TVBar[],
@@ -388,7 +388,7 @@ export type TVDatafeed = {
     listenerGuid: string,
   ): void;
   unsubscribeBars(listenerGuid: string): void;
-}
+};
 
 declare global {
   // Global augmentation of the built-in `Window` interface requires `interface`

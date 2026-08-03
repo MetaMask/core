@@ -28,25 +28,25 @@ export type PriceApiCandle = {
   low: number;
   close: number;
   volume?: number;
-}
+};
 
 export type PriceApiResponse = {
   data: PriceApiCandle[];
   nextCursor?: string | null;
   hasNext?: boolean;
-}
+};
 
 export type FetchOlderBarsRequest = {
   /** Oldest known bar.time (ms) when the request was deferred — used to slice the response. */
   oldestAtDefer: number;
-}
+};
 
 export type FetchOlderBarsResult = {
   /** Bars strictly older than `oldestAtDefer`. */
   olderBars: OHLCVBar[];
   /** True when there are no older bars to deliver (let TV mark `noData: true`). */
   noData: boolean;
-}
+};
 
 /**
  * Fetches the next page from the Price API and merges new bars into state.

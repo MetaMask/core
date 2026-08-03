@@ -2,11 +2,9 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
     "lib": ["ES2020", "DOM", "ES2022.Array"],
-    "types": []
+    "types": ["jest"]
   },
   "references": [],
-  "include": ["./src"]
+  "include": ["../../types", "./src"]
 }

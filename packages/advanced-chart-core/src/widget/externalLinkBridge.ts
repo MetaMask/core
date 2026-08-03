@@ -15,13 +15,13 @@ type WindowWithOpenPatch = {
   // Marker written onto the real `window`/iframe objects; name is kept stable.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   __mmTvOpenPatched?: boolean;
-} & Window
+} & Window;
 
 type DocumentWithCaptureFlag = {
   // Marker written onto the real `document` objects; name is kept stable.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   __mmTvLinkCaptureInstalled?: boolean;
-} & Document
+} & Document;
 
 // Module-local debounce timestamp; replaces window.__mmLastTvExternalBridgeAt.
 let lastBridgeAt = 0;
@@ -29,7 +29,9 @@ let lastBridgeAt = 0;
 export function isTradingViewExternalHostname(
   hostname: string | null | undefined,
 ): boolean {
-  if (!hostname) {return false;}
+  if (!hostname) {
+    return false;
+  }
   const host = String(hostname).toLowerCase();
   return (
     host === 'tradingview.com' ||
@@ -41,7 +43,9 @@ export function isTradingViewExternalHostname(
 export function isTradingViewExternalHref(
   href: string | null | undefined,
 ): boolean {
-  if (!href) {return false;}
+  if (!href) {
+    return false;
+  }
   try {
     const base = window.location?.href ?? 'https://localhost/';
     const parsed = new URL(href, base);
@@ -57,13 +61,17 @@ function sendTradingViewClicked(url?: string): void {
 
 function handleTradingViewLinkCapture(ev: Event): void {
   const target = ev.target as Element | null;
-  if (!target || typeof target.closest !== 'function') {return;}
+  if (!target || typeof target.closest !== 'function') {
+    return;
+  }
   const anchor = target.closest('a');
   if (!anchor?.href || !isTradingViewExternalHref(anchor.href)) {
     return;
   }
   const now = Date.now();
-  if (now - lastBridgeAt < TV_EXTERNAL_BRIDGE_DEBOUNCE_MS) {return;}
+  if (now - lastBridgeAt < TV_EXTERNAL_BRIDGE_DEBOUNCE_MS) {
+    return;
+  }
   lastBridgeAt = now;
   try {
     ev.preventDefault();
@@ -75,7 +83,9 @@ function handleTradingViewLinkCapture(ev: Event): void {
 }
 
 function patchWindowOpen(win: WindowWithOpenPatch | null | undefined): void {
-  if (!win?.open || win.__mmTvOpenPatched) {return;}
+  if (!win?.open || win.__mmTvOpenPatched) {
+    return;
+  }
   win.__mmTvOpenPatched = true;
   const origOpen = win.open.bind(win);
   win.open = (
