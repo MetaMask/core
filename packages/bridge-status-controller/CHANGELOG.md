@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+
 - Bump `@metamask/bridge-controller` from `^78.0.2` to `^78.0.3` ([#9740](https://github.com/MetaMask/core/pull/9740))
 
 ## [74.6.1]

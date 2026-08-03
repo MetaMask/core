@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735, [#9758](https://github.com/MetaMask/core/pull/9758)))
 - Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 
 ## [5.0.0]
