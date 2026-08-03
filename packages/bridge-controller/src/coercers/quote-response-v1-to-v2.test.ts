@@ -135,6 +135,7 @@ describe('quote-response-v2 migration', () => {
               "valueInCurrency": undefined,
             },
           ],
+          "txFee": undefined,
         }
       `);
 

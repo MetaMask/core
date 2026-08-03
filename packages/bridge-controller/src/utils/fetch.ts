@@ -24,6 +24,7 @@ import type { QuoteResponse } from '../validators/quote-response.js';
 import { validateQuoteStreamComplete } from '../validators/quote-stream-complete.js';
 import { validateTokenFeature } from '../validators/token-feature.js';
 import { isEvmTxData } from '../validators/trade.js';
+import type { TxData } from '../validators/trade.js';
 import { getEthUsdtResetData } from './bridge.js';
 import {
   formatAddressToAssetId,
