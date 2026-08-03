@@ -19,8 +19,13 @@ import type { Messenger } from '@metamask/messenger';
 import type {
   MultichainAccountServiceCreateMultichainAccountGroupAction,
   MultichainAccountServiceCreateMultichainAccountGroupsAction,
+  MultichainAccountServiceGetMultichainAccountGroupAction,
+  MultichainAccountServiceGetMultichainAccountWalletAction,
 } from '@metamask/multichain-account-service';
-import type { MultichainAccountServiceWalletStatusChangeEvent } from '@metamask/multichain-account-service';
+import type {
+  MultichainAccountServiceGroupStatusChangeEvent,
+  MultichainAccountServiceWalletStatusChangeEvent,
+} from '@metamask/multichain-account-service';
 import type {
   AuthenticationController,
   UserStorageController,
@@ -94,7 +99,9 @@ export type AllowedActions =
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | MultichainAccountServiceCreateMultichainAccountGroupAction
-  | MultichainAccountServiceCreateMultichainAccountGroupsAction;
+  | MultichainAccountServiceCreateMultichainAccountGroupsAction
+  | MultichainAccountServiceGetMultichainAccountGroupAction
+  | MultichainAccountServiceGetMultichainAccountWalletAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
@@ -158,7 +165,8 @@ export type AllowedEvents =
   | AccountsControllerAccountsRemovedEvent
   | AccountsControllerSelectedAccountChangeEvent
   | UserStorageController.UserStorageControllerStateChangeEvent
-  | MultichainAccountServiceWalletStatusChangeEvent;
+  | MultichainAccountServiceWalletStatusChangeEvent
+  | MultichainAccountServiceGroupStatusChangeEvent;
 
 export type AccountTreeControllerEvents =
   | AccountTreeControllerStateChangeEvent

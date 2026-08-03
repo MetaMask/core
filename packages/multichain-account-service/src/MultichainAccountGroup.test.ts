@@ -180,6 +180,123 @@ describe('MultichainAccountGroup', () => {
     });
   });
 
+  describe('status', () => {
+    it('starts as uninitialized before init()', () => {
+      const serviceMessenger =
+        getMultichainAccountServiceMessenger(getRootMessenger());
+      const providers = [
+        setupBip44AccountProvider({
+          name: 'Provider 1',
+          accounts: [MOCK_WALLET_1_EVM_ACCOUNT],
+        }),
+      ];
+      const wallet = new MultichainAccountWallet({
+        entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
+        messenger: serviceMessenger,
+        providers,
+      });
+      const group = new MultichainAccountGroup({
+        wallet,
+        groupIndex: 0,
+        providers,
+        messenger: serviceMessenger,
+      });
+
+      expect(group.status).toBe('uninitialized');
+    });
+
+    it('is aligned after init() when all providers have accounts', () => {
+      const { group } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
+      });
+
+      expect(group.status).toBe('aligned');
+    });
+
+    it('is misaligned after init() when a provider has no accounts', () => {
+      const { group } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+
+      expect(group.status).toBe('misaligned');
+    });
+
+    it('publishes groupStatusChange event when withState transitions to in-progress then settles', async () => {
+      const { group, messenger: serviceMessenger } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+      const publishSpy = jest.spyOn(serviceMessenger, 'publish');
+
+      await group.withState('in-progress:alignment', async () => {
+        expect(group.status).toBe('in-progress:alignment');
+      });
+
+      expect(group.status).toBe('misaligned');
+      expect(publishSpy).toHaveBeenCalledWith(
+        'MultichainAccountService:groupStatusChange',
+        group.id,
+        'in-progress:alignment',
+      );
+      expect(publishSpy).toHaveBeenCalledWith(
+        'MultichainAccountService:groupStatusChange',
+        group.id,
+        'misaligned',
+      );
+    });
+
+    it('preserves in-progress:create-accounts through an inner in-progress:alignment withState', async () => {
+      const { group } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+      const statusDuringInner: string[] = [];
+
+      await group.withState('in-progress:create-accounts', async () => {
+        // Inner withState with a different in-progress status should not override
+        await group.withState('in-progress:alignment', async () => {
+          statusDuringInner.push(group.status);
+        });
+        statusDuringInner.push(group.status);
+      });
+
+      // 'in-progress:create-accounts' is preserved through the inner call since
+      // the guard skips the entry when already in any in-progress state.
+      expect(statusDuringInner[0]).toBe('in-progress:create-accounts');
+      // After both finally blocks fire, status is 'misaligned'.
+      expect(group.status).toBe('misaligned');
+    });
+
+    it('auto-corrects status on update() when not in an in-progress state', () => {
+      const { group, providers } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+      expect(group.status).toBe('misaligned');
+
+      // Simulate provider 2 now being considered aligned (e.g. disabled wrapper)
+      providers[1].isAligned.mockReturnValue(true);
+      group.update({
+        'Provider 1': [MOCK_WALLET_1_EVM_ACCOUNT.id],
+      });
+
+      expect(group.status).toBe('aligned');
+    });
+
+    it('does not override in-progress status on update()', async () => {
+      const { group, providers } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+
+      await group.withState('in-progress:alignment', async () => {
+        // update() called inside withState should NOT change the status
+        providers[1].isAligned.mockReturnValue(true);
+        group.update({ 'Provider 1': [MOCK_WALLET_1_EVM_ACCOUNT.id] });
+        expect(group.status).toBe('in-progress:alignment');
+      });
+
+      // After withState finalizes, status should reflect isAligned()
+      expect(group.status).toBe('aligned');
+    });
+  });
+
   describe('isAligned', () => {
     it('returns true when every provider has at least one account in the group', () => {
       const { group } = setup({

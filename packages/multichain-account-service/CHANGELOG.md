@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Providers resolve a Snap's capabilities via `SnapAccountService:getCapabilities` and route account creation and discovery through the v1 or v2 keyring client accordingly (a Snap that declares BIP-44 capabilities is treated as v2).
   - Account discovery for v2 Snaps that declare `bip44.discover` flows through `createAccounts({ bip44:discover })`; v1 Snaps keep using the `discoverAccounts` client method.
 - Adds `MultichainAccountGroup.isProviderAligned(provider)` to check alignment per provider ([#9269](https://github.com/MetaMask/core/pull/9269))
+- Add `MultichainAccountGroupStatus` type and `MultichainAccountServiceGroupStatusChangeEvent` event ([#9104](https://github.com/MetaMask/core/pull/9104))
+  - `MultichainAccountGroup` now tracks a `status` field (`'uninitialized' | 'in-progress:create-accounts' | 'in-progress:alignment' | 'aligned' | 'misaligned'`).
+  - The service messenger emits `MultichainAccountService:groupStatusChange` whenever a group's status changes.
 
 ### Changed
 

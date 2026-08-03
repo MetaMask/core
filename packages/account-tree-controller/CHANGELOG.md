@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Expose `status` on `AccountGroupMultichainAccountObject` ([#9104](https://github.com/MetaMask/core/pull/9104))
+  - The controller now requires the new event `MultichainAccountService:groupStatusChange`.
+  - The field reflects `MultichainAccountGroupStatus` and is kept in sync via the new `MultichainAccountService:groupStatusChange` event subscription.
+
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
