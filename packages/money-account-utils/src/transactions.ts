@@ -241,6 +241,26 @@ export type BuildMoneyAccountDepositPlaceholderBatchOptions = {
 };
 
 /**
+ * Guards the encoding builders against a zero amount.
+ *
+ * A zero-amount vault call encodes calldata that is structurally valid and
+ * submittable but cannot succeed — the teller rejects a zero-share redemption,
+ * and a zero-amount deposit mints nothing. Callers that need a batch before the
+ * user has picked an amount want a placeholder builder instead, which resolves
+ * the call targets without calldata.
+ *
+ * @param amount - The amount the caller asked to encode.
+ * @param builderName - Name of the placeholder builder to point the caller at.
+ */
+function assertNonZeroAmount(amount: bigint, builderName: string): void {
+  if (amount === 0n) {
+    throw new Error(
+      `Cannot encode a zero-amount Money Account vault call — use ${builderName} for placeholder batches`,
+    );
+  }
+}
+
+/**
  * Builds the approve + deposit transaction pair for a Money Account deposit.
  *
  * 1. Calls `previewDeposit` on the lens contract to get expected vault shares.
@@ -250,10 +270,11 @@ export type BuildMoneyAccountDepositPlaceholderBatchOptions = {
  *
  * For placeholder batches with no amount yet, use
  * {@link buildMoneyAccountDepositPlaceholderBatch} instead — it needs neither a
- * provider nor the vault read.
+ * provider nor the vault read. Throws on a zero amount rather than encoding a
+ * deposit that mints nothing.
  *
  * @param options - Options bag.
- * @param options.amount - Deposit amount in mUSD base units.
+ * @param options.amount - Deposit amount in mUSD base units. Must be non-zero.
  * @param options.chainId - Chain the deposit happens on.
  * @param options.boringVault - Address of the boring vault.
  * @param options.tellerAddress - Address of the teller contract.
@@ -271,22 +292,20 @@ export async function buildMoneyAccountDepositBatch({
   lensAddress,
   provider,
 }: BuildMoneyAccountDepositBatchOptions): Promise<MoneyAccountDepositBatchResult> {
+  assertNonZeroAmount(amount, 'buildMoneyAccountDepositPlaceholderBatch');
+
   const musdAddress = getMoneyAccountDepositAssetAddress(chainId);
 
-  // Nothing to preview for a zero-amount deposit, so skip the RPC call.
-  const minimumMint =
-    amount === 0n
-      ? 0n
-      : applySlippage(
-          await getExpectedDepositShares({
-            lensAddress,
-            boringVault,
-            accountantAddress,
-            musdAddress,
-            amount,
-            provider,
-          }),
-        );
+  const minimumMint = applySlippage(
+    await getExpectedDepositShares({
+      lensAddress,
+      boringVault,
+      accountantAddress,
+      musdAddress,
+      amount,
+      provider,
+    }),
+  );
 
   return {
     approveTx: {
@@ -410,6 +429,9 @@ export type MoneyAccountWithdrawBatchResult = MoneyAccountBatchResult<
   'withdrawTx' | 'transferTx'
 >;
 
+export type MoneyAccountWithdrawPlaceholderBatchResult =
+  MoneyAccountPlaceholderBatchResult<'withdrawTx' | 'transferTx'>;
+
 export type BuildMoneyAccountWithdrawBatchOptions = {
   amount: bigint;
   chainId: Hex;
@@ -430,11 +452,14 @@ export type BuildMoneyAccountWithdrawBatchOptions = {
  * 3. Encodes `withdraw(mUSD, shareAmount, minimumAssets, moneyAccountAddress)` on the teller contract — the redeemed mUSD lands on the money account.
  * 4. Encodes `transfer(recipient, amount)` on the mUSD token contract — moves the exact requested amount from the money account to the user's selected EVM account.
  *
- * When `amount === 0n` the rate fetch is skipped: the caller is encoding a
- * placeholder batch that Pay will re-encode once the user picks an amount.
+ * For placeholder batches with no amount yet, use
+ * {@link buildMoneyAccountWithdrawPlaceholderBatch} instead — it needs neither a
+ * provider nor the rate read. Throws on a zero amount rather than encoding a
+ * zero-share redemption, which the teller rejects.
  *
  * @param options - Options bag.
- * @param options.amount - Withdrawal amount in mUSD base units.
+ * @param options.amount - Withdrawal amount in mUSD base units. Must be
+ * non-zero.
  * @param options.chainId - Chain the withdrawal happens on.
  * @param options.tellerAddress - Address of the teller contract.
  * @param options.accountantAddress - Address of the vault accountant contract.
@@ -453,15 +478,14 @@ export async function buildMoneyAccountWithdrawBatch({
   recipient,
   provider,
 }: BuildMoneyAccountWithdrawBatchOptions): Promise<MoneyAccountWithdrawBatchResult> {
+  assertNonZeroAmount(amount, 'buildMoneyAccountWithdrawPlaceholderBatch');
+
   const musdAddress = getMoneyAccountDepositAssetAddress(chainId);
 
-  const shareAmount =
-    amount === 0n
-      ? 0n
-      : getSharesForWithdrawal(
-          amount,
-          await getVaultRate({ accountantAddress, provider }),
-        );
+  const shareAmount = getSharesForWithdrawal(
+    amount,
+    await getVaultRate({ accountantAddress, provider }),
+  );
   // Allow 1-unit slippage on minimumAssets as defense-in-depth against
   // rounding: the contract's mulDivDown can truncate assetsOut by up to
   // 1 unit relative to the requested amount. This tolerance is safe
@@ -471,7 +495,7 @@ export async function buildMoneyAccountWithdrawBatch({
   // the original `amount`, so the tolerance does not affect how much the
   // user receives — it only prevents a spurious revert from the teller's
   // MinimumAssetsNotMet check.
-  const minimumAssets = amount > 0n ? amount - 1n : 0n;
+  const minimumAssets = amount - 1n;
   const withdrawData = buildWithdrawData(
     musdAddress,
     shareAmount,
@@ -493,6 +517,50 @@ export async function buildMoneyAccountWithdrawBatch({
       params: {
         to: musdAddress,
         data: transferData,
+        value: '0x0',
+      },
+      type: TransactionType.tokenMethodTransfer,
+    },
+  };
+}
+
+export type BuildMoneyAccountWithdrawPlaceholderBatchOptions = {
+  chainId: Hex;
+  tellerAddress: Hex;
+};
+
+/**
+ * Builds the withdraw + transfer pair for a Money Account withdrawal *without*
+ * calldata, for placeholder batches that Pay re-encodes once the user picks an
+ * amount. Resolves the call targets and types only, so it performs no vault
+ * reads and needs neither a provider, an accountant address, a recipient, nor
+ * the money account address.
+ *
+ * Mirrors {@link buildMoneyAccountDepositPlaceholderBatch}. Encoding a
+ * zero-amount withdrawal instead would produce a valid, submittable
+ * `withdraw(mUSD, 0, 0, moneyAccount)` that the teller rejects for redeeming no
+ * shares — this builder makes that state unrepresentable.
+ *
+ * @param options - Options bag.
+ * @param options.chainId - Chain the withdrawal happens on.
+ * @param options.tellerAddress - Address of the teller contract.
+ * @returns The withdraw and transfer transaction targets, keyed by name.
+ */
+export function buildMoneyAccountWithdrawPlaceholderBatch({
+  chainId,
+  tellerAddress,
+}: BuildMoneyAccountWithdrawPlaceholderBatchOptions): MoneyAccountWithdrawPlaceholderBatchResult {
+  return {
+    withdrawTx: {
+      params: {
+        to: tellerAddress,
+        value: '0x0',
+      },
+      type: TransactionType.moneyAccountWithdraw,
+    },
+    transferTx: {
+      params: {
+        to: getMoneyAccountDepositAssetAddress(chainId),
         value: '0x0',
       },
       type: TransactionType.tokenMethodTransfer,

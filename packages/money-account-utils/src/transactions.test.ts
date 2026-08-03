@@ -11,6 +11,7 @@ import {
   buildMoneyAccountDepositBatch,
   buildMoneyAccountDepositPlaceholderBatch,
   buildMoneyAccountWithdrawBatch,
+  buildMoneyAccountWithdrawPlaceholderBatch,
   getMoneyAccountDepositAssetAddress,
   getMoneyAccountDepositAssetId,
   getSharesForWithdrawal,
@@ -345,14 +346,15 @@ describe('buildMoneyAccountDepositBatch', () => {
     expectSameAddress(decoded.referralAddress, ZERO_ADDRESS);
   });
 
-  it('skips the previewDeposit read and mints nothing for a zero amount', async () => {
-    const result = await buildMoneyAccountDepositBatch(
-      depositArgs({ amount: BigInt(0) }),
+  it('rejects a zero amount instead of encoding a deposit that mints nothing', async () => {
+    await expect(
+      buildMoneyAccountDepositBatch(depositArgs({ amount: BigInt(0) })),
+    ).rejects.toThrow(
+      'Cannot encode a zero-amount Money Account vault call — use buildMoneyAccountDepositPlaceholderBatch for placeholder batches',
     );
 
+    // Rejected before any I/O, so a placeholder caller pays for no vault read.
     expect(previewDeposit).not.toHaveBeenCalled();
-    const decoded = decodeTellerCall('deposit', result.depositTx.params.data);
-    expect(BigInt(decoded.minimumMint.toString())).toBe(BigInt(0));
   });
 
   it('throws for a chain mUSD is not deployed on', async () => {
@@ -455,15 +457,17 @@ describe('buildMoneyAccountWithdrawBatch', () => {
     expect(getRate).toHaveBeenCalledTimes(1);
   });
 
-  it('skips the rate read for a zero amount (placeholder batch)', async () => {
-    const result = await buildMoneyAccountWithdrawBatch(
-      withdrawArgs({ amount: BigInt(0) }),
+  it('rejects a zero amount instead of encoding a zero-share redemption', async () => {
+    // `withdraw(mUSD, 0, 0, moneyAccount)` is valid, submittable calldata that
+    // the teller rejects for redeeming no shares.
+    await expect(
+      buildMoneyAccountWithdrawBatch(withdrawArgs({ amount: BigInt(0) })),
+    ).rejects.toThrow(
+      'Cannot encode a zero-amount Money Account vault call — use buildMoneyAccountWithdrawPlaceholderBatch for placeholder batches',
     );
 
+    // Rejected before any I/O, so a placeholder caller pays for no vault read.
     expect(getRate).not.toHaveBeenCalled();
-    const decoded = decodeTellerCall('withdraw', result.withdrawTx.params.data);
-    expect(BigInt(decoded.shareAmount.toString())).toBe(BigInt(0));
-    expect(BigInt(decoded.minimumAssets.toString())).toBe(BigInt(0));
   });
 
   it('encodes minimumAssets as amount - 1 for defense-in-depth', async () => {
@@ -506,5 +510,45 @@ describe('buildMoneyAccountWithdrawBatch', () => {
     await expect(
       buildMoneyAccountWithdrawBatch(withdrawArgs()),
     ).rejects.toThrow('RPC down');
+  });
+});
+
+describe('buildMoneyAccountWithdrawPlaceholderBatch', () => {
+  beforeEach(mockVaultContracts);
+
+  it('returns the withdraw and transfer targets and types without calldata', () => {
+    const result = buildMoneyAccountWithdrawPlaceholderBatch({
+      chainId: CHAIN_ID,
+      tellerAddress: TELLER,
+    });
+
+    expect(result.withdrawTx.type).toBe(TransactionType.moneyAccountWithdraw);
+    expect(result.withdrawTx.params.to).toBe(TELLER);
+    expect(result.withdrawTx.params.value).toBe('0x0');
+    expect(result.withdrawTx.params).not.toHaveProperty('data');
+
+    expect(result.transferTx.type).toBe(TransactionType.tokenMethodTransfer);
+    expect(result.transferTx.params.to).toBe(MUSD_TOKEN_ADDRESS);
+    expect(result.transferTx.params.value).toBe('0x0');
+    expect(result.transferTx.params).not.toHaveProperty('data');
+  });
+
+  it('performs no vault reads', () => {
+    buildMoneyAccountWithdrawPlaceholderBatch({
+      chainId: CHAIN_ID,
+      tellerAddress: TELLER,
+    });
+
+    expect(getRate).not.toHaveBeenCalled();
+    expect(MockContract).not.toHaveBeenCalled();
+  });
+
+  it('throws for a chain mUSD is not deployed on', () => {
+    expect(() =>
+      buildMoneyAccountWithdrawPlaceholderBatch({
+        chainId: UNSUPPORTED_CHAIN_ID,
+        tellerAddress: TELLER,
+      }),
+    ).toThrow(`mUSD not deployed on chain ${UNSUPPORTED_CHAIN_ID}`);
   });
 });
