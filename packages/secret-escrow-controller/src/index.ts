@@ -30,6 +30,7 @@ export type {
   SecretEscrowControllerCompleteExportAction,
   SecretEscrowControllerUnlockWithFactorAction,
   SecretEscrowControllerRecoverPasswordAction,
+  SecretEscrowControllerRecoverPasswordWithFactorAction,
   SecretEscrowControllerRevokeAction,
   SecretEscrowControllerClearStateAction,
   SecretEscrowControllerMethodActions,

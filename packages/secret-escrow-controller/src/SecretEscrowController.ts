@@ -148,6 +148,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'completeExport',
   'unlockWithFactor',
   'recoverPassword',
+  'recoverPasswordWithFactor',
   'revoke',
   'clearState',
 ] as const;
@@ -600,7 +601,8 @@ export class SecretEscrowController extends BaseController<
   /**
    * Recovers the wrapped wallet password after a successful WebAuthn assertion.
    *
-   * Legacy coexistence bridge only.
+   * Legacy coexistence bridge only. Prefer {@link recoverPasswordWithFactor}
+   * for password / TOTP proofs.
    *
    * @param assertion - Assertion from `navigator.credentials.get()` (or mock).
    * @param factorId - Optional factor id; defaults to the enrolled default.
@@ -611,17 +613,35 @@ export class SecretEscrowController extends BaseController<
     factorId?: string,
   ): Promise<string> {
     const record = this.#requireEnrolled();
+    const resolvedFactorId = factorId ?? record.factorId;
+    return this.recoverPasswordWithFactor({
+      factorId: resolvedFactorId,
+      proof: { type: 'webauthn', assertion },
+    });
+  }
+
+  /**
+   * Recovers the wrapped wallet password after proving any enrolled factor.
+   *
+   * Caller must have already called {@link startExport} for the same factor.
+   *
+   * @param params - Unlock parameters.
+   * @param params.factorId - Factor to prove.
+   * @param params.proof - Factor proof (webauthn, password, or totp).
+   * @returns Plaintext wallet password (caller must clear after use).
+   */
+  async recoverPasswordWithFactor(params: {
+    factorId: string;
+    proof: FactorProof;
+  }): Promise<string> {
+    const record = this.#requireEnrolled();
     if (!record.wrappedPassword) {
       throw new SecretEscrowError('No wrapped password enrolled', {
         code: SecretEscrowErrorCode.NotRegistered,
       });
     }
 
-    const resolvedFactorId = factorId ?? record.factorId;
-    const secret = await this.unlockWithFactor({
-      factorId: resolvedFactorId,
-      proof: { type: 'webauthn', assertion },
-    });
+    const secret = await this.unlockWithFactor(params);
     try {
       return unwrapPassword(record.wrappedPassword, secret);
     } finally {

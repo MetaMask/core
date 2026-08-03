@@ -588,4 +588,34 @@ describe('SecretEscrowController', () => {
       ),
     ).resolves.toBe('wallet-password');
   });
+
+  it('recovers a wrapped password with a TOTP factor proof', async () => {
+    const { computeTotpCode, generateTotpSecret } = await import(
+      '@metamask/secret-escrow-client'
+    );
+    const controller = new SecretEscrowController({
+      messenger: createMessenger(),
+      client: new MockSecretEscrowClient(),
+    });
+    await controller.createWithWalletSecretAndWrapPassword({
+      userId: 'user-1',
+      factorId: 'password',
+      factor: { type: 'password', password: 'wallet-password' },
+      password: 'wallet-password',
+    });
+    const totpSecret = generateTotpSecret(() => new Uint8Array(20).fill(7));
+    await controller.addFactor({
+      factorId: 'totp',
+      factor: { type: 'totp', secret: totpSecret },
+    });
+
+    await controller.startExport('totp');
+    const code = await computeTotpCode(totpSecret);
+    await expect(
+      controller.recoverPasswordWithFactor({
+        factorId: 'totp',
+        proof: { type: 'totp', code },
+      }),
+    ).resolves.toBe('wallet-password');
+  });
 });

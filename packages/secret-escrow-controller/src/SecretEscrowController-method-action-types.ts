@@ -197,6 +197,17 @@ export type SecretEscrowControllerRecoverPasswordAction = {
 };
 
 /**
+ * Recovers the wrapped wallet password after proving any enrolled factor.
+ *
+ * @param params - Unlock parameters including factor id and proof.
+ * @returns Plaintext wallet password (caller must clear after use).
+ */
+export type SecretEscrowControllerRecoverPasswordWithFactorAction = {
+  type: `SecretEscrowController:recoverPasswordWithFactor`;
+  handler: SecretEscrowController['recoverPasswordWithFactor'];
+};
+
+/**
  * Revokes escrow material remotely and clears local enrollment state.
  */
 export type SecretEscrowControllerRevokeAction = {
@@ -232,5 +243,6 @@ export type SecretEscrowControllerMethodActions =
   | SecretEscrowControllerCompleteExportAction
   | SecretEscrowControllerUnlockWithFactorAction
   | SecretEscrowControllerRecoverPasswordAction
+  | SecretEscrowControllerRecoverPasswordWithFactorAction
   | SecretEscrowControllerRevokeAction
   | SecretEscrowControllerClearStateAction;
