@@ -111,9 +111,9 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
       minAmount: minDestTokenAmount,
     },
     priceData: {
-      ...(value.priceData?.priceImpact && {
+      ...(priceData?.priceImpact && {
         priceImpact: {
-          amount: value.priceData.priceImpact,
+          amount: priceData.priceImpact,
         },
       }),
     },
@@ -138,6 +138,7 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
     },
     steps: steps?.map(toStepV2),
     ...restQuote,
+    ...(intent && /* istanbul ignore next */ { intent }),
     protocols: bridges,
     aggregator: bridgeId,
   };

@@ -6468,6 +6468,7 @@ __metadata:
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"
+    eth-chainlist: "npm:^0.0.795"
     jest: "npm:^30.4.2"
     ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
@@ -17102,6 +17103,13 @@ __metadata:
   version: 1.8.1
   resolution: "etag@npm:1.8.1"
   checksum: 10/571aeb3dbe0f2bbd4e4fadbdb44f325fc75335cd5f6f6b6a091e6a06a9f25ed5392f0863c5442acb0646787446e816f13cbfc6edce5b07658541dff573cab1ff
+  languageName: node
+  linkType: hard
+
+"eth-chainlist@npm:^0.0.795":
+  version: 0.0.795
+  resolution: "eth-chainlist@npm:0.0.795"
+  checksum: 10/1bdc634d107fd114c4b5567fba2003acc740c3e4e877dcc56db2b00071842003a2b918da1601c07451ae497291b63c923c89429d4f77dc41faf04cd186725a5e
   languageName: node
   linkType: hard
 

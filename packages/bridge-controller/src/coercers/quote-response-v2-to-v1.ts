@@ -80,6 +80,7 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
     aggregator,
     src,
     dest,
+    intent,
     ...restQuote
   } = value;
 
@@ -126,6 +127,7 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
         priceImpact: priceData.priceImpact.amount,
       },
     }),
+    ...(intent && /* istanbul ignore next */ { intent }),
     /**
      * @deprecated This field is deprecated.
      */
