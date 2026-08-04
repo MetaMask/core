@@ -8,14 +8,14 @@ import type { Json } from '@metamask/utils';
 const DEFI_CONTROLLER_V2_FEATURE_FLAG = 'defiControllerV2';
 
 /** Delay between polls while Accounts API reports DeFi indexing in progress. */
-const DEFAULT_PROCESSING_POLL_INTERVAL_MS = 3_000;
+const DEFAULT_PROCESSING_POLL_INTERVAL_MS = 5_000;
 
 /**
  * Maximum fetch attempts (including the first) while any account still has
  * `processingDefiPositions: true`. After this, the call resolves without
  * updating state, so prior positions are kept for every selected account.
  */
-const DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS = 3;
+const DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS = 5;
 
 /**
  * Resolved `defiControllerV2` remote feature flag shape used for processing
