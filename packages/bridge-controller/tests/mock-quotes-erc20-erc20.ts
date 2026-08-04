@@ -18,7 +18,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
       srcChainId: 10,
       srcAsset: {
         chainId: 10,
-        address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+        address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
         assetId: 'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
         symbol: 'USDC',
         name: 'USD Coin',
@@ -29,7 +29,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
       destChainId: 137,
       destAsset: {
         chainId: 137,
-        address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+        address: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
         assetId: 'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
         symbol: 'USDC',
         name: 'Native USD Coin (POS)',
@@ -43,7 +43,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
           amount: '0',
           asset: {
             chainId: 10,
-            address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
             assetId:
               'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
             symbol: 'USDC',

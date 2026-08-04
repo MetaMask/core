@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ShieldApiService` delegates `AuthenticationController:getBearerToken`; `ShieldController` delegates `ShieldApiService:*` actions plus `TransactionController:stateChange` and `SignatureController:stateChange`.
   - Hosts must register `AuthenticationController` and `SignatureController` on the wallet root messenger and explicitly call `ShieldController:start` after wiring.
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+
 ## [9.0.0]
 
 ### Added
