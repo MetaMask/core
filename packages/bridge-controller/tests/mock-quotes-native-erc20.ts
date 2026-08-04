@@ -4,6 +4,7 @@ import type { DeepPartial } from '../src/types.js';
 import type { QuoteResponseV1 } from '../src/validators/quote-response-v1.js';
 import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1.js';
 import { ActionTypes } from '../src/validators/step.js';
+import type { TxData } from '../src/validators/trade.js';
 
 export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
   {
@@ -260,12 +261,12 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
   },
 ];
 
-export const getMockBridgeQuotesNativeErc20V2 = (
-  quoteOverrides?: DeepPartial<QuoteResponseV1>,
-): QuoteResponseV1[] => {
+export const getMockBridgeQuotesNativeErc20V1 = (
+  quoteOverrides?: DeepPartial<QuoteResponseV1<TxData, TxData>>,
+): QuoteResponseV1<TxData, TxData>[] => {
   return mockBridgeQuotesNativeErc20V1.map((quote) => {
     const mergedQuote = merge({}, quote, quoteOverrides);
     validateQuoteResponseV1(mergedQuote);
-    return mergedQuote;
+    return mergedQuote as QuoteResponseV1<TxData, TxData>;
   });
 };

@@ -79,18 +79,31 @@ export const sumAmounts = (
     return undefined;
   }
 
+  /**
+   * Fees and prices can be denominated in different assets, so we need to check if all fees have the same units
+   */
   const isSameAssetForAllFees =
     new Set(fees.map((fee) => fee.asset?.assetId?.toLowerCase())).size === 1;
 
   /**
    * Keys that require the asset to be the same for all fees
    */
-  const AMOUNT_KEYS = ['amount' as const];
+  const AMOUNT_KEYS = [
+    'amount' as const,
+    'normalizedAmount' as const,
+    'minAmount' as const,
+    'minAmountNormalized' as const,
+  ];
 
   /**
    * Keys that can be aggregated across all fees
    */
-  const FIAT_OR_USD_KEYS = ['valueInCurrency' as const, 'usd' as const];
+  const FIAT_OR_USD_KEYS = [
+    'valueInCurrency' as const,
+    'usd' as const,
+    'minAmountValueInCurrency' as const,
+    'minAmountUsd' as const,
+  ];
 
   return fees.reduce((acc, fee) => {
     const newAcc = { ...acc };

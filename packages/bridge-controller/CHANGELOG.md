@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update `calcQuoteMetadata` util to handle both V1 and V2 quotes. Legacy metadata calculators continue to use the V1 schema ([#9727](https://github.com/MetaMask/core/pull/9727))
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
 
 ## [78.1.0]
