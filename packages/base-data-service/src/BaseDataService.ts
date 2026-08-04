@@ -441,7 +441,6 @@ export class BaseDataService<
         ? dehydrate(this.#queryClient, {
             shouldDehydrateQuery: (query) =>
               objectType === 'query' && query.queryHash === hash,
-            // TODO: Test
             shouldDehydrateMutation: (mutation) =>
               objectType === 'mutation' &&
               mutation.options.mutationKey !== undefined &&
