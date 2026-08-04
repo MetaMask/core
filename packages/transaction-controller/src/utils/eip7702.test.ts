@@ -22,8 +22,10 @@ import {
   doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
+  getAuthorizationAuthority,
   getDelegationAddress,
   isAccountUpgradedToEIP7702,
+  recoverAuthorizationAuthority,
   signAuthorizationList,
   updateEIP7702BatchData,
 } from './eip7702.js';
@@ -314,6 +316,63 @@ describe('EIP-7702 Utils', () => {
           yParity: '0x1',
         },
       ]);
+    });
+  });
+
+  describe('recoverAuthorizationAuthority', () => {
+    it('recovers the signer of a valid EIP-7702 authorization', () => {
+      const authorization = {
+        address: '0xcccccccccccccccccccccccccccccccccccccccc' as Hex,
+        chainId: '0x1' as Hex,
+        nonce: '0x6' as Hex,
+        r: '0xe2582357434f268c18dd7e2920dd3a911bfc6fc5e498bf7eb33fa0f484bd1488' as Hex,
+        s: '0x6300c28d38a634904af92933b5b31433536a7cee8a505945c13ade9f3a1a5427' as Hex,
+        yParity: '0x0' as Hex,
+      };
+
+      expect(recoverAuthorizationAuthority(authorization)).toBe(
+        '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
+      );
+    });
+
+    it('returns undefined for an invalid signature', () => {
+      const authorization = {
+        address: '0xcccccccccccccccccccccccccccccccccccccccc' as Hex,
+        chainId: '0x1' as Hex,
+        nonce: '0x6' as Hex,
+        r: '0x0' as Hex,
+        s: '0x0' as Hex,
+        yParity: '0x0' as Hex,
+      };
+
+      expect(recoverAuthorizationAuthority(authorization)).toBeUndefined();
+    });
+  });
+
+  describe('getAuthorizationAuthority', () => {
+    it('returns the transaction sender for unsigned authorizations', () => {
+      expect(
+        getAuthorizationAuthority(
+          { address: '0xcccccccccccccccccccccccccccccccccccccccc' },
+          '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+        ),
+      ).toBe('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+    });
+
+    it('recovers the signer for signed authorizations', () => {
+      expect(
+        getAuthorizationAuthority(
+          {
+            address: '0xcccccccccccccccccccccccccccccccccccccccc',
+            chainId: '0x1',
+            nonce: '0x6',
+            r: '0xe2582357434f268c18dd7e2920dd3a911bfc6fc5e498bf7eb33fa0f484bd1488',
+            s: '0x6300c28d38a634904af92933b5b31433536a7cee8a505945c13ade9f3a1a5427',
+            yParity: '0x0',
+          },
+          '0xother',
+        ),
+      ).toBe('0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266');
     });
   });
 

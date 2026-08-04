@@ -9296,6 +9296,7 @@ __metadata:
   dependencies:
     "@babel/runtime": "npm:^7.23.9"
     "@ethereumjs/common": "npm:^4.4.0"
+    "@ethereumjs/rlp": "npm:^5.0.2"
     "@ethereumjs/tx": "npm:^5.4.0"
     "@ethereumjs/util": "npm:^9.1.0"
     "@ethersproject/abi": "npm:^5.7.0"
@@ -9328,6 +9329,7 @@ __metadata:
     bn.js: "npm:^5.2.1"
     deepmerge: "npm:^4.2.2"
     eth-method-registry: "npm:^4.0.0"
+    ethereum-cryptography: "npm:^2.2.1"
     fast-json-patch: "npm:^3.1.1"
     immer: "npm:^9.0.6"
     jest: "npm:^30.4.2"

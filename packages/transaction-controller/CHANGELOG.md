@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Refresh gas fee token quotes independently of balance changes for enforced-simulation transactions, and prevent stale simulation responses from overwriting newer transaction state. ([#9757](https://github.com/MetaMask/core/pull/9757))
 - Retain pre-signed entries in `signAuthorizationList` instead of re-signing them with `txParams.from`, so authorizations signed by a different account survive publish ([#9765](https://github.com/MetaMask/core/pull/9765))
+- Attribute EIP-7702 authorization nonces to their recovered authorities in the nonce tracker, so foreign authorizations (e.g. Money Account upgrades on same-chain pay batches) do not inflate the batch payer's pending nonce ([#9765](https://github.com/MetaMask/core/pull/9765))
 
 ## [69.4.0]
 

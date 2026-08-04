@@ -284,12 +284,6 @@ async function getNestedTransactionMeta(
 }
 
 /**
- * Process a batch transaction using an EIP-7702 transaction.
- *
- * @param request - The request object including the user request and necessary callbacks.
- * @returns The batch result object including the batch ID.
- */
-/**
  * Build the authorization list for an EIP-7702 batch transaction.
  *
  * When the batch payer (`from`) requires an upgrade, an unsigned upgrade
@@ -341,6 +335,12 @@ function buildBatchAuthorizationList({
   return authorizationList.length ? authorizationList : undefined;
 }
 
+/**
+ * Process a batch transaction using an EIP-7702 transaction.
+ *
+ * @param request - The request object including the user request and necessary callbacks.
+ * @returns The batch result object including the batch ID.
+ */
 async function addTransactionBatchWith7702(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {

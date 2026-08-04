@@ -1,9 +1,18 @@
+import { RLP } from '@ethereumjs/rlp';
+import {
+  bigIntToUnpaddedBytes,
+  bytesToHex,
+  ecrecover,
+  hexToBytes,
+  pubToAddress,
+} from '@ethereumjs/util';
 import { defaultAbiCoder } from '@ethersproject/abi';
 import { Contract } from '@ethersproject/contracts';
 import { toHex } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger, add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { keccak256 } from 'ethereum-cryptography/keccak';
 
 import { ABI_IERC7821 } from '../constants.js';
 import { projectLogger } from '../logger.js';
@@ -25,6 +34,9 @@ export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
 export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
 export const ERROR_MESSGE_PUBLIC_KEY = 'EIP-7702 public key not specified';
+
+/** EIP-7702 authorization signature magic prefix. */
+const EIP7702_AUTHORIZATION_MAGIC = 0x05;
 
 /**
  * ERC-7579 ModeCode encoding for the ERC-7821 `execute` function.
@@ -413,7 +425,7 @@ async function signAuthorization(
  * @param authorization - Authorization to check.
  * @returns True when chainId, nonce, and signature components are all present.
  */
-function isAuthorizationSigned(
+export function isAuthorizationSigned(
   authorization: Authorization,
 ): authorization is Required<Authorization> {
   return Boolean(
@@ -423,6 +435,60 @@ function isAuthorizationSigned(
     authorization.s &&
     authorization.yParity !== undefined,
   );
+}
+
+/**
+ * Recover the authority (signer) of a fully signed EIP-7702 authorization.
+ *
+ * Per EIP-7702: `authority = ecrecover(keccak(MAGIC || rlp([chain_id, address, nonce])), y_parity, r, s)`.
+ *
+ * @param authorization - Fully signed authorization.
+ * @returns The recovered authority address, or undefined if recovery fails.
+ */
+export function recoverAuthorizationAuthority(
+  authorization: Required<Authorization>,
+): Hex | undefined {
+  try {
+    const chainIdBytes = bigIntToUnpaddedBytes(BigInt(authorization.chainId));
+    const addressBytes = hexToBytes(authorization.address);
+    const nonceBytes = bigIntToUnpaddedBytes(BigInt(authorization.nonce));
+    const rlpEncoded = RLP.encode([chainIdBytes, addressBytes, nonceBytes]);
+    const messageHash = keccak256(
+      Uint8Array.from([EIP7702_AUTHORIZATION_MAGIC, ...rlpEncoded]),
+    );
+    const publicKey = ecrecover(
+      messageHash,
+      BigInt(authorization.yParity),
+      bigIntToUnpaddedBytes(BigInt(authorization.r)),
+      bigIntToUnpaddedBytes(BigInt(authorization.s)),
+    );
+
+    return bytesToHex(pubToAddress(publicKey)) as Hex;
+  } catch (error) {
+    log('Failed to recover authorization authority', { authorization, error });
+    return undefined;
+  }
+}
+
+/**
+ * Resolve which account an authorization nonce belongs to for nonce tracking.
+ *
+ * Unsigned authorizations are signed by the outer transaction sender (`from`).
+ * Signed authorizations recover their authority independently per EIP-7702.
+ *
+ * @param authorization - Authorization entry.
+ * @param transactionFrom - Outer transaction sender.
+ * @returns Authority address, or undefined when a signed auth cannot be recovered.
+ */
+export function getAuthorizationAuthority(
+  authorization: Authorization,
+  transactionFrom: string,
+): Hex | undefined {
+  if (!isAuthorizationSigned(authorization)) {
+    return transactionFrom as Hex;
+  }
+
+  return recoverAuthorizationAuthority(authorization);
 }
 
 /**
