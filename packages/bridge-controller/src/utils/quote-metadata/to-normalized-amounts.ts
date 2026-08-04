@@ -1,7 +1,7 @@
 import type { DeepPartial } from '../../types.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { FeeType } from '../../validators/quote.js';
-import { calcTokenAmount } from '../number-formatters.js';
+import { calcNormalizedTokenAmount } from '../number-formatters.js';
 
 /**
  * Builds a partial {@link QuoteResponese} with normalized amounts
@@ -17,36 +17,36 @@ export const toNormalizedAmounts = (
   return {
     quote: {
       src: {
-        normalizedAmount: calcTokenAmount(
+        normalizedAmount: calcNormalizedTokenAmount(
           src?.amount,
           src?.asset?.decimals,
         )?.toFixed(),
       },
       dest: {
-        normalizedAmount: calcTokenAmount(
+        normalizedAmount: calcNormalizedTokenAmount(
           dest?.amount,
           dest?.asset?.decimals,
         )?.toFixed(),
-        minAmountNormalized: calcTokenAmount(
+        minAmountNormalized: calcNormalizedTokenAmount(
           dest?.minAmount,
           dest?.asset?.decimals,
         )?.toFixed(),
       },
       feeData: {
         network: feeData?.[FeeType.NETWORK]?.map((networkFee) => ({
-          normalizedAmount: calcTokenAmount(
+          normalizedAmount: calcNormalizedTokenAmount(
             networkFee?.amount,
             networkFee?.asset?.decimals,
           )?.toFixed(),
         })),
         relayer: feeData?.[FeeType.RELAYER]?.map((relayerFee) => ({
-          normalizedAmount: calcTokenAmount(
+          normalizedAmount: calcNormalizedTokenAmount(
             relayerFee.amount,
             relayerFee.asset?.decimals,
           )?.toFixed(),
         })),
         txFee: feeData?.[FeeType.TX_FEE]?.map((txFee) => ({
-          normalizedAmount: calcTokenAmount(
+          normalizedAmount: calcNormalizedTokenAmount(
             txFee.amount,
             txFee.asset?.decimals,
           )?.toFixed(),

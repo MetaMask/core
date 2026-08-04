@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.2]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.4.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
 
 ## [6.2.1]
 
@@ -386,7 +389,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.2...HEAD
+[6.2.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.1...@metamask/subscription-controller@6.2.2
 [6.2.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.0...@metamask/subscription-controller@6.2.1
 [6.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.3...@metamask/subscription-controller@6.2.0
 [6.1.3]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.2...@metamask/subscription-controller@6.1.3
