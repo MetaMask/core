@@ -87,7 +87,7 @@ export const formatProviderLabel = ({
  * @param quoteRequest.srcChainId - Source chain id of the quote request.
  * @param quoteRequest.destChainId - Destination chain id of the quote request.
  * @param quoteRequest.srcTokenAddress - Source token address of the quote request.
- * @param quoteRequest.destTokenAddress - Destination  token address of the quote request.
+ * @param quoteRequest.destTokenAddress - Destination token address of the quote request.
  * @param tokenSecurityTypeDestination - The security classification of the destination token,
  * supplied by the client (e.g. from token security/scanning data). Pass `null` when no
  * security data is available for the selected destination token.

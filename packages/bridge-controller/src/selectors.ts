@@ -402,11 +402,11 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
     ({ quotes }) => quotes,
     (_, { migrationPhase }: BridgeQuotesClientParams) => migrationPhase,
   ],
-  (quoteMetadata, quoteMetadataV2, quotes, migrationPhase) =>
+  (legacyQuoteMetadata, quoteMetadataV2, quotes, migrationPhase) =>
     quotes.map((quote, index) => {
       return mergeQuoteMetadata(
         quote,
-        quoteMetadata[index],
+        legacyQuoteMetadata[index],
         migrationPhase,
         quoteMetadataV2?.[index],
       );

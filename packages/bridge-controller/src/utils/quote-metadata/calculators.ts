@@ -19,8 +19,8 @@ import { FloatStringSchema } from '../../validators/number.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
 import { QuoteResponseSchemaV2 } from '../../validators/quote-response.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
-import type { TxData } from '../../validators/trade.js';
 import { FeeType } from '../../validators/quote.js';
+import type { TxData } from '../../validators/trade.js';
 import { isEvmQuoteResponse, isNativeAddress } from '../bridge.js';
 import { calcNormalizedTokenAmount } from '../number-formatters.js';
 import type { QuoteMetadata, TokenAmountValues } from './types.js';
@@ -541,11 +541,11 @@ export const calcQuoteMetadata = (
 };
 
 /**
- * Builds a partial {@link QuoteResponse} object with fiat values derived from the usd values and the usd to fiat exchange rate
+ * Builds a partial {@link QuoteResponse} object with fiat values derived from the usd values provided by the bridge-api
  *
  * @param quote - The quote response to calculate the metadata for
  * @param usdToFiatExchangeRateString - The usd to fiat exchange rate
- * @returns The partial {@link QuoteResponse} object with fiat values derived from the usd values and the usd to fiat exchange rate
+ * @returns The partial {@link QuoteResponse} object with fiat values
  */
 export const calcQuoteMetadataV2 = (
   quote: QuoteResponse,
@@ -577,7 +577,7 @@ export const calcQuoteMetadataV2 = (
           feeType,
           quote.quote.feeData[feeType]
             ?.filter((fee) => fee.usd !== undefined)
-            .map((fee) => ({
+            ?.map((fee) => ({
               valueInCurrency:
                 fee.usd && usdToFiatExchangeRate.times(fee.usd).toFixed(),
             })),

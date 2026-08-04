@@ -1406,11 +1406,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (is(quote, QuoteResponseSchemaV1)) {
         return quote;
       }
-      const quoteMetadata = toQuoteMetadataV1(quote, migrationPhase);
+
       return mergeQuoteMetadata(
         toQuoteResponseV1(quote),
-        quoteMetadata,
+        toQuoteMetadataV1(quote, migrationPhase),
         migrationPhase,
+        quote, // Use fiat/usd metadata from the quote response in phase 1.5 and 2
       );
     });
     const quoteResponse = quoteResponses[0];

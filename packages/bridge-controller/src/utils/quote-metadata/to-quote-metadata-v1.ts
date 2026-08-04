@@ -63,92 +63,89 @@ export const toQuoteMetadataV1 = (
       : {}),
   };
 
-  // Build V1 from V2 quote
-  if (is(quoteResponse, QuoteResponseSchemaV2) && migrationPhase !== '1') {
-    const totalNetworkFeeV2 = sumAmounts(
-      quoteResponse?.quote?.feeData?.network,
-      quoteResponse?.quote?.feeData?.relayer,
-    );
-    const v2Metadata: QuoteMetadata | undefined = {
-      sentAmount: {
-        amount: quoteResponse?.quote?.src?.normalizedAmount,
-        usd: quoteResponse?.quote?.src?.usd,
-        valueInCurrency: quoteResponse?.quote?.src?.valueInCurrency,
-      },
-      toTokenAmount: {
-        amount: quoteResponse?.quote?.dest?.normalizedAmount,
-        usd: quoteResponse?.quote?.dest?.usd,
-        valueInCurrency: quoteResponse?.quote?.dest?.valueInCurrency,
-      },
-      minToTokenAmount: {
-        amount: quoteResponse?.quote?.dest?.minAmountNormalized,
-        valueInCurrency: quoteResponse?.quote?.dest?.minAmountValueInCurrency,
-        usd: quoteResponse?.quote?.dest?.minAmountUsd,
-      },
-      swapRate: quoteResponse?.quote?.priceData?.swapRate,
-      adjustedReturn: {
-        usd: quoteResponse?.quote?.priceData?.adjustedReturn?.usd,
-        valueInCurrency:
-          quoteResponse?.quote?.priceData?.adjustedReturn?.valueInCurrency ??
-          undefined,
-      },
-      cost: {
-        valueInCurrency:
-          quoteResponse?.quote?.priceData?.priceImpact?.valueInCurrency ??
-          undefined,
-        usd: quoteResponse?.quote?.priceData?.priceImpact?.usd,
-      },
-      gasFee: {
-        total: {
-          amount:
-            quoteResponse?.quote?.feeData?.network?.[0]?.normalizedAmount ??
-            undefined,
-          usd: quoteResponse?.quote?.feeData?.network?.[0]?.usd,
-          valueInCurrency:
-            quoteResponse?.quote?.feeData?.network?.[0]?.valueInCurrency ??
-            undefined,
-        },
-      },
-      totalNetworkFee: {
-        amount: totalNetworkFeeV2?.normalizedAmount,
-        usd: totalNetworkFeeV2?.usd,
-        valueInCurrency: totalNetworkFeeV2?.valueInCurrency,
-      },
-      priceImpact: {
-        usd: quoteResponse?.quote?.priceData?.priceImpact?.usd,
-        valueInCurrency:
-          quoteResponse?.quote?.priceData?.priceImpact?.valueInCurrency ??
-          undefined,
-      },
-      relayerFee: {
-        amount:
-          quoteResponse?.quote?.feeData?.relayer?.[0]?.normalizedAmount ??
-          undefined,
-        usd: quoteResponse?.quote?.feeData?.relayer?.[0]?.usd,
-        valueInCurrency:
-          quoteResponse?.quote?.feeData?.relayer?.[0]?.valueInCurrency ??
-          undefined,
-      },
-      includedTxFees: {
-        amount: quoteResponse?.quote?.feeData?.txFee?.[0]?.normalizedAmount,
-        usd: quoteResponse?.quote?.feeData?.txFee?.[0]?.usd,
-        valueInCurrency:
-          quoteResponse?.quote?.feeData?.txFee?.[0]?.valueInCurrency ??
-          undefined,
-      },
-    };
-
-    if (migrationPhase === '1.5') {
-      // Phase 1.5 uses legacyMetadata as fallback
-      return merge({}, legacyMetadata, v2Metadata);
-    }
-
-    // Phase 2 only uses metadata from the API response
-    if (migrationPhase === '2' && v2Metadata) {
-      return v2Metadata;
-    }
+  if (!is(quoteResponse, QuoteResponseSchemaV2) || migrationPhase === '1') {
+    // Return legacy metadata as-is, extract from quote
+    return legacyMetadata;
   }
 
-  // Return legacy metadata as-is, extract from quote
-  return merge({}, legacyMetadata);
+  // Build V1 from V2 quote
+  const totalNetworkFeeV2 = sumAmounts(
+    quoteResponse?.quote?.feeData?.network,
+    quoteResponse?.quote?.feeData?.relayer,
+  );
+  const v2Metadata: QuoteMetadata | undefined = {
+    sentAmount: {
+      amount: quoteResponse?.quote?.src?.normalizedAmount,
+      usd: quoteResponse?.quote?.src?.usd,
+      valueInCurrency: quoteResponse?.quote?.src?.valueInCurrency,
+    },
+    toTokenAmount: {
+      amount: quoteResponse?.quote?.dest?.normalizedAmount,
+      usd: quoteResponse?.quote?.dest?.usd,
+      valueInCurrency: quoteResponse?.quote?.dest?.valueInCurrency,
+    },
+    minToTokenAmount: {
+      amount: quoteResponse?.quote?.dest?.minAmountNormalized,
+      valueInCurrency: quoteResponse?.quote?.dest?.minAmountValueInCurrency,
+      usd: quoteResponse?.quote?.dest?.minAmountUsd,
+    },
+    swapRate: quoteResponse?.quote?.priceData?.swapRate,
+    adjustedReturn: {
+      usd: quoteResponse?.quote?.priceData?.adjustedReturn?.usd,
+      valueInCurrency:
+        quoteResponse?.quote?.priceData?.adjustedReturn?.valueInCurrency ??
+        undefined,
+    },
+    cost: {
+      valueInCurrency:
+        quoteResponse?.quote?.priceData?.priceImpact?.valueInCurrency ??
+        undefined,
+      usd: quoteResponse?.quote?.priceData?.priceImpact?.usd,
+    },
+    gasFee: {
+      total: {
+        amount:
+          quoteResponse?.quote?.feeData?.network?.[0]?.normalizedAmount ??
+          undefined,
+        usd: quoteResponse?.quote?.feeData?.network?.[0]?.usd,
+        valueInCurrency:
+          quoteResponse?.quote?.feeData?.network?.[0]?.valueInCurrency ??
+          undefined,
+      },
+    },
+    totalNetworkFee: {
+      amount: totalNetworkFeeV2?.normalizedAmount,
+      usd: totalNetworkFeeV2?.usd,
+      valueInCurrency: totalNetworkFeeV2?.valueInCurrency,
+    },
+    priceImpact: {
+      usd: quoteResponse?.quote?.priceData?.priceImpact?.usd,
+      valueInCurrency:
+        quoteResponse?.quote?.priceData?.priceImpact?.valueInCurrency ??
+        undefined,
+    },
+    relayerFee: {
+      amount:
+        quoteResponse?.quote?.feeData?.relayer?.[0]?.normalizedAmount ??
+        undefined,
+      usd: quoteResponse?.quote?.feeData?.relayer?.[0]?.usd,
+      valueInCurrency:
+        quoteResponse?.quote?.feeData?.relayer?.[0]?.valueInCurrency ??
+        undefined,
+    },
+    includedTxFees: {
+      amount: quoteResponse?.quote?.feeData?.txFee?.[0]?.normalizedAmount,
+      usd: quoteResponse?.quote?.feeData?.txFee?.[0]?.usd,
+      valueInCurrency:
+        quoteResponse?.quote?.feeData?.txFee?.[0]?.valueInCurrency ?? undefined,
+    },
+  };
+
+  if (migrationPhase === '1.5') {
+    // Phase 1.5 uses legacyMetadata as fallback
+    return merge({}, legacyMetadata, v2Metadata);
+  }
+
+  // Phase 2 only uses metadata from the API response
+  return v2Metadata;
 };

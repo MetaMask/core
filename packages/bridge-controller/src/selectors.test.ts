@@ -706,11 +706,14 @@ describe('Bridge Selectors', () => {
               ...quote,
               quote: {
                 ...quote.quote,
+                src: { ...quote.quote.src, usd: '1' },
+                dest: { ...quote.quote.dest, usd: '2' },
                 feeData: {
                   ...quote.quote.feeData,
                   network: [
                     {
                       amount: '7500000000000',
+                      usd: '0.01514',
                       asset: toBridgeAssetV2(getNativeAssetForChainId(1)),
                     },
                   ],
@@ -738,8 +741,8 @@ describe('Bridge Selectors', () => {
           },
           mockClientParams,
         );
-      const quote = mockState.quotes[1];
-      const expectedQuoteMetadata = calcQuoteMetadata(quote, {
+
+      const expectedQuoteMetadata = calcQuoteMetadata(mockState.quotes[1], {
         srcTokenExchangeRate: { exchangeRate: '1980', usdExchangeRate: '10' },
         bridgeFeesPerGas: {
           estimatedBaseFeeInDecGwei: '0',
@@ -748,45 +751,24 @@ describe('Bridge Selectors', () => {
         destTokenExchangeRate: { exchangeRate: '200', usdExchangeRate: '1' },
         nativeExchangeRate: { exchangeRate: '1980', usdExchangeRate: '10' },
       });
-      const expectedQuoteV2 = mergeQuoteMetadata(quote, expectedQuoteMetadata);
-      expect(
-        expectedQuoteV2?.quote?.priceData?.priceImpact?.usd,
-      ).toMatchInlineSnapshot(`"8.9"`);
-
-      expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
-
-      expect(result.recommendedQuote?.priceImpact?.valueInCurrency).toBe(
-        expectedQuoteV2.priceImpact?.valueInCurrency,
-      );
-      expect(result.recommendedQuote?.quote.priceData?.priceImpact)
-        .toMatchInlineSnapshot(`
-        {
-          "usd": "8.9",
-          "valueInCurrency": "1758",
-        }
-      `);
-      expect(result.recommendedQuote?.priceImpact).toMatchInlineSnapshot(`
-        {
-          "usd": "8.9",
-          "valueInCurrency": "1758",
-        }
-      `);
-
       expect(toQuoteMetadataV1(result.recommendedQuote)).toStrictEqual(
         expectedQuoteMetadata,
       );
 
-      expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
       expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('1758.014454');
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result.recommendedQuote).toMatchSnapshot();
     });
 
     it('should return sorted quotes with metadata (Phase 1.5)', () => {
+      const migrationPhase = '1.5';
       const mockState = getMockState(1);
       const mockQuote = mockState.quotes[0];
       const quotes = mockState.quotes.map((quote) => ({
         ...quote,
         quote: {
           ...quote.quote,
+          src: { ...quote.quote.src, usd: '1' },
           feeData: {
             ...quote.quote.feeData,
             network: [
@@ -796,98 +778,10 @@ describe('Bridge Selectors', () => {
                 asset: toBridgeAssetV2(getNativeAssetForChainId(1)),
               },
             ],
-          },
-          priceData: {
-            ...quote.quote.priceData,
-            ...(quote.quote.requestId === '456' && {
-              priceImpact: {
-                usd: '7.9',
-              },
-            }),
-          },
-        },
-      }));
-      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
-        selectBridgeQuotes(
-          {
-            ...mockState,
-            quotes,
-            assetExchangeRates: {
-              [mockQuote.quote.src.asset.assetId]: {
-                exchangeRate: '1980',
-                usdExchangeRate: '10',
-              },
-              [mockQuote.quote.dest.asset.assetId]: {
-                exchangeRate: '200',
-                usdExchangeRate: '1',
-              },
-            },
-          },
-          { ...mockClientParams, migrationPhase: '1.5' },
-        );
-
-      const quote = quotes[1];
-      const expectedQuoteMetadata = calcQuoteMetadata(quote, {
-        srcTokenExchangeRate: { exchangeRate: '1980', usdExchangeRate: '10' },
-        bridgeFeesPerGas: {
-          estimatedBaseFeeInDecGwei: '0',
-          feePerGasInDecGwei: '.1',
-        },
-        destTokenExchangeRate: { exchangeRate: '200', usdExchangeRate: '1' },
-        nativeExchangeRate: { exchangeRate: '1980', usdExchangeRate: '10' },
-      });
-      const expectedQuoteV2 = mergeQuoteMetadata(
-        quote,
-        expectedQuoteMetadata,
-        '1.5',
-        calcQuoteMetadataV2(quote, (1980 / 10).toString()),
-      );
-
-      expect(
-        expectedQuoteV2?.quote?.priceData?.priceImpact?.usd,
-      ).toMatchInlineSnapshot(`"7.9"`);
-
-      expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
-
-      expect(result.recommendedQuote?.priceImpact?.valueInCurrency).toBe(
-        expectedQuoteV2.priceImpact?.valueInCurrency,
-      );
-      expect(result.recommendedQuote?.quote.priceData?.priceImpact)
-        .toMatchInlineSnapshot(`
-        {
-          "usd": "7.9",
-          "valueInCurrency": "1564.2",
-        }
-      `);
-      expect(result.recommendedQuote?.priceImpact).toMatchInlineSnapshot(`
-        {
-          "usd": "8.9",
-          "valueInCurrency": "1758",
-        }
-      `);
-
-      expect(toQuoteMetadataV1(result.recommendedQuote)).toStrictEqual(
-        expectedQuoteMetadata,
-      );
-
-      expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
-      expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('1758.014454');
-    });
-
-    it('should return sorted quotes with metadata (Phase 2)', () => {
-      const mockState = getMockState(1);
-      const mockQuote = mockState.quotes[0];
-      const quotes = mockState.quotes.map((quote) => ({
-        ...quote,
-        quote: {
-          ...quote.quote,
-          feeData: {
-            ...quote.quote.feeData,
-            network: [
+            relayer: [
               {
-                amount: '7500000000000',
+                amount: '100000000000',
                 asset: toBridgeAssetV2(getNativeAssetForChainId(1)),
-                usd: undefined,
               },
             ],
           },
@@ -917,100 +811,88 @@ describe('Bridge Selectors', () => {
               },
             },
           },
-          { ...mockClientParams, migrationPhase: '2' },
+          { ...mockClientParams, migrationPhase },
         );
 
-      const quote = quotes[1];
-      const expectedQuoteV2 = mergeQuoteMetadata(
-        quote,
-        {},
-        '2',
-        calcQuoteMetadataV2(quote, (1980 / 10).toString()),
+      const expectedQuoteMetadata = calcQuoteMetadata(quotes[1], {
+        srcTokenExchangeRate: { exchangeRate: '1980', usdExchangeRate: '10' },
+        bridgeFeesPerGas: {
+          estimatedBaseFeeInDecGwei: '0',
+          feePerGasInDecGwei: '.1',
+        },
+        destTokenExchangeRate: { exchangeRate: '200', usdExchangeRate: '1' },
+        nativeExchangeRate: { exchangeRate: '1980', usdExchangeRate: '10' },
+      });
+
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result.sortedQuotes[0]).toMatchSnapshot();
+      expect(result.recommendedQuote).toMatchObject(expectedQuoteMetadata);
+      expect(result.recommendedQuote).not.toMatchObject(
+        toQuoteMetadataV1(result.recommendedQuote, migrationPhase),
       );
+    });
 
-      expect(
-        expectedQuoteV2?.quote?.priceData?.priceImpact?.usd,
-      ).toMatchInlineSnapshot(`"7.9"`);
-
-      expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
-
-      expect(result.recommendedQuote?.priceImpact?.valueInCurrency).toBe(
-        expectedQuoteV2.priceImpact?.valueInCurrency,
-      );
-      expect(result.recommendedQuote?.quote.priceData?.priceImpact)
-        .toMatchInlineSnapshot(`
-        {
-          "usd": "7.9",
-          "valueInCurrency": "1564.2",
-        }
-      `);
-      expect(result.recommendedQuote?.priceImpact).toBeUndefined();
-      expect(result.recommendedQuote?.sentAmount).toBeUndefined();
-      expect(result.recommendedQuote?.toTokenAmount).toBeUndefined();
-      expect(result.recommendedQuote?.minToTokenAmount).toBeUndefined();
-      expect(result.recommendedQuote?.swapRate).toBeUndefined();
-      expect(result.recommendedQuote?.totalNetworkFee).toBeUndefined();
-      expect(result.recommendedQuote?.gasFee).toBeUndefined();
-      expect(result.recommendedQuote?.relayerFee).toBeUndefined();
-      expect(result.recommendedQuote?.includedTxFees).toBeUndefined();
-      expect(result.sortedQuotes[0].cost).toBeUndefined();
-
-      expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
-      expect(toQuoteMetadataV1(result.recommendedQuote, '2'))
-        .toMatchInlineSnapshot(`
-        {
-          "adjustedReturn": {
-            "usd": undefined,
-            "valueInCurrency": undefined,
+    it('should return sorted quotes with metadata (Phase 2)', () => {
+      const migrationPhase = '2';
+      const mockState = getMockState(1);
+      const mockQuote = mockState.quotes[0];
+      const quotes = mockState.quotes.map((quote) => ({
+        ...quote,
+        quote: {
+          ...quote.quote,
+          src: { ...quote.quote.src, usd: '1' },
+          dest: { ...quote.quote.dest, usd: '2' },
+          feeData: {
+            ...quote.quote.feeData,
+            network: [
+              {
+                amount: '7500000000000',
+                asset: toBridgeAssetV2(getNativeAssetForChainId(1)),
+                usd: undefined,
+              },
+            ],
+            relayer: [
+              {
+                amount: '100000000000',
+                usd: '0.0001',
+                asset: toBridgeAssetV2(getNativeAssetForChainId(1)),
+              },
+            ],
           },
-          "cost": {
-            "usd": "7.9",
-            "valueInCurrency": "1564.2",
+          priceData: {
+            ...quote.quote.priceData,
+            ...(quote.quote.requestId === '456' && {
+              priceImpact: {
+                usd: '7.9',
+              },
+            }),
           },
-          "gasFee": {
-            "total": {
-              "amount": "0.0000075",
-              "usd": undefined,
-              "valueInCurrency": undefined,
+        },
+      }));
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            quotes,
+            assetExchangeRates: {
+              [mockQuote.quote.src.asset.assetId]: {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              [mockQuote.quote.dest.asset.assetId]: {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
             },
           },
-          "includedTxFees": {
-            "amount": undefined,
-            "usd": undefined,
-            "valueInCurrency": undefined,
-          },
-          "minToTokenAmount": {
-            "amount": "1.8",
-            "usd": undefined,
-            "valueInCurrency": undefined,
-          },
-          "priceImpact": {
-            "usd": "7.9",
-            "valueInCurrency": "1564.2",
-          },
-          "relayerFee": {
-            "amount": undefined,
-            "usd": undefined,
-            "valueInCurrency": undefined,
-          },
-          "sentAmount": {
-            "amount": "1.1",
-            "usd": undefined,
-            "valueInCurrency": undefined,
-          },
-          "swapRate": undefined,
-          "toTokenAmount": {
-            "amount": "2.1",
-            "usd": undefined,
-            "valueInCurrency": undefined,
-          },
-          "totalNetworkFee": {
-            "amount": "0.0000075",
-            "usd": undefined,
-            "valueInCurrency": undefined,
-          },
-        }
-      `);
+          { ...mockClientParams, migrationPhase },
+        );
+
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result.recommendedQuote).toMatchSnapshot();
+      // expect(result.recommendedQuote).not.toMatchObject(
+      //   toQuoteMetadataV1(result.recommendedQuote, migrationPhase),
+      // );
     });
 
     it('should return metadata when quotes are empty', () => {

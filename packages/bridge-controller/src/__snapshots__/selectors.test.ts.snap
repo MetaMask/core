@@ -1,0 +1,409 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with metadata (Phase 1.5) 1`] = `
+{
+  "adjustedReturn": {
+    "usd": "2.099927",
+    "valueInCurrency": "419.985546",
+  },
+  "approval": {
+    "chainId": 1,
+    "data": "0x0",
+    "effectiveGas": 46000,
+    "from": "0x0000000000000000000000000000000000000000",
+    "gasLimit": 49000,
+    "to": "0x0000000000000000000000000000000000000000",
+    "value": "0x0",
+  },
+  "chainId": "eip155:1",
+  "cost": {
+    "usd": "8.900073",
+    "valueInCurrency": "1758.014454",
+  },
+  "estimatedProcessingTimeInSeconds": 300,
+  "gasFee": {
+    "total": {
+      "amount": "0.0000073",
+      "usd": "0.000073",
+      "valueInCurrency": "0.014454",
+    },
+  },
+  "minToTokenAmount": {
+    "amount": "1.8",
+    "usd": "1.8",
+    "valueInCurrency": "360",
+  },
+  "namespace": "eip155",
+  "priceImpact": {
+    "usd": "8.9",
+    "valueInCurrency": "1758",
+  },
+  "quote": {
+    "aggregator": "bridge1",
+    "dest": {
+      "amount": "2100000000000000000",
+      "asset": {
+        "assetId": "eip155:137/slip44:966",
+        "decimals": 18,
+        "name": "Polygon",
+        "symbol": "POL",
+      },
+      "minAmount": "1800000000000000000",
+      "minAmountNormalized": "1.8",
+      "minAmountUsd": "1.8",
+      "minAmountValueInCurrency": "360",
+      "normalizedAmount": "2.1",
+      "usd": "2.1",
+      "valueInCurrency": "420",
+    },
+    "feeData": {
+      "metabridge": [
+        {
+          "amount": "100000000000000000",
+          "asset": {
+            "assetId": "eip155:1/slip44:60",
+            "decimals": 18,
+            "name": "Ethereum",
+            "symbol": "ETH",
+          },
+        },
+      ],
+      "network": [
+        {
+          "amount": "7500000000000",
+          "asset": {
+            "assetId": "eip155:1/slip44:60",
+            "decimals": 18,
+            "name": "Ether",
+            "symbol": "ETH",
+          },
+          "normalizedAmount": "0.0000075",
+          "usd": "0.01514",
+          "valueInCurrency": "2.99772",
+        },
+      ],
+      "refuel": undefined,
+      "relayer": [
+        {
+          "amount": "100000000000",
+          "asset": {
+            "assetId": "eip155:1/slip44:60",
+            "decimals": 18,
+            "name": "Ether",
+            "symbol": "ETH",
+          },
+          "normalizedAmount": "0.0000001",
+        },
+      ],
+      "txFee": undefined,
+    },
+    "priceData": {
+      "adjustedReturn": {
+        "usd": "2.099927",
+        "valueInCurrency": "419.985546",
+      },
+      "priceImpact": {
+        "usd": "7.9",
+        "valueInCurrency": "1564.2",
+      },
+      "swapRate": "1.90909090909090909091",
+    },
+    "protocols": [
+      "bridge1",
+    ],
+    "requestId": "456",
+    "src": {
+      "amount": "1100000000000000000",
+      "asset": {
+        "assetId": "eip155:1/slip44:60",
+        "decimals": 18,
+        "name": "Ethereum",
+        "symbol": "ETH",
+      },
+      "normalizedAmount": "1.1",
+      "usd": "1",
+      "valueInCurrency": "198",
+    },
+    "steps": [],
+  },
+  "sentAmount": {
+    "amount": "1.1",
+    "usd": "11",
+    "valueInCurrency": "2178",
+  },
+  "swapRate": "1.90909090909090909091",
+  "toTokenAmount": {
+    "amount": "2.1",
+    "usd": "2.1",
+    "valueInCurrency": "420",
+  },
+  "totalNetworkFee": {
+    "amount": "0.0000073",
+    "usd": "0.000073",
+    "valueInCurrency": "0.014454",
+  },
+  "trade": {
+    "chainId": 1,
+    "data": "0x0",
+    "effectiveGas": 21000,
+    "from": "0x0000000000000000000000000000000000000000",
+    "gasLimit": 24000,
+    "to": "0x0000000000000000000000000000000000000000",
+    "value": "0x0",
+  },
+}
+`;
+
+exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with metadata (Phase 2) 1`] = `
+{
+  "approval": {
+    "chainId": 1,
+    "data": "0x0",
+    "effectiveGas": 46000,
+    "from": "0x0000000000000000000000000000000000000000",
+    "gasLimit": 49000,
+    "to": "0x0000000000000000000000000000000000000000",
+    "value": "0x0",
+  },
+  "chainId": "eip155:1",
+  "estimatedProcessingTimeInSeconds": 300,
+  "namespace": "eip155",
+  "quote": {
+    "aggregator": "bridge1",
+    "dest": {
+      "amount": "2100000000000000000",
+      "asset": {
+        "assetId": "eip155:137/slip44:966",
+        "decimals": 18,
+        "name": "Polygon",
+        "symbol": "POL",
+      },
+      "minAmount": "1800000000000000000",
+      "minAmountNormalized": "1.8",
+      "minAmountValueInCurrency": undefined,
+      "normalizedAmount": "2.1",
+      "usd": "2",
+      "valueInCurrency": "396",
+    },
+    "feeData": {
+      "metabridge": [
+        {
+          "amount": "100000000000000000",
+          "asset": {
+            "assetId": "eip155:1/slip44:60",
+            "decimals": 18,
+            "name": "Ethereum",
+            "symbol": "ETH",
+          },
+        },
+      ],
+      "network": [
+        {
+          "amount": "7500000000000",
+          "asset": {
+            "assetId": "eip155:1/slip44:60",
+            "decimals": 18,
+            "name": "Ether",
+            "symbol": "ETH",
+          },
+          "normalizedAmount": "0.0000075",
+          "usd": undefined,
+        },
+      ],
+      "refuel": undefined,
+      "relayer": [
+        {
+          "amount": "100000000000",
+          "asset": {
+            "assetId": "eip155:1/slip44:60",
+            "decimals": 18,
+            "name": "Ether",
+            "symbol": "ETH",
+          },
+          "normalizedAmount": "0.0000001",
+          "usd": "0.0001",
+          "valueInCurrency": "0.0198",
+        },
+      ],
+      "txFee": undefined,
+    },
+    "priceData": {
+      "adjustedReturn": {
+        "valueInCurrency": undefined,
+      },
+      "priceImpact": {
+        "usd": "7.9",
+        "valueInCurrency": "1564.2",
+      },
+    },
+    "protocols": [
+      "bridge1",
+    ],
+    "requestId": "456",
+    "src": {
+      "amount": "1100000000000000000",
+      "asset": {
+        "assetId": "eip155:1/slip44:60",
+        "decimals": 18,
+        "name": "Ethereum",
+        "symbol": "ETH",
+      },
+      "normalizedAmount": "1.1",
+      "usd": "1",
+      "valueInCurrency": "198",
+    },
+    "steps": [],
+  },
+  "trade": {
+    "chainId": 1,
+    "data": "0x0",
+    "effectiveGas": 21000,
+    "from": "0x0000000000000000000000000000000000000000",
+    "gasLimit": 24000,
+    "to": "0x0000000000000000000000000000000000000000",
+    "value": "0x0",
+  },
+}
+`;
+
+exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with metadata 1`] = `
+{
+  "adjustedReturn": {
+    "usd": "2.099927",
+    "valueInCurrency": "419.985546",
+  },
+  "approval": {
+    "chainId": 1,
+    "data": "0x0",
+    "effectiveGas": 46000,
+    "from": "0x0000000000000000000000000000000000000000",
+    "gasLimit": 49000,
+    "to": "0x0000000000000000000000000000000000000000",
+    "value": "0x0",
+  },
+  "chainId": "eip155:1",
+  "cost": {
+    "usd": "8.900073",
+    "valueInCurrency": "1758.014454",
+  },
+  "estimatedProcessingTimeInSeconds": 300,
+  "gasFee": {
+    "total": {
+      "amount": "0.0000073",
+      "usd": "0.000073",
+      "valueInCurrency": "0.014454",
+    },
+  },
+  "minToTokenAmount": {
+    "amount": "1.8",
+    "usd": "1.8",
+    "valueInCurrency": "360",
+  },
+  "namespace": "eip155",
+  "priceImpact": {
+    "usd": "8.9",
+    "valueInCurrency": "1758",
+  },
+  "quote": {
+    "aggregator": "bridge1",
+    "dest": {
+      "amount": "2100000000000000000",
+      "asset": {
+        "assetId": "eip155:137/slip44:966",
+        "decimals": 18,
+        "name": "Polygon",
+        "symbol": "POL",
+      },
+      "minAmount": "1800000000000000000",
+      "minAmountNormalized": "1.8",
+      "minAmountUsd": "1.8",
+      "minAmountValueInCurrency": "360",
+      "normalizedAmount": "2.1",
+      "usd": "2.1",
+      "valueInCurrency": "420",
+    },
+    "feeData": {
+      "metabridge": [
+        {
+          "amount": "100000000000000000",
+          "asset": {
+            "assetId": "eip155:1/slip44:60",
+            "decimals": 18,
+            "name": "Ethereum",
+            "symbol": "ETH",
+          },
+        },
+      ],
+      "network": [
+        {
+          "amount": "7300000000000",
+          "asset": {
+            "assetId": "eip155:1/slip44:60",
+            "decimals": 18,
+            "name": "Ether",
+            "symbol": "ETH",
+          },
+          "normalizedAmount": "0.0000073",
+          "usd": "0.000073",
+          "valueInCurrency": "0.014454",
+        },
+      ],
+      "relayer": undefined,
+      "txFee": undefined,
+    },
+    "priceData": {
+      "adjustedReturn": {
+        "usd": "2.099927",
+        "valueInCurrency": "419.985546",
+      },
+      "priceImpact": {
+        "usd": "8.9",
+        "valueInCurrency": "1758",
+      },
+      "swapRate": "1.90909090909090909091",
+    },
+    "protocols": [
+      "bridge1",
+    ],
+    "requestId": "456",
+    "src": {
+      "amount": "1100000000000000000",
+      "asset": {
+        "assetId": "eip155:1/slip44:60",
+        "decimals": 18,
+        "name": "Ethereum",
+        "symbol": "ETH",
+      },
+      "normalizedAmount": "1.1",
+      "usd": "11",
+      "valueInCurrency": "2178",
+    },
+    "steps": [],
+  },
+  "sentAmount": {
+    "amount": "1.1",
+    "usd": "11",
+    "valueInCurrency": "2178",
+  },
+  "swapRate": "1.90909090909090909091",
+  "toTokenAmount": {
+    "amount": "2.1",
+    "usd": "2.1",
+    "valueInCurrency": "420",
+  },
+  "totalNetworkFee": {
+    "amount": "0.0000073",
+    "usd": "0.000073",
+    "valueInCurrency": "0.014454",
+  },
+  "trade": {
+    "chainId": 1,
+    "data": "0x0",
+    "effectiveGas": 21000,
+    "from": "0x0000000000000000000000000000000000000000",
+    "gasLimit": 24000,
+    "to": "0x0000000000000000000000000000000000000000",
+    "value": "0x0",
+  },
+}
+`;
