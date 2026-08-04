@@ -7,16 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Pass the quote's pre-signed `authorizationList` through `addTransactionBatch` for same-chain Relay submits when an account override is active, so Money Account vault upgrades are not dropped on the multi-step batch path ([#9765](https://github.com/MetaMask/core/pull/9765))
+
 ## [26.2.1]
 
 ### Changed
 
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/ramps-controller` from `^18.0.1` to `^19.0.0` ([#9778](https://github.com/MetaMask/core/pull/9778))
-
-### Fixed
-
-- Pass the quote's pre-signed `authorizationList` through `addTransactionBatch` for same-chain Relay submits when an account override is active, so Money Account vault upgrades are not dropped on the multi-step batch path ([#9765](https://github.com/MetaMask/core/pull/9765))
 
 ## [26.2.0]
 
