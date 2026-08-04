@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Changed
 
+- **BREAKING:** Make `chainId` required on `rampBuy` / `rampSell` `ActivityItem` variants, matching every other activity kind. `mapRampsOrder` now returns `null` when no CAIP chain id can be resolved from the order (empty or unparseable `network`, missing `cryptoCurrency.chainId` / `assetId`), instead of emitting an item with an undefined `chainId` ([#9777](https://github.com/MetaMask/core/pull/9777))
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
 - Bump `@metamask/core-backend` from `^8.1.0` to `^8.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
-- **BREAKING:** Make `chainId` required on `rampBuy` / `rampSell` `ActivityItem` variants, matching every other activity kind. `mapRampsOrder` now returns `null` when no CAIP chain id can be resolved from the order (empty or unparseable `network`, missing `cryptoCurrency.chainId` / `assetId`), instead of emitting an item with an undefined `chainId` ([#9777](https://github.com/MetaMask/core/pull/9777))
 
 ## [1.6.0]
 
@@ -111,7 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.6.0...@metamask/client-utils@2.0.0
 [1.6.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.5.0...@metamask/client-utils@1.6.0
 [1.5.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.4.0...@metamask/client-utils@1.5.0
 [1.4.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.3.1...@metamask/client-utils@1.4.0
