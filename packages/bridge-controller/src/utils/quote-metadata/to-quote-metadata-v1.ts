@@ -1,12 +1,12 @@
+import { is } from '@metamask/superstruct';
 import { merge } from 'lodash';
 
 import type { DeepPartial } from '../../types.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
 import { QuoteResponseSchemaV2 } from '../../validators/quote-response.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
-import type { QuoteMetadata } from './types.js';
-import { is } from '@metamask/superstruct';
 import { sumAmounts } from '../number-formatters.js';
+import type { QuoteMetadata } from './types.js';
 
 /**
  * Extracts legacy {@link QuoteMetadata} values from a {@link QuoteResponse} or {@link QuoteResponseV1}.

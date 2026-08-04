@@ -8,6 +8,7 @@ import { is } from '@metamask/superstruct';
 import { BigNumber } from 'bignumber.js';
 
 import { toQuoteResponseV1 } from '../../index.js';
+import { FeeType } from '../../index.js';
 import type {
   L1GasFees,
   ExchangeRate,
@@ -23,7 +24,6 @@ import type { TxData } from '../../validators/trade.js';
 import { isEvmQuoteResponse, isNativeAddress } from '../bridge.js';
 import { calcTokenAmount } from '../number-formatters.js';
 import type { QuoteMetadata, TokenAmountValues } from './types.js';
-import { FeeType } from '../../index.js';
 
 export const calcNonEvmTotalNetworkFee = (
   bridgeQuote: QuoteResponseV1 & NonEvmFees,
