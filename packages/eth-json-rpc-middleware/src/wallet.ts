@@ -23,6 +23,7 @@ import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize.js';
 import {
   resemblesAddress,
   validateAndNormalizeKeyholder as validateKeyholder,
+  validateTransactionParams,
   validateTypedDataForPrototypePollution,
   validateTypedDataV1ForPrototypePollution,
   validateTypedMessageKeys,
@@ -249,6 +250,7 @@ export function createWalletMiddleware({
     }
 
     const params = request.params[0] as TransactionParams | undefined;
+    validateTransactionParams(params);
     const txParams: TransactionParams = {
       ...params,
       // Not using nullish coalescing, since `params` may be `null`.
@@ -282,6 +284,7 @@ export function createWalletMiddleware({
     }
 
     const params = request.params[0] as TransactionParams | undefined;
+    validateTransactionParams(params);
     const txParams: TransactionParams = {
       ...params,
       // Not using nullish coalescing, since `params` may be `null`.

@@ -456,6 +456,7 @@ describe('HyperLiquidProvider', () => {
       getOrdersCacheIfInitialized: jest.fn().mockReturnValue(null),
       // Abstraction-mode resolved-mode setter (unified account migration)
       setUserAbstractionMode: jest.fn(),
+      getCachedAbstractionMode: jest.fn().mockReturnValue(null),
     } as Partial<HyperLiquidSubscriptionService> as jest.Mocked<HyperLiquidSubscriptionService>;
 
     // Mock constructors
@@ -2155,6 +2156,141 @@ describe('HyperLiquidProvider', () => {
         expect(result.success).toBe(false);
         expect(result.error).toBe('Order cancellation failed');
       });
+
+      it.each([
+        ['multi-sig required', PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED],
+        ['invalid nonce', PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE],
+      ])(
+        'maps HyperLiquid "%s" cancel rejection to %s with abstraction-mode context',
+        async (exchangeMessage, expectedCode) => {
+          mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+            createMockExchangeClient({
+              cancel: jest.fn().mockRejectedValue(new Error(exchangeMessage)),
+            }),
+          );
+          mockSubscriptionService.getCachedAbstractionMode.mockReturnValue(
+            'dexAbstraction',
+          );
+
+          const result = await provider.cancelOrder({
+            orderId: '123',
+            symbol: 'BTC',
+          });
+
+          expect(result.success).toBe(false);
+          expect(result.error).toBe(expectedCode);
+          expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+            expect.objectContaining({ message: expectedCode }),
+            expect.objectContaining({
+              context: expect.objectContaining({
+                data: expect.objectContaining({
+                  abstraction_mode: 'dexAbstraction',
+                }),
+              }),
+            }),
+          );
+        },
+      );
+
+      it.each([
+        ['multi-sig required', PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED],
+        ['invalid nonce', PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE],
+      ])(
+        'maps a non-thrown "%s" cancel status rejection to %s',
+        async (exchangeMessage, expectedCode) => {
+          // HyperLiquid usually rejects a cancel by resolving with a status
+          // object rather than throwing, so this is the common failure shape.
+          mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+            createMockExchangeClient({
+              cancel: jest.fn().mockResolvedValue({
+                status: 'ok',
+                response: {
+                  data: { statuses: [{ error: exchangeMessage }] },
+                },
+              }),
+            }),
+          );
+
+          const result = await provider.cancelOrder({
+            orderId: '123',
+            symbol: 'BTC',
+          });
+
+          expect(result.success).toBe(false);
+          expect(result.orderId).toBe('123');
+          expect(result.error).toBe(expectedCode);
+        },
+      );
+
+      it('preserves an unmapped cancel status error string', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest.fn().mockResolvedValue({
+              status: 'ok',
+              response: {
+                data: {
+                  statuses: [
+                    {
+                      error:
+                        'cancel 0: Order was never placed, already canceled, or filled. asset=4',
+                    },
+                  ],
+                },
+              },
+            }),
+          }),
+        );
+
+        const result = await provider.cancelOrder({
+          orderId: '123',
+          symbol: 'BTC',
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(
+          'cancel 0: Order was never placed, already canceled, or filled. asset=4',
+        );
+      });
+    });
+
+    describe('account-mode exchange error mapping', () => {
+      it.each([
+        ['multi-sig required', PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED],
+        ['invalid nonce', PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE],
+      ])(
+        'maps HyperLiquid "%s" order rejection to %s with abstraction-mode context',
+        async (exchangeMessage, expectedCode) => {
+          mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+            createMockExchangeClient({
+              order: jest.fn().mockRejectedValue(new Error(exchangeMessage)),
+            }),
+          );
+          mockSubscriptionService.getCachedAbstractionMode.mockReturnValue(
+            'unifiedAccount',
+          );
+
+          const result = await provider.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+            currentPrice: 50000,
+          });
+
+          expect(result.success).toBe(false);
+          expect(result.error).toBe(expectedCode);
+          expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+            expect.objectContaining({ message: expectedCode }),
+            expect.objectContaining({
+              context: expect.objectContaining({
+                data: expect.objectContaining({
+                  abstraction_mode: 'unifiedAccount',
+                }),
+              }),
+            }),
+          );
+        },
+      );
     });
 
     describe('calculateFees', () => {

@@ -12,8 +12,8 @@ import type {
   ExchangeRate,
   NonEvmFees,
   DeepPartial,
-  BridgeAsset,
 } from '../../types.js';
+import type { BridgeAsset } from '../../validators/bridge-asset.js';
 import { FloatStringSchema } from '../../validators/number.js';
 import type { QuoteResponseV1 as QuoteResponse } from '../../validators/quote-response-v1.js';
 import { TxData } from '../../validators/trade.js';
