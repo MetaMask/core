@@ -186,13 +186,15 @@ export const selectExchangeRateByAssetId = (
     if (rate) {
       // The multichain rate is denominated in the user's selected currency.
       // To get a USD rate, find the user's-currency-to-USD conversion factor from any EVM native currency rate.
-      const nativeCurrencyRate = Object.values(currencyRates ?? {}).find(
-        (rateEntry) =>
-          rateEntry?.conversionRate !== undefined &&
-          rateEntry?.conversionRate !== null &&
-          rateEntry?.usdConversionRate !== undefined &&
-          rateEntry?.usdConversionRate !== null,
-      );
+      const nativeCurrencyRate =
+        currencyRates &&
+        Object.values(currencyRates).find(
+          (rateEntry) =>
+            rateEntry?.conversionRate !== undefined &&
+            rateEntry?.conversionRate !== null &&
+            rateEntry?.usdConversionRate !== undefined &&
+            rateEntry?.usdConversionRate !== null,
+        );
       const usersCurrencyToUsdRate =
         nativeCurrencyRate?.conversionRate !== undefined &&
         nativeCurrencyRate?.conversionRate !== null &&

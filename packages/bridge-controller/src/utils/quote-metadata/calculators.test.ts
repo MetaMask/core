@@ -1,11 +1,10 @@
 import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
-import { merge } from 'lodash';
 
-import { mockBridgeQuotesErc20Erc20V1 } from '../../../tests/mock-quotes-erc20-erc20.js';
-import { mockBridgeQuotesNativeErc20V1 } from '../../../tests/mock-quotes-native-erc20.js';
-import { getMockBridgeQuotesSolErc20V2 } from '../../../tests/mock-quotes-sol-erc20.js';
+import { getMockBridgeQuotesErc20Erc20V1 } from '../../../tests/mock-quotes-erc20-erc20.js';
+import { getMockBridgeQuotesNativeErc20V1 } from '../../../tests/mock-quotes-native-erc20.js';
+import { getMockBridgeQuotesSolErc20V1 } from '../../../tests/mock-quotes-sol-erc20.js';
 import type { GenericQuoteRequest, L1GasFees } from '../../types.js';
 import { isValidQuoteRequest } from '../../validators/quote-request.js';
 import { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
@@ -155,10 +154,14 @@ describe('Quote Utils', () => {
 describe('Quote Metadata Utils', () => {
   describe('calcSentAmount', () => {
     it('should calculate sent amount correctly with exchange rates', () => {
-      const mockQuote = merge({}, mockBridgeQuotesErc20Erc20V1[0], {
+      const mockQuote = getMockBridgeQuotesErc20Erc20V1({
         quote: {
           srcTokenAmount: '2555423',
-          srcAsset: { decimals: 6 },
+          srcAsset: {
+            decimals: 6,
+            assetId:
+              'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+          },
           feeData: {
             metabridge: {
               amount: '110000000',
@@ -169,7 +172,7 @@ describe('Quote Metadata Utils', () => {
             },
           },
         },
-      }).quote;
+      })[0].quote;
       expect(mockQuote.feeData.metabridge.asset?.assetId).toBe(
         mockQuote.srcAsset.assetId,
       );
@@ -189,7 +192,7 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle missing exchange rates', () => {
-      const mockQuote = merge({}, mockBridgeQuotesErc20Erc20V1[0], {
+      const mockQuote = getMockBridgeQuotesErc20Erc20V1({
         quote: {
           srcTokenAmount: '1000000000',
           srcAsset: { decimals: 6 },
@@ -197,7 +200,7 @@ describe('Quote Metadata Utils', () => {
             metabridge: { amount: '100000000' },
           },
         },
-      }).quote;
+      })[0].quote;
       const result = calcSentAmount(mockQuote, {});
 
       expect(result.amount).toBe('1100');
@@ -206,7 +209,7 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle zero values', () => {
-      const zeroQuote = merge({}, mockBridgeQuotesErc20Erc20V1[0], {
+      const zeroQuote = getMockBridgeQuotesErc20Erc20V1({
         quote: {
           srcTokenAmount: '0',
           srcAsset: { decimals: 6 },
@@ -215,7 +218,7 @@ describe('Quote Metadata Utils', () => {
             metabridge: { amount: '0' },
           },
         },
-      }).quote;
+      })[0].quote;
 
       const result = calcSentAmount(zeroQuote, {
         exchangeRate: '2',
@@ -228,7 +231,7 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle large numbers', () => {
-      const largeQuote = merge({}, mockBridgeQuotesErc20Erc20V1[0], {
+      const largeQuote = getMockBridgeQuotesErc20Erc20V1({
         quote: {
           srcTokenAmount: '1000000000000000000',
           srcAsset: {
@@ -248,7 +251,7 @@ describe('Quote Metadata Utils', () => {
             },
           },
         },
-      }).quote;
+      })[0].quote;
 
       const result = calcSentAmount(largeQuote, {
         exchangeRate: '2',
@@ -266,7 +269,7 @@ describe('Quote Metadata Utils', () => {
       // the total fixed commitment including protocol fees. Adding feeData fees
       // on top would double-count them.
 
-      const intentQuote = merge({}, mockBridgeQuotesErc20Erc20V1[0], {
+      const intentQuote = getMockBridgeQuotesErc20Erc20V1({
         quote: {
           srcTokenAmount: '10000000', // 10 USDT (6 decimals), fee already included
           srcAsset: {
@@ -306,7 +309,7 @@ describe('Quote Metadata Utils', () => {
             },
           },
         },
-      }).quote;
+      })[0].quote;
 
       const result = calcSentAmount(intentQuote, {
         exchangeRate: '1',
@@ -321,7 +324,7 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcNonEvmTotalNetworkFee', () => {
-    const mockBridgeQuote = getMockBridgeQuotesSolErc20V2({
+    const mockBridgeQuote = getMockBridgeQuotesSolErc20V1({
       nonEvmFeesInNative: '1',
     })[0];
 
@@ -337,7 +340,7 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should calculate Bitcoin fees correctly with exchange rates', () => {
-      const btcQuote = getMockBridgeQuotesSolErc20V2({
+      const btcQuote = getMockBridgeQuotesSolErc20V1({
         nonEvmFeesInNative: '0.00005', // BTC fee in native units
       })[0];
 
@@ -407,7 +410,7 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcRelayerFee', () => {
-    const mockBridgeQuote = merge({}, mockBridgeQuotesNativeErc20V1[0], {
+    const mockBridgeQuote = getMockBridgeQuotesNativeErc20V1({
       quote: {
         srcAsset: { address: '0x123', decimals: 18 },
         srcTokenAmount: '1000000000000000000',
@@ -418,13 +421,24 @@ describe('Quote Metadata Utils', () => {
         },
       },
       trade: { value: '0x10A741A462780000' },
-    }) as unknown as QuoteResponseV1<TxData, TxData>;
+    })[0];
 
     it('should calculate relayer fee correctly with exchange rates', () => {
-      const result = calcRelayerFee(mockBridgeQuote, {
-        exchangeRate: '2',
-        usdExchangeRate: '1.5',
-      });
+      const result = calcRelayerFee(
+        calcSentAmount(
+          mockBridgeQuote.quote,
+          {
+            exchangeRate: '2',
+            usdExchangeRate: '1.5',
+          },
+          false,
+        ),
+        mockBridgeQuote,
+        {
+          exchangeRate: '2',
+          usdExchangeRate: '1.5',
+        },
+      );
 
       expect(new BigNumber(mockBridgeQuote.trade.value, 16).toFixed()).toBe(
         '1200000000000000000',
@@ -445,11 +459,21 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should calculate relayer fee correctly with no trade.value', () => {
+      const mockQuote = getMockBridgeQuotesNativeErc20V1({
+        // @ts-expect-error - trade.value is an object
+        trade: { ...mockBridgeQuote.trade, value: '0x0' },
+      })[0];
+
       const result = calcRelayerFee(
-        merge({}, mockBridgeQuotesNativeErc20V1[0], {
-          // @ts-expect-error - trade.value is an object
-          trade: { ...mockBridgeQuote.trade, value: '0x0' },
-        }),
+        calcSentAmount(
+          mockQuote.quote,
+          {
+            exchangeRate: '2',
+            usdExchangeRate: '1.5',
+          },
+          false,
+        ),
+        mockQuote,
         {
           exchangeRate: '2',
           usdExchangeRate: '1.5',
@@ -460,7 +484,7 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle native token address', () => {
-      const nativeBridgeQuote = merge({}, mockBridgeQuotesNativeErc20V1[0], {
+      const nativeBridgeQuote = getMockBridgeQuotesNativeErc20V1({
         quote: {
           srcTokenAmount: '1000000000000000000',
           feeData: {
@@ -482,12 +506,23 @@ describe('Quote Metadata Utils', () => {
         trade: {
           value: '0x10A741A462780000',
         },
-      }) as QuoteResponseV1<TxData>;
+      })[0];
 
-      const result = calcRelayerFee(nativeBridgeQuote, {
-        exchangeRate: '2',
-        usdExchangeRate: '1.5',
-      });
+      const result = calcRelayerFee(
+        calcSentAmount(
+          nativeBridgeQuote.quote,
+          {
+            exchangeRate: '2',
+            usdExchangeRate: '1.5',
+          },
+          false,
+        ),
+        nativeBridgeQuote,
+        {
+          exchangeRate: '2',
+          usdExchangeRate: '1.5',
+        },
+      );
 
       expect(
         convertHexToDecimal(nativeBridgeQuote.trade.value).toString(),
@@ -934,12 +969,7 @@ describe('Quote Metadata Utils', () => {
           sentAmount: { valueInCurrency: undefined },
           toTokenAmount: { valueInCurrency: '900' },
         }),
-      ).toMatchInlineSnapshot(`
-              {
-                "usd": undefined,
-                "valueInCurrency": undefined,
-              }
-          `);
+      ).toMatchInlineSnapshot(`undefined`);
     });
 
     it('returns undefined when toTokenAmount.valueInCurrency is undefined', () => {
@@ -948,12 +978,7 @@ describe('Quote Metadata Utils', () => {
           sentAmount: { valueInCurrency: '1000' },
           toTokenAmount: { valueInCurrency: undefined },
         }),
-      ).toMatchInlineSnapshot(`
-              {
-                "usd": undefined,
-                "valueInCurrency": undefined,
-              }
-          `);
+      ).toMatchInlineSnapshot(`undefined`);
     });
 
     it('returns undefined when sentAmount is missing', () => {
@@ -962,12 +987,7 @@ describe('Quote Metadata Utils', () => {
           sentAmount: {},
           toTokenAmount: { valueInCurrency: '900' },
         }),
-      ).toMatchInlineSnapshot(`
-              {
-                "usd": undefined,
-                "valueInCurrency": undefined,
-              }
-          `);
+      ).toBeUndefined();
     });
 
     it('returns undefined when toTokenAmount is missing', () => {
@@ -976,12 +996,7 @@ describe('Quote Metadata Utils', () => {
           sentAmount: { valueInCurrency: '1000' },
           toTokenAmount: {},
         }),
-      ).toMatchInlineSnapshot(`
-              {
-                "usd": undefined,
-                "valueInCurrency": undefined,
-              }
-          `);
+      ).toBeUndefined();
     });
 
     it('formats the absolute difference between source and destination fiat amounts', () => {

@@ -77,6 +77,8 @@ export {
 } from './validators/quote-response-v1.js';
 export { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 
+export { sumAmounts } from './utils/number-formatters.js';
+
 export {
   AssetType,
   SortOrder,
@@ -121,6 +123,12 @@ export { validateQuoteResponse } from './validators/quote-response.js';
 export type { Quote } from './validators/quote.js';
 export { FeeType, DiscountType } from './validators/quote.js';
 export { ActionTypes } from './validators/step.js';
+export { toQuoteResponseV1 } from './coercers/quote-response-v2-to-v1.js';
+export { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
+
+export { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.js';
+export { toQuoteMetadataV2 } from './utils/quote-metadata/to-quote-metadata-v2.js';
+
 export {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
