@@ -302,10 +302,7 @@ describe('nonce', () => {
             value: '0x200',
             // EOA tx nonce 5, EOA auth nonce 6, Money Account auth nonce 20
             nonce: '0x5',
-            authorizationList: [
-              EOA_AUTHORIZATION,
-              MONEY_ACCOUNT_AUTHORIZATION,
-            ],
+            authorizationList: [EOA_AUTHORIZATION, MONEY_ACCOUNT_AUTHORIZATION],
           },
           status: TransactionStatus.submitted,
         },

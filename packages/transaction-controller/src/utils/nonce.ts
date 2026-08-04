@@ -77,13 +77,7 @@ export function getAndFormatTransactionsForNonceTracker(
 
   return transactions
     .filter(
-      ({
-        chainId,
-        isTransfer,
-        isUserOperation,
-        status,
-        txParams: { nonce },
-      }) =>
+      ({ chainId, isTransfer, isUserOperation, status, txParams: { nonce } }) =>
         !isTransfer &&
         !isUserOperation &&
         chainId === currentChainId &&
