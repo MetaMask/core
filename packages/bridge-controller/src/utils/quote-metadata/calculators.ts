@@ -18,7 +18,7 @@ import { FloatStringSchema } from '../../validators/number.js';
 import type { QuoteResponseV1 as QuoteResponse } from '../../validators/quote-response-v1.js';
 import { TxData } from '../../validators/trade.js';
 import { isEvmQuoteResponse, isNativeAddress } from '../bridge.js';
-import { calcTokenAmount } from '../number-formatters.js';
+import { calcNormalizedTokenAmount } from '../number-formatters.js';
 import type { QuoteMetadata, TokenAmountValues } from './types.js';
 
 export const calcNonEvmTotalNetworkFee = (
@@ -43,7 +43,7 @@ export const calcToAmount = (
   destAsset: BridgeAsset,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const normalizedDestAmount = calcTokenAmount(
+  const normalizedDestAmount = calcNormalizedTokenAmount(
     destTokenAmount,
     destAsset.decimals,
   );
@@ -78,7 +78,10 @@ export const calcSentAmount = (
           (acc, { amount }) => acc.plus(amount),
           new BigNumber(srcTokenAmount),
         );
-  const normalizedSentAmount = calcTokenAmount(sentAmount, srcAsset.decimals);
+  const normalizedSentAmount = calcNormalizedTokenAmount(
+    sentAmount,
+    srcAsset.decimals,
+  );
   return {
     amount: normalizedSentAmount?.toString(),
     valueInCurrency:
@@ -94,7 +97,7 @@ export const calcBatchFees = (
   asset: BridgeAsset,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const normalizedAmount = calcTokenAmount(amount, asset.decimals);
+  const normalizedAmount = calcNormalizedTokenAmount(amount, asset.decimals);
 
   return {
     amount: normalizedAmount?.toString(),
@@ -117,7 +120,7 @@ export const calcRelayerFee = (
     ? new BigNumber(convertHexToDecimal(trade.value))
     : undefined;
   let relayerFeeInNative = relayerFeeAmount
-    ? calcTokenAmount(relayerFeeAmount, 18)
+    ? calcNormalizedTokenAmount(relayerFeeAmount, 18)
     : undefined;
 
   // Subtract srcAmount and other fees from trade value if srcAsset is native
@@ -271,7 +274,7 @@ export const calcIncludedTxFees = (
     txFee?.asset.assetId === srcAsset.assetId
       ? srcTokenExchangeRate
       : destTokenExchangeRate;
-  const normalizedTxFeeAmount = calcTokenAmount(
+  const normalizedTxFeeAmount = calcNormalizedTokenAmount(
     txFee?.amount,
     txFee?.asset.decimals,
   );

@@ -11,7 +11,7 @@ import type { QuoteResponse } from '../validators/quote-response.js';
  * @param decimals - The number of decimals to convert to
  * @returns The token amount in string format
  */
-export const calcTokenAmount = (
+export const calcNormalizedTokenAmount = (
   value: string | BigNumber | undefined,
   decimals: number | undefined,
 ) => {
@@ -29,7 +29,7 @@ export const calcTokenAmount = (
  * @param decimals - The number of decimals to convert to
  * @returns The token value in string format
  */
-export const calcTokenValue = (
+export const calcAtomicTokenAmount = (
   value: string | BigNumber | undefined,
   decimals: number | undefined,
 ) => {
