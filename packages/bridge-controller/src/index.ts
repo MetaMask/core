@@ -237,8 +237,6 @@ export {
 
 export { extractTradeData } from './utils/trade-utils.js';
 
-export { sumAmounts } from './utils/number-formatters.js';
-
 export {
   selectBridgeQuotes,
   selectBatchSellQuotes,
