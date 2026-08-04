@@ -5105,6 +5105,300 @@ describe('RampsController', () => {
     });
   });
 
+  describe('setSelectedProviderForAsset', () => {
+    const ASSET_ID =
+      'eip155:143/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
+
+    const makeProvider = (id: string, assetIds: string[] = []): Provider => ({
+      id,
+      name: id,
+      environmentType: 'PRODUCTION' as const,
+      description: '',
+      hqAddress: '',
+      links: [],
+      logos: { light: '', dark: '', height: 0, width: 0 },
+      supportedCryptoCurrencies: Object.fromEntries(
+        assetIds.map((a) => [a.toLowerCase(), true]),
+      ),
+    });
+
+    it('switches to the first compatible provider when the selected one does not support the asset', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('does not switch when the selected provider already supports the asset', async () => {
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([compatible], compatible),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+
+    it('does not switch when no provider supports the asset', async () => {
+      const a = makeProvider('/providers/coinbase');
+      const b = makeProvider('/providers/moonpay');
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([a, b], a),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(a);
+        },
+      );
+    });
+
+    it('returns false and does not switch when providers.data is empty', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([], null),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toBeNull();
+        },
+      );
+    });
+
+    it('switches to a compatible provider when nothing is selected yet', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([incompatible, compatible], null),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+
+    it('does not select the currently selected provider as its own replacement', async () => {
+      const provider = makeProvider('/providers/transak-native');
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([provider], provider),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+        },
+      );
+    });
+
+    it('does not re-select the current provider when its data-list entry serves the asset but the selected copy does not', async () => {
+      // Simulates a stale-selected-copy scenario: providers.selected has empty
+      // assets while providers.data holds the fresh version of the same provider
+      // with the asset now included. The fresh entry is what decides
+      // compatibility, so there is no spurious self-switch.
+      const selectedStale = makeProvider('/providers/transak-native');
+      const selectedFresh = makeProvider('/providers/transak-native', [
+        ASSET_ID,
+      ]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([selectedFresh], selectedStale),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(
+            selectedStale,
+          );
+        },
+      );
+    });
+
+    it('does not switch away when the current provider data-list entry serves the asset and another provider serves it too', async () => {
+      // Same stale-selected-copy scenario, but with a second compatible
+      // provider available: the fresh entry for the current provider must win
+      // over the stale selected copy, so no switch happens.
+      const selectedStale = makeProvider('/providers/transak-native');
+      const selectedFresh = makeProvider('/providers/transak-native', [
+        ASSET_ID,
+      ]);
+      const other = makeProvider('/providers/moonpay', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [selectedFresh, other],
+                selectedStale,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(
+            selectedStale,
+          );
+        },
+      );
+    });
+
+    it('matches the asset case-insensitively (API key lowercase, caller assetId checksummed)', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      // The providers API returns lowercase keys; the caller passes checksummed assetId.
+      const compatible: Provider = {
+        ...makeProvider('/providers/transak-native'),
+        supportedCryptoCurrencies: { [ASSET_ID.toLowerCase()]: true },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+
+    it('forwards autoSelected option to setSelectedProvider', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          controller.setSelectedProviderForAsset(ASSET_ID, {
+            autoSelected: false,
+          });
+
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('is callable via the RampsController:setSelectedProviderForAsset messenger action', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller, rootMessenger }) => {
+          const result = rootMessenger.call(
+            'RampsController:setSelectedProviderForAsset',
+            ASSET_ID,
+          );
+
+          expect(result).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+  });
+
   describe('setSelectedToken', () => {
     const mockToken: RampsToken = {
       assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
@@ -8576,6 +8870,7 @@ describe('RampsController', () => {
         expect(stub?.provider?.id).toBe('paypal');
         expect(stub?.walletAddress).toBe('0xabc');
         expect(stub?.status).toBe(RampsOrderStatus.Precreated);
+        expect(stub?.network).toStrictEqual({ chainId: '1', name: '' });
       });
     });
 
@@ -8585,11 +8880,16 @@ describe('RampsController', () => {
           orderId: 'plain-order-id',
           providerCode: 'transak',
           walletAddress: '0xdef',
+          chainId: 'eip155:1',
         });
 
         expect(controller.state.orders[0]?.providerOrderId).toBe(
           'plain-order-id',
         );
+        expect(controller.state.orders[0]?.network).toStrictEqual({
+          chainId: 'eip155:1',
+          name: '',
+        });
       });
     });
 
@@ -8599,6 +8899,20 @@ describe('RampsController', () => {
           orderId: '/providers/paypal/orders/',
           providerCode: 'paypal',
           walletAddress: '0xabc',
+          chainId: '1',
+        });
+
+        expect(controller.state.orders).toHaveLength(0);
+      });
+    });
+
+    it('skips addOrder when chainId is empty or whitespace', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:addPrecreatedOrder', {
+          orderId: '/providers/paypal/orders/abc123',
+          providerCode: 'paypal',
+          walletAddress: '0xabc',
+          chainId: '   ',
         });
 
         expect(controller.state.orders).toHaveLength(0);

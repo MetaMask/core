@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Remove `eth_signTransaction` account method ([#9763](https://github.com/MetaMask/core/pull/9763))
+  - Money accounts were not supposed to sign transaction, the support has been removed from the keyring.
+- Bump `@metamask/eth-money-keyring` from `^2.0.4` to `^3.0.1` ([#9763](https://github.com/MetaMask/core/pull/9763))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
 - Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.6` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231), [#9349](https://github.com/MetaMask/core/pull/9349), [#9470](https://github.com/MetaMask/core/pull/9470), [#9735](https://github.com/MetaMask/core/pull/9735))

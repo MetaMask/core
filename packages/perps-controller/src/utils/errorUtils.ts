@@ -93,3 +93,21 @@ export function isHyperLiquidUserNotFoundError(error: unknown): boolean {
     lower.includes('user or api wallet') && lower.includes('does not exist')
   );
 }
+
+/**
+ * Hyperliquid rejects every single-signer exchange write for an account that
+ * has been converted to multi-sig (`ApiRequestError: Multi-sig required`).
+ * MetaMask signs Perps actions with a single agent/user wallet, so this is a
+ * permanent account-shape condition rather than a failure we should retry or
+ * forward to Sentry. Only the hyphenated spelling has been observed from the
+ * venue; the unhyphenated variant is matched defensively.
+ *
+ * @param error - The caught error.
+ * @returns True if the error indicates multi-sig signing is required.
+ */
+export function isHyperLiquidMultiSigRequiredError(error: unknown): boolean {
+  const lower = ensureError(error).message.toLowerCase();
+  return (
+    lower.includes('multi-sig required') || lower.includes('multisig required')
+  );
+}
