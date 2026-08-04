@@ -4819,6 +4819,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
     "gasIncluded7702": false,
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+    "slippage": 0.01,
     "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
@@ -4873,7 +4874,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
     ],
   },
   "quoteId": undefined,
-  "slippagePercentage": 0,
+  "slippagePercentage": 0.01,
   "startTime": 1234567890,
   "status": {
     "srcChain": {
