@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.1]
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
@@ -849,7 +851,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.1...HEAD
+[26.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.0...@metamask/notification-services-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@25.0.0...@metamask/notification-services-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.3.0...@metamask/notification-services-controller@25.0.0
 [24.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.2.0...@metamask/notification-services-controller@24.3.0

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-backend",
-  "version": "8.1.0",
+  "version": "8.1.1",
   "description": "Core backend services for MetaMask",
   "keywords": [
     "Ethereum",
@@ -55,7 +55,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/account-tree-controller": "^7.5.5",
+    "@metamask/account-tree-controller": "^7.6.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/messenger": "^2.0.0",

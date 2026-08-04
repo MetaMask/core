@@ -1,6 +1,6 @@
 {
   "name": "@metamask/claims-controller",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "Controller handling shield subscription claims logic",
   "keywords": [
     "Ethereum",
