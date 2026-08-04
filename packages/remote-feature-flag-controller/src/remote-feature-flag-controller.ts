@@ -282,7 +282,7 @@ export class RemoteFeatureFlagController extends BaseController<
       }
     }
     for (const flagName of Object.keys(defaultFeatureFlags)) {
-      if (!(flagName in rawRemoteFeatureFlags)) {
+      if (rawRemoteFeatureFlags[flagName] === undefined) {
         delete processedRemoteFeatureFlags[flagName];
       }
     }
