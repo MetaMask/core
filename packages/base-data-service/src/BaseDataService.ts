@@ -323,6 +323,19 @@ export class BaseDataService<
     });
 
     if (!query?.state.data || pageParam === undefined) {
+      // query-core v5 requires an `initialPageParam`, which becomes the param of
+      // the first (and only) page this fetches. Prefer an explicit per-call
+      // `pageParam` (a cold jump to a specific page); otherwise use the
+      // consumer's `initialPageParam`. Branching on a strict `undefined` check
+      // (rather than `??`) preserves `null`, which is a valid `Json` page param
+      // and query-core's usual first-page sentinel.
+      let initialPageParam: TPageParam;
+      if (pageParam === undefined) {
+        initialPageParam = options.initialPageParam as TPageParam;
+      } else {
+        initialPageParam = pageParam;
+      }
+
       const result = await this.#queryClient.fetchInfiniteQuery<
         TQueryFnData,
         TError,
@@ -331,10 +344,7 @@ export class BaseDataService<
         TPageParam
       >({
         ...options,
-        // query-core v5 requires an `initialPageParam`. When the caller drives
-        // pagination with an explicit `pageParam`, use it as the initial param
-        // so the first (and only) page fetched is the requested one.
-        initialPageParam: (options.initialPageParam ?? pageParam) as TPageParam,
+        initialPageParam,
         // Provide a no-op `getNextPageParam` when the consumer omits one.
         // query-core v5 walks `getNextPageParam` when it refetches a multi-page
         // infinite query, so a missing resolver would throw once more than one
@@ -343,12 +353,7 @@ export class BaseDataService<
         // page params.
         getNextPageParam: options.getNextPageParam ?? ((): null => null),
         queryFn: (context) =>
-          this.#policy.execute(() =>
-            options.queryFn({
-              ...context,
-              pageParam: context.pageParam ?? pageParam,
-            }),
-          ),
+          this.#policy.execute(() => options.queryFn(context)),
       });
 
       return result.pages[0];
