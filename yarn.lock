@@ -5743,7 +5743,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^39.0.6"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/eth-hd-keyring": "npm:^14.1.1"
+    "@metamask/eth-hd-keyring": "npm:^15.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/keyring-sdk": "npm:^3.0.0"
@@ -7008,22 +7008,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-hd-keyring@npm:@metamask-previews/eth-hd-keyring@14.1.2-58658de":
-  version: 14.1.2-58658de
-  resolution: "@metamask-previews/eth-hd-keyring@npm:14.1.2-58658de"
+"@metamask/eth-hd-keyring@npm:^15.0.0":
+  version: 15.0.0
+  resolution: "@metamask/eth-hd-keyring@npm:15.0.0"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@ethereumjs/util": "npm:^9.1.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
     "@metamask/key-tree": "npm:^10.0.2"
-    "@metamask/keyring-api": "npm:23.7.0"
-    "@metamask/keyring-sdk": "npm:2.3.0"
-    "@metamask/keyring-utils": "npm:4.0.0"
+    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-sdk": "npm:^3.0.0"
+    "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.11.0"
     ethereum-cryptography: "npm:^2.2.1"
-  checksum: 10/0f177df3c09f400bec21d55fa575dd3f578f88100131cc8e47fd3544a2a12a4cb8d98189d40e0e85a4e4520c52bde257bb1e92ee5a0a1e30ce37efcd5288031b
+  checksum: 10/35bceeb450460104f996e73032cae584247461a792e733ed290cc3bd387434f86fd94e2b8f8dac792933987628d3a6febdcc0c93d9e5c349a4d9b3b0cd7d0167
   languageName: node
   linkType: hard
 
@@ -7537,19 +7537,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:23.7.0":
-  version: 23.7.0
-  resolution: "@metamask/keyring-api@npm:23.7.0"
-  dependencies:
-    "@metamask/keyring-utils": "npm:^4.0.0"
-    "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/utils": "npm:^11.11.0"
-    bitcoin-address-validation: "npm:^2.2.3"
-  checksum: 10/3c1aea064e017be0b99202a4e59b7ed9e1965aeb732b04ad5cb252dfa6b443487284f8b4253986ca325d8b45fd7977cef93f470f95f0342d377551d4b93738c3
-  languageName: node
-  linkType: hard
-
-"@metamask/keyring-api@npm:24.0.0, @metamask/keyring-api@npm:^24.0.0":
+"@metamask/keyring-api@npm:^24.0.0":
   version: 24.0.0
   resolution: "@metamask/keyring-api@npm:24.0.0"
   dependencies:
@@ -7626,14 +7614,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-sdk@npm:@metamask-previews/keyring-sdk@3.0.0-914f87e":
-  version: 3.0.0-914f87e
-  resolution: "@metamask-previews/keyring-sdk@npm:3.0.0-914f87e"
+"@metamask/keyring-sdk@npm:^3.0.0, @metamask/keyring-sdk@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "@metamask/keyring-sdk@npm:3.1.0"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
-    "@metamask/keyring-api": "npm:24.0.0"
-    "@metamask/keyring-utils": "npm:5.0.0"
+    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.11.0"
@@ -7641,7 +7629,7 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     ethereum-cryptography: "npm:^2.2.1"
     uuid: "npm:^9.0.1"
-  checksum: 10/d3fc9cc2e97e8bb21d7f56cb56df499157c55d79b4bc76064aabf20e15d405ad42fbed519cd28c03e3d4f0ba5b0c9e8de5aa5fa5f3fcf4a3d8d4d189b6424616
+  checksum: 10/9bec3d530da5484e9b28234c1d5e62bdd402d0cec25d107152efdc617e5d818becb25049621c97cc6af821e151ce43af798cbc1c421828c28c1ed20e611d2477
   languageName: node
   linkType: hard
 
@@ -7677,19 +7665,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:4.0.0, @metamask/keyring-utils@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "@metamask/keyring-utils@npm:4.0.0"
-  dependencies:
-    "@ethereumjs/tx": "npm:^5.4.0"
-    "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/utils": "npm:^11.11.0"
-    bitcoin-address-validation: "npm:^2.2.3"
-  checksum: 10/a4299fafadd4a4f2f1a4475a7f4e6c4d268ccfa82e505cdd4cf4a1ff5cc6ca485edd7422650c498409db93d4fe32429db7bd02276ce6fee80aac5f6a64439578
-  languageName: node
-  linkType: hard
-
-"@metamask/keyring-utils@npm:5.0.0, @metamask/keyring-utils@npm:^5.0.0":
+"@metamask/keyring-utils@npm:^5.0.0":
   version: 5.0.0
   resolution: "@metamask/keyring-utils@npm:5.0.0"
   dependencies:

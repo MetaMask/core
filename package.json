@@ -116,8 +116,6 @@
     "yargs": "^17.7.2"
   },
   "resolutions": {
-    "@metamask/eth-hd-keyring": "npm:@metamask-previews/eth-hd-keyring@14.1.2-58658de",
-    "@metamask/keyring-sdk": "npm:@metamask-previews/keyring-sdk@3.0.0-914f87e",
     "@nktkas/hyperliquid@npm:^0.33.1": "patch:@nktkas/hyperliquid@npm%3A0.33.1#~/.yarn/patches/@nktkas-hyperliquid-npm-0.33.1-6a541fdd1d.patch",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
