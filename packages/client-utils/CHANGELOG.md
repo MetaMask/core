@@ -27,7 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - STANDARD sends with empty `valueTransfers` synthesize a native token from `tx.value`
 - Bump `@metamask/core-backend` from `^8.0.0` to `^8.1.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
-- Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
 ### Fixed
 
