@@ -9,15 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: Change `submitBatchSell` and `submitIntent` quoteResponse parameter from `QuoteResponseV1` to `QuoteResponse` V2 ([#9726](https://github.com/MetaMask/core/pull/9726))
+  - Support both `QuoteResponseV1` and `QuoteResponse` quoteResponses in `submitTx`
+  - Controller logic and utils still require V1, but clients can submit quotes in both formats
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
 
 ## [74.6.2]
 
 ### Changed
 
-- **BREAKING**: Change `submitBatchSell` and `submitIntent` quoteResponse parameter from `QuoteResponseV1` to `QuoteResponse` V2 ([#9726](https://github.com/MetaMask/core/pull/9726))
-  - Support both `QuoteResponseV1` and `QuoteResponse` quoteResponses in `submitTx`
-  - Controller logic and utils still require V1, but clients can submit quotes in both formats
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/bridge-controller` from `^78.0.2` to `^78.1.0` ([#9740](https://github.com/MetaMask/core/pull/9740), [#9779](https://github.com/MetaMask/core/pull/9779))
 - Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
