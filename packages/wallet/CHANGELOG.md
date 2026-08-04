@@ -7,19 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Move `ClaimsService` wallet initialization into `packages/wallet/src/initialization/instances/claims-service/` ([#9588](https://github.com/MetaMask/core/pull/9588))
-- `instanceOptions.claimsService` now accepts optional `queryClientConfig`, `policyOptions`, and `captureException` forwarded to `ClaimsService` ([#9588](https://github.com/MetaMask/core/pull/9588))
-
-## [9.0.0]
-
 ### Added
 
 - **BREAKING:** Wire `ClaimsService` and `ClaimsController` into the default wallet initialization ([#9588](https://github.com/MetaMask/core/pull/9588))
   - Passing `instanceOptions.claimsService.fetchFunction` is now required.
   - `instanceOptions.claimsService.env` is optional and defaults to production (`Env.PRD`); pass a different value per build flavor when not targeting production.
   - `ClaimsService` delegates `AuthenticationController:getBearerToken`; hosts must register `AuthenticationController` on the supplied root messenger before authenticated Claims API calls succeed.
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+
+## [9.0.0]
+
+### Added
+
 - **BREAKING:** Wire analytics into the default `NetworkController` initialization ([#9270](https://github.com/MetaMask/core/pull/9270))
   - Adds an optional `instanceOptions.networkController.analyticsOptions` option (`isRpcEndpointUrlPublic` and `rpcServiceEventsSampleRate`, both optional) that the controller uses to emit `RPC Service Unavailable` and `RPC Service Degraded` events.
   - The `Wallet` root messenger now requires the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions. Consumers must register handlers for them on the root messenger; a consumer that does not use analytics can register handlers that do nothing.
