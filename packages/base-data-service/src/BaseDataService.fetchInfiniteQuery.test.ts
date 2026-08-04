@@ -151,145 +151,168 @@ class PaginatedService extends BaseDataService<
   }
 }
 
+/**
+ * The options bag that `withService` takes.
+ */
+type WithServiceOptions = {
+  staleTime?: number;
+};
+
+type WithServiceCallback<ReturnValue> = (payload: {
+  service: PaginatedService;
+  messenger: PaginatedServiceMessenger;
+}) => Promise<ReturnValue> | ReturnValue;
+
+/**
+ * Construct a `PaginatedService`, pass it to the given function, and tear it
+ * down afterward.
+ *
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag configures the service (currently just `staleTime`). The function is
+ * called with the new service and its messenger.
+ * @returns The same return value as the given function.
+ */
+async function withService<ReturnValue>(
+  ...args:
+    | [WithServiceCallback<ReturnValue>]
+    | [WithServiceOptions, WithServiceCallback<ReturnValue>]
+): Promise<ReturnValue> {
+  const [{ staleTime }, testFunction] =
+    args.length === 2 ? args : [{}, args[0]];
+  const messenger = new Messenger({ namespace: serviceName });
+  const service = new PaginatedService(messenger, { staleTime });
+  try {
+    return await testFunction({ service, messenger });
+  } finally {
+    service.destroy();
+  }
+}
+
 describe('BaseDataService: fetchInfiniteQuery', () => {
-  let service: PaginatedService;
-
-  const createService = (options?: {
-    staleTime?: number;
-  }): PaginatedService => {
-    const messenger = new Messenger({ namespace: serviceName });
-    service = new PaginatedService(messenger, options);
-    return service;
-  };
-
-  afterEach(() => {
-    service?.destroy();
-  });
-
   describe('with page-param callbacks', () => {
     it('returns the first page on a cold fetch', async () => {
-      createService();
+      await withService(async ({ service }) => {
+        const page = await service.withCallbacks();
 
-      const page = await service.withCallbacks();
-
-      expect(page.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
-      expect(page.pageInfo.hasPreviousPage).toBe(false);
+        expect(page.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
+        expect(page.pageInfo.hasPreviousPage).toBe(false);
+      });
     });
 
     it('jumps directly to a page by cursor on a cold cache', async () => {
-      createService();
+      await withService(async ({ service }) => {
+        const page = await service.withCallbacks({ after: '6' });
 
-      const page = await service.withCallbacks({ after: '6' });
-
-      expect(page.data).toStrictEqual(['item-6', 'item-7', 'item-8']);
+        expect(page.data).toStrictEqual(['item-6', 'item-7', 'item-8']);
+      });
     });
 
     it('paginates forward across every page', async () => {
-      createService();
+      await withService(async ({ service }) => {
+        const page1 = await service.withCallbacks();
+        const page2 = await service.withCallbacks({
+          after: page1.pageInfo.endCursor as string,
+        });
+        const page3 = await service.withCallbacks({
+          after: page2.pageInfo.endCursor as string,
+        });
 
-      const page1 = await service.withCallbacks();
-      const page2 = await service.withCallbacks({
-        after: page1.pageInfo.endCursor as string,
+        expect(page1.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
+        expect(page2.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
+        expect(page3.data).toStrictEqual(['item-6', 'item-7', 'item-8']);
       });
-      const page3 = await service.withCallbacks({
-        after: page2.pageInfo.endCursor as string,
-      });
-
-      expect(page1.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
-      expect(page2.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
-      expect(page3.data).toStrictEqual(['item-6', 'item-7', 'item-8']);
     });
 
     it('paginates backward to the previous page', async () => {
-      createService();
+      await withService(async ({ service }) => {
+        // Start in the middle so there is a previous page to go back to.
+        const middle = await service.withCallbacks({ after: '3' });
+        expect(middle.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
 
-      // Start in the middle so there is a previous page to go back to.
-      const middle = await service.withCallbacks({ after: '3' });
-      expect(middle.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
+        const previous = await service.withCallbacks({
+          before: middle.pageInfo.startCursor as string,
+        });
 
-      const previous = await service.withCallbacks({
-        before: middle.pageInfo.startCursor as string,
+        expect(previous.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
       });
-
-      expect(previous.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
     });
 
     it('returns only the requested page, not the accumulated data', async () => {
-      createService();
+      await withService(async ({ service }) => {
+        await service.withCallbacks();
+        await service.withCallbacks({ after: '3' });
+        const page3 = await service.withCallbacks({ after: '6' });
 
-      await service.withCallbacks();
-      await service.withCallbacks({ after: '3' });
-      const page3 = await service.withCallbacks({ after: '6' });
-
-      expect(page3.data).toHaveLength(PAGE_SIZE);
-      expect(page3.data).toStrictEqual(['item-6', 'item-7', 'item-8']);
+        expect(page3.data).toHaveLength(PAGE_SIZE);
+        expect(page3.data).toStrictEqual(['item-6', 'item-7', 'item-8']);
+      });
     });
 
     it('does not refetch a fresh cached page', async () => {
-      createService({ staleTime: Infinity });
+      await withService({ staleTime: Infinity }, async ({ service }) => {
+        await service.withCallbacks();
+        await service.withCallbacks();
 
-      await service.withCallbacks();
-      await service.withCallbacks();
-
-      expect(service.queryFnCalls).toHaveLength(1);
+        expect(service.queryFnCalls).toHaveLength(1);
+      });
     });
 
     it('keeps navigation correct after refetching stale pages', async () => {
-      createService({ staleTime: 0 });
+      await withService({ staleTime: 0 }, async ({ service }) => {
+        await service.withCallbacks();
+        await service.withCallbacks({ after: '3' });
+        await service.withCallbacks({ after: '6' });
 
-      await service.withCallbacks();
-      await service.withCallbacks({ after: '3' });
-      await service.withCallbacks({ after: '6' });
+        // A param-less call is stale, so query-core rebuilds all cached pages.
+        // This exercises the full-rebuild path, which must use the consumer's
+        // page-param callbacks and not any resolvers injected while paging.
+        const rebuilt = await service.withCallbacks();
+        expect(rebuilt.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
 
-      // A param-less call is stale, so query-core rebuilds all cached pages.
-      // This exercises the full-rebuild path, which must use the consumer's
-      // page-param callbacks and not any resolvers injected while paging.
-      const rebuilt = await service.withCallbacks();
-      expect(rebuilt.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
-
-      const page2Again = await service.withCallbacks({ after: '3' });
-      expect(page2Again.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
+        const page2Again = await service.withCallbacks({ after: '3' });
+        expect(page2Again.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
+      });
     });
   });
 
   describe('without page-param callbacks', () => {
     it('fetches an arbitrary page by explicit cursor (forward)', async () => {
-      createService();
+      await withService(async ({ service }) => {
+        const page1 = await service.withoutCallbacks();
+        expect(page1.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
 
-      const page1 = await service.withoutCallbacks();
-      expect(page1.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
-
-      const page2 = await service.withoutCallbacks({ after: '3' });
-      expect(page2.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
+        const page2 = await service.withoutCallbacks({ after: '3' });
+        expect(page2.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
+      });
     });
 
     it('fetches the correct page content for a `before` cursor', async () => {
-      createService();
+      await withService(async ({ service }) => {
+        // Cold jump into the middle, then ask for the page before it.
+        const middle = await service.withoutCallbacks({ after: '3' });
+        expect(middle.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
 
-      // Cold jump into the middle, then ask for the page before it.
-      const middle = await service.withoutCallbacks({ after: '3' });
-      expect(middle.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
-
-      const previous = await service.withoutCallbacks({ before: '3' });
-      expect(previous.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
+        const previous = await service.withoutCallbacks({ before: '3' });
+        expect(previous.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
+      });
     });
 
     it('refetches stale multi-page state without page-param callbacks', async () => {
-      createService({ staleTime: 0 });
+      await withService({ staleTime: 0 }, async ({ service }) => {
+        await service.withoutCallbacks();
+        await service.withoutCallbacks({ after: '3' });
+        await service.withoutCallbacks({ after: '6' });
 
-      await service.withoutCallbacks();
-      await service.withoutCallbacks({ after: '3' });
-      await service.withoutCallbacks({ after: '6' });
+        // Stale, so query-core rebuilds every cached page by walking forward
+        // from the first one. With no consumer `getNextPageParam`, that walk
+        // must not throw (the base service supplies a no-op resolver).
+        const rebuilt = await service.withoutCallbacks();
+        expect(rebuilt.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
 
-      // Stale, so query-core rebuilds every cached page by walking forward from
-      // the first one. With no consumer `getNextPageParam`, that walk must not
-      // throw (the base service supplies a no-op resolver).
-      const rebuilt = await service.withoutCallbacks();
-      expect(rebuilt.data).toStrictEqual(['item-0', 'item-1', 'item-2']);
-
-      // Navigation still works after the rebuild.
-      const page2Again = await service.withoutCallbacks({ after: '3' });
-      expect(page2Again.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
+        // Navigation still works after the rebuild.
+        const page2Again = await service.withoutCallbacks({ after: '3' });
+        expect(page2Again.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
+      });
     });
   });
 });
