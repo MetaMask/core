@@ -335,6 +335,13 @@ export class BaseDataService<
         // pagination with an explicit `pageParam`, use it as the initial param
         // so the first (and only) page fetched is the requested one.
         initialPageParam: (options.initialPageParam ?? pageParam) as TPageParam,
+        // Provide a no-op `getNextPageParam` when the consumer omits one.
+        // query-core v5 walks `getNextPageParam` when it refetches a multi-page
+        // infinite query, so a missing resolver would throw once more than one
+        // page has been cached. The no-op rebuilds the cache down to the first
+        // page; the consumer repopulates it by re-navigating with explicit
+        // page params.
+        getNextPageParam: options.getNextPageParam ?? ((): null => null),
         queryFn: (context) =>
           this.#policy.execute(() =>
             options.queryFn({
