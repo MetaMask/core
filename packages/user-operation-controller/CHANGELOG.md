@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [41.3.0]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
@@ -655,7 +657,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.8...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.3.0...HEAD
+[41.3.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.8...@metamask/user-operation-controller@41.3.0
 [41.2.8]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.7...@metamask/user-operation-controller@41.2.8
 [41.2.7]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.6...@metamask/user-operation-controller@41.2.7
 [41.2.6]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.5...@metamask/user-operation-controller@41.2.6
