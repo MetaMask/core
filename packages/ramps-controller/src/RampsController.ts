@@ -15,7 +15,10 @@ import {
   isHeadlessAllProvidersEnabled,
   normalizeHeadlessProviderId,
 } from './featureFlags.js';
-import { getProvidersServingAsset } from './providerAvailability.js';
+import {
+  getProvidersServingAsset,
+  providerServesAsset,
+} from './providerAvailability.js';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
 import type { RampsErrorCode } from './rampsErrorCodes.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
@@ -807,6 +810,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getRequestState',
   'setUserRegion',
   'setSelectedProvider',
+  'setSelectedProviderForAsset',
   'init',
   'getCountries',
   'getTokens',
@@ -1422,6 +1426,63 @@ export class RampsController extends BaseController<
         state.providerAutoSelected = options?.autoSelected ?? false;
       });
     }
+  }
+
+  /**
+   * Switches to the first provider in state that serves the given asset,
+   * when the currently selected provider does not.
+   *
+   * This is the controller-level equivalent of UB2's BuildQuote tier-1
+   * silent-switch effect and MMPay's `useEnsureCompatibleProvider` hook: it
+   * keeps provider-asset compatibility logic in one place rather than
+   * duplicating `providerServesAsset` + find-and-switch across multiple UI
+   * layers.
+   *
+   * The compatibility check prefers the current provider's entry in
+   * `providers.data` over the `providers.selected` copy, which can be stale
+   * once a fresh providers list arrives.
+   *
+   * No-op when:
+   * - `providers.data` is empty (providers not yet loaded)
+   * - the currently selected provider already serves the asset
+   * - no provider in the list serves the asset (no safe fallback)
+   *
+   * @param assetId - CAIP-19 asset id of the deposit asset.
+   * @param options - Optional settings forwarded to `setSelectedProvider`.
+   * @param options.autoSelected - When true, marks the new selection as
+   *   system-guessed (soft selection). Defaults to true.
+   * @returns `true` if the selected provider was changed, `false` otherwise.
+   */
+  setSelectedProviderForAsset(
+    assetId: string,
+    options?: { autoSelected?: boolean },
+  ): boolean {
+    const providers = this.state.providers.data;
+    if (!providers?.length) {
+      return false;
+    }
+
+    const selectedId = this.state.providers.selected?.id;
+    const currentProvider =
+      providers.find((provider) => provider.id === selectedId) ??
+      this.state.providers.selected;
+    if (currentProvider && providerServesAsset(currentProvider, assetId)) {
+      return false;
+    }
+
+    const compatible = providers.find(
+      (provider) =>
+        provider.id !== selectedId && providerServesAsset(provider, assetId),
+    );
+    if (!compatible) {
+      return false;
+    }
+
+    this.setSelectedProvider(compatible, {
+      autoSelected: true,
+      ...options,
+    });
+    return true;
   }
 
   /**
@@ -2557,18 +2618,21 @@ export class RampsController extends BaseController<
    * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
    * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
    * @param params.walletAddress - Wallet address for the order.
-   * @param params.chainId - Optional chain ID for the order.
+   * @param params.chainId - Chain ID for the order (decimal, hex, or CAIP-2). Must be non-empty.
    */
   addPrecreatedOrder(params: {
     orderId: string;
     providerCode: string;
     walletAddress: string;
-    chainId?: string;
+    chainId: string;
   }): void {
     const { orderId, providerCode, walletAddress, chainId } = params;
 
     const orderCode = getInternalOrderCode(orderId);
     if (!orderCode?.trim()) {
+      return;
+    }
+    if (!chainId.trim()) {
       return;
     }
     const stubOrder: RampsOrder = {
@@ -2593,7 +2657,7 @@ export class RampsController extends BaseController<
       providerOrderLink: '',
       totalFeesFiat: 0,
       txHash: '',
-      network: chainId ? { chainId, name: '' } : { chainId: '', name: '' },
+      network: { chainId, name: '' },
       canBeUpdated: true,
       idHasExpired: false,
       excludeFromPurchases: false,

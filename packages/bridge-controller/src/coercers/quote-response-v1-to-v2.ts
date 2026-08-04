@@ -23,20 +23,9 @@ const BridgeAssetV2FromV1 = coerce(
   BridgeAssetV2Schema,
   intersection([BridgeAssetSchema, MinimalAssetSchema]),
   (value) => {
-    const {
-      chainId,
-      address,
-      // @ts-expect-error - chainAgnosticId is not in the schema
-      chainAgnosticId,
-      // @ts-expect-error - logoURI is not in the schema
-      logoURI,
-      iconUrl,
-      icon,
-      assetId,
-      ...rest
-    } = value;
+    const { chainId, address, iconUrl, icon, assetId, ...rest } = value;
 
-    const resolvedIconUrl = iconUrl ?? logoURI ?? icon;
+    const resolvedIconUrl = iconUrl ?? icon;
 
     return {
       assetId:
@@ -49,7 +38,7 @@ const BridgeAssetV2FromV1 = coerce(
 );
 
 export const toBridgeAssetV2 = (
-  data: unknown,
+  data: Infer<typeof MinimalAssetSchema> | undefined,
 ): Infer<typeof BridgeAssetV2Schema> => {
   return create(data, BridgeAssetV2FromV1);
 };
@@ -66,7 +55,7 @@ const StepSchemaV2FromV1 = coerce(StepSchemaV2, StepSchema, (value) => {
     },
   };
 });
-const toStepV2 = (step: unknown): Infer<typeof StepSchemaV2> =>
+const toStepV2 = (step: Infer<typeof StepSchema>): Infer<typeof StepSchemaV2> =>
   create(step, StepSchemaV2FromV1);
 
 const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
@@ -144,7 +133,9 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
   };
 });
 
-const toQuoteV2 = (quote: unknown): Infer<typeof QuoteSchemaV2> => {
+const toQuoteV2 = (
+  quote: Infer<typeof QuoteSchema>,
+): Infer<typeof QuoteSchemaV2> => {
   const quoteV2 = create(quote, QuoteV2FromV1);
   return quoteV2;
 };
@@ -179,7 +170,9 @@ const QuoteResponseV2FromV1 = coerce(
  * @param quoteResponse - The {@link QuoteResponseV1} to convert
  * @returns The {@link QuoteResponse}
  */
-export function toQuoteResponseV2(quoteResponse: unknown): QuoteResponse {
+export function toQuoteResponseV2(
+  quoteResponse: QuoteResponseV1 | QuoteResponse,
+): QuoteResponse {
   let quoteResponseV2: QuoteResponse | null = null;
 
   // V1 quote
