@@ -24,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Require a non-empty `chainId` on `addPrecreatedOrder`. Callers must seed the selected token's chain so precreated stubs (and pending flips before API enrichment) always carry a network. Empty or whitespace `chainId` is a no-op, matching empty `orderId` handling. ([#9777](https://github.com/MetaMask/core/pull/9777))
 - **BREAKING:** `RampsController` now calls `RampsService:getDefaultRedirectCallbackUrl` on the widened quote path, so hosts must delegate that action to the controller's messenger. It is included in the exported `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS` list; hosts that spell out their delegated action list instead of spreading that constant have to add it, or the entire `RampsController:getQuotes` call rejects with a messenger "handler has not been delegated" error (including MM Pay's fiat quote path, which omits `redirectUrl` and relies on widening). ([#9752](https://github.com/MetaMask/core/pull/9752))
   - The action is only called when the `moneyHeadlessAllProviders` widening is in effect and the caller omitted `redirectUrl`. An explicit `redirectUrl` and the native-only path never reach the service.
 
