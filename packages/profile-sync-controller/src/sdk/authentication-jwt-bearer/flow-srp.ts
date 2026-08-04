@@ -420,7 +420,9 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     nonce: string,
     publicKey: string,
     tag?: SrpLoginTag,
-  ): `metamask:${string}:${string}` | `metamask:${string}:${string}:${SrpLoginTag}` {
+  ):
+    | `metamask:${string}:${string}`
+    | `metamask:${string}:${string}:${SrpLoginTag}` {
     if (tag) {
       return `metamask:${nonce}:${publicKey}:${tag}` as const;
     }
