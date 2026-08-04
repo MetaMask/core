@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [110.1.1]
-
 ### Changed
 
 - **BREAKING:** `DeFiPositionsControllerV2.fetchDeFiPositions` now polls while any selected account has `processingDefiPositions: true`, updating state only when every account is ready, invalidating the balances cache between attempts, sharing one in-flight promise per selected-account + `vsCurrency` key (so fast switches can join an earlier matching poll), and stopping on request failure or the max attempt limit ([#9711](https://github.com/MetaMask/core/pull/9711))
   - Clients must allow and delegate `RemoteFeatureFlagController:getState` on the `DeFiPositionsControllerV2` messenger.
+
+## [110.1.1]
+
+### Changed
+
 - Bump `@metamask/core-backend` from `^8.1.0` to `^8.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
 - Bump `@metamask/account-tree-controller` from `^7.5.5` to `^7.6.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
