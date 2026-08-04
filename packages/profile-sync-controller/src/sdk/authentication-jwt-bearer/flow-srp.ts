@@ -25,7 +25,9 @@ import type {
   AuthStorageOptions,
   AuthType,
   IBaseAuth,
+  LoginIdentifierType,
   LoginResponse,
+  SrpLoginTag,
   UserProfile,
   UserProfileLineage,
 } from './types.js';
@@ -35,6 +37,18 @@ import * as timeUtils from './utils/time.js';
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
   signing?: AuthSigningOptions;
+  /**
+   * Resolves the login tag for a given entropy source. Defaults to
+   * `'primary'` when omitted (SDK / EIP-6963 consumers).
+   */
+  getLoginTag?: (entropySourceId?: string) => Promise<SrpLoginTag>;
+  /**
+   * Resolves the metametrics `identifier_type` for a given entropy source.
+   * Defaults to `'SRP'` when omitted.
+   */
+  getLoginIdentifierType?: (
+    entropySourceId?: string,
+  ) => Promise<LoginIdentifierType>;
   rateLimitRetry?: {
     cooldownDefaultMs?: number; // default cooldown when 429 has no Retry-After
     maxLoginRetries?: number; // maximum number of login retries on rate limit
@@ -104,6 +118,12 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   // Maximum number of login retries on rate limit errors
   readonly #maxLoginRetries: number;
 
+  readonly #getLoginTag?: (entropySourceId?: string) => Promise<SrpLoginTag>;
+
+  readonly #getLoginIdentifierType?: (
+    entropySourceId?: string,
+  ) => Promise<LoginIdentifierType>;
+
   #customProvider?: Eip1193Provider;
 
   constructor(
@@ -115,6 +135,8 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   ) {
     this.#config = config;
     this.#customProvider = options.customProvider;
+    this.#getLoginTag = options.getLoginTag;
+    this.#getLoginIdentifierType = options.getLoginIdentifierType;
     this.#options = {
       storage: options.storage,
       signing:
@@ -273,9 +295,13 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     const publicKey = await this.getIdentifier(entropySourceId);
     const nonceRes = await getNonce(publicKey, this.#config.env);
 
+    const tag = (await this.#getLoginTag?.(entropySourceId)) ?? 'primary';
+    const identifierType =
+      (await this.#getLoginIdentifierType?.(entropySourceId)) ?? 'SRP';
     const rawMessage = this.#createSrpLoginRawMessage(
       nonceRes.nonce,
       publicKey,
+      tag,
     );
     const signature = await this.signMessage(rawMessage, entropySourceId);
 
@@ -286,6 +312,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       this.#config.type,
       this.#config.env,
       this.#metametrics,
+      identifierType,
     );
 
     // Resolve original profileId from aliases.
@@ -390,7 +417,8 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   #createSrpLoginRawMessage(
     nonce: string,
     publicKey: string,
-  ): `metamask:${string}:${string}` {
-    return `metamask:${nonce}:${publicKey}` as const;
+    tag: SrpLoginTag,
+  ): `metamask:${string}:${string}:${SrpLoginTag}` {
+    return `metamask:${nonce}:${publicKey}:${tag}` as const;
   }
 }
