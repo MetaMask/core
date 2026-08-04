@@ -104,7 +104,7 @@ class PaginatedService extends BaseDataService<
   PaginatedServiceMessenger
 > {
   // Records every page param the query function is actually invoked with.
-  readonly queryFnCalls: (PageParam | undefined)[] = [];
+  readonly queryFnCalls: (PageParam | null | undefined)[] = [];
 
   constructor(
     messenger: PaginatedServiceMessenger,
@@ -168,6 +168,32 @@ class PaginatedService extends BaseDataService<
       },
       pageParam,
     );
+  }
+
+  /**
+   * Paginate with a consumer-provided `initialPageParam`, used to check that a
+   * `null` initial param (a valid `Json` first-page sentinel) is preserved.
+   *
+   * @param initialPageParam - The initial page param to configure.
+   * @returns The first page.
+   */
+  async withInitialPageParam(
+    initialPageParam: PageParam | null,
+  ): Promise<Page> {
+    return this.fetchInfiniteQuery<
+      Page,
+      unknown,
+      Page,
+      [string],
+      PageParam | null
+    >({
+      queryKey: [`${this.name}:withInitialPageParam`],
+      queryFn: async ({ pageParam: param }) => {
+        this.queryFnCalls.push(param);
+        return fetchPage(param ?? undefined);
+      },
+      initialPageParam,
+    });
   }
 }
 
@@ -944,6 +970,16 @@ describe('BaseDataService', () => {
           // Navigation still works after the rebuild.
           const page2Again = await service.withoutCallbacks({ after: '3' });
           expect(page2Again.data).toStrictEqual(['item-3', 'item-4', 'item-5']);
+        });
+      });
+
+      it('preserves a `null` consumer `initialPageParam`', async () => {
+        await withService(async ({ service }) => {
+          await service.withInitialPageParam(null);
+
+          // `null` is a valid page param, so it must reach the query function
+          // rather than being coerced to `undefined`.
+          expect(service.queryFnCalls).toStrictEqual([null]);
         });
       });
     });
