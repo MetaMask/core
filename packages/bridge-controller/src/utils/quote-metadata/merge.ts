@@ -38,30 +38,24 @@ export function mergeQuoteMetadata<
   const normalizedAmounts = toNormalizedAmounts(quoteResponse);
 
   if (migrationPhase === '2') {
-    // TODO Phase 2 of migration only uses metadata from the API response
-    // @ts-expect-error - TODO: fix this
-    return merge({}, quoteResponse, normalizedAmountsV2, fiatQuoteMetadata);
+    // Phase 2 of migration only uses metadata from the API response
+    // @ts-expect-error - this will have a type error until Phase 2 is fully deployed
+    return merge({}, quoteResponse, normalizedAmounts, fiatQuoteMetadata);
   }
 
+  // Phase 1.5 of migration uses metadata from the API response but falls back to legacy metadata
   if (migrationPhase === '1.5') {
-    // console.log('====', {
-    //   legacyQuoteMetadataV2: legacyQuoteMetadataV2.quote?.priceData,
-    //   quoteResponse: quoteResponse.quote?.priceData,
-    //   normalizedAmountsV2: normalizedAmountsV2.quote?.priceData,
-    //   fiatQuoteMetadata: fiatQuoteMetadata?.quote?.priceData,
-    //   legacyQuoteMetadata: legacyQuoteMetadata?.priceImpact,
-    // });
     return merge(
       {},
-      legacyQuoteMetadataV2,
+      legacyQuoteMetadataV2, // legacy metadata in v2 format
       quoteResponse,
       normalizedAmounts,
-      fiatQuoteMetadata,
-      legacyQuoteMetadata, // return for client testing
+      fiatQuoteMetadata, // fiat metadata derived from backend's usd values
+      legacyQuoteMetadata, // return legacy metadata for client testing
     );
   }
 
-  // Phase 1 of migration uses calcQuoteMetadata's results
+  // Phase 1 of migration uses calcQuoteMetadata's results (legacy metadata)
   return merge(
     {},
     quoteResponse,

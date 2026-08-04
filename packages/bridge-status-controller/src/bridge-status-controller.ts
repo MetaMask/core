@@ -1367,7 +1367,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param quotesReceivedContext - The context for the QuotesReceived event
    * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
-   * @param migrationPhase - The migration phase of the quote response
+   * @param migrationPhase - The active migration phase for the quote response
    * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
    * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
@@ -1406,9 +1406,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (is(quote, QuoteResponseSchemaV1)) {
         return quote;
       }
-      // In Phase 1, legacy metadata is used
-      // In Phase 1.5, legacy metadata is used as fallback
-      // In Phase 2, metadata is populated from the API response
       const quoteMetadata = toQuoteMetadataV1(quote, migrationPhase);
       return mergeQuoteMetadata(
         toQuoteResponseV1(quote),
@@ -1540,7 +1537,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.inputPrimaryDenomination - The denomination shown as the primary source amount input at submission time.
    * @param params.isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param params.quotesReceivedContext - The context for the QuotesReceived event
-   * @param params.migrationPhase - The migration phase of the quote response
+   * @param params.migrationPhase - The active migration phase for the quote response
    * @returns A lightweight TransactionMeta-like object for history linking
    * @throws An error if intent or transaction submission fails before they get published
    */

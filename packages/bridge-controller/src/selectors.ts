@@ -366,7 +366,7 @@ const selectMetadata = createBridgeSelector(
   },
 );
 
-export const selectUsdToFiatExchangeRate = createBridgeSelector(
+const selectUsdToFiatExchangeRate = createBridgeSelector(
   [
     selectExchangeRateSources,
     ({ quoteRequest }) =>
@@ -385,7 +385,7 @@ export const selectUsdToFiatExchangeRate = createBridgeSelector(
   },
 );
 
-export const selectMetadataV2 = createBridgeSelector(
+const selectMetadataV2 = createBridgeSelector(
   [({ quotes }) => quotes, selectUsdToFiatExchangeRate],
   (quotes, usdToFiatExchangeRate) => {
     return quotes.map((quote) =>
@@ -404,9 +404,6 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
   ],
   (quoteMetadata, quoteMetadataV2, quotes, migrationPhase) =>
     quotes.map((quote, index) => {
-      // if phase 1, skip toQuoteMetadataV2(quoteMetadataV2) so new metadata keys have old data
-      // if phase 1.5, add quoteMetadataV2, so new metadata keys can have both old and new data
-      // if phase 2, skip quoteMetadata, so new metadata keys have new data and old data can be removed
       return mergeQuoteMetadata(
         quote,
         quoteMetadata[index],

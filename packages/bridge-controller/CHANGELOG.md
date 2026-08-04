@@ -19,7 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Pass migrationPhase to selector, determines how metadata is resolved
+- **BREAKING:** Add `migrationPhase` to selector params, which determines how metadata is resolved ([#9744](https://github.com/MetaMask/core/pull/9744))
+  - Phase 1 omits V2 quoteMetadata derived from the quotes response. Legacy metadata is served to the clients
+  - Phase 1.5 includes V2 quoteMetadata but falls back to legacy metadata
+  - Phase 2 omits legacy metadata from the quotes and enables removal of deprecated metadata utils
 - **BREAKING:** Use QuoteResponse V2 within the BridgeController; this affects the batch-sell, unified swap/bridge and quickBuy experiences ([#9726](https://github.com/MetaMask/core/pull/9726))
   - convert quotes to QuoteResponse v2 in `fetchBridgeQuoteStream`
   - store quotes as QuoteResponse v2 in the BridgeController

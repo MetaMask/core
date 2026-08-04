@@ -215,7 +215,6 @@ export {
 export {
   calcSlippagePercentage,
   calcQuoteMetadata,
-  calcQuoteMetadataV2,
 } from './utils/quote-metadata/calculators.js';
 
 export { calcLatestSrcBalance } from './utils/balance.js';
@@ -249,8 +248,6 @@ export {
   selectBridgeFeatureFlags,
   selectMinimumBalanceForRentExemptionInSOL,
   selectTokenWarnings,
-  selectMetadataV2,
-  selectUsdToFiatExchangeRate,
 } from './selectors.js';
 
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge.js';

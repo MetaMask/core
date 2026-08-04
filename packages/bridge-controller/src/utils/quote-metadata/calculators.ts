@@ -419,6 +419,8 @@ export const calcPriceImpact = (
  * Calculates quote metadata, such as converted fiat amounts and fees,
  * based on the controller state and the quote response
  *
+ * @deprecated Use {@link calcQuoteMetadataV2} instead
+ *
  * @param quote - The quote response to calculate the metadata for
  * @param options - The options for the calculation
  * @param options.bridgeFeesPerGas - The bridge fees per gas
@@ -448,7 +450,6 @@ export const calcQuoteMetadata = (
 
   const isQuoteV2 = is(quote, QuoteResponseSchemaV2);
   const quoteV1 = isQuoteV2 ? toQuoteResponseV1(quote) : quote;
-  // const quote = toQuoteResponseV2(toQuoteResponseV1(baseQuote));
 
   const sentAmount = calcSentAmount(
     quoteV1.quote,
@@ -536,6 +537,13 @@ export const calcQuoteMetadata = (
   };
 };
 
+/**
+ * Builds a partial {@link QuoteResponse} object with fiat values derived from the usd values and the usd to fiat exchange rate
+ *
+ * @param quote - The quote response to calculate the metadata for
+ * @param usdToFiatExchangeRateString - The usd to fiat exchange rate
+ * @returns The partial {@link QuoteResponse} object with fiat values derived from the usd values and the usd to fiat exchange rate
+ */
 export const calcQuoteMetadataV2 = (
   quote: QuoteResponse,
   usdToFiatExchangeRateString?: string,
@@ -543,8 +551,9 @@ export const calcQuoteMetadataV2 = (
   if (!usdToFiatExchangeRateString) {
     return {};
   }
+
   const usdToFiatExchangeRate = new BigNumber(usdToFiatExchangeRateString);
-  // Calculate fiat based on usd value
+
   return {
     quote: {
       src: {
@@ -564,28 +573,27 @@ export const calcQuoteMetadataV2 = (
         Object.values(FeeType).map((feeType) => [
           feeType,
           quote.quote.feeData[feeType]
-            ?.filter((fee) => fee.usd)
+            ?.filter((fee) => fee.usd !== undefined)
             .map((fee) => ({
-              valueInCurrency: usdToFiatExchangeRate
-                .times(fee.usd as string)
-                .toFixed(),
+              valueInCurrency:
+                fee.usd && usdToFiatExchangeRate.times(fee.usd).toFixed(),
             })),
         ]),
       ),
       priceData: {
         priceImpact: {
-          valueInCurrency: quote.quote.priceData?.priceImpact?.usd
-            ? usdToFiatExchangeRate
-                .times(quote.quote.priceData?.priceImpact?.usd)
-                .toFixed()
-            : undefined,
+          valueInCurrency:
+            quote.quote.priceData?.priceImpact?.usd &&
+            usdToFiatExchangeRate
+              .times(quote.quote.priceData.priceImpact.usd)
+              .toFixed(),
         },
         adjustedReturn: {
-          valueInCurrency: quote.quote.priceData?.adjustedReturn?.usd
-            ? usdToFiatExchangeRate
-                .times(quote.quote.priceData.adjustedReturn.usd)
-                .toFixed()
-            : undefined,
+          valueInCurrency:
+            quote.quote.priceData?.adjustedReturn?.usd &&
+            usdToFiatExchangeRate
+              .times(quote.quote.priceData.adjustedReturn.usd)
+              .toFixed(),
         },
       },
     },

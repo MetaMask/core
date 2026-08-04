@@ -20,7 +20,7 @@ export const toQuoteMetadataV1 = (
   quoteResponse:
     | (DeepPartial<QuoteResponse | QuoteResponseV1> & QuoteMetadata)
     | null,
-  migrationPhase: '1' | '1.5' | '2',
+  migrationPhase: '1' | '1.5' | '2' = '1',
 ): QuoteMetadata => {
   /* istanbul ignore if */
   if (!quoteResponse) {
@@ -72,25 +72,22 @@ export const toQuoteMetadataV1 = (
     const v2Metadata: QuoteMetadata | undefined = {
       sentAmount: {
         amount: quoteResponse?.quote?.src?.normalizedAmount,
-        usd: quoteResponse?.quote?.src?.usd ?? undefined,
-        valueInCurrency:
-          quoteResponse?.quote?.src?.valueInCurrency ?? undefined,
+        usd: quoteResponse?.quote?.src?.usd,
+        valueInCurrency: quoteResponse?.quote?.src?.valueInCurrency,
       },
       toTokenAmount: {
         amount: quoteResponse?.quote?.dest?.normalizedAmount,
-        usd: quoteResponse?.quote?.dest?.usd ?? undefined,
-        valueInCurrency:
-          quoteResponse?.quote?.dest?.valueInCurrency ?? undefined,
+        usd: quoteResponse?.quote?.dest?.usd,
+        valueInCurrency: quoteResponse?.quote?.dest?.valueInCurrency,
       },
       minToTokenAmount: {
         amount: quoteResponse?.quote?.dest?.minAmountNormalized,
-        valueInCurrency:
-          quoteResponse?.quote?.dest?.minAmountValueInCurrency ?? undefined,
-        usd: quoteResponse?.quote?.dest?.minAmountUsd ?? undefined,
+        valueInCurrency: quoteResponse?.quote?.dest?.minAmountValueInCurrency,
+        usd: quoteResponse?.quote?.dest?.minAmountUsd,
       },
       swapRate: quoteResponse?.quote?.priceData?.swapRate,
       adjustedReturn: {
-        usd: quoteResponse?.quote?.priceData?.adjustedReturn?.usd ?? undefined,
+        usd: quoteResponse?.quote?.priceData?.adjustedReturn?.usd,
         valueInCurrency:
           quoteResponse?.quote?.priceData?.adjustedReturn?.valueInCurrency ??
           undefined,
@@ -99,26 +96,26 @@ export const toQuoteMetadataV1 = (
         valueInCurrency:
           quoteResponse?.quote?.priceData?.priceImpact?.valueInCurrency ??
           undefined,
-        usd: quoteResponse?.quote?.priceData?.priceImpact?.usd ?? undefined,
+        usd: quoteResponse?.quote?.priceData?.priceImpact?.usd,
       },
       gasFee: {
         total: {
           amount:
             quoteResponse?.quote?.feeData?.network?.[0]?.normalizedAmount ??
             undefined,
-          usd: quoteResponse?.quote?.feeData?.network?.[0]?.usd ?? undefined,
+          usd: quoteResponse?.quote?.feeData?.network?.[0]?.usd,
           valueInCurrency:
             quoteResponse?.quote?.feeData?.network?.[0]?.valueInCurrency ??
             undefined,
         },
       },
       totalNetworkFee: {
-        amount: totalNetworkFeeV2?.normalizedAmount ?? undefined,
-        usd: totalNetworkFeeV2?.usd ?? undefined,
-        valueInCurrency: totalNetworkFeeV2?.valueInCurrency ?? undefined,
+        amount: totalNetworkFeeV2?.normalizedAmount,
+        usd: totalNetworkFeeV2?.usd,
+        valueInCurrency: totalNetworkFeeV2?.valueInCurrency,
       },
       priceImpact: {
-        usd: quoteResponse?.quote?.priceData?.priceImpact?.usd ?? undefined,
+        usd: quoteResponse?.quote?.priceData?.priceImpact?.usd,
         valueInCurrency:
           quoteResponse?.quote?.priceData?.priceImpact?.valueInCurrency ??
           undefined,
@@ -127,16 +124,14 @@ export const toQuoteMetadataV1 = (
         amount:
           quoteResponse?.quote?.feeData?.relayer?.[0]?.normalizedAmount ??
           undefined,
-        usd: quoteResponse?.quote?.feeData?.relayer?.[0]?.usd ?? undefined,
+        usd: quoteResponse?.quote?.feeData?.relayer?.[0]?.usd,
         valueInCurrency:
           quoteResponse?.quote?.feeData?.relayer?.[0]?.valueInCurrency ??
           undefined,
       },
       includedTxFees: {
-        amount:
-          quoteResponse?.quote?.feeData?.txFee?.[0]?.normalizedAmount ??
-          undefined,
-        usd: quoteResponse?.quote?.feeData?.txFee?.[0]?.usd ?? undefined,
+        amount: quoteResponse?.quote?.feeData?.txFee?.[0]?.normalizedAmount,
+        usd: quoteResponse?.quote?.feeData?.txFee?.[0]?.usd,
         valueInCurrency:
           quoteResponse?.quote?.feeData?.txFee?.[0]?.valueInCurrency ??
           undefined,

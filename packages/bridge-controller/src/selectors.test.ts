@@ -41,7 +41,10 @@ import {
   formatChainIdToDec,
   formatChainIdToHex,
 } from './utils/caip-formatters.js';
-import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
+import {
+  calcQuoteMetadata,
+  calcQuoteMetadataV2,
+} from './utils/quote-metadata/calculators.js';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 import { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.js';
 import { BatchSellTransactionType } from './validators/batch-sell.js';
@@ -708,7 +711,6 @@ describe('Bridge Selectors', () => {
                   network: [
                     {
                       amount: '7500000000000',
-                      usd: '0.01514',
                       asset: toBridgeAssetV2(getNativeAssetForChainId(1)),
                     },
                   ],
@@ -776,6 +778,239 @@ describe('Bridge Selectors', () => {
 
       expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
       expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('1758.014454');
+    });
+
+    it('should return sorted quotes with metadata (Phase 1.5)', () => {
+      const mockState = getMockState(1);
+      const mockQuote = mockState.quotes[0];
+      const quotes = mockState.quotes.map((quote) => ({
+        ...quote,
+        quote: {
+          ...quote.quote,
+          feeData: {
+            ...quote.quote.feeData,
+            network: [
+              {
+                amount: '7500000000000',
+                usd: '0.01514',
+                asset: toBridgeAssetV2(getNativeAssetForChainId(1)),
+              },
+            ],
+          },
+          priceData: {
+            ...quote.quote.priceData,
+            ...(quote.quote.requestId === '456' && {
+              priceImpact: {
+                usd: '7.9',
+              },
+            }),
+          },
+        },
+      }));
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            quotes,
+            assetExchangeRates: {
+              [mockQuote.quote.src.asset.assetId]: {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              [mockQuote.quote.dest.asset.assetId]: {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          { ...mockClientParams, migrationPhase: '1.5' },
+        );
+
+      const quote = quotes[1];
+      const expectedQuoteMetadata = calcQuoteMetadata(quote, {
+        srcTokenExchangeRate: { exchangeRate: '1980', usdExchangeRate: '10' },
+        bridgeFeesPerGas: {
+          estimatedBaseFeeInDecGwei: '0',
+          feePerGasInDecGwei: '.1',
+        },
+        destTokenExchangeRate: { exchangeRate: '200', usdExchangeRate: '1' },
+        nativeExchangeRate: { exchangeRate: '1980', usdExchangeRate: '10' },
+      });
+      const expectedQuoteV2 = mergeQuoteMetadata(
+        quote,
+        expectedQuoteMetadata,
+        '1.5',
+        calcQuoteMetadataV2(quote, (1980 / 10).toString()),
+      );
+
+      expect(
+        expectedQuoteV2?.quote?.priceData?.priceImpact?.usd,
+      ).toMatchInlineSnapshot(`"7.9"`);
+
+      expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
+
+      expect(result.recommendedQuote?.priceImpact?.valueInCurrency).toBe(
+        expectedQuoteV2.priceImpact?.valueInCurrency,
+      );
+      expect(result.recommendedQuote?.quote.priceData?.priceImpact)
+        .toMatchInlineSnapshot(`
+        {
+          "usd": "7.9",
+          "valueInCurrency": "1564.2",
+        }
+      `);
+      expect(result.recommendedQuote?.priceImpact).toMatchInlineSnapshot(`
+        {
+          "usd": "8.9",
+          "valueInCurrency": "1758",
+        }
+      `);
+
+      expect(toQuoteMetadataV1(result.recommendedQuote)).toStrictEqual(
+        expectedQuoteMetadata,
+      );
+
+      expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
+      expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('1758.014454');
+    });
+
+    it('should return sorted quotes with metadata (Phase 2)', () => {
+      const mockState = getMockState(1);
+      const mockQuote = mockState.quotes[0];
+      const quotes = mockState.quotes.map((quote) => ({
+        ...quote,
+        quote: {
+          ...quote.quote,
+          feeData: {
+            ...quote.quote.feeData,
+            network: [
+              {
+                amount: '7500000000000',
+                asset: toBridgeAssetV2(getNativeAssetForChainId(1)),
+                usd: undefined,
+              },
+            ],
+          },
+          priceData: {
+            ...quote.quote.priceData,
+            ...(quote.quote.requestId === '456' && {
+              priceImpact: {
+                usd: '7.9',
+              },
+            }),
+          },
+        },
+      }));
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            quotes,
+            assetExchangeRates: {
+              [mockQuote.quote.src.asset.assetId]: {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              [mockQuote.quote.dest.asset.assetId]: {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          { ...mockClientParams, migrationPhase: '2' },
+        );
+
+      const quote = quotes[1];
+      const expectedQuoteV2 = mergeQuoteMetadata(
+        quote,
+        {},
+        '2',
+        calcQuoteMetadataV2(quote, (1980 / 10).toString()),
+      );
+
+      expect(
+        expectedQuoteV2?.quote?.priceData?.priceImpact?.usd,
+      ).toMatchInlineSnapshot(`"7.9"`);
+
+      expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
+
+      expect(result.recommendedQuote?.priceImpact?.valueInCurrency).toBe(
+        expectedQuoteV2.priceImpact?.valueInCurrency,
+      );
+      expect(result.recommendedQuote?.quote.priceData?.priceImpact)
+        .toMatchInlineSnapshot(`
+        {
+          "usd": "7.9",
+          "valueInCurrency": "1564.2",
+        }
+      `);
+      expect(result.recommendedQuote?.priceImpact).toBeUndefined();
+      expect(result.recommendedQuote?.sentAmount).toBeUndefined();
+      expect(result.recommendedQuote?.toTokenAmount).toBeUndefined();
+      expect(result.recommendedQuote?.minToTokenAmount).toBeUndefined();
+      expect(result.recommendedQuote?.swapRate).toBeUndefined();
+      expect(result.recommendedQuote?.totalNetworkFee).toBeUndefined();
+      expect(result.recommendedQuote?.gasFee).toBeUndefined();
+      expect(result.recommendedQuote?.relayerFee).toBeUndefined();
+      expect(result.recommendedQuote?.includedTxFees).toBeUndefined();
+      expect(result.sortedQuotes[0].cost).toBeUndefined();
+
+      expect(result.sortedQuotes[0]).toStrictEqual(expectedQuoteV2);
+      expect(toQuoteMetadataV1(result.recommendedQuote, '2'))
+        .toMatchInlineSnapshot(`
+        {
+          "adjustedReturn": {
+            "usd": undefined,
+            "valueInCurrency": undefined,
+          },
+          "cost": {
+            "usd": "7.9",
+            "valueInCurrency": "1564.2",
+          },
+          "gasFee": {
+            "total": {
+              "amount": "0.0000075",
+              "usd": undefined,
+              "valueInCurrency": undefined,
+            },
+          },
+          "includedTxFees": {
+            "amount": undefined,
+            "usd": undefined,
+            "valueInCurrency": undefined,
+          },
+          "minToTokenAmount": {
+            "amount": "1.8",
+            "usd": undefined,
+            "valueInCurrency": undefined,
+          },
+          "priceImpact": {
+            "usd": "7.9",
+            "valueInCurrency": "1564.2",
+          },
+          "relayerFee": {
+            "amount": undefined,
+            "usd": undefined,
+            "valueInCurrency": undefined,
+          },
+          "sentAmount": {
+            "amount": "1.1",
+            "usd": undefined,
+            "valueInCurrency": undefined,
+          },
+          "swapRate": undefined,
+          "toTokenAmount": {
+            "amount": "2.1",
+            "usd": undefined,
+            "valueInCurrency": undefined,
+          },
+          "totalNetworkFee": {
+            "amount": "0.0000075",
+            "usd": undefined,
+            "valueInCurrency": undefined,
+          },
+        }
+      `);
     });
 
     it('should return metadata when quotes are empty', () => {
@@ -1958,7 +2193,7 @@ describe('Bridge Selectors', () => {
               },
             },
           },
-          { ...mockClientParams, requestCount: 2 },
+          { ...mockClientParams, requestCount: 2, migrationPhase: '1' },
         );
 
       const { totalReceived, minimumReceived, recommendedQuotes, ...rest } =
@@ -2063,7 +2298,7 @@ describe('Bridge Selectors', () => {
               },
             },
           },
-          { ...mockClientParams, requestCount: 2 },
+          { ...mockClientParams, requestCount: 2, migrationPhase: '1' },
         );
 
       const { totalReceived, minimumReceived, recommendedQuotes, ...rest } =
@@ -2102,7 +2337,7 @@ describe('Bridge Selectors', () => {
             },
           },
         },
-        { ...mockClientParams, requestCount: 1 },
+        { ...mockClientParams, requestCount: 1, migrationPhase: '1' },
       );
 
       expect(recommendedQuotes).toHaveLength(1);

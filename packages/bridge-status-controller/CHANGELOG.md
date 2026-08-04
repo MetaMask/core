@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Pass migrationPhase to submit, determines how metadata is resolved
+- **BREAKING**: Add migrationPhase to submit handlers, which determines how quote metadata is resolved ([#9744](https://github.com/MetaMask/core/pull/9744))
 - **BREAKING**: Change `submitBatchSell` and `submitIntent` quoteResponse parameter from `QuoteResponseV1` to `QuoteResponse` V2 ([#9726](https://github.com/MetaMask/core/pull/9726))
   - Support both `QuoteResponseV1` and `QuoteResponse` quoteResponses in `submitTx`
   - Controller logic and utils still require V1, but clients can submit quotes in both formats
