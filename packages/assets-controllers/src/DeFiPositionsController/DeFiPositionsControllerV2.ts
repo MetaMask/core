@@ -109,7 +109,8 @@ export type DeFiPositionsControllerV2Messenger = Messenger<
  *
  * Deduplication and freshness are handled by the shared TanStack Query cache on
  * {@link ApiPlatformClient} (balances default `staleTime` is 1 minute). Pass
- * `{ forceRefresh: true }` to bypass that cache for pull-to-refresh.
+ * `{ forceRefresh: true }` to bypass that cache on the first attempt (e.g.
+ * pull-to-refresh); later processing polls always bypass the cache.
  *
  * When the API reports `processingDefiPositions` for any account, this
  * controller polls until indexing finishes or the attempt limit is reached,
@@ -122,10 +123,9 @@ export type DeFiPositionsControllerV2Messenger = Messenger<
  *
  * Processing-poll `maxAttempts` / `pollInterval` are read via
  * {@link getProcessingPollConfig} from the `defiControllerV2` remote feature
- * flag (`RemoteFeatureFlagController:getState`), falling back to
- * `DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS` /
- * `DEFAULT_PROCESSING_POLL_INTERVAL_MS` when unset or invalid. Clients
- * must delegate that action to this controller's messenger.
+ * flag (`RemoteFeatureFlagController:getState`), falling back to built-in
+ * defaults when unset or invalid. Clients must delegate that action to this
+ * controller's messenger.
  */
 export class DeFiPositionsControllerV2 extends BaseController<
   typeof controllerName,
@@ -311,8 +311,8 @@ export class DeFiPositionsControllerV2 extends BaseController<
           });
 
           // Report how many attempts were needed (only when polling was
-          // required) so we can tune DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS /
-          // INTERVAL from Sentry without flooding on first-try successes.
+          // required) so Sentry can inform remote-flag / default poll-limit
+          // tuning without flooding on first-try successes.
           const attemptsTaken = attempt + 1;
           if (attemptsTaken > 1) {
             const sentryError = new Error(
