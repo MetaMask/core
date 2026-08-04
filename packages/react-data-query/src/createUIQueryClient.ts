@@ -4,7 +4,7 @@ import type {
 } from '@metamask/base-data-service';
 import { assert } from '@metamask/utils';
 import {
-  hashQueryKey,
+  hashKey,
   hydrate,
   QueryClient,
   InvalidateQueryFilters,
@@ -84,6 +84,12 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
     string,
     DataServiceGranularCacheUpdatedHandler
   >();
+
+  // Tracks how many mutation observers are currently relying on each mutation
+  // key's cache subscription. Unlike queries, a `Mutation` does not expose its
+  // observer count publicly, so we count observers ourselves and only tear down
+  // the messenger subscription once the last observer for a key is removed.
+  const mutationObserverCounts = new Map<string, number>();
 
   /**
    * Check whether a name is one of the provided data service names.
@@ -209,8 +215,6 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
     }
   });
 
-  // TODO: Test
-
   const mutationCache = client.getMutationCache();
   mutationCache.subscribe((event) => {
     const { mutation } = event;
@@ -219,7 +223,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
       return;
     }
 
-    const hash = hashQueryKey(mutation.options.mutationKey);
+    const hash = hashKey(mutation.options.mutationKey);
     const hasSubscription = subscriptions.has(hash);
 
     const service = parseQueryKey(mutation.options.mutationKey);
@@ -228,22 +232,44 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
       return;
     }
 
-    if (!hasSubscription && event.type === 'observerAdded') {
-      const cacheListener = (
-        payload: DataServiceGranularCacheUpdatedPayload,
-      ): void => {
-        if (payload.type === 'removed') {
-          return;
-        }
+    if (event.type === 'observerAdded') {
+      mutationObserverCounts.set(
+        hash,
+        (mutationObserverCounts.get(hash) ?? 0) + 1,
+      );
 
-        hydrate(client, payload.state);
-      };
+      if (!hasSubscription) {
+        const cacheListener = (
+          payload: DataServiceGranularCacheUpdatedPayload,
+        ): void => {
+          if (payload.type === 'removed') {
+            return;
+          }
 
-      subscriptions.set(hash, cacheListener);
-      messenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
+          hydrate(client, payload.state);
+        };
+
+        subscriptions.set(hash, cacheListener);
+        messenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
+      }
     } else if (event.type === 'observerRemoved' && hasSubscription) {
+      // A subscription always has a corresponding observer count, since both
+      // are set together when the first observer is added.
+      // istanbul ignore next
+      const remainingObservers = (mutationObserverCounts.get(hash) ?? 1) - 1;
+
+      if (remainingObservers > 0) {
+        mutationObserverCounts.set(hash, remainingObservers);
+        return;
+      }
+
+      mutationObserverCounts.delete(hash);
+
       const subscriptionListener = subscriptions.get(hash);
 
+      // A subscription always has a listener, since both are set together when
+      // the first observer is added.
+      // istanbul ignore next
       if (subscriptionListener) {
         messenger.unsubscribe(
           `${service}:cacheUpdated:${hash}`,

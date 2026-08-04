@@ -60,7 +60,11 @@ export type PageParam =
     }
   | { after: string };
 
-const MESSENGER_EXPOSED_METHODS = ['getAssets', 'getActivity'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'getAssets',
+  'getActivity',
+  'addFollower',
+] as const;
 
 export class ExampleDataService extends BaseDataService<
   typeof serviceName,
