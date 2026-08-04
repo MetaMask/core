@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `setSelectedProviderForAsset(assetId, options?)` method and `RampsController:setSelectedProviderForAsset` messenger action ([#9759](https://github.com/MetaMask/core/pull/9759))
+  - Switches `providers.selected` to the first provider in `providers.data` that serves the given CAIP-19 asset when the currently selected provider does not, using the existing `providerServesAsset` utility.
+  - Returns `true` if a switch was made, `false` otherwise (no-op when providers are not yet loaded, the current provider already serves the asset, or no alternative provider serves the asset).
 - Add `RampsService.getDefaultRedirectCallbackUrl()` and the matching `RampsService:getDefaultRedirectCallbackUrl` messenger action (plus the exported `RampsServiceGetDefaultRedirectCallbackUrlAction` type), which return the widened Headless Buy default redirect ("fake callback") URL for the environment the service was constructed with. The method is synchronous. ([#9752](https://github.com/MetaMask/core/pull/9752))
   - `baseUrlOverride` deliberately does not apply. It overrides the ramps API host for local development, which in production and staging is not the host that serves `/regions/fake-callback` (`on-ramp-content` versus `on-ramp{-cache}`), and the redirect URL is matched by client UI to detect flow completion. For development the callback already shares the API host family (`on-ramp.dev-api`). Use `RampsEnvironment.Local` for a localhost callback, noting it is pinned to `http://localhost:3000` and does not follow a non-3000 `baseUrlOverride`.
 - Add the exported `getDefaultRedirectCallbackUrl(environment)` helper, the canonical environment-to-callback map that `RampsService` uses: `on-ramp-content` hosts for production and staging, `on-ramp.dev-api` for development (there is no `on-ramp-content.dev-api` deployment), and `localhost:3000` for local. Client code that needs the value synchronously, without the messenger, can call it directly with the same environment the service was given. ([#9752](https://github.com/MetaMask/core/pull/9752))
@@ -22,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Remove the `getDefaultRedirectUrl` callback option from `RampsControllerOptions`. The controller asks `RampsService` for the default redirect URL instead, which keeps the environment a single runtime source of truth so the callback host cannot drift from the API host the service is talking to. ([#9752](https://github.com/MetaMask/core/pull/9752))
   - Mobile should drop the `getDefaultRedirectUrl: () => getRampCallbackBaseUrl()` argument from its `RampsController` init once it upgrades, and reimplement `getRampCallbackBaseUrl()` as `getDefaultRedirectCallbackUrl(getRampsEnvironment())` so the UI callback matcher and the controller default resolve from the same environment source.
+
+### Fixed
+
+- Fix `providerServesAsset` to require the `supportedCryptoCurrencies` map value to be `true`, not just key presence ([#9759](https://github.com/MetaMask/core/pull/9759))
+  - Previously a provider with `{ "eip155:1/erc20:0x...": false }` would be treated as serving the asset.
 
 ## [18.0.1]
 
