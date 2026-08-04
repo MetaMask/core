@@ -134,7 +134,7 @@ export {
   QuoteStreamCompleteReason,
 } from './validators/quote-stream-complete.js';
 export { BatchSellTransactionType } from './validators/batch-sell.js';
-export { type AmountsAndAssetSchema } from './validators/amount-and-asset.js';
+export { AmountsAndAssetSchema } from './validators/amount-and-asset.js';
 export { TokenFeatureType } from './validators/token-feature.js';
 export type {
   BridgeAsset,
