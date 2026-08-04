@@ -323,7 +323,7 @@ describe('ShieldApiService', () => {
     await expect(service.checkCoverage({ txMeta })).rejects.toThrow(HttpError);
     await expect(service.checkCoverage({ txMeta })).rejects.toThrow(HttpError);
 
-    await expect(service.checkCoverage({ txMeta })).resolves.toMatchObject({
+    expect(await service.checkCoverage({ txMeta })).toMatchObject({
       coverageId: 'coverageId',
     });
     expect(fetchMock).toHaveBeenCalledTimes(5);
@@ -363,7 +363,7 @@ describe('ShieldApiService', () => {
         json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
       } as unknown as Response);
 
-    await expect(service.checkCoverage({ txMeta })).resolves.toMatchObject({
+    expect(await service.checkCoverage({ txMeta })).toMatchObject({
       coverageId: 'coverageId',
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -587,7 +587,7 @@ describe('ShieldApiService', () => {
       await expect(service.logSignature(request)).rejects.toThrow(HttpError);
       await expect(service.logSignature(request)).rejects.toThrow(HttpError);
       await expect(service.logSignature(request)).rejects.toThrow(HttpError);
-      await expect(service.logSignature(request)).resolves.toBeUndefined();
+      expect(await service.logSignature(request)).toBeUndefined();
       expect(fetchMock).toHaveBeenCalledTimes(4);
     });
   });
@@ -659,7 +659,7 @@ describe('ShieldApiService', () => {
       await expect(service.logTransaction(request)).rejects.toThrow(HttpError);
       await expect(service.logTransaction(request)).rejects.toThrow(HttpError);
       await expect(service.logTransaction(request)).rejects.toThrow(HttpError);
-      await expect(service.logTransaction(request)).resolves.toBeUndefined();
+      expect(await service.logTransaction(request)).toBeUndefined();
       expect(fetchMock).toHaveBeenCalledTimes(4);
     });
 
@@ -695,7 +695,7 @@ describe('ShieldApiService', () => {
       shouldFailAuth = false;
       fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
 
-      await expect(service.logTransaction(request)).resolves.toBeUndefined();
+      expect(await service.logTransaction(request)).toBeUndefined();
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
