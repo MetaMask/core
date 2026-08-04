@@ -38,7 +38,7 @@ const BridgeAssetV2FromV1 = coerce(
 );
 
 export const toBridgeAssetV2 = (
-  data: Infer<typeof MinimalAssetSchema> | undefined,
+  data: unknown,
 ): Infer<typeof BridgeAssetV2Schema> => {
   return create(data, BridgeAssetV2FromV1);
 };
@@ -170,9 +170,7 @@ const QuoteResponseV2FromV1 = coerce(
  * @param quoteResponse - The {@link QuoteResponseV1} to convert
  * @returns The {@link QuoteResponse}
  */
-export function toQuoteResponseV2(
-  quoteResponse: QuoteResponseV1 | QuoteResponse,
-): QuoteResponse {
+export function toQuoteResponseV2(quoteResponse: unknown): QuoteResponse {
   let quoteResponseV2: QuoteResponse | null = null;
 
   // V1 quote
