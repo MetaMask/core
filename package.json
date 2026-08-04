@@ -119,6 +119,7 @@
     "@nktkas/hyperliquid@npm:^0.33.1": "patch:@nktkas/hyperliquid@npm%3A0.33.1#~/.yarn/patches/@nktkas-hyperliquid-npm-0.33.1-6a541fdd1d.patch",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
+    "nock@npm:^13.3.1": "patch:nock@npm%3A13.5.5#~/.yarn/patches/nock-npm-13.5.5-ccb57f0a2f.patch",
     "ws@7.4.6": "^7.5.10"
   },
   "simple-git-hooks": {
