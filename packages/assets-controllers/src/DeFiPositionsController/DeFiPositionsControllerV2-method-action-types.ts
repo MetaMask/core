@@ -16,9 +16,11 @@ import type { DeFiPositionsControllerV2 } from './DeFiPositionsControllerV2.js';
  * accounts and `vsCurrency` share one in-flight promise; calls for a different
  * selection or fiat currency start a new fetch and leave prior polls running
  * so a later switch back can join them. When a successful ready response
- * required more than one attempt, reports the attempt count to Sentry via
- * `messenger.captureException` (error name `DeFiPositionsV2FetchAttempts`) so
- * poll limits can be tuned. No-ops when disabled or when the group has no
+ * required more than one attempt, or when polling hits the attempt limit
+ * while still processing, reports to Sentry via `messenger.captureException`
+ * (error names `DeFiPositionsV2FetchAttempts` /
+ * `DeFiPositionsV2ProcessingPollExhausted`) so poll limits can be tuned.
+ * No-ops when disabled or when the group has no
  * supported accounts. Caching / spam prevention is handled by the apiClient
  * TanStack Query cache (keyed by accounts + query options including
  * `vsCurrency`). Pass `{ forceRefresh: true }` to bypass the cache on the

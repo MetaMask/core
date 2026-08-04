@@ -523,7 +523,7 @@ describe('DeFiPositionsControllerV2', () => {
     );
   });
 
-  it('does not report attempt count to Sentry when polling hits the max limit', async () => {
+  it('reports to Sentry when polling hits the max limit while still processing', async () => {
     jest.useFakeTimers();
 
     const mockFetchV6MultiAccountBalances = jest
@@ -542,7 +542,13 @@ describe('DeFiPositionsControllerV2', () => {
 
     await fetchPromise;
 
-    expect(mockCaptureException).not.toHaveBeenCalled();
+    expect(mockCaptureException).toHaveBeenCalledTimes(1);
+    expect(mockCaptureException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'DeFiPositionsV2ProcessingPollExhausted',
+        message: `DeFiPositionsControllerV2: still processing after ${DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS} attempt(s)`,
+      }),
+    );
   });
 
   it('keeps prior state for all accounts until every account is ready', async () => {

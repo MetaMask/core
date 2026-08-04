@@ -198,9 +198,11 @@ export class DeFiPositionsControllerV2 extends BaseController<
    * accounts and `vsCurrency` share one in-flight promise; calls for a different
    * selection or fiat currency start a new fetch and leave prior polls running
    * so a later switch back can join them. When a successful ready response
-   * required more than one attempt, reports the attempt count to Sentry via
-   * `messenger.captureException` (error name `DeFiPositionsV2FetchAttempts`) so
-   * poll limits can be tuned. No-ops when disabled or when the group has no
+   * required more than one attempt, or when polling hits the attempt limit
+   * while still processing, reports to Sentry via `messenger.captureException`
+   * (error names `DeFiPositionsV2FetchAttempts` /
+   * `DeFiPositionsV2ProcessingPollExhausted`) so poll limits can be tuned.
+   * No-ops when disabled or when the group has no
    * supported accounts. Caching / spam prevention is handled by the apiClient
    * TanStack Query cache (keyed by accounts + query options including
    * `vsCurrency`). Pass `{ forceRefresh: true }` to bypass the cache on the
@@ -315,11 +317,11 @@ export class DeFiPositionsControllerV2 extends BaseController<
           // tuning without flooding on first-try successes.
           const attemptsTaken = attempt + 1;
           if (attemptsTaken > 1) {
-            const sentryError = new Error(
+            const multipleAttemptsError = new Error(
               `DeFiPositionsControllerV2: positions ready after ${attemptsTaken} attempt(s)`,
             );
-            sentryError.name = 'DeFiPositionsV2FetchAttempts';
-            this.messenger.captureException?.(sentryError);
+            multipleAttemptsError.name = 'DeFiPositionsV2FetchAttempts';
+            this.messenger.captureException?.(multipleAttemptsError);
           }
           return;
         }
@@ -336,6 +338,13 @@ export class DeFiPositionsControllerV2 extends BaseController<
 
         const isLastAttempt = attempt >= maxAttempts - 1;
         if (isLastAttempt) {
+          // Report exhausted polls so Sentry can inform remote-flag / default
+          // poll-limit tuning when indexing never finishes in time.
+          const multipleAttemptsError = new Error(
+            `DeFiPositionsControllerV2: still processing after ${maxAttempts} attempt(s)`,
+          );
+          multipleAttemptsError.name = 'DeFiPositionsV2ProcessingPollExhausted';
+          this.messenger.captureException?.(multipleAttemptsError);
           return;
         }
 
