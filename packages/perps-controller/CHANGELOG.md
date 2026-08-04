@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/account-tree-controller` from `^7.5.5` to `^7.6.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - **BREAKING:** `placeOrder` now rejects `OrderParams.grouping: 'positionTpsl'` (and the equivalent `tpslLinkage: 'position'`) with `ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED`, where it was previously accepted and passed through to the exchange ([#9674](https://github.com/MetaMask/core/pull/9674))
   - The rejection is not new behaviour so much as an earlier, clearer one: HyperLiquid requires every order in a `positionTpsl` batch to be a trigger, and the parent being placed is an ordinary market or limit order, so the venue rejected the whole batch. This was confirmed against HyperLiquid testnet rather than assumed. A caller that previously sent this combination did not get position-bound TP/SL; it got a failed submission, further from the call site and without a typed error.

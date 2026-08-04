@@ -57,7 +57,7 @@
   "dependencies": {
     "@metamask/contract-metadata": "^2.4.0",
     "@metamask/controller-utils": "^12.3.0",
-    "@metamask/core-backend": "^8.1.0",
+    "@metamask/core-backend": "^8.1.1",
     "@metamask/keyring-api": "^23.7.0",
     "@metamask/slip44": "^4.3.0",
     "@metamask/transaction-controller": "^69.4.0",
