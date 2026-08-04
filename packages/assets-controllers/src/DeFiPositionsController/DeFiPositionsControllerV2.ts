@@ -283,76 +283,77 @@ export class DeFiPositionsControllerV2 extends BaseController<
         ...(options?.forceRefresh || attempt > 0 ? { staleTime: 0 } : {}),
       };
 
+      let response;
       try {
-        const response =
-          await this.#apiClient.accounts.fetchV6MultiAccountBalances(
-            accountIds,
-            queryOptions,
-            fetchOptions,
-          );
-
-        const stillProcessing = response.accounts.some(
-          (account) => account.processingDefiPositions,
+        response = await this.#apiClient.accounts.fetchV6MultiAccountBalances(
+          accountIds,
+          queryOptions,
+          fetchOptions,
         );
-
-        // Only process and write when every account is ready so a partial
-        // response cannot clear or overwrite positions for accounts that are
-        // still indexing.
-        if (!stillProcessing) {
-          const positionsByAccount = groupDeFiPositionsV6(
-            response,
-            internalAccountIdByCaip,
-          );
-
-          this.update((state) => {
-            for (const [accountId, positions] of Object.entries(
-              positionsByAccount,
-            )) {
-              state.allDeFiPositionsV2[accountId] = positions;
-            }
-          });
-
-          // Report how many attempts were needed (only when polling was
-          // required) so Sentry can inform remote-flag / default poll-limit
-          // tuning without flooding on first-try successes.
-          const attemptsTaken = attempt + 1;
-          if (attemptsTaken > 1) {
-            const multipleAttemptsError = new Error(
-              `DeFiPositionsControllerV2: positions ready after ${attemptsTaken} attempt(s)`,
-            );
-            multipleAttemptsError.name = 'DeFiPositionsV2FetchAttempts';
-            this.messenger.captureException?.(multipleAttemptsError);
-          }
-          return;
-        }
-
-        const { queryKey } =
-          this.#apiClient.accounts.getV6MultiAccountBalancesQueryOptions(
-            accountIds,
-            queryOptions,
-            fetchOptions,
-          );
-        await this.#apiClient.accounts.queryClient.invalidateQueries({
-          queryKey,
-        });
-
-        const isLastAttempt = attempt >= maxAttempts - 1;
-        if (isLastAttempt) {
-          // Report exhausted polls so Sentry can inform remote-flag / default
-          // poll-limit tuning when indexing never finishes in time.
-          const multipleAttemptsError = new Error(
-            `DeFiPositionsControllerV2: still processing after ${maxAttempts} attempt(s)`,
-          );
-          multipleAttemptsError.name = 'DeFiPositionsV2ProcessingPollExhausted';
-          this.messenger.captureException?.(multipleAttemptsError);
-          return;
-        }
-
-        await delay(pollInterval);
       } catch (error) {
+        // Soft-fail so prior state stays and the in-flight promise settles.
         console.error('Failed to fetch DeFi positions', error);
         return;
       }
+
+      const stillProcessing = response.accounts.some(
+        (account) => account.processingDefiPositions,
+      );
+
+      // Only process and write when every account is ready so a partial
+      // response cannot clear or overwrite positions for accounts that are
+      // still indexing.
+      if (!stillProcessing) {
+        const positionsByAccount = groupDeFiPositionsV6(
+          response,
+          internalAccountIdByCaip,
+        );
+
+        this.update((state) => {
+          for (const [accountId, positions] of Object.entries(
+            positionsByAccount,
+          )) {
+            state.allDeFiPositionsV2[accountId] = positions;
+          }
+        });
+
+        // Report how many attempts were needed (only when polling was
+        // required) so Sentry can inform remote-flag / default poll-limit
+        // tuning without flooding on first-try successes.
+        const attemptsTaken = attempt + 1;
+        if (attemptsTaken > 1) {
+          const multipleAttemptsError = new Error(
+            `DeFiPositionsControllerV2: positions ready after ${attemptsTaken} attempt(s)`,
+          );
+          multipleAttemptsError.name = 'DeFiPositionsV2FetchAttempts';
+          this.messenger.captureException?.(multipleAttemptsError);
+        }
+        return;
+      }
+
+      const { queryKey } =
+        this.#apiClient.accounts.getV6MultiAccountBalancesQueryOptions(
+          accountIds,
+          queryOptions,
+          fetchOptions,
+        );
+      await this.#apiClient.accounts.queryClient.invalidateQueries({
+        queryKey,
+      });
+
+      const isLastAttempt = attempt >= maxAttempts - 1;
+      if (isLastAttempt) {
+        // Report exhausted polls so Sentry can inform remote-flag / default
+        // poll-limit tuning when indexing never finishes in time.
+        const multipleAttemptsError = new Error(
+          `DeFiPositionsControllerV2: still processing after ${maxAttempts} attempt(s)`,
+        );
+        multipleAttemptsError.name = 'DeFiPositionsV2ProcessingPollExhausted';
+        this.messenger.captureException?.(multipleAttemptsError);
+        return;
+      }
+
+      await delay(pollInterval);
     }
   }
 }
