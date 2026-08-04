@@ -1,3 +1,4 @@
+import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -95,14 +96,20 @@ function createService({
  * @param options - The options for the setup.
  * @param options.getCoverageResultTimeout - The timeout for the get coverage result.
  * @param options.getCoverageResultPollInterval - The poll interval for the get coverage result.
+ * @param options.policyOptions - Options passed through to the service policy.
+ * @param options.getBearerToken - Optional bearer-token override.
  * @returns Objects that have been created for testing.
  */
 function setup({
   getCoverageResultTimeout,
   getCoverageResultPollInterval,
+  policyOptions,
+  getBearerToken,
 }: {
   getCoverageResultTimeout?: number;
   getCoverageResultPollInterval?: number;
+  policyOptions?: ConstructorParameters<typeof ShieldApiService>[0]['policyOptions'];
+  getBearerToken?: () => Promise<string>;
 } = {}): {
   service: ShieldApiService;
   fetchMock: jest.MockedFunction<typeof fetch>;
@@ -113,16 +120,19 @@ function setup({
     typeof fetch
   >;
 
-  const { service, getBearerToken, rootMessenger } = createService({
-    options: {
-      getCoverageResultTimeout,
-      getCoverageResultPollInterval,
-    },
-  });
+  const { service, getBearerToken: getBearerTokenMock, rootMessenger } =
+    createService({
+      options: {
+        getCoverageResultTimeout,
+        getCoverageResultPollInterval,
+        policyOptions,
+      },
+      getBearerToken,
+    });
 
   return {
     service,
-    getBearerToken,
+    getBearerToken: getBearerTokenMock,
     fetchMock,
     rootMessenger,
   };
@@ -262,14 +272,96 @@ describe('ShieldApiService', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(getBearerToken).toHaveBeenCalledTimes(1);
 
-    const capturedError = new Error(
-      'Failed to init coverage check',
-    ) as Error & {
-      cause: Error;
-    };
-    capturedError.cause = new Error(`Failed to init coverage check: ${status}`);
+    expect(mockCaptureException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Failed to init coverage check',
+        cause: expect.objectContaining({
+          message: `Failed to init coverage check: ${status}`,
+          httpStatus: status,
+        }),
+      }),
+    );
+  });
 
-    expect(mockCaptureException).toHaveBeenCalledWith(capturedError);
+  it('throws HttpError on init coverage check 4xx responses', async () => {
+    const { service, fetchMock } = setup();
+
+    fetchMock.mockResolvedValueOnce({
+      status: 401,
+    } as unknown as Response);
+
+    await expect(
+      service.checkCoverage({ txMeta: generateMockTxMeta() }),
+    ).rejects.toMatchObject({ httpStatus: 401 });
+  });
+
+  it('does not open the circuit for init coverage check 4xx responses', async () => {
+    const { service, fetchMock } = setup({
+      policyOptions: { maxConsecutiveFailures: 2 },
+    });
+
+    fetchMock
+      .mockResolvedValueOnce({ status: 401 } as unknown as Response)
+      .mockResolvedValueOnce({ status: 401 } as unknown as Response)
+      .mockResolvedValueOnce({ status: 401 } as unknown as Response)
+      .mockResolvedValueOnce({
+        status: 200,
+        json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        status: 200,
+        json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
+      } as unknown as Response);
+
+    const txMeta = generateMockTxMeta();
+    await expect(service.checkCoverage({ txMeta })).rejects.toThrow(HttpError);
+    await expect(service.checkCoverage({ txMeta })).rejects.toThrow(HttpError);
+    await expect(service.checkCoverage({ txMeta })).rejects.toThrow(HttpError);
+
+    await expect(service.checkCoverage({ txMeta })).resolves.toMatchObject({
+      coverageId: 'coverageId',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('does not open the circuit when getBearerToken fails during init', async () => {
+    let shouldFailAuth = true;
+    const { service, fetchMock } = setup({
+      policyOptions: { maxConsecutiveFailures: 2 },
+      getBearerToken: async () => {
+        if (shouldFailAuth) {
+          throw new Error('User is not signed in');
+        }
+        return MOCK_TOKEN;
+      },
+    });
+
+    const txMeta = generateMockTxMeta();
+    await expect(service.checkCoverage({ txMeta })).rejects.toThrow(
+      'User is not signed in',
+    );
+    await expect(service.checkCoverage({ txMeta })).rejects.toThrow(
+      'User is not signed in',
+    );
+    await expect(service.checkCoverage({ txMeta })).rejects.toThrow(
+      'User is not signed in',
+    );
+
+    shouldFailAuth = false;
+    fetchMock
+      .mockResolvedValueOnce({
+        status: 200,
+        json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        status: 200,
+        json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
+      } as unknown as Response);
+
+    await expect(service.checkCoverage({ txMeta })).resolves.toMatchObject({
+      coverageId: 'coverageId',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('should throw on check coverage timeout with coverage status', async () => {
@@ -445,11 +537,53 @@ describe('ShieldApiService', () => {
         }),
       ).rejects.toThrow('Failed to log signature: 500');
 
-      const capturedError = new Error('Failed to log signature') as Error & {
-        cause: Error;
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Failed to log signature',
+          cause: expect.objectContaining({
+            message: 'Failed to log signature: 500',
+            httpStatus: 500,
+          }),
+        }),
+      );
+    });
+
+    it('throws HttpError on 4xx responses', async () => {
+      const { service, fetchMock } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 401 } as unknown as Response);
+
+      await expect(
+        service.logSignature({
+          signatureRequest: generateMockSignatureRequest(),
+          signature: '0x00',
+          status: 'shown',
+        }),
+      ).rejects.toMatchObject({ httpStatus: 401 });
+    });
+
+    it('does not open the circuit for 4xx responses', async () => {
+      const { service, fetchMock } = setup({
+        policyOptions: { maxConsecutiveFailures: 2 },
+      });
+
+      fetchMock
+        .mockResolvedValueOnce({ status: 401 } as unknown as Response)
+        .mockResolvedValueOnce({ status: 401 } as unknown as Response)
+        .mockResolvedValueOnce({ status: 401 } as unknown as Response)
+        .mockResolvedValueOnce({ status: 200 } as unknown as Response);
+
+      const request = {
+        signatureRequest: generateMockSignatureRequest(),
+        signature: '0x00',
+        status: 'shown' as const,
       };
-      capturedError.cause = new Error('Failed to log signature: 500');
-      expect(mockCaptureException).toHaveBeenCalledWith(capturedError);
+
+      await expect(service.logSignature(request)).rejects.toThrow(HttpError);
+      await expect(service.logSignature(request)).rejects.toThrow(HttpError);
+      await expect(service.logSignature(request)).rejects.toThrow(HttpError);
+      await expect(service.logSignature(request)).resolves.toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -482,6 +616,82 @@ describe('ShieldApiService', () => {
           status: 'shown',
         }),
       ).rejects.toThrow('Failed to log transaction: 500');
+    });
+
+    it('throws HttpError on 4xx responses', async () => {
+      const { service, fetchMock } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 403 } as unknown as Response);
+
+      await expect(
+        service.logTransaction({
+          txMeta: generateMockTxMeta(),
+          transactionHash: '0x00',
+          rawTransactionHex: '0xdeadbeef',
+          status: 'shown',
+        }),
+      ).rejects.toMatchObject({ httpStatus: 403 });
+    });
+
+    it('does not open the circuit for 4xx responses', async () => {
+      const { service, fetchMock } = setup({
+        policyOptions: { maxConsecutiveFailures: 2 },
+      });
+
+      fetchMock
+        .mockResolvedValueOnce({ status: 403 } as unknown as Response)
+        .mockResolvedValueOnce({ status: 403 } as unknown as Response)
+        .mockResolvedValueOnce({ status: 403 } as unknown as Response)
+        .mockResolvedValueOnce({ status: 200 } as unknown as Response);
+
+      const request = {
+        txMeta: generateMockTxMeta(),
+        transactionHash: '0x00',
+        rawTransactionHex: '0xdeadbeef',
+        status: 'shown' as const,
+      };
+
+      await expect(service.logTransaction(request)).rejects.toThrow(HttpError);
+      await expect(service.logTransaction(request)).rejects.toThrow(HttpError);
+      await expect(service.logTransaction(request)).rejects.toThrow(HttpError);
+      await expect(service.logTransaction(request)).resolves.toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    it('does not open the circuit when getBearerToken fails', async () => {
+      let shouldFailAuth = true;
+      const { service, fetchMock } = setup({
+        policyOptions: { maxConsecutiveFailures: 2 },
+        getBearerToken: async () => {
+          if (shouldFailAuth) {
+            throw new Error('User is not signed in');
+          }
+          return MOCK_TOKEN;
+        },
+      });
+
+      const request = {
+        txMeta: generateMockTxMeta(),
+        transactionHash: '0x00',
+        rawTransactionHex: '0xdeadbeef',
+        status: 'shown' as const,
+      };
+
+      await expect(service.logTransaction(request)).rejects.toThrow(
+        'User is not signed in',
+      );
+      await expect(service.logTransaction(request)).rejects.toThrow(
+        'User is not signed in',
+      );
+      await expect(service.logTransaction(request)).rejects.toThrow(
+        'User is not signed in',
+      );
+
+      shouldFailAuth = false;
+      fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
+
+      await expect(service.logTransaction(request)).resolves.toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 

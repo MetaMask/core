@@ -312,6 +312,8 @@ export class ShieldApiService extends BaseDataService<
 
       this.#pollingPolicy.abortPendingRequest(req.signatureRequest.id);
 
+      const headers = await this.#authHeaders();
+
       await this.fetchQuery({
         queryKey: [
           `${this.name}:logSignature`,
@@ -325,12 +327,15 @@ export class ShieldApiService extends BaseDataService<
             `${this.#baseUrl}/v1/signature/coverage/log`,
             {
               method: 'POST',
-              headers: await this.#authHeaders(),
+              headers,
               body: JSON.stringify(body),
             },
           );
           if (res.status !== 200) {
-            throw new Error(`Failed to log signature: ${res.status}`);
+            throw new HttpError(
+              res.status,
+              `Failed to log signature: ${res.status}`,
+            );
           }
           return null;
         },
@@ -362,6 +367,8 @@ export class ShieldApiService extends BaseDataService<
 
       this.#pollingPolicy.abortPendingRequest(req.txMeta.id);
 
+      const headers = await this.#authHeaders();
+
       await this.fetchQuery({
         queryKey: [
           `${this.name}:logTransaction`,
@@ -376,12 +383,15 @@ export class ShieldApiService extends BaseDataService<
             `${this.#baseUrl}/v1/transaction/coverage/log`,
             {
               method: 'POST',
-              headers: await this.#authHeaders(),
+              headers,
               body: JSON.stringify(body),
             },
           );
           if (res.status !== 200) {
-            throw new Error(`Failed to log transaction: ${res.status}`);
+            throw new HttpError(
+              res.status,
+              `Failed to log transaction: ${res.status}`,
+            );
           }
           return null;
         },
@@ -402,6 +412,8 @@ export class ShieldApiService extends BaseDataService<
     requestId: string,
   ): Promise<InitCoverageCheckResponse> {
     try {
+      const headers = await this.#authHeaders();
+
       return await this.fetchQuery({
         queryKey: [`${this.name}:initCoverageCheck`, path, requestId],
         staleTime: 0,
@@ -409,11 +421,14 @@ export class ShieldApiService extends BaseDataService<
         queryFn: async () => {
           const res = await this.#fetch(`${this.#baseUrl}/${path}`, {
             method: 'POST',
-            headers: await this.#authHeaders(),
+            headers,
             body: JSON.stringify(reqBody),
           });
           if (res.status !== 200) {
-            throw new Error(`Failed to init coverage check: ${res.status}`);
+            throw new HttpError(
+              res.status,
+              `Failed to init coverage check: ${res.status}`,
+            );
           }
           return (await res.json()) as InitCoverageCheckResponse;
         },
