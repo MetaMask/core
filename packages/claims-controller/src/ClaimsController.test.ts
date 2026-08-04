@@ -20,7 +20,6 @@ const mockClaimServiceGenerateMessageForClaimSignature = jest.fn();
 const mockKeyringControllerSignPersonalMessage = jest.fn();
 const mockClaimsServiceGetClaims = jest.fn();
 const mockClaimsServiceFetchClaimsConfigurations = jest.fn();
-const mockClaimsServiceInvalidateQueries = jest.fn();
 
 const MOCK_CLAIM_1: Claim = {
   id: 'mock-claim-1',
@@ -68,7 +67,6 @@ async function withController<ReturnValue>(
     mockKeyringControllerSignPersonalMessage,
     mockClaimsServiceGetClaims,
     mockClaimsServiceFetchClaimsConfigurations,
-    mockClaimsServiceInvalidateQueries,
   });
 
   const controller = new ClaimsController({
@@ -154,7 +152,6 @@ describe('ClaimsController', () => {
 
       mockClaimServiceRequestHeaders.mockResolvedValueOnce(MOCK_HEADERS);
       mockClaimServiceGetClaimsApiUrl.mockReturnValueOnce(MOCK_CLAIM_API);
-      mockClaimsServiceInvalidateQueries.mockResolvedValue(undefined);
     });
 
     it('should be able to generate valid submit claim config', async () => {
@@ -171,23 +168,6 @@ describe('ClaimsController', () => {
         expect(submitClaimConfig.headers).toStrictEqual(MOCK_HEADERS);
         expect(submitClaimConfig.method).toBe('POST');
         expect(submitClaimConfig.url).toBe(`${MOCK_CLAIM_API}/claims`);
-      });
-    });
-
-    it('invalidates cached claims queries before returning submit config', async () => {
-      await withController(async ({ rootMessenger }) => {
-        await rootMessenger.call(
-          'ClaimsController:getSubmitClaimConfig',
-          MOCK_CLAIM,
-        );
-
-        expect(mockClaimsServiceInvalidateQueries).toHaveBeenCalledWith({
-          queryKey: ['ClaimsService:getClaims'],
-        });
-        expect(mockClaimsServiceInvalidateQueries).toHaveBeenCalledWith({
-          queryKey: ['ClaimsService:getClaimById'],
-        });
-        expect(mockClaimsServiceInvalidateQueries).toHaveBeenCalledTimes(2);
       });
     });
 

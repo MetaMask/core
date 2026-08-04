@@ -31,7 +31,6 @@ export type RootControllerMessenger = Messenger<
  * @param params.mockKeyringControllerSignPersonalMessage - A mock function for the keyring controller sign personal message.
  * @param params.mockClaimsServiceGetClaims - A mock function for the claim service get claims.
  * @param params.mockClaimsServiceFetchClaimsConfigurations - A mock function for the claim service fetch claims configurations.
- * @param params.mockClaimsServiceInvalidateQueries - A mock function for the claim service invalidate queries.
  * @returns A mock messenger.
  */
 export function createMockClaimsControllerMessenger({
@@ -41,7 +40,6 @@ export function createMockClaimsControllerMessenger({
   mockKeyringControllerSignPersonalMessage,
   mockClaimsServiceGetClaims,
   mockClaimsServiceFetchClaimsConfigurations,
-  mockClaimsServiceInvalidateQueries,
 }: {
   mockClaimServiceRequestHeaders: jest.Mock;
   mockClaimServiceGetClaimsApiUrl: jest.Mock;
@@ -49,7 +47,6 @@ export function createMockClaimsControllerMessenger({
   mockKeyringControllerSignPersonalMessage: jest.Mock;
   mockClaimsServiceGetClaims: jest.Mock;
   mockClaimsServiceFetchClaimsConfigurations: jest.Mock;
-  mockClaimsServiceInvalidateQueries: jest.Mock;
 }): {
   rootMessenger: RootControllerMessenger;
   messenger: ClaimsControllerMessenger;
@@ -86,10 +83,6 @@ export function createMockClaimsControllerMessenger({
     `${SERVICE_NAME}:getClaims`,
     mockClaimsServiceGetClaims,
   );
-  rootMessenger.registerActionHandler(
-    `${SERVICE_NAME}:invalidateQueries`,
-    mockClaimsServiceInvalidateQueries,
-  );
 
   const messenger = new Messenger<
     typeof CONTROLLER_NAME,
@@ -109,7 +102,6 @@ export function createMockClaimsControllerMessenger({
       `${SERVICE_NAME}:getClaimsApiUrl`,
       `${SERVICE_NAME}:generateMessageForClaimSignature`,
       `${SERVICE_NAME}:getClaims`,
-      `${SERVICE_NAME}:invalidateQueries`,
       'KeyringController:signPersonalMessage',
     ],
   });

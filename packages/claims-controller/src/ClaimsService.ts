@@ -214,6 +214,9 @@ export class ClaimsService extends BaseDataService<
 
       return await this.fetchQuery({
         queryKey: [`${this.name}:getClaims`, profileKey],
+        // TODO: Restore default staleTime once claim reads are invalidated
+        // after a successful external submit (not in getSubmitClaimConfig).
+        staleTime: 0,
         queryFn: async () => {
           const url = `${this.getClaimsApiUrl()}/claims`;
           const response = await this.#fetch(url, {
@@ -257,6 +260,9 @@ export class ClaimsService extends BaseDataService<
 
       return await this.fetchQuery({
         queryKey: [`${this.name}:getClaimById`, id, profileKey],
+        // TODO: Restore default staleTime once claim reads are invalidated
+        // after a successful external submit (not in getSubmitClaimConfig).
+        staleTime: 0,
         queryFn: async () => {
           const url = `${this.getClaimsApiUrl()}/claims/byId/${id}`;
           const response = await this.#fetch(url, {

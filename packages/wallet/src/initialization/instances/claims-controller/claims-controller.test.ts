@@ -95,7 +95,6 @@ describe('claimsController', () => {
         'ClaimsService:getClaimsApiUrl',
         'ClaimsService:generateMessageForClaimSignature',
         'ClaimsService:getClaims',
-        'ClaimsService:invalidateQueries',
         'KeyringController:signPersonalMessage',
       ],
     });

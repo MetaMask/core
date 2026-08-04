@@ -28,7 +28,6 @@ export const claimsController: InitializationConfiguration<
         'ClaimsService:getClaimsApiUrl',
         'ClaimsService:generateMessageForClaimSignature',
         'ClaimsService:getClaims',
-        'ClaimsService:invalidateQueries',
         'KeyringController:signPersonalMessage',
       ],
     });

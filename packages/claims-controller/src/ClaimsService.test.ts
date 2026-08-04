@@ -498,7 +498,7 @@ describe('ClaimsService', () => {
       );
     });
 
-    it('returns stale cached claims within staleTime when the API data changes', async () => {
+    it('always fetches fresh claims on repeated calls (staleTime: 0)', async () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
       );
@@ -518,13 +518,11 @@ describe('ClaimsService', () => {
       const second = await service.getClaims();
 
       expect(first).toStrictEqual([MOCK_CLAIM_1]);
-      // Without invalidation, the second call is served from cache even though
-      // a new claim would now be available from the API.
-      expect(second).toStrictEqual([MOCK_CLAIM_1]);
-      expect(mockFetchFunction).toHaveBeenCalledTimes(1);
+      expect(second).toStrictEqual([MOCK_CLAIM_1, MOCK_CLAIM_2]);
+      expect(mockFetchFunction).toHaveBeenCalledTimes(2);
     });
 
-    it('returns stale cached claim-by-id within staleTime when the API data changes', async () => {
+    it('always fetches fresh claim-by-id on repeated calls (staleTime: 0)', async () => {
       const updatedClaim = {
         ...MOCK_CLAIM_1,
         status: ClaimStatusEnum.SUBMITTED,
@@ -548,37 +546,7 @@ describe('ClaimsService', () => {
       const second = await service.getClaimById('mock-claim-1');
 
       expect(first).toStrictEqual(MOCK_CLAIM_1);
-      expect(second).toStrictEqual(MOCK_CLAIM_1);
-      expect(mockFetchFunction).toHaveBeenCalledTimes(1);
-    });
-
-    it('refetches GET requests after invalidation', async () => {
-      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
-        'test-token',
-      );
-      mockFetchFunction
-        .mockResolvedValueOnce({
-          ok: true,
-          json: jest.fn().mockResolvedValue([MOCK_CLAIM_1]),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: jest.fn().mockResolvedValue([MOCK_CLAIM_1, MOCK_CLAIM_2]),
-        });
-
-      const service = createMockClaimsService();
-
-      const first = await service.getClaims();
-      await service.invalidateQueries({
-        queryKey: [`ClaimsService:getClaims`],
-      });
-      await service.invalidateQueries({
-        queryKey: [`ClaimsService:getClaimById`],
-      });
-      const second = await service.getClaims();
-
-      expect(first).toStrictEqual([MOCK_CLAIM_1]);
-      expect(second).toStrictEqual([MOCK_CLAIM_1, MOCK_CLAIM_2]);
+      expect(second).toStrictEqual(updatedClaim);
       expect(mockFetchFunction).toHaveBeenCalledTimes(2);
     });
 
