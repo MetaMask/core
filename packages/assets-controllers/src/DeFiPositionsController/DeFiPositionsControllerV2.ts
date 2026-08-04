@@ -7,9 +7,11 @@ import type {
 } from '@metamask/base-controller';
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { Messenger } from '@metamask/messenger';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 
 import { buildDeFiBalancesQuery } from './build-defi-balances-query.js';
 import type { DeFiBalancesQuery } from './build-defi-balances-query.js';
+import { getProcessingPollConfig } from './defi-controller-v2-feature-flag.js';
 import type { DeFiPositionsControllerV2MethodActions } from './DeFiPositionsControllerV2-method-action-types.js';
 import type { DeFiPositionsByAccount } from './group-defi-positions-v6.js';
 import { groupDeFiPositionsV6 } from './group-defi-positions-v6.js';
@@ -17,16 +19,6 @@ import { groupDeFiPositionsV6 } from './group-defi-positions-v6.js';
 const controllerName = 'DeFiPositionsControllerV2';
 
 const MESSENGER_EXPOSED_METHODS = ['fetchDeFiPositions'] as const;
-
-/** Delay between polls while Accounts API reports DeFi indexing in progress. */
-export const DEFAULT_PROCESSING_POLL_INTERVAL_MS = 5_000;
-
-/**
- * Maximum fetch attempts (including the first) while any account still has
- * `processingDefiPositions: true`. After this, the call resolves without
- * updating state, so prior positions are kept for every selected account.
- */
-export const DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS = 5;
 
 /**
  * @param ms - Milliseconds to wait.
@@ -91,7 +83,8 @@ export type DeFiPositionsControllerV2Events =
  * The external actions available to the {@link DeFiPositionsControllerV2}.
  */
 export type AllowedActions =
-  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | RemoteFeatureFlagControllerGetStateAction;
 
 /**
  * The external events available to the {@link DeFiPositionsControllerV2}.
@@ -126,6 +119,13 @@ export type DeFiPositionsControllerV2Messenger = Messenger<
  * promise as a loading signal. Calls for a different selection or fiat currency
  * start their own fetch and leave any prior poll running, so switching back can
  * join an in-flight fetch for that group and currency.
+ *
+ * Processing-poll `maxAttempts` / `pollInterval` are read via
+ * {@link getProcessingPollConfig} from the `defiControllerV2` remote feature
+ * flag (`RemoteFeatureFlagController:getState`), falling back to
+ * `DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS` /
+ * `DEFAULT_PROCESSING_POLL_INTERVAL_MS` when unset or invalid. Clients
+ * must delegate that action to this controller's messenger.
  */
 export class DeFiPositionsControllerV2 extends BaseController<
   typeof controllerName,
@@ -197,9 +197,12 @@ export class DeFiPositionsControllerV2 extends BaseController<
    * is reached, or a request fails. Concurrent calls for the same selected
    * accounts and `vsCurrency` share one in-flight promise; calls for a different
    * selection or fiat currency start a new fetch and leave prior polls running
-   * so a later switch back can join them. No-ops when disabled or when the group
-   * has no supported accounts. Caching / spam prevention is handled by the
-   * apiClient TanStack Query cache (keyed by accounts + query options including
+   * so a later switch back can join them. When a successful ready response
+   * required more than one attempt, reports the attempt count to Sentry via
+   * `messenger.captureException` (error name `DeFiPositionsV2FetchAttempts`) so
+   * poll limits can be tuned. No-ops when disabled or when the group has no
+   * supported accounts. Caching / spam prevention is handled by the apiClient
+   * TanStack Query cache (keyed by accounts + query options including
    * `vsCurrency`). Pass `{ forceRefresh: true }` to bypass the cache on the
    * first attempt (e.g. pull-to-refresh).
    *
@@ -265,11 +268,13 @@ export class DeFiPositionsControllerV2 extends BaseController<
       vsCurrency,
     };
 
-    for (
-      let attempt = 0;
-      attempt < DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS;
-      attempt++
-    ) {
+    // Resolve once per fetch so a mid-poll remote-flag change cannot stretch
+    // or shrink this poll sequence inconsistently.
+    const { maxAttempts, pollInterval } = getProcessingPollConfig(
+      this.messenger,
+    );
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       // First attempt respects forceRefresh; later polls always bypass cache
       // so we do not spin on a stale processing snapshot.
       const fetchOptions = {
@@ -304,6 +309,18 @@ export class DeFiPositionsControllerV2 extends BaseController<
               state.allDeFiPositionsV2[accountId] = positions;
             }
           });
+
+          // Report how many attempts were needed (only when polling was
+          // required) so we can tune DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS /
+          // INTERVAL from Sentry without flooding on first-try successes.
+          const attemptsTaken = attempt + 1;
+          if (attemptsTaken > 1) {
+            const sentryError = new Error(
+              `DeFiPositionsControllerV2: positions ready after ${attemptsTaken} attempt(s)`,
+            );
+            sentryError.name = 'DeFiPositionsV2FetchAttempts';
+            this.messenger.captureException?.(sentryError);
+          }
           return;
         }
 
@@ -317,13 +334,12 @@ export class DeFiPositionsControllerV2 extends BaseController<
           queryKey,
         });
 
-        const isLastAttempt =
-          attempt >= DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS - 1;
+        const isLastAttempt = attempt >= maxAttempts - 1;
         if (isLastAttempt) {
           return;
         }
 
-        await delay(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+        await delay(pollInterval);
       } catch (error) {
         console.error('Failed to fetch DeFi positions', error);
         return;

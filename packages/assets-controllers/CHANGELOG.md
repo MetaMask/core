@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `DeFiPositionsControllerV2` reads processing-poll `maxAttempts` / `pollInterval` from the `defiControllerV2` remote feature flag via `RemoteFeatureFlagController:getState` (clients must delegate that action); missing or invalid values fall back to 5 attempts and a 5000ms poll interval
+- `DeFiPositionsControllerV2.fetchDeFiPositions` reports the number of fetch attempts to Sentry (via `messenger.captureException`, error name `DeFiPositionsV2FetchAttempts`) when positions become ready after more than one attempt, so processing-poll limits can be tuned from production data
 - `DeFiPositionsControllerV2.fetchDeFiPositions` now polls while any selected account has `processingDefiPositions: true`, updating state only when every account is ready, invalidating the balances cache between attempts, sharing one in-flight promise per selected-account + `vsCurrency` key (so fast switches can join an earlier matching poll), and stopping on request failure or the max attempt limit ([#9711](https://github.com/MetaMask/core/pull/9711))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/phishing-controller` from `^17.3.0` to `^17.3.1` ([#9746](https://github.com/MetaMask/core/pull/9746))
