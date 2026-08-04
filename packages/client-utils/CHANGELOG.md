@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/core-backend` from `^8.1.0` to `^8.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
 - **BREAKING:** Make `chainId` required on `rampBuy` / `rampSell` `ActivityItem` variants, matching every other activity kind. `mapRampsOrder` now returns `null` when no CAIP chain id can be resolved from the order (empty or unparseable `network`, missing `cryptoCurrency.chainId` / `assetId`), instead of emitting an item with an undefined `chainId` ([#9777](https://github.com/MetaMask/core/pull/9777))
 - Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
