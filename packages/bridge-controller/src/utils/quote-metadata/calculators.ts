@@ -7,8 +7,7 @@ import {
 import { is } from '@metamask/superstruct';
 import { BigNumber } from 'bignumber.js';
 
-import { toQuoteResponseV1 } from '../../index.js';
-import { FeeType } from '../../index.js';
+import { toQuoteResponseV1 } from '../../coercers/quote-response-v2-to-v1.js';
 import type {
   L1GasFees,
   ExchangeRate,
@@ -22,7 +21,7 @@ import { QuoteResponseSchemaV2 } from '../../validators/quote-response.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import type { TxData } from '../../validators/trade.js';
 import { isEvmQuoteResponse, isNativeAddress } from '../bridge.js';
-import { calcTokenAmount } from '../number-formatters.js';
+import { calcNormalizedTokenAmount } from '../number-formatters.js';
 import type { QuoteMetadata, TokenAmountValues } from './types.js';
 
 export const calcNonEvmTotalNetworkFee = (
@@ -47,7 +46,7 @@ export const calcToAmount = (
   destAsset: BridgeAsset,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const normalizedDestAmount = calcTokenAmount(
+  const normalizedDestAmount = calcNormalizedTokenAmount(
     destTokenAmount,
     destAsset.decimals,
   );
@@ -84,7 +83,10 @@ export const calcSentAmount = (
             (acc, { amount }) => acc.plus(amount),
             new BigNumber(srcTokenAmount),
           );
-  const normalizedSentAmount = calcTokenAmount(sentAmount, srcAsset.decimals);
+  const normalizedSentAmount = calcNormalizedTokenAmount(
+    sentAmount,
+    srcAsset.decimals,
+  );
   return {
     amount: normalizedSentAmount?.toFixed(),
     valueInCurrency:
@@ -99,7 +101,7 @@ export const calcBatchFees = (
   asset: BridgeAsset,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const normalizedAmount = calcTokenAmount(amount, asset.decimals);
+  const normalizedAmount = calcNormalizedTokenAmount(amount, asset.decimals);
 
   return {
     amount: normalizedAmount?.toFixed(),
@@ -123,7 +125,7 @@ export const calcRelayerFee = (
     ? new BigNumber(convertHexToDecimal(trade.value))
     : undefined;
   let relayerFeeInNative = relayerFeeAmount
-    ? calcTokenAmount(relayerFeeAmount, 18)
+    ? calcNormalizedTokenAmount(relayerFeeAmount, 18)
     : undefined;
 
   // Subtract srcAmount and other fees from trade value if srcAsset is native
@@ -273,7 +275,7 @@ export const calcIncludedTxFees = (
     txFee?.asset.assetId === srcAsset.assetId
       ? srcTokenExchangeRate
       : destTokenExchangeRate;
-  const normalizedTxFeeAmount = calcTokenAmount(
+  const normalizedTxFeeAmount = calcNormalizedTokenAmount(
     txFee?.amount,
     txFee?.asset.decimals,
   );

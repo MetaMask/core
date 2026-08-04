@@ -4,7 +4,7 @@ import { toBridgeAssetV2 } from '../../coercers/quote-response-v1-to-v2.js';
 import type { DeepPartial } from '../../types.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { getNativeAssetForChainId } from '../bridge.js';
-import { calcTokenValue } from '../number-formatters.js';
+import { calcAtomicTokenAmount } from '../number-formatters.js';
 import type { QuoteMetadata } from './types.js';
 
 /**
@@ -54,17 +54,20 @@ export const toQuoteMetadataV2 = (
     ...rest,
     quote: {
       src: {
-        amount: calcTokenValue(sentAmount?.amount, srcAsset?.decimals),
+        amount: calcAtomicTokenAmount(sentAmount?.amount, srcAsset?.decimals),
         normalizedAmount: sentAmount?.amount,
         valueInCurrency: sentAmount?.valueInCurrency,
         usd: sentAmount?.usd,
       },
       dest: {
-        amount: calcTokenValue(toTokenAmount?.amount, destAsset?.decimals),
+        amount: calcAtomicTokenAmount(
+          toTokenAmount?.amount,
+          destAsset?.decimals,
+        ),
         normalizedAmount: toTokenAmount?.amount,
         valueInCurrency: toTokenAmount?.valueInCurrency,
         usd: toTokenAmount?.usd,
-        minAmount: calcTokenValue(
+        minAmount: calcAtomicTokenAmount(
           minToTokenAmount?.amount,
           destAsset?.decimals,
         ),
@@ -75,7 +78,7 @@ export const toQuoteMetadataV2 = (
       feeData: {
         network: [
           {
-            amount: calcTokenValue(
+            amount: calcAtomicTokenAmount(
               networkFeeToUse?.amount,
               nativeAsset?.decimals,
             ),
@@ -89,7 +92,7 @@ export const toQuoteMetadataV2 = (
           Object.values(relayerFee).some(Boolean) && {
             relayer: [
               {
-                amount: calcTokenValue(
+                amount: calcAtomicTokenAmount(
                   relayerFee?.amount,
                   nativeAsset?.decimals,
                 ),
@@ -104,7 +107,7 @@ export const toQuoteMetadataV2 = (
           Object.values(includedTxFees).some(Boolean) && {
             txFee: [
               {
-                amount: calcTokenValue(
+                amount: calcAtomicTokenAmount(
                   includedTxFees?.amount,
                   txFeeAsset?.decimals,
                 ),

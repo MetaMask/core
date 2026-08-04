@@ -9,13 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Define `QuoteResponse` v2 and `validateQuoteResponse` ([#9724](https://github.com/MetaMask/core/pull/9724))
 - Implement coercers between `QuoteResponse` v1 and v2 ([#9725](https://github.com/MetaMask/core/pull/9725))
   - `toQuoteResponseV2` and `toQuoteResponseV1` convert quote responses to required schema when needed
   - `toQuoteMetadataV2` and `toQuoteMetadataV1` convert quote metadata to required schema when needed
   - `toNormalizedAmounts`converts atomic amounts to display-ready values
 - Export `sumAmounts` util that adds up fees or token amounts ([#9725](https://github.com/MetaMask/core/pull/9725))
-- Export `BridgeAsset` and `validateBridgeAsset` used by QuoteResponse v2, and token endpoints ([#9724](https://github.com/MetaMask/core/pull/9724))
 
 ### Changed
 
@@ -31,9 +29,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `fetchBatchSellTrades` expects V2 quotes, then transforms them to V1 for backend compatibility
 - **BREAKING:** `appendFeesToQuotes` interface now requires a chainId parameter, but still accepts both V1 and V2 quotes ([#9726](https://github.com/MetaMask/core/pull/9726))
 - Update `calcQuoteMetadata` util to handle both V1 and V2 quotes. Legacy metadata calculators continue to use the V1 schema ([#9727](https://github.com/MetaMask/core/pull/9727))
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+
+## [78.1.0]
+
+### Added
+
+- Define `QuoteResponse` v2 and `validateQuoteResponse` ([#9724](https://github.com/MetaMask/core/pull/9724))
+- Export `BridgeAsset` and `validateBridgeAsset` used by QuoteResponse v2, and token endpoints ([#9724](https://github.com/MetaMask/core/pull/9724))
+
+### Changed
+
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/assets-controller` from `^13.0.0` to `^13.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
-- Bump `@metamask/assets-controllers` from `^110.0.3` to `^110.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
+- Bump `@metamask/assets-controllers` from `^110.0.3` to `^110.1.1` ([#9743](https://github.com/MetaMask/core/pull/9743), [#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
 
 ## [78.0.3]
 
@@ -1868,7 +1878,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.1.0...HEAD
+[78.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.0.3...@metamask/bridge-controller@78.1.0
 [78.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.0.2...@metamask/bridge-controller@78.0.3
 [78.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.0.1...@metamask/bridge-controller@78.0.2
 [78.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.0.0...@metamask/bridge-controller@78.0.1

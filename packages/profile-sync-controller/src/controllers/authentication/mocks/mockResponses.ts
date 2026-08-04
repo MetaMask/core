@@ -56,8 +56,10 @@ export const getMockAuthLoginResponse = (): MockResponse => {
     response: (requestJsonBody?: {
       raw_message: string;
     }): typeof MOCK_LOGIN_RESPONSE => {
-      const splittedRawMessage = requestJsonBody?.raw_message.split(':');
-      const e2eIdentifier = splittedRawMessage?.[splittedRawMessage.length - 2];
+      // Format: metamask:<nonce>:<pubkey>[:<tag>]. Nonce (index 1) carries the
+      // e2e identifier set by getMockAuthNonceResponse — stable across the
+      // optional login tag segment.
+      const e2eIdentifier = requestJsonBody?.raw_message.split(':')[1];
 
       return {
         ...MOCK_LOGIN_RESPONSE,

@@ -20,6 +20,7 @@ import {
   BridgeAssetV2Schema,
   MinimalAssetSchema,
 } from '../validators/bridge-asset.js';
+import type { BridgeAssetV2 } from '../validators/bridge-asset.js';
 import { QuoteResponseSchemaV1 } from '../validators/quote-response-v1.js';
 import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
 import { QuoteResponseSchemaV2 } from '../validators/quote-response.js';
@@ -48,7 +49,9 @@ const BridgeAssetV1FromV2 = coerce(
   },
 );
 
-const toBridgeAssetV1 = (data: unknown): Infer<typeof BridgeAssetSchema> => {
+const toBridgeAssetV1 = (
+  data: BridgeAssetV2,
+): Infer<typeof BridgeAssetSchema> => {
   return create(data, BridgeAssetV1FromV2);
 };
 
@@ -66,7 +69,7 @@ const StepSchemaV1FromV2 = coerce(StepSchema, StepSchemaV2, (value) => {
   };
 });
 
-const toStepV1 = (step: unknown): Step => {
+const toStepV1 = (step: Infer<typeof StepSchemaV2>): Step => {
   const stepV2 = create(step, StepSchemaV1FromV2);
   return stepV2;
 };
@@ -103,7 +106,7 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
     destAsset: toBridgeAssetV1(dest.asset),
     srcTokenAmount: src.amount,
     destTokenAmount: dest.amount,
-    minDestTokenAmount: dest.minAmount,
+    minDestTokenAmount: dest.minAmount ?? dest.amount,
     feeData: {
       [FeeType.METABRIDGE]: {
         ...metabridgeFeeData,
@@ -136,7 +139,7 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
   };
 });
 
-const toQuoteV1 = (quote: unknown): Quote => {
+const toQuoteV1 = (quote: Infer<typeof QuoteSchemaV2>): Quote => {
   const quoteV2 = create(quote, QuoteV1FromV2);
   return quoteV2;
 };
