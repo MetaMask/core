@@ -136,6 +136,7 @@ import {
 } from '../utils/accountUtils.js';
 import {
   ensureError,
+  isHyperLiquidMultiSigRequiredError,
   isHyperLiquidUserNotFoundError,
   isKeyringLockedError,
 } from '../utils/errorUtils.js';
@@ -788,6 +789,44 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Decide whether the Hyperliquid account is a multi-sig account.
+   *
+   * Hyperliquid rejects every single-signer exchange write for a converted
+   * multi-sig account with `ApiRequestError: Multi-sig required`, so the
+   * unified-account migration must not be attempted for those accounts.
+   *
+   * If the probe throws (transient network), returns `false` — fail open so
+   * one bad probe never blocks migration for a normal single-signer account.
+   * The `isHyperLiquidMultiSigRequiredError` fallback in the write's catch
+   * block remains the safety net.
+   *
+   * @param userAddress - The wallet address to check.
+   * @returns True only when Hyperliquid reports a multi-sig signer set.
+   * @private
+   */
+  async #isHyperliquidMultiSigAccount(userAddress: string): Promise<boolean> {
+    try {
+      const infoClient = this.#clientService.getInfoClient();
+      const signers = await infoClient.userToMultiSigSigners({
+        user: userAddress,
+      });
+      return signers !== null && signers !== undefined;
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[isHyperliquidMultiSigAccount] Probe failed, assuming single-signer',
+        {
+          user: userAddress,
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.isHyperliquidMultiSigAccount',
+          ).message,
+        },
+      );
+      return false;
+    }
+  }
+
+  /**
    * Attempt to enable HyperLiquid Unified Account mode for HIP-3 orders
    *
    * If successful, HyperLiquid automatically manages collateral transfers for HIP-3 orders.
@@ -982,6 +1021,34 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
+      // Hyperliquid rejects every single-signer exchange write for a converted
+      // multi-sig account with "ApiRequestError: Multi-sig required", which
+      // surfaced on the Perps tab on every entry (TAT-3214). Probe right
+      // before the write so accounts that never reach one (already compatible,
+      // deferred, unknown mode) do not pay the extra round trip.
+      const isMultiSig = await this.#isHyperliquidMultiSigAccount(userAddress);
+      if (isMultiSig) {
+        this.#deps.debugLogger.log(
+          '[ensureUnifiedAccountEnabled] Multi-sig account, skipping unified account migration',
+          { user: userAddress, network, mode: currentMode },
+        );
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+          [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
+          [PERPS_EVENT_PROPERTY.STATUS]:
+            PERPS_EVENT_VALUE.STATUS.NOT_APPLICABLE,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'multi_sig_account',
+        });
+        // Final state: the write can never succeed for this account, so cache
+        // it as attempted with unified mode off. Perps keeps working through
+        // the programmatic collateral-transfer fallback.
+        TradingReadinessCache.set(network, userAddress, {
+          attempted: true,
+          enabled: false,
+        });
+        completeInFlight();
+        return;
+      }
+
       // Track which mode users are currently on before we attempt migration.
       // This tells us the distribution of legacy modes across our user base.
       this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
@@ -1073,6 +1140,31 @@ export class HyperLiquidProvider implements PerpsProvider {
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'no_hl_account',
         });
         this.#unifiedAccountSetupNeedsRetry = true;
+        completeInFlight();
+        return;
+      }
+
+      // Safety net for the multi-sig probe: the account can be converted
+      // between the lookup and the write, and the probe fails open on
+      // transient info-API errors. Either way the rejection is a permanent
+      // account-shape condition, not a failure worth reporting or retrying.
+      if (isHyperLiquidMultiSigRequiredError(error)) {
+        this.#deps.debugLogger.log(
+          '[ensureUnifiedAccountEnabled] Multi-sig account (race/probe fallback), skipping unified account migration',
+          { user: userAddress, network, mode: currentMode },
+        );
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+          ...(currentMode && {
+            [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
+          }),
+          [PERPS_EVENT_PROPERTY.STATUS]:
+            PERPS_EVENT_VALUE.STATUS.NOT_APPLICABLE,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'multi_sig_account',
+        });
+        TradingReadinessCache.set(network, userAddress, {
+          attempted: true,
+          enabled: false,
+        });
         completeInFlight();
         return;
       }
