@@ -10,7 +10,7 @@ import type { Infer } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 
 import { BridgeAssetSchema } from './bridge-asset.js';
-import { NumberStringSchema } from './number.js';
+import { PositiveNumberStringSchema } from './number.js';
 import { GaslessPropertiesSchema } from './quote.js';
 import { TxDataSchema } from './trade.js';
 
@@ -37,7 +37,7 @@ export const BatchSellTradesResponseSchema = intersection([
     fee: optional(
       type({
         asset: BridgeAssetSchema,
-        amount: NumberStringSchema,
+        amount: PositiveNumberStringSchema,
       }),
     ),
   }),

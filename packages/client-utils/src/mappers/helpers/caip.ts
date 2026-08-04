@@ -1,21 +1,23 @@
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 // @ts-expect-error: No type definitions for '@metamask/slip44'
-import slip44 from '@metamask/slip44';
+import slip44data from '@metamask/slip44';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
   isStrictHexString,
+  KnownCaipNamespace,
   parseCaipChainId,
   toCaipAssetType,
 } from '@metamask/utils';
+import { getChainById } from 'eth-chainlist';
 
-import { nativeTokenAddress } from '../constants.js';
+import { nativeTokenAddress, nativeTokenDecimals } from '../constants.js';
 
-const slip44CoinTypeBySymbol = ((): Map<string, string> => {
+const slip44BySymbol = ((): Map<string, string> => {
   const coinTypeBySymbol = new Map<string, string>();
 
   for (const [coinType, entry] of Object.entries(
-    slip44 as Record<string, { symbol: string }>,
+    slip44data as Record<string, { symbol: string }>,
   )) {
     const normalizedSymbol = entry.symbol.toUpperCase();
 
@@ -25,16 +27,15 @@ const slip44CoinTypeBySymbol = ((): Map<string, string> => {
   }
 
   const maticCoinType = coinTypeBySymbol.get('MATIC');
-
-  if (maticCoinType) {
+  if (maticCoinType && !coinTypeBySymbol.has('POL')) {
     coinTypeBySymbol.set('POL', maticCoinType);
   }
 
   return coinTypeBySymbol;
 })();
 
-function slip44CoinTypeForSymbol(symbol: string): string | undefined {
-  return slip44CoinTypeBySymbol.get(symbol.toUpperCase());
+function getCoinType(symbol: string): string | undefined {
+  return slip44BySymbol.get(symbol.toUpperCase());
 }
 
 /**
@@ -82,15 +83,62 @@ export function resolveNativeAssetId(
     return undefined;
   }
 
-  const coinType = slip44CoinTypeForSymbol(symbol);
+  const assetReference = getCoinType(symbol);
 
-  if (!coinType) {
+  if (!assetReference) {
     return undefined;
   }
 
   const { namespace, reference } = parseCaipChainId(caipChainId);
 
-  return toCaipAssetType(namespace, reference, 'slip44', coinType);
+  return toCaipAssetType(namespace, reference, 'slip44', assetReference);
+}
+
+/**
+ * Resolves EVM native symbol, decimals, and slip44 asset id for a chain.
+ * Prefers eth-chainlist slip44 except testnet coin type 1, then falls back to
+ * `@metamask/slip44` by native symbol.
+ *
+ * @param chainId - CAIP-2 chain id (eip155 only).
+ * @returns Native asset metadata, or undefined when it cannot be resolved.
+ */
+export function getNativeAsset(chainId: CaipChainId):
+  | {
+      symbol: string;
+      decimals: number;
+      assetId: CaipAssetType;
+    }
+  | undefined {
+  const { namespace, reference } = parseCaipChainId(chainId);
+  if (namespace !== KnownCaipNamespace.Eip155) {
+    return undefined;
+  }
+
+  const chain = getChainById(Number(reference));
+  if (!chain) {
+    return undefined;
+  }
+
+  const { nativeCurrency, slip44 } = chain;
+  if (!nativeCurrency?.symbol) {
+    return undefined;
+  }
+
+  const slip44TestnetCoinType = 1;
+  const assetReference =
+    typeof slip44 === 'number' && slip44 !== slip44TestnetCoinType
+      ? String(slip44)
+      : getCoinType(nativeCurrency.symbol);
+
+  if (!assetReference) {
+    return undefined;
+  }
+
+  return {
+    symbol: nativeCurrency.symbol,
+    decimals: nativeCurrency.decimals ?? nativeTokenDecimals,
+    assetId: toCaipAssetType(namespace, reference, 'slip44', assetReference),
+  };
 }
 
 function isNativeAddress(address: string): boolean {

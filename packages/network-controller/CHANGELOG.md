@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [35.0.1]
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-middleware` from `^23.1.3` to `^24.0.0` ([#9758](https://github.com/MetaMask/core/pull/9758))
+
+## [35.0.0]
+
 ### Added
 
 - **BREAKING:** Add optional `analyticsOptions` constructor option that makes `NetworkController` emit `RPC Service Unavailable` and `RPC Service Degraded` analytics events via the `AnalyticsController:trackEvent` action when an RPC endpoint becomes unavailable or degraded ([#9270](https://github.com/MetaMask/core/pull/9270))
@@ -29,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This allows Infura-backed networks to be added and updated dynamically without being constrained to the known Infura network list bundled in `@metamask/controller-utils`.
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/connectivity-controller` from `^0.2.0` to `^0.3.0` ([#9435](https://github.com/MetaMask/core/pull/9435))
+- Bump `@metamask/analytics-controller` from `^1.2.1` to `^2.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 
 ## [34.0.0]
 
@@ -1261,7 +1271,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@34.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@35.0.1...HEAD
+[35.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@35.0.0...@metamask/network-controller@35.0.1
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@34.0.0...@metamask/network-controller@35.0.0
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@33.0.0...@metamask/network-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@32.0.0...@metamask/network-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.1.0...@metamask/network-controller@32.0.0

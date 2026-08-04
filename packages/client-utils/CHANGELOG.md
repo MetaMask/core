@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0]
+
+### Added
+
+- Add `eth-chainlist` dependency for chain-native slip44/symbol lookup ([#9729](https://github.com/MetaMask/core/pull/9729))
+
+### Changed
+
+- Resolve native fee/token metadata from `eth-chainlist` (chainId → slip44/symbol), falling back to `@metamask/slip44` by symbol when chainlist omits `slip44` ([#9729](https://github.com/MetaMask/core/pull/9729))
+  - API network fees no longer scrape native symbol from `valueTransfers`
+  - STANDARD sends with empty `valueTransfers` synthesize a native token from `tx.value`
+- Bump `@metamask/core-backend` from `^8.0.0` to `^8.1.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+### Fixed
+
+- Prefer the subject's fungible `from` movement when mapping keyring send activity, so multi-party Solana txs (e.g. bridge source legs) no longer surface another address's token as the sent asset ([#9749](https://github.com/MetaMask/core/pull/9749))
+
 ## [1.5.0]
 
 ### Added
@@ -87,7 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.6.0...HEAD
+[1.6.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.5.0...@metamask/client-utils@1.6.0
 [1.5.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.4.0...@metamask/client-utils@1.5.0
 [1.4.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.3.1...@metamask/client-utils@1.4.0
 [1.3.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.3.0...@metamask/client-utils@1.3.1
