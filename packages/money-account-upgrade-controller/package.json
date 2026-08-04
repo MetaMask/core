@@ -63,7 +63,7 @@
     "@metamask/delegation-deployments": "^1.4.0",
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/messenger": "^2.0.0",
-    "@metamask/network-controller": "^35.0.0",
+    "@metamask/network-controller": "^35.0.1",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {

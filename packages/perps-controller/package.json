@@ -116,7 +116,7 @@
     "@metamask/geolocation-controller": "^1.0.0",
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/keyring-internal-api": "^12.0.0",
-    "@metamask/network-controller": "^35.0.0",
+    "@metamask/network-controller": "^35.0.1",
     "@metamask/profile-sync-controller": "^28.3.0",
     "@metamask/remote-feature-flag-controller": "^5.0.0",
     "@metamask/transaction-controller": "^69.4.0",
