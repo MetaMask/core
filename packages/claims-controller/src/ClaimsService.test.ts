@@ -448,10 +448,10 @@ describe('ClaimsService', () => {
       expect(mockFetchFunction).toHaveBeenCalledTimes(2);
     });
 
-    it('does not serve cached claims across different canonical profile ids', async () => {
+    it('does not serve cached claims across different profile ids', async () => {
       const profiles = [
-        { ...MOCK_SESSION_PROFILE, canonicalProfileId: 'canonical-a' },
-        { ...MOCK_SESSION_PROFILE, canonicalProfileId: 'canonical-b' },
+        { ...MOCK_SESSION_PROFILE, profileId: 'profile-a' },
+        { ...MOCK_SESSION_PROFILE, profileId: 'profile-b' },
       ];
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'same-token',
@@ -479,10 +479,10 @@ describe('ClaimsService', () => {
       expect(mockFetchFunction).toHaveBeenCalledTimes(2);
     });
 
-    it('does not share an in-flight getClaims request across different canonical profile ids', async () => {
+    it('does not share an in-flight getClaims request across different profile ids', async () => {
       const profiles = [
-        { ...MOCK_SESSION_PROFILE, canonicalProfileId: 'canonical-a' },
-        { ...MOCK_SESSION_PROFILE, canonicalProfileId: 'canonical-b' },
+        { ...MOCK_SESSION_PROFILE, profileId: 'profile-a' },
+        { ...MOCK_SESSION_PROFILE, profileId: 'profile-b' },
       ];
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'same-token',
@@ -517,7 +517,7 @@ describe('ClaimsService', () => {
       expect(mockFetchFunction).toHaveBeenCalledTimes(2);
     });
 
-    it('reuses cached configurations across bearer token refreshes for the same canonical profile', async () => {
+    it('reuses cached configurations across bearer token refreshes for the same profile', async () => {
       mockAuthenticationControllerGetBearerToken
         .mockResolvedValueOnce('token-1')
         .mockResolvedValueOnce('token-2');
