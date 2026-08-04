@@ -43,7 +43,6 @@ export type {
   NonEvmFees,
   GasMultiplierByChainId,
   FeatureFlagResponse,
-  BridgeAsset,
   GenericQuoteRequest,
   BatchSellTradesResponse,
   GaslessProperties,
@@ -118,6 +117,7 @@ export type {
   QuoteResponseV1 as QuoteResponse,
   QuoteResponseV1,
 } from './validators/quote-response-v1.js';
+export { validateQuoteResponse } from './validators/quote-response.js';
 export type { Quote } from './validators/quote.js';
 export { FeeType, DiscountType } from './validators/quote.js';
 export { ActionTypes } from './validators/step.js';
@@ -127,9 +127,18 @@ export {
 } from './validators/quote-stream-complete.js';
 export { BatchSellTransactionType } from './validators/batch-sell.js';
 export { TokenFeatureType } from './validators/token-feature.js';
+export type {
+  BridgeAsset,
+  BridgeAssetV2,
+  MinimalAsset,
+} from './validators/bridge-asset.js';
 export {
   BridgeAssetSchema,
   validateBridgeAsset,
+  validateBridgeAssetV2,
+  MinimalAssetSchema,
+  BridgeAssetV2Schema,
+  BridgeAssetSecurityDataType,
 } from './validators/bridge-asset.js';
 export { FeatureId } from './validators/feature-flags.js';
 
@@ -213,6 +222,7 @@ export {
   formatChainIdToHex,
   formatAddressToCaipReference,
   formatAddressToAssetId,
+  formatChainIdToDec,
 } from './utils/caip-formatters.js';
 
 export { extractTradeData } from './utils/trade-utils.js';

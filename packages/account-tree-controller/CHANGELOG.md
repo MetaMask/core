@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Those methods/actions can be used to export a proper snapshot of the account-tree (including secrets or not).
   - The payload is versionned and will auto-migrate its payload if needed on the receiving end.
   - Currently, wallet and group IDs are not the same as the local ones, mostly because local IDs are not stable and cannot be used in a cross-client context.
+- Add `getAccountFromSelectedAccountGroup` and `setSelectedAccountGroupByAccountId` methods ([#9739](https://github.com/MetaMask/core/pull/9739))
 
 ### Changed
 
