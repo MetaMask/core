@@ -13,7 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Change `submitBatchSell` and `submitIntent` quoteResponse parameter from `QuoteResponseV1` to `QuoteResponse` V2 ([#9726](https://github.com/MetaMask/core/pull/9726))
   - Support both `QuoteResponseV1` and `QuoteResponse` quoteResponses in `submitTx`
   - Controller logic and utils still require V1, but clients can submit quotes in both formats
+
+## [75.0.0]
+
+### Changed
+
+- **BREAKING**: Change `submitBatchSell` and `submitIntent` quoteResponse parameter from `QuoteResponseV1` to `QuoteResponse` V2 ([#9726](https://github.com/MetaMask/core/pull/9726))
+  - Support both `QuoteResponseV1` and `QuoteResponse` quoteResponses in `submitTx`
+  - Controller logic and utils still require V1, but clients can submit quotes in both formats
+- Bump `@metamask/bridge-controller` from `^78.1.0` to `^79.0.0` ([#9785](https://github.com/MetaMask/core/pull/9785))
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
 ## [74.6.2]
 
@@ -1479,7 +1489,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.0.0...HEAD
+[75.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.2...@metamask/bridge-status-controller@75.0.0
 [74.6.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.1...@metamask/bridge-status-controller@74.6.2
 [74.6.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.0...@metamask/bridge-status-controller@74.6.1
 [74.6.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.5.0...@metamask/bridge-status-controller@74.6.0

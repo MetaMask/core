@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Add `migrationPhase` to selector params, which determines how metadata is resolved ([#9744](https://github.com/MetaMask/core/pull/9744))
+  - Phase 1 omits V2 quoteMetadata derived from the quotes response. Legacy metadata is served to the clients
+  - Phase 1.5 includes V2 quoteMetadata but falls back to legacy metadata
+  - Phase 2 omits legacy metadata from the quotes and enables removal of deprecated metadata utils
+
+## [79.0.0]
+
 ### Added
 
 - Implement coercers between `QuoteResponse` v1 and v2 ([#9725](https://github.com/MetaMask/core/pull/9725))
@@ -17,10 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Add `migrationPhase` to selector params, which determines how metadata is resolved ([#9744](https://github.com/MetaMask/core/pull/9744))
-  - Phase 1 omits V2 quoteMetadata derived from the quotes response. Legacy metadata is served to the clients
-  - Phase 1.5 includes V2 quoteMetadata but falls back to legacy metadata
-  - Phase 2 omits legacy metadata from the quotes and enables removal of deprecated metadata utils
 - **BREAKING:** Use QuoteResponse V2 within the BridgeController; this affects the batch-sell, unified swap/bridge and quickBuy experiences ([#9726](https://github.com/MetaMask/core/pull/9726))
   - convert quotes to QuoteResponse v2 in `fetchBridgeQuoteStream`
   - store quotes as QuoteResponse v2 in the BridgeController
@@ -30,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `appendFeesToQuotes` interface now requires a chainId parameter, but still accepts both V1 and V2 quotes ([#9726](https://github.com/MetaMask/core/pull/9726))
 - Update `calcQuoteMetadata` util to handle both V1 and V2 quotes. Legacy metadata calculators continue to use the V1 schema ([#9727](https://github.com/MetaMask/core/pull/9727))
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
 ## [78.1.0]
 
@@ -1878,7 +1884,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.0.0...HEAD
+[79.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.1.0...@metamask/bridge-controller@79.0.0
 [78.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.0.3...@metamask/bridge-controller@78.1.0
 [78.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.0.2...@metamask/bridge-controller@78.0.3
 [78.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.0.1...@metamask/bridge-controller@78.0.2

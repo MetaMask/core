@@ -20,6 +20,7 @@ import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
 import { QuoteResponseSchemaV2 } from '../../validators/quote-response.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import type { TxData } from '../../validators/trade.js';
+import { FeeType } from '../../validators/quote.js';
 import { isEvmQuoteResponse, isNativeAddress } from '../bridge.js';
 import { calcNormalizedTokenAmount } from '../number-formatters.js';
 import type { QuoteMetadata, TokenAmountValues } from './types.js';
