@@ -151,7 +151,6 @@ describe('quote-response-v1 compatibility', () => {
           "At path: quote.destChainId (number) -- Expected a number, but received: undefined",
           "At path: quote.destAsset (number) -- Expected an object, but received: undefined",
           "At path: quote.destTokenAmount (number) -- Expected a string, but received: undefined",
-          "At path: quote.minDestTokenAmount (number) -- Expected a string, but received: undefined",
           "At path: quote.feeData (number) -- Expected an object, but received: undefined",
           "At path: quote.bridgeId (number) -- Expected a string, but received: undefined",
           "At path: quote.bridges (number) -- Expected an array value, but received: undefined",

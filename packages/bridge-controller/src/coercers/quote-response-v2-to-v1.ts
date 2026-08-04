@@ -106,7 +106,7 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
     destAsset: toBridgeAssetV1(dest.asset),
     srcTokenAmount: src.amount,
     destTokenAmount: dest.amount,
-    minDestTokenAmount: dest.minAmount,
+    minDestTokenAmount: dest.minAmount ?? dest.amount,
     feeData: {
       [FeeType.METABRIDGE]: {
         ...metabridgeFeeData,
@@ -125,9 +125,9 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
     ...(src.walletAddress && /* istanbul ignore next */ {
       walletAddress: src.walletAddress,
     }),
-    ...(value.priceData?.priceImpact?.amount && /* istanbul ignore next */ {
+    ...(priceData?.priceImpact?.amount && /* istanbul ignore next */ {
       priceData: {
-        priceImpact: value.priceData.priceImpact.amount,
+        priceImpact: priceData.priceImpact.amount,
       },
     }),
     ...(intent && /* istanbul ignore next */ { intent }),
