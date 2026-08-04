@@ -8,6 +8,9 @@ import { webcrypto } from 'crypto';
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor.js';
 import * as initializationModule from './initialization/initialization.js';
 import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
+import { subjectMetadataController } from './initialization/instances/subject-metadata-controller/subject-metadata-controller.js';
+import type { InitializationConfiguration } from './initialization/types.js';
+import type { WalletOptions } from './types.js';
 import { importSecretRecoveryPhrase } from './utilities.js';
 import { Wallet } from './Wallet.js';
 
@@ -23,8 +26,35 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
   },
 };
 
-async function setupWallet(): Promise<Wallet> {
-  const wallet = new Wallet({
+const PERSISTED_SUBJECT_ORIGIN = 'https://metamask.io';
+
+const PERSISTED_PERMISSIONED_SUBJECT_STATE = {
+  PermissionController: {
+    subjects: {
+      [PERSISTED_SUBJECT_ORIGIN]: {
+        origin: PERSISTED_SUBJECT_ORIGIN,
+        permissions: { somePermission: {} },
+      },
+    },
+  },
+  SubjectMetadataController: {
+    subjectMetadata: {
+      [PERSISTED_SUBJECT_ORIGIN]: {
+        origin: PERSISTED_SUBJECT_ORIGIN,
+        name: 'MetaMask',
+        subjectType: null,
+        extensionId: null,
+        iconUrl: null,
+      },
+    },
+  },
+};
+
+function createWallet(
+  options: Omit<WalletOptions, 'instanceOptions'> = {},
+): Wallet {
+  return new Wallet({
+    ...options,
     instanceOptions: {
       connectivityController: {
         connectivityAdapter: new AlwaysOnlineAdapter(),
@@ -41,6 +71,10 @@ async function setupWallet(): Promise<Wallet> {
       remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
     },
   });
+}
+
+async function setupWallet(): Promise<Wallet> {
+  const wallet = createWallet();
 
   await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_SRP);
 
@@ -507,5 +541,56 @@ describe('Wallet', () => {
           .remoteFeatureFlags,
       ).toStrictEqual({ testFlag: true });
     });
+  });
+
+  describe('PermissionController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call('PermissionController:getState'),
+      ).toStrictEqual({ subjects: {} });
+    });
+  });
+
+  describe('SubjectMetadataController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call('SubjectMetadataController:getState'),
+      ).toStrictEqual({ subjectMetadata: {} });
+    });
+
+    // Hydrating persisted metadata calls `PermissionController:hasPermissions`,
+    // so construction throws unless `PermissionController` came first.
+    it.each([
+      {
+        description: 'from the defaults',
+        initializationConfigurations: undefined,
+      },
+      {
+        description: 'when overridden',
+        initializationConfigurations: [
+          subjectMetadataController as InitializationConfiguration<
+            unknown,
+            unknown
+          >,
+        ],
+      },
+    ])(
+      'hydrates persisted subject metadata $description, consulting the wired PermissionController for retention',
+      ({ initializationConfigurations }) => {
+        const wallet = createWallet({
+          initializationConfigurations,
+          state: PERSISTED_PERMISSIONED_SUBJECT_STATE,
+        });
+
+        // The subject holds permissions, so its metadata survives hydration.
+        expect(
+          Object.keys(wallet.state.SubjectMetadataController.subjectMetadata),
+        ).toContain(PERSISTED_SUBJECT_ORIGIN);
+      },
+    );
   });
 });

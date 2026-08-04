@@ -14,12 +14,13 @@ type PackageInfo = {
   teams: string[];
 
   /**
-   * The package's directory name under
-   * `/packages/wallet/src/initialization/instances`, used to generate its rule
-   * in the "Initialization" section. Omit this if the package has not been
-   * added to the Wallet Library yet.
+   * The package's directory name(s) under
+   * `/packages/wallet/src/initialization/instances`, used to generate its rule(s)
+   * in the "Initialization" section. Pass an array for packages that export more
+   * than one wired controller. Omit this if the package has not been added to the
+   * Wallet Library yet.
    */
-  initializationPath?: string;
+  initializationPath?: string | string[];
 };
 
 /**
@@ -256,6 +257,10 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'permission-controller': {
     teams: ['@MetaMask/core-platform'],
+    initializationPath: [
+      'permission-controller',
+      'subject-metadata-controller',
+    ],
   },
   'permission-log-controller': {
     teams: ['@MetaMask/core-platform'],
@@ -607,16 +612,14 @@ function buildJointTeamOwnershipSection(): CodeownersSection {
 function buildInitializationSection(): CodeownersSection {
   return {
     title: 'Initialization',
-    rules: Object.keys(PACKAGES)
-      .filter((name) => PACKAGES[name].initializationPath !== undefined)
-      .sort()
-      .map((name) => {
-        const { teams, initializationPath } = PACKAGES[name];
-        return {
-          pattern: `/packages/wallet/src/initialization/instances/${initializationPath}/`,
+    rules: Object.values(PACKAGES)
+      .flatMap(({ teams, initializationPath = [] }) =>
+        [initializationPath].flat().map((instancePath) => ({
+          pattern: `/packages/wallet/src/initialization/instances/${instancePath}/`,
           owners: teams,
-        };
-      }),
+        })),
+      )
+      .sort((ruleA, ruleB) => ruleA.pattern.localeCompare(ruleB.pattern)),
   };
 }
 

@@ -663,6 +663,7 @@ linkStyle default opacity:0.5
   wallet --> messenger;
   wallet --> network_controller;
   wallet --> passkey_controller;
+  wallet --> permission_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> seedless_onboarding_controller;
   wallet --> storage_service;

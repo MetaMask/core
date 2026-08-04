@@ -25,15 +25,38 @@ export function initialize(options: InitializeOptions): DefaultInstances {
     instanceOptions,
   } = options;
 
-  const overriddenConfiguration = initializationConfigurations.map(
-    (config) => config.name,
+  const defaultConfigurationEntries = Object.values(
+    defaultConfigurations,
+  ) as InitializationConfiguration<unknown, unknown>[];
+
+  // Resolving two configurations with the same name would mean silently
+  // discarding one, so reject it instead of picking a winner.
+  const seenNames = new Set<string>();
+  for (const { name } of initializationConfigurations) {
+    if (seenNames.has(name)) {
+      throw new Error(`Duplicate initialization configuration name: ${name}`);
+    }
+    seenNames.add(name);
+  }
+
+  const defaultNames = new Set(
+    defaultConfigurationEntries.map((config) => config.name),
+  );
+  const overridesByName = new Map(
+    initializationConfigurations.map((config) => [config.name, config]),
   );
 
-  const configurationEntries = initializationConfigurations.concat(
-    Object.values(defaultConfigurations).filter(
-      (config) => !overriddenConfiguration.includes(config.name),
-    ) as InitializationConfiguration<unknown, unknown>[],
-  );
+  const configurationEntries = [
+    // A configuration that does not override a default is additive, and runs
+    // before the defaults — a default may depend on an action it registers.
+    ...initializationConfigurations.filter(
+      (config) => !defaultNames.has(config.name),
+    ),
+    // An override takes its default's slot; see `instances/index.ts`.
+    ...defaultConfigurationEntries.map(
+      (config) => overridesByName.get(config.name) ?? config,
+    ),
+  ];
 
   const instances: Record<string, unknown> = {};
 
