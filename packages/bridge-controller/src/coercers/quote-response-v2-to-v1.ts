@@ -106,7 +106,7 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
     destAsset: toBridgeAssetV1(dest.asset),
     srcTokenAmount: src.amount,
     destTokenAmount: dest.amount,
-    minDestTokenAmount: dest.minAmount ?? dest.amount,
+    minDestTokenAmount: dest.minAmount,
     feeData: {
       [FeeType.METABRIDGE]: {
         ...metabridgeFeeData,
