@@ -684,7 +684,7 @@ describe('SRPJwtBearerAuth login tag', () => {
     });
   });
 
-  it('defaults to primary when getLoginTag is omitted', async () => {
+  it('leaves raw_message untagged when getLoginTag is omitted', async () => {
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
         getLoginResponse: async (): Promise<LoginResponse | null> => null,
@@ -699,7 +699,7 @@ describe('SRPJwtBearerAuth login tag', () => {
     await auth.getAccessToken();
 
     expect(mockAuthenticate).toHaveBeenCalledWith(
-      'metamask:nonce-1:pubkey-1:primary',
+      'metamask:nonce-1:pubkey-1',
       'signature-1',
       AuthType.SRP,
       Env.DEV,
@@ -735,7 +735,7 @@ describe('SRPJwtBearerAuth login tag', () => {
     );
   });
 
-  it('forwards getLoginIdentifierType to authenticate', async () => {
+  it('forwards getLoginIdentifierType without tagging when getLoginTag is omitted', async () => {
     const getLoginIdentifierType = jest.fn().mockResolvedValue('GOOGLE');
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
@@ -753,7 +753,7 @@ describe('SRPJwtBearerAuth login tag', () => {
 
     expect(getLoginIdentifierType).toHaveBeenCalledWith('entropy-primary');
     expect(mockAuthenticate).toHaveBeenCalledWith(
-      'metamask:nonce-1:pubkey-1:primary',
+      'metamask:nonce-1:pubkey-1',
       'signature-1',
       AuthType.SRP,
       Env.DEV,
