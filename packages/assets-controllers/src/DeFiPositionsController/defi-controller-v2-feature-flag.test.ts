@@ -1,8 +1,8 @@
 import { getProcessingPollConfig } from './defi-controller-v2-feature-flag.js';
 
 /** Mirrors the internal defaults in `defi-controller-v2-feature-flag.ts`. */
-const DEFAULT_PROCESSING_POLL_INTERVAL_MS = 5_000;
-const DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS = 5;
+const DEFAULT_PROCESSING_POLL_INTERVAL_MS = 3_000;
+const DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS = 3;
 const DEFI_CONTROLLER_V2_FEATURE_FLAG = 'defiControllerV2';
 
 /**
