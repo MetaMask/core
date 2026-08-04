@@ -8870,7 +8870,7 @@ describe('RampsController', () => {
         expect(stub?.provider?.id).toBe('paypal');
         expect(stub?.walletAddress).toBe('0xabc');
         expect(stub?.status).toBe(RampsOrderStatus.Precreated);
-        expect(stub?.network).toEqual({ chainId: '1', name: '' });
+        expect(stub?.network).toStrictEqual({ chainId: '1', name: '' });
       });
     });
 
@@ -8886,7 +8886,7 @@ describe('RampsController', () => {
         expect(controller.state.orders[0]?.providerOrderId).toBe(
           'plain-order-id',
         );
-        expect(controller.state.orders[0]?.network).toEqual({
+        expect(controller.state.orders[0]?.network).toStrictEqual({
           chainId: 'eip155:1',
           name: '',
         });
