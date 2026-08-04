@@ -92,7 +92,7 @@ describe('claimsService', () => {
     expect(mockGetBearerToken).toHaveBeenCalledTimes(1);
   });
 
-  it('delegates only AuthenticationController:getBearerToken', () => {
+  it('delegates AuthenticationController getBearerToken and getSessionProfile', () => {
     const rootMessenger = getRootMessenger();
     const delegateSpy = jest.spyOn(rootMessenger, 'delegate');
 
@@ -100,7 +100,10 @@ describe('claimsService', () => {
 
     expect(delegateSpy).toHaveBeenCalledWith({
       messenger: expect.any(Messenger),
-      actions: ['AuthenticationController:getBearerToken'],
+      actions: [
+        'AuthenticationController:getBearerToken',
+        'AuthenticationController:getSessionProfile',
+      ],
       events: [],
     });
   });

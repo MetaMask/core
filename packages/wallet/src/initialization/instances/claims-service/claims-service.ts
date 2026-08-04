@@ -28,7 +28,10 @@ export const claimsService: InitializationConfiguration<
 
     parent.delegate({
       messenger,
-      actions: ['AuthenticationController:getBearerToken'],
+      actions: [
+        'AuthenticationController:getBearerToken',
+        'AuthenticationController:getSessionProfile',
+      ],
       events: [],
     });
 

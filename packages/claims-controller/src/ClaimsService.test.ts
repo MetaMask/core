@@ -14,8 +14,17 @@ import type {
 import { createSentryError } from './utils.js';
 
 const mockAuthenticationControllerGetBearerToken = jest.fn();
+const mockAuthenticationControllerGetSessionProfile = jest.fn();
 const mockFetchFunction = jest.fn();
 const mockCaptureException = jest.fn();
+
+const MOCK_SESSION_PROFILE = {
+  identifierId: 'identifier-1',
+  profileId: 'profile-1',
+  canonicalProfileId: 'canonical-profile-1',
+  metaMetricsId: 'metametrics-1',
+};
+
 /**
  * Create a mock claims service.
  *
@@ -25,6 +34,7 @@ const mockCaptureException = jest.fn();
 function createMockClaimsService(env: Env = Env.DEV): ClaimsService {
   const { messenger } = createMockClaimsServiceMessenger(
     mockAuthenticationControllerGetBearerToken,
+    mockAuthenticationControllerGetSessionProfile,
     mockCaptureException,
   );
   return new ClaimsService({
@@ -74,6 +84,7 @@ describe('ClaimsService', () => {
       const { messenger } = createMockClaimsServiceMessenger(
         jest.fn(),
         jest.fn(),
+        jest.fn(),
       );
       const service = new ClaimsService({
         env: Env.DEV,
@@ -97,6 +108,9 @@ describe('ClaimsService', () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
         'test-token',
       );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValueOnce(
+        MOCK_SESSION_PROFILE,
+      );
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValueOnce(MOCK_CONFIGURATIONS),
@@ -111,6 +125,9 @@ describe('ClaimsService', () => {
       expect(mockAuthenticationControllerGetBearerToken).toHaveBeenCalledTimes(
         1,
       );
+      expect(
+        mockAuthenticationControllerGetSessionProfile,
+      ).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
         `${CLAIMS_API_URL_MAP[Env.DEV]}/configurations`,
@@ -146,6 +163,9 @@ describe('ClaimsService', () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
         'test-token',
       );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValueOnce(
+        MOCK_SESSION_PROFILE,
+      );
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValueOnce([MOCK_CLAIM_1, MOCK_CLAIM_2]),
@@ -160,6 +180,9 @@ describe('ClaimsService', () => {
       expect(mockAuthenticationControllerGetBearerToken).toHaveBeenCalledTimes(
         1,
       );
+      expect(
+        mockAuthenticationControllerGetSessionProfile,
+      ).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
         `${CLAIMS_API_URL_MAP[Env.DEV]}/claims`,
@@ -196,6 +219,9 @@ describe('ClaimsService', () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
         'test-token',
       );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValueOnce(
+        MOCK_SESSION_PROFILE,
+      );
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValueOnce(MOCK_CLAIM_1),
@@ -210,6 +236,9 @@ describe('ClaimsService', () => {
       expect(mockAuthenticationControllerGetBearerToken).toHaveBeenCalledTimes(
         1,
       );
+      expect(
+        mockAuthenticationControllerGetSessionProfile,
+      ).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
         `${CLAIMS_API_URL_MAP[Env.DEV]}/claims/byId/1`,
@@ -270,6 +299,9 @@ describe('ClaimsService', () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
         'test-token',
       );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValueOnce(
+        MOCK_SESSION_PROFILE,
+      );
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValueOnce({
@@ -290,6 +322,9 @@ describe('ClaimsService', () => {
       expect(mockAuthenticationControllerGetBearerToken).toHaveBeenCalledTimes(
         1,
       );
+      expect(
+        mockAuthenticationControllerGetSessionProfile,
+      ).not.toHaveBeenCalled();
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
         `${CLAIMS_API_URL_MAP[Env.DEV]}/signature/generateMessage`,
@@ -348,6 +383,9 @@ describe('ClaimsService', () => {
     it('deduplicates cached GET requests', async () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
+      );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValue(
+        MOCK_SESSION_PROFILE,
       );
       mockFetchFunction.mockResolvedValue({
         ok: true,
@@ -410,10 +448,16 @@ describe('ClaimsService', () => {
       expect(mockFetchFunction).toHaveBeenCalledTimes(2);
     });
 
-    it('does not serve cached claims across different bearer tokens', async () => {
-      const tokens = ['profile-a-token', 'profile-b-token'];
-      mockAuthenticationControllerGetBearerToken.mockImplementation(
-        async () => tokens.shift() ?? 'exhausted',
+    it('does not serve cached claims across different canonical profile ids', async () => {
+      const profiles = [
+        { ...MOCK_SESSION_PROFILE, canonicalProfileId: 'canonical-a' },
+        { ...MOCK_SESSION_PROFILE, canonicalProfileId: 'canonical-b' },
+      ];
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'same-token',
+      );
+      mockAuthenticationControllerGetSessionProfile.mockImplementation(
+        async () => profiles.shift() ?? MOCK_SESSION_PROFILE,
       );
       mockFetchFunction
         .mockResolvedValueOnce({
@@ -435,14 +479,21 @@ describe('ClaimsService', () => {
       expect(mockFetchFunction).toHaveBeenCalledTimes(2);
     });
 
-    it('does not share an in-flight getClaims request across different bearer tokens', async () => {
-      const tokens = ['profile-a-token', 'profile-b-token'];
-      mockAuthenticationControllerGetBearerToken.mockImplementation(
-        async () => tokens.shift() ?? 'exhausted',
+    it('does not share an in-flight getClaims request across different canonical profile ids', async () => {
+      const profiles = [
+        { ...MOCK_SESSION_PROFILE, canonicalProfileId: 'canonical-a' },
+        { ...MOCK_SESSION_PROFILE, canonicalProfileId: 'canonical-b' },
+      ];
+      mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+        'same-token',
       );
-      mockFetchFunction.mockImplementation(async (_url, options) => {
-        const authHeader = (options as { headers: Record<string, string> })
-          .headers.Authorization;
+      mockAuthenticationControllerGetSessionProfile.mockImplementation(
+        async () => profiles.shift() ?? MOCK_SESSION_PROFILE,
+      );
+      let fetchCount = 0;
+      mockFetchFunction.mockImplementation(async () => {
+        const index = fetchCount;
+        fetchCount += 1;
         await new Promise((resolve) => {
           setTimeout(resolve, 50);
         });
@@ -450,11 +501,7 @@ describe('ClaimsService', () => {
           ok: true,
           json: jest
             .fn()
-            .mockResolvedValue(
-              authHeader === 'Bearer profile-a-token'
-                ? [MOCK_CLAIM_1]
-                : [MOCK_CLAIM_2],
-            ),
+            .mockResolvedValue(index === 0 ? [MOCK_CLAIM_1] : [MOCK_CLAIM_2]),
         };
       });
 
@@ -470,9 +517,32 @@ describe('ClaimsService', () => {
       expect(mockFetchFunction).toHaveBeenCalledTimes(2);
     });
 
+    it('reuses cached configurations across bearer token refreshes for the same canonical profile', async () => {
+      mockAuthenticationControllerGetBearerToken
+        .mockResolvedValueOnce('token-1')
+        .mockResolvedValueOnce('token-2');
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValue(
+        MOCK_SESSION_PROFILE,
+      );
+      mockFetchFunction.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
+      });
+
+      const service = createMockClaimsService();
+
+      await service.fetchClaimsConfigurations();
+      await service.fetchClaimsConfigurations();
+
+      expect(mockFetchFunction).toHaveBeenCalledTimes(1);
+    });
+
     it('does not leak the bearer token through cache update events', async () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'sensitive-token',
+      );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValue(
+        MOCK_SESSION_PROFILE,
       );
       mockFetchFunction.mockResolvedValue({
         ok: true,
@@ -481,6 +551,7 @@ describe('ClaimsService', () => {
 
       const { messenger } = createMockClaimsServiceMessenger(
         mockAuthenticationControllerGetBearerToken,
+        mockAuthenticationControllerGetSessionProfile,
         mockCaptureException,
       );
       const publishSpy = jest.spyOn(messenger, 'publish');
@@ -501,6 +572,9 @@ describe('ClaimsService', () => {
     it('always fetches fresh claims on repeated calls (staleTime: 0)', async () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
+      );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValue(
+        MOCK_SESSION_PROFILE,
       );
       mockFetchFunction
         .mockResolvedValueOnce({
@@ -530,6 +604,9 @@ describe('ClaimsService', () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
       );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValue(
+        MOCK_SESSION_PROFILE,
+      );
       mockFetchFunction
         .mockResolvedValueOnce({
           ok: true,
@@ -553,6 +630,9 @@ describe('ClaimsService', () => {
     it('does not cache malformed GET responses', async () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
+      );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValue(
+        MOCK_SESSION_PROFILE,
       );
       mockFetchFunction
         .mockResolvedValueOnce({
@@ -580,6 +660,9 @@ describe('ClaimsService', () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
       );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValue(
+        MOCK_SESSION_PROFILE,
+      );
       mockFetchFunction.mockResolvedValue({
         ok: true,
         json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
@@ -587,6 +670,7 @@ describe('ClaimsService', () => {
 
       const { messenger } = createMockClaimsServiceMessenger(
         mockAuthenticationControllerGetBearerToken,
+        mockAuthenticationControllerGetSessionProfile,
         mockCaptureException,
       );
       const publishSpy = jest.spyOn(messenger, 'publish');
@@ -612,6 +696,9 @@ describe('ClaimsService', () => {
       jest.resetAllMocks();
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
+      );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValue(
+        MOCK_SESSION_PROFILE,
       );
     });
 
@@ -648,10 +735,14 @@ describe('ClaimsService', () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
       );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValue(
+        MOCK_SESSION_PROFILE,
+      );
       mockFetchFunction.mockRejectedValue(new Error('Fetch error'));
 
       const { messenger } = createMockClaimsServiceMessenger(
         mockAuthenticationControllerGetBearerToken,
+        mockAuthenticationControllerGetSessionProfile,
         mockCaptureException,
       );
       const service = new ClaimsService({
@@ -677,10 +768,14 @@ describe('ClaimsService', () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
       );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValue(
+        MOCK_SESSION_PROFILE,
+      );
       mockFetchFunction.mockRejectedValue(new Error('Fetch error'));
 
       const { messenger } = createMockClaimsServiceMessenger(
         mockAuthenticationControllerGetBearerToken,
+        mockAuthenticationControllerGetSessionProfile,
         jest.fn(),
       );
       const service = new ClaimsService({

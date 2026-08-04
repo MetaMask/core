@@ -125,11 +125,13 @@ export type RootServiceMessenger = Messenger<
  * Create a mock messenger for the claims service.
  *
  * @param mockAuthenticationControllerGetBearerToken - A mock function for the authentication controller get bearer token.
+ * @param mockAuthenticationControllerGetSessionProfile - A mock function for the authentication controller get session profile.
  * @param mockCaptureException - A mock function for the capture exception.
  * @returns A mock messenger for the claims service.
  */
 export function createMockClaimsServiceMessenger(
   mockAuthenticationControllerGetBearerToken: jest.Mock,
+  mockAuthenticationControllerGetSessionProfile: jest.Mock,
   mockCaptureException: jest.Mock,
 ): {
   rootMessenger: RootServiceMessenger;
@@ -142,6 +144,10 @@ export function createMockClaimsServiceMessenger(
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
     mockAuthenticationControllerGetBearerToken,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getSessionProfile',
+    mockAuthenticationControllerGetSessionProfile,
   );
 
   const messenger = new Messenger<
@@ -158,7 +164,10 @@ export function createMockClaimsServiceMessenger(
   rootMessenger.delegate({
     messenger,
     events: [],
-    actions: ['AuthenticationController:getBearerToken'],
+    actions: [
+      'AuthenticationController:getBearerToken',
+      'AuthenticationController:getSessionProfile',
+    ],
   });
 
   return {

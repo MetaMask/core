@@ -10,7 +10,6 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import { array, validate } from '@metamask/superstruct';
 import type { Struct } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
-import { bytesToHex, sha256, stringToBytes } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ClaimsServiceMethodActions } from './ClaimsService-method-action-types.js';
@@ -63,7 +62,8 @@ export type ClaimsServiceActions =
  * Actions from other messengers that {@link ClaimsService} calls.
  */
 export type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+  | AuthenticationController.AuthenticationControllerGetSessionProfileAction;
 
 /**
  * Published when {@link ClaimsService}'s cache is updated.
@@ -115,7 +115,9 @@ const log = createModuleLogger(projectLogger, 'ClaimsService');
  * This service is responsible for communicating with the Claims API.
  *
  * All requests are authenticated via JWT Bearer tokens obtained from the
- * `AuthenticationController:getBearerToken` messenger action.
+ * `AuthenticationController:getBearerToken` messenger action. Cached GET
+ * queries are scoped by `canonicalProfileId` from
+ * `AuthenticationController:getSessionProfile`.
  */
 export class ClaimsService extends BaseDataService<
   typeof SERVICE_NAME,
@@ -165,13 +167,13 @@ export class ClaimsService extends BaseDataService<
    */
   async fetchClaimsConfigurations(): Promise<ClaimsConfigurationsResponse> {
     try {
-      const bearerToken = await this.messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-      const profileKey = bytesToHex(await sha256(stringToBytes(bearerToken)));
+      const { bearerToken, canonicalProfileId } = await this.#getAuthContext();
 
       return await this.fetchQuery({
-        queryKey: [`${this.name}:fetchClaimsConfigurations`, profileKey],
+        queryKey: [
+          `${this.name}:fetchClaimsConfigurations`,
+          canonicalProfileId,
+        ],
         queryFn: async () => {
           const url = `${this.getClaimsApiUrl()}/configurations`;
           const response = await this.#fetch(url, {
@@ -207,13 +209,10 @@ export class ClaimsService extends BaseDataService<
    */
   async getClaims(): Promise<Claim[]> {
     try {
-      const bearerToken = await this.messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-      const profileKey = bytesToHex(await sha256(stringToBytes(bearerToken)));
+      const { bearerToken, canonicalProfileId } = await this.#getAuthContext();
 
       return await this.fetchQuery({
-        queryKey: [`${this.name}:getClaims`, profileKey],
+        queryKey: [`${this.name}:getClaims`, canonicalProfileId],
         // TODO: Restore default staleTime once claim reads are invalidated
         // after a successful external submit (not in getSubmitClaimConfig).
         staleTime: 0,
@@ -253,13 +252,10 @@ export class ClaimsService extends BaseDataService<
    */
   async getClaimById(id: string): Promise<Claim> {
     try {
-      const bearerToken = await this.messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-      const profileKey = bytesToHex(await sha256(stringToBytes(bearerToken)));
+      const { bearerToken, canonicalProfileId } = await this.#getAuthContext();
 
       return await this.fetchQuery({
-        queryKey: [`${this.name}:getClaimById`, id, profileKey],
+        queryKey: [`${this.name}:getClaimById`, id, canonicalProfileId],
         // TODO: Restore default staleTime once claim reads are invalidated
         // after a successful external submit (not in getSubmitClaimConfig).
         staleTime: 0,
@@ -347,6 +343,21 @@ export class ClaimsService extends BaseDataService<
       'AuthenticationController:getBearerToken',
     );
     return this.#headersForToken(bearerToken);
+  }
+
+  async #getAuthContext(): Promise<{
+    bearerToken: string;
+    canonicalProfileId: string;
+  }> {
+    const [bearerToken, sessionProfile] = await Promise.all([
+      this.messenger.call('AuthenticationController:getBearerToken'),
+      this.messenger.call('AuthenticationController:getSessionProfile'),
+    ]);
+
+    return {
+      bearerToken,
+      canonicalProfileId: sessionProfile.canonicalProfileId,
+    };
   }
 
   #headersForToken(token: string): Record<string, string> {
