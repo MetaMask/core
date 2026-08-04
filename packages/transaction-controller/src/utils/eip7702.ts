@@ -463,7 +463,7 @@ export function recoverAuthorizationAuthority(
       bigIntToUnpaddedBytes(BigInt(authorization.s)),
     );
 
-    return bytesToHex(pubToAddress(publicKey)) as Hex;
+    return bytesToHex(pubToAddress(publicKey));
   } catch (error) {
     log('Failed to recover authorization authority', { authorization, error });
     return undefined;
