@@ -547,7 +547,7 @@ export type PerpsControllerGetWithdrawalRoutesAction = {
 };
 
 /**
- * Set the transient UTM / discovery attribution context (TAT-3133, TAT-3140).
+ * Set the transient UTM / discovery attribution context.
  * Replaces any previously set context. Held in-memory only — not persisted.
  *
  * @param context - The attribution context (UTM fields) to store.
@@ -558,7 +558,7 @@ export type PerpsControllerSetAttributionContextAction = {
 };
 
 /**
- * Get a copy of the current attribution context (TAT-3133, TAT-3140).
+ * Get a copy of the current attribution context.
  *
  * @returns A shallow copy of the stored attribution context.
  */
@@ -568,7 +568,7 @@ export type PerpsControllerGetAttributionContextAction = {
 };
 
 /**
- * Clear the stored attribution context (TAT-3133, TAT-3140).
+ * Clear the stored attribution context.
  */
 export type PerpsControllerClearAttributionContextAction = {
   type: `PerpsController:clearAttributionContext`;

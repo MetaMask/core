@@ -28,7 +28,6 @@ import type { BridgeController } from './bridge-controller.js';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge.js';
 import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell.js';
 import type { BatchSellTradesResponseSchema } from './validators/batch-sell.js';
-import type { BridgeAssetSchema } from './validators/bridge-asset.js';
 import type {
   ChainConfigurationSchema,
   ChainRankingSchema,
@@ -98,12 +97,6 @@ export enum SortOrder {
   COST_ASC = 'cost_ascending',
   ETA_ASC = 'time_descending',
 }
-
-/**
- * This is the interface for the asset object returned by the bridge-api
- * This type is used in the QuoteResponse and in the fetchBridgeTokens response
- */
-export type BridgeAsset = Infer<typeof BridgeAssetSchema>;
 
 /**
  * This is the interface for the token object used in the extension client
