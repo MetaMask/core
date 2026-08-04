@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/keyring-internal-api` from `^11.0.2` to `^12.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
 ## [3.2.2]
 

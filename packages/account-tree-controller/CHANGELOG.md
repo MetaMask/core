@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
 ## [7.6.0]
 
 ### Added
@@ -15,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-api` from `^23.5.0` to `^24.0.0` ([#9676](https://github.com/MetaMask/core/pull/9676), [#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676)
 - Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
 
