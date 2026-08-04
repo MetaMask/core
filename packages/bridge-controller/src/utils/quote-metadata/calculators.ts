@@ -7,7 +7,7 @@ import {
 import { is } from '@metamask/superstruct';
 import { BigNumber } from 'bignumber.js';
 
-import { toQuoteResponseV1 } from '../../index.js';
+import { toQuoteResponseV1 } from '../../coercers/quote-response-v2-to-v1.js';
 import type {
   L1GasFees,
   ExchangeRate,
@@ -83,7 +83,10 @@ export const calcSentAmount = (
             (acc, { amount }) => acc.plus(amount),
             new BigNumber(srcTokenAmount),
           );
-  const normalizedSentAmount = calcNormalizedTokenAmount(sentAmount, srcAsset.decimals);
+  const normalizedSentAmount = calcNormalizedTokenAmount(
+    sentAmount,
+    srcAsset.decimals,
+  );
   return {
     amount: normalizedSentAmount?.toFixed(),
     valueInCurrency:
