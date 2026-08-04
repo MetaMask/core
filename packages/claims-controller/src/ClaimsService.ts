@@ -116,7 +116,7 @@ const log = createModuleLogger(projectLogger, 'ClaimsService');
  *
  * All requests are authenticated via JWT Bearer tokens obtained from the
  * `AuthenticationController:getBearerToken` messenger action. Cached GET
- * queries are scoped by `canonicalProfileId` from
+ * queries are scoped by `profileId` from
  * `AuthenticationController:getSessionProfile`.
  */
 export class ClaimsService extends BaseDataService<
@@ -167,13 +167,10 @@ export class ClaimsService extends BaseDataService<
    */
   async fetchClaimsConfigurations(): Promise<ClaimsConfigurationsResponse> {
     try {
-      const { bearerToken, canonicalProfileId } = await this.#getAuthContext();
+      const { bearerToken, profileId } = await this.#getAuthContext();
 
       return await this.fetchQuery({
-        queryKey: [
-          `${this.name}:fetchClaimsConfigurations`,
-          canonicalProfileId,
-        ],
+        queryKey: [`${this.name}:fetchClaimsConfigurations`, profileId],
         queryFn: async () => {
           const url = `${this.getClaimsApiUrl()}/configurations`;
           const response = await this.#fetch(url, {
@@ -209,10 +206,10 @@ export class ClaimsService extends BaseDataService<
    */
   async getClaims(): Promise<Claim[]> {
     try {
-      const { bearerToken, canonicalProfileId } = await this.#getAuthContext();
+      const { bearerToken, profileId } = await this.#getAuthContext();
 
       return await this.fetchQuery({
-        queryKey: [`${this.name}:getClaims`, canonicalProfileId],
+        queryKey: [`${this.name}:getClaims`, profileId],
         // TODO: Restore default staleTime once claim reads are invalidated
         // after a successful external submit (not in getSubmitClaimConfig).
         staleTime: 0,
@@ -252,10 +249,10 @@ export class ClaimsService extends BaseDataService<
    */
   async getClaimById(id: string): Promise<Claim> {
     try {
-      const { bearerToken, canonicalProfileId } = await this.#getAuthContext();
+      const { bearerToken, profileId } = await this.#getAuthContext();
 
       return await this.fetchQuery({
-        queryKey: [`${this.name}:getClaimById`, id, canonicalProfileId],
+        queryKey: [`${this.name}:getClaimById`, id, profileId],
         // TODO: Restore default staleTime once claim reads are invalidated
         // after a successful external submit (not in getSubmitClaimConfig).
         staleTime: 0,
@@ -347,7 +344,7 @@ export class ClaimsService extends BaseDataService<
 
   async #getAuthContext(): Promise<{
     bearerToken: string;
-    canonicalProfileId: string;
+    profileId: string;
   }> {
     const [bearerToken, sessionProfile] = await Promise.all([
       this.messenger.call('AuthenticationController:getBearerToken'),
@@ -356,7 +353,7 @@ export class ClaimsService extends BaseDataService<
 
     return {
       bearerToken,
-      canonicalProfileId: sessionProfile.canonicalProfileId,
+      profileId: sessionProfile.profileId,
     };
   }
 
