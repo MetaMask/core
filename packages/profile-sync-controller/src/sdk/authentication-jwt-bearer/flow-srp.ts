@@ -38,8 +38,8 @@ type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
   signing?: AuthSigningOptions;
   /**
-   * Resolves the login tag for a given entropy source. Defaults to
-   * `'primary'` when omitted (SDK / EIP-6963 consumers).
+   * Resolves the login tag for a given entropy source.
+   * When omitted, `raw_message` stays untagged (`metamask:<nonce>:<pubkey>`).
    */
   getLoginTag?: (entropySourceId?: string) => Promise<SrpLoginTag>;
   /**
@@ -295,7 +295,9 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     const publicKey = await this.getIdentifier(entropySourceId);
     const nonceRes = await getNonce(publicKey, this.#config.env);
 
-    const tag = (await this.#getLoginTag?.(entropySourceId)) ?? 'primary';
+    // Tag only when the wallet supplies getLoginTag. SDK callers keep the
+    // legacy 3-part message rather than guessing `primary`.
+    const tag = await this.#getLoginTag?.(entropySourceId);
     const identifierType =
       (await this.#getLoginIdentifierType?.(entropySourceId)) ?? 'SRP';
     const rawMessage = this.#createSrpLoginRawMessage(
@@ -417,8 +419,13 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   #createSrpLoginRawMessage(
     nonce: string,
     publicKey: string,
-    tag: SrpLoginTag,
-  ): `metamask:${string}:${string}:${SrpLoginTag}` {
-    return `metamask:${nonce}:${publicKey}:${tag}` as const;
+    tag?: SrpLoginTag,
+  ):
+    | `metamask:${string}:${string}`
+    | `metamask:${string}:${string}:${SrpLoginTag}` {
+    if (tag) {
+      return `metamask:${nonce}:${publicKey}:${tag}` as const;
+    }
+    return `metamask:${nonce}:${publicKey}` as const;
   }
 }
