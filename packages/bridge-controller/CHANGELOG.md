@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `toNormalizedAmounts`converts atomic amounts to display-ready values
 - Export `sumAmounts` util that adds up fees or token amounts ([#9725](https://github.com/MetaMask/core/pull/9725))
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+
 ## [78.1.0]
 
 ### Added
