@@ -23,8 +23,8 @@ export const DEFAULT_PROCESSING_POLL_INTERVAL_MS = 5_000;
 
 /**
  * Maximum fetch attempts (including the first) while any account still has
- * `processingDefiPositions: true`. After this, the call resolves and keeps
- * prior state for accounts that never became ready.
+ * `processingDefiPositions: true`. After this, the call resolves without
+ * updating state, so prior positions are kept for every selected account.
  */
 export const DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS = 5;
 
@@ -119,12 +119,13 @@ export type DeFiPositionsControllerV2Messenger = Messenger<
  * `{ forceRefresh: true }` to bypass that cache for pull-to-refresh.
  *
  * When the API reports `processingDefiPositions` for any account, this
- * controller polls until indexing finishes or the attempt limit is reached.
- * Concurrent calls for the same selected accounts and `vsCurrency` share one
- * in-flight promise so the UI can treat the pending promise as a loading
- * signal. Calls for a different selection or fiat currency start their own
- * fetch and leave any prior poll running, so switching back can join an
- * in-flight fetch for that group and currency.
+ * controller polls until indexing finishes or the attempt limit is reached,
+ * and only then processes and writes state — mixed ready/processing responses
+ * leave prior state untouched. Concurrent calls for the same selected accounts
+ * and `vsCurrency` share one in-flight promise so the UI can treat the pending
+ * promise as a loading signal. Calls for a different selection or fiat currency
+ * start their own fetch and leave any prior poll running, so switching back can
+ * join an in-flight fetch for that group and currency.
  */
 export class DeFiPositionsControllerV2 extends BaseController<
   typeof controllerName,
@@ -187,17 +188,18 @@ export class DeFiPositionsControllerV2 extends BaseController<
   }
 
   /**
-   * Fetches DeFi positions for the selected account group. Each account key in
-   * a ready response replaces that account's state (other accounts stay).
-   * Accounts still indexing (`processingDefiPositions`) keep prior state; the
-   * method polls (invalidating the balances cache between attempts) until all
-   * selected accounts are ready, the attempt limit is reached, or a request
-   * fails. Concurrent calls for the same selected accounts and `vsCurrency`
-   * share one in-flight promise; calls for a different selection or fiat
-   * currency start a new fetch and leave prior polls running so a later
-   * switch back can join them. No-ops when disabled or when the group has no
-   * supported accounts. Caching / spam prevention is handled by the apiClient
-   * TanStack Query cache (keyed by accounts + query options including
+   * Fetches DeFi positions for the selected account group. State is updated only
+   * when every selected account in the response is ready (none report
+   * `processingDefiPositions`); each account key in that response replaces that
+   * account's state (other accounts stay). While any account is still indexing,
+   * prior state is kept and the method polls (invalidating the balances cache
+   * between attempts) until all selected accounts are ready, the attempt limit
+   * is reached, or a request fails. Concurrent calls for the same selected
+   * accounts and `vsCurrency` share one in-flight promise; calls for a different
+   * selection or fiat currency start a new fetch and leave prior polls running
+   * so a later switch back can join them. No-ops when disabled or when the group
+   * has no supported accounts. Caching / spam prevention is handled by the
+   * apiClient TanStack Query cache (keyed by accounts + query options including
    * `vsCurrency`). Pass `{ forceRefresh: true }` to bypass the cache on the
    * first attempt (e.g. pull-to-refresh).
    *
@@ -282,21 +284,19 @@ export class DeFiPositionsControllerV2 extends BaseController<
             fetchOptions,
           );
 
-        const processingAccounts = response.accounts.filter(
+        const stillProcessing = response.accounts.some(
           (account) => account.processingDefiPositions,
         );
-        const readyAccounts = response.accounts.filter(
-          (account) => !account.processingDefiPositions,
-        );
 
-        if (readyAccounts.length > 0) {
+        // Only process and write when every account is ready so a partial
+        // response cannot clear or overwrite positions for accounts that are
+        // still indexing.
+        if (!stillProcessing) {
           const positionsByAccount = groupDeFiPositionsV6(
-            { ...response, accounts: readyAccounts },
+            response,
             internalAccountIdByCaip,
           );
 
-          // Last valid response wins per ready account; still-indexing accounts
-          // stay untouched.
           this.update((state) => {
             for (const [accountId, positions] of Object.entries(
               positionsByAccount,
@@ -304,9 +304,6 @@ export class DeFiPositionsControllerV2 extends BaseController<
               state.allDeFiPositionsV2[accountId] = positions;
             }
           });
-        }
-
-        if (processingAccounts.length === 0) {
           return;
         }
 

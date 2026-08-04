@@ -459,7 +459,7 @@ describe('DeFiPositionsControllerV2', () => {
     );
   });
 
-  it('updates ready accounts immediately while polling ones still indexing', async () => {
+  it('keeps prior state for all accounts until every account is ready', async () => {
     jest.useFakeTimers();
 
     const solanaAccountId = `solana:${SolScope.Mainnet.split(':')[1]}:${SOLANA_ADDRESS}`;
@@ -538,21 +538,21 @@ describe('DeFiPositionsControllerV2', () => {
 
     await controller.fetchDeFiPositions();
     const evmPositions = controller.state.allDeFiPositionsV2['evm-account-id'];
+    const solanaPositions =
+      controller.state.allDeFiPositionsV2['solana-account-id'];
     expect(evmPositions).toHaveLength(1);
-    expect(
-      controller.state.allDeFiPositionsV2['solana-account-id'],
-    ).toHaveLength(1);
+    expect(solanaPositions).toHaveLength(1);
 
     const secondFetch = controller.fetchDeFiPositions({ forceRefresh: true });
     await Promise.resolve();
 
-    // Ready Solana clears immediately; still-indexing EVM keeps prior positions.
+    // Mixed ready/processing response: keep prior state for every account.
     expect(controller.state.allDeFiPositionsV2['evm-account-id']).toBe(
       evmPositions,
     );
-    expect(
-      controller.state.allDeFiPositionsV2['solana-account-id'],
-    ).toStrictEqual([]);
+    expect(controller.state.allDeFiPositionsV2['solana-account-id']).toBe(
+      solanaPositions,
+    );
     expect(mockInvalidateQueries).toHaveBeenCalledTimes(1);
 
     await jest.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
@@ -561,6 +561,9 @@ describe('DeFiPositionsControllerV2', () => {
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(3);
     expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
       1,
+    );
+    expect(controller.state.allDeFiPositionsV2['evm-account-id']).not.toBe(
+      evmPositions,
     );
     expect(
       controller.state.allDeFiPositionsV2['solana-account-id'],
