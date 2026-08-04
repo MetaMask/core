@@ -214,6 +214,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #clientVersion: SemVerVersion;
 
+  readonly #defaultFeatureFlags: FeatureFlags;
+
   #processedRemoteFeatureFlags: FeatureFlags = {};
 
   /**
@@ -228,6 +230,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.getMetaMetricsId - Returns metaMetricsId.
    * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
    * @param options.prevClientVersion - The previous client version for feature flag cache invalidation.
+   * @param options.defaultFeatureFlags - Client-side default feature flags used as the lowest-precedence layer under processed remote flags and local overrides. Not persisted.
    */
   constructor({
     messenger,
@@ -238,6 +241,7 @@ export class RemoteFeatureFlagController extends BaseController<
     getMetaMetricsId,
     clientVersion,
     prevClientVersion,
+    defaultFeatureFlags = {},
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
@@ -247,6 +251,7 @@ export class RemoteFeatureFlagController extends BaseController<
     disabled?: boolean;
     clientVersion: string;
     prevClientVersion?: string;
+    defaultFeatureFlags?: FeatureFlags;
   }) {
     if (!isValidSemVerVersion(clientVersion)) {
       throw new Error(
@@ -264,6 +269,23 @@ export class RemoteFeatureFlagController extends BaseController<
       prevClientVersion !== clientVersion;
 
     const localOverrides = initialState.localOverrides ?? {};
+    const rawRemoteFeatureFlags = initialState.rawRemoteFeatureFlags ?? {};
+
+    // Rebuild the processed remote layer from last session's effective flags by
+    // stripping local overrides and default-only keys (absent from raw).
+    const processedRemoteFeatureFlags = {
+      ...initialState.remoteFeatureFlags,
+    };
+    for (const [flagName, overrideValue] of Object.entries(localOverrides)) {
+      if (processedRemoteFeatureFlags[flagName] === overrideValue) {
+        delete processedRemoteFeatureFlags[flagName];
+      }
+    }
+    for (const flagName of Object.keys(defaultFeatureFlags)) {
+      if (!(flagName in rawRemoteFeatureFlags)) {
+        delete processedRemoteFeatureFlags[flagName];
+      }
+    }
 
     super({
       name: controllerName,
@@ -272,7 +294,8 @@ export class RemoteFeatureFlagController extends BaseController<
       state: {
         ...initialState,
         remoteFeatureFlags: {
-          ...initialState.remoteFeatureFlags,
+          ...defaultFeatureFlags,
+          ...processedRemoteFeatureFlags,
           ...localOverrides,
         },
         cacheTimestamp: hasClientVersionChanged
@@ -281,15 +304,8 @@ export class RemoteFeatureFlagController extends BaseController<
       },
     });
 
-    this.#processedRemoteFeatureFlags = {
-      ...initialState.remoteFeatureFlags,
-    };
-    for (const [flagName, overrideValue] of Object.entries(localOverrides)) {
-      if (this.#processedRemoteFeatureFlags[flagName] === overrideValue) {
-        delete this.#processedRemoteFeatureFlags[flagName];
-      }
-    }
-
+    this.#defaultFeatureFlags = defaultFeatureFlags;
+    this.#processedRemoteFeatureFlags = processedRemoteFeatureFlags;
     this.#fetchInterval = fetchInterval;
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
@@ -300,6 +316,25 @@ export class RemoteFeatureFlagController extends BaseController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Computes effective feature flags with precedence:
+   * defaults < processed remote < local overrides.
+   *
+   * @param processedRemote - The processed remote feature flags.
+   * @param localOverrides - Local overrides. Defaults to current state overrides.
+   * @returns The effective feature flags.
+   */
+  #getEffectiveFeatureFlags(
+    processedRemote: FeatureFlags,
+    localOverrides: FeatureFlags = this.state.localOverrides ?? {},
+  ): FeatureFlags {
+    return {
+      ...this.#defaultFeatureFlags,
+      ...processedRemote,
+      ...localOverrides,
+    };
   }
 
   /**
@@ -388,10 +423,9 @@ export class RemoteFeatureFlagController extends BaseController<
     this.update(() => {
       return {
         ...this.state,
-        remoteFeatureFlags: {
-          ...redactedProcessedFlags,
-          ...this.state.localOverrides,
-        },
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
+          redactedProcessedFlags,
+        ),
         rawRemoteFeatureFlags: redactMetaMetricsIds(remoteFeatureFlags),
         cacheTimestamp: Date.now(),
         thresholdCache: updatedThresholdCache,
@@ -543,10 +577,10 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         ...this.state,
         localOverrides,
-        remoteFeatureFlags: {
-          ...this.state.remoteFeatureFlags,
-          [flagName]: value,
-        },
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
+          this.#processedRemoteFeatureFlags,
+          localOverrides,
+        ),
       };
     });
   }
@@ -560,20 +594,14 @@ export class RemoteFeatureFlagController extends BaseController<
     const newLocalOverrides = { ...this.state.localOverrides };
     delete newLocalOverrides[flagName];
 
-    const remoteFeatureFlags = { ...this.state.remoteFeatureFlags };
-    const processedValue = this.#processedRemoteFeatureFlags[flagName];
-
-    if (processedValue === undefined) {
-      delete remoteFeatureFlags[flagName];
-    } else {
-      remoteFeatureFlags[flagName] = processedValue;
-    }
-
     this.update(() => {
       return {
         ...this.state,
         localOverrides: newLocalOverrides,
-        remoteFeatureFlags,
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
+          this.#processedRemoteFeatureFlags,
+          newLocalOverrides,
+        ),
       };
     });
   }
@@ -586,7 +614,10 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         ...this.state,
         localOverrides: {},
-        remoteFeatureFlags: { ...this.#processedRemoteFeatureFlags },
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
+          this.#processedRemoteFeatureFlags,
+          {},
+        ),
       };
     });
   }
