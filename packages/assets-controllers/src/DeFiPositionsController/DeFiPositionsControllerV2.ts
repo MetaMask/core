@@ -233,14 +233,14 @@ export class DeFiPositionsControllerV2 extends BaseController<
       return;
     }
 
+    // Same-key callers join this promise instead of replacing it, so cleanup
+    // can always delete without checking identity.
     const fetchPromise = this.#fetchDeFiPositions(
       options,
       query,
       vsCurrency,
     ).finally(() => {
-      if (this.#inFlightFetches.get(inFlightKey) === fetchPromise) {
-        this.#inFlightFetches.delete(inFlightKey);
-      }
+      this.#inFlightFetches.delete(inFlightKey);
     });
     this.#inFlightFetches.set(inFlightKey, fetchPromise);
 
