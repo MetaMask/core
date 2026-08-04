@@ -168,7 +168,7 @@ const appendNonEvmFees = async <
         // Return quote with undefined fee if snap fails (e.g., insufficient UTXO funds)
         // Client can render special UI or skip the quote card row for quotes with missing fee data
         console.error(
-          `Failed to compute non-EVM fees for quote in ${chainId}:`,
+          `Failed to compute non-EVM fees for quote ${quoteResponse.quoteId ?? ''}`,
           error,
         );
         return {
