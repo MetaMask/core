@@ -67,8 +67,9 @@ function fetchPage(pageParam?: PageParam): Page {
   };
 }
 
-type PaginatedServiceActions =
-  DataServiceInvalidateQueriesAction<typeof serviceName>;
+type PaginatedServiceActions = DataServiceInvalidateQueriesAction<
+  typeof serviceName
+>;
 type PaginatedServiceEvents =
   | DataServiceCacheUpdatedEvent<typeof serviceName>
   | DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
