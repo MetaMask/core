@@ -41,10 +41,7 @@ import {
   formatChainIdToDec,
   formatChainIdToHex,
 } from './utils/caip-formatters.js';
-import {
-  calcQuoteMetadata,
-  calcQuoteMetadataV2,
-} from './utils/quote-metadata/calculators.js';
+import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 import { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.js';
 import { BatchSellTransactionType } from './validators/batch-sell.js';
