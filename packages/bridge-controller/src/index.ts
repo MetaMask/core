@@ -77,6 +77,8 @@ export {
 } from './validators/quote-response-v1.js';
 export { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 
+export { sumAmounts } from './utils/number-formatters.js';
+
 export {
   AssetType,
   SortOrder,
@@ -232,8 +234,6 @@ export {
 } from './utils/caip-formatters.js';
 
 export { extractTradeData } from './utils/trade-utils.js';
-
-export { sumAmounts } from './utils/number-formatters.js';
 
 export {
   selectBridgeQuotes,
