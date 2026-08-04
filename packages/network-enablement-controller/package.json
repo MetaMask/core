@@ -56,7 +56,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/config-registry-controller": "^2.0.0",
+    "@metamask/config-registry-controller": "^2.0.1",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-api": "^23.7.0",
     "@metamask/messenger": "^2.0.0",
