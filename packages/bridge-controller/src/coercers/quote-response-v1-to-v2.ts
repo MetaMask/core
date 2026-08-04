@@ -23,20 +23,9 @@ const BridgeAssetV2FromV1 = coerce(
   BridgeAssetV2Schema,
   intersection([BridgeAssetSchema, MinimalAssetSchema]),
   (value) => {
-    const {
-      chainId,
-      address,
-      // @ts-expect-error - chainAgnosticId is not in the schema
-      chainAgnosticId,
-      // @ts-expect-error - logoURI is not in the schema
-      logoURI,
-      iconUrl,
-      icon,
-      assetId,
-      ...rest
-    } = value;
+    const { chainId, address, iconUrl, icon, assetId, ...rest } = value;
 
-    const resolvedIconUrl = iconUrl ?? logoURI ?? icon;
+    const resolvedIconUrl = iconUrl ?? icon;
 
     return {
       assetId:
