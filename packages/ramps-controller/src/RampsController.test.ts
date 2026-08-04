@@ -8870,6 +8870,7 @@ describe('RampsController', () => {
         expect(stub?.provider?.id).toBe('paypal');
         expect(stub?.walletAddress).toBe('0xabc');
         expect(stub?.status).toBe(RampsOrderStatus.Precreated);
+        expect(stub?.network).toEqual({ chainId: '1', name: '' });
       });
     });
 
@@ -8879,11 +8880,16 @@ describe('RampsController', () => {
           orderId: 'plain-order-id',
           providerCode: 'transak',
           walletAddress: '0xdef',
+          chainId: 'eip155:1',
         });
 
         expect(controller.state.orders[0]?.providerOrderId).toBe(
           'plain-order-id',
         );
+        expect(controller.state.orders[0]?.network).toEqual({
+          chainId: 'eip155:1',
+          name: '',
+        });
       });
     });
 
@@ -8893,6 +8899,20 @@ describe('RampsController', () => {
           orderId: '/providers/paypal/orders/',
           providerCode: 'paypal',
           walletAddress: '0xabc',
+          chainId: '1',
+        });
+
+        expect(controller.state.orders).toHaveLength(0);
+      });
+    });
+
+    it('skips addOrder when chainId is empty or whitespace', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:addPrecreatedOrder', {
+          orderId: '/providers/paypal/orders/abc123',
+          providerCode: 'paypal',
+          walletAddress: '0xabc',
+          chainId: '   ',
         });
 
         expect(controller.state.orders).toHaveLength(0);
