@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Require a non-empty `chainId` on `addPrecreatedOrder`. Callers must seed the selected token's chain so precreated stubs (and pending flips before API enrichment) always carry a network. Empty or whitespace `chainId` is a no-op, matching empty `orderId` handling. ([#9777](https://github.com/MetaMask/core/pull/9777))
+
 ## [19.0.0]
 
 ### Added
