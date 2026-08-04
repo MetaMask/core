@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Include quote's `slippage` value in post-submission MixPanel event properties ([#9786](https://github.com/MetaMask/core/pull/9786))
+
 ## [75.0.0]
 
 ### Changed
@@ -17,10 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/bridge-controller` from `^78.1.0` to `^79.0.0` ([#9785](https://github.com/MetaMask/core/pull/9785))
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
-
-### Fixed
-
-- Include quote's `slippage` value in post-submission MixPanel event properties ([#9786](https://github.com/MetaMask/core/pull/9786))
 
 ## [74.6.2]
 
