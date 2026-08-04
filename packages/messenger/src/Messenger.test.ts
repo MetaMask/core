@@ -583,6 +583,64 @@ describe('Messenger', () => {
       expect(handler2.mock.calls).toHaveLength(1);
     });
 
+    it('does not publish event to subscriber that was added during publish', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const addedDuringPublishHandler = jest.fn();
+      const handler = jest.fn(() => {
+        messenger.subscribe('Fixture:message', addedDuringPublishHandler);
+      });
+      messenger.subscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello');
+
+      expect(handler.mock.calls).toHaveLength(1);
+      expect(addedDuringPublishHandler).not.toHaveBeenCalled();
+    });
+
+    it('publishes subsequent event to subscriber that was added during publish of an earlier event', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const addedDuringPublishHandler = jest.fn();
+      const handler = jest.fn(() => {
+        messenger.subscribe('Fixture:message', addedDuringPublishHandler);
+      });
+      messenger.subscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello');
+      messenger.unsubscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'there');
+
+      expect(addedDuringPublishHandler).toHaveBeenCalledWith('there');
+      expect(addedDuringPublishHandler.mock.calls).toHaveLength(1);
+    });
+
+    it('publishes event to subscriber that was removed during publish of the same event', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const removedDuringPublishHandler = jest.fn();
+      const handler = jest.fn(() => {
+        messenger.unsubscribe('Fixture:message', removedDuringPublishHandler);
+      });
+      messenger.subscribe('Fixture:message', handler);
+      messenger.subscribe('Fixture:message', removedDuringPublishHandler);
+      messenger.publish('Fixture:message', 'hello');
+
+      expect(removedDuringPublishHandler).toHaveBeenCalledWith('hello');
+      expect(removedDuringPublishHandler.mock.calls).toHaveLength(1);
+
+      messenger.publish('Fixture:message', 'there');
+
+      expect(removedDuringPublishHandler.mock.calls).toHaveLength(1);
+    });
+
     describe('on first state change with an initial payload function registered', () => {
       it('publishes event if selected payload differs', () => {
         const state = {
