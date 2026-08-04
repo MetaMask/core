@@ -108,7 +108,9 @@ function setup({
 }: {
   getCoverageResultTimeout?: number;
   getCoverageResultPollInterval?: number;
-  policyOptions?: ConstructorParameters<typeof ShieldApiService>[0]['policyOptions'];
+  policyOptions?: ConstructorParameters<
+    typeof ShieldApiService
+  >[0]['policyOptions'];
   getBearerToken?: () => Promise<string>;
 } = {}): {
   service: ShieldApiService;
@@ -120,15 +122,18 @@ function setup({
     typeof fetch
   >;
 
-  const { service, getBearerToken: getBearerTokenMock, rootMessenger } =
-    createService({
-      options: {
-        getCoverageResultTimeout,
-        getCoverageResultPollInterval,
-        policyOptions,
-      },
-      getBearerToken,
-    });
+  const {
+    service,
+    getBearerToken: getBearerTokenMock,
+    rootMessenger,
+  } = createService({
+    options: {
+      getCoverageResultTimeout,
+      getCoverageResultPollInterval,
+      policyOptions,
+    },
+    getBearerToken,
+  });
 
   return {
     service,
