@@ -12,8 +12,8 @@ import { merge } from 'lodash';
 
 import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
 import {
-  mockBridgeQuotesNativeErc20V1,
   getMockBridgeQuotesNativeErc20V2,
+  mockBridgeQuotesNativeErc20V1,
 } from '../tests/mock-quotes-native-erc20.js';
 import { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
 import { toBridgeAssetV2 } from './coercers/quote-response-v1-to-v2.js';
