@@ -18,6 +18,7 @@ import type {
   ClaimsServiceGetClaimsApiUrlAction,
   ClaimsServiceGetRequestHeadersAction,
 } from './ClaimsService-method-action-types.js';
+import type { ClaimsServiceInvalidateQueriesAction } from './ClaimsService.js';
 import {
   ClaimsControllerErrorMessages,
   CONTROLLER_NAME,
@@ -50,6 +51,7 @@ export type AllowedActions =
   | ClaimsServiceGetClaimsApiUrlAction
   | ClaimsServiceGenerateMessageForClaimSignatureAction
   | ClaimsServiceGetClaimsAction
+  | ClaimsServiceInvalidateQueriesAction
   | KeyringControllerSignPersonalMessageAction;
 
 export type ClaimsControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -174,6 +176,15 @@ export class ClaimsController extends BaseController<
     );
     const baseUrl = this.messenger.call(`${SERVICE_NAME}:getClaimsApiUrl`);
     const url = `${baseUrl}/claims`;
+
+    // Claim submission happens outside this controller. Invalidate cached claim
+    // reads so a follow-up getClaims / getClaimById fetches post-submit data.
+    await this.messenger.call(`${SERVICE_NAME}:invalidateQueries`, {
+      queryKey: [`${SERVICE_NAME}:getClaims`],
+    });
+    await this.messenger.call(`${SERVICE_NAME}:invalidateQueries`, {
+      queryKey: [`${SERVICE_NAME}:getClaimById`],
+    });
 
     return {
       data: claim,
