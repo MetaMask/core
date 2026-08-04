@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of the `@metamask/kyc-controller` package for managing KYC / identity verification state across MetaMask clients ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Initial release of the `@metamask/kyc-controller` package for managing KYC / identity verification state across MetaMask clients ([#9781](https://github.com/MetaMask/core/pull/9781))
 
 [Unreleased]: https://github.com/MetaMask/core/
