@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `EXCHANGE_MULTI_SIG_REQUIRED` and `EXCHANGE_INVALID_NONCE` to `PERPS_ERROR_CODES` for HyperLiquid exchange rejections that previously surfaced as raw `"multi-sig required"` / `"invalid nonce"` strings (TAT-3633) ([#9750](https://github.com/MetaMask/core/pull/9750))
   - Like `EXCHANGE_ACCOUNT_NOT_FOUND` above, this widens the exported `PerpsErrorCode` union, so consumers that key an exhaustive `Record<PerpsErrorCode, …>` stop compiling until they add entries for both new codes — including Mobile's `app/components/UI/Perps/utils/translatePerpsError.ts` and Extension's `ui/components/app/perps/utils/translate-perps-error.ts`.
   - To migrate: add translation entries for both codes before bumping. `EXCHANGE_MULTI_SIG_REQUIRED` means the account requires a multi-sig wrapper for exchange writes; `EXCHANGE_INVALID_NONCE` means the action nonce was stale or reused and the request should be retried.
+- Add `isHyperLiquidMultiSigRequiredError(error)` (exported from `@metamask/perps-controller/utils/*`), which classifies HyperLiquid's `Multi-sig required` rejection — matching the hyphenated spelling observed in the wild and the unhyphenated variant defensively (TAT-3214) ([#9769](https://github.com/MetaMask/core/pull/9769))
 
 ### Changed
 
@@ -91,6 +92,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Size the max order amount off the price a resting limit order is submitted at, fixing `order 0: insufficient margin to place order` rejections on max-size limit orders resting above the market price ([#9694](https://github.com/MetaMask/core/pull/9694))
   - `getMaxAllowedAmount` derived the maximum from the market price, but HyperLiquid reserves initial margin for a resting order against the price that order is submitted at. A max-size limit order resting above the market price - typically a sell - therefore reserved more margin than the account had and the exchange rejected it.
   - `getMaxAllowedAmount` now accepts optional `orderType` and `limitPrice` params. When a limit order rests above the market price the maximum is scaled by `limitPrice / marketPrice`; orders at or below the market price, and market orders, are unchanged. Both params are optional, so existing callers keep the previous behavior.
+- Skip the unified-account migration for HyperLiquid multi-sig accounts, fixing the `ApiRequestError: Multi-sig required` error raised on every Perps entry for such an account (TAT-3214) ([#9769](https://github.com/MetaMask/core/pull/9769))
+  - HyperLiquid rejects every single-signer exchange write for an account converted to multi-sig, so the silent `agentSetAbstraction` (and user-signed `userSetAbstraction`) migration could never succeed. `HyperLiquidProvider` now reads `userToMultiSigSigners` immediately before the migration write and, for a multi-sig account, skips it, emits the `Perp Account Setup` event with `status: not_applicable` / `error_message: multi_sig_account`, and records `{ attempted: true, enabled: false }` in the trading-readiness cache so the attempt is not repeated. The signer lookup only runs when a migration write would otherwise be made, so accounts already on `unifiedAccount` / `portfolioMargin` and deferred `dexAbstraction` accounts are unaffected.
+  - The same rejection is now classified in the migration's error handler, covering the case where the account is converted between the lookup and the write, so it is no longer reported to the error logger as a failed setup.
+  - Unified account mode stays off for these accounts; HIP-3 collateral continues to be handled by the existing programmatic transfer fallback.
 
 ## [10.0.0]
 

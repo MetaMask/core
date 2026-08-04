@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Tag `/srp/login` with SRP slot and social provider metadata ([#9741](https://github.com/MetaMask/core/pull/9741), [#9776](https://github.com/MetaMask/core/pull/9776))
+  - Append `primary` | `secondary` to `raw_message` (`metamask:<nonce>:<pubkey>:<tag>`; `primary` for the first HD entropy source). Leave `raw_message` untagged when `getLoginTag` is not provided. Include `metametrics.identifier_type` (`SRP` | `GOOGLE` | `APPLE` | `TELEGRAM`; social vault primary maps from `SeedlessOnboardingController.state.authConnection`).
+
 ## [28.3.0]
 
 ### Added

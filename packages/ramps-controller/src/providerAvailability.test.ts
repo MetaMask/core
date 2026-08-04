@@ -50,6 +50,13 @@ describe('providerServesAsset', () => {
     });
     expect(providerServesAsset(provider, ASSET_ID)).toBe(false);
   });
+
+  it('returns false when the asset key is present but its value is false', () => {
+    const provider = buildProvider('moonpay', 'aggregator', {
+      [ASSET_ID]: false,
+    });
+    expect(providerServesAsset(provider, ASSET_ID)).toBe(false);
+  });
 });
 
 describe('getProvidersServingAsset', () => {
