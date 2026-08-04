@@ -67,6 +67,12 @@ const MOCK_SUBSCRIPTION: Subscription = {
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
 
+const MOCK_SESSION_PROFILE = {
+  profileId: 'profile-1',
+  canonicalProfileId: 'canonical-profile-1',
+  metaMetricsId: 'metametrics-1',
+};
+
 const MOCK_START_SUBSCRIPTION_REQUEST: StartSubscriptionRequest = {
   products: [PRODUCT_TYPES.SHIELD],
   isTrialRequested: true,
@@ -132,6 +138,7 @@ type MockServiceContext = {
   rootMessenger: RootMessenger;
   messenger: SubscriptionServiceMessenger;
   getBearerToken: jest.Mock;
+  getSessionProfile: jest.Mock;
 };
 
 function createRootMessenger(): RootMessenger {
@@ -143,16 +150,22 @@ function createService({
   fetchMock,
   captureExceptionMock = jest.fn(),
   getBearerToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN),
+  getSessionProfile = jest.fn().mockResolvedValue(MOCK_SESSION_PROFILE),
 }: {
   env?: Env;
   fetchMock: jest.Mock;
   captureExceptionMock?: jest.Mock;
   getBearerToken?: jest.Mock;
+  getSessionProfile?: jest.Mock;
 }): MockServiceContext {
   const rootMessenger = createRootMessenger();
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
     getBearerToken,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getSessionProfile',
+    getSessionProfile,
   );
   const messenger: SubscriptionServiceMessenger = new Messenger({
     namespace: serviceName,
@@ -160,7 +173,10 @@ function createService({
   });
   rootMessenger.delegate({
     messenger,
-    actions: ['AuthenticationController:getBearerToken'],
+    actions: [
+      'AuthenticationController:getBearerToken',
+      'AuthenticationController:getSessionProfile',
+    ],
     events: [],
   });
   const service = new SubscriptionService({
@@ -185,6 +201,7 @@ function createService({
     rootMessenger,
     messenger,
     getBearerToken,
+    getSessionProfile,
   };
 }
 
@@ -193,6 +210,7 @@ function withMockSubscriptionService(
   options: {
     env?: Env;
     getBearerToken?: jest.Mock;
+    getSessionProfile?: jest.Mock;
   } = {},
 ): Promise<void> {
   const fetchMock = jest.fn();
@@ -202,6 +220,7 @@ function withMockSubscriptionService(
     fetchMock,
     captureExceptionMock,
     getBearerToken: options.getBearerToken,
+    getSessionProfile: options.getSessionProfile,
   });
   return fn(context);
 }
@@ -274,13 +293,20 @@ describe('SubscriptionService', () => {
         'AuthenticationController:getBearerToken',
         async () => MOCK_ACCESS_TOKEN,
       );
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getSessionProfile',
+        async () => MOCK_SESSION_PROFILE,
+      );
       const messenger: SubscriptionServiceMessenger = new Messenger({
         namespace: serviceName,
         parent: rootMessenger,
       });
       rootMessenger.delegate({
         messenger,
-        actions: ['AuthenticationController:getBearerToken'],
+        actions: [
+          'AuthenticationController:getBearerToken',
+          'AuthenticationController:getSessionProfile',
+        ],
         events: [],
       });
       const service = new SubscriptionService({
@@ -310,7 +336,7 @@ describe('SubscriptionService', () => {
   describe('getSubscriptions', () => {
     it('should fetch subscriptions successfully', async () => {
       await withMockSubscriptionService(
-        async ({ service, fetchMock, getBearerToken }) => {
+        async ({ service, fetchMock, getBearerToken, getSessionProfile }) => {
           fetchMock.mockResolvedValue(
             createMockResponse({
               jsonData: {
@@ -329,6 +355,7 @@ describe('SubscriptionService', () => {
             trialedProducts: [],
           });
           expect(getBearerToken).toHaveBeenCalledTimes(1);
+          expect(getSessionProfile).toHaveBeenCalledTimes(1);
         },
       );
     });

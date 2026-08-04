@@ -24,7 +24,10 @@ export const subscriptionService: InitializationConfiguration<
 
     parent.delegate({
       messenger,
-      actions: ['AuthenticationController:getBearerToken'],
+      actions: [
+        'AuthenticationController:getBearerToken',
+        'AuthenticationController:getSessionProfile',
+      ],
     });
 
     return messenger;

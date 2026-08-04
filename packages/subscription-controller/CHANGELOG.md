@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Refactor subscription API access behind a messenger-backed `SubscriptionService` ([#9598](https://github.com/MetaMask/core/pull/9598))
-  - `SubscriptionService` now extends `BaseDataService`, authenticates via `AuthenticationController:getBearerToken`, exposes all endpoint methods as `SubscriptionService:*` messenger actions, validates responses with `@metamask/superstruct`, and scopes query keys to a bearer-token digest (never the token itself).
+  - `SubscriptionService` now extends `BaseDataService`, authenticates via `AuthenticationController:getBearerToken`, exposes all endpoint methods as `SubscriptionService:*` messenger actions, validates responses with `@metamask/superstruct`, and scopes query keys by `profileId` from `AuthenticationController:getSessionProfile`.
   - New exports: `SubscriptionServiceOptions`, `SubscriptionServiceMessenger`, service action/event types, and `subscriptionServiceName`. Construct `SubscriptionService` with `{ messenger, fetchFunction, env?, captureException?, queryClientConfig?, policyOptions? }`.
   - `SubscriptionController` no longer constructs or accepts a `SubscriptionService` instance. `SubscriptionControllerOptions` now accepts only `{ messenger, state?, pollingInterval? }`, and the controller calls `SubscriptionService:*` messenger actions instead of invoking a service directly.
   - Removed `SubscriptionControllerServiceOptions`, `SubscriptionServiceConfig`, and direct `auth: AuthUtils` construction.

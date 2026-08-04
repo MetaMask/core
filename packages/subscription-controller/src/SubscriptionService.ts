@@ -9,7 +9,6 @@ import { handleWhen, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import { create } from '@metamask/superstruct';
-import { bytesToHex, sha256, stringToBytes } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
@@ -89,7 +88,8 @@ export type SubscriptionServiceActions =
   | SubscriptionServiceInvalidateQueriesAction;
 
 type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+  | AuthenticationController.AuthenticationControllerGetSessionProfileAction;
 
 type AllowedEvents = never;
 
@@ -139,7 +139,9 @@ const DEFAULT_POLICY_OPTIONS: CreateServicePolicyOptions = {
  * Data service for the Subscription API.
  *
  * All requests are authenticated via JWT Bearer tokens obtained from the
- * `AuthenticationController:getBearerToken` messenger action.
+ * `AuthenticationController:getBearerToken` messenger action. Cached queries
+ * are scoped by `profileId` from
+ * `AuthenticationController:getSessionProfile`.
  */
 export class SubscriptionService extends BaseDataService<
   typeof serviceName,
@@ -611,12 +613,12 @@ export class SubscriptionService extends BaseDataService<
     bearerToken: string;
   }> {
     try {
-      const bearerToken = await this.messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-      const profileKey = bytesToHex(await sha256(stringToBytes(bearerToken)));
+      const [bearerToken, sessionProfile] = await Promise.all([
+        this.messenger.call('AuthenticationController:getBearerToken'),
+        this.messenger.call('AuthenticationController:getSessionProfile'),
+      ]);
 
-      return { profileKey, bearerToken };
+      return { profileKey: sessionProfile.profileId, bearerToken };
     } catch (error) {
       const errorMessage =
         error instanceof Error

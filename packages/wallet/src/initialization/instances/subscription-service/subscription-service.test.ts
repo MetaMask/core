@@ -66,6 +66,16 @@ describe('subscriptionService', () => {
       'AuthenticationController:getBearerToken',
       async () => 'test-bearer-token',
     );
+    registerActionHandler(
+      rootMessenger,
+      'AuthenticationController',
+      'AuthenticationController:getSessionProfile',
+      async () => ({
+        profileId: 'profile-1',
+        canonicalProfileId: 'canonical-profile-1',
+        metaMetricsId: 'metametrics-1',
+      }),
+    );
     const messenger = subscriptionService.getMessenger(rootMessenger);
     const fetchFunction = jest.fn(
       async () =>
@@ -97,14 +107,17 @@ describe('subscriptionService', () => {
     );
   });
 
-  it('delegates AuthenticationController:getBearerToken', () => {
+  it('delegates AuthenticationController auth actions', () => {
     const parent = getRootMessenger();
     const delegateSpy = jest.spyOn(parent, 'delegate');
     const messenger = subscriptionService.getMessenger(parent);
 
     expect(delegateSpy).toHaveBeenCalledWith({
       messenger,
-      actions: ['AuthenticationController:getBearerToken'],
+      actions: [
+        'AuthenticationController:getBearerToken',
+        'AuthenticationController:getSessionProfile',
+      ],
     });
   });
 
@@ -115,6 +128,16 @@ describe('subscriptionService', () => {
       'AuthenticationController',
       'AuthenticationController:getBearerToken',
       async () => 'test-bearer-token',
+    );
+    registerActionHandler(
+      rootMessenger,
+      'AuthenticationController',
+      'AuthenticationController:getSessionProfile',
+      async () => ({
+        profileId: 'profile-1',
+        canonicalProfileId: 'canonical-profile-1',
+        metaMetricsId: 'metametrics-1',
+      }),
     );
     const messenger = subscriptionService.getMessenger(rootMessenger);
     const fetchFunction = jest.fn(

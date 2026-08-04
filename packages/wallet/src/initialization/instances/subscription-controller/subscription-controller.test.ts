@@ -142,6 +142,16 @@ describe('subscriptionController', () => {
     registerActionHandler(
       rootMessenger,
       'AuthenticationController',
+      'AuthenticationController:getSessionProfile',
+      async () => ({
+        profileId: 'profile-1',
+        canonicalProfileId: 'canonical-profile-1',
+        metaMetricsId: 'metametrics-1',
+      }),
+    );
+    registerActionHandler(
+      rootMessenger,
+      'AuthenticationController',
       'AuthenticationController:performSignOut',
       jest.fn(),
     );
