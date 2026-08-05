@@ -307,6 +307,7 @@ linkStyle default opacity:0.5
   assets_controllers --> polling_controller;
   assets_controllers --> preferences_controller;
   assets_controllers --> profile_sync_controller;
+  assets_controllers --> remote_feature_flag_controller;
   assets_controllers --> storage_service;
   assets_controllers --> transaction_controller;
   authenticated_user_storage --> base_data_service;

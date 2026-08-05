@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `adaptOrderToSDK` now throws where it previously never threw: `ORDER_TRIGGER_PRICE_REQUIRED` when a trigger placement has no trigger price, and `ORDER_TIME_IN_FORCE_NOT_SUPPORTED` when a market order or trigger placement carries a time in force ([#9674](https://github.com/MetaMask/core/pull/9674))
 - `PERPS_EVENT_VALUE.ORDER_TYPE` lists the four trigger placement types, which `TradingService` emits verbatim in the `order_type` analytics property ([#9674](https://github.com/MetaMask/core/pull/9674))
 - `Order.parentOrderId` is now populated for real TP/SL child orders on the WebSocket order stream (previously only ever set by clients for synthetic display rows), which is what lets position state tell a position's own triggers apart from another order's ([#9674](https://github.com/MetaMask/core/pull/9674))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
 ### Fixed
 
