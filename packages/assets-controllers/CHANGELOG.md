@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [111.0.0]
+
 ### Changed
 
 - **BREAKING:** `DeFiPositionsControllerV2.fetchDeFiPositions` now polls while any selected account has `processingDefiPositions: true`, updating state only when every account is ready, invalidating the balances cache between attempts, sharing one in-flight promise per selected-account + `vsCurrency` key (so fast switches can join an earlier matching poll), and stopping on request failure or the max attempt limit ([#9711](https://github.com/MetaMask/core/pull/9711))
@@ -3391,7 +3393,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.0.0...HEAD
+[111.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.1...@metamask/assets-controllers@111.0.0
 [110.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.0...@metamask/assets-controllers@110.1.1
 [110.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.3...@metamask/assets-controllers@110.1.0
 [110.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.2...@metamask/assets-controllers@110.0.3
