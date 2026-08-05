@@ -7,8 +7,11 @@ import type {
 } from '@metamask/base-controller';
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { Messenger } from '@metamask/messenger';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 
 import { buildDeFiBalancesQuery } from './build-defi-balances-query.js';
+import type { DeFiBalancesQuery } from './build-defi-balances-query.js';
+import { getProcessingPollConfig } from './defi-controller-v2-feature-flag.js';
 import type { DeFiPositionsControllerV2MethodActions } from './DeFiPositionsControllerV2-method-action-types.js';
 import type { DeFiPositionsByAccount } from './group-defi-positions-v6.js';
 import { groupDeFiPositionsV6 } from './group-defi-positions-v6.js';
@@ -16,6 +19,14 @@ import { groupDeFiPositionsV6 } from './group-defi-positions-v6.js';
 const controllerName = 'DeFiPositionsControllerV2';
 
 const MESSENGER_EXPOSED_METHODS = ['fetchDeFiPositions'] as const;
+
+/**
+ * @param ms - Milliseconds to wait.
+ * @returns A promise that resolves after `ms`.
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export type DeFiPositionsControllerV2State = {
   /**
@@ -72,7 +83,8 @@ export type DeFiPositionsControllerV2Events =
  * The external actions available to the {@link DeFiPositionsControllerV2}.
  */
 export type AllowedActions =
-  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | RemoteFeatureFlagControllerGetStateAction;
 
 /**
  * The external events available to the {@link DeFiPositionsControllerV2}.
@@ -97,7 +109,23 @@ export type DeFiPositionsControllerV2Messenger = Messenger<
  *
  * Deduplication and freshness are handled by the shared TanStack Query cache on
  * {@link ApiPlatformClient} (balances default `staleTime` is 1 minute). Pass
- * `{ forceRefresh: true }` to bypass that cache for pull-to-refresh.
+ * `{ forceRefresh: true }` to bypass that cache on the first attempt (e.g.
+ * pull-to-refresh); later processing polls always bypass the cache.
+ *
+ * When the API reports `processingDefiPositions` for any account, this
+ * controller polls until indexing finishes or the attempt limit is reached,
+ * and only then processes and writes state — mixed ready/processing responses
+ * leave prior state untouched. Concurrent calls for the same selected accounts
+ * and `vsCurrency` share one in-flight promise so the UI can treat the pending
+ * promise as a loading signal. Calls for a different selection or fiat currency
+ * start their own fetch and leave any prior poll running, so switching back can
+ * join an in-flight fetch for that group and currency.
+ *
+ * Processing-poll `maxAttempts` / `pollInterval` are read via
+ * {@link getProcessingPollConfig} from the `defiControllerV2` remote feature
+ * flag (`RemoteFeatureFlagController:getState`), falling back to built-in
+ * defaults when unset or invalid. Clients must delegate that action to this
+ * controller's messenger.
  */
 export class DeFiPositionsControllerV2 extends BaseController<
   typeof controllerName,
@@ -109,6 +137,14 @@ export class DeFiPositionsControllerV2 extends BaseController<
   readonly #isEnabled: () => boolean;
 
   readonly #getVsCurrency: () => string;
+
+  /**
+   * In-flight fetches keyed by selected DeFi-queryable account IDs plus
+   * `vsCurrency`. Concurrent callers for the same selection and currency share
+   * a promise; different selections or fiat currencies keep independent
+   * fetches so fast switching can join an earlier matching poll.
+   */
+  readonly #inFlightFetches = new Map<string, Promise<void>>();
 
   /**
    * @param options - Constructor options.
@@ -152,18 +188,30 @@ export class DeFiPositionsControllerV2 extends BaseController<
   }
 
   /**
-   * Fetches DeFi positions for the selected account group. Each account key in
-   * a ready response replaces that account's state (other accounts stay).
-   * Accounts still indexing (`processingDefiPositions`) are skipped so prior
-   * state is kept for them. No-ops when disabled or when the group has no
+   * Fetches DeFi positions for the selected account group. State is updated only
+   * when every selected account in the response is ready (none report
+   * `processingDefiPositions`); each account key in that response replaces that
+   * account's state (other accounts stay). While any account is still indexing,
+   * prior state is kept and the method polls (invalidating the balances cache
+   * between attempts) until all selected accounts are ready, the attempt limit
+   * is reached, or a request fails. Concurrent calls for the same selected
+   * accounts and `vsCurrency` share one in-flight promise; calls for a different
+   * selection or fiat currency start a new fetch and leave prior polls running
+   * so a later switch back can join them. When a successful ready response
+   * required more than one attempt, or when polling hits the attempt limit
+   * while still processing, reports to Sentry via `messenger.captureException`
+   * (error names `DeFiPositionsV2FetchAttempts` /
+   * `DeFiPositionsV2ProcessingPollExhausted`) so poll limits can be tuned.
+   * No-ops when disabled or when the group has no
    * supported accounts. Caching / spam prevention is handled by the apiClient
    * TanStack Query cache (keyed by accounts + query options including
-   * `vsCurrency`). Pass `{ forceRefresh: true }` to bypass the cache (e.g.
-   * pull-to-refresh).
+   * `vsCurrency`). Pass `{ forceRefresh: true }` to bypass the cache on the
+   * first attempt (e.g. pull-to-refresh).
    *
    * @param options - Optional fetch modifiers.
-   * @param options.forceRefresh - When true, bypass the apiClient cache and
-   * fetch immediately.
+   * @param options.forceRefresh - When true, bypass the apiClient cache on the
+   * first attempt and fetch immediately.
+   * @returns Resolves when the fetch (and any processing polls) finish.
    */
   async fetchDeFiPositions(options?: {
     forceRefresh?: boolean;
@@ -175,58 +223,137 @@ export class DeFiPositionsControllerV2 extends BaseController<
     const selectedAccounts = this.messenger.call(
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
+    const query = buildDeFiBalancesQuery(selectedAccounts);
+    const vsCurrency = this.#getVsCurrency().toLowerCase();
+    // Include vsCurrency so a fiat change does not join a poll priced in the
+    // previous currency (TanStack also keys the balances cache on vsCurrency).
+    const inFlightKey = [
+      ...[...query.internalAccountIdByCaip.keys()].sort(),
+      vsCurrency,
+    ].join('\0');
 
-    const { networks, internalAccountIdByCaip } =
-      buildDeFiBalancesQuery(selectedAccounts);
+    const existing = this.#inFlightFetches.get(inFlightKey);
+    if (existing) {
+      await existing;
+      return;
+    }
 
+    // Same-key callers join this promise instead of replacing it, so cleanup
+    // can always delete without checking identity.
+    const fetchPromise = this.#fetchDeFiPositions(
+      options,
+      query,
+      vsCurrency,
+    ).finally(() => {
+      this.#inFlightFetches.delete(inFlightKey);
+    });
+    this.#inFlightFetches.set(inFlightKey, fetchPromise);
+
+    await fetchPromise;
+  }
+
+  async #fetchDeFiPositions(
+    options: { forceRefresh?: boolean } | undefined,
+    { networks, internalAccountIdByCaip }: DeFiBalancesQuery,
+    vsCurrency: string,
+  ): Promise<void> {
     if (internalAccountIdByCaip.size === 0 || networks.length === 0) {
       return;
     }
 
     const accountIds = [...internalAccountIdByCaip.keys()];
-    const vsCurrency = this.#getVsCurrency().toLowerCase();
+    const queryOptions = {
+      networks,
+      includeDeFiBalances: true,
+      forceFetchDeFiPositions: true,
+      includePrices: true,
+      vsCurrency,
+    };
 
-    try {
-      const response =
-        await this.#apiClient.accounts.fetchV6MultiAccountBalances(
+    // Resolve once per fetch so a mid-poll remote-flag change cannot stretch
+    // or shrink this poll sequence inconsistently.
+    const { maxAttempts, pollInterval } = getProcessingPollConfig(
+      this.messenger,
+    );
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // First attempt respects forceRefresh; later polls always bypass cache
+      // so we do not spin on a stale processing snapshot.
+      const fetchOptions = {
+        ...(options?.forceRefresh || attempt > 0 ? { staleTime: 0 } : {}),
+      };
+
+      let response;
+      try {
+        response = await this.#apiClient.accounts.fetchV6MultiAccountBalances(
           accountIds,
-          {
-            networks,
-            includeDeFiBalances: true,
-            forceFetchDeFiPositions: true,
-            includePrices: true,
-            vsCurrency,
-          },
-          {
-            // staleTime: 0 makes TanStack treat the cache as stale for this call.
-            ...(options?.forceRefresh ? { staleTime: 0 } : {}),
-          },
+          queryOptions,
+          fetchOptions,
         );
-
-      // Skip accounts still indexing — their balances are not a valid snapshot.
-      const readyAccounts = response.accounts.filter(
-        (account) => !account.processingDefiPositions,
-      );
-      if (readyAccounts.length === 0) {
+      } catch (error) {
+        // Soft-fail so prior state stays and the in-flight promise settles.
+        console.error('Failed to fetch DeFi positions', error);
         return;
       }
 
-      const positionsByAccount = groupDeFiPositionsV6(
-        { ...response, accounts: readyAccounts },
-        internalAccountIdByCaip,
+      const stillProcessing = response.accounts.some(
+        (account) => account.processingDefiPositions,
       );
 
-      // Last valid response wins per ready account; processing / other accounts
-      // stay untouched.
-      this.update((state) => {
-        for (const [accountId, positions] of Object.entries(
-          positionsByAccount,
-        )) {
-          state.allDeFiPositionsV2[accountId] = positions;
+      // Only process and write when every account is ready so a partial
+      // response cannot clear or overwrite positions for accounts that are
+      // still indexing.
+      if (!stillProcessing) {
+        const positionsByAccount = groupDeFiPositionsV6(
+          response,
+          internalAccountIdByCaip,
+        );
+
+        this.update((state) => {
+          for (const [accountId, positions] of Object.entries(
+            positionsByAccount,
+          )) {
+            state.allDeFiPositionsV2[accountId] = positions;
+          }
+        });
+
+        // Report how many attempts were needed (only when polling was
+        // required) so Sentry can inform remote-flag / default poll-limit
+        // tuning without flooding on first-try successes.
+        const attemptsTaken = attempt + 1;
+        if (attemptsTaken > 1) {
+          const multipleAttemptsError = new Error(
+            `DeFiPositionsControllerV2: positions ready after ${attemptsTaken} attempt(s)`,
+          );
+          multipleAttemptsError.name = 'DeFiPositionsV2FetchAttempts';
+          this.messenger.captureException?.(multipleAttemptsError);
         }
+        return;
+      }
+
+      const { queryKey } =
+        this.#apiClient.accounts.getV6MultiAccountBalancesQueryOptions(
+          accountIds,
+          queryOptions,
+          fetchOptions,
+        );
+      await this.#apiClient.accounts.queryClient.invalidateQueries({
+        queryKey,
       });
-    } catch (error) {
-      console.error('Failed to fetch DeFi positions', error);
+
+      const isLastAttempt = attempt >= maxAttempts - 1;
+      if (isLastAttempt) {
+        // Report exhausted polls so Sentry can inform remote-flag / default
+        // poll-limit tuning when indexing never finishes in time.
+        const multipleAttemptsError = new Error(
+          `DeFiPositionsControllerV2: still processing after ${maxAttempts} attempt(s)`,
+        );
+        multipleAttemptsError.name = 'DeFiPositionsV2ProcessingPollExhausted';
+        this.messenger.captureException?.(multipleAttemptsError);
+        return;
+      }
+
+      await delay(pollInterval);
     }
   }
 }
