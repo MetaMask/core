@@ -61,7 +61,7 @@
     "@metamask/messenger": "^2.0.0",
     "@metamask/polling-controller": "^16.0.9",
     "@metamask/profile-sync-controller": "^29.0.0",
-    "@metamask/superstruct": "^3.1.0",
+    "@metamask/superstruct": "^3.4.1",
     "@metamask/transaction-controller": "^69.5.0",
     "@metamask/utils": "^11.11.0",
     "@tanstack/query-core": "^4.43.0",
