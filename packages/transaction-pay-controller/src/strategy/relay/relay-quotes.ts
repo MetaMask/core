@@ -305,7 +305,8 @@ async function getSingleQuote(
   try {
     // For post-quote or max amount flows, use EXACT_INPUT - user specifies how much to send,
     // and we show them how much they'll receive after fees.
-    // For regular flows with a target amount, use EXPECTED_OUTPUT.
+    // For regular flows with a target amount, use EXPECTED_OUTPUT, except
+    // HyperCore deposits, which need a guaranteed amount (see below).
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
 
@@ -612,14 +613,6 @@ async function processMoneyAccountPostQuote(
 }
 
 /**
- * Normalizes requests for Relay.
- *
- * @param request - Quote request to normalize.
- * @param transaction - Parent transaction metadata, used to gate
- * Hyperliquid-specific rewrites on transaction type.
- * @returns Normalized request.
- */
-/**
  * Whether the quote deposits into HyperCore USDC.
  *
  * `normalizeRequest` remaps Arbitrum-USDC perps deposits to HyperCore before
@@ -655,6 +648,14 @@ function getTradeType(
   return useExactOutput ? 'EXACT_OUTPUT' : 'EXPECTED_OUTPUT';
 }
 
+/**
+ * Normalizes requests for Relay.
+ *
+ * @param request - Quote request to normalize.
+ * @param transaction - Parent transaction metadata, used to gate
+ * Hyperliquid-specific rewrites on transaction type.
+ * @returns Normalized request.
+ */
 function normalizeRequest(
   request: QuoteRequest,
   transaction: TransactionMeta,

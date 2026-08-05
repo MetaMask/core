@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
 
+### Fixed
+
+- Request `EXACT_OUTPUT` instead of `EXPECTED_OUTPUT` from Relay for HyperCore perps deposits, so the full deposit target is guaranteed to arrive ([#9751](https://github.com/MetaMask/core/pull/9751))
+  - `EXPECTED_OUTPUT` only guarantees `target * (1 - slippage)` on the destination, so a deposit sized to the exact margin required could arrive short and the follow-on order would fail with insufficient margin.
+
 ## [26.2.2]
 
 ### Changed
@@ -28,11 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/ramps-controller` from `^18.0.1` to `^19.0.0` ([#9778](https://github.com/MetaMask/core/pull/9778))
-
-### Fixed
-
-- Request `EXACT_OUTPUT` instead of `EXPECTED_OUTPUT` from Relay for HyperCore perps deposits, so the full deposit target is guaranteed to arrive ([#9751](https://github.com/MetaMask/core/pull/9751))
-  - `EXPECTED_OUTPUT` only guarantees `target * (1 - slippage)` on the destination, so a deposit sized to the exact margin required could arrive short and the follow-on order would fail with insufficient margin.
 
 ## [26.2.0]
 
