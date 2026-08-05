@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 - Bump `@metamask/network-enablement-controller` from `^6.0.2` to `^6.0.3` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
+### Fixed
+
+- Stop publishing `assetsInfo` from websocket balance updates; metadata is now resolved from the Token API by `TokenDataSource` to prevent WS poisoning (incorrect WS symbols and no detection metadata). Prevents bypassing token detection spam filtering ([#9790](https://github.com/MetaMask/core/pull/9790))
+
 ## [13.1.1]
 
 ### Changed
@@ -28,10 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/keyring-internal-api` from `^11.0.2` to `^12.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/keyring-snap-client` from `^9.2.1` to `^10.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
-
-### Fixed
-
-- Stop publishing `assetsInfo` from websocket balance updates; metadata is now resolved from the Token API by `TokenDataSource` to prevent WS poisoning (incorrect WS symbols and no detection metadata). Prevents bypassing token detection spam filtering ([#9790](https://github.com/MetaMask/core/pull/9790))
 
 ## [13.1.0]
 
