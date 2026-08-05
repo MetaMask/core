@@ -650,3 +650,115 @@ describe('SRPJwtBearerAuth pairSrpProfiles deduplication', () => {
     expect(mockPairProfiles).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('SRPJwtBearerAuth login tag', () => {
+  const config: AuthConfig & { type: AuthType.SRP } = {
+    type: AuthType.SRP,
+    env: Env.DEV,
+    platform: Platform.EXTENSION,
+  };
+
+  const MOCK_PROFILE: UserProfile = {
+    profileId: 'p1',
+    canonicalProfileId: 'p1',
+    metaMetricsId: 'm1',
+    identifierId: 'i1',
+  };
+
+  beforeEach((): void => {
+    jest.clearAllMocks();
+    mockGetNonce.mockResolvedValue({
+      nonce: 'nonce-1',
+      identifier: 'identifier-1',
+      expiresIn: 60,
+    });
+    mockAuthenticate.mockResolvedValue({
+      token: 'jwt-token',
+      expiresIn: 60,
+      profile: MOCK_PROFILE,
+    });
+    mockAuthorizeOIDC.mockResolvedValue({
+      accessToken: 'access',
+      expiresIn: 60,
+      obtainedAt: Date.now(),
+    });
+  });
+
+  it('leaves raw_message untagged when getLoginTag is omitted', async () => {
+    const auth = new SRPJwtBearerAuth(config, {
+      storage: {
+        getLoginResponse: async (): Promise<LoginResponse | null> => null,
+        setLoginResponse: async (): Promise<void> => undefined,
+      },
+      signing: {
+        getIdentifier: async (): Promise<string> => 'pubkey-1',
+        signMessage: async (): Promise<string> => 'signature-1',
+      },
+    });
+
+    await auth.getAccessToken();
+
+    expect(mockAuthenticate).toHaveBeenCalledWith(
+      'metamask:nonce-1:pubkey-1',
+      'signature-1',
+      AuthType.SRP,
+      Env.DEV,
+      undefined,
+      'SRP',
+    );
+  });
+
+  it('appends the tag returned by getLoginTag', async () => {
+    const getLoginTag = jest.fn().mockResolvedValue('secondary');
+    const auth = new SRPJwtBearerAuth(config, {
+      storage: {
+        getLoginResponse: async (): Promise<LoginResponse | null> => null,
+        setLoginResponse: async (): Promise<void> => undefined,
+      },
+      signing: {
+        getIdentifier: async (): Promise<string> => 'pubkey-1',
+        signMessage: async (): Promise<string> => 'signature-1',
+      },
+      getLoginTag,
+    });
+
+    await auth.getAccessToken('entropy-secondary');
+
+    expect(getLoginTag).toHaveBeenCalledWith('entropy-secondary');
+    expect(mockAuthenticate).toHaveBeenCalledWith(
+      'metamask:nonce-1:pubkey-1:secondary',
+      'signature-1',
+      AuthType.SRP,
+      Env.DEV,
+      undefined,
+      'SRP',
+    );
+  });
+
+  it('forwards getLoginIdentifierType without tagging when getLoginTag is omitted', async () => {
+    const getLoginIdentifierType = jest.fn().mockResolvedValue('GOOGLE');
+    const auth = new SRPJwtBearerAuth(config, {
+      storage: {
+        getLoginResponse: async (): Promise<LoginResponse | null> => null,
+        setLoginResponse: async (): Promise<void> => undefined,
+      },
+      signing: {
+        getIdentifier: async (): Promise<string> => 'pubkey-1',
+        signMessage: async (): Promise<string> => 'signature-1',
+      },
+      getLoginIdentifierType,
+    });
+
+    await auth.getAccessToken('entropy-primary');
+
+    expect(getLoginIdentifierType).toHaveBeenCalledWith('entropy-primary');
+    expect(mockAuthenticate).toHaveBeenCalledWith(
+      'metamask:nonce-1:pubkey-1',
+      'signature-1',
+      AuthType.SRP,
+      Env.DEV,
+      undefined,
+      'GOOGLE',
+    );
+  });
+});

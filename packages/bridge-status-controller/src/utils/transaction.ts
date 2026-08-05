@@ -10,7 +10,7 @@ import {
 import type {
   BatchSellTradesResponse,
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   SimulatedGasFeeLimits,
   Trade,
   TxData,
@@ -215,7 +215,7 @@ export const addSyntheticTransaction = async (
 };
 
 export const handleApprovalDelay = async (
-  srcChainId: QuoteResponse['quote']['srcChainId'],
+  srcChainId: QuoteResponseV1['quote']['srcChainId'],
 ) => {
   if ([ChainId.LINEA, ChainId.BASE].includes(srcChainId)) {
     const debugLog = createProjectLogger('bridge');
@@ -295,7 +295,7 @@ export const toQuoteAndTxMetadata = ({
   quoteResponse,
   isBridgeTx,
 }: {
-  quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
+  quoteResponse: QuoteResponseV1<Trade, Trade> & QuoteMetadata;
   isBridgeTx: boolean;
 }): Omit<QuoteAndTxMetadata, 'txMeta'>[] => {
   const tradeData: QuoteAndTxMetadata[] = [];
@@ -347,7 +347,7 @@ export const toQuoteAndTxMetadataBatch = ({
   quoteResponses,
   batchSellTrades,
 }: {
-  quoteResponses: (QuoteResponse<TxData, TxData> & QuoteMetadata)[];
+  quoteResponses: (QuoteResponseV1<TxData, TxData> & QuoteMetadata)[];
   batchSellTrades: BatchSellTradesResponse;
 }): Omit<QuoteAndTxMetadata, 'txMeta'>[] => {
   const tradeData: QuoteAndTxMetadata[] = [];

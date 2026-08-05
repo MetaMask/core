@@ -2618,18 +2618,21 @@ export class RampsController extends BaseController<
    * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
    * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
    * @param params.walletAddress - Wallet address for the order.
-   * @param params.chainId - Optional chain ID for the order.
+   * @param params.chainId - Chain ID for the order (decimal, hex, or CAIP-2). Must be non-empty.
    */
   addPrecreatedOrder(params: {
     orderId: string;
     providerCode: string;
     walletAddress: string;
-    chainId?: string;
+    chainId: string;
   }): void {
     const { orderId, providerCode, walletAddress, chainId } = params;
 
     const orderCode = getInternalOrderCode(orderId);
     if (!orderCode?.trim()) {
+      return;
+    }
+    if (!chainId.trim()) {
       return;
     }
     const stubOrder: RampsOrder = {
@@ -2654,7 +2657,7 @@ export class RampsController extends BaseController<
       providerOrderLink: '',
       totalFeesFiat: 0,
       txHash: '',
-      network: chainId ? { chainId, name: '' } : { chainId: '', name: '' },
+      network: { chainId, name: '' },
       canBeUpdated: true,
       idHasExpired: false,
       excludeFromPurchases: false,

@@ -321,7 +321,7 @@ export type RampsControllerGetBuyWidgetDataAction = {
  * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
  * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
  * @param params.walletAddress - Wallet address for the order.
- * @param params.chainId - Optional chain ID for the order.
+ * @param params.chainId - Chain ID for the order (decimal, hex, or CAIP-2). Must be non-empty.
  */
 export type RampsControllerAddPrecreatedOrderAction = {
   type: `RampsController:addPrecreatedOrder`;

@@ -3913,6 +3913,58 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    // A HyperCore deposit funds an order that needs the whole target as margin.
+    // EXPECTED_OUTPUT only guarantees `target * (1 - slippage)`, which leaves the
+    // follow-on order short and it fails on insufficient margin.
+    it('requests an exact output for Hyperliquid deposits so the full margin is guaranteed', async () => {
+      const arbitrumToHyperliquidRequest: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        targetChainId: CHAIN_ID_ARBITRUM,
+        targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [arbitrumToHyperliquidRequest],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDepositAndOrder,
+        },
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.tradeType).toBe('EXACT_OUTPUT');
+    });
+
+    it('still requests an expected output for non-Hyperliquid targets', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.tradeType).toBe('EXPECTED_OUTPUT');
+    });
+
     it('does not convert to Hyperliquid deposit when parent transaction is not a Perps deposit', async () => {
       const arbitrumUsdcRequest: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
