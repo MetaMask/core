@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { RegistryNetworkConfig } from '@metamask/config-registry-controller';
 import { ChainId, toChecksumHexAddress } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -23,7 +24,11 @@ import type {
   AbstractTokenPricesService,
   EvmAssetWithMarketData,
 } from './token-prices-service/abstract-token-prices-service.js';
-import { ZERO_ADDRESS } from './token-prices-service/codefi-v2.js';
+import {
+  getAssetId,
+  resetNetworkConfigsCache,
+  ZERO_ADDRESS,
+} from './token-prices-service/codefi-v2.js';
 import {
   controllerName,
   TokenRatesController,
@@ -75,6 +80,7 @@ function buildTokenRatesControllerMessenger(
       'TokensController:getState',
       'NetworkController:getState',
       'NetworkEnablementController:getState',
+      'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
     ],
     events: ['TokensController:stateChange', 'NetworkController:stateChange'],
   });
@@ -82,6 +88,13 @@ function buildTokenRatesControllerMessenger(
 }
 
 describe('TokenRatesController', () => {
+  afterEach(() => {
+    // getAssetId's config registry cache is a module-level singleton (shared
+    // across the whole process, like getSupportedNetworks); reset it so
+    // tests don't leak state into each other.
+    resetNetworkConfigsCache();
+  });
+
   describe('constructor', () => {
     it('should set default state', async () => {
       await withController(async ({ controller }) => {
@@ -230,6 +243,50 @@ describe('TokenRatesController', () => {
           expect(controller.state.marketData).toBe(stateBefore);
         },
       );
+    });
+
+    it('seeds the config registry cache used by getAssetId for the chains being priced', async () => {
+      const mockGetNetworkConfigByCaip2ChainId = jest
+        .fn()
+        .mockImplementation((caipChainId: string) =>
+          caipChainId === 'eip155:1'
+            ? { assets: { native: { assetId: 'eip155:1/slip44:61' } } }
+            : undefined,
+        );
+
+      await withController(
+        { mockGetNetworkConfigByCaip2ChainId },
+        async ({ controller }) => {
+          await controller.updateExchangeRates([
+            { chainId: '0x1', nativeCurrency: 'ETH' },
+          ]);
+
+          expect(mockGetNetworkConfigByCaip2ChainId).toHaveBeenCalledWith(
+            'eip155:1',
+          );
+          // getAssetId is the function extracted for client parity with
+          // fetchTokenPrices; it must reflect the same registry data
+          // updateExchangeRates just seeded, with no params beyond chain/token.
+          expect(
+            getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
+          ).toBe('eip155:1/slip44:61');
+        },
+      );
+    });
+
+    it('does not seed the cache for chains outside the current batch', async () => {
+      await withController(async ({ controller }) => {
+        await controller.updateExchangeRates([
+          { chainId: '0x89', nativeCurrency: 'MATIC' },
+        ]);
+
+        // 0x1 was never part of a priced batch, so it falls back to the
+        // hardcoded SPOT_PRICES_SUPPORT_INFO entry rather than picking up
+        // stale or unrelated registry data.
+        expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+          'eip155:1/slip44:60',
+        );
+      });
     });
 
     it('clears stale marketData when isDeprecated toggles to true at runtime', async () => {
@@ -1458,6 +1515,9 @@ type WithControllerOptions = {
   >;
   mockTokensControllerState?: Partial<TokensControllerState>;
   mockNetworkState?: Partial<NetworkState>;
+  mockGetNetworkConfigByCaip2ChainId?: (
+    caipChainId: string,
+  ) => RegistryNetworkConfig | undefined;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -1477,7 +1537,12 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, mockTokensControllerState, mockNetworkState } = rest;
+  const {
+    options,
+    mockTokensControllerState,
+    mockNetworkState,
+    mockGetNetworkConfigByCaip2ChainId,
+  } = rest;
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -1510,6 +1575,18 @@ async function withController<ReturnValue>(
         'eip155:137': 'eip155:137/slip44:966',
       },
     }),
+  );
+
+  // Register ConfigRegistryController:getNetworkConfigByCaip2ChainId handler
+  const defaultGetNetworkConfigByCaip2ChainId = (): undefined => undefined;
+  messenger.registerActionHandler(
+    'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+    jest
+      .fn()
+      .mockImplementation(
+        mockGetNetworkConfigByCaip2ChainId ??
+          defaultGetNetworkConfigByCaip2ChainId,
+      ),
   );
 
   const controller = new TokenRatesController({

@@ -1,3 +1,4 @@
+import type { RegistryNetworkConfig } from '@metamask/config-registry-controller';
 import {
   createServicePolicy,
   DEFAULT_CIRCUIT_BREAK_DURATION,
@@ -7,7 +8,7 @@ import {
   handleFetch,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import {
   hexToNumber,
   KnownCaipNamespace,
@@ -571,13 +572,64 @@ export function resetSupportedCurrenciesCache(): void {
 }
 
 /**
+ * In-memory cache of the config registry's network configurations, keyed by
+ * CAIP-2 chain ID. Populated per-chain via {@link setNetworkConfig}, typically
+ * by TokenRatesController using ConfigRegistryController's
+ * `getNetworkConfigByCaip2ChainId` action for whichever chains are about to
+ * be priced — so the cache never holds more than what's actually been
+ * resolved, and always reflects the registry's current state (no bulk
+ * snapshot to go stale between polls).
+ *
+ * This is a module-level cache (like {@link lastFetchedSupportedNetworks})
+ * rather than instance state so that {@link getAssetId} gives the same
+ * answer whether it's called internally by {@link fetchTokenPrices} or
+ * directly by external callers — there is only one source of truth for a
+ * given chain's native asset ID, not one per service instance.
+ */
+let cachedNetworkConfigs: Record<CaipChainId, RegistryNetworkConfig> = {};
+
+/**
+ * Updates the config registry network configuration used by
+ * {@link getAssetId} to resolve a chain's native asset CAIP-19 ID. Should be
+ * called with the result of ConfigRegistryController's
+ * `getNetworkConfigByCaip2ChainId` action, typically right before pricing
+ * that chain's assets, so the cache stays current without needing to mirror
+ * the registry's entire network map.
+ *
+ * @param caipChainId - The CAIP-2 chain ID the config belongs to.
+ * @param networkConfig - The registry's network configuration for this
+ * chain, or undefined if the registry has no entry for it (clears any
+ * previously cached entry).
+ */
+export function setNetworkConfig(
+  caipChainId: CaipChainId,
+  networkConfig: RegistryNetworkConfig | undefined,
+): void {
+  if (networkConfig) {
+    cachedNetworkConfigs[caipChainId] = networkConfig;
+  } else {
+    delete cachedNetworkConfigs[caipChainId];
+  }
+}
+
+/**
+ * Resets the config registry network configurations cache.
+ * This is primarily intended for testing purposes.
+ */
+export function resetNetworkConfigsCache(): void {
+  cachedNetworkConfigs = {};
+}
+
+/**
  * Derives the CAIP-19 asset ID used to query the Price API for a token on a
  * given chain.
  *
- * For native tokens, uses the hardcoded {@link SPOT_PRICES_SUPPORT_INFO} entry
- * when defined, otherwise falls back to the provided native asset identifiers
- * (sourced from NetworkEnablementController). For ERC20 tokens, constructs the
- * CAIP-19 ID dynamically.
+ * For native tokens, prefers the CAIP-19 ID from the config registry cache
+ * (`assets.native.assetId`, see {@link setNetworkConfig}) when available,
+ * then the hardcoded {@link SPOT_PRICES_SUPPORT_INFO} entry, and finally
+ * falls back to the provided native asset identifiers (sourced from
+ * NetworkEnablementController). For ERC20 tokens, constructs the CAIP-19 ID
+ * dynamically.
  *
  * @param args - The arguments to this function.
  * @param args.chainId - The hexadecimal chain ID the token lives on.
@@ -606,12 +658,14 @@ export function getAssetId({
       nativeAddress.toLowerCase() === tokenAddress.toLowerCase();
 
     if (isNativeToken) {
+      const registryAssetId = cachedNetworkConfigs[caipChainId]?.assets?.native
+        ?.assetId as CaipAssetType | undefined;
       const hardcodedId = (
         SPOT_PRICES_SUPPORT_INFO as Partial<Record<Hex, string>>
       )[chainId];
-      return (hardcodedId ?? nativeAssetIdentifiers[caipChainId]) as
-        | CaipAssetType
-        | undefined;
+      return (registryAssetId ??
+        hardcodedId ??
+        nativeAssetIdentifiers[caipChainId]) as CaipAssetType | undefined;
     }
 
     return `${caipChainId}/erc20:${tokenAddress.toLowerCase()}` as CaipAssetType;

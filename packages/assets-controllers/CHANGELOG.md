@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `@metamask/config-registry-controller` as a dependency ([#9789](https://github.com/MetaMask/core/pull/9789))
+
+### Changed
+
+- **BREAKING:** `TokenRatesControllerMessenger` now requires the `ConfigRegistryController:getNetworkConfigByCaip2ChainId` action to be delegated ([#9789](https://github.com/MetaMask/core/pull/9789))
+  - `getAssetId`/`CodefiTokenPricesServiceV2` now resolve native asset CAIP-19 IDs from the config registry's `assets.native.assetId` before falling back to the hardcoded `SPOT_PRICES_SUPPORT_INFO` map, then to `NetworkEnablementController`'s `nativeAssetIdentifiers`. This lets new chains get correct native-asset pricing without a `SPOT_PRICES_SUPPORT_INFO` release. `TokenRatesController` seeds this per chain, right before pricing that chain's assets, via `ConfigRegistryController`'s per-chain lookup action, rather than mirroring its entire network map.
+
 ## [111.0.0]
 
 ### Changed

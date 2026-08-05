@@ -1,3 +1,4 @@
+import type { RegistryNetworkConfig } from '@metamask/config-registry-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import nock, { isDone } from 'nock';
@@ -16,6 +17,8 @@ import {
   getSupportedNetworks,
   resetSupportedNetworksCache,
   getAssetId,
+  setNetworkConfig,
+  resetNetworkConfigsCache,
 } from './codefi-v2.js';
 
 // We're not customizing the default max delay
@@ -2144,6 +2147,72 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
   });
 
+  describe('setNetworkConfig', () => {
+    afterEach(() => {
+      resetSupportedNetworksCache();
+      resetNetworkConfigsCache();
+    });
+
+    it('uses the config registry asset id in fetchTokenPrices, taking priority over the hardcoded entry', async () => {
+      const mockNetworksResponse = {
+        fullSupport: ['eip155:1'],
+        partialSupport: {
+          spotPricesV2: [],
+          spotPricesV3: ['eip155:1'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockNetworksResponse)
+        .persist();
+
+      await fetchSupportedNetworks();
+
+      const registryAssetId = 'eip155:1/slip44:61';
+
+      nock('https://price.api.cx.metamask.io')
+        .get('/v3/spot-prices')
+        .query(true)
+        .reply(200, {
+          [registryAssetId]: {
+            price: 3000,
+            currency: 'USD',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 1000000,
+            allTimeHigh: 5000,
+            allTimeLow: 100,
+            totalVolume: 50000,
+            high1d: 2100,
+            low1d: 1900,
+            circulatingSupply: 1000000,
+            dilutedMarketCap: 2000000,
+            marketCapPercentChange1d: 0.5,
+            pricePercentChange1h: 0.1,
+            pricePercentChange7d: 5,
+            pricePercentChange14d: 10,
+            pricePercentChange30d: 15,
+            pricePercentChange200d: 50,
+            pricePercentChange1y: 100,
+          },
+        });
+
+      setNetworkConfig('eip155:1', {
+        assets: { native: { assetId: registryAssetId } },
+      } as RegistryNetworkConfig);
+
+      const service = new CodefiTokenPricesServiceV2();
+
+      const result = await service.fetchTokenPrices({
+        assets: [{ chainId: '0x1', tokenAddress: ZERO_ADDRESS }],
+        currency: 'USD',
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].price).toBe(3000);
+    });
+  });
+
   describe('validateChainIdSupported with dynamic networks', () => {
     afterEach(() => {
       resetSupportedNetworksCache();
@@ -2186,6 +2255,10 @@ describe('CodefiTokenPricesServiceV2', () => {
   });
 
   describe('getAssetId', () => {
+    afterEach(() => {
+      resetNetworkConfigsCache();
+    });
+
     it('returns a CAIP-19 erc20 id with a lowercased address for ERC20 tokens', () => {
       expect(getAssetId({ chainId: '0x1', tokenAddress: '0xABCDEF' })).toBe(
         'eip155:1/erc20:0xabcdef',
@@ -2237,6 +2310,51 @@ describe('CodefiTokenPricesServiceV2', () => {
           nativeAssetIdentifiers: { 'eip155:1': 'eip155:1/erc20:0xwrong' },
         }),
       ).toBe('eip155:1/slip44:60');
+    });
+
+    it('prefers the config registry entry over the hardcoded entry', () => {
+      setNetworkConfig('eip155:1', {
+        assets: { native: { assetId: 'eip155:1/slip44:61' } },
+      } as RegistryNetworkConfig);
+
+      expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+        'eip155:1/slip44:61',
+      );
+    });
+
+    it('prefers the config registry entry over nativeAssetIdentifiers when there is no hardcoded entry', () => {
+      // 0x42 (OKXChain) is not in SPOT_PRICES_SUPPORT_INFO
+      setNetworkConfig('eip155:66', {
+        assets: { native: { assetId: 'eip155:66/erc20:0xregistry' } },
+      } as RegistryNetworkConfig);
+
+      expect(
+        getAssetId({
+          chainId: '0x42',
+          tokenAddress: ZERO_ADDRESS,
+          nativeAssetIdentifiers: { 'eip155:66': 'eip155:66/slip44:996' },
+        }),
+      ).toBe('eip155:66/erc20:0xregistry');
+    });
+
+    it('falls back to the hardcoded entry when the config registry has no entry for the chain', () => {
+      expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+        'eip155:1/slip44:60',
+      );
+    });
+
+    it('clears a chain from the config registry cache when set to undefined', () => {
+      setNetworkConfig('eip155:1', {
+        assets: { native: { assetId: 'eip155:1/slip44:61' } },
+      } as RegistryNetworkConfig);
+      expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+        'eip155:1/slip44:61',
+      );
+
+      setNetworkConfig('eip155:1', undefined);
+      expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+        'eip155:1/slip44:60',
+      );
     });
 
     it('returns undefined for a native token with no hardcoded entry and no identifier', () => {
