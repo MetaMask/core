@@ -1,6 +1,6 @@
 import yargs from 'yargs';
 
-import type { CommandModule } from './commands';
+import type { CommandModule } from './commands.js';
 
 /**
  * The entry point of `create-package`, a yargs application for creating new
@@ -14,7 +14,7 @@ export default async function cli(
   argv: string[],
   // Parameterized for easier testing.
   commands: CommandModule[],
-) {
+): Promise<void> {
   await yargs(argv.slice(2))
     .scriptName('create-package')
     // Disable --version. This is an internal tool and it doesn't have a version.

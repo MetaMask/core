@@ -5,7 +5,7 @@ import type {
   TypeExtensionLinkFields,
   TypePortfolioLinkFields,
   TypeMobileLinkFields,
-} from './type-links';
+} from './type-links.js';
 
 export type ImageFields = {
   fields: {
@@ -46,6 +46,13 @@ export type TypeFeatureAnnouncementFields = {
     mobileLink?: EntryFieldTypes.EntryLink<TypeMobileLinkFields>;
 
     clients?: EntryFieldTypes.Text<'extension' | 'mobile' | 'portfolio'>;
+
+    // Min Versions
+    extensionMinimumVersionNumber?: EntryFieldTypes.Text;
+    mobileMinimumVersionNumber?: EntryFieldTypes.Text;
+    // Max Versions
+    extensionMaximumVersionNumber?: EntryFieldTypes.Text;
+    mobileMaximumVersionNumber?: EntryFieldTypes.Text;
   };
   contentTypeId: 'productAnnouncement';
 };

@@ -7,7 +7,7 @@ import type {
   ProtocolToken,
   Underlying,
   Balance,
-} from './fetch-positions';
+} from './fetch-positions.js';
 
 export type GroupedDeFiPositions = {
   aggregatedMarketValue: number;
@@ -143,12 +143,12 @@ function processToken<T extends Balance>(
     return tokenWithoutUnderlyings;
   });
 
-  const marketValue = processedTokens.reduce(
+  const marketValue = processedTokens.reduce<number | undefined>(
     (acc, t) =>
       acc === undefined || t.marketValue === undefined
         ? undefined
         : acc + t.marketValue,
-    0 as number | undefined,
+    0,
   );
 
   return {

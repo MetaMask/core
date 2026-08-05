@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import type { Bip44Account } from '@metamask/account-api';
 import { isBip44Account } from '@metamask/account-api';
 import type {
@@ -17,9 +16,16 @@ import {
   SolAccountType,
   SolMethod,
   SolScope,
+  TrxAccountType,
+  TrxMethod,
+  TrxScope,
+  XlmAccountType,
+  XlmMethod,
+  XlmScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { SnapId } from '@metamask/snaps-sdk';
 import { v4 as uuid } from 'uuid';
 
 export const ETH_EOA_METHODS = [
@@ -54,6 +60,9 @@ export const MOCK_SNAP_2 = {
 export const MOCK_ENTROPY_SOURCE_1 = 'mock-keyring-id-1';
 export const MOCK_ENTROPY_SOURCE_2 = 'mock-keyring-id-2';
 
+export const MOCK_MNEMONIC =
+  'abandon ability able about above absent absorb abstract absurd abuse access accident';
+
 export const MOCK_HD_KEYRING_1 = {
   type: KeyringTypes.hd,
   metadata: { id: MOCK_ENTROPY_SOURCE_1, name: 'HD Keyring 1' },
@@ -64,6 +73,13 @@ export const MOCK_HD_KEYRING_2 = {
   type: KeyringTypes.hd,
   metadata: { id: MOCK_ENTROPY_SOURCE_2, name: 'HD Keyring 2' },
   accounts: ['0x456'],
+};
+
+/** Used when tests need ensureReady to resolve (SnapAccountService waits for Snap keyring). */
+export const MOCK_SNAP_KEYRING = {
+  type: KeyringTypes.snap,
+  metadata: { id: 'snap-keyring', name: 'Snap Keyring' },
+  accounts: [],
 };
 
 export const MOCK_HD_ACCOUNT_1: Bip44Account<InternalAccount> = {
@@ -136,16 +152,83 @@ export const MOCK_SOL_ACCOUNT_1: Bip44Account<InternalAccount> = {
   },
 };
 
+const XLM_METHODS = Object.values(XlmMethod);
+
+export const MOCK_XLM_ACCOUNT_1: Bip44Account<InternalAccount> = {
+  id: 'mock-snap-id-1',
+  address: `G${'A'.repeat(55)}`,
+  options: {
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      id: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+      derivationPath: `m/44'/148'/0'`,
+    },
+  },
+  methods: XLM_METHODS,
+  type: XlmAccountType.Account,
+  scopes: [XlmScope.Pubnet, XlmScope.Testnet],
+  metadata: {
+    name: 'Stellar Account 1',
+    keyring: { type: KeyringTypes.snap },
+    snap: MOCK_SNAP_1,
+    importTime: 0,
+    lastSelected: 0,
+  },
+};
+
+export const MOCK_TRX_ACCOUNT_1: Bip44Account<InternalAccount> = {
+  id: 'mock-snap-id-1',
+  address: 'aabbccdd',
+  options: {
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      // NOTE: shares entropy with MOCK_HD_ACCOUNT_2
+      id: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
+  },
+  methods: [TrxMethod.SignMessageV2, TrxMethod.VerifyMessageV2],
+  type: TrxAccountType.Eoa,
+  scopes: [TrxScope.Mainnet],
+  metadata: {
+    name: 'Tron Account 1',
+    keyring: { type: KeyringTypes.snap },
+    snap: MOCK_SNAP_1,
+    importTime: 0,
+    lastSelected: 0,
+  },
+};
+
 export const MOCK_SOL_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
   type: 'bip44',
   scopes: [SolScope.Mainnet],
   derivationPath: `m/44'/501'/0'/0'`,
 };
 
+export const MOCK_TRX_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
+  type: 'bip44',
+  scopes: [TrxScope.Mainnet],
+  derivationPath: `m/44'/195'/0'/0'`,
+};
+
+export const MOCK_XLM_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
+  type: 'bip44',
+  scopes: [XlmScope.Pubnet],
+  derivationPath: `m/44'/148'/0'`,
+};
+
+export const MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
+  type: 'bip44',
+  scopes: [BtcScope.Mainnet],
+  derivationPath: `m/44'/0'/0'/0'`,
+};
+
 export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'b0f030d8-e101-4b5a-a3dd-13f8ca8ec1db',
   type: BtcAccountType.P2wpkh,
-  methods: [BtcMethod.SendBitcoin],
+  methods: Object.values(BtcMethod),
   address: 'bc1qx8ls07cy8j8nrluy2u0xwn7gh8fxg0rg4s8zze',
   options: {
     entropy: {
@@ -161,12 +244,10 @@ export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
     name: 'Bitcoin Native Segwit Account 1',
     importTime: 0,
     keyring: {
-      type: 'Snap keyring',
+      type: KeyringTypes.snap,
     },
     snap: {
       id: 'mock-btc-snap-id',
-      enabled: true,
-      name: 'Mock Bitcoin Snap',
     },
   },
 };
@@ -174,7 +255,7 @@ export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
 export const MOCK_BTC_P2TR_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'a20c2e1a-6ff6-40ba-b8e0-ccdb6f9933bb',
   type: BtcAccountType.P2tr,
-  methods: [BtcMethod.SendBitcoin],
+  methods: Object.values(BtcMethod),
   address: 'tb1p5cyxnuxmeuwuvkwfem96lxx9wex9kkf4mt9ll6q60jfsnrzqg4sszkqjnh',
   options: {
     entropy: {
@@ -190,12 +271,10 @@ export const MOCK_BTC_P2TR_ACCOUNT_1: Bip44Account<InternalAccount> = {
     name: 'Bitcoin Taproot Account 1',
     importTime: 0,
     keyring: {
-      type: 'Snap keyring',
+      type: KeyringTypes.snap,
     },
     snap: {
       id: 'mock-btc-snap-id',
-      enabled: true,
-      name: 'Mock Bitcoin Snap',
     },
   },
 };
@@ -236,6 +315,28 @@ export const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   },
 };
 
+export function isInternalAccount(
+  account: KeyringAccount,
+): account is InternalAccount {
+  // Meant to be used for testing, so we keep this simple.
+  return Object.prototype.hasOwnProperty.call(account, 'metadata');
+}
+
+export function asKeyringAccount<Account extends KeyringAccount>(
+  account: Account,
+): KeyringAccount {
+  const { id, type, address, scopes, options, methods } = account;
+
+  return {
+    id,
+    type,
+    address,
+    scopes,
+    options,
+    methods,
+  };
+}
+
 export class MockAccountBuilder<Account extends KeyringAccount> {
   readonly #account: Account;
 
@@ -260,6 +361,11 @@ export class MockAccountBuilder<Account extends KeyringAccount> {
     return this;
   }
 
+  withAddress(address: string): this {
+    this.#account.address = address;
+    return this;
+  }
+
   withAddressSuffix(suffix: string) {
     this.#account.address += suffix;
     return this;
@@ -275,6 +381,15 @@ export class MockAccountBuilder<Account extends KeyringAccount> {
   withGroupIndex(groupIndex: number) {
     if (isBip44Account(this.#account)) {
       this.#account.options.entropy.groupIndex = groupIndex;
+    }
+    return this;
+  }
+
+  withSnapId(snapId: SnapId) {
+    if (isInternalAccount(this.#account)) {
+      this.#account.metadata.snap = {
+        id: snapId,
+      };
     }
     return this;
   }

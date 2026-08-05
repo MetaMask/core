@@ -9,6 +9,8 @@ import {
   union,
   type,
   assert,
+  array,
+  is,
 } from '@metamask/superstruct';
 
 const ChainIdSchema = number();
@@ -56,4 +58,31 @@ export const validateBridgeStatusResponse = (
 ): data is Infer<typeof StatusResponseSchema> => {
   assert(data, StatusResponseSchema);
   return true;
+};
+
+export enum IntentOrderStatus {
+  PENDING = 'pending',
+  SUBMITTED = 'submitted',
+  CONFIRMED = 'confirmed',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
+  EXPIRED = 'expired',
+}
+
+const IntentStatusResponseSchema = type({
+  id: string(),
+  status: enums(Object.values(IntentOrderStatus)),
+  txHash: optional(string()),
+  metadata: type({
+    txHashes: optional(union([array(string()), string()])),
+  }),
+});
+
+export type IntentStatusResponse = Infer<typeof IntentStatusResponseSchema>;
+
+export const validateIntentStatusResponse = (
+  data: unknown,
+): data is IntentStatusResponse => {
+  return is(data, IntentStatusResponseSchema);
 };

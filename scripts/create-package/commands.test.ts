@@ -1,8 +1,8 @@
 import type { Arguments } from 'yargs';
 
-import type { CreatePackageOptions } from './commands';
-import { createPackageHandler } from './commands';
-import * as utils from './utils';
+import type { CreatePackageOptions } from './commands.js';
+import { createPackageHandler } from './commands.js';
+import * as utils from './utils.js';
 
 jest.mock('./utils', () => ({
   finalizeAndWriteData: jest.fn(),
@@ -26,8 +26,6 @@ describe('create-package/commands', () => {
       });
 
       const args: Arguments<CreatePackageOptions> = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         _: [],
         $0: 'create-package',
         name: '@metamask/new-package',

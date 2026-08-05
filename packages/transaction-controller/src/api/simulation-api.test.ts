@@ -2,9 +2,12 @@ import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 import type { GetSimulationConfig } from 'src';
 
-import type { SimulationRequest, SimulationResponse } from './simulation-api';
-import { simulateTransactions } from './simulation-api';
-import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants';
+import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants.js';
+import type {
+  SimulationRequest,
+  SimulationResponse,
+} from './simulation-api.js';
+import { simulateTransactions } from './simulation-api.js';
 
 const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_MOCK_DECIMAL = 1;
@@ -71,7 +74,7 @@ describe('Simulation API Utils', () => {
    *
    * @param jsonResponse - The response body to return.
    */
-  function mockFetchResponse(jsonResponse: unknown) {
+  function mockFetchResponse(jsonResponse: unknown): void {
     fetchMock.mockResolvedValueOnce({
       json: jest.fn().mockResolvedValue(jsonResponse),
     } as unknown as Response);

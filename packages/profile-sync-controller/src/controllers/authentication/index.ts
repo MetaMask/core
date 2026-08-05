@@ -1,7 +1,17 @@
-import Controller from './AuthenticationController';
+import { AuthenticationController } from './AuthenticationController.js';
 
-const AuthenticationController = Controller;
-export { Controller };
+export { AuthenticationController as Controller };
 export default AuthenticationController;
-export * from './AuthenticationController';
-export * as Mocks from './mocks';
+export * from './AuthenticationController.js';
+export * as Mocks from './mocks/index.js';
+
+export type {
+  AuthenticationControllerPerformSignInAction,
+  AuthenticationControllerPerformSignOutAction,
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerRefreshCanonicalProfileIdAction,
+  AuthenticationControllerGetUserProfileLineageAction,
+  AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerRequestProfilePairingAction,
+} from './AuthenticationController-method-action-types.js';

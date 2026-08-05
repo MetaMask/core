@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 80,
+  "quoteProps": "as-needed",
+  "singleQuote": true,
+  "sortImports": {
+    "newlinesBetween": false,
+    "groups": [
+      ["builtin", "external"],
+      { "newlinesBetween": true },
+      ["internal", "parent", "sibling", "index", "unknown"]
+    ]
+  },
+  "sortPackageJson": {
+    "sortScripts": true
+  },
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "ignorePatterns": [".yarnrc.yml", "merged-packages/**"]
+}

@@ -1,15 +1,15 @@
 import { Mutex } from 'async-mutex';
 
-import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';
-import { createModuleLogger, projectLogger } from '../logger';
+import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   NameProvider,
   NameProviderMetadata,
   NameProviderRequest,
   NameProviderResult,
-} from '../types';
-import { NameType } from '../types';
-import { handleFetch, assertIsError } from '../util';
+} from '../types.js';
+import { NameType } from '../types.js';
+import { handleFetch, assertIsError } from '../util.js';
 
 const ID = 'etherscan';
 const LABEL = 'Etherscan (Verified Contract Name)';
@@ -23,52 +23,28 @@ type EtherscanGetSourceCodeResponse = {
   message: string;
   result: [
     {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       SourceCode: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       ABI: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       ContractName: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       CompilerVersion: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       OptimizationUsed: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       Runs: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       ConstructorArguments: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       Library: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       LicenseType: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       Proxy: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       Implementation: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       SwarmSource: string;
     },
   ];
 };
 
 export class EtherscanNameProvider implements NameProvider {
-  #isEnabled: () => boolean;
+  readonly #isEnabled: () => boolean;
 
   #lastRequestTime = 0;
 
-  #mutex = new Mutex();
+  readonly #mutex = new Mutex();
 
   constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
     this.#isEnabled = isEnabled || (() => true);
@@ -192,8 +168,6 @@ export class EtherscanNameProvider implements NameProvider {
 
     Object.keys(params).forEach((key, index) => {
       const value = params[key];
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       url += `${index === 0 ? '?' : '&'}${key}=${value}`;
     });
 

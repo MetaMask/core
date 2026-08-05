@@ -8,7 +8,19 @@
       "path": "../base-controller"
     },
     {
+      "path": "../messenger"
+    },
+    {
       "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../controller-utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

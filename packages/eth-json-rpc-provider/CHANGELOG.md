@@ -9,9 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+
+## [6.0.1]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.4` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+## [6.0.0]
+
+### Added
+
+- Add `providerFromMiddlewareV2` ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - This accepts the new middleware from `@metamask/json-rpc-engine/v2`.
+- Add `context` option to `InternalProvider.request()` ([#7061](https://github.com/MetaMask/core/pull/7061))
+  - Enables passing a `MiddlewareContext` to the JSON-RPC server.
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Replace `SafeEventEmitterProvider` with `InternalProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+  - The new class is behaviorally equivalent to the previous version except it does not extend `SafeEventEmitter`.
+  - `SafeEventEmitterProvider` is for now still exported as a deprecated alias of `InternalProvider` for backwards compatibility.
+- **BREAKING:** Migrate from `JsonRpcEngine` to `JsonRpcEngineV2` ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - Legacy `JsonRpcEngine` instances are wrapped in a `JsonRpcEngineV2` internally wherever they appear.
+    This change should mostly be unobservable. However, due to differences in error handling, this may be breaking for consumers.
+
+### Deprecated
+
+- Deprecate `providerFromMiddleware` ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - Use `providerFromMiddlewareV2` instead, which supports the new middleware from `@metamask/json-rpc-engine/v2`.
+
+### Removed
+
+- **BREAKING:** Remove `providerFromEngine` ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - Use `InternalProvider` directly instead.
+
+## [5.0.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/json-rpc-engine` from `^10.1.0` to `^10.1.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [5.0.0]
+
+### Changed
+
 - **BREAKING:** Remove `'data'` event ([#6328](https://github.com/MetaMask/core/pull/6328))
   - This event was forwarding the `'notification'` event from the underlying `JsonRpcEngine`. It was rarely used in practice, and is now removed.
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
 
 ## [4.1.8]
 
@@ -195,7 +247,11 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 - Initial release, including `providerFromEngine` and `providerFromMiddleware`.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.8...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.1...HEAD
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.0...@metamask/eth-json-rpc-provider@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@5.0.1...@metamask/eth-json-rpc-provider@6.0.0
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@5.0.0...@metamask/eth-json-rpc-provider@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.8...@metamask/eth-json-rpc-provider@5.0.0
 [4.1.8]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.7...@metamask/eth-json-rpc-provider@4.1.8
 [4.1.7]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.6...@metamask/eth-json-rpc-provider@4.1.7
 [4.1.6]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.5...@metamask/eth-json-rpc-provider@4.1.6

@@ -1,7 +1,7 @@
 import {
   CaveatMergeTypeMismatchError,
   EndowmentPermissionDoesNotExistError,
-} from './errors';
+} from './errors.js';
 
 describe('error', () => {
   describe('CaveatMergeTypeMismatchError', () => {
@@ -11,6 +11,12 @@ describe('error', () => {
           leftCaveatType: 'foo',
           rightCaveatType: 'bar',
         },
+      );
+    });
+
+    it('has the expected name', () => {
+      expect(new CaveatMergeTypeMismatchError('foo', 'bar').name).toBe(
+        'CaveatMergeTypeMismatchError',
       );
     });
   });
@@ -28,6 +34,12 @@ describe('error', () => {
       expect(
         new EndowmentPermissionDoesNotExistError('bar').data,
       ).toBeUndefined();
+    });
+
+    it('has the expected name', () => {
+      expect(new EndowmentPermissionDoesNotExistError('bar').name).toBe(
+        'EndowmentPermissionDoesNotExistError',
+      );
     });
   });
 });

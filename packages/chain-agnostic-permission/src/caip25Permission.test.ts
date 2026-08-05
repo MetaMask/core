@@ -1,14 +1,16 @@
 import {
   CaveatMutatorOperation,
   PermissionType,
-  type SubjectPermissions,
-  type ExtractPermission,
-  type PermissionSpecificationConstraint,
-  type CaveatSpecificationConstraint,
+} from '@metamask/permission-controller';
+import type {
+  SubjectPermissions,
+  ExtractPermission,
+  PermissionSpecificationConstraint,
+  CaveatSpecificationConstraint,
 } from '@metamask/permission-controller';
 import { pick } from 'lodash';
 
-import type { Caip25CaveatValue } from './caip25Permission';
+import type { Caip25CaveatValue } from './caip25Permission.js';
 import {
   Caip25CaveatType,
   caip25EndowmentBuilder,
@@ -21,10 +23,10 @@ import {
   getCaip25CaveatFromPermission,
   getCaip25PermissionFromLegacyPermissions,
   requestPermittedChainsPermissionIncremental,
-} from './caip25Permission';
-import { CaveatTypes, PermissionKeys } from './constants';
-import { KnownSessionProperties } from './scope/constants';
-import * as ScopeSupported from './scope/supported';
+} from './caip25Permission.js';
+import { CaveatTypes, PermissionKeys } from './constants.js';
+import { KnownSessionProperties } from './scope/constants.js';
+import * as ScopeSupported from './scope/supported.js';
 
 jest.mock('./scope/supported', () => ({
   ...jest.requireActual('./scope/supported'),
@@ -1999,7 +2001,9 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
                   },
                 },
                 isMultichainOrigin: false,
-                sessionProperties: {},
+                sessionProperties: {
+                  'eip1193-compatible': true,
+                },
               },
             },
           ],
@@ -2036,7 +2040,9 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
                   },
                 },
                 isMultichainOrigin: false,
-                sessionProperties: {},
+                sessionProperties: {
+                  'eip1193-compatible': true,
+                },
               },
             },
           ],
@@ -2074,7 +2080,9 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
                   },
                 },
                 isMultichainOrigin: false,
-                sessionProperties: {},
+                sessionProperties: {
+                  'eip1193-compatible': true,
+                },
               },
             },
           ],
@@ -2124,7 +2132,9 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
                   },
                 },
                 isMultichainOrigin: false,
-                sessionProperties: {},
+                sessionProperties: {
+                  'eip1193-compatible': true,
+                },
               },
             },
           ],
@@ -2161,7 +2171,9 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
                   },
                 },
                 isMultichainOrigin: false,
-                sessionProperties: {},
+                sessionProperties: {
+                  'eip1193-compatible': true,
+                },
               },
             },
           ],
@@ -2199,7 +2211,9 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
                   },
                 },
                 isMultichainOrigin: false,
-                sessionProperties: {},
+                sessionProperties: {
+                  'eip1193-compatible': true,
+                },
               },
             },
           ],
@@ -2249,7 +2263,9 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
                   },
                 },
                 isMultichainOrigin: false,
-                sessionProperties: {},
+                sessionProperties: {
+                  'eip1193-compatible': true,
+                },
               },
             },
           ],
@@ -2298,7 +2314,9 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
                   },
                 },
                 isMultichainOrigin: false,
-                sessionProperties: {},
+                sessionProperties: {
+                  'eip1193-compatible': true,
+                },
               },
             },
           ],
@@ -2347,7 +2365,9 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
                   },
                 },
                 isMultichainOrigin: false,
-                sessionProperties: {},
+                sessionProperties: {
+                  'eip1193-compatible': true,
+                },
               },
             },
           ],

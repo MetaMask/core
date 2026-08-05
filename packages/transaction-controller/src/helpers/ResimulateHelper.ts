@@ -3,15 +3,15 @@ import { remove0x } from '@metamask/utils';
 import { BN } from 'bn.js';
 import { isEqual } from 'lodash';
 
-import { createModuleLogger, projectLogger } from '../logger';
-import { TransactionStatus } from '../types';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import { TransactionContainerType, TransactionStatus } from '../types.js';
 import type {
   SimulationBalanceChange,
   SimulationData,
   TransactionMeta,
   TransactionParams,
-} from '../types';
-import { getPercentageChange } from '../utils/utils';
+} from '../types.js';
+import { getPercentageChange } from '../utils/utils.js';
 
 const log = createModuleLogger(projectLogger, 'resimulate-helper');
 
@@ -53,42 +53,51 @@ export class ResimulateHelper {
     onTransactionsUpdate(this.#onTransactionsUpdate.bind(this));
   }
 
-  #onTransactionsUpdate() {
-    const unapprovedTransactions = this.#getTransactions().filter(
-      (tx) => tx.status === TransactionStatus.unapproved,
+  #onTransactionsUpdate(): void {
+    const resimulatableTransactionIds = new Set(
+      this.#getResimulatableTransactions().map((tx) => tx.id),
     );
 
-    const unapprovedTransactionIds = new Set(
-      unapprovedTransactions.map((tx) => tx.id),
-    );
-
-    // Combine unapproved transaction IDs and currently active resimulations
+    // Combine resimulatable transaction IDs and currently active resimulations
     const allTransactionIds = new Set([
-      ...unapprovedTransactionIds,
+      ...resimulatableTransactionIds,
       ...this.#timeoutIds.keys(),
     ]);
 
     allTransactionIds.forEach((transactionId) => {
-      const transactionMeta = unapprovedTransactions.find(
-        (tx) => tx.id === transactionId,
-      ) as TransactionMeta;
-
-      if (transactionMeta?.isActive) {
-        this.#start(transactionMeta);
+      if (resimulatableTransactionIds.has(transactionId)) {
+        this.#start(transactionId);
       } else {
         this.#stop(transactionId);
       }
     });
   }
 
-  #start(transactionMeta: TransactionMeta) {
-    const { id: transactionId } = transactionMeta;
+  #getResimulatableTransactions(): TransactionMeta[] {
+    return this.#getTransactions().filter(
+      (tx) => tx.status === TransactionStatus.unapproved && tx.isActive,
+    );
+  }
+
+  #start(transactionId: string): void {
     if (this.#timeoutIds.has(transactionId)) {
       return;
     }
 
-    const listener = () => {
-      // eslint-disable-next-line promise/catch-or-return
+    const listener = (): void => {
+      // Read the latest transaction on each tick rather than capturing it in
+      // the closure. Otherwise an update to the transaction (e.g. editing a
+      // batch approval amount) would keep resimulating the stale data, as
+      // `#start` returns early when a timer already exists for the id.
+      const transactionMeta = this.#getResimulatableTransactions().find(
+        (tx) => tx.id === transactionId,
+      );
+
+      if (!transactionMeta) {
+        this.#stop(transactionId);
+        return;
+      }
+
       this.#simulateTransaction(transactionMeta)
         .catch((error) => {
           /* istanbul ignore next */
@@ -109,12 +118,12 @@ export class ResimulateHelper {
     );
   }
 
-  #queueUpdate(transactionId: string, listener: () => void) {
+  #queueUpdate(transactionId: string, listener: () => void): void {
     const timeoutId = setTimeout(listener, RESIMULATE_INTERVAL_MS);
     this.#timeoutIds.set(transactionId, timeoutId);
   }
 
-  #stop(transactionId: string) {
+  #stop(transactionId: string): void {
     if (!this.#timeoutIds.has(transactionId)) {
       return;
     }
@@ -125,7 +134,7 @@ export class ResimulateHelper {
     );
   }
 
-  #removeListener(id: string) {
+  #removeListener(id: string): void {
     const timeoutId = this.#timeoutIds.get(id);
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -144,7 +153,7 @@ export class ResimulateHelper {
 export function shouldResimulate(
   originalTransactionMeta: TransactionMeta,
   newTransactionMeta: TransactionMeta,
-) {
+): ResimulateResponse {
   const { id: transactionId } = newTransactionMeta;
 
   const parametersUpdated = isParametersUpdated(
@@ -157,13 +166,24 @@ export function shouldResimulate(
     newTransactionMeta,
   );
 
+  const enforcedSimulationsUpdated =
+    originalTransactionMeta.containerTypes?.includes(
+      TransactionContainerType.EnforcedSimulations,
+    ) !==
+    newTransactionMeta.containerTypes?.includes(
+      TransactionContainerType.EnforcedSimulations,
+    );
+
   const valueAndNativeBalanceMismatch = hasValueAndNativeBalanceMismatch(
     originalTransactionMeta,
     newTransactionMeta,
   );
 
   const resimulate =
-    parametersUpdated || securityAlert || valueAndNativeBalanceMismatch;
+    parametersUpdated ||
+    securityAlert ||
+    enforcedSimulationsUpdated ||
+    valueAndNativeBalanceMismatch;
 
   let blockTime: number | undefined;
 
@@ -178,6 +198,7 @@ export function shouldResimulate(
       blockTime,
       parametersUpdated,
       securityAlert,
+      enforcedSimulationsUpdated,
       valueAndNativeBalanceMismatch,
     });
   }

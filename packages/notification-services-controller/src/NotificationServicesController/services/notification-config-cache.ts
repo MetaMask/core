@@ -8,10 +8,10 @@ export const NotificationConfigCacheTTL = 1000 * 60; // 60 seconds
 export class OnChainNotificationsCache {
   #cache: NotificationConfigCache | null = null;
 
-  readonly #TTL = NotificationConfigCacheTTL;
+  readonly #ttl = NotificationConfigCacheTTL;
 
   #isExpired(): boolean {
-    return !this.#cache || Date.now() - this.#cache.timestamp > this.#TTL;
+    return !this.#cache || Date.now() - this.#cache.timestamp > this.#ttl;
   }
 
   #hasAllAddresses(addresses: string[]): boolean {

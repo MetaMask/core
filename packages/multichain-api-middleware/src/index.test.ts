@@ -1,13 +1,10 @@
-import * as allExports from '.';
+import * as allExports from './index.js';
 
 describe('@metamask/multichain-api-middleware', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
-      Array [
-        "walletCreateSession",
-        "walletGetSession",
-        "walletInvokeMethod",
-        "walletRevokeSession",
+      [
+        "methodHandlers",
         "multichainMethodCallValidatorMiddleware",
         "MultichainMiddlewareManager",
         "MultichainSubscriptionManager",

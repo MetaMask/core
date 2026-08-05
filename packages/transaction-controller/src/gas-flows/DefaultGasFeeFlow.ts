@@ -7,7 +7,7 @@ import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
+import { projectLogger } from '../logger.js';
 import type {
   FeeMarketGasFeeEstimateForLevel,
   FeeMarketGasFeeEstimates,
@@ -17,9 +17,9 @@ import type {
   GasFeeFlowResponse,
   GasPriceGasFeeEstimates,
   LegacyGasFeeEstimates,
-} from '../types';
-import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
-import { gweiDecimalToWeiHex } from '../utils/gas-fees';
+} from '../types.js';
+import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types.js';
+import { gweiDecimalToWeiHex } from '../utils/gas-fees.js';
 
 const log = createModuleLogger(projectLogger, 'default-gas-fee-flow');
 
@@ -44,15 +44,11 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
         break;
       case GAS_ESTIMATE_TYPES.LEGACY:
         log('Using legacy estimates', gasFeeEstimates);
-        response = this.#getLegacyEstimates(
-          gasFeeEstimates as LegacyGasPriceEstimate,
-        );
+        response = this.#getLegacyEstimates(gasFeeEstimates);
         break;
       case GAS_ESTIMATE_TYPES.ETH_GASPRICE:
         log('Using eth_gasPrice estimates', gasFeeEstimates);
-        response = this.#getGasPriceEstimates(
-          gasFeeEstimates as EthGasPriceEstimate,
-        );
+        response = this.#getGasPriceEstimates(gasFeeEstimates);
         break;
       default:
         throw new Error(`Unsupported gas estimate type: ${gasEstimateType}`);

@@ -1,9 +1,9 @@
 import { distance } from 'fastest-levenshtein';
 
-import {
-  PhishingDetectorResultType,
-  type PhishingDetectorResult,
-} from './types';
+import { matchedPathPrefix } from './PathTrie.js';
+import type { PathTrie } from './PathTrie.js';
+import { PhishingDetectorResultType } from './types.js';
+import type { PhishingDetectorResult } from './types.js';
 import {
   domainPartsToDomain,
   domainPartsToFuzzyForm,
@@ -14,7 +14,7 @@ import {
   matchPartsAgainstList,
   processConfigs,
   sha256Hash,
-} from './utils';
+} from './utils.js';
 
 export type LegacyPhishingDetectorList = {
   whitelist?: string[];
@@ -25,6 +25,7 @@ export type LegacyPhishingDetectorList = {
 export type PhishingDetectorList = {
   allowlist?: string[];
   blocklist?: string[];
+  blocklistPaths?: PathTrie;
   c2DomainBlocklist?: string[];
   name?: string;
   version?: string | number;
@@ -51,14 +52,15 @@ export type PhishingDetectorConfiguration = {
   allowlist: string[][];
   blocklist: string[][];
   c2DomainBlocklist?: Set<string>;
+  blocklistPaths?: PathTrie;
   fuzzylist: string[][];
   tolerance: number;
 };
 
 export class PhishingDetector {
-  #configs: PhishingDetectorConfiguration[];
+  readonly #configs: PhishingDetectorConfiguration[];
 
-  #legacyConfig: boolean;
+  readonly #legacyConfig: boolean;
 
   /**
    * Construct a phishing detector, which can check whether origins are known
@@ -81,7 +83,6 @@ export class PhishingDetector {
         getDefaultPhishingDetectorConfig({
           allowlist: opts.whitelist,
           blocklist: opts.blacklist,
-          c2DomainBlocklist: opts.c2DomainBlocklist,
           fuzzylist: opts.fuzzylist,
           tolerance: opts.tolerance,
         }),
@@ -147,7 +148,7 @@ export class PhishingDetector {
     let domain;
     try {
       domain = new URL(url).hostname;
-    } catch (error) {
+    } catch {
       return {
         result: false,
         type: PhishingDetectorResultType.All,
@@ -157,6 +158,22 @@ export class PhishingDetector {
     const fqdn = domain.endsWith('.') ? domain.slice(0, -1) : domain;
 
     const source = domainToParts(fqdn);
+
+    for (const { blocklistPaths, name, version } of this.#configs) {
+      if (!blocklistPaths || Object.keys(blocklistPaths).length === 0) {
+        continue;
+      }
+      const pathMatch = matchedPathPrefix(url, blocklistPaths);
+      if (pathMatch) {
+        return {
+          match: pathMatch,
+          name,
+          result: true,
+          type: PhishingDetectorResultType.Blocklist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+    }
 
     for (const { allowlist, name, version } of this.#configs) {
       // if source matches allowlist hostname (or subdomain thereof), PASS
@@ -173,8 +190,13 @@ export class PhishingDetector {
       }
     }
 
-    for (const { blocklist, fuzzylist, name, tolerance, version } of this
-      .#configs) {
+    for (const {
+      blocklist,
+      fuzzylist,
+      name,
+      tolerance,
+      version,
+    } of this.#configs) {
       // if source matches blocklist hostname (or subdomain thereof), FAIL
       const blocklistMatch = matchPartsAgainstList(source, blocklist);
       if (blocklistMatch) {
@@ -217,9 +239,28 @@ export class PhishingDetector {
   }
 
   /**
+   * Gets the specific terminal path from blocklistPaths that is blocking a URL.
+   *
+   * @param url - The URL to check.
+   * @returns The terminal path that is blocking the URL, or null if not blocked.
+   */
+  blockingPath(url: string): string | null {
+    for (const { blocklistPaths } of this.#configs) {
+      if (!blocklistPaths || Object.keys(blocklistPaths).length === 0) {
+        continue;
+      }
+      const matchedPath = matchedPathPrefix(url, blocklistPaths);
+      if (matchedPath) {
+        return matchedPath;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Checks if a URL is blocked against the hashed request blocklist.
    * This is done by hashing the URL's hostname and checking it against the hashed request blocklist.
-   *
    *
    * @param urlString - The URL to check.
    * @returns An object indicating if the URL is blocked and relevant metadata.
@@ -290,6 +331,7 @@ export class PhishingDetector {
 
 /**
  * Runs a regex match to determine if a string is a IPFS CID
+ *
  * @returns Regex string for IPFS CID
  */
 function ipfsCidRegex() {

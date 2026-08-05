@@ -95,6 +95,47 @@ export type MessengerEvents<
     : never;
 
 /**
+ * Extract the namespace from a Messenger type.
+ *
+ * @template Subject - The messenger type to extract from.
+ */
+export type MessengerNamespace<
+  Subject extends Messenger<string, ActionConstraint, EventConstraint>,
+> =
+  Subject extends Messenger<infer N, ActionConstraint, EventConstraint>
+    ? N
+    : never;
+
+/**
+ * Validate that all members of a union are present in a tuple.
+ *
+ * When all required members are present, evaluates to the input tuple unchanged.
+ * When members are missing, evaluates to a branded intersection type that
+ * produces a clear compile error showing exactly which items are missing via
+ * the `__MISSING_DELEGATIONS__` property.
+ *
+ * @template Required - The union of all required string types.
+ * @template Provided - The readonly tuple of provided string types.
+ * @example
+ * ```typescript
+ * // OK — all required items present
+ * type T1 = RequireExhaustive<'A' | 'B', readonly ['A', 'B']>;
+ * // => readonly ['A', 'B']
+ *
+ * // Error — 'C' is missing
+ * type T2 = RequireExhaustive<'A' | 'B' | 'C', readonly ['A', 'B']>;
+ * // => readonly ['A', 'B'] & { __MISSING_DELEGATIONS__: 'C' }
+ * ```
+ */
+type RequireExhaustive<
+  Required extends string,
+  Provided extends readonly string[],
+> = [Exclude<Required, Provided[number]>] extends [never]
+  ? Provided
+  : // eslint-disable-next-line @typescript-eslint/naming-convention
+    Provided & { __MISSING_DELEGATIONS__: Exclude<Required, Provided[number]> };
+
+/**
  * Messenger namespace checks can be disabled by using this as the `namespace` constructor
  * parameter, and using `MockAnyNamespace` as the Namespace type parameter.
  *
@@ -177,6 +218,7 @@ type DelegatedMessenger = Pick<
   | '_internalRegisterDelegatedActionHandler'
   | '_internalRegisterDelegatedInitialEventPayload'
   | '_internalUnregisterDelegatedActionHandler'
+  | 'captureException'
 >;
 
 type StripNamespace<Namespaced extends NamespacedName> =
@@ -255,19 +297,29 @@ export class Messenger<
   >();
 
   /**
+   * Reports an error to an error monitoring service.
+   *
+   * @param error - The error to report.
+   */
+  readonly captureException?: (error: Error) => void;
+
+  /**
    * Construct a messenger.
    *
    * If a parent messenger is given, all actions and events under this messenger's namespace will
    * be delegated to the parent automatically.
    *
    * @param args - Constructor arguments
+   * @param args.captureException - Reports an error to an error monitoring service.
    * @param args.namespace - The messenger namespace.
    * @param args.parent - The parent messenger.
    */
   constructor({
+    captureException,
     namespace,
     parent,
   }: {
+    captureException?: (error: Error) => void;
     namespace: Namespace;
     parent?: Action['type'] extends MessengerActions<Parent>['type']
       ? Event['type'] extends MessengerEvents<Parent>['type']
@@ -277,6 +329,7 @@ export class Messenger<
   }) {
     this.#namespace = namespace;
     this.#parent = parent;
+    this.captureException = captureException ?? this.#parent?.captureException;
   }
 
   /**
@@ -294,7 +347,7 @@ export class Messenger<
    */
   registerActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
-  >(actionType: ActionType, handler: ActionHandler<Action, ActionType>) {
+  >(actionType: ActionType, handler: ActionHandler<Action, ActionType>): void {
     if (!this.#isInCurrentNamespace(actionType)) {
       throw new Error(
         `Only allowed registering action handlers prefixed by '${
@@ -313,7 +366,7 @@ export class Messenger<
   #registerActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
     handler: ActionHandler<ActionConstraint, ActionType>,
-  ) {
+  ): void {
     if (this.#actions.has(actionType)) {
       throw new Error(
         `A handler for ${actionType} has already been registered`,
@@ -334,7 +387,10 @@ export class Messenger<
   registerMethodActionHandlers<
     MessengerClient extends { name: Namespace },
     MethodNames extends keyof MessengerClient & StripNamespace<Action['type']>,
-  >(messengerClient: MessengerClient, methodNames: readonly MethodNames[]) {
+  >(
+    messengerClient: MessengerClient,
+    methodNames: readonly MethodNames[],
+  ): void {
     for (const methodName of methodNames) {
       const method = messengerClient[methodName];
       if (typeof method === 'function') {
@@ -356,7 +412,7 @@ export class Messenger<
    */
   unregisterActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
-  >(actionType: ActionType) {
+  >(actionType: ActionType): void {
     if (!this.#isInCurrentNamespace(actionType)) {
       throw new Error(
         `Only allowed unregistering action handlers prefixed by '${
@@ -369,7 +425,7 @@ export class Messenger<
 
   #unregisterActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
-  ) {
+  ): void {
     this.#actions.delete(actionType);
   }
 
@@ -378,10 +434,86 @@ export class Messenger<
    *
    * This prevents all actions from being called.
    */
-  clearActions() {
+  clearActions(): void {
     for (const actionType of this.#actions.keys()) {
       this.#unregisterActionHandler(actionType);
     }
+  }
+
+  /**
+   * Get the types of all actions that this messenger can call directly.
+   *
+   * This includes actions registered on this messenger as well as actions that
+   * have been delegated to it from another messenger.
+   *
+   * Note that this reflects the registrations on this specific messenger
+   * instance.
+   *
+   * @returns An array of every action type this messenger can call directly.
+   */
+  getRegisteredActionTypes(): string[] {
+    return [...this.#actions.keys()];
+  }
+
+  /**
+   * Get the action handler for a given action type.
+   *
+   * This is a protected method to allow subclasses to override the way action
+   * handlers are retrieved, for example to implement custom delegation logic.
+   *
+   * @param actionType - The action type. This is a unique identifier for this
+   * action.
+   * @returns The action handler for the given action type, or undefined if no
+   * handler has been registered.
+   */
+  protected getAction(
+    actionType: Action['type'],
+  ): ActionConstraint['handler'] | undefined {
+    return this.#actions.get(actionType);
+  }
+
+  /**
+   * Create a new messenger as a child of this messenger (the "parent").
+   * All actions/events are delegated from the child to the parent, and the specified actions/events are delegated from the parent to the child.
+   *
+   * @param args - Arguments.
+   * @param args.namespace - The child messenger namespace.
+   * @param args.actions - A list of action types to delegate to the child messenger.
+   * @param args.events - A list of event types to delegate to the child messenger.
+   * @returns The child messenger.
+   */
+  buildChild<
+    ChildNamespace extends string,
+    ChildAction extends Action,
+    ChildEvent extends Event,
+  >({
+    namespace,
+    actions,
+    events,
+  }: {
+    namespace: ChildNamespace;
+    actions?: ChildAction['type'][];
+    events?: ChildEvent['type'][];
+  }): Messenger<ChildNamespace, ChildAction, ChildEvent> {
+    const childMessenger = new Messenger<
+      ChildNamespace,
+      ChildAction,
+      ChildEvent,
+      typeof this
+    >({
+      namespace,
+      // @ts-expect-error TypeScript cannot correctly infer this, but should be safe
+      // given `ChildAction extends Action` and `ChildEvent extends Event`.
+      parent: this,
+    });
+
+    this.delegate({
+      messenger: childMessenger,
+      actions,
+      events,
+    });
+
+    return childMessenger;
   }
 
   /**
@@ -401,13 +533,18 @@ export class Messenger<
     actionType: ActionType,
     ...params: ExtractActionParameters<Action, ActionType>
   ): ExtractActionResponse<Action, ActionType> {
-    const handler = this.#actions.get(actionType) as ActionHandler<
-      Action,
-      ActionType
-    >;
+    const handler = this.getAction(actionType) as
+      | ActionHandler<Action, ActionType>
+      | undefined;
+
     if (!handler) {
-      throw new Error(`A handler for ${actionType} has not been registered`);
+      throw new Error(
+        this.#isInCurrentNamespace(actionType)
+          ? `A handler for ${actionType} has not been registered`
+          : `A handler for ${actionType} has not been delegated to ${this.#namespace}`,
+      );
     }
+
     return handler(...params);
   }
 
@@ -433,7 +570,7 @@ export class Messenger<
   }: {
     eventType: EventType;
     getPayload: () => ExtractEventPayload<Event, EventType>;
-  }) {
+  }): void {
     if (!this.#isInCurrentNamespace(eventType)) {
       throw new Error(
         `Only allowed registering initial payloads for events prefixed by '${
@@ -458,7 +595,7 @@ export class Messenger<
   }: {
     eventType: EventType;
     getPayload: () => ExtractEventPayload<Event, EventType>;
-  }) {
+  }): void {
     this.#initialEventPayloadGetters.set(eventType, getPayload);
     const delegationTargets =
       this.#subscriptionDelegationTargets.get(eventType);
@@ -491,7 +628,7 @@ export class Messenger<
   publish<EventType extends Event['type'] & NamespacedName<Namespace>>(
     eventType: EventType & NamespacedName<Namespace>,
     ...payload: ExtractEventPayload<Event, EventType>
-  ) {
+  ): void {
     if (!this.#isInCurrentNamespace(eventType)) {
       throw new Error(
         `Only allowed publishing events prefixed by '${this.#namespace}:'`,
@@ -511,7 +648,7 @@ export class Messenger<
   #publish<EventType extends Event['type']>(
     eventType: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
-  ) {
+  ): void {
     const subscribers = this.#events.get(eventType);
 
     if (subscribers) {
@@ -529,11 +666,14 @@ export class Messenger<
             (handler as GenericEventHandler)(...payload);
           }
         } catch (error) {
-          // Throw error after timeout so that it is capured as a console error
-          // (and by Sentry) without interrupting the event publishing.
-          setTimeout(() => {
-            throw error;
-          });
+          // Capture error without interrupting the event publishing.
+          if (this.captureException) {
+            this.captureException(
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          } else {
+            console.error(error);
+          }
         }
       }
     }
@@ -635,6 +775,195 @@ export class Messenger<
   }
 
   /**
+   * Subscribe to an event, with a selector, invoking the handler exactly once.
+   *
+   * Registers the given handler function as an event handler for the given
+   * event type. When an event is published, its payload is first passed to the
+   * selector. The event handler is only called if the selector's return value
+   * differs from its last known return value. Additionally if the optional condition
+   * function is provided, it is checked whether it returns `true`.
+   * The handler is invoked at most once, after which the subscription is removed.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param handler - The event handler. The type of the parameters for this event
+   * handler must match the return type of the selector.
+   * @param options - Options bag.
+   * @param options.selector - The selector function used to select relevant data
+   * from the event payload. The type of the parameters for this selector must
+   * match the type of the payload for this event type.
+   * @param options.condition - An optional predicate evaluated against the
+   * selector's return value. The handler is only invoked when this returns `true`.
+   * @template EventType - A type union of Event type strings.
+   * @template SelectorReturnValue - The selector return value.
+   * @example
+   * ```typescript
+   * messenger.subscribeOnce(
+   *   'TransactionController:transactionConfirmed',
+   *   (hash) => { ... },
+   *   { selector: (tx) => tx.hash, condition: (hash) => hash === 'foo' },
+   * );
+   * ```
+   */
+  subscribeOnce<EventType extends Event['type'], SelectorReturnValue>(
+    eventType: EventType,
+    handler: SelectorEventHandler<SelectorReturnValue>,
+    options: {
+      selector: SelectorFunction<Event, EventType, SelectorReturnValue>;
+      condition?: (value: SelectorReturnValue) => boolean;
+    },
+  ): void;
+
+  /**
+   * Subscribe to an event, invoking the handler exactly once.
+   *
+   * Registers the given function as an event handler for the given event type
+   * and automatically unsubscribes after the first invocation.
+   *
+   * If `options.condition` is provided, the handler is only invoked (and the
+   * subscription only removed) when the condition returns `true`.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param handler - The event handler. The type of the parameters for this event
+   * handler must match the type of the payload for this event type.
+   * @param options - Options bag.
+   * @param options.condition - A predicate evaluated against the event payload.
+   * The handler is only invoked when this returns `true`.
+   * @template EventType - A type union of Event type strings.
+   * @example
+   * ```typescript
+   * messenger.subscribeOnce(
+   *   'TransactionController:transactionConfirmed',
+   *   (tx) => { ... },
+   *   { condition: (tx) => tx.hash === 'foo' },
+   * );
+   * ```
+   */
+  subscribeOnce<EventType extends Event['type']>(
+    eventType: EventType,
+    handler: ExtractEventHandler<Event, EventType>,
+    options?: {
+      condition?: (
+        ...payload: ExtractEventPayload<Event, EventType>
+      ) => boolean;
+    },
+  ): void;
+
+  subscribeOnce<EventType extends Event['type'], SelectorReturnValue>(
+    eventType: EventType,
+    handler:
+      | ExtractEventHandler<Event, EventType>
+      | SelectorEventHandler<SelectorReturnValue>,
+    options?: {
+      selector?: SelectorFunction<Event, EventType, SelectorReturnValue>;
+      condition?:
+        | ((...payload: ExtractEventPayload<Event, EventType>) => boolean)
+        | ((value: SelectorReturnValue) => boolean);
+    },
+  ): void {
+    const { selector, condition } = options ?? {};
+    // Casting to unknown to handle both the code path where a selector is defined and where it is omitted.
+    const internalHandler = (...args: unknown[]): void => {
+      if (
+        condition &&
+        !(condition as (...args: unknown[]) => boolean)(...args)
+      ) {
+        return;
+      }
+      this.unsubscribe(eventType, internalHandler);
+      (handler as (...args: unknown[]) => void)(...args);
+    };
+
+    this.subscribe(
+      eventType,
+      internalHandler,
+      selector as SelectorFunction<Event, EventType, SelectorReturnValue>,
+    );
+  }
+
+  /**
+   * Return a promise that resolves the next time the selector's return value
+   * changes and, if provided, the `options.condition` predicate returns `true`.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param options - Options bag.
+   * @param options.selector - The selector function used to select relevant data
+   * from the event payload.
+   * @param options.condition - An optional predicate evaluated against the
+   * selector's return value. The promise only resolves when this returns `true`.
+   * @template EventType - A type union of Event type strings.
+   * @template SelectorReturnValue - The selector return value.
+   * @returns A promise that resolves with the selector's return value.
+   * @example
+   * ```typescript
+   * const [hash] = await messenger.waitUntil(
+   *   'TransactionController:transactionConfirmed',
+   *   { selector: (tx) => tx.hash, condition: (hash) => hash === 'foo' },
+   * );
+   * ```
+   */
+  waitUntil<EventType extends Event['type'], SelectorReturnValue>(
+    eventType: EventType,
+    options: {
+      selector: SelectorFunction<Event, EventType, SelectorReturnValue>;
+      condition?: (value: SelectorReturnValue) => boolean;
+    },
+  ): Promise<[SelectorReturnValue, SelectorReturnValue | undefined]>;
+
+  /**
+   * Return a promise that resolves the next time the given event is published.
+   *
+   * If `options.condition` is provided, the promise only resolves when the
+   * condition returns `true`.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param options - Options bag.
+   * @param options.condition - A predicate evaluated against the event payload.
+   * The promise only resolves when this returns `true`.
+   * @template EventType - A type union of Event type strings.
+   * @returns A promise that resolves with the event payload.
+   * @example
+   * ```typescript
+   * const [transactionMeta] = await messenger.waitUntil(
+   *   'TransactionController:transactionConfirmed',
+   *   { condition: (tx) => tx.hash === 'foo' },
+   * );
+   * ```
+   * @example
+   * ```typescript
+   * await messenger.waitUntil('KeyringController:unlock');
+   * ```
+   */
+  waitUntil<EventType extends Event['type']>(
+    eventType: EventType,
+    options?: {
+      condition?: (
+        ...payload: ExtractEventPayload<Event, EventType>
+      ) => boolean;
+    },
+  ): Promise<ExtractEventPayload<Event, EventType>>;
+
+  waitUntil<EventType extends Event['type'], SelectorReturnValue>(
+    eventType: EventType,
+    options?: {
+      selector?: SelectorFunction<Event, EventType, SelectorReturnValue>;
+      condition?:
+        | ((...payload: ExtractEventPayload<Event, EventType>) => boolean)
+        | ((value: SelectorReturnValue) => boolean);
+    },
+  ): Promise<SelectorReturnValue | ExtractEventPayload<Event, EventType>[0]> {
+    return new Promise((resolve) => {
+      this.subscribeOnce(
+        eventType,
+        (...args) => resolve(args),
+        options as {
+          selector: SelectorFunction<Event, EventType, SelectorReturnValue>;
+          condition?: (value: SelectorReturnValue) => boolean;
+        },
+      );
+    });
+  }
+
+  /**
    * Unsubscribe from an event.
    *
    * Unregisters the given function as an event handler for the given event.
@@ -650,7 +979,7 @@ export class Messenger<
     handler:
       | ExtractEventHandler<Event, EventType>
       | SelectorEventHandler<SelectorReturnValue>,
-  ) {
+  ): void {
     const subscribers = this.#events.get(eventType);
 
     // Widen type of event handler by dropping ReturnType parameter.
@@ -689,7 +1018,7 @@ export class Messenger<
    */
   clearEventSubscriptions<EventType extends Event['type']>(
     eventType: EventType,
-  ) {
+  ): void {
     const subscriptions = this.#events.get(eventType);
     if (!subscriptions) {
       return;
@@ -713,7 +1042,7 @@ export class Messenger<
    * This will remove all subscribed handlers for all events registered from this messenger. Events
    * may still have subscribers if they are delegated to another messenger.
    */
-  clearSubscriptions() {
+  clearSubscriptions(): void {
     for (const eventType of this.#events.keys()) {
       this.clearEventSubscriptions(eventType);
     }
@@ -740,8 +1069,10 @@ export class Messenger<
    */
   delegate<
     Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
-    DelegatedActions extends (MessengerActions<Delegatee> & Action)['type'][],
-    DelegatedEvents extends (MessengerEvents<Delegatee> & Event)['type'][],
+    DelegatedActions extends (MessengerActions<Delegatee>['type'] &
+      Action['type'])[],
+    DelegatedEvents extends (MessengerEvents<Delegatee>['type'] &
+      Event['type'])[],
   >({
     actions,
     events,
@@ -750,27 +1081,32 @@ export class Messenger<
     actions?: DelegatedActions;
     events?: DelegatedEvents;
     messenger: Delegatee;
-  }) {
-    for (const actionType of actions || []) {
+  }): void {
+    for (const actionType of actions ?? []) {
       const delegatedActionHandler = (
         ...args: ExtractActionParameters<
           MessengerActions<Delegatee> & Action,
           typeof actionType
         >
-      ) => {
+      ): ExtractActionResponse<
+        MessengerActions<Delegatee> & Action,
+        typeof actionType
+      > => {
         // Cast to get more specific type, for this specific action
         // The types get collapsed by `this.#actions`
-        const actionHandler = this.#actions.get(actionType) as
+        const actionHandler = this.getAction(actionType) as
           | ActionHandler<
               MessengerActions<Delegatee> & Action,
               typeof actionType
             >
           | undefined;
+
         if (!actionHandler) {
           throw new Error(
             `A handler for ${actionType} has not been registered`,
           );
         }
+
         return actionHandler(...args);
       };
       let delegationTargets = this.#actionDelegationTargets.get(actionType);
@@ -790,13 +1126,13 @@ export class Messenger<
         delegatedActionHandler,
       );
     }
-    for (const eventType of events || []) {
+    for (const eventType of events ?? []) {
       const untypedSubscriber = (
         ...payload: ExtractEventPayload<
           MessengerEvents<Delegatee> & Event,
           typeof eventType
         >
-      ) => {
+      ): void => {
         messenger._internalPublishDelegated(eventType, ...payload);
       };
       // Cast to get more specific subscriber type for this specific event.
@@ -835,6 +1171,65 @@ export class Messenger<
   }
 
   /**
+   * Delegate all external actions and events to another messenger, with
+   * compile-time exhaustiveness checking.
+   *
+   * Unlike {@link delegate}, which accepts a partial list of actions/events,
+   * this method requires that **every** action and event the delegatee needs
+   * from outside its own namespace is included. If any are missing, TypeScript
+   * produces a type error showing the missing items.
+   *
+   * The source messenger's action/event types must include every required
+   * external item. Items the source cannot provide still appear in the
+   * missing set, so incomplete source typing fails loudly instead of being
+   * silently skipped.
+   *
+   * Use this when a single source messenger provides all external
+   * actions/events for a child messenger (the common pattern in controller
+   * initialisation).
+   *
+   * @param args - Arguments.
+   * @param args.actions - The action types to delegate. Must include every
+   *   action type defined on the delegatee that is **not** under its own
+   *   namespace.
+   * @param args.events - The event types to delegate. Must include every event
+   *   type defined on the delegatee that is **not** under its own namespace.
+   * @param args.messenger - The messenger to delegate to.
+   * @template Delegatee - The messenger the actions/events are delegated to.
+   * @template DelegatedActions - An array of delegated action type strings.
+   * @template DelegatedEvents - An array of delegated event type strings.
+   */
+  delegateAll<
+    Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
+    DelegatedActions extends (MessengerActions<Delegatee>['type'] &
+      Action['type'])[],
+    DelegatedEvents extends (MessengerEvents<Delegatee>['type'] &
+      Event['type'])[],
+  >({
+    actions,
+    events,
+    messenger,
+  }: {
+    messenger: Delegatee;
+    actions: RequireExhaustive<
+      NotNamespacedBy<
+        MessengerNamespace<Delegatee>,
+        MessengerActions<Delegatee>['type']
+      >,
+      DelegatedActions
+    >;
+    events: RequireExhaustive<
+      NotNamespacedBy<
+        MessengerNamespace<Delegatee>,
+        MessengerEvents<Delegatee>['type']
+      >,
+      DelegatedEvents
+    >;
+  }): void {
+    this.delegate({ actions, events, messenger });
+  }
+
+  /**
    * Revoke delegated actions and/or events from another messenger.
    *
    * The messenger these actions/events are delegated to will no longer be able to call these
@@ -850,8 +1245,10 @@ export class Messenger<
    */
   revoke<
     Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
-    DelegatedActions extends (MessengerActions<Delegatee> & Action)['type'][],
-    DelegatedEvents extends (MessengerEvents<Delegatee> & Event)['type'][],
+    DelegatedActions extends (MessengerActions<Delegatee>['type'] &
+      Action['type'])[],
+    DelegatedEvents extends (MessengerEvents<Delegatee>['type'] &
+      Event['type'])[],
   >({
     actions,
     events,
@@ -860,13 +1257,13 @@ export class Messenger<
     actions?: DelegatedActions;
     events?: DelegatedEvents;
     messenger: Delegatee;
-  }) {
+  }): void {
     if (messenger === this.#parent) {
       throw new Error('Cannot revoke from parent');
     }
-    for (const actionType of actions || []) {
+    for (const actionType of actions ?? []) {
       const delegationTargets = this.#actionDelegationTargets.get(actionType);
-      if (!delegationTargets || !delegationTargets.has(messenger)) {
+      if (!delegationTargets?.has(messenger)) {
         // Nothing to revoke
         continue;
       }
@@ -876,7 +1273,7 @@ export class Messenger<
         this.#actionDelegationTargets.delete(actionType);
       }
     }
-    for (const eventType of events || []) {
+    for (const eventType of events ?? []) {
       const delegationTargets =
         this.#subscriptionDelegationTargets.get(eventType);
       if (!delegationTargets) {
@@ -918,7 +1315,7 @@ export class Messenger<
     // contravariant over the handler parameter type. Using `Action` would lead to a type error
     // here because the messenger we've delegated to supports _additional_ actions.
     handler: ActionHandler<ActionConstraint, ActionType>,
-  ) {
+  ): void {
     this.#registerActionHandler(actionType, handler);
   }
 
@@ -937,7 +1334,7 @@ export class Messenger<
    */
   _internalUnregisterDelegatedActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
-  ) {
+  ): void {
     this.#unregisterActionHandler(actionType);
   }
 
@@ -966,7 +1363,7 @@ export class Messenger<
   }: {
     eventType: EventType;
     getPayload: () => ExtractEventPayload<Event, EventType>;
-  }) {
+  }): void {
     this.#registerInitialEventPayload({ eventType, getPayload });
   }
 
@@ -991,7 +1388,7 @@ export class Messenger<
   _internalPublishDelegated<EventType extends Event['type']>(
     eventType: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
-  ) {
+  ): void {
     this.#publish(eventType, ...payload);
   }
 

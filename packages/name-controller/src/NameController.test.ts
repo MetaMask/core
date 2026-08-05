@@ -1,16 +1,18 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+
 import type {
   SetNameRequest,
   UpdateProposedNamesRequest,
   NameControllerState,
-} from './NameController';
+} from './NameController.js';
 import {
   FALLBACK_VARIATION,
   NameController,
   NameOrigin,
   PROPOSED_NAME_EXPIRE_DURATION,
-} from './NameController';
-import type { NameProvider } from './types';
-import { NameType } from './types';
+} from './NameController.js';
+import type { NameProvider } from './types.js';
+import { NameType } from './types.js';
 
 const NAME_MOCK = 'TestName';
 const PROPOSED_NAME_MOCK = 'TestProposedName';
@@ -23,6 +25,7 @@ const TIME_MOCK = 123;
 
 const MESSENGER_MOCK = {
   registerActionHandler: jest.fn(),
+  registerMethodActionHandlers: jest.fn(),
   registerInitialEventPayload: jest.fn(),
   publish: jest.fn(),
   // TODO: Replace `any` with type
@@ -2749,6 +2752,89 @@ describe('NameController', () => {
           }),
         );
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
+          },
+        }
+      `);
     });
   });
 });

@@ -1,10 +1,23 @@
-import Controller from './UserStorageController';
+import { UserStorageController } from './UserStorageController.js';
 
-const UserStorageController = Controller;
-export { Controller };
+export { UserStorageController as Controller };
 export default UserStorageController;
-export * from './UserStorageController';
-export * as Mocks from './mocks';
-export * from './constants';
-export * from '../../shared/encryption';
-export * from '../../shared/storage-schema';
+export * from './UserStorageController.js';
+export * as Mocks from './mocks/index.js';
+export * from './constants.js';
+export * from '../../shared/encryption/index.js';
+export * from '../../shared/storage-schema.js';
+export type {
+  UserStorageControllerPerformGetStorageAction,
+  UserStorageControllerPerformGetStorageAllFeatureEntriesAction,
+  UserStorageControllerPerformSetStorageAction,
+  UserStorageControllerPerformBatchSetStorageAction,
+  UserStorageControllerPerformDeleteStorageAction,
+  UserStorageControllerPerformDeleteStorageAllFeatureEntriesAction,
+  UserStorageControllerPerformBatchDeleteStorageAction,
+  UserStorageControllerGetStorageKeyAction,
+  UserStorageControllerListEntropySourcesAction,
+  UserStorageControllerSetIsBackupAndSyncFeatureEnabledAction,
+  UserStorageControllerSetIsContactSyncingInProgressAction,
+  UserStorageControllerSyncContactsWithUserStorageAction,
+} from './UserStorageController-method-action-types.js';

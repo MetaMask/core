@@ -1,6 +1,15 @@
-import type nock from 'nock';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
+import nock from 'nock';
 
-import { mockUserStorageMessenger } from './__fixtures__/mockMessenger';
+import { Env, getEnvUrls } from '../../sdk/index.js';
+import { createSHA256Hash } from '../../shared/encryption/index.js';
+import type { UserStorageGenericPathWithFeatureAndKey } from '../../shared/storage-schema.js';
+import {
+  createEntryPath,
+  USER_STORAGE_FEATURE_NAMES,
+} from '../../shared/storage-schema.js';
+import { mockUserStorageMessenger } from './__fixtures__/mockMessenger.js';
 import {
   mockEndpointBatchUpsertUserStorage,
   mockEndpointGetUserStorage,
@@ -9,275 +18,291 @@ import {
   mockEndpointDeleteUserStorageAllFeatureEntries,
   mockEndpointDeleteUserStorage,
   mockEndpointBatchDeleteUserStorage,
-} from './__fixtures__/mockServices';
-import { mockUserStorageMessengerForAccountSyncing } from './account-syncing/__fixtures__/test-utils';
-import * as AccountSyncControllerIntegrationModule from './account-syncing/controller-integration';
-import { BACKUPANDSYNC_FEATURES } from './constants';
-import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
-import UserStorageController, { defaultState } from './UserStorageController';
-import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
+} from './__fixtures__/mockServices.js';
+import { BACKUPANDSYNC_FEATURES } from './constants.js';
+import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage.js';
+import {
+  UserStorageController,
+  defaultState,
+} from './UserStorageController.js';
 
-describe('user-storage/user-storage-controller - constructor() tests', () => {
-  const arrangeMocks = () => {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
+describe('UserStorageController', () => {
+  describe('constructor', () => {
+    const arrangeMocks = () => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+      };
     };
-  };
 
-  it('creates UserStorage with default state', () => {
-    const { messengerMocks } = arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-
-    expect(controller.state.isBackupAndSyncEnabled).toBe(true);
-  });
-});
-
-describe('user-storage/user-storage-controller - performGetStorage() tests', () => {
-  const arrangeMocks = async () => {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-      mockAPI: await mockEndpointGetUserStorage(),
-    };
-  };
-
-  it('returns users notification storage', async () => {
-    const { messengerMocks, mockAPI } = await arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-
-    const result = await controller.performGetStorage(
-      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-    );
-    mockAPI.done();
-    expect(result).toBe(MOCK_STORAGE_DATA);
-  });
-
-  it.each([
-    [
-      'fails when no bearer token is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-    [
-      'fails when no session identifier is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-  ])(
-    'rejects on auth failure - %s',
-    async (
-      _: string,
-      arrangeFailureCase: (
-        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
-      ) => void,
-    ) => {
-      const { messengerMocks } = await arrangeMocks();
-      arrangeFailureCase(messengerMocks);
-      const controller = new UserStorageController({
-        messenger: messengerMocks.messenger,
-      });
-
-      await expect(
-        controller.performGetStorage(
-          `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-        ),
-      ).rejects.toThrow(expect.any(Error));
-    },
-  );
-});
-
-describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntries() tests', () => {
-  const arrangeMocks = async () => {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-      mockAPI: await mockEndpointGetUserStorageAllFeatureEntries(),
-    };
-  };
-
-  it('returns users notification storage', async () => {
-    const { messengerMocks, mockAPI } = await arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-
-    const result =
-      await controller.performGetStorageAllFeatureEntries('notifications');
-    mockAPI.done();
-    expect(result).toStrictEqual([MOCK_STORAGE_DATA]);
-  });
-
-  it.each([
-    [
-      'fails when no bearer token is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-    [
-      'fails when no session identifier is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-  ])(
-    'rejects on auth failure - %s',
-    async (
-      _: string,
-      arrangeFailureCase: (
-        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
-      ) => void,
-    ) => {
-      const { messengerMocks } = await arrangeMocks();
-      arrangeFailureCase(messengerMocks);
-      const controller = new UserStorageController({
-        messenger: messengerMocks.messenger,
-      });
-
-      await expect(
-        controller.performGetStorageAllFeatureEntries(
-          USER_STORAGE_FEATURE_NAMES.notifications,
-        ),
-      ).rejects.toThrow(expect.any(Error));
-    },
-  );
-});
-
-describe('user-storage/user-storage-controller - performSetStorage() tests', () => {
-  const arrangeMocks = (overrides?: { mockAPI?: nock.Scope }) => {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-      mockAPI: overrides?.mockAPI ?? mockEndpointUpsertUserStorage(),
-    };
-  };
-
-  it('saves users storage', async () => {
-    const { messengerMocks, mockAPI } = arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-
-    await controller.performSetStorage(
-      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-      'new data',
-    );
-    expect(mockAPI.isDone()).toBe(true);
-  });
-
-  it.each([
-    [
-      'fails when no bearer token is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-    [
-      'fails when no session identifier is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-  ])(
-    'rejects on auth failure - %s',
-    async (
-      _: string,
-      arrangeFailureCase: (
-        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
-      ) => void,
-    ) => {
+    it('creates UserStorage with default state', () => {
       const { messengerMocks } = arrangeMocks();
-      arrangeFailureCase(messengerMocks);
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
       });
 
+      expect(controller.state.isBackupAndSyncEnabled).toBe(true);
+    });
+  });
+
+  describe('performGetStorage', () => {
+    const arrangeMocks = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+        mockAPI: await mockEndpointGetUserStorage(),
+      };
+    };
+
+    it('returns users notification storage', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocks();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const result = await controller.performGetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      );
+      mockAPI.done();
+      expect(result).toBe(MOCK_STORAGE_DATA);
+    });
+
+    it.each([
+      [
+        'fails when no bearer token is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+      [
+        'fails when no session identifier is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+    ])(
+      'rejects on auth failure - %s',
+      async (
+        _: string,
+        arrangeFailureCase: (
+          messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+        ) => void,
+      ) => {
+        const { messengerMocks } = await arrangeMocks();
+        arrangeFailureCase(messengerMocks);
+        const controller = new UserStorageController({
+          messenger: messengerMocks.messenger,
+        });
+
+        await expect(
+          controller.performGetStorage(
+            `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+          ),
+        ).rejects.toThrow(expect.any(Error));
+      },
+    );
+  });
+
+  describe('performGetStorageAllFeatureEntries', () => {
+    const arrangeMocks = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+        mockAPI: await mockEndpointGetUserStorageAllFeatureEntries(),
+      };
+    };
+
+    it('returns users notification storage', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocks();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const result =
+        await controller.performGetStorageAllFeatureEntries('notifications');
+      mockAPI.done();
+      expect(result).toStrictEqual([MOCK_STORAGE_DATA]);
+    });
+
+    it.each([
+      [
+        'fails when no bearer token is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+      [
+        'fails when no session identifier is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+    ])(
+      'rejects on auth failure - %s',
+      async (
+        _: string,
+        arrangeFailureCase: (
+          messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+        ) => void,
+      ) => {
+        const { messengerMocks } = await arrangeMocks();
+        arrangeFailureCase(messengerMocks);
+        const controller = new UserStorageController({
+          messenger: messengerMocks.messenger,
+        });
+
+        await expect(
+          controller.performGetStorageAllFeatureEntries(
+            USER_STORAGE_FEATURE_NAMES.notifications,
+          ),
+        ).rejects.toThrow(expect.any(Error));
+      },
+    );
+  });
+
+  describe('performSetStorage', () => {
+    const arrangeMocks = (overrides?: { mockAPI?: nock.Scope }) => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+        mockAPI: overrides?.mockAPI ?? mockEndpointUpsertUserStorage(),
+      };
+    };
+
+    it('saves users storage', async () => {
+      const { messengerMocks, mockAPI } = arrangeMocks();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      await controller.performSetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+        'new data',
+      );
+      expect(mockAPI.isDone()).toBe(true);
+    });
+
+    it.each([
+      [
+        'fails when no bearer token is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+      [
+        'fails when no session identifier is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+    ])(
+      'rejects on auth failure - %s',
+      async (
+        _: string,
+        arrangeFailureCase: (
+          messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+        ) => void,
+      ) => {
+        const { messengerMocks } = arrangeMocks();
+        arrangeFailureCase(messengerMocks);
+        const controller = new UserStorageController({
+          messenger: messengerMocks.messenger,
+        });
+
+        await expect(
+          controller.performSetStorage(
+            `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+            'new data',
+          ),
+        ).rejects.toThrow(expect.any(Error));
+      },
+    );
+
+    it('rejects if api call fails', async () => {
+      const { messengerMocks } = arrangeMocks({
+        mockAPI: mockEndpointUpsertUserStorage(
+          `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+          { status: 500 },
+        ),
+      });
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
       await expect(
         controller.performSetStorage(
           `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
           'new data',
         ),
       ).rejects.toThrow(expect.any(Error));
-    },
-  );
-
-  it('rejects if api call fails', async () => {
-    const { messengerMocks } = arrangeMocks({
-      mockAPI: mockEndpointUpsertUserStorage(
-        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-        { status: 500 },
-      ),
     });
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-    await expect(
-      controller.performSetStorage(
-        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-        'new data',
-      ),
-    ).rejects.toThrow(expect.any(Error));
   });
-});
 
-describe('user-storage/user-storage-controller - performBatchSetStorage() tests', () => {
-  const arrangeMocks = (mockResponseStatus?: number) => {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-      mockAPI: mockEndpointBatchUpsertUserStorage(
-        USER_STORAGE_FEATURE_NAMES.notifications,
-        mockResponseStatus ? { status: mockResponseStatus } : undefined,
-      ),
+  describe('performBatchSetStorage', () => {
+    const arrangeMocks = (mockResponseStatus?: number) => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+        mockAPI: mockEndpointBatchUpsertUserStorage(
+          USER_STORAGE_FEATURE_NAMES.notifications,
+          mockResponseStatus ? { status: mockResponseStatus } : undefined,
+        ),
+      };
     };
-  };
 
-  it('batch saves to user storage', async () => {
-    const { messengerMocks, mockAPI } = arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+    it('batch saves to user storage', async () => {
+      const { messengerMocks, mockAPI } = arrangeMocks();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      await controller.performBatchSetStorage(
+        USER_STORAGE_FEATURE_NAMES.notifications,
+        [['notification_settings', 'new data']],
+      );
+      expect(mockAPI.isDone()).toBe(true);
     });
 
-    await controller.performBatchSetStorage(
-      USER_STORAGE_FEATURE_NAMES.notifications,
-      [['notification_settings', 'new data']],
-    );
-    expect(mockAPI.isDone()).toBe(true);
-  });
+    it.each([
+      [
+        'fails when no bearer token is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+      [
+        'fails when no session identifier is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+    ])(
+      'rejects on auth failure - %s',
+      async (
+        _: string,
+        arrangeFailureCase: (
+          messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+        ) => void,
+      ) => {
+        const { messengerMocks } = arrangeMocks();
+        arrangeFailureCase(messengerMocks);
+        const controller = new UserStorageController({
+          messenger: messengerMocks.messenger,
+        });
 
-  it.each([
-    [
-      'fails when no bearer token is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-    [
-      'fails when no session identifier is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-  ])(
-    'rejects on auth failure - %s',
-    async (
-      _: string,
-      arrangeFailureCase: (
-        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
-      ) => void,
-    ) => {
-      const { messengerMocks } = arrangeMocks();
-      arrangeFailureCase(messengerMocks);
+        await expect(
+          controller.performBatchSetStorage(
+            USER_STORAGE_FEATURE_NAMES.notifications,
+            [['notification_settings', 'new data']],
+          ),
+        ).rejects.toThrow(expect.any(Error));
+      },
+    );
+
+    it('rejects if api call fails', async () => {
+      const { messengerMocks, mockAPI } = arrangeMocks(500);
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
       });
@@ -288,74 +313,74 @@ describe('user-storage/user-storage-controller - performBatchSetStorage() tests'
           [['notification_settings', 'new data']],
         ),
       ).rejects.toThrow(expect.any(Error));
-    },
-  );
-
-  it('rejects if api call fails', async () => {
-    const { messengerMocks, mockAPI } = arrangeMocks(500);
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+      mockAPI.done();
     });
-
-    await expect(
-      controller.performBatchSetStorage(
-        USER_STORAGE_FEATURE_NAMES.notifications,
-        [['notification_settings', 'new data']],
-      ),
-    ).rejects.toThrow(expect.any(Error));
-    mockAPI.done();
   });
-});
 
-describe('user-storage/user-storage-controller - performBatchDeleteStorage() tests', () => {
-  const arrangeMocks = (mockResponseStatus?: number) => {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-      mockAPI: mockEndpointBatchDeleteUserStorage(
-        'notifications',
-        mockResponseStatus ? { status: mockResponseStatus } : undefined,
-      ),
+  describe('performBatchDeleteStorage', () => {
+    const arrangeMocks = (mockResponseStatus?: number) => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+        mockAPI: mockEndpointBatchDeleteUserStorage(
+          'notifications',
+          mockResponseStatus ? { status: mockResponseStatus } : undefined,
+        ),
+      };
     };
-  };
 
-  it('batch deletes entries in user storage', async () => {
-    const { messengerMocks, mockAPI } = arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+    it('batch deletes entries in user storage', async () => {
+      const { messengerMocks, mockAPI } = arrangeMocks();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      await controller.performBatchDeleteStorage('notifications', [
+        'notification_settings',
+        'notification_settings',
+      ]);
+      expect(mockAPI.isDone()).toBe(true);
     });
 
-    await controller.performBatchDeleteStorage('notifications', [
-      'notification_settings',
-      'notification_settings',
-    ]);
-    expect(mockAPI.isDone()).toBe(true);
-  });
+    it.each([
+      [
+        'fails when no bearer token is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+      [
+        'fails when no session identifier is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+    ])(
+      'rejects on auth failure - %s',
+      async (
+        _: string,
+        arrangeFailureCase: (
+          messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+        ) => void,
+      ) => {
+        const { messengerMocks } = arrangeMocks();
+        arrangeFailureCase(messengerMocks);
+        const controller = new UserStorageController({
+          messenger: messengerMocks.messenger,
+        });
 
-  it.each([
-    [
-      'fails when no bearer token is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-    [
-      'fails when no session identifier is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-  ])(
-    'rejects on auth failure - %s',
-    async (
-      _: string,
-      arrangeFailureCase: (
-        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
-      ) => void,
-    ) => {
-      const { messengerMocks } = arrangeMocks();
-      arrangeFailureCase(messengerMocks);
+        await expect(
+          controller.performBatchDeleteStorage('notifications', [
+            'notification_settings',
+            'notification_settings',
+          ]),
+        ).rejects.toThrow(expect.any(Error));
+      },
+    );
+
+    it('rejects if api call fails', async () => {
+      const { messengerMocks, mockAPI } = arrangeMocks(500);
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
       });
@@ -366,75 +391,74 @@ describe('user-storage/user-storage-controller - performBatchDeleteStorage() tes
           'notification_settings',
         ]),
       ).rejects.toThrow(expect.any(Error));
-    },
-  );
-
-  it('rejects if api call fails', async () => {
-    const { messengerMocks, mockAPI } = arrangeMocks(500);
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+      mockAPI.done();
     });
-
-    await expect(
-      controller.performBatchDeleteStorage('notifications', [
-        'notification_settings',
-        'notification_settings',
-      ]),
-    ).rejects.toThrow(expect.any(Error));
-    mockAPI.done();
   });
-});
 
-describe('user-storage/user-storage-controller - performDeleteStorage() tests', () => {
-  const arrangeMocks = async (mockResponseStatus?: number) => {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-      mockAPI: mockEndpointDeleteUserStorage(
-        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-        mockResponseStatus ? { status: mockResponseStatus } : undefined,
-      ),
+  describe('performDeleteStorage', () => {
+    const arrangeMocks = async (mockResponseStatus?: number) => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+        mockAPI: mockEndpointDeleteUserStorage(
+          `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+          mockResponseStatus ? { status: mockResponseStatus } : undefined,
+        ),
+      };
     };
-  };
 
-  it('deletes a user storage entry', async () => {
-    const { messengerMocks, mockAPI } = await arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+    it('deletes a user storage entry', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocks();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      await controller.performDeleteStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      );
+      mockAPI.done();
+
+      expect(mockAPI.isDone()).toBe(true);
     });
 
-    await controller.performDeleteStorage(
-      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+    it.each([
+      [
+        'fails when no bearer token is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+      [
+        'fails when no session identifier is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+    ])(
+      'rejects on auth failure - %s',
+      async (
+        _: string,
+        arrangeFailureCase: (
+          messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+        ) => void,
+      ) => {
+        const { messengerMocks } = await arrangeMocks();
+        arrangeFailureCase(messengerMocks);
+        const controller = new UserStorageController({
+          messenger: messengerMocks.messenger,
+        });
+
+        await expect(
+          controller.performDeleteStorage(
+            `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+          ),
+        ).rejects.toThrow(expect.any(Error));
+      },
     );
-    mockAPI.done();
 
-    expect(mockAPI.isDone()).toBe(true);
-  });
-
-  it.each([
-    [
-      'fails when no bearer token is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-    [
-      'fails when no session identifier is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
-  ])(
-    'rejects on auth failure - %s',
-    async (
-      _: string,
-      arrangeFailureCase: (
-        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
-      ) => void,
-    ) => {
-      const { messengerMocks } = await arrangeMocks();
-      arrangeFailureCase(messengerMocks);
+    it('rejects if api call fails', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocks(500);
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
       });
@@ -444,74 +468,74 @@ describe('user-storage/user-storage-controller - performDeleteStorage() tests', 
           `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
         ),
       ).rejects.toThrow(expect.any(Error));
-    },
-  );
-
-  it('rejects if api call fails', async () => {
-    const { messengerMocks, mockAPI } = await arrangeMocks(500);
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+      mockAPI.done();
     });
-
-    await expect(
-      controller.performDeleteStorage(
-        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-      ),
-    ).rejects.toThrow(expect.any(Error));
-    mockAPI.done();
-  });
-});
-
-describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureEntries() tests', () => {
-  const arrangeMocks = async (mockResponseStatus?: number) => {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-      mockAPI: mockEndpointDeleteUserStorageAllFeatureEntries(
-        USER_STORAGE_FEATURE_NAMES.notifications,
-        mockResponseStatus ? { status: mockResponseStatus } : undefined,
-      ),
-    };
-  };
-
-  it('deletes all user storage entries for a feature', async () => {
-    const { messengerMocks, mockAPI } = await arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-
-    await controller.performDeleteStorageAllFeatureEntries(
-      USER_STORAGE_FEATURE_NAMES.notifications,
-    );
-    mockAPI.done();
-
-    expect(mockAPI.isDone()).toBe(true);
   });
 
-  it.each([
-    [
-      'fails when no bearer token is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
-          new Error('MOCK FAILURE'),
+  describe('performDeleteStorageAllFeatureEntries', () => {
+    const arrangeMocks = async (mockResponseStatus?: number) => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+        mockAPI: mockEndpointDeleteUserStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.notifications,
+          mockResponseStatus ? { status: mockResponseStatus } : undefined,
         ),
-    ],
-    // [
-    //   'fails when no session identifier is found (auth errors)',
-    //   (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-    //     messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
-    //       new Error('MOCK FAILURE'),
-    //     ),
-    // ],
-  ])(
-    'rejects on auth failure - %s',
-    async (
-      _: string,
-      arrangeFailureCase: (
-        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
-      ) => void,
-    ) => {
-      const { messengerMocks } = await arrangeMocks();
-      arrangeFailureCase(messengerMocks);
+      };
+    };
+
+    it('deletes all user storage entries for a feature', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocks();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      await controller.performDeleteStorageAllFeatureEntries(
+        USER_STORAGE_FEATURE_NAMES.notifications,
+      );
+      mockAPI.done();
+
+      expect(mockAPI.isDone()).toBe(true);
+    });
+
+    it.each([
+      [
+        'fails when no bearer token is found (auth errors)',
+        (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+          messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+            new Error('MOCK FAILURE'),
+          ),
+      ],
+      // [
+      //   'fails when no session identifier is found (auth errors)',
+      //   (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+      //     messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+      //       new Error('MOCK FAILURE'),
+      //     ),
+      // ],
+    ])(
+      'rejects on auth failure - %s',
+      async (
+        _: string,
+        arrangeFailureCase: (
+          messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+        ) => void,
+      ) => {
+        const { messengerMocks } = await arrangeMocks();
+        arrangeFailureCase(messengerMocks);
+        const controller = new UserStorageController({
+          messenger: messengerMocks.messenger,
+        });
+
+        await expect(
+          controller.performDeleteStorageAllFeatureEntries(
+            USER_STORAGE_FEATURE_NAMES.notifications,
+          ),
+        ).rejects.toThrow(expect.any(Error));
+      },
+    );
+
+    it('rejects if api call fails', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocks(500);
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
       });
@@ -521,338 +545,429 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
           USER_STORAGE_FEATURE_NAMES.notifications,
         ),
       ).rejects.toThrow(expect.any(Error));
-    },
-  );
-
-  it('rejects if api call fails', async () => {
-    const { messengerMocks, mockAPI } = await arrangeMocks(500);
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+      mockAPI.done();
     });
-
-    await expect(
-      controller.performDeleteStorageAllFeatureEntries(
-        USER_STORAGE_FEATURE_NAMES.notifications,
-      ),
-    ).rejects.toThrow(expect.any(Error));
-    mockAPI.done();
   });
-});
 
-describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
-  const arrangeMocks = async () => {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
+  describe('getStorageKey', () => {
+    const arrangeMocks = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+      };
     };
-  };
 
-  it('should return a storage key', async () => {
-    const { messengerMocks } = await arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+    it('should return a storage key', async () => {
+      const { messengerMocks } = await arrangeMocks();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const result = await controller.getStorageKey();
+      expect(result).toBe(MOCK_STORAGE_KEY);
     });
 
-    const result = await controller.getStorageKey();
-    expect(result).toBe(MOCK_STORAGE_KEY);
-  });
+    it('fails when no session identifier is found (auth error)', async () => {
+      const { messengerMocks } = await arrangeMocks();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
 
-  it('fails when no session identifier is found (auth error)', async () => {
-    const { messengerMocks } = await arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+      messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+        new Error('MOCK FAILURE'),
+      );
+
+      await expect(controller.getStorageKey()).rejects.toThrow(
+        expect.any(Error),
+      );
     });
-
-    messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
-      new Error('MOCK FAILURE'),
-    );
-
-    await expect(controller.getStorageKey()).rejects.toThrow(expect.any(Error));
   });
-});
 
-describe('user-storage/user-storage-controller - setIsBackupAndSyncFeatureEnabled tests', () => {
-  const arrangeMocks = async () => {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
+  describe('setIsBackupAndSyncFeatureEnabled tests', () => {
+    const arrangeMocks = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+      };
     };
-  };
 
-  it('should enable user storage / backup and sync', async () => {
-    const { messengerMocks } = await arrangeMocks();
-    messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
+    it('should enable user storage / backup and sync', async () => {
+      const { messengerMocks } = await arrangeMocks();
+      messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
 
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      state: {
-        isBackupAndSyncEnabled: false,
-        isBackupAndSyncUpdateLoading: false,
-        isAccountSyncingEnabled: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-        isContactSyncingEnabled: false,
-        isContactSyncingInProgress: false,
-      },
-    });
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        state: {
+          isBackupAndSyncEnabled: false,
+          isBackupAndSyncUpdateLoading: false,
+          isAccountSyncingEnabled: false,
+          isContactSyncingEnabled: false,
+          isContactSyncingInProgress: false,
+        },
+      });
 
-    expect(controller.state.isBackupAndSyncEnabled).toBe(false);
-    await controller.setIsBackupAndSyncFeatureEnabled(
-      BACKUPANDSYNC_FEATURES.main,
-      true,
-    );
-    expect(controller.state.isBackupAndSyncEnabled).toBe(true);
-    expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
-    expect(messengerMocks.mockAuthPerformSignIn).toHaveBeenCalled();
-  });
-
-  it('should not update state if it throws', async () => {
-    const { messengerMocks } = await arrangeMocks();
-    messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
-
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      state: {
-        isBackupAndSyncEnabled: false,
-        isBackupAndSyncUpdateLoading: false,
-        isAccountSyncingEnabled: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-        isContactSyncingEnabled: false,
-        isContactSyncingInProgress: false,
-      },
-    });
-
-    expect(controller.state.isBackupAndSyncEnabled).toBe(false);
-    messengerMocks.mockAuthPerformSignIn.mockRejectedValue(new Error('error'));
-
-    await expect(
-      controller.setIsBackupAndSyncFeatureEnabled(
+      expect(controller.state.isBackupAndSyncEnabled).toBe(false);
+      await controller.setIsBackupAndSyncFeatureEnabled(
         BACKUPANDSYNC_FEATURES.main,
         true,
-      ),
-    ).rejects.toThrow('error');
-    expect(controller.state.isBackupAndSyncEnabled).toBe(false);
-  });
-
-  it('should not disable backup and sync when disabling account syncing', async () => {
-    const { messengerMocks } = await arrangeMocks();
-    messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
-
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      state: {
-        isBackupAndSyncEnabled: true,
-        isBackupAndSyncUpdateLoading: false,
-        isAccountSyncingEnabled: true,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-        isContactSyncingEnabled: true,
-        isContactSyncingInProgress: false,
-      },
+      );
+      expect(controller.state.isBackupAndSyncEnabled).toBe(true);
+      expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
+      expect(messengerMocks.mockAuthPerformSignIn).toHaveBeenCalled();
     });
 
-    expect(controller.state.isBackupAndSyncEnabled).toBe(true);
-    await controller.setIsBackupAndSyncFeatureEnabled(
-      BACKUPANDSYNC_FEATURES.accountSyncing,
-      false,
-    );
-    expect(controller.state.isAccountSyncingEnabled).toBe(false);
-    expect(controller.state.isBackupAndSyncEnabled).toBe(true);
-  });
-});
+    it('should not update state if it throws', async () => {
+      const { messengerMocks } = await arrangeMocks();
+      messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
 
-describe('user-storage/user-storage-controller - syncInternalAccountsWithUserStorage() tests', () => {
-  const arrangeMocks = () => {
-    const messengerMocks = mockUserStorageMessengerForAccountSyncing();
-    const mockSyncInternalAccountsWithUserStorage = jest.spyOn(
-      AccountSyncControllerIntegrationModule,
-      'syncInternalAccountsWithUserStorage',
-    );
-    const mockSaveInternalAccountToUserStorage = jest.spyOn(
-      AccountSyncControllerIntegrationModule,
-      'saveInternalAccountToUserStorage',
-    );
-    return {
-      messenger: messengerMocks.messenger,
-      mockSyncInternalAccountsWithUserStorage,
-      mockSaveInternalAccountToUserStorage,
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        state: {
+          isBackupAndSyncEnabled: false,
+          isBackupAndSyncUpdateLoading: false,
+          isAccountSyncingEnabled: false,
+          isContactSyncingEnabled: false,
+          isContactSyncingInProgress: false,
+        },
+      });
+
+      expect(controller.state.isBackupAndSyncEnabled).toBe(false);
+      messengerMocks.mockAuthPerformSignIn.mockRejectedValue(
+        new Error('error'),
+      );
+
+      await expect(
+        controller.setIsBackupAndSyncFeatureEnabled(
+          BACKUPANDSYNC_FEATURES.main,
+          true,
+        ),
+      ).rejects.toThrow('error');
+      expect(controller.state.isBackupAndSyncEnabled).toBe(false);
+    });
+
+    it('should not disable backup and sync when disabling account syncing', async () => {
+      const { messengerMocks } = await arrangeMocks();
+      messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
+
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        state: {
+          isBackupAndSyncEnabled: true,
+          isBackupAndSyncUpdateLoading: false,
+          isAccountSyncingEnabled: true,
+          isContactSyncingEnabled: true,
+          isContactSyncingInProgress: false,
+        },
+      });
+
+      expect(controller.state.isBackupAndSyncEnabled).toBe(true);
+      await controller.setIsBackupAndSyncFeatureEnabled(
+        BACKUPANDSYNC_FEATURES.accountSyncing,
+        false,
+      );
+      expect(controller.state.isAccountSyncingEnabled).toBe(false);
+      expect(controller.state.isBackupAndSyncEnabled).toBe(true);
+    });
+  });
+
+  describe('error handling edge cases', () => {
+    const arrangeMocks = () => {
+      const messengerMocks = mockUserStorageMessenger();
+      return { messengerMocks };
     };
-  };
 
-  // NOTE the actual testing of the implementation is done in `controller-integration.ts` file.
-  // See relevant unit tests to see how this feature works and is tested
-  it('should invoke syncing from the integration module', async () => {
-    const { messenger, mockSyncInternalAccountsWithUserStorage } =
-      arrangeMocks();
-    const controller = new UserStorageController({
-      messenger,
-      // We're only verifying that calling this controller method will call the integration module
-      // The actual implementation is tested in the integration tests
-      // This is done to prevent creating unnecessary nock instances in this test
-      config: {
-        accountSyncing: {
-          onAccountAdded: jest.fn(),
-          onAccountNameUpdated: jest.fn(),
-          onAccountSyncErroneousSituation: jest.fn(),
+    it('handles disabling backup & sync when already disabled', async () => {
+      const { messengerMocks } = arrangeMocks();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        state: {
+          ...defaultState,
+          isBackupAndSyncEnabled: false,
         },
-      },
+      });
+
+      await controller.setIsBackupAndSyncFeatureEnabled(
+        BACKUPANDSYNC_FEATURES.main,
+        false,
+      );
+      expect(controller.state.isBackupAndSyncEnabled).toBe(false);
     });
 
-    mockSyncInternalAccountsWithUserStorage.mockImplementation(
-      async (
-        {
-          onAccountAdded,
-          onAccountNameUpdated,
-          onAccountSyncErroneousSituation,
-        },
-        {
-          getMessenger = jest.fn(),
-          getUserStorageControllerInstance = jest.fn(),
-        },
-      ) => {
-        onAccountAdded?.();
-        onAccountNameUpdated?.();
-        onAccountSyncErroneousSituation?.('error message', {});
-        getMessenger();
-        getUserStorageControllerInstance();
-        return undefined;
-      },
-    );
+    it('handles enabling backup & sync when already enabled and signed in', async () => {
+      const { messengerMocks } = arrangeMocks();
+      messengerMocks.mockAuthIsSignedIn.mockReturnValue(true);
 
-    await controller.syncInternalAccountsWithUserStorage();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        state: {
+          ...defaultState,
+          isBackupAndSyncEnabled: true,
+        },
+      });
 
-    expect(mockSyncInternalAccountsWithUserStorage).toHaveBeenCalled();
-    expect(controller.state.hasAccountSyncingSyncedAtLeastOnce).toBe(true);
+      await controller.setIsBackupAndSyncFeatureEnabled(
+        BACKUPANDSYNC_FEATURES.main,
+        true,
+      );
+      expect(controller.state.isBackupAndSyncEnabled).toBe(true);
+      expect(messengerMocks.mockAuthPerformSignIn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('snap handling', () => {
+    it('leverages a cache', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
+      controller.flushStorageKeyCache();
+      expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
+    });
+
+    it('does not serve the cached primary key to a new primary after a vault restore regenerates the entropy source id', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+      // The signed message (`metamask:${profileId}`) is identical across both
+      // calls, so the only thing that can isolate the two vaults is the entropy
+      // scope. The HD keyring metadata id is randomly regenerated on restore.
+      messengerMocks.mockSnapSignMessage
+        .mockResolvedValueOnce('signature-before-restore')
+        .mockResolvedValueOnce('signature-after-restore');
+
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const keyBeforeRestore = await controller.getStorageKey();
+
+      // Simulate a vault restore: same primary slot, brand-new entropy id.
+      messengerMocks.mockKeyringGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [],
+            metadata: { id: 'restored-entropy-source-id', name: '' },
+          },
+        ],
+      });
+
+      const keyAfterRestore = await controller.getStorageKey();
+
+      // The regenerated id changes the cache scope, so the new primary must
+      // re-derive its own key instead of inheriting the previous vault's cached
+      // key — proving no `'primary'`-style stable key carries across restores.
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(2);
+      expect(keyAfterRestore).not.toBe(keyBeforeRestore);
+      expect(keyAfterRestore).toBe(createSHA256Hash('signature-after-restore'));
+    });
+
+    it('serves the snap signature from the entropy-scoped cache for the same entropy source, even after the storage-key cache is flushed', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const mockAPI1 = await mockEndpointGetUserStorage();
+      const mockAPI2 = await mockEndpointGetUserStorage();
+
+      await controller.performGetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+        'entropy-source-1',
+      );
+      // Drop the derived storage key so the next call must re-derive it. The
+      // signature must still come from the entropy-scoped snap-signature cache,
+      // so the snap is never asked to sign a second time for this SRP. (Without
+      // this flush the storage-key cache would short-circuit before the
+      // signature cache is ever exercised.)
+      controller.flushStorageKeyCache();
+      await controller.performGetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+        'entropy-source-1',
+      );
+
+      mockAPI1.done();
+      mockAPI2.done();
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('derives a distinct storage key per entropy source even when both resolve to the same profileId', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+
+      // Precondition (made explicit, not relying on the fixture default): both
+      // SRPs resolve to the SAME `profileId`, so the signed
+      // `metamask:${profileId}` message is identical. Isolation must therefore
+      // come from `entropySourceId`, never the message — otherwise one SRP
+      // reuses another SRP's storage key and reads/writes its user storage.
+      // `profileId === canonicalProfileId` mirrors the real bug: a secondary
+      // SRP whose own profileId was overwritten with the shared canonical.
+      messengerMocks.mockAuthGetSessionProfile.mockResolvedValue({
+        identifierId: 'shared-identifier-id',
+        profileId: 'shared-profile-id',
+        canonicalProfileId: 'shared-profile-id',
+        metaMetricsId: 'shared-metametrics-id',
+      });
+      // Each entropy source signs with its own key, so the identical message
+      // yields a different signature — and thus a different derived storage key.
+      messengerMocks.mockSnapSignMessage
+        .mockResolvedValueOnce('signature-for-entropy-source-1')
+        .mockResolvedValueOnce('signature-for-entropy-source-2');
+
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const featureKeyPath =
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings` as UserStorageGenericPathWithFeatureAndKey;
+      const baseUrl = `${getEnvUrls(Env.PRD).userStorageApiUrl}/api/v1/userstorage`;
+      const pathForSource1 = `${baseUrl}/${createEntryPath(
+        featureKeyPath,
+        createSHA256Hash('signature-for-entropy-source-1'),
+      )}`;
+      const pathForSource2 = `${baseUrl}/${createEntryPath(
+        featureKeyPath,
+        createSHA256Hash('signature-for-entropy-source-2'),
+      )}`;
+
+      // One endpoint per derived storage key. If the caches were shared, the
+      // second source would reuse the first's key, hit `pathForSource1` again,
+      // and leave `mockSource2` unsatisfied (and the second request unmatched).
+      const mockSource1 = nock(pathForSource1).get('').reply(404);
+      const mockSource2 = nock(pathForSource2).get('').reply(404);
+
+      await controller.performGetStorage(featureKeyPath, 'entropy-source-1');
+      await controller.performGetStorage(featureKeyPath, 'entropy-source-2');
+
+      // Both distinct paths were requested → the two SRPs derived different
+      // storage keys despite the shared profileId.
+      mockSource1.done();
+      mockSource2.done();
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws if the wallet is locked', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+      messengerMocks.mockKeyringGetState.mockReturnValue({
+        isUnlocked: false,
+        keyrings: [],
+      });
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      await expect(controller.getStorageKey()).rejects.toThrow(
+        '#snapSignMessage - unable to call snap, wallet is locked',
+      );
+      await expect(controller.listEntropySources()).rejects.toThrow(
+        'listEntropySources - unable to list entropy sources, wallet is locked',
+      );
+    });
+
+    it('handles wallet lock state changes', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+
+      messengerMocks.mockKeyringGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [],
+            metadata: { id: 'primary-entropy-source-id', name: '' },
+          },
+        ],
+      });
+
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      messengerMocks.baseMessenger.publish('KeyringController:lock');
+
+      await expect(controller.getStorageKey()).rejects.toThrow(
+        '#snapSignMessage - unable to call snap, wallet is locked',
+      );
+
+      messengerMocks.baseMessenger.publish('KeyringController:unlock');
+      expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
+    });
   });
 });
 
-describe('user-storage/user-storage-controller - error handling edge cases', () => {
-  const arrangeMocks = () => {
-    const messengerMocks = mockUserStorageMessenger();
-    return { messengerMocks };
-  };
-
-  it('handles disabling backup & sync when already disabled', async () => {
-    const { messengerMocks } = arrangeMocks();
+describe('metadata', () => {
+  it('includes expected state in debug snapshots', () => {
     const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      state: {
-        ...defaultState,
-        isBackupAndSyncEnabled: false,
-      },
+      messenger: mockUserStorageMessenger().messenger,
     });
 
-    await controller.setIsBackupAndSyncFeatureEnabled(
-      BACKUPANDSYNC_FEATURES.main,
-      false,
-    );
-    expect(controller.state.isBackupAndSyncEnabled).toBe(false);
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'includeInDebugSnapshot',
+      ),
+    ).toMatchInlineSnapshot(`
+      {
+        "isAccountSyncingEnabled": true,
+        "isBackupAndSyncEnabled": true,
+        "isContactSyncingEnabled": true,
+      }
+    `);
   });
 
-  it('handles enabling backup & sync when already enabled and signed in', async () => {
-    const { messengerMocks } = arrangeMocks();
-    messengerMocks.mockAuthIsSignedIn.mockReturnValue(true);
-
+  it('includes expected state in state logs', () => {
     const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      state: {
-        ...defaultState,
-        isBackupAndSyncEnabled: true,
-      },
+      messenger: mockUserStorageMessenger().messenger,
     });
 
-    await controller.setIsBackupAndSyncFeatureEnabled(
-      BACKUPANDSYNC_FEATURES.main,
-      true,
-    );
-    expect(controller.state.isBackupAndSyncEnabled).toBe(true);
-    expect(messengerMocks.mockAuthPerformSignIn).not.toHaveBeenCalled();
-  });
-});
-
-describe('user-storage/user-storage-controller - account syncing edge cases', () => {
-  it('handles account syncing disabled case', async () => {
-    const messengerMocks = mockUserStorageMessenger();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-
-    await controller.setIsBackupAndSyncFeatureEnabled(
-      BACKUPANDSYNC_FEATURES.accountSyncing,
-      false,
-    );
-    await controller.syncInternalAccountsWithUserStorage();
-
-    // Should not have called the account syncing module
-    expect(messengerMocks.mockAccountsListAccounts).not.toHaveBeenCalled();
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'includeInStateLogs',
+      ),
+    ).toMatchInlineSnapshot(`
+      {
+        "isAccountSyncingEnabled": true,
+        "isBackupAndSyncEnabled": true,
+        "isContactSyncingEnabled": true,
+      }
+    `);
   });
 
-  it('handles syncing when not signed in', async () => {
-    const messengerMocks = mockUserStorageMessenger();
-    messengerMocks.mockAuthIsSignedIn.mockReturnValue(false);
-
+  it('persists expected state', () => {
     const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+      messenger: mockUserStorageMessenger().messenger,
     });
 
-    await controller.syncInternalAccountsWithUserStorage();
-
-    expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
-    expect(messengerMocks.mockAuthPerformSignIn).not.toHaveBeenCalled();
-  });
-});
-
-describe('user-storage/user-storage-controller - snap handling', () => {
-  it('leverages a cache', async () => {
-    const messengerMocks = mockUserStorageMessenger();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-
-    expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
-    controller.flushStorageKeyCache();
-    expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
+    expect(
+      deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
+    ).toMatchInlineSnapshot(`
+      {
+        "isAccountSyncingEnabled": true,
+        "isBackupAndSyncEnabled": true,
+        "isContactSyncingEnabled": true,
+      }
+    `);
   });
 
-  it('throws if the wallet is locked', async () => {
-    const messengerMocks = mockUserStorageMessenger();
-    messengerMocks.mockKeyringGetState.mockReturnValue({
-      isUnlocked: false,
-      keyrings: [],
-    });
+  it('exposes expected state to UI', () => {
     const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+      messenger: mockUserStorageMessenger().messenger,
     });
 
-    await expect(controller.getStorageKey()).rejects.toThrow(
-      '#snapSignMessage - unable to call snap, wallet is locked',
-    );
-    await expect(controller.listEntropySources()).rejects.toThrow(
-      'listEntropySources - unable to list entropy sources, wallet is locked',
-    );
-  });
-
-  it('handles wallet lock state changes', async () => {
-    const messengerMocks = mockUserStorageMessenger();
-
-    messengerMocks.mockKeyringGetState.mockReturnValue({
-      isUnlocked: true,
-      keyrings: [],
-    });
-
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-
-    messengerMocks.baseMessenger.publish('KeyringController:lock');
-
-    await expect(controller.getStorageKey()).rejects.toThrow(
-      '#snapSignMessage - unable to call snap, wallet is locked',
-    );
-
-    messengerMocks.baseMessenger.publish('KeyringController:unlock');
-    expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'usedInUi',
+      ),
+    ).toMatchInlineSnapshot(`
+      {
+        "isAccountSyncingEnabled": true,
+        "isBackupAndSyncEnabled": true,
+        "isBackupAndSyncUpdateLoading": false,
+        "isContactSyncingEnabled": true,
+        "isContactSyncingInProgress": false,
+      }
+    `);
   });
 });

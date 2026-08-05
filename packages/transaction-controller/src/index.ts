@@ -3,9 +3,7 @@ export type {
   Result,
   TransactionControllerActions,
   TransactionControllerEvents,
-  TransactionControllerEstimateGasAction,
   TransactionControllerGetStateAction,
-  TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerPostTransactionBalanceUpdatedEvent,
   TransactionControllerSpeedupTransactionAddedEvent,
   TransactionControllerState,
@@ -22,18 +20,52 @@ export type {
   TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
-  TransactionControllerUpdateCustodialTransactionAction,
   TransactionControllerMessenger,
   TransactionControllerOptions,
-} from './TransactionController';
+} from './TransactionController.js';
+export type {
+  TransactionControllerAddTransactionAction,
+  TransactionControllerAddTransactionBatchAction,
+  TransactionControllerConfirmExternalTransactionAction,
+  TransactionControllerEmulateNewTransactionAction,
+  TransactionControllerEmulateTransactionUpdateAction,
+  TransactionControllerEstimateGasAction,
+  TransactionControllerEstimateGasBatchAction,
+  TransactionControllerGetGasFeeTokensAction,
+  TransactionControllerGetNonceLockAction,
+  TransactionControllerGetTransactionsAction,
+  TransactionControllerUpdateCustodialTransactionAction,
+  TransactionControllerUpdateTransactionAction,
+  TransactionControllerUpdateTransactionMetadataAction,
+  TransactionControllerHandleMethodDataAction,
+  TransactionControllerIsAtomicBatchSupportedAction,
+  TransactionControllerStopTransactionAction,
+  TransactionControllerSpeedUpTransactionAction,
+  TransactionControllerEstimateGasBufferedAction,
+  TransactionControllerUpdateEditableParamsAction,
+  TransactionControllerSetTransactionActiveAction,
+  TransactionControllerApproveTransactionsWithSameNonceAction,
+  TransactionControllerEstimateGasFeeAction,
+  TransactionControllerFailTransactionAction,
+  TransactionControllerGetLayer1GasFeeAction,
+  TransactionControllerClearUnapprovedTransactionsAction,
+  TransactionControllerAbortTransactionSigningAction,
+  TransactionControllerUpdateAtomicBatchDataAction,
+  TransactionControllerWipeTransactionsAction,
+  TransactionControllerUpdateSecurityAlertResponseAction,
+  TransactionControllerUpdateTransactionGasFeesAction,
+  TransactionControllerUpdatePreviousGasParamsAction,
+  TransactionControllerUpdateSelectedGasFeeTokenAction,
+  TransactionControllerUpdateRequiredTransactionIdsAction,
+} from './TransactionController-method-action-types.js';
 export {
   CANCEL_RATE,
   SPEED_UP_RATE,
   TransactionController,
-} from './TransactionController';
+} from './TransactionController.js';
 export type {
+  AddTransactionOptions,
   AfterAddHook,
-  AfterSimulateHook,
   Authorization,
   AuthorizationList,
   BatchTransaction,
@@ -48,6 +80,7 @@ export type {
   GasFeeToken,
   GasPriceGasFeeEstimates,
   GasPriceValue,
+  GetGasFeeTokensRequest,
   GetSimulationConfig,
   InferTransactionTypeResult,
   IsAtomicBatchSupportedRequest,
@@ -57,15 +90,16 @@ export type {
   Log,
   MetamaskPayMetadata,
   NestedTransactionMetadata,
+  NestedTransactionUpdate,
   PublishBatchHook,
   PublishBatchHookRequest,
   PublishBatchHookResult,
   PublishBatchHookTransaction,
   PublishHook,
   PublishHookResult,
+  RequiredAsset,
   SavedGasFees,
   SecurityAlertResponse,
-  SecurityProviderRequest,
   SendFlowHistoryEntry,
   SimulationBalanceChange,
   SimulationData,
@@ -75,6 +109,7 @@ export type {
   TransactionBatchMeta,
   TransactionBatchRequest,
   TransactionBatchResult,
+  TransactionBatchSingleRequest,
   TransactionError,
   TransactionHistory,
   TransactionHistoryEntry,
@@ -82,7 +117,7 @@ export type {
   TransactionParams,
   TransactionReceipt,
   ValidateSecurityRequest,
-} from './types';
+} from './types.js';
 export {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
@@ -94,17 +129,24 @@ export {
   TransactionType,
   UserFeeLevel,
   WalletDevice,
-} from './types';
+} from './types.js';
+export { mergeGasFeeEstimates } from './utils/gas-flow.js';
 export {
-  DISPLAYED_TRANSACTION_HISTORY_PATHS,
-  MAX_TRANSACTION_HISTORY_LENGTH,
-} from './utils/history';
-export { determineTransactionType } from './utils/transaction-type';
-export { mergeGasFeeEstimates } from './utils/gas-flow';
+  decodeAuthorizationSignature,
+  generateEIP7702BatchTransaction,
+  updateEIP7702BatchData,
+} from './utils/eip7702.js';
 export {
   isEIP1559Transaction,
   normalizeTransactionParams,
-} from './utils/utils';
-export { CHAIN_IDS } from './constants';
-export { SUPPORTED_CHAIN_IDS as INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS } from './helpers/AccountsApiRemoteTransactionSource';
-export { HARDFORK } from './utils/prepare';
+} from './utils/utils.js';
+export { hasTransactionType } from './utils/transaction-type.js';
+export { getEffectiveRecipient } from './utils/recipient.js';
+export { CHAIN_IDS } from './constants.js';
+export { HARDFORK } from './utils/prepare.js';
+export { getAccountAddressRelationship } from './api/accounts-api.js';
+export type {
+  GetAccountAddressRelationshipRequest,
+  AccountAddressRelationshipResult,
+} from './api/accounts-api.js';
+export { generateBatchId } from './utils/batch.js';

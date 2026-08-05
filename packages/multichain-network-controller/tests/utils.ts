@@ -8,8 +8,8 @@ import {
   BtcMethod,
   EthMethod,
   SolMethod,
-  type KeyringAccountType,
 } from '@metamask/keyring-api';
+import type { KeyringAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -81,7 +81,7 @@ export const createMockInternalAccount = ({
       newScopes = [EthScope.Mainnet];
       break;
     case BtcAccountType.P2wpkh:
-      methods = [BtcMethod.SendBitcoin];
+      methods = Object.values(BtcMethod);
       newScopes = [BtcScope.Mainnet];
       break;
     case SolAccountType.DataAccount:

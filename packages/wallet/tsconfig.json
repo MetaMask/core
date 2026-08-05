@@ -1,0 +1,54 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../address-book-controller"
+    },
+    {
+      "path": "../approval-controller"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../connectivity-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../gas-fee-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../passkey-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../seedless-onboarding-controller"
+    },
+    {
+      "path": "../storage-service"
+    },
+    {
+      "path": "../transaction-controller"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

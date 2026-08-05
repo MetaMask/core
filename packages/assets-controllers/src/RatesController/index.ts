@@ -1,4 +1,4 @@
-export { RatesController, Cryptocurrency } from './RatesController';
+export { RatesController, Cryptocurrency } from './RatesController.js';
 export type {
   RatesControllerState,
   RatesControllerEvents,
@@ -8,4 +8,4 @@ export type {
   RatesControllerStateChangeEvent,
   RatesControllerPollingStartedEvent,
   RatesControllerPollingStoppedEvent,
-} from './types';
+} from './types.js';

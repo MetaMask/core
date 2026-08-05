@@ -6,7 +6,7 @@ import { bytesToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import type { AuthorizationList, TransactionParams } from '../types';
+import type { AuthorizationList, TransactionParams } from '../types.js';
 
 export const HARDFORK = Hardfork.Prague;
 
@@ -33,13 +33,19 @@ export function prepareTransaction(
 }
 
 /**
- * Serializes a transaction object into a hex string.
+ * Serializes transaction data into a hex string.
  *
- * @param transaction - The transaction object.
+ * @param chainId - Chain ID of the transaction.
+ * @param txData - The signed transaction data.
  * @returns The prefixed hex string.
  */
-export function serializeTransaction(transaction: TypedTransaction) {
-  return bytesToHex(transaction.serialize());
+export function serializeTransaction(chainId: Hex, txData: TypedTxData): Hex {
+  return bytesToHex(
+    TransactionFactory.fromTxData(txData, {
+      freeze: false,
+      common: getCommonConfiguration(chainId),
+    }).serialize(),
+  );
 }
 
 /**
@@ -76,7 +82,9 @@ function normalizeParams(params: TransactionParams): TransactionParams {
  *
  * @param authorizationList - The list of authorizations to normalize.
  */
-function normalizeAuthorizationList(authorizationList?: AuthorizationList) {
+function normalizeAuthorizationList(
+  authorizationList?: AuthorizationList,
+): void {
   if (!authorizationList) {
     return;
   }

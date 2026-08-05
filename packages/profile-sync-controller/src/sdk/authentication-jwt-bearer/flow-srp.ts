@@ -1,36 +1,63 @@
 import type { Eip1193Provider } from 'ethers';
 
+import type { MetaMetricsAuth } from '../../shared/types/services.js';
+import { ValidationError, RateLimitedError } from '../errors.js';
+import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider.js';
+import {
+  MESSAGE_SIGNING_SNAP,
+  assertMessageStartsWithMetamask,
+  connectSnap,
+  isSnapConnected,
+} from '../utils/messaging-signing-snap-requests.js';
+import { validateLoginResponse } from '../utils/validate-login-response.js';
 import {
   authenticate,
   authorizeOIDC,
+  getCustomerServiceToken,
   getNonce,
   getUserProfileLineage,
-} from './services';
+  pairProfiles,
+} from './services.js';
+import type { PairProfilesResponse } from './services.js';
 import type {
   AuthConfig,
   AuthSigningOptions,
   AuthStorageOptions,
   AuthType,
   IBaseAuth,
+  LoginIdentifierType,
   LoginResponse,
+  SrpLoginTag,
   UserProfile,
   UserProfileLineage,
-} from './types';
-import type { MetaMetricsAuth } from '../../shared/types/services';
-import { ValidationError } from '../errors';
-import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
-import {
-  MESSAGE_SIGNING_SNAP,
-  assertMessageStartsWithMetamask,
-  connectSnap,
-  isSnapConnected,
-} from '../utils/messaging-signing-snap-requests';
-import { validateLoginResponse } from '../utils/validate-login-response';
+} from './types.js';
+import { computeIdentifierId } from './utils/identifier.js';
+import * as timeUtils from './utils/time.js';
 
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
   signing?: AuthSigningOptions;
+  /**
+   * Resolves the login tag for a given entropy source.
+   * When omitted, `raw_message` stays untagged (`metamask:<nonce>:<pubkey>`).
+   */
+  getLoginTag?: (entropySourceId?: string) => Promise<SrpLoginTag>;
+  /**
+   * Resolves the metametrics `identifier_type` for a given entropy source.
+   * Defaults to `'SRP'` when omitted.
+   */
+  getLoginIdentifierType?: (
+    entropySourceId?: string,
+  ) => Promise<LoginIdentifierType>;
+  rateLimitRetry?: {
+    cooldownDefaultMs?: number; // default cooldown when 429 has no Retry-After
+    maxLoginRetries?: number; // maximum number of login retries on rate limit
+  };
 };
+
+// How long a successful pairing result stays cached so identical payloads
+// (concurrent or sequential retries) reuse it instead of re-hitting the endpoint.
+export const PAIR_DEDUPE_TTL_MS = 30_000;
 
 const getDefaultEIP6963Provider = async () => {
   const provider = await getMetaMaskProviderEIP6963();
@@ -64,12 +91,38 @@ const getDefaultEIP6963SigningOptions = (
 export class SRPJwtBearerAuth implements IBaseAuth {
   readonly #config: AuthConfig;
 
-  readonly #options: Required<JwtBearerAuth_SRP_Options>;
+  readonly #options: {
+    storage: AuthStorageOptions;
+    signing: AuthSigningOptions;
+  };
 
   readonly #metametrics?: MetaMetricsAuth;
 
   // Map to store ongoing login promises by entropySourceId
-  readonly #ongoingLogins = new Map<string, Promise<LoginResponse>>();
+  readonly #ongoingLogins = new Map<
+    string | undefined,
+    Promise<LoginResponse>
+  >();
+
+  // Map to dedupe pairing calls by an order-insensitive token-set key.
+  // Holds the in-flight promise (coalescing concurrent callers) and keeps it
+  // for a short TTL after success (collapsing sequential retries).
+  readonly #ongoingPairings = new Map<
+    string,
+    { promise: Promise<PairProfilesResponse>; expiresAt: number }
+  >();
+
+  // Default cooldown when 429 has no Retry-After header
+  readonly #cooldownDefaultMs: number;
+
+  // Maximum number of login retries on rate limit errors
+  readonly #maxLoginRetries: number;
+
+  readonly #getLoginTag?: (entropySourceId?: string) => Promise<SrpLoginTag>;
+
+  readonly #getLoginIdentifierType?: (
+    entropySourceId?: string,
+  ) => Promise<LoginIdentifierType>;
 
   #customProvider?: Eip1193Provider;
 
@@ -82,6 +135,8 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   ) {
     this.#config = config;
     this.#customProvider = options.customProvider;
+    this.#getLoginTag = options.getLoginTag;
+    this.#getLoginIdentifierType = options.getLoginIdentifierType;
     this.#options = {
       storage: options.storage,
       signing:
@@ -89,6 +144,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
         getDefaultEIP6963SigningOptions(this.#customProvider),
     };
     this.#metametrics = options.metametrics;
+
+    // Apply rate limit retry config if provided
+    this.#cooldownDefaultMs =
+      options.rateLimitRetry?.cooldownDefaultMs ?? 10000;
+    this.#maxLoginRetries = options.rateLimitRetry?.maxLoginRetries ?? 1;
   }
 
   setCustomProvider(provider: Eip1193Provider) {
@@ -121,9 +181,58 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     return await this.#options.signing.getIdentifier(entropySourceId);
   }
 
-  async getUserProfileLineage(): Promise<UserProfileLineage> {
-    const accessToken = await this.getAccessToken();
+  async getUserProfileLineage(
+    entropySourceId?: string,
+  ): Promise<UserProfileLineage> {
+    const accessToken = await this.getAccessToken(entropySourceId);
     return await getUserProfileLineage(this.#config.env, accessToken);
+  }
+
+  async getCustomerServiceToken(entropySourceId?: string): Promise<string> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    return await getCustomerServiceToken(this.#config.env, accessToken);
+  }
+
+  async pairSrpProfiles(
+    accessTokens: string[],
+    authAccessToken: string,
+  ): Promise<PairProfilesResponse> {
+    // Order-insensitive key: the same token set in any order maps to the same
+    // entry. Sort a copy so the request payload itself stays primary-first.
+    const key = JSON.stringify([...accessTokens].sort());
+
+    const cached = this.#ongoingPairings.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return await cached.promise;
+    }
+
+    const promise = pairProfiles(
+      accessTokens,
+      authAccessToken,
+      this.#config.env,
+    );
+    // Store the in-flight promise immediately so concurrent callers coalesce
+    // regardless of how long the request takes.
+    this.#ongoingPairings.set(key, {
+      promise,
+      expiresAt: Number.MAX_SAFE_INTEGER,
+    });
+
+    try {
+      const result = await promise;
+      // Keep the resolved result cached for a short window so sequential
+      // retries with the same payload reuse it.
+      this.#ongoingPairings.set(key, {
+        promise,
+        expiresAt: Date.now() + PAIR_DEDUPE_TTL_MS,
+      });
+      return result;
+    } catch (error) {
+      // Never cache failures: the pairing retry loop must be able to re-hit
+      // the endpoint on the next attempt.
+      this.#ongoingPairings.delete(key);
+      throw error;
+    }
   }
 
   async signMessage(
@@ -161,6 +270,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       return null;
     }
 
+    // get canonical profile id from server if not present in the cached session
+    if (!auth.profile.canonicalProfileId) {
+      return null;
+    }
+
     const currentTime = Date.now();
     const sessionAge = currentTime - auth.token.obtainedAt;
     const refreshThreshold = auth.token.expiresIn * 1000 * 0.9;
@@ -181,9 +295,15 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     const publicKey = await this.getIdentifier(entropySourceId);
     const nonceRes = await getNonce(publicKey, this.#config.env);
 
+    // Tag only when the wallet supplies getLoginTag. SDK callers keep the
+    // legacy 3-part message rather than guessing `primary`.
+    const tag = await this.#getLoginTag?.(entropySourceId);
+    const identifierType =
+      (await this.#getLoginIdentifierType?.(entropySourceId)) ?? 'SRP';
     const rawMessage = this.#createSrpLoginRawMessage(
       nonceRes.nonce,
       publicKey,
+      tag,
     );
     const signature = await this.signMessage(rawMessage, entropySourceId);
 
@@ -194,7 +314,39 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       this.#config.type,
       this.#config.env,
       this.#metametrics,
+      identifierType,
     );
+
+    // Resolve original profileId from aliases.
+    // This is done mainly to preserve the original profileId for storage key derivation
+    // until we migrate to the canonical profileId storage system.
+    const canonicalProfileId = authResponse.profile.profileId;
+    const profile = { ...authResponse.profile };
+
+    if (authResponse.profileAliases?.length > 0) {
+      const targetIdentifierId = computeIdentifierId(
+        publicKey,
+        this.#config.env,
+      );
+
+      const matchingAliases = authResponse.profileAliases.filter((alias) =>
+        alias.identifierIds.some((id) => id.id === targetIdentifierId),
+      );
+
+      // Prefer the leaf alias (single identifier) — it's the original profile
+      // created for this SRP. Multi-identifier aliases are former canonicals
+      // that absorbed other profiles; they are correct only when this SRP's
+      // original profile was itself a canonical before being absorbed.
+      const targetAlias =
+        matchingAliases.find((alias) => alias.identifierIds.length === 1) ??
+        matchingAliases[0];
+
+      if (targetAlias) {
+        profile.profileId = targetAlias.aliasProfileId;
+      }
+    }
+
+    profile.canonicalProfileId = canonicalProfileId;
 
     // Authorize
     const tokenResponse = await authorizeOIDC(
@@ -205,7 +357,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
     // Save
     const result: LoginResponse = {
-      profile: authResponse.profile,
+      profile,
       token: tokenResponse,
     };
 
@@ -215,35 +367,65 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   async #deferredLogin(entropySourceId?: string): Promise<LoginResponse> {
-    // Use a key that accounts for undefined entropySourceId
-    const loginKey = entropySourceId ?? '__default__';
-
     // Check if there's already an ongoing login for this entropySourceId
-    const existingLogin = this.#ongoingLogins.get(loginKey);
+    const existingLogin = this.#ongoingLogins.get(entropySourceId);
     if (existingLogin) {
       return existingLogin;
     }
 
     // Create a new login promise
-    const loginPromise = this.#performLogin(entropySourceId);
+    const loginPromise = this.#loginWithRetry(entropySourceId);
 
     // Store the promise in the map
-    this.#ongoingLogins.set(loginKey, loginPromise);
+    this.#ongoingLogins.set(entropySourceId, loginPromise);
 
     try {
       // Wait for the login to complete
-      const result = await loginPromise;
-      return result;
+      return await loginPromise;
     } finally {
       // Always clean up the ongoing login promise when done
-      this.#ongoingLogins.delete(loginKey);
+      this.#ongoingLogins.delete(entropySourceId);
     }
+  }
+
+  async #loginWithRetry(entropySourceId?: string): Promise<LoginResponse> {
+    // Allow max attempts: initial + maxLoginRetries on 429
+    for (let attempt = 0; attempt < 1 + this.#maxLoginRetries; attempt += 1) {
+      try {
+        return await this.#performLogin(entropySourceId);
+      } catch (e) {
+        // Only retry on rate-limit (429) errors
+        if (!RateLimitedError.isRateLimitError(e)) {
+          throw e;
+        }
+
+        // If we've exhausted attempts, rethrow
+        if (attempt >= this.#maxLoginRetries) {
+          throw e;
+        }
+
+        // Wait for Retry-After or default cooldown
+        const waitMs = e.retryAfterMs ?? this.#cooldownDefaultMs;
+        await timeUtils.delay(waitMs);
+
+        // Loop continues to retry
+      }
+    }
+
+    // Should never reach here due to loop logic, but TypeScript needs a return
+    throw new Error('Unexpected: login loop exhausted without result');
   }
 
   #createSrpLoginRawMessage(
     nonce: string,
     publicKey: string,
-  ): `metamask:${string}:${string}` {
+    tag?: SrpLoginTag,
+  ):
+    | `metamask:${string}:${string}`
+    | `metamask:${string}:${string}:${SrpLoginTag}` {
+    if (tag) {
+      return `metamask:${nonce}:${publicKey}:${tag}` as const;
+    }
     return `metamask:${nonce}:${publicKey}` as const;
   }
 }

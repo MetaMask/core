@@ -1,29 +1,30 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { SIWEMessage } from '@metamask/controller-utils';
 import { detectSIWE, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { LogType, SigningStage } from '@metamask/logging-controller';
 import { v1 } from 'uuid';
 
+import { flushPromises } from '../../../tests/helpers.js';
 import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
   SignatureControllerState,
-} from './SignatureController';
-import { SignatureController } from './SignatureController';
+} from './SignatureController.js';
+import { SignatureController } from './SignatureController.js';
 import type {
   MessageParamsPersonal,
   MessageParamsTyped,
   OriginalRequest,
   SignatureRequest,
-} from './types';
-import { SignatureRequestStatus, SignatureRequestType } from './types';
-import * as DecodingDataUtils from './utils/decoding-api';
+} from './types.js';
+import { SignatureRequestStatus, SignatureRequestType } from './types.js';
+import * as DecodingDataUtils from './utils/decoding-api.js';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
-} from './utils/normalize';
-import { validateTypedSignatureRequest } from './utils/validation';
-import { flushPromises } from '../../../tests/helpers';
+} from './utils/normalize.js';
+import { validateTypedSignatureRequest } from './utils/validation.js';
 
 jest.mock('uuid');
 jest.mock('./utils/validation');
@@ -88,6 +89,27 @@ const PERMIT_REQUEST_MOCK = {
   traceContext: null,
 };
 
+const DELEGATION_PARAMS_MOCK = {
+  data: '{"types":{"EIP712Domain":[{"name":"chainId","type":"uint256"}],"Delegation":[{"name":"delegate","type":"address"},{"name":"delegator","type":"address"},{"name":"authority","type":"bytes"},{"name":"caveats","type":"bytes"}]},"primaryType":"Delegation","domain":{"chainId":1},"message":{"delegate":"0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","delegator":"0x975e73efb9ff52e23bac7f7e043a1ecd06d05477","authority":"0x1234abcd","caveats":[]},"metadata":{"origin":"https://metamask.github.io","justification":"Testing delegation"}}',
+  from: '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+  version: 'V4',
+  signatureMethod: 'eth_signTypedData_v4',
+};
+
+const DELEGATION_REQUEST_MOCK = {
+  method: 'eth_signTypedData_v4',
+  params: [
+    '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+    DELEGATION_PARAMS_MOCK.data,
+  ],
+  jsonrpc: '2.0',
+  id: 1680528591,
+  origin: 'npm:@metamask/gator-permissions-snap',
+  networkClientId: 'mainnet',
+  tabId: 1048807182,
+  traceContext: null,
+};
+
 /**
  * Create a mock messenger instance.
  *
@@ -100,6 +122,7 @@ function createMessengerMock() {
   const keyringControllerSignTypedMessageMock = jest.fn();
   const loggingControllerAddMock = jest.fn();
   const networkControllerGetNetworkClientByIdMock = jest.fn();
+  const decodePermissionFromPermissionContextForOriginMock = jest.fn();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const callMock = (method: string, ...args: any[]) => {
@@ -116,6 +139,8 @@ function createMessengerMock() {
         return loggingControllerAddMock(...args);
       case 'NetworkController:getNetworkClientById':
         return networkControllerGetNetworkClientByIdMock(...args);
+      case 'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin':
+        return decodePermissionFromPermissionContextForOriginMock(...args);
       default:
         throw new Error(`Messenger method not recognised: ${method}`);
     }
@@ -123,6 +148,7 @@ function createMessengerMock() {
 
   const messenger = {
     registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
     registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
     call: callMock,
@@ -143,12 +169,17 @@ function createMessengerMock() {
     },
   });
 
+  decodePermissionFromPermissionContextForOriginMock.mockReturnValue({
+    kind: 'decoded-permission',
+  });
+
   return {
     accountsControllerGetStateMock,
     approvalControllerAddRequestMock,
     keyringControllerSignPersonalMessageMock,
     keyringControllerSignTypedMessageMock,
     loggingControllerAddMock,
+    decodePermissionFromPermissionContextForOriginMock,
     messenger,
   };
 }
@@ -843,7 +874,7 @@ describe('SignatureController', () => {
             data: JSON.stringify({ test: 123 }),
           },
           REQUEST_MOCK,
-          version as SignTypedDataVersion,
+          version,
           { parseJsonData: true },
         );
 
@@ -930,6 +961,201 @@ describe('SignatureController', () => {
             .messageParams as MessageParamsTyped
         ).version,
       ).toBe(SignTypedDataVersion.V3);
+    });
+
+    describe('delegations', () => {
+      it('invokes decodePermissionFromRequest to get execution permission', async () => {
+        const {
+          controller,
+          decodePermissionFromPermissionContextForOriginMock,
+        } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          DELEGATION_PARAMS_MOCK,
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          decodePermissionFromPermissionContextForOriginMock,
+        ).toHaveBeenCalledWith({
+          origin: 'npm:@metamask/gator-permissions-snap',
+          chainId: 1,
+          delegation: {
+            delegate: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
+            delegator: '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+            authority: '0x1234abcd',
+            caveats: [],
+          },
+          metadata: {
+            origin: 'https://metamask.github.io',
+            justification: 'Testing delegation',
+          },
+        });
+      });
+
+      it('does not invoke decodePermissionFromRequest if version is not V4', async () => {
+        const {
+          controller,
+          decodePermissionFromPermissionContextForOriginMock,
+        } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          DELEGATION_PARAMS_MOCK,
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V3,
+          { parseJsonData: false },
+        );
+
+        expect(
+          decodePermissionFromPermissionContextForOriginMock,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('sets decodedPermission on the message state', async () => {
+        const { controller } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          DELEGATION_PARAMS_MOCK,
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toStrictEqual({
+          kind: 'decoded-permission',
+        });
+      });
+
+      it('does not invoke decodePermissionFromRequest if data is not a delegation request', async () => {
+        const {
+          controller,
+          decodePermissionFromPermissionContextForOriginMock,
+        } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          {
+            ...DELEGATION_PARAMS_MOCK,
+            data: '{primaryType:"not-a-delegation"}',
+          },
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          decodePermissionFromPermissionContextForOriginMock,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('does not set decodedPermission if data is not a delegation request', async () => {
+        const { controller } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          {
+            ...DELEGATION_PARAMS_MOCK,
+            data: '{primaryType:"not-a-delegation"}',
+          },
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toBeUndefined();
+      });
+
+      it('does not set decodedPermission if decoding throws an error', async () => {
+        const {
+          controller,
+          decodePermissionFromPermissionContextForOriginMock,
+        } = createController();
+
+        decodePermissionFromPermissionContextForOriginMock.mockImplementation(
+          () => {
+            throw new Error('An error occurred');
+          },
+        );
+
+        await controller.newUnsignedTypedMessage(
+          DELEGATION_PARAMS_MOCK,
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toBeUndefined();
+      });
+
+      it('does not set decodedPermission if decoding returns undefined', async () => {
+        const {
+          controller,
+          decodePermissionFromPermissionContextForOriginMock,
+        } = createController();
+
+        decodePermissionFromPermissionContextForOriginMock.mockReturnValue(
+          undefined,
+        );
+
+        await controller.newUnsignedTypedMessage(
+          DELEGATION_PARAMS_MOCK,
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toBeUndefined();
+      });
+
+      it('does not set decodedPermission if metadata is invalid', async () => {
+        const { controller } = createController();
+
+        const delegationParamsMock = {
+          ...DELEGATION_PARAMS_MOCK,
+          data: {
+            ...JSON.parse(DELEGATION_PARAMS_MOCK.data),
+            metadata: {},
+          },
+        };
+
+        const delegationRequestMock = {
+          method: 'eth_signTypedData_v4',
+          params: [
+            '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+            delegationParamsMock.data,
+          ],
+          jsonrpc: '2.0',
+          id: 1680528591,
+          origin: 'npm:@metamask/gator-permissions-snap',
+          networkClientId: 'mainnet',
+          tabId: 1048807182,
+          traceContext: null,
+        };
+
+        await controller.newUnsignedTypedMessage(
+          delegationParamsMock,
+          delegationRequestMock,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toBeUndefined();
+      });
     });
 
     describe('decodeSignature', () => {
@@ -1298,6 +1524,72 @@ describe('SignatureController', () => {
       expect(controller.state.signatureRequests[ID_MOCK].status).toBe(
         SignatureRequestStatus.InProgress,
       );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "signatureRequests": {},
+          "unapprovedPersonalMsgCount": 0,
+          "unapprovedPersonalMsgs": {},
+          "unapprovedTypedMessages": {},
+          "unapprovedTypedMessagesCount": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "signatureRequests": {},
+          "unapprovedPersonalMsgCount": 0,
+          "unapprovedPersonalMsgs": {},
+          "unapprovedTypedMessages": {},
+          "unapprovedTypedMessagesCount": 0,
+        }
+      `);
     });
   });
 });

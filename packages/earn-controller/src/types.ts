@@ -22,7 +22,3 @@ export type RefreshPooledStakingVaultDailyApysOptions = {
 export type RefreshLendingPositionsOptions = {
   address?: string;
 };
-
-export type RefreshLendingEligibilityOptions = {
-  address?: string;
-};

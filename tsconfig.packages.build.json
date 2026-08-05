@@ -1,11 +1,15 @@
 {
+  /**
+   * This configuration is extended by the `tsconfig.build.json` configuration in each package.
+   */
   "extends": "./tsconfig.packages.json",
   "compilerOptions": {
     "declaration": true,
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "inlineSources": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "skipLibCheck": true
   },
   "exclude": ["./jest.config.packages.ts", "**/*.test.ts", "**/jest.config.ts"]
 }

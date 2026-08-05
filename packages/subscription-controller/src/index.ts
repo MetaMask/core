@@ -2,24 +2,64 @@ export type {
   SubscriptionControllerActions,
   SubscriptionControllerState,
   SubscriptionControllerEvents,
-  SubscriptionControllerGetSubscriptionsAction,
-  SubscriptionControllerCancelSubscriptionAction,
-  SubscriptionControllerStartShieldSubscriptionWithCardAction,
-  SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetStateAction,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
-} from './SubscriptionController';
+  AllowedActions,
+  AllowedEvents,
+} from './SubscriptionController.js';
+export type {
+  SubscriptionControllerGetPricingAction,
+  SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerGetSubscriptionByProductAction,
+  SubscriptionControllerGetSubscriptionsEligibilitiesAction,
+  SubscriptionControllerCancelSubscriptionAction,
+  SubscriptionControllerUnCancelSubscriptionAction,
+  SubscriptionControllerStartShieldSubscriptionWithCardAction,
+  SubscriptionControllerStartSubscriptionWithCryptoAction,
+  SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction,
+  SubscriptionControllerGetCryptoApproveTransactionParamsAction,
+  SubscriptionControllerUpdatePaymentMethodAction,
+  SubscriptionControllerGetBillingPortalUrlAction,
+  SubscriptionControllerCacheLastSelectedPaymentMethodAction,
+  SubscriptionControllerClearLastSelectedPaymentMethodAction,
+  SubscriptionControllerSubmitSponsorshipIntentsAction,
+  SubscriptionControllerSubmitUserEventAction,
+  SubscriptionControllerAssignUserToCohortAction,
+  SubscriptionControllerLinkRewardsAction,
+  SubscriptionControllerGetTokenApproveAmountAction,
+  SubscriptionControllerGetTokenMinimumBalanceAmountAction,
+  SubscriptionControllerClearStateAction,
+  SubscriptionControllerTriggerAccessTokenRefreshAction,
+  SubscriptionControllerStopAllPollingAction,
+} from './SubscriptionController-method-action-types.js';
 export {
   SubscriptionController,
   getDefaultSubscriptionControllerState,
-} from './SubscriptionController';
+} from './SubscriptionController.js';
 export type {
+  SubscriptionApiError,
   Subscription,
   AuthUtils,
+  CancelSubscriptionRequest,
+  CancelType,
   ISubscriptionService,
-  PaymentMethod,
+  StartCryptoSubscriptionRequest,
+  StartCryptoSubscriptionResponse,
+  StartSubscriptionRequest,
+  StartSubscriptionResponse,
+  GetCryptoApproveTransactionRequest,
+  GetCryptoApproveTransactionResponse,
+  SubscriptionCardPaymentMethod,
+  SubscriptionCryptoPaymentMethod,
+  SubscriptionPaymentMethod,
+  SubmitUserEventRequest,
+  SubmitSponsorshipIntentsRequest,
+  SubscriptionEligibility,
+  SubscriptionUserEventType,
+  RecurringInterval,
+  SubscriptionStatus,
   PaymentType,
   Product,
   ProductType,
@@ -27,10 +67,41 @@ export type {
   ProductPricing,
   TokenPaymentInfo,
   ChainPaymentInfo,
+  Currency,
   PricingPaymentMethod,
   PricingResponse,
-} from './types';
-export { SubscriptionServiceError } from './errors';
-export { Env, SubscriptionControllerErrorMessage } from './constants';
-export type { SubscriptionServiceConfig } from './SubscriptionService';
-export { SubscriptionService } from './SubscriptionService';
+  UpdatePaymentMethodOpts,
+  BillingPortalResponse,
+  CryptoPaymentMethodError,
+  UpdatePaymentMethodCryptoRequest,
+  UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCardResponse,
+  CachedLastSelectedPaymentMethod,
+  SubmitSponsorshipIntentsMethodParams,
+  Cohort,
+  CohortName,
+  BalanceCategory,
+  AssignCohortRequest,
+  GetSubscriptionsEligibilitiesRequest,
+  ModalType,
+} from './types.js';
+export {
+  CANCEL_TYPES,
+  CRYPTO_PAYMENT_METHOD_ERRORS,
+  SUBSCRIPTION_STATUSES,
+  PRODUCT_TYPES,
+  RECURRING_INTERVALS,
+  PAYMENT_TYPES,
+  SubscriptionUserEvent,
+  COHORT_NAMES,
+  BALANCE_CATEGORIES,
+  MODAL_TYPE,
+} from './types.js';
+export { SubscriptionServiceError } from './errors.js';
+export {
+  Env,
+  SubscriptionControllerErrorMessage,
+  SubscriptionServiceErrorMessage,
+} from './constants.js';
+export type { SubscriptionServiceConfig } from './SubscriptionService.js';
+export { SubscriptionService } from './SubscriptionService.js';

@@ -1,6 +1,7 @@
 export type {
   PooledStakingState,
   LendingState,
+  TronStakingState,
   LendingMarketWithPosition,
   LendingPositionWithMarket,
   LendingPositionWithMarketReference,
@@ -10,13 +11,36 @@ export type {
   EarnControllerActions,
   EarnControllerEvents,
   EarnControllerMessenger,
-} from './EarnController';
+} from './EarnController.js';
 
 export {
   controllerName,
   getDefaultEarnControllerState,
+  DEFAULT_TRON_STAKING_STATE,
   EarnController,
-} from './EarnController';
+} from './EarnController.js';
+
+export type {
+  EarnControllerRefreshPooledStakesAction,
+  EarnControllerRefreshEarnEligibilityAction,
+  EarnControllerRefreshPooledStakingVaultMetadataAction,
+  EarnControllerRefreshPooledStakingVaultDailyApysAction,
+  EarnControllerRefreshPooledStakingVaultApyAveragesAction,
+  EarnControllerRefreshPooledStakingDataAction,
+  EarnControllerRefreshLendingMarketsAction,
+  EarnControllerRefreshLendingPositionsAction,
+  EarnControllerRefreshLendingDataAction,
+  EarnControllerRefreshTronStakingApyAction,
+  EarnControllerGetTronStakingApyAction,
+  EarnControllerGetLendingPositionHistoryAction,
+  EarnControllerGetLendingMarketDailyApysAndAveragesAction,
+  EarnControllerExecuteLendingDepositAction,
+  EarnControllerExecuteLendingWithdrawAction,
+  EarnControllerExecuteLendingTokenApproveAction,
+  EarnControllerGetLendingTokenAllowanceAction,
+  EarnControllerGetLendingTokenMaxWithdrawAction,
+  EarnControllerGetLendingTokenMaxDepositAction,
+} from './EarnController-method-action-types.js';
 
 export {
   selectLendingMarkets,
@@ -36,7 +60,9 @@ export {
   selectLendingMarketsByTokenAddress,
   selectLendingMarketsByChainIdAndOutputTokenAddress,
   selectLendingMarketsByChainIdAndTokenAddress,
-} from './selectors';
+  selectTronStaking,
+  selectTronStakingApy,
+} from './selectors.js';
 
 export {
   CHAIN_ID_TO_AAVE_POOL_CONTRACT,

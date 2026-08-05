@@ -5,6 +5,19 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [{ "path": "../base-controller/tsconfig.build.json" }],
+  "references": [
+    {
+      "path": "../base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.build.json"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

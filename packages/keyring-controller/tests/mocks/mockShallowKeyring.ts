@@ -30,7 +30,7 @@ export default class MockShallowKeyring implements EthKeyring {
     };
   }
 
-  async deserialize(state: { accounts: Hex[] }) {
+  async deserialize(state: { accounts: Hex[] }): Promise<void> {
     if (state) {
       this.accounts = state.accounts || [];
     }

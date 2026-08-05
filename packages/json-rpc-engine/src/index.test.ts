@@ -1,10 +1,13 @@
-import * as allExports from '.';
+import * as allExports from './index.js';
 
 describe('@metamask/json-rpc-engine', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
-      Array [
+      [
+        "asV2Middleware",
         "createAsyncMiddleware",
+        "createMethodMiddleware",
+        "createOriginMiddleware",
         "createScaffoldMiddleware",
         "getUniqueId",
         "createIdRemapMiddleware",

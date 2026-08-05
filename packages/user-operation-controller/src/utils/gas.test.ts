@@ -1,13 +1,13 @@
 import { cloneDeep } from 'lodash';
 
-import { VALUE_ZERO } from '../constants';
-import type { BundlerEstimateUserOperationGasResponse } from '../helpers/Bundler';
-import { Bundler } from '../helpers/Bundler';
+import { VALUE_ZERO } from '../constants.js';
+import type { BundlerEstimateUserOperationGasResponse } from '../helpers/Bundler.js';
+import { Bundler } from '../helpers/Bundler.js';
 import type {
   PrepareUserOperationResponse,
   UserOperationMetadata,
-} from '../types';
-import { updateGas } from './gas';
+} from '../types.js';
+import { updateGas } from './gas.js';
 
 jest.mock('../helpers/Bundler', () => ({
   Bundler: jest.fn(),
@@ -36,6 +36,7 @@ const ESTIMATE_RESPONSE_HEX_MOCK: BundlerEstimateUserOperationGasResponse = {
 
 /**
  * Creates a mock bundler.
+ *
  * @returns The mock bundler.
  */
 function createBundlerMock() {

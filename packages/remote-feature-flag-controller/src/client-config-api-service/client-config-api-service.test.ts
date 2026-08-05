@@ -1,14 +1,16 @@
-import { BASE_URL } from '../constants';
+import { BASE_URL } from '../constants.js';
 import type {
   ApiDataResponse,
   FeatureFlags,
-} from '../remote-feature-flag-controller-types';
+} from '../remote-feature-flag-controller-types.js';
 import {
   ClientType,
   DistributionType,
   EnvironmentType,
-} from '../remote-feature-flag-controller-types';
-import { ClientConfigApiService } from './client-config-api-service';
+} from '../remote-feature-flag-controller-types.js';
+import { ClientConfigApiService } from './client-config-api-service.js';
+
+import Mock = jest.Mock;
 
 const mockServerFeatureFlagsResponse: ApiDataResponse = [
   { feature1: false },
@@ -249,6 +251,7 @@ describe('ClientConfigApiService', () => {
 
 /**
  * Creates a mock fetch function with configurable response data and options
+ *
  * @template T - The type of data to be returned by the fetch response
  * @param params - Configuration parameters
  * @param params.response - Optional Response properties to override defaults
@@ -264,13 +267,15 @@ function createMockFetch({
   response?: Partial<Response>;
   error?: Error;
   delay?: number;
-}) {
+}): Mock {
   if (error) {
     return jest
       .fn()
       .mockImplementation(
         () =>
-          new Promise((_, reject) => setTimeout(() => reject(error), delay)),
+          new Promise((_resolve, reject) =>
+            setTimeout(() => reject(error), delay),
+          ),
       );
   }
 

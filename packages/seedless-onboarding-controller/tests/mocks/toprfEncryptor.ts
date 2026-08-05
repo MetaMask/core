@@ -7,11 +7,11 @@ import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha256';
 
 export class MockToprfEncryptorDecryptor {
-  readonly #HKDF_ENCRYPTION_KEY_INFO = 'encryption-key';
+  readonly #hkdfEncryptionKeyInfo = 'encryption-key';
 
-  readonly #HKDF_PASSWORD_ENCRYPTION_KEY_INFO = 'password-encryption-key';
+  readonly #hkdfPasswordEncryptionKeyInfo = 'password-encryption-key';
 
-  readonly #HKDF_AUTH_KEY_INFO = 'authentication-key';
+  readonly #hkdfAuthKeyInfo = 'authentication-key';
 
   encrypt(key: Uint8Array, data: Uint8Array): string {
     const aes = managedNonce(gcm)(key);
@@ -29,13 +29,7 @@ export class MockToprfEncryptorDecryptor {
 
   deriveEncKey(password: string): Uint8Array {
     const seed = sha256(password);
-    const key = hkdf(
-      sha256,
-      seed,
-      undefined,
-      this.#HKDF_ENCRYPTION_KEY_INFO,
-      32,
-    );
+    const key = hkdf(sha256, seed, undefined, this.#hkdfEncryptionKeyInfo, 32);
     return key;
   }
 
@@ -45,7 +39,7 @@ export class MockToprfEncryptorDecryptor {
       sha256,
       seed,
       undefined,
-      this.#HKDF_PASSWORD_ENCRYPTION_KEY_INFO,
+      this.#hkdfPasswordEncryptionKeyInfo,
       32,
     );
     return key;
@@ -53,7 +47,7 @@ export class MockToprfEncryptorDecryptor {
 
   deriveAuthKeyPair(password: string): KeyPair {
     const seed = sha256(password);
-    const k = hkdf(sha256, seed, undefined, this.#HKDF_AUTH_KEY_INFO, 32); // Derive 256 bit key.
+    const k = hkdf(sha256, seed, undefined, this.#hkdfAuthKeyInfo, 32); // Derive 256 bit key.
 
     // Converting from bytes to scalar like this is OK because statistical
     // distance between U(2^256) % secp256k1.n and U(secp256k1.n) is negligible.

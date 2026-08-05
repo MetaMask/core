@@ -1,13 +1,7 @@
-import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
-import type { INotification } from '../types/notification/notification';
-
-const ONE_DAY_MS = 1000 * 60 * 60 * 24;
-
-const shouldAutoExpire = (oldDate: Date) => {
-  const differenceInTime = Date.now() - oldDate.getTime();
-  const differenceInDays = differenceInTime / ONE_DAY_MS;
-  return differenceInDays >= 90;
-};
+import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement.js';
+import type { INotification } from '../types/notification/notification.js';
+import { getNotificationSubtype } from '../utils/get-notification-subtype.js';
+import { shouldAutoExpire } from '../utils/should-auto-expire.js';
 
 /**
  * Checks if a feature announcement should be read.
@@ -39,6 +33,7 @@ export function processFeatureAnnouncement(
   return {
     type: notification.type,
     id: notification.data.id,
+    notification_subtype: getNotificationSubtype(notification),
     createdAt: new Date(notification.createdAt).toISOString(),
     data: notification.data,
     isRead: false,

@@ -1,11 +1,6 @@
 /*
  * For a detailed explanation regarding each configuration property and type check, visit:
  * https://jestjs.io/docs/configuration
- *
- * NOTE:
- * This config uses `babel-jest` due to ESM- / TypeScript-related incompatibilities with our
- * current version (`^27`) of `jest` and `ts-jest`. We can switch to `ts-jest` once we have
- * migrated our Jest dependencies to version `>=29`.
  */
 
 module.exports = {
@@ -38,21 +33,14 @@ module.exports = {
     },
   },
 
-  // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
-  // This ensures that Babel can resolve subpath exports correctly.
   moduleNameMapper: {
-    '^@metamask/utils/(.+)$': [
-      '<rootDir>/node_modules/@metamask/utils/dist/$1.cjs',
-    ],
+    // Strip .js extensions from relative imports so Jest resolves them to
+    // the TypeScript source files.
+    '^(\\.{1,2}/.+)\\.js$': '$1',
+    '^uuid$': require.resolve('uuid'),
   },
 
-  // Disabled due to use of 'transform' below.
-  // // A preset that is used as a base for Jest's configuration
-  // preset: 'ts-jest',
-
-  // The path to the Prettier executable used to format snapshots
-  // Jest doesn't support Prettier 3 yet, so we use Prettier 2
-  prettierPath: require.resolve('prettier-2'),
+  preset: 'ts-jest',
 
   // "resetMocks" resets all mocks, including mocked modules, to jest.fn(),
   // between each test case.
@@ -84,9 +72,4 @@ module.exports = {
 
   // Default timeout of a test in milliseconds.
   testTimeout: 5000,
-
-  // A map from regular expressions to paths to transformers
-  transform: {
-    '\\.[jt]sx?$': 'babel-jest',
-  },
 };

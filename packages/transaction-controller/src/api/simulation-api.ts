@@ -1,14 +1,18 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import {
   CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
   DELEGATION_MANAGER_ADDRESSES,
-} from '../constants';
-import { SimulationChainNotSupportedError, SimulationError } from '../errors';
-import { projectLogger } from '../logger';
-import type { GetSimulationConfig } from '../types';
+} from '../constants.js';
+import {
+  SimulationChainNotSupportedError,
+  SimulationError,
+} from '../errors.js';
+import { projectLogger } from '../logger.js';
+import type { GetSimulationConfig } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'simulation-api');
 
@@ -134,10 +138,16 @@ export type SimulationResponseLog = {
 /** Call trace of a single simulated transaction. */
 export type SimulationResponseCallTrace = {
   /** Nested calls. */
-  calls: SimulationResponseCallTrace[];
+  calls?: SimulationResponseCallTrace[] | null;
+
+  /** Error message for the call, if any. */
+  error?: string;
 
   /** Raw event logs created by the call. */
-  logs: SimulationResponseLog[];
+  logs?: SimulationResponseLog[] | null;
+
+  /** Raw return data from the call (revert hex when reverted). */
+  output?: Hex;
 };
 
 /**
@@ -388,7 +398,7 @@ function finalizeRequest(request: SimulationRequest): SimulationRequest {
       continue;
     }
 
-    newRequest.overrides = newRequest.overrides || {};
+    newRequest.overrides = newRequest.overrides ?? {};
 
     newRequest.overrides[normalizedTo] = {
       code: CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,

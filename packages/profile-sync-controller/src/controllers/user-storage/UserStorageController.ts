@@ -1,11 +1,4 @@
 import type {
-  AccountsControllerListAccountsAction,
-  AccountsControllerUpdateAccountMetadataAction,
-  AccountsControllerAccountRenamedEvent,
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerUpdateAccountsAction,
-} from '@metamask/accounts-controller';
-import type {
   AddressBookControllerContactUpdatedEvent,
   AddressBookControllerContactDeletedEvent,
   AddressBookControllerActions,
@@ -13,47 +6,45 @@ import type {
   AddressBookControllerSetAction,
   AddressBookControllerDeleteAction,
 } from '@metamask/address-book-controller';
+import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import type {
   TraceCallback,
   TraceContext,
   TraceRequest,
 } from '@metamask/controller-utils';
-import {
-  KeyringTypes,
-  type KeyringControllerGetStateAction,
-  type KeyringControllerLockEvent,
-  type KeyringControllerUnlockEvent,
-  type KeyringControllerWithKeyringAction,
+import { KeyringTypes } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { Messenger } from '@metamask/messenger';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 
-import { syncInternalAccountsWithUserStorage } from './account-syncing/controller-integration';
-import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
-import { BACKUPANDSYNC_FEATURES } from './constants';
-import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
-import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
   UserStorageGenericPathWithFeatureOnly,
-} from '../../sdk';
-import { Env, UserStorage } from '../../sdk';
-import type { NativeScrypt } from '../../shared/types/encryption';
-import { EventQueue } from '../../shared/utils/event-queue';
-import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
+} from '../../sdk/index.js';
+import { Env, UserStorage } from '../../sdk/index.js';
+import type { NativeScrypt } from '../../shared/types/encryption.js';
+import { EventQueue } from '../../shared/utils/event-queue.js';
+import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests.js';
 import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerGetSessionProfile,
-  AuthenticationControllerIsSignedIn,
-  AuthenticationControllerPerformSignIn,
-} from '../authentication/AuthenticationController';
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerPerformSignInAction,
+} from '../authentication/AuthenticationController-method-action-types.js';
+import { BACKUPANDSYNC_FEATURES } from './constants.js';
+import { syncContactsWithUserStorage } from './contact-syncing/controller-integration.js';
+import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions.js';
+import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types.js';
 
 const controllerName = 'UserStorageController';
 
@@ -79,20 +70,6 @@ export type UserStorageControllerState = {
    * Condition used by UI to determine if contact syncing is in progress.
    */
   isContactSyncingInProgress: boolean;
-  /**
-   * Condition used to determine if account syncing has been dispatched at least once.
-   * This is used for event listeners to determine if they should be triggered.
-   * This is also used in E2E tests for verification purposes.
-   */
-  hasAccountSyncingSyncedAtLeastOnce: boolean;
-  /**
-   * Condition used by UI to determine if account syncing is ready to be dispatched.
-   */
-  isAccountSyncingReadyToBeDispatched: boolean;
-  /**
-   * Condition used by UI to determine if account syncing is in progress.
-   */
-  isAccountSyncingInProgress: boolean;
 };
 
 export const defaultState: UserStorageControllerState = {
@@ -101,78 +78,43 @@ export const defaultState: UserStorageControllerState = {
   isAccountSyncingEnabled: true,
   isContactSyncingEnabled: true,
   isContactSyncingInProgress: false,
-  hasAccountSyncingSyncedAtLeastOnce: false,
-  isAccountSyncingReadyToBeDispatched: false,
-  isAccountSyncingInProgress: false,
 };
 
 const metadata: StateMetadata<UserStorageControllerState> = {
   isBackupAndSyncEnabled: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
   isBackupAndSyncUpdateLoading: {
+    includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
   isAccountSyncingEnabled: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
   isContactSyncingEnabled: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
   isContactSyncingInProgress: {
+    includeInStateLogs: false,
     persist: false,
-    anonymous: false,
-  },
-  hasAccountSyncingSyncedAtLeastOnce: {
-    persist: true,
-    anonymous: false,
-  },
-  isAccountSyncingReadyToBeDispatched: {
-    persist: true,
-    anonymous: false,
-  },
-  isAccountSyncingInProgress: {
-    persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
 };
 
 type ControllerConfig = {
   env: Env;
-  accountSyncing?: {
-    /**
-     * Defines the strategy to use for account syncing.
-     * If true, it will prevent any new push updates from being sent to the user storage.
-     * Multichain account syncing will be handled by `@metamask/account-tree-controller`.
-     */
-    getIsMultichainAccountSyncingEnabled?: () => boolean;
-    maxNumberOfAccountsToAdd?: number;
-    /**
-     * Callback that fires when account sync adds an account.
-     * This is used for analytics.
-     */
-    onAccountAdded?: (profileId: string) => void;
-
-    /**
-     * Callback that fires when account sync updates the name of an account.
-     * This is used for analytics.
-     */
-    onAccountNameUpdated?: (profileId: string) => void;
-
-    /**
-     * Callback that fires when an erroneous situation happens during account sync.
-     * This is used for analytics.
-     */
-    onAccountSyncErroneousSituation?: (
-      profileId: string,
-      situationMessage: string,
-      sentryContext?: Record<string, unknown>,
-    ) => void;
-  };
   contactSyncing?: {
     /**
      * Callback that fires when contact sync updates a contact.
@@ -198,61 +140,39 @@ type ControllerConfig = {
   };
 };
 
-// Messenger Actions
-type CreateActionsObj<Controller extends keyof UserStorageController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: UserStorageController[K];
-  };
-};
-type ActionsObj = CreateActionsObj<
-  | 'performGetStorage'
-  | 'performGetStorageAllFeatureEntries'
-  | 'performSetStorage'
-  | 'performBatchSetStorage'
-  | 'performDeleteStorage'
-  | 'performBatchDeleteStorage'
-  | 'getStorageKey'
-  | 'getIsMultichainAccountSyncingEnabled'
->;
+const MESSENGER_EXPOSED_METHODS = [
+  'performGetStorage',
+  'performGetStorageAllFeatureEntries',
+  'performSetStorage',
+  'performBatchSetStorage',
+  'performDeleteStorage',
+  'performBatchDeleteStorage',
+  'getStorageKey',
+  'performDeleteStorageAllFeatureEntries',
+  'listEntropySources',
+  'setIsBackupAndSyncFeatureEnabled',
+  'setIsContactSyncingInProgress',
+  'syncContactsWithUserStorage',
+] as const;
+
 export type UserStorageControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   UserStorageControllerState
 >;
 export type Actions =
-  | ActionsObj[keyof ActionsObj]
-  | UserStorageControllerGetStateAction;
-export type UserStorageControllerPerformGetStorage =
-  ActionsObj['performGetStorage'];
-export type UserStorageControllerPerformGetStorageAllFeatureEntries =
-  ActionsObj['performGetStorageAllFeatureEntries'];
-export type UserStorageControllerPerformSetStorage =
-  ActionsObj['performSetStorage'];
-export type UserStorageControllerPerformBatchSetStorage =
-  ActionsObj['performBatchSetStorage'];
-export type UserStorageControllerPerformDeleteStorage =
-  ActionsObj['performDeleteStorage'];
-export type UserStorageControllerPerformBatchDeleteStorage =
-  ActionsObj['performBatchDeleteStorage'];
-export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
-export type UserStorageControllerGetIsMultichainAccountSyncingEnabled =
-  ActionsObj['getIsMultichainAccountSyncingEnabled'];
+  | UserStorageControllerGetStateAction
+  | UserStorageControllerMethodActions;
 
 export type AllowedActions =
   // Keyring Requests
   | KeyringControllerGetStateAction
   // Snap Requests
-  | HandleSnapRequest
+  | SnapControllerHandleRequestAction
   // Auth Requests
-  | AuthenticationControllerGetBearerToken
-  | AuthenticationControllerGetSessionProfile
-  | AuthenticationControllerPerformSignIn
-  | AuthenticationControllerIsSignedIn
-  // Account Syncing
-  | AccountsControllerListAccountsAction
-  | AccountsControllerUpdateAccountMetadataAction
-  | AccountsControllerUpdateAccountsAction
-  | KeyringControllerWithKeyringAction
+  | AuthenticationControllerGetBearerTokenAction
+  | AuthenticationControllerGetSessionProfileAction
+  | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerIsSignedInAction
   // Contact Syncing
   | AddressBookControllerListAction
   | AddressBookControllerSetAction
@@ -268,23 +188,17 @@ export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
 export type Events = UserStorageControllerStateChangeEvent;
 
 export type AllowedEvents =
-  | UserStorageControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  // Account Syncing Events
-  | AccountsControllerAccountRenamedEvent
-  | AccountsControllerAccountAddedEvent
   // Address Book Events
   | AddressBookControllerContactUpdatedEvent
   | AddressBookControllerContactDeletedEvent;
 
 // Messenger
-export type UserStorageControllerMessenger = RestrictedMessenger<
+export type UserStorageControllerMessenger = Messenger<
   typeof controllerName,
   Actions | AllowedActions,
-  Events | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  Events | AllowedEvents
 >;
 
 /**
@@ -295,7 +209,7 @@ export type UserStorageControllerMessenger = RestrictedMessenger<
  * - data stored on UserStorage is FULLY encrypted, with the only keys stored/managed on the client.
  * - No one can access this data unless they are have the SRP and are able to run the signing snap.
  */
-export default class UserStorageController extends BaseController<
+export class UserStorageController extends BaseController<
   typeof controllerName,
   UserStorageControllerState,
   UserStorageControllerMessenger
@@ -304,17 +218,17 @@ export default class UserStorageController extends BaseController<
 
   readonly #auth = {
     getProfileId: async (entropySourceId?: string) => {
-      const sessionProfile = await this.messagingSystem.call(
+      const sessionProfile = await this.messenger.call(
         'AuthenticationController:getSessionProfile',
         entropySourceId,
       );
       return sessionProfile?.profileId;
     },
     isSignedIn: () => {
-      return this.messagingSystem.call('AuthenticationController:isSignedIn');
+      return this.messenger.call('AuthenticationController:isSignedIn');
     },
     signIn: async () => {
-      return await this.messagingSystem.call(
+      return await this.messenger.call(
         'AuthenticationController:performSignIn',
       );
     },
@@ -328,20 +242,24 @@ export default class UserStorageController extends BaseController<
 
   #isUnlocked = false;
 
-  #storageKeyCache: Record<`metamask:${string}`, string> = {};
+  // Both caches are keyed by `${entropySourceId}:${message}` (the primary SRP
+  // resolves to its HD keyring metadata ID) so two SRPs that transiently
+  // resolve to the same `profileId` can never share a cached storage key /
+  // signature and leak data across each other's user storage.
+  #storageKeyCache: Record<string, string> = {};
+
+  #snapSignMessageCache: Record<string, string> = {};
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
-      const { isUnlocked } = this.messagingSystem.call(
-        'KeyringController:getState',
-      );
+      const { isUnlocked } = this.messenger.call('KeyringController:getState');
       this.#isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      this.messenger.subscribe('KeyringController:unlock', () => {
         this.#isUnlocked = true;
       });
 
-      this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.messenger.subscribe('KeyringController:lock', () => {
         this.#isUnlocked = false;
       });
     },
@@ -392,12 +310,12 @@ export default class UserStorageController extends BaseController<
         env: this.#config.env,
         auth: {
           getAccessToken: (entropySourceId?: string) =>
-            this.messagingSystem.call(
+            this.messenger.call(
               'AuthenticationController:getBearerToken',
               entropySourceId,
             ),
           getUserProfile: async (entropySourceId?: string) => {
-            return await this.messagingSystem.call(
+            return await this.messenger.call(
               'AuthenticationController:getSessionProfile',
               entropySourceId,
             );
@@ -411,78 +329,42 @@ export default class UserStorageController extends BaseController<
       },
       {
         storage: {
-          getStorageKey: async (message) =>
-            this.#storageKeyCache[message] ?? null,
-          setStorageKey: async (message, key) => {
-            this.#storageKeyCache[message] = key;
+          getStorageKey: async (message, entropySourceId) => {
+            // No derived key can exist while locked (the KeyringController
+            // clears its keyrings on lock, so the scope is unresolvable).
+            if (!this.#isUnlocked) {
+              return null;
+            }
+            return (
+              this.#storageKeyCache[
+                this.#scopedCacheKey(message, entropySourceId)
+              ] ?? null
+            );
+          },
+          // Only ever reached after a successful signature, i.e. while unlocked.
+          setStorageKey: async (message, key, entropySourceId) => {
+            this.#storageKeyCache[
+              this.#scopedCacheKey(message, entropySourceId)
+            ] = key;
           },
         },
       },
     );
 
-    this.#keyringController.setupLockedStateSubscriptions();
-    this.#registerMessageHandlers();
-    this.#nativeScryptCrypto = nativeScryptCrypto;
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
-    // Account Syncing
-    setupAccountSyncingSubscriptions({
-      getUserStorageControllerInstance: () => this,
-      getMessenger: () => this.messagingSystem,
-      trace: this.#trace,
-    });
+    this.#keyringController.setupLockedStateSubscriptions();
+    this.#nativeScryptCrypto = nativeScryptCrypto;
 
     // Contact Syncing
     setupContactSyncingSubscriptions({
       getUserStorageControllerInstance: () => this,
-      getMessenger: () => this.messagingSystem,
+      getMessenger: () => this.messenger,
       trace: this.#trace,
     });
-  }
-
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:performGetStorage',
-      this.performGetStorage.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:performGetStorageAllFeatureEntries',
-      this.performGetStorageAllFeatureEntries.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:performSetStorage',
-      this.performSetStorage.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:performBatchSetStorage',
-      this.performBatchSetStorage.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:performDeleteStorage',
-      this.performDeleteStorage.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:performBatchDeleteStorage',
-      this.performBatchDeleteStorage.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:getStorageKey',
-      this.getStorageKey.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:getIsMultichainAccountSyncingEnabled',
-      this.getIsMultichainAccountSyncingEnabled.bind(this),
-    );
   }
 
   /**
@@ -616,13 +498,6 @@ export default class UserStorageController extends BaseController<
     });
   }
 
-  public getIsMultichainAccountSyncingEnabled(): boolean {
-    return (
-      this.#config.accountSyncing?.getIsMultichainAccountSyncingEnabled?.() ??
-      false
-    );
-  }
-
   /**
    * Retrieves the storage key, for internal use only!
    *
@@ -647,22 +522,69 @@ export default class UserStorageController extends BaseController<
    *
    * @returns A promise that resolves to an array of HD keyring metadata IDs.
    */
-  async listEntropySources() {
+  async listEntropySources(): Promise<string[]> {
     if (!this.#isUnlocked) {
       throw new Error(
         'listEntropySources - unable to list entropy sources, wallet is locked',
       );
     }
 
-    const { keyrings } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
-    return keyrings
+    return this.#getHdKeyringEntropySourceIds();
+  }
+
+  /**
+   * Reads the HD keyring entropy source IDs (metadata IDs) from the
+   * KeyringController, primary first. Returns an empty array when none are
+   * available (e.g. the wallet is locked, where `keyrings` is cleared).
+   *
+   * @returns The HD keyring metadata IDs, primary first.
+   */
+  #getHdKeyringEntropySourceIds(): string[] {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    return (keyrings ?? [])
       .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
       .map((keyring) => keyring.metadata.id);
   }
 
-  #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
+  /**
+   * Resolves the primary SRP's entropy source ID (the first HD keyring's
+   * metadata ID), used to scope the primary's cache entries. The ID is randomly
+   * regenerated whenever the vault is recreated (e.g. on restore), so a new
+   * primary can never inherit a previous vault's cached key.
+   *
+   * @returns The primary HD keyring metadata ID.
+   * @throws If no HD keyring is available; callers must only resolve the scope
+   * while the wallet is unlocked.
+   */
+  #getPrimaryEntropySourceId(): string {
+    const [primaryEntropySourceId] = this.#getHdKeyringEntropySourceIds();
+    if (!primaryEntropySourceId) {
+      throw new Error('#getPrimaryEntropySourceId - no HD keyring available');
+    }
+    return primaryEntropySourceId;
+  }
+
+  /**
+   * Builds a cache key scoped to a specific entropy source, so each SRP's
+   * signature/storage key derivation stays isolated even when two SRPs
+   * transiently resolve to the same `profileId` (see `#storageKeyCache`).
+   *
+   * When `entropySourceId` is omitted (primary SRP), it is resolved to the
+   * primary HD keyring's metadata ID rather than a stable literal. Because that
+   * ID is randomly regenerated whenever the vault is recreated (e.g. on
+   * restore), the cached entry is naturally invalidated across vaults — a
+   * different SRP can never inherit the previous primary's cached key.
+   *
+   * @param message - The tagged message used for signing.
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The scoped cache key.
+   */
+  #scopedCacheKey(
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ): string {
+    return `${entropySourceId ?? this.#getPrimaryEntropySourceId()}:${message}`;
+  }
 
   /**
    * Signs a specific message using an underlying auth snap.
@@ -676,23 +598,23 @@ export default class UserStorageController extends BaseController<
     message: `metamask:${string}`,
     entropySourceId?: string,
   ): Promise<string> {
-    // the message is SRP specific already, so there's no need to use the entropySourceId in the cache
-    if (this.#_snapSignMessageCache[message]) {
-      return this.#_snapSignMessageCache[message];
-    }
-
     if (!this.#isUnlocked) {
       throw new Error(
         '#snapSignMessage - unable to call snap, wallet is locked',
       );
     }
 
-    const result = (await this.messagingSystem.call(
+    const cacheKey = this.#scopedCacheKey(message, entropySourceId);
+    if (this.#snapSignMessageCache[cacheKey]) {
+      return this.#snapSignMessageCache[cacheKey];
+    }
+
+    const result = (await this.messenger.call(
       'SnapController:handleRequest',
       createSnapSignMessageRequest(message, entropySourceId),
     )) as string;
 
-    this.#_snapSignMessageCache[message] = result;
+    this.#snapSignMessageCache[cacheKey] = result;
 
     return result;
   }
@@ -745,32 +667,6 @@ export default class UserStorageController extends BaseController<
     });
   }
 
-  async setHasAccountSyncingSyncedAtLeastOnce(
-    hasAccountSyncingSyncedAtLeastOnce: boolean,
-  ): Promise<void> {
-    this.update((state) => {
-      state.hasAccountSyncingSyncedAtLeastOnce =
-        hasAccountSyncingSyncedAtLeastOnce;
-    });
-  }
-
-  async setIsAccountSyncingReadyToBeDispatched(
-    isAccountSyncingReadyToBeDispatched: boolean,
-  ): Promise<void> {
-    this.update((state) => {
-      state.isAccountSyncingReadyToBeDispatched =
-        isAccountSyncingReadyToBeDispatched;
-    });
-  }
-
-  async setIsAccountSyncingInProgress(
-    isAccountSyncingInProgress: boolean,
-  ): Promise<void> {
-    this.update((state) => {
-      state.isAccountSyncingInProgress = isAccountSyncingInProgress;
-    });
-  }
-
   /**
    * Sets the isContactSyncingInProgress flag to prevent infinite loops during contact synchronization
    *
@@ -782,55 +678,6 @@ export default class UserStorageController extends BaseController<
     this.update((state) => {
       state.isContactSyncingInProgress = isContactSyncingInProgress;
     });
-  }
-
-  /**
-   * Syncs the internal accounts list with the user storage accounts list.
-   * This method is used to make sure that the internal accounts list is up-to-date with the user storage accounts list and vice-versa.
-   * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
-   */
-  async syncInternalAccountsWithUserStorage(): Promise<void> {
-    const entropySourceIds = await this.listEntropySources();
-
-    try {
-      for (const entropySourceId of entropySourceIds) {
-        const profileId = await this.#auth.getProfileId(entropySourceId);
-
-        await syncInternalAccountsWithUserStorage(
-          {
-            maxNumberOfAccountsToAdd:
-              this.#config?.accountSyncing?.maxNumberOfAccountsToAdd,
-            onAccountAdded: () =>
-              this.#config?.accountSyncing?.onAccountAdded?.(profileId),
-            onAccountNameUpdated: () =>
-              this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId),
-            onAccountSyncErroneousSituation: (
-              situationMessage,
-              sentryContext,
-            ) =>
-              this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
-                profileId,
-                situationMessage,
-                sentryContext,
-              ),
-          },
-          {
-            getMessenger: () => this.messagingSystem,
-            getUserStorageControllerInstance: () => this,
-            trace: this.#trace,
-          },
-          entropySourceId,
-        );
-      }
-
-      // We do this here and not in the finally statement because we want to make sure that
-      // the accounts are saved / updated / deleted at least once before we set this flag
-      await this.setHasAccountSyncingSyncedAtLeastOnce(true);
-    } catch (e) {
-      // Silently fail for now
-      // istanbul ignore next
-      console.error(e);
-    }
   }
 
   /**
@@ -861,7 +708,7 @@ export default class UserStorageController extends BaseController<
     };
 
     await syncContactsWithUserStorage(config, {
-      getMessenger: () => this.messagingSystem,
+      getMessenger: () => this.messenger,
       getUserStorageControllerInstance: () => this,
       trace: this.#trace,
     });

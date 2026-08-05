@@ -1,0 +1,30 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../analytics-controller"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../storage-service"
+    },
+    {
+      "path": "../wallet"
+    },
+    {
+      "path": "../foundryup"
+    }
+  ],
+  "include": ["../../types", "./bin", "./src", "./tests"]
+}

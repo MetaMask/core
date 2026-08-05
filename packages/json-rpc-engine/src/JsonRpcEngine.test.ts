@@ -7,8 +7,8 @@ import {
   isJsonRpcSuccess,
 } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from '.';
-import { JsonRpcEngine } from '.';
+import type { JsonRpcMiddleware } from './index.js';
+import { JsonRpcEngine } from './index.js';
 
 const jsonrpc = '2.0' as const;
 
@@ -428,6 +428,7 @@ describe('JsonRpcEngine', () => {
     const engine = new JsonRpcEngine();
 
     engine.push(function (request, response, _next, end) {
+      // Separate handling for the 4th request.
       if (request.id === 4) {
         delete response.result;
         response.error = rpcErrors.internal({ message: 'foobar' });
@@ -465,6 +466,7 @@ describe('JsonRpcEngine', () => {
     const engine = new JsonRpcEngine();
 
     engine.push(function (request, response, _next, end) {
+      // Separate handling for the 4th request.
       if (request.id === 4) {
         delete response.result;
         response.error = rpcErrors.internal({ message: 'foobar' });

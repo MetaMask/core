@@ -1,9 +1,10 @@
+import { TRIGGER_TYPES } from '../constants/notification-schema.js';
+import type { INotification } from '../index.js';
+import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements.js';
 import {
   isFeatureAnnouncementRead,
   processFeatureAnnouncement,
-} from './process-feature-announcement';
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
+} from './process-feature-announcement.js';
 
 describe('process-feature-announcement - isFeatureAnnouncementRead()', () => {
   const MOCK_NOTIFICATION_ID = 'MOCK_NOTIFICATION_ID';
@@ -42,7 +43,10 @@ describe('process-feature-announcement - isFeatureAnnouncementRead()', () => {
 describe('process-feature-announcement - processFeatureAnnouncement()', () => {
   it('processes a Raw Feature Announcement to a shared Notification Type', () => {
     const rawNotification = createMockFeatureAnnouncementRaw();
-    const result = processFeatureAnnouncement(rawNotification);
+    const result = processFeatureAnnouncement(rawNotification) as Extract<
+      INotification,
+      { type: TRIGGER_TYPES.FEATURES_ANNOUNCEMENT }
+    >;
 
     expect(result.id).toBe(rawNotification.data.id);
     expect(result.type).toBe(TRIGGER_TYPES.FEATURES_ANNOUNCEMENT);

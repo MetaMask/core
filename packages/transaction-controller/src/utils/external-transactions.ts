@@ -1,8 +1,8 @@
 // These utility functions are exclusively used by `confirmExternalTransaction` method in controller
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import { TransactionStatus } from '../types';
-import type { TransactionMeta } from '../types';
+import { TransactionStatus } from '../types.js';
+import type { TransactionMeta } from '../types.js';
 
 /**
  * Validates the external provided transaction meta.
@@ -15,8 +15,8 @@ export function validateConfirmedExternalTransaction(
   transactionMeta?: TransactionMeta,
   confirmedTxs?: TransactionMeta[],
   pendingTxs?: TransactionMeta[],
-) {
-  if (!transactionMeta || !transactionMeta.txParams) {
+): void {
+  if (!transactionMeta?.txParams) {
     throw rpcErrors.invalidParams(
       '"transactionMeta" or "transactionMeta.txParams" is missing',
     );

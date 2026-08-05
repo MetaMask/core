@@ -12,11 +12,10 @@ import {
 import type { Messaging, MessagePayload } from 'firebase/messaging/sw';
 import log from 'loglevel';
 
-import type { Types } from '../../NotificationServicesController';
-import { Processors } from '../../NotificationServicesController';
-import { toRawOnChainNotification } from '../../shared/to-raw-notification';
-import type { NotificationServicesPushControllerMessenger } from '../NotificationServicesPushController';
-import type { PushNotificationEnv } from '../types/firebase';
+import type { NotificationServicesPushControllerMessenger } from '../NotificationServicesPushController.js';
+import type { PushNotificationEnv } from '../types/firebase.js';
+import type { PushAnalyticsPayload } from '../types/index.js';
+import { toPushAnalyticsPayload } from '../utils/to-push-analytics-payload.js';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -24,7 +23,10 @@ declare const self: ServiceWorkerGlobalScope;
 // eslint-disable-next-line import-x/no-mutable-exports
 export let supportedCache: boolean | null = null;
 
-const getPushAvailability = async () => {
+const getPushAvailability = async (): Promise<boolean> => {
+  // Race condition is acceptable here - worst case is isSupported() is called
+  // multiple times during initialization, which is harmless for caching a boolean
+  // eslint-disable-next-line require-atomic-updates
   supportedCache ??= await isSupported();
   return supportedCache;
 };
@@ -116,7 +118,7 @@ export async function deleteRegToken(
  */
 async function listenToPushNotificationsReceived(
   env: PushNotificationEnv,
-  handler: (notification: Types.INotification) => void | Promise<void>,
+  handler?: (payload: PushAnalyticsPayload) => void | Promise<void>,
 ): Promise<(() => void) | null> {
   const messaging = await getFirebaseMessaging(env);
   if (!messaging) {
@@ -126,30 +128,26 @@ async function listenToPushNotificationsReceived(
   const unsubscribePushNotifications = onBackgroundMessage(
     messaging,
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    async (payload: MessagePayload) => {
+    async (payload: MessagePayload): Promise<void> => {
       try {
-        const data: Types.UnprocessedOnChainRawNotification | undefined =
-          payload?.data?.data ? JSON.parse(payload?.data?.data) : undefined;
+        const analyticsPayload = toPushAnalyticsPayload(payload?.data);
 
-        if (!data) {
+        if (!analyticsPayload) {
           return;
         }
 
-        const notificationData = toRawOnChainNotification(data);
-        const notification = Processors.processNotification(notificationData);
-        await handler(notification);
+        await handler?.(analyticsPayload);
       } catch (error) {
-        // Do Nothing, cannot parse a bad notification
-        log.error('Unable to send push notification:', {
-          notification: payload?.data?.data,
+        // Do Nothing, cannot handle a bad notification
+        log.error('Unable to handle push notification:', {
+          notification: payload?.data,
           error,
         });
-        throw new Error('Unable to send push notification');
       }
     },
   );
 
-  const unsubscribe = () => unsubscribePushNotifications();
+  const unsubscribe = (): void => unsubscribePushNotifications();
   return unsubscribe;
 }
 
@@ -160,16 +158,16 @@ async function listenToPushNotificationsReceived(
  * @returns unsubscribe handler
  */
 function listenToPushNotificationsClicked(
-  handler: (e: NotificationEvent, notification: Types.INotification) => void,
-) {
-  const clickHandler = (event: NotificationEvent) => {
+  handler: (e: NotificationEvent, payload: PushAnalyticsPayload) => void,
+): () => void {
+  const clickHandler = (event: NotificationEvent): void => {
     // Get Data
-    const data: Types.INotification = event?.notification?.data;
+    const data: PushAnalyticsPayload = event?.notification?.data;
     handler(event, data);
   };
 
   self.addEventListener('notificationclick', clickHandler);
-  const unsubscribe = () =>
+  const unsubscribe = (): void =>
     self.removeEventListener('notificationclick', clickHandler);
   return unsubscribe;
 }
@@ -187,37 +185,32 @@ function listenToPushNotificationsClicked(
  * @returns a function that can be used by the controller
  */
 export function createSubscribeToPushNotifications(props: {
-  onReceivedHandler: (
-    notification: Types.INotification,
-  ) => void | Promise<void>;
-  onClickHandler: (
-    e: NotificationEvent,
-    notification: Types.INotification,
-  ) => void;
+  onReceivedHandler: (payload: PushAnalyticsPayload) => void | Promise<void>;
+  onClickHandler: (e: NotificationEvent, payload: PushAnalyticsPayload) => void;
   messenger: NotificationServicesPushControllerMessenger;
-}) {
-  return async function (env: PushNotificationEnv) {
+}): (env: PushNotificationEnv) => Promise<() => void> {
+  return async function (env: PushNotificationEnv): Promise<() => void> {
     const onBackgroundMessageSub = await listenToPushNotificationsReceived(
       env,
-      async (notification) => {
+      async (analyticsPayload): Promise<void> => {
         props.messenger.publish(
           'NotificationServicesPushController:onNewNotifications',
-          notification,
+          analyticsPayload,
         );
-        await props.onReceivedHandler(notification);
+        await props.onReceivedHandler(analyticsPayload);
       },
     );
     const onClickSub = listenToPushNotificationsClicked(
-      (event, notification) => {
+      (event, analyticsPayload): void => {
         props.messenger.publish(
           'NotificationServicesPushController:pushNotificationClicked',
-          notification,
+          analyticsPayload,
         );
-        props.onClickHandler(event, notification);
+        props.onClickHandler(event, analyticsPayload);
       },
     );
 
-    const unsubscribe = () => {
+    const unsubscribe = (): void => {
       onBackgroundMessageSub?.();
       onClickSub();
     };

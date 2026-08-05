@@ -8,11 +8,13 @@ import { Agent as HttpsAgent } from 'node:https';
 import { join, basename, extname, relative } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { extract as extractTar } from 'tar';
-import { Open, type Source, type Entry } from 'unzipper';
+import { Open } from 'unzipper';
+import type { Source, Entry } from 'unzipper';
 
-import { startDownload } from './download';
-import { Extension, type Binary } from './types';
-import { say } from './utils';
+import { startDownload } from './download.js';
+import { Extension } from './types.js';
+import type { Binary } from './types.js';
+import { say } from './utils.js';
 
 /**
  * Extracts the binaries from the given URL and writes them to the destination.
@@ -141,6 +143,9 @@ async function extractFromTar(
     extractTar(
       {
         cwd: dir,
+        // @ts-expect-error: Types here broke in `tar@7.5.12`, but it appears to
+        // work fine as-is.
+        // See: https://github.com/isaacs/node-tar/issues/459
         transform: (entry) => {
           const absolutePath = entry.absolute;
           if (!absolutePath) {

@@ -3,9 +3,6 @@ export type {
   AddressBookEntry,
   AddressBookControllerState,
   AddressBookControllerGetStateAction,
-  AddressBookControllerListAction,
-  AddressBookControllerSetAction,
-  AddressBookControllerDeleteAction,
   AddressBookControllerActions,
   AddressBookControllerStateChangeEvent,
   AddressBookControllerContactUpdatedEvent,
@@ -13,8 +10,15 @@ export type {
   AddressBookControllerEvents,
   AddressBookControllerMessenger,
   ContactEntry,
-} from './AddressBookController';
+} from './AddressBookController.js';
 export {
   getDefaultAddressBookControllerState,
   AddressBookController,
-} from './AddressBookController';
+} from './AddressBookController.js';
+
+export type {
+  AddressBookControllerListAction,
+  AddressBookControllerSetAction,
+  AddressBookControllerDeleteAction,
+  AddressBookControllerClearAction,
+} from './AddressBookController-method-action-types.js';

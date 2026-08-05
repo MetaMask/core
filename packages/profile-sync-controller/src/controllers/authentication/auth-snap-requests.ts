@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 
-type SnapRPCRequest = Parameters<HandleSnapRequest['handler']>[0];
+type SnapRPCRequest = Parameters<
+  SnapControllerHandleRequestAction['handler']
+>[0];
 
 const snapId = 'npm:@metamask/message-signing-snap' as SnapId;
 

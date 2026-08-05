@@ -24,6 +24,15 @@
     },
     {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../approval-controller"
+    },
+    {
+      "path": "../eth-block-tracker"
     }
   ],
   "include": ["../../types", "./src"]

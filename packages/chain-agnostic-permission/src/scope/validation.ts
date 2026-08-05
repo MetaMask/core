@@ -4,8 +4,8 @@ import type {
   ExternalScopeString,
   ExternalScopeObject,
   ExternalScopesObject,
-} from './types';
-import { parseScopeString } from './types';
+} from './types.js';
+import { parseScopeString } from './types.js';
 
 /**
  * Validates a scope object according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.

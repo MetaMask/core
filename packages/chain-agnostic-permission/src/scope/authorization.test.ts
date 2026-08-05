@@ -2,11 +2,11 @@ import {
   bucketScopes,
   isNamespaceInScopesObject,
   validateAndNormalizeScopes,
-} from './authorization';
-import * as Filter from './filter';
-import * as Transform from './transform';
-import type { ExternalScopeObject } from './types';
-import * as Validation from './validation';
+} from './authorization.js';
+import * as Filter from './filter.js';
+import * as Transform from './transform.js';
+import type { ExternalScopeObject } from './types.js';
+import * as Validation from './validation.js';
 
 jest.mock('./filter', () => ({
   bucketScopesBySupport: jest.fn(),

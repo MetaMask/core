@@ -1,13 +1,19 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 
+import { AbstractMessageManager } from './AbstractMessageManager.js';
 import type {
   AbstractMessage,
   AbstractMessageParams,
-  OriginalRequest,
+  MessageManagerState,
+  MessageRequest,
   SecurityProviderRequest,
-} from './AbstractMessageManager';
-import { AbstractMessageManager } from './AbstractMessageManager';
+} from './AbstractMessageManager.js';
 
 type ConcreteMessage = AbstractMessage & {
   messageParams: ConcreteMessageParams;
@@ -21,19 +27,30 @@ type ConcreteMessageParamsMetamask = ConcreteMessageParams & {
   metamaskId?: string;
 };
 
-type ConcreteMessageManagerActions = never;
-type ConcreteMessageManagerEvents = never;
+type ConcreteMessageManagerActions = ControllerGetStateAction<
+  'TestManager',
+  MessageManagerState<ConcreteMessage>
+>;
+type ConcreteMessageManagerEvents = ControllerStateChangeEvent<
+  'TestManager',
+  MessageManagerState<ConcreteMessage>
+>;
+type ConcreteMessageManagerMessenger = Messenger<
+  'TestManager',
+  ConcreteMessageManagerActions,
+  ConcreteMessageManagerEvents
+>;
 
 class AbstractTestManager extends AbstractMessageManager<
+  'TestManager',
   ConcreteMessage,
   ConcreteMessageParams,
   ConcreteMessageParamsMetamask,
-  ConcreteMessageManagerActions,
-  ConcreteMessageManagerEvents
+  ConcreteMessageManagerMessenger
 > {
   addRequestToMessageParams<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
     return super.addRequestToMessageParams(messageParams, req);
   }
@@ -41,7 +58,7 @@ class AbstractTestManager extends AbstractMessageManager<
   createUnapprovedMessage<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,
     type: ApprovalType,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
     return super.createUnapprovedMessage(messageParams, type, req);
   }
@@ -67,18 +84,12 @@ const MOCK_MESSENGER = {
   publish: jest.fn(),
   registerActionHandler: jest.fn(),
   registerInitialEventPayload: jest.fn(),
-} as unknown as RestrictedMessenger<
-  'AbstractMessageManager',
-  never,
-  never,
-  string,
-  string
->;
+} as unknown as Messenger<'TestManager'>;
 
 const MOCK_INITIAL_OPTIONS = {
   additionalFinishStatuses: undefined,
   messenger: MOCK_MESSENGER,
-  name: 'AbstractMessageManager' as const,
+  name: 'TestManager' as const,
   securityProviderRequest: undefined,
 };
 
@@ -398,7 +409,7 @@ describe('AbstractTestManager', () => {
       const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
 
       expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow(
-        'AbstractMessageManager: Message not found for id: 1.',
+        'TestManager: Message not found for id: 1.',
       );
     });
   });
@@ -450,7 +461,7 @@ describe('AbstractTestManager', () => {
       const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
 
       expect(() => controller.setMetadata(messageId, { foo: 'bar' })).toThrow(
-        'AbstractMessageManager: Message not found for id: 1.',
+        'TestManager: Message not found for id: 1.',
       );
     });
   });
@@ -564,6 +575,66 @@ describe('AbstractTestManager', () => {
       });
       controller.clearUnapprovedMessages();
       expect(controller.getUnapprovedMessagesCount()).toBe(0);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "unapprovedMessages": {},
+          "unapprovedMessagesCount": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "unapprovedMessages": {},
+          "unapprovedMessagesCount": 0,
+        }
+      `);
     });
   });
 });
