@@ -2317,9 +2317,9 @@ describe('CodefiTokenPricesServiceV2', () => {
         assets: { native: { assetId: 'eip155:1/slip44:61' } },
       } as RegistryNetworkConfig);
 
-      expect(
-        getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
-      ).toBe('eip155:1/slip44:61');
+      expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+        'eip155:1/slip44:61',
+      );
     });
 
     it('prefers the config registry entry over nativeAssetIdentifiers when there is no hardcoded entry', () => {
@@ -2338,23 +2338,23 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     it('falls back to the hardcoded entry when the config registry has no entry for the chain', () => {
-      expect(
-        getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
-      ).toBe('eip155:1/slip44:60');
+      expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+        'eip155:1/slip44:60',
+      );
     });
 
     it('clears a chain from the config registry cache when set to undefined', () => {
       setNetworkConfig('eip155:1', {
         assets: { native: { assetId: 'eip155:1/slip44:61' } },
       } as RegistryNetworkConfig);
-      expect(
-        getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
-      ).toBe('eip155:1/slip44:61');
+      expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+        'eip155:1/slip44:61',
+      );
 
       setNetworkConfig('eip155:1', undefined);
-      expect(
-        getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
-      ).toBe('eip155:1/slip44:60');
+      expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+        'eip155:1/slip44:60',
+      );
     });
 
     it('returns undefined for a native token with no hardcoded entry and no identifier', () => {

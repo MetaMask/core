@@ -13,7 +13,11 @@ import type {
 import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
-import { hexToNumber, KnownCaipNamespace, toCaipChainId } from '@metamask/utils';
+import {
+  hexToNumber,
+  KnownCaipNamespace,
+  toCaipChainId,
+} from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import {
@@ -21,7 +25,10 @@ import {
   TOKEN_PRICES_BATCH_SIZE,
 } from './assetsUtil.js';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service.js';
-import { getNativeTokenAddress, setNetworkConfig } from './token-prices-service/codefi-v2.js';
+import {
+  getNativeTokenAddress,
+  setNetworkConfig,
+} from './token-prices-service/codefi-v2.js';
 import { TokenRwaData } from './token-service.js';
 import type {
   TokensControllerGetStateAction,

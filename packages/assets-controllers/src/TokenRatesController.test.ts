@@ -283,9 +283,9 @@ describe('TokenRatesController', () => {
         // 0x1 was never part of a priced batch, so it falls back to the
         // hardcoded SPOT_PRICES_SUPPORT_INFO entry rather than picking up
         // stale or unrelated registry data.
-        expect(
-          getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
-        ).toBe('eip155:1/slip44:60');
+        expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+          'eip155:1/slip44:60',
+        );
       });
     });
 

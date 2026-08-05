@@ -1,3 +1,4 @@
+import type { RegistryNetworkConfig } from '@metamask/config-registry-controller';
 import {
   createServicePolicy,
   DEFAULT_CIRCUIT_BREAK_DURATION,
@@ -6,7 +7,6 @@ import {
   DEFAULT_MAX_RETRIES,
   handleFetch,
 } from '@metamask/controller-utils';
-import type { RegistryNetworkConfig } from '@metamask/config-registry-controller';
 import type { ServicePolicy } from '@metamask/controller-utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import {
@@ -658,8 +658,8 @@ export function getAssetId({
       nativeAddress.toLowerCase() === tokenAddress.toLowerCase();
 
     if (isNativeToken) {
-      const registryAssetId = cachedNetworkConfigs[caipChainId]?.assets
-        ?.native?.assetId as CaipAssetType | undefined;
+      const registryAssetId = cachedNetworkConfigs[caipChainId]?.assets?.native
+        ?.assetId as CaipAssetType | undefined;
       const hardcodedId = (
         SPOT_PRICES_SUPPORT_INFO as Partial<Record<Hex, string>>
       )[chainId];
