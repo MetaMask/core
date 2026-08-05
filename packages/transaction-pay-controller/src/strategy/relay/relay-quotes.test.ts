@@ -7,7 +7,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -16,12 +16,12 @@ import {
   NATIVE_TOKEN_ADDRESS,
   PaymentOverride,
   POLYGON_USDCE_ADDRESS,
-} from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
+} from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
-} from '../../types';
+} from '../../types.js';
 import {
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
@@ -30,23 +30,24 @@ import {
   isRelayExecuteEnabled,
   getGasBuffer,
   getSlippage,
-} from '../../utils/feature-flags';
-import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+} from '../../utils/feature-flags.js';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas.js';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
-} from '../../utils/token';
-import { getRelayQuotes } from './relay-quotes';
-import type { RelayQuote, RelayTransactionStep } from './types';
+} from '../../utils/token.js';
+import { getRelayQuotes } from './relay-quotes.js';
+import type { RelayQuote, RelayTransactionStep } from './types.js';
 
 jest.mock('../../utils/token', () => ({
-  ...jest.createMockFromModule<typeof import('../../utils/token')>(
+  ...jest.createMockFromModule<typeof import('../../utils/token.js')>(
     '../../utils/token',
   ),
   normalizeTokenAddress:
-    jest.requireActual<typeof import('../../utils/token')>('../../utils/token')
-      .normalizeTokenAddress,
+    jest.requireActual<typeof import('../../utils/token.js')>(
+      '../../utils/token',
+    ).normalizeTokenAddress,
 }));
 jest.mock('../../utils/gas', () => ({
   ...jest.requireActual('../../utils/gas'),
@@ -60,6 +61,7 @@ jest.mock('../../utils/feature-flags', () => ({
   getGasBuffer: jest.fn(),
   getSlippage: jest.fn(),
 }));
+jest.mock('./relay-validation');
 
 const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
 const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
@@ -3505,6 +3507,141 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
+    describe('non-atomic post-quote (atomic: false)', () => {
+      const NON_ATOMIC_REQUEST: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        atomic: false,
+        isPostQuote: true,
+      };
+
+      const CALLBACK_RECIPIENT_MOCK =
+        '0xbb00000000000000000000000000000000000042' as Hex;
+
+      beforeEach(() => {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {},
+        } as never);
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [],
+        });
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+      });
+
+      it('does not embed transactions in the quote body when atomic is false', async () => {
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...NON_ATOMIC_REQUEST,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.txs).toBeUndefined();
+      });
+
+      it('uses recipient from getPaymentOverrideData when atomic is false', async () => {
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [],
+          recipient: CALLBACK_RECIPIENT_MOCK,
+        });
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [NON_ATOMIC_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.recipient).toBe(CALLBACK_RECIPIENT_MOCK);
+      });
+
+      it('defaults recipient to from when getPaymentOverrideData returns no recipient', async () => {
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [NON_ATOMIC_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.recipient).toBe(QUOTE_REQUEST_MOCK.from);
+      });
+
+      it('uses transaction from as recipient for non-post-quote when atomic is false', async () => {
+        const transactionFrom =
+          '0xcc00000000000000000000000000000000000042' as Hex;
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [{ ...QUOTE_REQUEST_MOCK, atomic: false }],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            txParams: { from: transactionFrom },
+          } as TransactionMeta,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+        expect(body.recipient).toBe(transactionFrom);
+      });
+
+      it('falls back to request from for non-post-quote when transaction has no from', async () => {
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [{ ...QUOTE_REQUEST_MOCK, atomic: false }],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.recipient).toBe(QUOTE_REQUEST_MOCK.from);
+      });
+
+      it('honours caller-specified refundTo when atomic is false', async () => {
+        const refundTo = '0xaa00000000000000000000000000000000000042' as Hex;
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [{ ...NON_ATOMIC_REQUEST, refundTo }],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.refundTo).toBe(refundTo);
+      });
+    });
+
     describe('HyperLiquid source (isHyperliquidSource)', () => {
       const HL_REQUEST: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
@@ -3774,6 +3911,58 @@ describe('Relay Quotes Utils', () => {
           destinationCurrency: '0x00000000000000000000000000000000',
         }),
       );
+    });
+
+    // A HyperCore deposit funds an order that needs the whole target as margin.
+    // EXPECTED_OUTPUT only guarantees `target * (1 - slippage)`, which leaves the
+    // follow-on order short and it fails on insufficient margin.
+    it('requests an exact output for Hyperliquid deposits so the full margin is guaranteed', async () => {
+      const arbitrumToHyperliquidRequest: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        targetChainId: CHAIN_ID_ARBITRUM,
+        targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [arbitrumToHyperliquidRequest],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDepositAndOrder,
+        },
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.tradeType).toBe('EXACT_OUTPUT');
+    });
+
+    it('still requests an expected output for non-Hyperliquid targets', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.tradeType).toBe('EXPECTED_OUTPUT');
     });
 
     it('does not convert to Hyperliquid deposit when parent transaction is not a Perps deposit', async () => {
@@ -4101,9 +4290,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow(
-        'Failed to fetch Relay quotes: Error: Batch estimation failed',
-      );
+      ).rejects.toThrow('Batch estimation failed');
     });
 
     it('includes gas limits in quote', async () => {
@@ -4166,7 +4353,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow('Failed to fetch Relay quotes');
+      ).rejects.toThrow(Error);
     });
 
     it('throws when relay transaction estimation fields are missing', async () => {
@@ -4190,7 +4377,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow('Failed to fetch Relay quotes');
+      ).rejects.toThrow(Error);
     });
 
     describe('Polymarket deposit-wallet source (isPolymarketDepositWallet)', () => {
@@ -4507,7 +4694,15 @@ describe('Relay Quotes Utils', () => {
       successfulFetchMock
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ delta: { type: 'withdraw' } }],
+          json: async () => [
+            {
+              delta: {
+                type: 'send',
+                user: FROM_MOCK,
+                destination: '0x6b9e773128f453f5c2c60935ee2de2cbc5390a24',
+              },
+            },
+          ],
         } as never)
         .mockResolvedValueOnce({
           ok: true,

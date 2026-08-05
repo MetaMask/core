@@ -41,7 +41,6 @@ const MOCK_MONEY_ACCOUNT: MoneyAccount = {
     exportable: false,
   },
   methods: [
-    'eth_signTransaction',
     'personal_sign',
     'eth_signTypedData_v1',
     'eth_signTypedData_v3',
@@ -64,7 +63,6 @@ const MOCK_MONEY_ACCOUNT_2: MoneyAccount = {
     exportable: false,
   },
   methods: [
-    'eth_signTransaction',
     'personal_sign',
     'eth_signTypedData_v1',
     'eth_signTypedData_v3',
@@ -295,10 +293,7 @@ describe('MoneyAccountController', () => {
             derivationPath: "m/44'/4392018'/0'/0",
           },
         },
-        methods: expect.arrayContaining([
-          'personal_sign',
-          'eth_signTransaction',
-        ]),
+        methods: expect.arrayContaining(['personal_sign']),
       });
       expect(typeof account.id).toBe('string');
     });

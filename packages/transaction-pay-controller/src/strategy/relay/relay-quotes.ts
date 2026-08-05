@@ -14,7 +14,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { TransactionPayStrategy } from '../..';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -26,8 +25,9 @@ import {
   PERPS_DEPOSIT_TYPES,
   USDC_DECIMALS,
   PaymentOverride,
-} from '../../constants';
-import { projectLogger } from '../../logger';
+} from '../../constants.js';
+import { TransactionPayStrategy } from '../../index.js';
+import { projectLogger } from '../../logger.js';
 import type {
   Amount,
   FiatRates,
@@ -35,8 +35,8 @@ import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { getFiatValueFromUsd } from '../../utils/amounts';
+} from '../../types.js';
+import { getFiatValueFromUsd } from '../../utils/amounts.js';
 import {
   getFeatureFlags,
   getRelayOriginGasOverhead,
@@ -44,32 +44,33 @@ import {
   getStablecoins,
   isEIP7702Chain,
   isRelayExecuteEnabled,
-} from '../../utils/feature-flags';
-import { calculateGasCost } from '../../utils/gas';
+} from '../../utils/feature-flags.js';
 import {
   getGasStationCostInSourceTokenRaw,
   getGasStationEligibility,
-} from '../../utils/gas-station';
-import { estimateQuoteGasLimits } from '../../utils/quote-gas';
-import type { QuoteGasTransaction } from '../../utils/quote-gas';
+} from '../../utils/gas-station.js';
+import { calculateGasCost } from '../../utils/gas.js';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
+import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
   normalizeTokenAddress,
   TokenAddressTarget,
-} from '../../utils/token';
-import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import { applyHyperliquidActivationFee } from './hyperliquid-activation';
-import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
-import { fetchRelayQuote } from './relay-api';
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
+} from '../../utils/token.js';
+import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
+import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
+import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw.js';
+import { fetchRelayQuote } from './relay-api.js';
+import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
+import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
   RelayQuoteMetamask,
   RelayQuoteRequest,
   RelayTransactionStep,
-} from './types';
+} from './types.js';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
@@ -122,7 +123,7 @@ export async function getRelayQuotes(
           applyHyperliquidActivationFee(
             normalizedRequest,
             request.messenger,
-            request.transaction.type,
+            request.transaction,
             request.signal,
           ),
         ),
@@ -130,14 +131,23 @@ export async function getRelayQuotes(
 
     log('Normalized requests', normalizedRequests);
 
-    return await Promise.all(
+    const quotes = await Promise.all(
       normalizedRequests.map((singleRequest) =>
         getQuoteWithMaxAmountHandling(singleRequest, request),
       ),
     );
+
+    await validateRelayQuotes({
+      messenger: request.messenger,
+      quotes,
+      signal: request.signal,
+      transaction: request.transaction,
+    });
+
+    return quotes;
   } catch (error) {
     log('Error fetching quotes', { error });
-    throw new Error(`Failed to fetch Relay quotes: ${String(error)}`);
+    throw error;
   }
 }
 
@@ -295,14 +305,31 @@ async function getSingleQuote(
   try {
     // For post-quote or max amount flows, use EXACT_INPUT - user specifies how much to send,
     // and we show them how much they'll receive after fees.
-    // For regular flows with a target amount, use EXPECTED_OUTPUT.
+    // For regular flows with a target amount, use EXPECTED_OUTPUT, except
+    // HyperCore deposits, which need a guaranteed amount (see below).
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
+
+    // HyperCore perps deposits fund an order that requires the full target as
+    // margin, so the delivered amount must be guaranteed rather than expected.
+    // EXPECTED_OUTPUT only guarantees `target * (1 - slippage)`, which leaves
+    // the follow-on order short and it fails on insufficient margin.
+    const useExactOutput = !useExactInput && isHypercoreDeposit(request);
 
     const useExecute =
       supports7702 &&
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
+
+    const nonAtomicRecipient = await resolveNonAtomicRecipient(
+      transaction,
+      request,
+      messenger,
+    );
+
+    const effectiveRequest = nonAtomicRecipient
+      ? { ...request, recipient: nonAtomicRecipient }
+      : request;
 
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
@@ -316,37 +343,46 @@ async function getSingleQuote(
             metamask: { executeVersion: 2 },
           }
         : {}),
-      recipient: request.recipient ?? from,
+      recipient: effectiveRequest.recipient ?? from,
       slippageTolerance,
-      tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
+      tradeType: getTradeType(useExactInput, useExactOutput),
       user: from,
     };
 
-    if (request.isPolymarketDepositWallet) {
-      await applyPolymarketDepositWalletOverrides(body, request, messenger);
+    if (effectiveRequest.isPolymarketDepositWallet) {
+      await applyPolymarketDepositWalletOverrides(
+        body,
+        effectiveRequest,
+        messenger,
+      );
     }
 
-    // Skip transaction processing when skipProcessTransactions (defaulting to
-    // isPostQuote) is true — the original transaction will be included in the
-    // batch separately, not as part of the quote.
-    // Skip for Polymarket deposit wallet flows — the source is already a
-    // bridged token transfer, not a contract call to embed.
-    const shouldProcessTransactions =
-      !(request.skipProcessTransactions ?? request.isPostQuote) &&
-      !request.isPolymarketDepositWallet;
+    const isAtomic = effectiveRequest.atomic !== false;
 
-    if (shouldProcessTransactions) {
-      await processTransactions(transaction, request, body, messenger);
-    } else if (
-      request.isPostQuote &&
-      request.paymentOverride === PaymentOverride.MoneyAccount
+    const processedTransactions = await processTransactions(
+      transaction,
+      effectiveRequest,
+      body,
+      messenger,
+    );
+
+    if (
+      !processedTransactions &&
+      isAtomic &&
+      effectiveRequest.isPostQuote &&
+      effectiveRequest.paymentOverride === PaymentOverride.MoneyAccount
     ) {
-      await processMoneyAccountPostQuote(transaction, request, body, messenger);
-    } else if (request.refundTo) {
+      await processMoneyAccountPostQuote(
+        transaction,
+        effectiveRequest,
+        body,
+        messenger,
+      );
+    } else if (!processedTransactions && effectiveRequest.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
       // failed Relay transactions refund to the correct account (e.g. the Predict
       // Safe proxy) rather than defaulting to the EOA.
-      body.refundTo = request.refundTo;
+      body.refundTo = effectiveRequest.refundTo;
     }
 
     log('Request body', body);
@@ -355,7 +391,7 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    return await normalizeQuote(quote, request, fullRequest);
+    return await normalizeQuote(quote, effectiveRequest, fullRequest);
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -376,19 +412,82 @@ function normalizeAuthorizationList(
 }
 
 /**
+ * Derives the Relay quote recipient for non-atomic flows, where the second leg
+ * runs after settlement so funds must land directly on the account submitting
+ * that leg.
+ *
+ * Post-quote flows (e.g. Perps/Predict withdraw to Money Account) ask the
+ * client `getPaymentOverrideData` callback, which knows the Money Account
+ * address that cannot be derived from the request. Non-post-quote flows (e.g.
+ * max-amount Money Account deposit) use the parent transaction's own `from`,
+ * which is the Money Account rather than the funding EOA in `request.from`.
+ *
+ * @param transaction - Transaction metadata.
+ * @param request - Quote request.
+ * @param messenger - Controller messenger.
+ * @returns The recipient address, or `undefined` for atomic flows.
+ */
+async function resolveNonAtomicRecipient(
+  transaction: TransactionMeta,
+  request: QuoteRequest,
+  messenger: TransactionPayControllerMessenger,
+): Promise<Hex | undefined> {
+  if (request.atomic !== false) {
+    return undefined;
+  }
+
+  if (!request.isPostQuote) {
+    return (transaction.txParams?.from as Hex | undefined) ?? request.from;
+  }
+
+  const { transactionData: transactionDataList } = messenger.call(
+    'TransactionPayController:getState',
+  );
+
+  const transactionData = transactionDataList[transaction.id];
+  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
+
+  const { recipient } = await messenger.call(
+    'TransactionPayController:getPaymentOverrideData',
+    {
+      amount: amountHuman,
+      transaction,
+      transactionData,
+    },
+  );
+
+  return recipient;
+}
+
+/**
  * Add tranasction data to request body if needed.
  *
  * @param transaction - Transaction metadata.
  * @param request - Quote request.
  * @param requestBody  - Request body to populate.
  * @param messenger  - Controller messenger.
+ * @returns `true` when the transaction was embedded in the quote; `false` when
+ * skipped so the caller can route to an alternate handler.
  */
 async function processTransactions(
   transaction: TransactionMeta,
   request: QuoteRequest,
   requestBody: RelayQuoteRequest,
   messenger: TransactionPayControllerMessenger,
-): Promise<void> {
+): Promise<boolean> {
+  // Skip when skipProcessTransactions (defaulting to isPostQuote) is set — the
+  // original transaction is submitted separately, not embedded in the quote.
+  // Skip Polymarket deposit wallet flows — the source is already a bridged
+  // token transfer, not a contract call to embed. Skip non-atomic flows — the
+  // second leg is submitted after Relay settlement.
+  if (
+    (request.skipProcessTransactions ?? request.isPostQuote) === true ||
+    request.isPolymarketDepositWallet === true ||
+    request.atomic === false
+  ) {
+    return false;
+  }
+
   const { nestedTransactions, txParams } = transaction;
   const { isMaxAmount, targetChainId } = request;
   const data = txParams?.data as Hex | undefined;
@@ -412,7 +511,7 @@ async function processTransactions(
 
   if (skipDelegation) {
     log('Skipping delegation as token transfer or Hypercore deposit');
-    return;
+    return true;
   }
 
   if (isMaxAmount) {
@@ -457,6 +556,8 @@ async function processTransactions(
       value: delegation.value,
     },
   ];
+
+  return true;
 }
 
 async function processMoneyAccountPostQuote(
@@ -509,6 +610,42 @@ async function processMoneyAccountPostQuote(
   log('Added money account deposit calls to quote body', {
     callCount: overrideCalls.length,
   });
+}
+
+/**
+ * Whether the quote deposits into HyperCore USDC.
+ *
+ * `normalizeRequest` remaps Arbitrum-USDC perps deposits to HyperCore before
+ * the quote is built, so the check is against the normalized target.
+ *
+ * @param request - Normalized quote request.
+ * @returns True when the target is HyperCore USDC.
+ */
+function isHypercoreDeposit(request: QuoteRequest): boolean {
+  return (
+    !request.isHyperliquidSource &&
+    request.targetChainId === CHAIN_ID_HYPERCORE &&
+    request.targetTokenAddress.toLowerCase() ===
+      HYPERCORE_USDC_ADDRESS.toLowerCase()
+  );
+}
+
+/**
+ * Resolve the Relay trade type for a quote.
+ *
+ * @param useExactInput - Whether the user specified the amount to send.
+ * @param useExactOutput - Whether the delivered amount must be guaranteed.
+ * @returns The Relay trade type.
+ */
+function getTradeType(
+  useExactInput: boolean | undefined,
+  useExactOutput: boolean,
+): RelayQuoteRequest['tradeType'] {
+  if (useExactInput) {
+    return 'EXACT_INPUT';
+  }
+
+  return useExactOutput ? 'EXACT_OUTPUT' : 'EXPECTED_OUTPUT';
 }
 
 /**

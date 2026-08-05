@@ -1,11 +1,11 @@
-import { RewardsIntegrationService } from '../../../src/services/RewardsIntegrationService';
-import type { PerpsPlatformDependencies } from '../../../src/types';
+import { RewardsIntegrationService } from '../../../src/services/RewardsIntegrationService.js';
+import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
 /* eslint-disable */
 import {
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 describe('RewardsIntegrationService', () => {
   let mockDeps: jest.Mocked<PerpsPlatformDependencies>;

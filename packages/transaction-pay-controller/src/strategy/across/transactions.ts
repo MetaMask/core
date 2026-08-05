@@ -2,7 +2,7 @@ import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
-import type { AcrossSwapApprovalResponse } from './types';
+import type { AcrossSwapApprovalResponse } from './types.js';
 
 export type AcrossOrderedTransaction = {
   chainId: number;

@@ -11,8 +11,8 @@ import {
   getTokenBalancesForMultipleAddresses,
   getStakedBalancesForAddresses,
   getNftOwnershipForMultipleNfts,
-} from './multicall';
-import type { Aggregate3Call, NftOwnershipQuery } from './multicall';
+} from './multicall.js';
+import type { Aggregate3Call, NftOwnershipQuery } from './multicall.js';
 
 const provider = new Web3Provider(jest.fn());
 

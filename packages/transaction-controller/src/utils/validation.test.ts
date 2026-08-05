@@ -1,14 +1,14 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 
-import { TransactionEnvelopeType, TransactionType } from '../types';
-import type { TransactionParams } from '../types';
+import { TransactionEnvelopeType, TransactionType } from '../types.js';
+import type { TransactionParams } from '../types.js';
 import {
   validateBatchRequest,
   validateParamTo,
   validateTransactionOrigin,
   validateTxParams,
-} from './validation';
+} from './validation.js';
 
 const DATA_MOCK = '0x12345678';
 const FROM_MOCK: Hex = '0x1678a085c290ebd122dc42cba69373b5953b831d';

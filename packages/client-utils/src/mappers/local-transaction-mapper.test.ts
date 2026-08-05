@@ -1,6 +1,6 @@
-import { localTransactionFixtures } from '../../test/fixtures/local-transactions';
-import { formatAddressToAssetId } from './helpers/caip';
-import { mapLocalTransaction } from './local-transaction-mapper';
+import { localTransactionFixtures } from '../../test/fixtures/local-transactions.js';
+import { formatAddressToAssetId } from './helpers/caip.js';
+import { mapLocalTransaction } from './local-transaction-mapper.js';
 
 jest.mock('./helpers/token-metadata', () => ({
   getKnownTokenMetadata: jest.requireActual('../../test/test-helpers')
@@ -33,15 +33,14 @@ describe('mapLocalTransaction', () => {
         to,
         token: {
           amount: '0x1',
-          assetId: 'eip155:1/slip44:60',
           decimals: 18,
           direction: 'out',
-          symbol: 'ETH',
+          assetType: 'native',
         },
       },
     });
   });
-  it('maps a native send on an unknown chain without a ticker to a tokenless Send', () => {
+  it('maps a native send on an unknown chain without a ticker to a Send with amount but no symbol', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsANativeSendOnAn,
     );
@@ -54,9 +53,72 @@ describe('mapLocalTransaction', () => {
       data: {
         from,
         to,
-        token: undefined,
+        token: {
+          amount: '0xde0b6b3a7640000',
+          decimals: 18,
+          direction: 'out',
+          assetType: 'native',
+        },
       },
     });
+  });
+  it('maps a native send with ticker but missing value to a token with symbol only', () => {
+    const base = localTransactionFixtures.mapInputs.mapsAPendingNativeSendTo;
+    const item = mapLocalTransaction({
+      ...base,
+      nativeAssetSymbol: 'ETH',
+      initialTransaction: {
+        ...base.initialTransaction,
+        txParams: { from, to },
+      },
+      primaryTransaction: {
+        ...base.primaryTransaction,
+        txParams: { from, to },
+      },
+    });
+    expect(item).toMatchObject({
+      type: 'send',
+      data: {
+        token: {
+          direction: 'out',
+          assetType: 'native',
+          decimals: 18,
+          symbol: 'ETH',
+        },
+      },
+    });
+    expect(
+      item.type === 'send' ? item.data.token?.amount : 'unset',
+    ).toBeUndefined();
+  });
+  it('maps a native send with ticker but invalid value to a token with symbol only', () => {
+    const base = localTransactionFixtures.mapInputs.mapsAPendingNativeSendTo;
+    const item = mapLocalTransaction({
+      ...base,
+      nativeAssetSymbol: 'ETH',
+      initialTransaction: {
+        ...base.initialTransaction,
+        txParams: { from, to, value: 'not-a-hex-amount' },
+      },
+      primaryTransaction: {
+        ...base.primaryTransaction,
+        txParams: { from, to, value: 'not-a-hex-amount' },
+      },
+    });
+    expect(item).toMatchObject({
+      type: 'send',
+      data: {
+        token: {
+          direction: 'out',
+          assetType: 'native',
+          decimals: 18,
+          symbol: 'ETH',
+        },
+      },
+    });
+    expect(
+      item.type === 'send' ? item.data.token?.amount : 'unset',
+    ).toBeUndefined();
   });
   it('maps a custom network native send without bridge native asset metadata', () => {
     const item = mapLocalTransaction(
@@ -76,6 +138,8 @@ describe('mapLocalTransaction', () => {
           decimals: 18,
           direction: 'out',
           symbol: 'ETH',
+          assetType: 'native',
+          assetId: 'eip155:1338/slip44:60',
         },
       },
     });
@@ -270,14 +334,22 @@ describe('mapLocalTransaction', () => {
       },
     });
   });
-  it('maps an incoming native transfer to a Receive activity', () => {
+  it('maps an incoming native transfer without nativeAssetSymbol to a Receive with native assetType only', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAnIncomingNativeTransferTo,
     );
     expect(item).toMatchObject({
       type: 'receive',
-      data: { token: { direction: 'in', symbol: 'ETH' } },
+      data: {
+        token: {
+          direction: 'in',
+          assetType: 'native',
+        },
+      },
     });
+    expect(
+      item.type === 'receive' ? item.data.token?.assetId : 'unset',
+    ).toBeUndefined();
   });
   it('maps an mUSD conversion to a Convert activity', () => {
     const item = mapLocalTransaction(
@@ -510,9 +582,8 @@ describe('mapLocalTransaction', () => {
           {
             type: 'base',
             amount: String(BigInt('0x24405') * BigInt('0x6fc23ac1d')),
-            assetId: 'eip155:42161/slip44:60',
             decimals: 18,
-            symbol: 'ETH',
+            assetType: 'native',
           },
         ],
       },
@@ -549,7 +620,7 @@ describe('mapLocalTransaction', () => {
       data: { from },
     });
   });
-  it('maps a WETH9 deposit contract interaction to a Wrap activity', () => {
+  it('maps a WETH9 deposit contract interaction to a Wrap activity with a native source amount but no symbol when nativeAssetSymbol is omitted', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAWeth9DepositContractInteraction,
     );
@@ -563,10 +634,9 @@ describe('mapLocalTransaction', () => {
         from,
         sourceToken: {
           amount: '0x3782dace9d900000',
-          assetId: 'eip155:1/slip44:60',
           decimals: 18,
           direction: 'out',
-          symbol: 'ETH',
+          assetType: 'native',
         },
         destinationToken: {
           amount: '0x3782dace9d900000',
@@ -583,11 +653,29 @@ describe('mapLocalTransaction', () => {
     );
     expect(item.type).toBe('contractInteraction');
   });
-  it('maps a WETH9 withdraw contract interaction to an Unwrap activity', () => {
+  it('maps a WETH9 withdraw contract interaction to an Unwrap activity with a native destination amount but no symbol when nativeAssetSymbol is omitted', () => {
     const unwrapAmount = '1000000000000000000';
-    const item = mapLocalTransaction(
-      localTransactionFixtures.mapInputs.mapsAWeth9WithdrawContractInteraction,
-    );
+    const base =
+      localTransactionFixtures.mapInputs.mapsAWeth9WithdrawContractInteraction;
+    const item = mapLocalTransaction({
+      ...base,
+      initialTransaction: {
+        ...base.initialTransaction,
+        txParams: {
+          from,
+          to: wethContractAddress,
+          data: base.initialTransaction.txParams.data,
+        },
+      },
+      primaryTransaction: {
+        ...base.primaryTransaction,
+        txParams: {
+          from,
+          to: wethContractAddress,
+          data: base.primaryTransaction.txParams.data,
+        },
+      },
+    });
     expect(item).toStrictEqual({
       type: 'unwrap',
       chainId: 'eip155:1',
@@ -604,24 +692,25 @@ describe('mapLocalTransaction', () => {
         },
         destinationToken: {
           amount: unwrapAmount,
-          assetId: 'eip155:1/slip44:60',
           decimals: 18,
           direction: 'in',
-          symbol: 'ETH',
+          assetType: 'native',
         },
       },
     });
   });
-  it('maps a WETH9 unwrap with malformed amount data to an unwrap without amount', () => {
+  it('maps a WETH9 unwrap with malformed amount data to an unwrap without a destination token when nativeAssetSymbol is omitted', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAWeth9UnwrapWithMalformed,
     );
     expect(item).toMatchObject({
       type: 'unwrap',
-      data: { destinationToken: { direction: 'in', symbol: 'ETH' } },
+      data: {
+        destinationToken: undefined,
+      },
     });
   });
-  it('maps a native value contract interaction with an outgoing token', () => {
+  it('maps a native value contract interaction with amount but no symbol when nativeAssetSymbol is omitted', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsANativeValueContractInteraction,
     );
@@ -636,10 +725,9 @@ describe('mapLocalTransaction', () => {
         to,
         token: {
           amount: '0x3782dace9d900000',
-          assetId: 'eip155:1/slip44:60',
           decimals: 18,
           direction: 'out',
-          symbol: 'ETH',
+          assetType: 'native',
         },
         methodId: '0xd0e30db0',
       },
@@ -771,7 +859,8 @@ describe('mapLocalTransaction', () => {
           {
             type: 'base',
             amount: String(BigInt('0x100') * BigInt('0x10')),
-            symbol: 'ETH',
+            decimals: 18,
+            assetType: 'native',
           },
         ],
       },
@@ -790,13 +879,15 @@ describe('mapLocalTransaction', () => {
     expect(item.type).toBe('send');
     expect(item.type === 'send' ? item.data.token : 'unset').toBeUndefined();
   });
-  it('maps a WETH9 unwrap with non-hex amount data to an unwrap without amount', () => {
+  it('maps a WETH9 unwrap with non-hex amount data to an unwrap without a destination token when nativeAssetSymbol is omitted', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAWeth9UnwrapWithNon,
     );
     expect(item).toMatchObject({
       type: 'unwrap',
-      data: { destinationToken: { direction: 'in', symbol: 'ETH' } },
+      data: {
+        destinationToken: undefined,
+      },
     });
     expect(
       item.type === 'unwrap' ? item.data.sourceToken?.amount : 'unset',
@@ -813,12 +904,9 @@ describe('mapLocalTransaction', () => {
       data: {
         from: '',
         to: '',
-        token: { direction: 'out', symbol: 'ETH' },
+        token: undefined,
       },
     });
-    expect(
-      item.type === 'send' ? item.data.token?.amount : 'unset',
-    ).toBeUndefined();
   });
   it('handles token transfers on a chain without a wrapped-native token entry', () => {
     const item = mapLocalTransaction(

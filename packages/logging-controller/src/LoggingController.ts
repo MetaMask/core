@@ -7,8 +7,8 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { v1 as random } from 'uuid';
 
-import type { LoggingControllerMethodActions } from './LoggingController-method-action-types';
-import type { Log } from './logTypes';
+import type { LoggingControllerMethodActions } from './LoggingController-method-action-types.js';
+import type { Log } from './logTypes/index.js';
 
 /**
  * LogEntry is the entry that will be added to the logging controller state.

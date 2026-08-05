@@ -1,5 +1,5 @@
-import type { Caip19AssetId, ChainId } from '../types';
-import { pickRpcCustomAssetsSupplement } from './customAssetsRpcSupplement';
+import type { Caip19AssetId, ChainId } from '../types.js';
+import { pickRpcCustomAssetsSupplement } from './customAssetsRpcSupplement.js';
 
 const MAINNET = 'eip155:1' as ChainId;
 const POLYGON = 'eip155:137' as ChainId;

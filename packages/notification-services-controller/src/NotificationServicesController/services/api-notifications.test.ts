@@ -2,12 +2,12 @@ import {
   mockGetOnChainNotificationsConfig,
   mockGetAPINotifications,
   mockMarkNotificationsAsRead,
-} from '../__fixtures__/mockServices';
+} from '../__fixtures__/mockServices.js';
 import {
   createMockNotificationERC20Sent,
   createMockPlatformNotification,
-} from '../mocks';
-import * as OnChainNotifications from './api-notifications';
+} from '../mocks/index.js';
+import * as OnChainNotifications from './api-notifications.js';
 
 const MOCK_BEARER_TOKEN = 'MOCK_BEARER_TOKEN';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];

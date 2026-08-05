@@ -1,7 +1,7 @@
 import type { CaipAssetId, CaipChainId, Hex } from '@metamask/utils';
 
-import { MarketCategory } from '../types';
-import type { MarketType } from '../types';
+import { MarketCategory } from '../types/index.js';
+import type { MarketType } from '../types/index.js';
 import type {
   HyperLiquidNetwork,
   HyperLiquidEndpoints,
@@ -11,7 +11,7 @@ import type {
   HyperLiquidTransportConfig,
   TradingDefaultsConfig,
   FeeRatesConfig,
-} from '../types/perps-types';
+} from '../types/perps-types.js';
 
 // Network constants
 export const ARBITRUM_MAINNET_CHAIN_ID_HEX = '0xa4b1' as const;

@@ -10,12 +10,20 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { isHeadlessAllProvidersEnabled } from './featureFlags.js';
-import { getProvidersServingAsset } from './providerAvailability.js';
+import {
+  getHeadlessProviderAllowlist,
+  isHeadlessAllProvidersEnabled,
+  normalizeHeadlessProviderId,
+} from './featureFlags.js';
+import {
+  getProvidersServingAsset,
+  providerServesAsset,
+} from './providerAvailability.js';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
 import type { RampsErrorCode } from './rampsErrorCodes.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
 import type {
+  RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetTokensAction,
@@ -76,6 +84,7 @@ import type {
   TransakServiceGetUserLimitsAction,
   TransakServiceRequestOttAction,
   TransakServiceGeneratePaymentWidgetUrlAction,
+  TransakServiceCreateWidgetUrlAction,
   TransakServiceSubmitPurposeOfUsageFormAction,
   TransakServicePatchUserAction,
   TransakServiceSubmitSsnDetailsAction,
@@ -122,6 +131,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   | RampsServiceActions['type']
   | TransakServiceActions['type']
 )[] = [
+  'RampsService:getDefaultRedirectCallbackUrl',
   'RampsService:getGeolocation',
   'RampsService:getCountries',
   'RampsService:getTokens',
@@ -146,6 +156,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:getUserLimits',
   'TransakService:requestOtt',
   'TransakService:generatePaymentWidgetUrl',
+  'TransakService:createWidgetUrl',
   'TransakService:submitPurposeOfUsageForm',
   'TransakService:patchUser',
   'TransakService:submitSsnDetails',
@@ -589,6 +600,7 @@ export type RampsControllerActions =
  */
 type AllowedActions =
   | RemoteFeatureFlagControllerGetStateAction
+  | RampsServiceGetDefaultRedirectCallbackUrlAction
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
@@ -613,6 +625,7 @@ type AllowedActions =
   | TransakServiceGetUserLimitsAction
   | TransakServiceRequestOttAction
   | TransakServiceGeneratePaymentWidgetUrlAction
+  | TransakServiceCreateWidgetUrlAction
   | TransakServiceSubmitPurposeOfUsageFormAction
   | TransakServicePatchUserAction
   | TransakServiceSubmitSsnDetailsAction
@@ -674,17 +687,6 @@ export type RampsControllerOptions = {
   requestCacheTTL?: number;
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
-  /**
-   * Optional callback returning the default redirect URL to use for the widened
-   * quote fetch when the caller omits `redirectUrl`. The quotes API only
-   * embeds a `buyURL`/`buyWidget` (the WebView page a non-native provider needs)
-   * when a `redirectUrl` is present, so supplying this default lets widened
-   * aggregator quotes carry a usable widget URL. Only applied on the
-   * widened path; an explicit caller `redirectUrl` always wins and the
-   * native-only default never injects. Defaults to a callback returning
-   * `undefined` when omitted.
-   */
-  getDefaultRedirectUrl?: () => string | undefined;
 };
 
 // === HELPER FUNCTIONS ===
@@ -808,6 +810,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getRequestState',
   'setUserRegion',
   'setSelectedProvider',
+  'setSelectedProviderForAsset',
   'init',
   'getCountries',
   'getTokens',
@@ -841,6 +844,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakGetUserLimits',
   'transakRequestOtt',
   'transakGeneratePaymentWidgetUrl',
+  'transakCreateWidgetUrl',
   'transakSubmitPurposeOfUsageForm',
   'transakPatchUser',
   'transakSubmitSsnDetails',
@@ -869,13 +873,6 @@ export class RampsController extends BaseController<
    * Maximum number of entries in the request cache.
    */
   readonly #requestCacheMaxSize: number;
-
-  /**
-   * Resolves the default redirect URL for the widened quote fetch when
-   * the caller omits `redirectUrl`. Defaults to `() => undefined` when no
-   * callback is injected.
-   */
-  readonly #getDefaultRedirectUrl: () => string | undefined;
 
   /**
    * Map of pending requests for deduplication.
@@ -943,16 +940,12 @@ export class RampsController extends BaseController<
    * controller. Missing properties will be filled in with defaults.
    * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
-   * @param args.getDefaultRedirectUrl - Optional callback returning the default
-   * redirect URL used for the widened quote fetch when the caller omits
-   * `redirectUrl`. Defaults to a callback returning `undefined`.
    */
   constructor({
     messenger,
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
-    getDefaultRedirectUrl,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -968,8 +961,6 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
-    this.#getDefaultRedirectUrl =
-      getDefaultRedirectUrl ?? ((): string | undefined => undefined);
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -978,26 +969,36 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Whether the Headless Buy all-providers feature flag is enabled.
+   * Resolves the Headless Buy all-providers feature flag: whether widening is
+   * enabled, and the provider-id allowlist the widened pick is restricted to
+   * (if the flag's object payload carries one).
    *
    * Reads `RemoteFeatureFlagController` state through the messenger on every
    * call, so a remote flag fetch or a local dev override takes effect at
-   * runtime without reconstructing the controller. Key lookup, local-override
-   * merging, and boolean coercion live in the shared
-   * `isHeadlessAllProvidersEnabled` helper so UI consumers resolve the flag
+   * runtime without reconstructing the controller. The single read keeps the
+   * enabled bit and the allowlist consistent even if the flag changes while a
+   * quote request is in flight. Key lookup, local-override merging, and value
+   * coercion live in the shared `isHeadlessAllProvidersEnabled` /
+   * `getHeadlessProviderAllowlist` helpers so UI consumers resolve the flag
    * identically. Fails closed: when `RemoteFeatureFlagController:getState` is
    * not wired up, quoting stays native-only.
    *
-   * @returns Whether all provider classes are enabled for fiat quote widening.
+   * @returns The enabled bit and the optional provider-id allowlist.
    */
-  #isAllProvidersEnabled(): boolean {
+  #resolveAllProvidersFlag(): {
+    enabled: boolean;
+    allowlist?: string[];
+  } {
     try {
       const remoteFeatureFlagState = this.messenger.call(
         'RemoteFeatureFlagController:getState',
       );
-      return isHeadlessAllProvidersEnabled(remoteFeatureFlagState);
+      return {
+        enabled: isHeadlessAllProvidersEnabled(remoteFeatureFlagState),
+        allowlist: getHeadlessProviderAllowlist(remoteFeatureFlagState),
+      };
     } catch {
-      return false;
+      return { enabled: false };
     }
   }
 
@@ -1425,6 +1426,63 @@ export class RampsController extends BaseController<
         state.providerAutoSelected = options?.autoSelected ?? false;
       });
     }
+  }
+
+  /**
+   * Switches to the first provider in state that serves the given asset,
+   * when the currently selected provider does not.
+   *
+   * This is the controller-level equivalent of UB2's BuildQuote tier-1
+   * silent-switch effect and MMPay's `useEnsureCompatibleProvider` hook: it
+   * keeps provider-asset compatibility logic in one place rather than
+   * duplicating `providerServesAsset` + find-and-switch across multiple UI
+   * layers.
+   *
+   * The compatibility check prefers the current provider's entry in
+   * `providers.data` over the `providers.selected` copy, which can be stale
+   * once a fresh providers list arrives.
+   *
+   * No-op when:
+   * - `providers.data` is empty (providers not yet loaded)
+   * - the currently selected provider already serves the asset
+   * - no provider in the list serves the asset (no safe fallback)
+   *
+   * @param assetId - CAIP-19 asset id of the deposit asset.
+   * @param options - Optional settings forwarded to `setSelectedProvider`.
+   * @param options.autoSelected - When true, marks the new selection as
+   *   system-guessed (soft selection). Defaults to true.
+   * @returns `true` if the selected provider was changed, `false` otherwise.
+   */
+  setSelectedProviderForAsset(
+    assetId: string,
+    options?: { autoSelected?: boolean },
+  ): boolean {
+    const providers = this.state.providers.data;
+    if (!providers?.length) {
+      return false;
+    }
+
+    const selectedId = this.state.providers.selected?.id;
+    const currentProvider =
+      providers.find((provider) => provider.id === selectedId) ??
+      this.state.providers.selected;
+    if (currentProvider && providerServesAsset(currentProvider, assetId)) {
+      return false;
+    }
+
+    const compatible = providers.find(
+      (provider) =>
+        provider.id !== selectedId && providerServesAsset(provider, assetId),
+    );
+    if (!compatible) {
+      return false;
+    }
+
+    this.setSelectedProvider(compatible, {
+      autoSelected: true,
+      ...options,
+    });
+    return true;
   }
 
   /**
@@ -1895,8 +1953,14 @@ export class RampsController extends BaseController<
       !options.providers &&
       (options.autoSelectProvider === true ||
         options.restrictToKnownOrNativeProviders === true);
-    const widenToAllProviders =
-      wantsAutoSelection && this.#isAllProvidersEnabled();
+    // Single flag read per call: the enabled bit and the allowlist come from
+    // the same `RemoteFeatureFlagController` state snapshot, so a flag edit
+    // during the awaited quote fetch cannot produce a mixed read.
+    const { enabled: allProvidersEnabled, allowlist: providerAllowlist } =
+      wantsAutoSelection
+        ? this.#resolveAllProvidersFlag()
+        : { enabled: false, allowlist: undefined };
+    const widenToAllProviders = wantsAutoSelection && allProvidersEnabled;
 
     let providersToUse: string[];
     let widenedProviderCatalog: Provider[] = this.state.providers.data;
@@ -1976,13 +2040,17 @@ export class RampsController extends BaseController<
     const normalizedWalletAddress = options.walletAddress.trim();
 
     // The quotes API only embeds a `buyURL`/`buyWidget` when a `redirectUrl` is
-    // present, so on the widened path (where MM Pay omits one) supply the
-    // injected default so aggregator quotes carry a usable widget URL. An
-    // explicit caller `redirectUrl` always wins, and the native-only path
-    // (flag off) never injects.
+    // present, so on the widened path (where MM Pay omits one) ask the service
+    // for the callback URL of the environment it is configured with, so
+    // aggregator quotes carry a usable widget URL that always matches the
+    // environment the quotes came from. An explicit caller `redirectUrl`
+    // always wins, and the native-only path (flag off) never injects, so
+    // neither reaches the service.
     const effectiveRedirectUrl =
       options.redirectUrl ??
-      (widenToAllProviders ? this.#getDefaultRedirectUrl() : undefined);
+      (widenToAllProviders
+        ? this.messenger.call('RampsService:getDefaultRedirectCallbackUrl')
+        : undefined);
 
     const cacheKey = createCacheKey('getQuotes', [
       normalizedRegion,
@@ -2031,6 +2099,7 @@ export class RampsController extends BaseController<
       amount: options.amount,
       fiat: normalizedFiat,
       providers: widenedProviderCatalog,
+      allowlist: providerAllowlist,
     });
 
     if (!selectedQuote) {
@@ -2057,16 +2126,19 @@ export class RampsController extends BaseController<
    * Selects the best quote from a widened multi-provider response.
    *
    * Every provider class is eligible (native, in-app WebView aggregator, and
-   * external-browser / custom-action). Enforces per-provider fiat limits up
-   * front, then orders by reliability and falls back to price using the
-   * server-provided `sorted` order. Returns `undefined` when no quote fits
-   * the published limits.
+   * external-browser / custom-action). When the feature flag payload carries a
+   * provider allowlist, candidates from unlisted providers are dropped first.
+   * Enforces per-provider fiat limits up front, then orders by reliability and
+   * falls back to price using the server-provided `sorted` order. Returns
+   * `undefined` when no quote survives.
    *
    * @param response - The multi-provider quotes response.
    * @param options - Selection inputs.
    * @param options.amount - Fiat amount, for the limit-fit check.
    * @param options.fiat - Lowercased fiat short code, for the limit lookup.
    * @param options.providers - Provider catalog for the limit lookup.
+   * @param options.allowlist - Optional provider ids (either `/providers/x`
+   * or bare form) the pick is restricted to.
    * @returns The selected quote, or `undefined` when none is usable.
    */
   #pickWidenedQuote(
@@ -2075,15 +2147,25 @@ export class RampsController extends BaseController<
       amount,
       fiat,
       providers,
+      allowlist,
     }: {
       amount: number;
       fiat: string;
       providers: Provider[];
+      allowlist?: string[];
     },
   ): Quote | undefined {
     const providerByCode = new Map(
       providers.map((provider) => [provider.id, provider]),
     );
+
+    const allowedProviderIds =
+      allowlist && allowlist.length > 0
+        ? new Set(allowlist.map(normalizeHeadlessProviderId))
+        : undefined;
+    const isAllowedProvider = (quote: Quote): boolean =>
+      !allowedProviderIds ||
+      allowedProviderIds.has(normalizeHeadlessProviderId(quote.provider));
 
     const fitsProviderLimits = (quote: Quote): boolean => {
       const provider = providerByCode.get(quote.provider);
@@ -2096,7 +2178,9 @@ export class RampsController extends BaseController<
       return amount >= limit.minAmount && amount <= limit.maxAmount;
     };
 
-    const candidates = response.success.filter(fitsProviderLimits);
+    const candidates = response.success.filter(
+      (quote) => isAllowedProvider(quote) && fitsProviderLimits(quote),
+    );
     if (candidates.length === 0) {
       return undefined;
     }
@@ -2534,18 +2618,21 @@ export class RampsController extends BaseController<
    * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
    * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
    * @param params.walletAddress - Wallet address for the order.
-   * @param params.chainId - Optional chain ID for the order.
+   * @param params.chainId - Chain ID for the order (decimal, hex, or CAIP-2). Must be non-empty.
    */
   addPrecreatedOrder(params: {
     orderId: string;
     providerCode: string;
     walletAddress: string;
-    chainId?: string;
+    chainId: string;
   }): void {
     const { orderId, providerCode, walletAddress, chainId } = params;
 
     const orderCode = getInternalOrderCode(orderId);
     if (!orderCode?.trim()) {
+      return;
+    }
+    if (!chainId.trim()) {
       return;
     }
     const stubOrder: RampsOrder = {
@@ -2570,7 +2657,7 @@ export class RampsController extends BaseController<
       providerOrderLink: '',
       totalFeesFiat: 0,
       txHash: '',
-      network: chainId ? { chainId, name: '' } : { chainId: '', name: '' },
+      network: { chainId, name: '' },
       canBeUpdated: true,
       idHasExpired: false,
       excludeFromPurchases: false,
@@ -3064,6 +3151,34 @@ export class RampsController extends BaseController<
       walletAddress,
       extraParams,
     );
+  }
+
+  /**
+   * Creates a Transak payment widget URL via the ramps API proxy, which
+   * injects the partner API key server-side. Replaces the OTT flow
+   * ({@link transakRequestOtt} + {@link transakGeneratePaymentWidgetUrl}).
+   *
+   * @param quote - The buy quote to pre-fill in the widget.
+   * @param walletAddress - The destination wallet address.
+   * @param extraParams - Optional additional widget parameters (e.g. theming).
+   * @returns The single-use widget URL.
+   */
+  async transakCreateWidgetUrl(
+    quote: TransakBuyQuote,
+    walletAddress: string,
+    extraParams?: Record<string, string>,
+  ): Promise<string> {
+    try {
+      return await this.messenger.call(
+        'TransakService:createWidgetUrl',
+        quote,
+        walletAddress,
+        extraParams,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
   }
 
   /**

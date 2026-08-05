@@ -50,6 +50,8 @@ export const TradeStruct = structType({
   perpLeverage: optional(nullable(number())),
   tokenAmount: number(),
   usdCost: number(),
+  /** Token market cap in USD at trade time. `null` when Clicker has no mark. */
+  marketCap: optional(nullable(number())),
   timestamp: number(),
   transactionHash: string(),
 });

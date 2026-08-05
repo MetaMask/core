@@ -1,13 +1,13 @@
-import { TransactionPayStrategy } from '../constants';
-import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
-import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
-import { RelayStrategy } from '../strategy/relay/RelayStrategy';
-import { ServerStrategy } from '../strategy/server/ServerStrategy';
+import { TransactionPayStrategy } from '../constants.js';
+import { AcrossStrategy } from '../strategy/across/AcrossStrategy.js';
+import { FiatStrategy } from '../strategy/fiat/FiatStrategy.js';
+import { RelayStrategy } from '../strategy/relay/RelayStrategy.js';
+import { ServerStrategy } from '../strategy/server/ServerStrategy.js';
 import type {
   PayStrategy,
   PayStrategyCheckQuoteSupportRequest,
   PayStrategyGetQuotesRequest,
-} from '../types';
+} from '../types.js';
 
 export type NamedStrategy = {
   name: TransactionPayStrategy;

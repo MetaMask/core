@@ -1,18 +1,18 @@
 /* eslint-disable */
-import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig';
-import { TradingService } from '../../../src/services/TradingService';
+import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
+import { TradingService } from '../../../src/services/TradingService.js';
 import type {
   OrderParams,
   OrderResult,
   PerpsProvider,
   PerpsPlatformDependencies,
-} from '../../../src/types';
-import { createMockHyperLiquidProvider } from '../../helpers/providerMocks';
+} from '../../../src/types/index.js';
+import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockServiceContext,
   createMockPerpsControllerState,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
 

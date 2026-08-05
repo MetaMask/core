@@ -2,7 +2,7 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type {
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   Trade,
 } from '@metamask/bridge-controller';
 import {
@@ -26,7 +26,7 @@ import { v4 as uuid } from 'uuid';
 import type {
   BridgeStatusControllerMessenger,
   SolanaTransactionMeta,
-} from '../types';
+} from '../types.js';
 
 /**
  * Creates a client request object for signing and sending a transaction
@@ -125,7 +125,7 @@ export const getClientRequest = (
 };
 
 export const getTxMetaFields = (
-  quoteResponse: Omit<QuoteResponse<Trade, Trade>, 'approval' | 'trade'> &
+  quoteResponse: Omit<QuoteResponseV1<Trade, Trade>, 'approval' | 'trade'> &
     QuoteMetadata,
   approvalTxId?: string,
 ): Omit<
@@ -178,7 +178,7 @@ export const handleNonEvmTxResponse = (
     | { result: Record<string, string> }
     | { signature: string },
   trade: Trade,
-  quoteResponse: Omit<QuoteResponse<Trade>, 'trade' | 'approval'> &
+  quoteResponse: Omit<QuoteResponseV1<Trade>, 'trade' | 'approval'> &
     QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ): TransactionMeta & SolanaTransactionMeta => {
@@ -259,7 +259,7 @@ export const handleNonEvmTxResponse = (
 export const handleNonEvmTx = async (
   messenger: BridgeStatusControllerMessenger,
   trade: Trade,
-  quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
+  quoteResponse: QuoteResponseV1<Trade, Trade> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ): Promise<TransactionMeta> => {
   if (!selectedAccount.metadata?.snap?.id) {

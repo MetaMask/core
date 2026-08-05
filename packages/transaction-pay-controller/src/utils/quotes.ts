@@ -4,10 +4,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { PaymentOverride, TransactionPayStrategy } from '../constants';
-import { projectLogger } from '../logger';
+import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
+import { projectLogger } from '../logger.js';
 import type {
   QuoteRequest,
+  QuoteErrorInfo,
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
@@ -16,22 +17,23 @@ import type {
   TransactionPayTotals,
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
-} from '../types';
-import { accountSupports7702 } from './7702';
-import { buildNoOpQuote } from './no-op-quote';
+} from '../types.js';
+import { accountSupports7702 } from './7702.js';
+import { buildNoOpQuote } from './no-op-quote.js';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
   getStrategiesByName,
   getStrategyByName,
-} from './strategy';
+} from './strategy.js';
 import {
   computeTokenAmounts,
   getLiveTokenBalance,
   getTokenFiatRate,
-} from './token';
-import { calculateTotals } from './totals';
-import { getTransaction, updateTransaction } from './transaction';
+} from './token.js';
+import { calculateTotals } from './totals.js';
+import { getTransaction, updateTransaction } from './transaction.js';
+import { isQuoteError } from './validation.js';
 
 const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
@@ -83,14 +85,15 @@ export async function updateQuotes(
 
   const {
     accountOverride,
-    isMaxAmount,
-    isPostQuote,
+    atomic,
+    fiatPayment,
     isHyperliquidSource,
+    isMaxAmount,
     isPolymarketDepositWallet,
+    isPostQuote,
     isQuoteRequired,
     paymentOverride,
     paymentToken: originalPaymentToken,
-    fiatPayment,
     refundTo,
     sourceAmounts,
     tokens,
@@ -103,6 +106,7 @@ export async function updateQuotes(
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
+    data.quoteError = undefined;
   });
 
   try {
@@ -121,11 +125,12 @@ export async function updateQuotes(
     }
 
     const requests = buildQuoteRequests({
+      atomic,
       from,
-      isMaxAmount: isMaxAmount ?? false,
-      isPostQuote,
       isHyperliquidSource,
+      isMaxAmount: isMaxAmount ?? false,
       isPolymarketDepositWallet,
+      isPostQuote,
       paymentOverride,
       paymentToken,
       refundTo,
@@ -136,7 +141,7 @@ export async function updateQuotes(
 
     const supports7702 = accountSupports7702(messenger, from);
 
-    const { batchTransactions, quotes } = await getQuotes(
+    const { batchTransactions, error, quotes } = await getQuotes(
       transaction,
       from,
       requests,
@@ -179,12 +184,14 @@ export async function updateQuotes(
       isPostQuote,
       messenger: messenger as never,
       paymentToken,
+      strategy: executableQuotes[0]?.strategy,
       totals,
       transactionId,
     });
 
     updateTransactionData(transactionId, (data) => {
       data.quotes = quotes as never;
+      data.quoteError = error;
       data.quotesLastUpdated = Date.now();
       data.totals = totals;
     });
@@ -216,6 +223,7 @@ export async function updateQuotes(
  * @param request.messenger - Messenger instance.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.selectedFiatPayment - Selected fiat payment method ID.
+ * @param request.strategy - Strategy of the executable quotes.
  * @param request.totals - Calculated totals.
  * @param request.transactionId - ID of the transaction to sync.
  */
@@ -226,6 +234,7 @@ function syncTransaction({
   messenger,
   paymentToken,
   selectedFiatPayment,
+  strategy,
   totals,
   transactionId,
 }: {
@@ -235,6 +244,7 @@ function syncTransaction({
   isPostQuote?: boolean;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
+  strategy?: TransactionPayStrategy;
   totals: TransactionPayTotals;
   transactionId: string;
 }): void {
@@ -272,6 +282,7 @@ function syncTransaction({
         chainId: paymentToken?.chainId,
         isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
+        strategy,
         targetFiat: totals.targetAmount.usd,
         tokenAddress: paymentToken?.address,
         totalFiat: totals.total.usd,
@@ -368,9 +379,10 @@ function clearControllerIfCurrent(
  * Build quote requests required to retrieve quotes.
  *
  * @param request - Request parameters.
+ * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
  * @param request.from - Address from which the transaction is sent.
- * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
+ * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.paymentOverride - Optional payment override type for the transaction.
@@ -382,11 +394,12 @@ function clearControllerIfCurrent(
  * @returns Array of quote requests.
  */
 function buildQuoteRequests({
+  atomic,
   from,
-  isMaxAmount,
-  isPostQuote,
   isHyperliquidSource,
+  isMaxAmount,
   isPolymarketDepositWallet,
+  isPostQuote,
   paymentOverride,
   paymentToken,
   refundTo,
@@ -394,11 +407,12 @@ function buildQuoteRequests({
   tokens,
   transactionId,
 }: {
+  atomic?: boolean;
   from: Hex;
-  isMaxAmount: boolean;
-  isPostQuote?: boolean;
   isHyperliquidSource?: boolean;
+  isMaxAmount: boolean;
   isPolymarketDepositWallet?: boolean;
+  isPostQuote?: boolean;
   paymentOverride?: PaymentOverride;
   paymentToken: TransactionPaymentToken | undefined;
   refundTo?: Hex;
@@ -412,12 +426,13 @@ function buildQuoteRequests({
 
   if (isPostQuote) {
     return buildPostQuoteRequests({
+      atomic,
+      destinationToken: paymentToken,
       from,
-      isMaxAmount,
       isHyperliquidSource,
+      isMaxAmount,
       isPolymarketDepositWallet,
       paymentOverride,
-      destinationToken: paymentToken,
       refundTo,
       sourceAmounts,
       transactionId,
@@ -431,13 +446,15 @@ function buildQuoteRequests({
     ) as TransactionPayRequiredToken;
 
     return {
+      atomic,
       from,
       isMaxAmount,
       paymentOverride,
+      refundTo,
       sourceBalanceRaw: paymentToken.balanceRaw,
-      sourceTokenAmount: sourceAmount.sourceAmountRaw,
       sourceChainId: paymentToken.chainId,
       sourceTokenAddress: paymentToken.address,
+      sourceTokenAmount: sourceAmount.sourceAmountRaw,
       targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
       targetChainId: token.chainId,
       targetTokenAddress: token.address,
@@ -457,34 +474,37 @@ function buildQuoteRequests({
  * and the target is the user's selected destination token (paymentToken).
  *
  * @param request - Request parameters.
+ * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
+ * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.from - Address from which the transaction is sent.
- * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
+ * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.paymentOverride - Optional payment override type for the transaction.
- * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
  * @param request.transactionId - ID of the transaction.
  * @returns Array of quote requests for post-quote flow.
  */
 function buildPostQuoteRequests({
+  atomic,
+  destinationToken,
   from,
-  isMaxAmount,
   isHyperliquidSource,
+  isMaxAmount,
   isPolymarketDepositWallet,
   paymentOverride,
-  destinationToken,
   refundTo,
   sourceAmounts,
   transactionId,
 }: {
+  atomic?: boolean;
+  destinationToken: TransactionPaymentToken;
   from: Hex;
-  isMaxAmount: boolean;
   isHyperliquidSource?: boolean;
+  isMaxAmount: boolean;
   isPolymarketDepositWallet?: boolean;
   paymentOverride?: PaymentOverride;
-  destinationToken: TransactionPaymentToken;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   transactionId: string;
@@ -509,17 +529,18 @@ function buildPostQuoteRequests({
   }
 
   const request: QuoteRequest = {
+    atomic,
     from,
-    isMaxAmount,
-    isPostQuote: true,
     isHyperliquidSource,
+    isMaxAmount,
     isPolymarketDepositWallet,
+    isPostQuote: true,
     paymentOverride,
     refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
-    sourceTokenAmount: sourceAmount.sourceAmountRaw,
     sourceChainId: sourceAmount.sourceChainId,
     sourceTokenAddress: sourceAmount.sourceTokenAddress,
+    sourceTokenAmount: sourceAmount.sourceAmountRaw,
     targetAmountMinimum: '0',
     targetChainId: destinationToken.chainId,
     targetTokenAddress: destinationToken.address,
@@ -630,6 +651,7 @@ async function getQuotes(
   signal?: AbortSignal,
 ): Promise<{
   batchTransactions: BatchTransaction[];
+  error?: QuoteErrorInfo;
   quotes: TransactionPayQuote<Json>[];
 }> {
   const { id: transactionId } = transaction;
@@ -674,6 +696,8 @@ async function getQuotes(
     transaction,
   };
 
+  let error: QuoteErrorInfo | undefined;
+
   for (const { name, strategy } of strategies) {
     try {
       const support = await checkStrategySupport(strategy, request);
@@ -695,14 +719,14 @@ async function getQuotes(
         continue;
       }
 
-      const quoteSupport = await checkStrategyQuoteSupport(strategy, {
+      const isQuoteSupported = await checkStrategyQuoteSupport(strategy, {
         messenger,
         quotes,
         signal,
         transaction,
       });
 
-      if (!quoteSupport) {
+      if (!isQuoteSupported) {
         log('Strategy does not support quotes', {
           strategy: name,
           transactionId,
@@ -726,13 +750,33 @@ async function getQuotes(
         batchTransactions,
         quotes,
       };
-    } catch (error) {
+    } catch (caughtError) {
       if (signal?.aborted) {
-        throw error;
+        throw caughtError;
+      }
+
+      error ??= isQuoteError(caughtError)
+        ? caughtError.info
+        : { message: (caughtError as Error).message, reason: 'no-quotes' };
+
+      if (
+        isQuoteError(caughtError) &&
+        caughtError.info.reason === 'insufficient-source-balance' &&
+        caughtError.quotes?.length
+      ) {
+        log('Keeping quotes despite insufficient source balance', {
+          strategy: name,
+          transactionId,
+        });
+        return {
+          batchTransactions: [],
+          error: caughtError.info,
+          quotes: caughtError.quotes as TransactionPayQuote<Json>[],
+        };
       }
 
       log('Strategy failed, trying next', {
-        error,
+        error: caughtError,
         strategy: name,
         transactionId,
       });
@@ -744,6 +788,7 @@ async function getQuotes(
 
   return {
     batchTransactions: [],
+    error,
     quotes: [],
   };
 }

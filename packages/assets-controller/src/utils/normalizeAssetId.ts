@@ -3,7 +3,7 @@ import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 import type { MemoizedFunction } from 'lodash';
 import memoize from 'lodash/memoize';
 
-import type { Caip19AssetId } from '../types';
+import type { Caip19AssetId } from '../types.js';
 
 /**
  * Normalizes a CAIP-19 asset ID by checksumming EVM addresses.

@@ -1,11 +1,11 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import type { TransactionPayControllerMessenger } from '../..';
-import type { TransactionPayQuote } from '../../types';
-import { getFiatQuotes } from './fiat-quotes';
-import { submitFiatQuotes } from './fiat-submit';
-import { FiatStrategy } from './FiatStrategy';
-import type { FiatQuote } from './types';
+import type { TransactionPayControllerMessenger } from '../../index.js';
+import type { TransactionPayQuote } from '../../types.js';
+import { getFiatQuotes } from './fiat-quotes.js';
+import { submitFiatQuotes } from './fiat-submit.js';
+import { FiatStrategy } from './FiatStrategy.js';
+import type { FiatQuote } from './types.js';
 
 jest.mock('./fiat-quotes');
 jest.mock('./fiat-submit');

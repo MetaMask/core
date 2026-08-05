@@ -14,7 +14,7 @@
  *
  * Portable: no platform-specific imports.
  */
-import type { PerpsMarketData } from '../types';
+import type { PerpsMarketData } from '../types/index.js';
 
 /**
  * Relevance tier for a market/query match. Lower values sort first.

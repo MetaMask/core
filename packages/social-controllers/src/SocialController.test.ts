@@ -5,13 +5,13 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { controllerName } from './social-constants';
-import type { SocialControllerState } from './social-types';
-import type { SocialControllerMessenger } from './SocialController';
+import { controllerName } from './social-constants.js';
+import type { SocialControllerState } from './social-types.js';
+import type { SocialControllerMessenger } from './SocialController.js';
 import {
   SocialController,
   getDefaultSocialControllerState,
-} from './SocialController';
+} from './SocialController.js';
 
 const mockProfileSummary = {
   profileId: '550e8400-e29b-41d4-a716-446655440000',

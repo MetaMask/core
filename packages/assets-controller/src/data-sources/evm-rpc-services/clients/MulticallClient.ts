@@ -5,7 +5,7 @@ import {
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import { ZERO_ADDRESS } from '../../../utils/constants';
+import { ZERO_ADDRESS } from '../../../utils/constants.js';
 import type {
   Address,
   BalanceOfRequest,
@@ -13,8 +13,8 @@ import type {
   ChainId,
   GetProviderFunction,
   Provider,
-} from '../types';
-import { reduceInBatchesSerially } from '../utils';
+} from '../types/index.js';
+import { reduceInBatchesSerially } from '../utils/index.js';
 
 // =============================================================================
 // ABI DEFINITIONS
@@ -376,6 +376,8 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
   '0x13b2': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Robinhood Chain (4663)
   '0x1237': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Somnia (5031), MultiCallV3 per docs.somnia.network/developer/smart-contracts
+  '0x13a7': '0x5e44F178E8cF9B2F5409B6f18ce936aB817C5a11',
 };
 
 // =============================================================================
@@ -544,6 +546,25 @@ export type MulticallClientConfig = {
 };
 
 /**
+ * Function for retrieving the Multicall3 contract address for a given chain ID.
+ *
+ * @param chainId - The chain ID.
+ * @returns The Multicall3 contract address, or undefined if not supported.
+ */
+export type GetMulticall3AddressForChainFunction = (
+  chainId: ChainId,
+) => Hex | undefined;
+
+/**
+ * Options for creating a MulticallClient.
+ */
+export type MulticallClientOptions = {
+  getProvider: GetProviderFunction;
+  getMulticall3AddressForChain: GetMulticall3AddressForChainFunction;
+  config?: MulticallClientConfig;
+};
+
+/**
  * Client for batching RPC calls using Multicall3.
  * Falls back to individual calls on chains without Multicall3 support.
  */
@@ -552,10 +573,13 @@ export class MulticallClient {
 
   readonly #config: Required<MulticallClientConfig>;
 
-  constructor(
-    getProvider: GetProviderFunction,
-    config?: MulticallClientConfig,
-  ) {
+  readonly #getMulticall3AddressForChain: GetMulticall3AddressForChainFunction;
+
+  constructor({
+    getProvider,
+    getMulticall3AddressForChain,
+    config,
+  }: MulticallClientOptions) {
     this.#getProvider = getProvider;
     // Use default values for invalid (non-positive) batch sizes to prevent
     // infinite loops or errors in divideIntoBatches
@@ -571,6 +595,7 @@ export class MulticallClient {
       maxCallsPerBatch,
       timeoutMs,
     };
+    this.#getMulticall3AddressForChain = getMulticall3AddressForChain;
   }
 
   /**
@@ -591,7 +616,9 @@ export class MulticallClient {
       return [];
     }
 
-    const multicallAddress = MULTICALL3_ADDRESS_BY_CHAIN[chainId];
+    const multicallAddress =
+      this.#getMulticall3AddressForChain(chainId) ??
+      MULTICALL3_ADDRESS_BY_CHAIN[chainId];
     const provider = this.#getProvider(chainId);
 
     if (!multicallAddress) {

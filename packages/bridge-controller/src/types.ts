@@ -1,11 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
-import type {
-  CurrencyRateControllerGetStateAction,
-  MultichainAssetsRatesControllerGetStateAction,
-  TokenRatesControllerGetStateAction,
-} from '@metamask/assets-controllers';
+import type { CurrencyRateControllerGetStateAction } from '@metamask/assets-controllers';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -27,25 +23,25 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { BridgeController } from './bridge-controller';
-import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types';
-import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
-import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell';
-import type { BatchSellTradesResponseSchema } from './validators/batch-sell';
-import type { BridgeAssetSchema } from './validators/bridge-asset';
+import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types.js';
+import type { BridgeController } from './bridge-controller.js';
+import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge.js';
+import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell.js';
+import type { BatchSellTradesResponseSchema } from './validators/batch-sell.js';
 import type {
   ChainConfigurationSchema,
   ChainRankingSchema,
   PlatformConfigSchema,
-} from './validators/feature-flags';
-import type { IntentSchema } from './validators/intent';
-import type { TxFeeGasLimitsSchema } from './validators/quote';
-import type { FeeDataSchema } from './validators/quote';
-import type { GaslessPropertiesSchema } from './validators/quote';
-import type { QuoteResponseV1 } from './validators/quote-response-v1';
-import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete';
-import type { StepSchema } from './validators/step';
-import type { TokenFeatureSchema } from './validators/token-feature';
+} from './validators/feature-flags.js';
+import type { IntentSchema } from './validators/intent.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
+import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete.js';
+import type { TxFeeGasLimitsSchema } from './validators/quote.js';
+import type { FeeDataSchema } from './validators/quote.js';
+import type { GaslessPropertiesSchema } from './validators/quote.js';
+import type { StepSchema } from './validators/step.js';
+import type { TokenFeatureSchema } from './validators/token-feature.js';
 
 export type FetchFunction = (
   input: RequestInfo | URL | string,
@@ -102,12 +98,6 @@ export enum SortOrder {
   COST_ASC = 'cost_ascending',
   ETA_ASC = 'time_descending',
 }
-
-/**
- * This is the interface for the asset object returned by the bridge-api
- * This type is used in the QuoteResponse and in the fetchBridgeTokens response
- */
-export type BridgeAsset = Infer<typeof BridgeAssetSchema>;
 
 /**
  * This is the interface for the token object used in the extension client
@@ -271,7 +261,7 @@ export enum RequestStatus {
 
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>[];
-  quotes: (QuoteResponseV1 & L1GasFees & NonEvmFees)[];
+  quotes: QuoteResponse[];
   /**
    * The time elapsed between the initial quote fetch and when the first valid quote was received
    */
@@ -371,8 +361,6 @@ export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | CurrencyRateControllerGetStateAction
-  | TokenRatesControllerGetStateAction
-  | MultichainAssetsRatesControllerGetStateAction
   | SnapControllerHandleRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction

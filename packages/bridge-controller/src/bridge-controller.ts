@@ -10,22 +10,19 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 
-import type { BridgeClientId } from './constants/bridge';
+import { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
+import type { BridgeClientId } from './constants/bridge.js';
 import {
   BRIDGE_CONTROLLER_NAME,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   METABRIDGE_ETHEREUM_ADDRESS,
   REFRESH_INTERVAL_MS,
-} from './constants/bridge';
-import { CHAIN_IDS } from './constants/chains';
-import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
-import { TraceName } from './constants/traces';
-import {
-  ExchangeRateSourcesForLookup,
-  selectIsAssetExchangeRateInState,
-} from './selectors';
-import { RequestStatus } from './types';
+} from './constants/bridge.js';
+import { CHAIN_IDS } from './constants/chains.js';
+import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps.js';
+import { TraceName } from './constants/traces.js';
+import { RequestStatus } from './types.js';
 import type {
   L1GasFees,
   GenericQuoteRequest,
@@ -35,42 +32,42 @@ import type {
   BridgeControllerMessenger,
   FetchFunction,
   InputPrimaryDenomination,
-} from './types';
-import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
-import { hasSufficientBalance } from './utils/balance';
+} from './types.js';
+import { getAssetIdsForToken, toExchangeRates } from './utils/assets.js';
+import { hasSufficientBalance } from './utils/balance.js';
 import {
   getDefaultBridgeControllerState,
   isCrossChain,
   isEthUsdt,
   isNonEvmChainId,
   isSolanaChainId,
-} from './utils/bridge';
+} from './utils/bridge.js';
 import {
   formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToHex,
-} from './utils/caip-formatters';
+} from './utils/caip-formatters.js';
 import {
   getBridgeFeatureFlags,
   hasMinimumRequiredVersion,
-} from './utils/feature-flags';
+} from './utils/feature-flags.js';
 import {
   fetchAssetPrices,
   fetchBridgeQuotes,
   fetchBridgeQuoteStream,
   fetchBatchSellTrades,
-} from './utils/fetch';
+} from './utils/fetch.js';
 import {
   AbortReason,
   BatchSellMetricsEventName,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
   UnifiedSwapBridgeEventName,
-} from './utils/metrics/constants';
+} from './utils/metrics/constants.js';
 import type {
   BridgeControllerMetricsEventName,
   BridgeControllerMetricsLocation,
-} from './utils/metrics/constants';
+} from './utils/metrics/constants.js';
 import {
   formatProviderLabel,
   getAccountHardwareType,
@@ -79,22 +76,23 @@ import {
   isCustomSlippage,
   toInputChangedPropertyKey,
   toInputChangedPropertyValue,
-} from './utils/metrics/properties';
+} from './utils/metrics/properties.js';
 import type {
   QuoteFetchData,
   RequestMetadata,
   RequiredEventContextFromClient,
-} from './utils/metrics/types';
-import type { CrossChainSwapsEventProperties } from './utils/metrics/types';
-import { appendFeesToQuotes } from './utils/quote-fees';
-import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
-import { sortQuotes } from './utils/sort-quotes';
-import type { FeatureId } from './validators/feature-flags';
+} from './utils/metrics/types.js';
+import type { CrossChainSwapsEventProperties } from './utils/metrics/types.js';
+import { appendFeesToQuotes } from './utils/quote-fees.js';
+import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps.js';
+import { sortQuotes } from './utils/sort-quotes.js';
+import type { FeatureId } from './validators/feature-flags.js';
 import {
   isValidQuoteRequest,
   isValidBatchSellQuoteRequest,
-} from './validators/quote-request';
-import type { QuoteResponseV1 } from './validators/quote-response-v1';
+} from './validators/quote-request.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -431,13 +429,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     this.#trackQuoteValidationFailures(validationFailures, featureId);
+    const srcChainIds = Array.from(
+      new Set(baseQuotes.map((quote) => quote.quote.srcChainId)),
+    ).filter(Boolean);
 
-    const quotesWithFees = await appendFeesToQuotes(
-      baseQuotes,
-      this.messenger,
-      this.#getLayer1GasFee,
-      this.#getMultichainSelectedAccount(quoteRequest.walletAddress),
-    );
+    const quotesWithFees =
+      srcChainIds.length > 1 || srcChainIds.length === 0
+        ? // Don't append fees if there are multiple srcChainIds
+          baseQuotes
+        : await appendFeesToQuotes(
+            formatChainIdToCaip(srcChainIds[0]),
+            baseQuotes,
+            this.messenger,
+            this.#getLayer1GasFee,
+            this.#getMultichainSelectedAccount(quoteRequest.walletAddress),
+          );
 
     return sortQuotes(quotesWithFees, featureId);
   };
@@ -451,7 +457,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * @param stxEnabled - Flag to estimate gas cost more precisely for the batch sell feature.
    */
   updateBatchSellTrades = async (
-    quotes: (QuoteResponseV1 | null)[],
+    quotes: (QuoteResponse | null)[],
     stxEnabled: boolean,
   ): Promise<void> => {
     this.#batchSellTradesAbortController?.abort(
@@ -526,21 +532,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   };
 
-  readonly #getExchangeRateSources = (): ExchangeRateSourcesForLookup => {
-    if (this.#getUseAssetsControllerForRates()) {
-      return {
-        ...this.messenger.call('AssetsController:getExchangeRatesForBridge'),
-        ...this.state,
-      };
-    }
-    return {
-      ...this.messenger.call('MultichainAssetsRatesController:getState'),
-      ...this.messenger.call('CurrencyRateController:getState'),
-      ...this.messenger.call('TokenRatesController:getState'),
-      ...this.state,
-    };
-  };
-
   /**
    * Fetches the exchange rates for the assets in the quote request if they are not already in the state
    * In addition to the selected tokens, this also fetches the native asset for the source and destination chains
@@ -550,27 +541,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #fetchAssetExchangeRates = async (
     quoteRequests: GenericQuoteRequest[],
   ) => {
-    const exchangeRateSources = this.#getExchangeRateSources();
-
     // Get unique assetIds for all quote requests
     const assetIds = new Set<CaipAssetType>(
-      quoteRequests
-        .flatMap((quoteRequest) =>
-          [
-            getAssetIdsForToken(
-              quoteRequest.srcTokenAddress,
-              quoteRequest.srcChainId,
-            ),
-            getAssetIdsForToken(
-              quoteRequest.destTokenAddress,
-              quoteRequest.destChainId,
-            ),
-          ].flat(),
-        )
-        .filter(
-          (assetId: CaipAssetType | undefined): assetId is CaipAssetType =>
-            !selectIsAssetExchangeRateInState(exchangeRateSources, assetId),
-        ),
+      quoteRequests.flatMap((quoteRequest) =>
+        [
+          getAssetIdsForToken(
+            quoteRequest.srcTokenAddress,
+            quoteRequest.srcChainId,
+          ),
+          getAssetIdsForToken(
+            quoteRequest.destTokenAddress,
+            quoteRequest.destChainId,
+          ),
+        ].flat(),
+      ),
     );
 
     const currency = this.#getUseAssetsControllerForRates()
@@ -584,7 +568,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const pricesByAssetId = await fetchAssetPrices({
       assetIds,
-      currencies: new Set([currency]),
+      currencies: new Set([currency, 'usd']),
       clientId: this.#clientId,
       clientVersion: this.#clientVersion,
       fetchFn: this.#fetchFn,
@@ -895,7 +879,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               state.quotesInitialLoadTime =
                 Date.now() - this.#quotesFirstFetched;
             }
-            state.quotes = quotes;
+            state.quotes = quotes.map(toQuoteResponseV2);
             state.quotesLoadingStatus = RequestStatus.FETCHED;
           });
         },
@@ -994,9 +978,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       {
         onQuoteValidationFailure: (validationFailures) =>
           this.#trackQuoteValidationFailures(validationFailures, featureId),
-        onValidQuoteReceived: async (quote: QuoteResponseV1) => {
+        onValidQuoteReceived: async (quote: QuoteResponse) => {
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
+              quote.chainId,
               [quote],
               this.messenger,
               this.#getLayer1GasFee,

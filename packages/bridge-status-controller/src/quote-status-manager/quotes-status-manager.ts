@@ -1,25 +1,25 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
 
-import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
+import { BridgeClientId, BridgeStatusControllerMessenger } from '../types.js';
 import {
   getTransactionMetaById,
   hasNestedSwapTransactions,
   isCrossChainTx,
-} from '../utils/transaction';
+} from '../utils/transaction.js';
 import {
   QuoteStatusState,
   QuoteStatusStateToBackendStatus,
   QuoteStatusUpdateBackendErrorType,
   QuoteStatusBackendStatus,
   QuoteStatusFetchWithRetryOutcomeType,
-} from './constants';
-import { QuoteStatusUpdateError } from './errors';
-import { QuoteStatusApiService } from './quote-status-api-service';
-import { QuoteStatusEntryStore } from './quote-status-entry-store';
-import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
-import { QuoteStatusStateFsm } from './quote-status-state-fsm';
-import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
-import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types';
+} from './constants.js';
+import { QuoteStatusUpdateError } from './errors.js';
+import { QuoteStatusApiService } from './quote-status-api-service.js';
+import { QuoteStatusEntryStore } from './quote-status-entry-store.js';
+import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome.js';
+import { QuoteStatusStateFsm } from './quote-status-state-fsm.js';
+import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome.js';
+import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types.js';
 
 /**
  * Tracks bridge/swap quotes through their lifecycle and keeps the backend in
@@ -150,11 +150,14 @@ export class QuoteStatusManager {
    * @param success - Whether the transaction finalized successfully.
    * @param srcChainId - Optional source-chain id, forwarded to error reporting
    * to aid debugging when no matching entry is found.
+   * @param srcTxHash - Optional source-chain transaction hash, forwarded to
+   * error reporting to aid debugging when no matching entry is found.
    */
   reportFinalised(
     txMetaId: string,
     success: boolean,
     srcChainId?: string | number,
+    srcTxHash?: string,
   ): void {
     if (!this.#isEnabled?.()) {
       return;
@@ -166,7 +169,7 @@ export class QuoteStatusManager {
       this.#onError?.(
         new QuoteStatusUpdateError(
           'reporting finalization status but entry was not found',
-          { quoteId: '', txMetaId, srcChainId },
+          { quoteId: '', txMetaId, srcChainId, srcTxHash },
         ),
       );
       return;
@@ -311,12 +314,22 @@ export class QuoteStatusManager {
       }
 
       if (txMeta.status === TransactionStatus.confirmed) {
-        this.reportFinalised(entry.txMetaId, true, entry.srcChainId);
+        this.reportFinalised(
+          entry.txMetaId,
+          true,
+          entry.srcChainId,
+          entry.srcTxHash,
+        );
       } else if (
         txMeta.status === TransactionStatus.failed ||
         txMeta.status === TransactionStatus.dropped
       ) {
-        this.reportFinalised(entry.txMetaId, false, entry.srcChainId);
+        this.reportFinalised(
+          entry.txMetaId,
+          false,
+          entry.srcChainId,
+          entry.srcTxHash,
+        );
       }
     }
   }

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ProofOfOwnershipService } from './ProofOfOwnershipService';
+import type { ProofOfOwnershipService } from './ProofOfOwnershipService.js';
 
 /**
  * Sign a proof of ownership for the given account and server-issued nonce.

@@ -47,8 +47,8 @@ import {
   MYX_SIZE_DECIMALS,
   MYX_PRICE_DECIMALS as PRICE_DEC,
   MYX_COLLATERAL_DECIMALS,
-} from '../../../src/constants/myxConfig';
-import type { MarketDataFormatters } from '../../../src/types';
+} from '../../../src/constants/myxConfig.js';
+import type { MarketDataFormatters } from '../../../src/types/index.js';
 import type {
   MYXPoolSymbol,
   MYXTicker,
@@ -57,7 +57,7 @@ import type {
   MYXTradeFlowItem,
   MYXKlineData,
   MYXKlineWsData,
-} from '../../../src/types/myx-types';
+} from '../../../src/types/myx-types.js';
 import {
   MYXDirection,
   MYXDirectionEnum,
@@ -66,7 +66,7 @@ import {
   MYXOrderTypeEnum,
   MYXExecTypeEnum,
   MYXTradeFlowTypeEnum,
-} from '../../../src/types/myx-types';
+} from '../../../src/types/myx-types.js';
 import {
   adaptMarketFromMYX,
   adaptPriceFromMYX,
@@ -86,7 +86,7 @@ import {
   adaptCandleFromMYXWebSocket,
   toMYXKlineResolution,
   assertMYXSuccess,
-} from '../../../src/utils/myxAdapter';
+} from '../../../src/utils/myxAdapter.js';
 
 // Mock formatters matching the MarketDataFormatters interface
 const mockFormatters: MarketDataFormatters = {

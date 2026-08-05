@@ -6,10 +6,17 @@ import {
   SortOptionId,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
   DEFAULT_PERPS_MODE,
-} from './constants/perpsConfig';
-import type { PerpsMode, ProLayoutPreferences } from './constants/perpsConfig';
-import type { PerpsControllerState } from './PerpsController';
-import type { PerpsSelectedPaymentToken, SortDirection } from './types';
+} from './constants/perpsConfig.js';
+import type {
+  PerpsMode,
+  ProLayoutPreferences,
+} from './constants/perpsConfig.js';
+import type { PerpsControllerState } from './PerpsController.js';
+import type {
+  OrderType,
+  PerpsSelectedPaymentToken,
+  SortDirection,
+} from './types/index.js';
 
 /**
  * Select whether the user is a first-time perps user
@@ -159,7 +166,7 @@ export const selectPendingTradeConfiguration = createSelector(
         takeProfitPrice?: string;
         stopLossPrice?: string;
         limitPrice?: string;
-        orderType?: 'market' | 'limit';
+        orderType?: OrderType;
         selectedPaymentToken?: PerpsSelectedPaymentToken | null;
       }
     | undefined => {

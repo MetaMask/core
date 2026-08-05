@@ -1,5 +1,6 @@
 /* eslint-disable jest/no-restricted-matchers */
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { handleFetch } from '@metamask/controller-utils';
 import {
   BtcScope,
   EthAccountType,
@@ -16,32 +17,40 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 import nock from 'nock';
 
-import { flushPromises } from '../../../tests/helpers';
-import { handleFetch } from '../../controller-utils/src';
-import { mockBridgeQuotesErc20NativeV1 } from '../tests/mock-quotes-erc20-native';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
-import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth';
-import { mockBridgeQuotesSolErc20V1 } from '../tests/mock-quotes-sol-erc20';
-import { advanceToNthTimerThenFlush } from '../tests/mock-sse';
-import { BridgeController } from './bridge-controller';
+import { flushPromises } from '../../../tests/helpers.js';
+import { mockBridgeQuotesErc20NativeV1 } from '../tests/mock-quotes-erc20-native.js';
+import {
+  mockBridgeQuotesNativeErc20EthV1,
+  getMockBridgeQuotesNativeErc20EthV2,
+} from '../tests/mock-quotes-native-erc20-eth.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
+import {
+  getMockBridgeQuotesSolErc20V2,
+  mockBridgeQuotesSolErc20V1,
+} from '../tests/mock-quotes-sol-erc20.js';
+import { advanceToNthTimerThenFlush } from '../tests/mock-sse.js';
+import { BridgeController } from './bridge-controller.js';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
-} from './constants/bridge';
-import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
-import * as selectors from './selectors';
-import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types';
-import type { BridgeControllerMessenger, GenericQuoteRequest } from './types';
-import * as balanceUtils from './utils/balance';
-import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
+} from './constants/bridge.js';
+import { SWAPS_API_V2_BASE_URL } from './constants/swaps.js';
+import * as selectors from './selectors.js';
+import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types.js';
+import type {
+  BridgeControllerMessenger,
+  GenericQuoteRequest,
+} from './types.js';
+import * as balanceUtils from './utils/balance.js';
+import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge.js';
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
-} from './utils/caip-formatters';
-import * as featureFlagUtils from './utils/feature-flags';
-import * as fetchUtils from './utils/fetch';
+} from './utils/caip-formatters.js';
+import * as featureFlagUtils from './utils/feature-flags.js';
+import * as fetchUtils from './utils/fetch.js';
 import {
   BatchSellMetricsEventName,
   BatchSellMetricsLocation,
@@ -50,9 +59,9 @@ import {
   MetricsActionType,
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
-} from './utils/metrics/constants';
-import { FeatureId } from './validators/feature-flags';
-import type { QuoteResponseV1 } from './validators/quote-response-v1';
+} from './utils/metrics/constants.js';
+import { FeatureId } from './validators/feature-flags.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
@@ -214,247 +223,6 @@ describe('BridgeController', function () {
   it('constructor should setup correctly', async function () {
     await withController(async ({ controller: bridgeController }) => {
       expect(bridgeController.state).toStrictEqual(EMPTY_INIT_STATE);
-    });
-  });
-
-  describe('getExchangeRateSources and fetchAssetExchangeRates', function () {
-    it('calls MultichainAssetsRatesController, CurrencyRateController, and TokenRatesController when useAssetsControllerForRates is false', async function () {
-      jest.useFakeTimers();
-      await withController(async ({ rootMessenger }) => {
-        const hasSufficientBalanceSpy = jest
-          .spyOn(balanceUtils, 'hasSufficientBalance')
-          .mockResolvedValue(true);
-
-        const getStateReturn = {
-          conversionRates: {},
-          currencyRates: {},
-          marketData: {},
-          currentCurrency: 'USD',
-        };
-        messengerCallMock.mockImplementation(
-          (
-            actionType: string,
-          ): ReturnType<BridgeControllerMessenger['call']> => {
-            if (actionType === 'AuthenticationController:getBearerToken') {
-              return 'AUTH_TOKEN';
-            }
-            if (
-              actionType === 'MultichainAssetsRatesController:getState' ||
-              actionType === 'CurrencyRateController:getState' ||
-              actionType === 'TokenRatesController:getState'
-            ) {
-              return getStateReturn as never;
-            }
-            return {
-              remoteFeatureFlags: { bridgeConfig: { ...bridgeConfig } },
-              address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-              provider: jest.fn(),
-            } as never;
-          },
-        );
-
-        const selectIsAssetExchangeRateInStateSpy = jest.spyOn(
-          selectors,
-          'selectIsAssetExchangeRateInState',
-        );
-
-        await rootMessenger.call(
-          'BridgeController:updateBridgeQuoteRequestParams',
-          {
-            srcChainId: '0x1',
-            destChainId: '0xa',
-            srcTokenAddress: '0x0000000000000000000000000000000000000000',
-            destTokenAddress: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
-            srcTokenAmount: '1000000000000000000',
-            walletAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-            slippage: 0.5,
-          },
-          metricsContext,
-        );
-
-        jest.advanceTimersToNextTimer();
-        await flushPromises();
-
-        expect(messengerCallMock).toHaveBeenCalledWith(
-          'MultichainAssetsRatesController:getState',
-        );
-        expect(messengerCallMock).toHaveBeenCalledWith(
-          'CurrencyRateController:getState',
-        );
-        expect(messengerCallMock).toHaveBeenCalledWith(
-          'TokenRatesController:getState',
-        );
-        expect(messengerCallMock).not.toHaveBeenCalledWith(
-          'AssetsController:getExchangeRatesForBridge',
-        );
-
-        expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalled();
-        const [firstCallSources] =
-          selectIsAssetExchangeRateInStateSpy.mock.calls[0];
-        expect(firstCallSources).toHaveProperty('assetExchangeRates');
-        expect(firstCallSources).toHaveProperty('conversionRates');
-        expect(firstCallSources).toHaveProperty('currencyRates');
-        expect(firstCallSources).toHaveProperty('marketData');
-
-        hasSufficientBalanceSpy.mockRestore();
-        selectIsAssetExchangeRateInStateSpy.mockRestore();
-      });
-    });
-
-    it('calls AssetsController:getExchangeRatesForBridge when getUseAssetsControllerForRates returns true', async function () {
-      jest.useFakeTimers();
-      await withController(
-        { options: { getUseAssetsControllerForRates: (): boolean => true } },
-        async ({ rootMessenger: assetsRatesRootMessenger }) => {
-          const hasSufficientBalanceSpy = jest
-            .spyOn(balanceUtils, 'hasSufficientBalance')
-            .mockResolvedValue(true);
-
-          const bridgeRatesReturn = {
-            conversionRates: {},
-            currencyRates: {},
-            marketData: {},
-            currentCurrency: 'EUR',
-          };
-          messengerCallMock.mockImplementation(
-            (
-              actionType: string,
-            ): ReturnType<BridgeControllerMessenger['call']> => {
-              if (actionType === 'AuthenticationController:getBearerToken') {
-                return 'AUTH_TOKEN';
-              }
-              if (actionType === 'AssetsController:getExchangeRatesForBridge') {
-                return bridgeRatesReturn as never;
-              }
-              return {
-                remoteFeatureFlags: { bridgeConfig: { ...bridgeConfig } },
-                address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-                provider: jest.fn(),
-              } as never;
-            },
-          );
-
-          const selectIsAssetExchangeRateInStateSpy = jest.spyOn(
-            selectors,
-            'selectIsAssetExchangeRateInState',
-          );
-
-          await assetsRatesRootMessenger.call(
-            'BridgeController:updateBridgeQuoteRequestParams',
-            {
-              srcChainId: '0x1',
-              destChainId: '0xa',
-              srcTokenAddress: '0x0000000000000000000000000000000000000000',
-              destTokenAddress: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
-              srcTokenAmount: '1000000000000000000',
-              walletAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-              slippage: 0.5,
-            },
-            metricsContext,
-          );
-
-          jest.advanceTimersToNextTimer();
-          await flushPromises();
-
-          expect(messengerCallMock).toHaveBeenCalledWith(
-            'AssetsController:getExchangeRatesForBridge',
-          );
-          expect(messengerCallMock).not.toHaveBeenCalledWith(
-            'MultichainAssetsRatesController:getState',
-          );
-
-          expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalled();
-          const [firstCallSources] =
-            selectIsAssetExchangeRateInStateSpy.mock.calls[0];
-          expect(firstCallSources).toHaveProperty('assetExchangeRates');
-          expect(firstCallSources).toHaveProperty('currentCurrency', 'EUR');
-
-          hasSufficientBalanceSpy.mockRestore();
-          selectIsAssetExchangeRateInStateSpy.mockRestore();
-        },
-      );
-    });
-
-    it('calls selectIsAssetExchangeRateInState with exchange rate sources, src chain/address, and dest chain/address', async function () {
-      jest.useFakeTimers();
-      await withController(async ({ rootMessenger }) => {
-        const hasSufficientBalanceSpy = jest
-          .spyOn(balanceUtils, 'hasSufficientBalance')
-          .mockResolvedValue(true);
-
-        messengerCallMock.mockImplementation(
-          (
-            actionType: string,
-          ): ReturnType<BridgeControllerMessenger['call']> => {
-            if (actionType === 'AuthenticationController:getBearerToken') {
-              return 'AUTH_TOKEN';
-            }
-            if (
-              actionType === 'MultichainAssetsRatesController:getState' ||
-              actionType === 'CurrencyRateController:getState' ||
-              actionType === 'TokenRatesController:getState'
-            ) {
-              return {
-                conversionRates: {},
-                currencyRates: {},
-                marketData: {},
-                currentCurrency: 'USD',
-              } as never;
-            }
-            return {
-              remoteFeatureFlags: { bridgeConfig: { ...bridgeConfig } },
-              address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-              provider: jest.fn(),
-            } as never;
-          },
-        );
-
-        const selectIsAssetExchangeRateInStateSpy = jest.spyOn(
-          selectors,
-          'selectIsAssetExchangeRateInState',
-        );
-
-        const quoteParams = {
-          srcChainId: '0x1',
-          destChainId: '0xa',
-          srcTokenAddress: '0x0000000000000000000000000000000000000000',
-          destTokenAddress: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
-          srcTokenAmount: '1000000000000000000',
-          walletAddress: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-          slippage: 0.5,
-        };
-
-        await rootMessenger.call(
-          'BridgeController:updateBridgeQuoteRequestParams',
-          quoteParams,
-          metricsContext,
-        );
-
-        jest.advanceTimersToNextTimer();
-        await flushPromises();
-
-        expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            assetExchangeRates: expect.any(Object),
-          }),
-          formatAddressToAssetId(
-            quoteParams.srcTokenAddress,
-            quoteParams.srcChainId,
-          ),
-        );
-        expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            assetExchangeRates: expect.any(Object),
-          }),
-          formatAddressToAssetId(
-            quoteParams.destTokenAddress,
-            quoteParams.destChainId,
-          ),
-        );
-
-        hasSufficientBalanceSpy.mockRestore();
-        selectIsAssetExchangeRateInStateSpy.mockRestore();
-      });
     });
   });
 
@@ -962,7 +730,7 @@ describe('BridgeController', function () {
                 resetApproval: false,
               },
             ],
-            quotes: mockBridgeQuotesNativeErc20EthV1,
+            quotes: getMockBridgeQuotesNativeErc20EthV2(),
             quotesLoadingStatus: 1,
           }),
         );
@@ -985,8 +753,8 @@ describe('BridgeController', function () {
               },
             ],
             quotes: [
-              ...mockBridgeQuotesNativeErc20EthV1,
-              ...mockBridgeQuotesNativeErc20EthV1,
+              ...getMockBridgeQuotesNativeErc20EthV2(),
+              ...getMockBridgeQuotesNativeErc20EthV2(),
             ],
             quotesLoadingStatus: 1,
             quoteFetchError: null,
@@ -1062,8 +830,8 @@ describe('BridgeController', function () {
 
         expect(stateWithoutTimestamp).toMatchSnapshot();
         expect(quotes).toStrictEqual([
-          ...mockBridgeQuotesNativeErc20EthV1,
-          ...mockBridgeQuotesNativeErc20EthV1,
+          ...getMockBridgeQuotesNativeErc20EthV2(),
+          ...getMockBridgeQuotesNativeErc20EthV2(),
         ]);
         expect(
           quotesLastFetched,
@@ -1244,7 +1012,7 @@ describe('BridgeController', function () {
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
             minimumBalanceForRentExemptionInLamports: '5000',
-            quotes: mockBridgeQuotesSolErc20V1.map((quote) => ({
+            quotes: getMockBridgeQuotesSolErc20V2().map((quote) => ({
               ...quote,
               nonEvmFeesInNative: '0.000000014',
             })),
@@ -1321,7 +1089,7 @@ describe('BridgeController', function () {
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
             minimumBalanceForRentExemptionInLamports: '5000',
-            quotes: mockBridgeQuotesSolErc20V1.map((quote) => ({
+            quotes: getMockBridgeQuotesSolErc20V2().map((quote) => ({
               ...quote,
               nonEvmFeesInNative: '0.000000014',
             })),
@@ -1370,7 +1138,7 @@ describe('BridgeController', function () {
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
             minimumBalanceForRentExemptionInLamports: '0',
-            quotes: mockBridgeQuotesSolErc20V1.map((quote) => ({
+            quotes: getMockBridgeQuotesSolErc20V2().map((quote) => ({
               ...quote,
               nonEvmFeesInNative: '0.000000014',
             })),
@@ -1566,7 +1334,7 @@ describe('BridgeController', function () {
                 resetApproval: false,
               },
             ],
-            quotes: mockBridgeQuotesNativeErc20EthV1,
+            quotes: getMockBridgeQuotesNativeErc20EthV2(),
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
             quotesInitialLoadTime: 11000,
@@ -1608,7 +1376,7 @@ describe('BridgeController', function () {
                 resetApproval: false,
               },
             ],
-            quotes: mockBridgeQuotesNativeErc20EthV1,
+            quotes: getMockBridgeQuotesNativeErc20EthV2(),
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
             quotesInitialLoadTime: 11000,
@@ -1750,7 +1518,7 @@ describe('BridgeController', function () {
                 resetApproval: false,
               },
             ],
-            quotes: mockBridgeQuotesNativeErc20EthV1,
+            quotes: getMockBridgeQuotesNativeErc20EthV2(),
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
             quotesInitialLoadTime: 11000,
@@ -2339,7 +2107,7 @@ describe('BridgeController', function () {
           bridgeController.state;
 
         expect(stateWithoutQuotes).toMatchSnapshot();
-        expect(quotes).toStrictEqual(mockBridgeQuotesNativeErc20EthV1);
+        expect(quotes).toStrictEqual(getMockBridgeQuotesNativeErc20EthV2());
         expect(quotesLastFetched).toBeCloseTo(Date.now() - 10000);
 
         jest.advanceTimersByTime(10000);
@@ -2351,7 +2119,7 @@ describe('BridgeController', function () {
         } = bridgeController.state;
 
         expect(stateWithoutQuotes2).toMatchSnapshot();
-        expect(quotes2).toStrictEqual(mockBridgeQuotesNativeErc20EthV1);
+        expect(quotes2).toStrictEqual(getMockBridgeQuotesNativeErc20EthV2());
 
         expect(quotesLastFetched2).toBe(quotesLastFetched);
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
@@ -2657,9 +2425,7 @@ describe('BridgeController', function () {
           // Verify non-EVM fees
           quotes.forEach((quote) => {
             expect(quote.nonEvmFeesInNative).toBe(
-              isSolanaChainId(quote.quote.srcChainId)
-                ? expectedFees
-                : undefined,
+              isSolanaChainId(quote.chainId) ? expectedFees : undefined,
             );
           });
 
@@ -2812,6 +2578,7 @@ describe('BridgeController', function () {
         // Use the actual Solana mock which already has string trade type
         const btcQuoteResponse = mockBridgeQuotesSolErc20V1.map((quote) => ({
           ...quote,
+          quoteId: quote.quote.requestId,
           quote: {
             ...quote.quote,
             srcChainId: ChainId.BTC,
@@ -2905,11 +2672,11 @@ describe('BridgeController', function () {
         expect(quotes[1].nonEvmFeesInNative).toBeUndefined();
         expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'Failed to compute non-EVM fees for quote 5cb5a527-d4e4-4b5e-b753-136afc3986d3:',
+          'Failed to compute non-EVM fees for quote 5cb5a527-d4e4-4b5e-b753-136afc3986d3',
           new Error('Failed to compute fees'),
         );
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'Failed to compute non-EVM fees for quote 12c94d29-4b5c-4aee-92de-76eee4172d3d:',
+          'Failed to compute non-EVM fees for quote 12c94d29-4b5c-4aee-92de-76eee4172d3d',
           new Error('Failed to compute fees'),
         );
       },
@@ -3817,7 +3584,7 @@ describe('BridgeController', function () {
                   slippage: 0.5,
                 },
               ],
-              quotes: mockBridgeQuotesSolErc20V1,
+              quotes: getMockBridgeQuotesSolErc20V2(),
             },
           },
         },
@@ -3866,7 +3633,7 @@ describe('BridgeController', function () {
                   slippage: 0.5,
                 },
               ],
-              quotes: mockBridgeQuotesSolErc20V1,
+              quotes: getMockBridgeQuotesSolErc20V2(),
             },
           },
         },
@@ -4139,12 +3906,12 @@ describe('BridgeController', function () {
                 srcTokenAddress: 'NATIVE',
                 destTokenAddress: '0x1234',
                 srcTokenAmount: '1000000',
-                walletAddress: undefined as never,
                 slippage: 0.5,
                 aggIds: ['other'],
                 bridgeIds: ['other', 'debridge'],
                 gasIncluded: false,
                 gasIncluded7702: false,
+                walletAddress: undefined as never,
               },
               FeatureId.PERPS,
               null,
@@ -4256,30 +4023,30 @@ describe('BridgeController', function () {
 
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-            [
-              [
-                {
-                  "destChainId": "1",
-                  "destTokenAddress": "0x1234",
-                  "gasIncluded": false,
-                  "gasIncluded7702": false,
-                  "resetApproval": false,
-                  "slippage": 0.5,
-                  "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-                  "srcTokenAddress": "NATIVE",
-                  "srcTokenAmount": "1000000",
-                  "walletAddress": "0x123",
-                },
-                null,
-                "extension",
-                "AUTH_TOKEN",
-                [Function],
-                "https://bridge.api.cx.metamask.io",
-                "unified_swap_bridge",
-                "13.7.0",
-              ],
-            ]
-          `);
+                    [
+                      [
+                        {
+                          "destChainId": "1",
+                          "destTokenAddress": "0x1234",
+                          "gasIncluded": false,
+                          "gasIncluded7702": false,
+                          "resetApproval": false,
+                          "slippage": 0.5,
+                          "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                          "srcTokenAddress": "NATIVE",
+                          "srcTokenAmount": "1000000",
+                          "walletAddress": "0x123",
+                        },
+                        null,
+                        "extension",
+                        "AUTH_TOKEN",
+                        [Function],
+                        "https://bridge.api.cx.metamask.io",
+                        "unified_swap_bridge",
+                        "13.7.0",
+                      ],
+                    ]
+                `);
           expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20V1);
           expect(bridgeController.state).toStrictEqual(expectedControllerState);
         },
@@ -4410,7 +4177,7 @@ describe('BridgeController', function () {
       ],
     };
 
-    const mockQuote = mockBridgeQuotesNativeErc20EthV1[0];
+    const mockQuote = getMockBridgeQuotesNativeErc20EthV2()[0];
 
     beforeEach(() => {
       jest.clearAllMocks();

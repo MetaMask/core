@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.0]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- **BREAKING:** Require a non-empty `chainId` on `addPrecreatedOrder`. Callers must seed the selected token's chain so precreated stubs (and pending flips before API enrichment) always carry a network. Empty or whitespace `chainId` is a no-op, matching empty `orderId` handling. ([#9777](https://github.com/MetaMask/core/pull/9777))
+
+## [19.0.0]
+
+### Added
+
+- Add `setSelectedProviderForAsset(assetId, options?)` method and `RampsController:setSelectedProviderForAsset` messenger action ([#9759](https://github.com/MetaMask/core/pull/9759))
+  - Switches `providers.selected` to the first provider in `providers.data` that serves the given CAIP-19 asset when the currently selected provider does not, using the existing `providerServesAsset` utility.
+  - Returns `true` if a switch was made, `false` otherwise (no-op when providers are not yet loaded, the current provider already serves the asset, or no alternative provider serves the asset).
+- Add `RampsService.getDefaultRedirectCallbackUrl()` and the matching `RampsService:getDefaultRedirectCallbackUrl` messenger action (plus the exported `RampsServiceGetDefaultRedirectCallbackUrlAction` type), which return the widened Headless Buy default redirect ("fake callback") URL for the environment the service was constructed with. The method is synchronous. ([#9752](https://github.com/MetaMask/core/pull/9752))
+  - `baseUrlOverride` deliberately does not apply. It overrides the ramps API host for local development, which in production and staging is not the host that serves `/regions/fake-callback` (`on-ramp-content` versus `on-ramp{-cache}`), and the redirect URL is matched by client UI to detect flow completion. For development the callback already shares the API host family (`on-ramp.dev-api`). Use `RampsEnvironment.Local` for a localhost callback, noting it is pinned to `http://localhost:3000` and does not follow a non-3000 `baseUrlOverride`.
+- Add the exported `getDefaultRedirectCallbackUrl(environment)` helper, the canonical environment-to-callback map that `RampsService` uses: `on-ramp-content` hosts for production and staging, `on-ramp.dev-api` for development (there is no `on-ramp-content.dev-api` deployment), and `localhost:3000` for local. Client code that needs the value synchronously, without the messenger, can call it directly with the same environment the service was given. ([#9752](https://github.com/MetaMask/core/pull/9752))
+
+### Changed
+
+- **BREAKING:** `RampsController` now calls `RampsService:getDefaultRedirectCallbackUrl` on the widened quote path, so hosts must delegate that action to the controller's messenger. It is included in the exported `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS` list; hosts that spell out their delegated action list instead of spreading that constant have to add it, or the entire `RampsController:getQuotes` call rejects with a messenger "handler has not been delegated" error (including MM Pay's fiat quote path, which omits `redirectUrl` and relies on widening). ([#9752](https://github.com/MetaMask/core/pull/9752))
+  - The action is only called when the `moneyHeadlessAllProviders` widening is in effect and the caller omitted `redirectUrl`. An explicit `redirectUrl` and the native-only path never reach the service.
+
+### Removed
+
+- **BREAKING:** Remove the `getDefaultRedirectUrl` callback option from `RampsControllerOptions`. The controller asks `RampsService` for the default redirect URL instead, which keeps the environment a single runtime source of truth so the callback host cannot drift from the API host the service is talking to. ([#9752](https://github.com/MetaMask/core/pull/9752))
+  - Mobile should drop the `getDefaultRedirectUrl: () => getRampCallbackBaseUrl()` argument from its `RampsController` init once it upgrades, and reimplement `getRampCallbackBaseUrl()` as `getDefaultRedirectCallbackUrl(getRampsEnvironment())` so the UI callback matcher and the controller default resolve from the same environment source.
+
+### Fixed
+
+- Fix `providerServesAsset` to require the `supportedCryptoCurrencies` map value to be `true`, not just key presence ([#9759](https://github.com/MetaMask/core/pull/9759))
+  - Previously a provider with `{ "eip155:1/erc20:0x...": false }` would be treated as serving the asset.
+
+## [18.0.1]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [18.0.0]
+
+### Removed
+
+- **BREAKING:** Remove `getHeadlessAllProvidersMinimumVersion`; app-version gating for `moneyHeadlessAllProviders` is owned by the LaunchDarkly `versions` wrapper (processed by `RemoteFeatureFlagController`), not a payload `minimumVersion` field. `featureVersion` fail-closed enablement and `providerIds` allowlisting are unchanged. ([#9668](https://github.com/MetaMask/core/pull/9668))
+
+## [17.2.0]
+
+### Added
+
+- Add the pure `getHeadlessProviderAllowlist(remoteFeatureFlagState)` helper resolving the provider-id allowlist carried by the `moneyHeadlessAllProviders` flag's object payload; empty or malformed `providerIds` resolve to `undefined` (no restriction), unknown keys and non-string entries are ignored ([#9524](https://github.com/MetaMask/core/pull/9524))
+- Add the `HEADLESS_ALL_PROVIDERS_FEATURE_VERSION` constant (currently `'1'`) and the `getHeadlessAllProvidersMinimumVersion(remoteFeatureFlagState)` helper; an enabled object payload must carry `featureVersion: '1'` or it resolves to disabled, and `minimumVersion` is exposed for clients to validate against the app version ([#9524](https://github.com/MetaMask/core/pull/9524))
+
+### Changed
+
+- Widen the `moneyHeadlessAllProviders` flag value contract to accept an object payload `{ enabled: true, featureVersion: "1", providerIds?: string[] }` alongside the boolean form ([#9524](https://github.com/MetaMask/core/pull/9524))
+  - `isHeadlessAllProvidersEnabled` now returns `true` for an object payload whose `enabled` is the literal `true` and `featureVersion` is `"1"`; every other previously-false value still resolves to `false`, so boolean-only configurations see no behavior change
+  - When the payload lists provider ids, the widened quote pick drops candidates whose provider is not listed (ids match in prefixed `/providers/x` or bare form, case-insensitively); if nothing survives, `getQuotes` returns an empty `success[]` with `sorted` / `error` / `customActions` preserved
+  - Clients on earlier versions coerce the object payload to `false` (native-only), so serving it cannot enable widening for a client that cannot parse it
+
+## [17.1.0]
+
+### Added
+
+- Add `TransakService.createWidgetUrl` and `RampsController.transakCreateWidgetUrl`, which create the Transak payment widget URL through the ramps API proxy (`POST /providers/{providerId}/widget-url`) so the partner API key never leaves the backend. Requires the host to delegate `AuthenticationController:getBearerToken` to the `TransakService` messenger. ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add a `rampsApiBaseUrlOverride` constructor option to `TransakService` (same semantics as `RampsService`'s `baseUrlOverride`) that overrides the ramps API base URL for local development; it applies to the orders and widget-url proxy requests only. ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add a `referrerDomain` constructor option to `TransakService` that identifies the client to Transak in `widgetParams` (defaults to `metamask.io`). ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add `TransakEnvironment.Development`, which routes ramps API requests to `https://on-ramp.dev-api.cx.metamask.io` while direct Transak API calls use the staging gateway. ([#9632](https://github.com/MetaMask/core/pull/9632))
+
+### Deprecated
+
+- Deprecate `TransakService.requestOtt` and `TransakService.generatePaymentWidgetUrl` in favor of `createWidgetUrl`; the OTT flow requires the partner API key on the client. ([#9632](https://github.com/MetaMask/core/pull/9632))
+
 ## [17.0.0]
 
 ### Added
@@ -441,7 +513,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@19.0.0...@metamask/ramps-controller@20.0.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.1...@metamask/ramps-controller@19.0.0
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.0...@metamask/ramps-controller@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.2.0...@metamask/ramps-controller@18.0.0
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.1.0...@metamask/ramps-controller@17.2.0
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.0.0...@metamask/ramps-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@16.0.0...@metamask/ramps-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.1.0...@metamask/ramps-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.0.0...@metamask/ramps-controller@15.1.0

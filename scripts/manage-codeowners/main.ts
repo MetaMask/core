@@ -2,7 +2,7 @@ import fs from 'fs';
 import * as path from 'path';
 import yargs from 'yargs';
 
-import codeownersSections from '../../codeowners';
+import codeownersSections from '../../codeowners.js';
 
 /**
  * The path to the generated CODEOWNERS file.

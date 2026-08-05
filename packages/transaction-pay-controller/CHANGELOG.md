@@ -7,6 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.2.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/assets-controller` from `^13.1.0` to `^13.1.1` ([#9788](https://github.com/MetaMask/core/pull/9788))
+- Bump `@metamask/assets-controllers` from `^110.1.1` to `^111.0.0` ([#9788](https://github.com/MetaMask/core/pull/9788))
+
+### Fixed
+
+- Request `EXACT_OUTPUT` instead of `EXPECTED_OUTPUT` from Relay for HyperCore perps deposits, so the full deposit target is guaranteed to arrive ([#9751](https://github.com/MetaMask/core/pull/9751))
+  - `EXPECTED_OUTPUT` only guarantees `target * (1 - slippage)` on the destination, so a deposit sized to the exact margin required could arrive short and the follow-on order would fail with insufficient margin.
+
+## [26.2.2]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.1.0` to `^110.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/ramps-controller` from `^19.0.0` to `^20.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+
+### Fixed
+
+- Pass the quote's pre-signed `authorizationList` through `addTransactionBatch` for same-chain Relay submits when an account override is active, so Money Account vault upgrades are not dropped on the multi-step batch path ([#9765](https://github.com/MetaMask/core/pull/9765))
+
+## [26.2.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/ramps-controller` from `^18.0.1` to `^19.0.0` ([#9778](https://github.com/MetaMask/core/pull/9778))
+
+## [26.2.0]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^13.0.0` to `^13.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
+- Bump `@metamask/assets-controllers` from `^110.0.3` to `^110.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
+
+### Fixed
+
+- Use the typed required amount for Money Account `isMaxAmount` source calculations instead of the pay token's on-chain balance, so Max deposits funded from the money account (e.g. Send to Perps) keep the full withdrawable total (mUSD + vmUSD) and can use `EXACT_INPUT` ([#9707](https://github.com/MetaMask/core/pull/9707))
+- Fix Relay quote validation ([#9723](https://github.com/MetaMask/core/pull/9723))
+  - Keep the quote when validation fails with reason `insufficient-source-balance`, while still surfacing `quoteError`; all other validation-failure reasons continue to remove the quote.
+  - Exclude a zero `gas` value from the simulated transaction.
+  - Always include an EIP-7702 authorization in the batch simulation so a not-yet-upgraded account is simulated as delegated, using the quote authorization address when present and otherwise the configured EIP-7702 upgrade contract for the chain.
+  - Surface the revert return data as `Custom Error - <return>` when a Sentinel simulation reverts with `execution reverted` and non-empty return data, falling back to `Reverted - Unknown Error` when the return data is empty, instead of the implied `execution reverted` message.
+
+## [26.1.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^12.0.0` to `^13.0.0` ([#9740](https://github.com/MetaMask/core/pull/9740))
+
+## [26.1.0]
+
+### Added
+
+- Add `atomic` field on `TransactionConfig` / `TransactionData` for a generic non-atomic post-Relay flow: when `atomic` is `false`, Relay bridges to an internally derived recipient (`getPaymentOverrideData` recipient for post-quote flows, otherwise the transaction's own `from`) and the second leg is submitted separately after completion, replacing the removed `relay-post-ma-vault` module ([#9497](https://github.com/MetaMask/core/pull/9497))
+- Persist the quote strategy in the transaction's `metamaskPay.strategy` metadata so clients can derive pay metrics after `transactionData` is gone (e.g. after a restart) ([#9733](https://github.com/MetaMask/core/pull/9733))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^11.2.1` to `^12.0.0` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9706](https://github.com/MetaMask/core/pull/9706), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.3` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9706](https://github.com/MetaMask/core/pull/9706), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.4.0` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/gas-fee-controller` from `^26.3.0` to `^26.3.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/ramps-controller` from `^18.0.0` to `^18.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [26.0.1]
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^17.0.0` to `^18.0.0` ([#9646](https://github.com/MetaMask/core/pull/9646), [#9648](https://github.com/MetaMask/core/pull/9648), [#9670](https://github.com/MetaMask/core/pull/9670))
+- Bump `@metamask/assets-controller` from `^11.2.0` to `^11.2.1` ([#9648](https://github.com/MetaMask/core/pull/9648))
+
+## [26.0.0]
+
+### Added
+
+- **BREAKING:** Validate Relay quotes by simulating their transactions, surfacing failures as a structured `quoteError` on `TransactionData` ([#9143](https://github.com/MetaMask/core/pull/9143))
+  - The messenger must now allow the `SentinelApiService:simulateTransactions` action.
+  - Add `quoteError` (`QuoteErrorInfo`: `{ message, reason, detail? }`) and export `QuoteErrorInfo` and `QuoteErrorReason`.
+  - Add `payStrategies.relay.validationEnabled` extended feature flag (in `confirmations_pay_extended`) as a kill switch; validation is disabled by default.
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^11.1.1` to `^11.2.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+
+### Fixed
+
+- Reserve the HyperLiquid activation fee based on how HyperLiquid actually charges it ([#9594](https://github.com/MetaMask/core/pull/9594))
+  - Bridge withdrawals no longer count as activation, so accounts whose only outbound history is bridge withdrawals now get the fee reserved and their max withdrawals no longer fail with `Insufficient USDC balance for token transfer gas`
+  - Accounts created by an inbound transfer that paid the activation fee are detected as activated, so no fee is reserved and the full balance can be withdrawn
+  - Activation-check failures now reserve the fee instead of skipping it
+- Resolve the activation fee feature flag override through the nested transaction type when the parent transaction is a batch, so EIP-7702 batched withdrawals match their `perpsWithdraw` override instead of silently disabling the fee ([#9594](https://github.com/MetaMask/core/pull/9594))
+
 ## [25.1.1]
 
 ### Changed
@@ -1316,7 +1415,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.2.3...HEAD
+[26.2.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.2.2...@metamask/transaction-pay-controller@26.2.3
+[26.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.2.1...@metamask/transaction-pay-controller@26.2.2
+[26.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.2.0...@metamask/transaction-pay-controller@26.2.1
+[26.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.1.1...@metamask/transaction-pay-controller@26.2.0
+[26.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.1.0...@metamask/transaction-pay-controller@26.1.1
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.1...@metamask/transaction-pay-controller@26.1.0
+[26.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.0.0...@metamask/transaction-pay-controller@26.0.1
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.1.1...@metamask/transaction-pay-controller@26.0.0
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.1.0...@metamask/transaction-pay-controller@25.1.1
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@25.0.0...@metamask/transaction-pay-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.1.0...@metamask/transaction-pay-controller@25.0.0

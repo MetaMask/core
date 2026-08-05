@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { FeatureId } from '../validators/feature-flags';
-import type { QuoteResponseV1 } from '../validators/quote-response-v1';
+import { FeatureId } from '../validators/feature-flags.js';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
 
 export const sortQuotes = (
   quotes: QuoteResponseV1[],

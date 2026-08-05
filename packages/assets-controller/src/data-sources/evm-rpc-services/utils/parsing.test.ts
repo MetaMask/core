@@ -1,4 +1,4 @@
-import { chainIdToHex, weiToHumanReadable } from './parsing';
+import { chainIdToHex, weiToHumanReadable } from './parsing.js';
 
 describe('parsing utilities', () => {
   describe('weiToHumanReadable', () => {

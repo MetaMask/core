@@ -1,13 +1,17 @@
 import { TransactionType } from '@metamask/transaction-controller';
 
-import { TransactionPayStrategy } from '..';
-import type { TransactionPaymentToken } from '..';
-import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
-import type { TransactionData, TransactionPayRequiredToken } from '../types';
-import { updateSourceAmounts } from './source-amounts';
-import { getTokenFiatRate } from './token';
-import { getTransaction } from './transaction';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  PaymentOverride,
+} from '../constants.js';
+import { TransactionPayStrategy } from '../index.js';
+import type { TransactionPaymentToken } from '../index.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
+import type { TransactionData, TransactionPayRequiredToken } from '../types.js';
+import { updateSourceAmounts } from './source-amounts.js';
+import { getTokenFiatRate } from './token.js';
+import { getTransaction } from './transaction.js';
 
 jest.mock('./token', () => ({
   ...jest.requireActual('./token'),
@@ -259,6 +263,42 @@ describe('Source Amounts Utils', () => {
         {
           sourceAmountHuman: PAYMENT_TOKEN_MOCK.balanceHuman,
           sourceAmountRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('uses fiat-derived source amount for MoneyAccount max instead of payment token balance', () => {
+      // Money account withdrawable (mUSD + vmUSD) is reflected in the typed
+      // required token amount. The pay token's on-chain balance is only the
+      // un-vaulted mUSD portion and must not collapse Max.
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentOverride: PaymentOverride.MoneyAccount,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          // Bare on-chain mUSD — much smaller than the typed max.
+          balanceHuman: '0.62',
+          balanceRaw: '620000',
+          balanceUsd: '0.62',
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            // Full withdrawable max typed by the client ($6.00 USD).
+            amountUsd: '6.0',
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      // usdRate mock is 3.0 → source human = 6 / 3 = 2, raw = 2 * 10^6.
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '2',
+          sourceAmountRaw: '2000000',
           targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
         },
       ]);

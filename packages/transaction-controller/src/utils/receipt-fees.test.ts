@@ -1,8 +1,8 @@
-import type { TransactionReceipt } from '../types';
+import type { TransactionReceipt } from '../types.js';
 import {
   getLayer1FeeFromReceipt,
   getOperatorFeeFromReceipt,
-} from './receipt-fees';
+} from './receipt-fees.js';
 
 describe('receipt-fees', () => {
   // Values from a live Mantle mainnet receipt.

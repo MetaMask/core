@@ -5,8 +5,8 @@ import type {
   Caip19AssetId,
   Context,
   DataRequest,
-} from '../types';
-import { CustomAssetGraduationMiddleware } from './CustomAssetGraduationMiddleware';
+} from '../types.js';
+import { CustomAssetGraduationMiddleware } from './CustomAssetGraduationMiddleware.js';
 
 const MOCK_ACCOUNT_ID = 'mock-account-id';
 const OTHER_ACCOUNT_ID = 'other-account-id';
@@ -178,7 +178,7 @@ describe('CustomAssetGraduationMiddleware', () => {
   });
 
   it('does not graduate when the decimal amount is zero', async () => {
-    // Both AccountsApi and BackendWebsocketDataSource emit human-readable
+    // Both AccountsApi and AccountActivityDataSource emit human-readable
     // decimal strings, so "0.0" must be treated the same as "0".
     const { middleware, context, removeCustomAsset } = setup({
       [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET],
@@ -424,7 +424,7 @@ describe('CustomAssetGraduationMiddleware', () => {
   });
 
   it('graduates a custom asset when the response uses a non-checksummed (lowercase) address', async () => {
-    // Regression: BackendWebsocketDataSource does not normalize asset IDs,
+    // Regression: AccountActivityDataSource does not normalize asset IDs,
     // so balances may arrive with lowercase addresses while customAssets
     // state stores the checksummed form. Graduation must be robust to that.
     const checksummedCustomAsset =

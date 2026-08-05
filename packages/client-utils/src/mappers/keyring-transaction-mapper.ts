@@ -4,7 +4,7 @@ import {
   TransactionType as KeyringTransactionType,
 } from '@metamask/keyring-api';
 
-import type { Fee, ActivityItem, Status, TokenAmount } from '../types';
+import type { Fee, ActivityItem, Status, TokenAmount } from '../types.js';
 
 type Movement = KeyringTransaction['from'][number];
 type KeyringFee = KeyringTransaction['fees'][number];
@@ -138,7 +138,10 @@ export function mapKeyringTransaction({
 
   switch (type) {
     case KeyringTransactionType.Send: {
-      const fromToken = getToken(transaction.from, 'out');
+      const fromSubject = subjectAddress
+        ? transaction.from.filter(({ address }) => address === subjectAddress)
+        : transaction.from;
+      const fromToken = getToken(fromSubject, 'out');
       const token =
         !fromToken && chainId.startsWith('bip122:')
           ? getToken(transaction.to, 'out')

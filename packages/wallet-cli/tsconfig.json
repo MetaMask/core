@@ -5,7 +5,13 @@
   },
   "references": [
     {
+      "path": "../analytics-controller"
+    },
+    {
       "path": "../base-controller"
+    },
+    {
+      "path": "../messenger"
     },
     {
       "path": "../remote-feature-flag-controller"
@@ -15,6 +21,9 @@
     },
     {
       "path": "../wallet"
+    },
+    {
+      "path": "../foundryup"
     }
   ],
   "include": ["../../types", "./bin", "./src", "./tests"]

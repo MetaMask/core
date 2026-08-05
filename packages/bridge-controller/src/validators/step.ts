@@ -1,6 +1,7 @@
-import { type, enums, optional } from '@metamask/superstruct';
+import { type, enums, optional, pick } from '@metamask/superstruct';
 
-import { BridgeAssetSchema, ChainIdSchema } from './bridge-asset';
+import { AmountsAndAssetSchema } from './amount-and-asset.js';
+import { BridgeAssetSchema, ChainIdSchema } from './bridge-asset.js';
 
 export enum ActionTypes {
   BRIDGE = 'bridge',
@@ -17,3 +18,9 @@ export const StepSchema = type({
 });
 
 export const RefuelDataSchema = StepSchema;
+
+export const StepSchemaV2 = type({
+  action: enums(Object.values(ActionTypes)),
+  src: pick(AmountsAndAssetSchema, ['asset']),
+  dest: pick(AmountsAndAssetSchema, ['asset']),
+});

@@ -16,7 +16,7 @@ import type {
 import { TransactionType } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
-import type { BridgeHistoryItem } from '../types';
+import type { BridgeHistoryItem } from '../types.js';
 import {
   getTxStatusesFromHistory,
   getFinalizedTxProperties,
@@ -25,7 +25,7 @@ import {
   getRequestMetadataFromHistory,
   getEVMTxPropertiesFromTransactionMeta,
   getPreConfirmationPropertiesFromQuote,
-} from './metrics';
+} from './metrics.js';
 
 describe('metrics utils', () => {
   const mockHistoryItem: BridgeHistoryItem = {

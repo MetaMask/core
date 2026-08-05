@@ -8,15 +8,15 @@ import {
 } from '@metamask/utils';
 import { bytesToUtf8 } from '@noble/ciphers/utils';
 
-import { SecretType } from './constants';
-import type { SecretMetadata } from './SecretMetadata';
+import { SecretType } from './constants.js';
+import type { SecretMetadata } from './SecretMetadata.js';
 import type {
   DecodedBaseJWTToken,
   DecodedNodeAuthToken,
   DeserializedVaultData,
   InvalidPrimarySecretDataTypeErrorData,
   VaultData,
-} from './types';
+} from './types.js';
 
 /**
  * Decode the node auth token from base64 to json object.

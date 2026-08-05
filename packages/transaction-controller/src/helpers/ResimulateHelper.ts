@@ -3,15 +3,15 @@ import { remove0x } from '@metamask/utils';
 import { BN } from 'bn.js';
 import { isEqual } from 'lodash';
 
-import { createModuleLogger, projectLogger } from '../logger';
-import { TransactionStatus } from '../types';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import { TransactionContainerType, TransactionStatus } from '../types.js';
 import type {
   SimulationBalanceChange,
   SimulationData,
   TransactionMeta,
   TransactionParams,
-} from '../types';
-import { getPercentageChange } from '../utils/utils';
+} from '../types.js';
+import { getPercentageChange } from '../utils/utils.js';
 
 const log = createModuleLogger(projectLogger, 'resimulate-helper');
 
@@ -166,13 +166,24 @@ export function shouldResimulate(
     newTransactionMeta,
   );
 
+  const enforcedSimulationsUpdated =
+    originalTransactionMeta.containerTypes?.includes(
+      TransactionContainerType.EnforcedSimulations,
+    ) !==
+    newTransactionMeta.containerTypes?.includes(
+      TransactionContainerType.EnforcedSimulations,
+    );
+
   const valueAndNativeBalanceMismatch = hasValueAndNativeBalanceMismatch(
     originalTransactionMeta,
     newTransactionMeta,
   );
 
   const resimulate =
-    parametersUpdated || securityAlert || valueAndNativeBalanceMismatch;
+    parametersUpdated ||
+    securityAlert ||
+    enforcedSimulationsUpdated ||
+    valueAndNativeBalanceMismatch;
 
   let blockTime: number | undefined;
 
@@ -187,6 +198,7 @@ export function shouldResimulate(
       blockTime,
       parametersUpdated,
       securityAlert,
+      enforcedSimulationsUpdated,
       valueAndNativeBalanceMismatch,
     });
   }

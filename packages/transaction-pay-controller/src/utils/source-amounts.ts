@@ -5,24 +5,25 @@ import type {
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type {
-  TransactionPayControllerMessenger,
-  TransactionPaymentToken,
-} from '..';
-import { TransactionPayStrategy } from '..';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
+  PaymentOverride,
   PERPS_DEPOSIT_TYPES,
-} from '../constants';
-import { projectLogger } from '../logger';
+} from '../constants.js';
+import type {
+  TransactionPayControllerMessenger,
+  TransactionPaymentToken,
+} from '../index.js';
+import { TransactionPayStrategy } from '../index.js';
+import { projectLogger } from '../logger.js';
 import type {
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayRequiredToken,
-} from '../types';
-import { getTokenFiatRate, isSameToken } from './token';
-import { getTransaction } from './transaction';
+} from '../types.js';
+import { getTokenFiatRate, isSameToken } from './token.js';
+import { getTransaction } from './transaction.js';
 
 const log = createModuleLogger(projectLogger, 'source-amounts');
 
@@ -42,7 +43,8 @@ export function updateSourceAmounts(
     return;
   }
 
-  const { isMaxAmount, isPostQuote, paymentToken, tokens } = transactionData;
+  const { isMaxAmount, isPostQuote, paymentOverride, paymentToken, tokens } =
+    transactionData;
 
   if (!tokens.length || !paymentToken) {
     return;
@@ -75,6 +77,7 @@ export function updateSourceAmounts(
         transactionId,
         isMaxAmount ?? false,
         isQuoteRequired,
+        paymentOverride,
       ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
@@ -148,6 +151,7 @@ function calculatePostQuoteSourceAmounts(
  * @param transactionId - ID of the transaction.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
+ * @param paymentOverride - Optional payment source override for the transaction.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
@@ -157,6 +161,7 @@ function calculateSourceAmount(
   transactionId: string,
   isMaxAmount: boolean,
   isQuoteRequired?: boolean,
+  paymentOverride?: PaymentOverride,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -208,7 +213,12 @@ function calculateSourceAmount(
     return undefined;
   }
 
-  if (isMaxAmount) {
+  // Money account Max must not use the pay token's on-chain balance. That
+  // balance is only un-vaulted mUSD, while the typed required amount already
+  // reflects the full withdrawable total (mUSD + vmUSD). Using the typed
+  // fiat-derived source keeps isMaxAmount=true (EXACT_INPUT) correct for
+  // deposits funded from the money account (e.g. Send to Perps).
+  if (isMaxAmount && paymentOverride !== PaymentOverride.MoneyAccount) {
     return {
       sourceAmountHuman: paymentToken.balanceHuman,
       sourceAmountRaw: paymentToken.balanceRaw,

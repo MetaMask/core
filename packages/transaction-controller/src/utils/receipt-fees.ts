@@ -1,8 +1,8 @@
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 
-import type { TransactionReceipt } from '../types';
-import { padHexToEvenLength } from './utils';
+import type { TransactionReceipt } from '../types.js';
+import { padHexToEvenLength } from './utils.js';
 
 /**
  * Parses an optional hex quantity to a bigint.

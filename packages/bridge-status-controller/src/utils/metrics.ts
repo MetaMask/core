@@ -21,7 +21,7 @@ import type {
   AccountHardwareType,
   QuoteFetchData,
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   TxStatusData,
   RequestParams,
   TradeData,
@@ -36,12 +36,12 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { BridgeHistoryItem } from '../types';
-import { calcActualGasUsed } from './gas';
+import type { BridgeHistoryItem } from '../types.js';
+import { calcActualGasUsed } from './gas.js';
 import {
   getActualBridgeReceivedAmount,
   getActualSwapReceivedAmount,
-} from './swap-received-amount';
+} from './swap-received-amount.js';
 
 export const getTxStatusesFromHistory = ({
   status,
@@ -154,7 +154,7 @@ export const getRequestParamFromHistory = (
 };
 
 export const getTradeDataFromQuote = (
-  quoteResponse: QuoteResponse & QuoteMetadata,
+  quoteResponse: QuoteResponseV1 & QuoteMetadata,
   batchSellTrades?: BatchSellTradesResponse | null,
 ): TradeData => {
   return {
@@ -174,7 +174,7 @@ export const getTradeDataFromQuote = (
 };
 
 export const getPriceImpactFromQuote = (
-  quote: QuoteResponse['quote'],
+  quote: QuoteResponseV1['quote'],
 ): Pick<QuoteFetchData, 'price_impact'> => {
   return { price_impact: Number(quote.priceData?.priceImpact ?? '0') };
 };
@@ -195,7 +195,7 @@ export const getPriceImpactFromQuote = (
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
-  quoteResponse: QuoteResponse & QuoteMetadata,
+  quoteResponse: QuoteResponseV1 & QuoteMetadata,
   isStxEnabled: boolean,
   accountHardwareType: AccountHardwareType,
   location?: MetaMetricsSwapsEventSource,

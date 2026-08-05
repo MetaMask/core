@@ -12,10 +12,10 @@ import {
 import type { Messaging, MessagePayload } from 'firebase/messaging/sw';
 import log from 'loglevel';
 
-import type { NotificationServicesPushControllerMessenger } from '../NotificationServicesPushController';
-import type { PushAnalyticsPayload } from '../types';
-import type { PushNotificationEnv } from '../types/firebase';
-import { toPushAnalyticsPayload } from '../utils/to-push-analytics-payload';
+import type { NotificationServicesPushControllerMessenger } from '../NotificationServicesPushController.js';
+import type { PushNotificationEnv } from '../types/firebase.js';
+import type { PushAnalyticsPayload } from '../types/index.js';
+import { toPushAnalyticsPayload } from '../utils/to-push-analytics-payload.js';
 
 declare const self: ServiceWorkerGlobalScope;
 
