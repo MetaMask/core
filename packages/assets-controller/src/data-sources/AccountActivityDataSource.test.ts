@@ -89,9 +89,8 @@ function createBalanceUpdate(overrides?: {
 }
 
 type SetupOptions = {
-  groupAccounts?: InternalAccount[];
+  groupAccounts?: InternalAccount[] | (() => InternalAccount[]);
   selectedAccount?: InternalAccount | null;
-  getAssetType?: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
   onAssetsUpdate?: jest.Mock;
   onActiveChainsUpdated?: jest.Mock;
   state?: { activeChains?: ChainId[] };
@@ -102,7 +101,6 @@ type SetupResult = {
   rootMessenger: RootMessenger;
   onAssetsUpdate: jest.Mock;
   onActiveChainsUpdated: jest.Mock;
-  getAssetType: jest.Mock;
   triggerBalanceUpdated: (payload: {
     address: string;
     chain: string;
@@ -154,21 +152,17 @@ function setup(options: SetupOptions = {}): SetupResult {
 
   rootMessenger.registerActionHandler(
     'AccountTreeController:getAccountsFromSelectedAccountGroup',
-    () => groupAccounts,
+    () =>
+      typeof groupAccounts === 'function' ? groupAccounts() : groupAccounts,
   );
   rootMessenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     () => selectedAccount as InternalAccount,
   );
 
-  const getAssetType = jest
-    .fn()
-    .mockImplementation(options.getAssetType ?? ((): 'native' => 'native'));
-
   const dataSource = new AccountActivityDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
-    getAssetType,
     onAssetsUpdate,
     state,
   });
@@ -199,7 +193,6 @@ function setup(options: SetupOptions = {}): SetupResult {
     rootMessenger,
     onAssetsUpdate,
     onActiveChainsUpdated,
-    getAssetType,
     triggerBalanceUpdated,
     triggerStatusChanged,
     cleanup,
@@ -291,14 +284,6 @@ describe('AccountActivityDataSource', () => {
             [ETH_ASSET]: { amount: '1' },
           },
         },
-        assetsInfo: {
-          [ETH_ASSET]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'ETH',
-            decimals: 18,
-          },
-        },
       });
       expect(request).toStrictEqual({
         accountsWithSupportedChains: [
@@ -307,6 +292,34 @@ describe('AccountActivityDataSource', () => {
         chainIds: [CHAIN_MAINNET],
         dataTypes: ['balance', 'metadata'],
       });
+
+      cleanup();
+    });
+
+    it('does not publish asset metadata from the websocket payload', async () => {
+      const account = createMockAccount();
+      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+        groupAccounts: [account],
+      });
+
+      triggerBalanceUpdated({
+        address: EVM_ADDRESS,
+        chain: CHAIN_MAINNET,
+        updates: [
+          createBalanceUpdate({
+            // On-chain symbol/name can be attacker-controlled (e.g. scam
+            // URLs), so it must never reach state; the Token API is the
+            // metadata source of truth.
+            asset: { unit: 'www.scam-url.example' },
+          }),
+        ],
+      });
+
+      await Promise.resolve();
+
+      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.assetsInfo).toBeUndefined();
 
       cleanup();
     });
@@ -332,24 +345,6 @@ describe('AccountActivityDataSource', () => {
       expect(response.assetsBalance[account.id][ETH_ASSET]).toStrictEqual({
         amount: '0.00000114526056',
       });
-
-      cleanup();
-    });
-
-    it('resolves the asset type via the injected getAssetType', async () => {
-      const { getAssetType, triggerBalanceUpdated, cleanup } = setup({
-        getAssetType: () => 'erc20',
-      });
-
-      triggerBalanceUpdated({
-        address: EVM_ADDRESS,
-        chain: CHAIN_MAINNET,
-        updates: [createBalanceUpdate()],
-      });
-
-      await Promise.resolve();
-
-      expect(getAssetType).toHaveBeenCalledWith(ETH_ASSET);
 
       cleanup();
     });
@@ -546,7 +541,7 @@ describe('AccountActivityDataSource', () => {
 
     it('swallows synchronous errors thrown while handling the event', async () => {
       const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
-        getAssetType: () => {
+        groupAccounts: () => {
           throw new Error('boom');
         },
       });
@@ -771,7 +766,6 @@ describe('AccountActivityDataSource', () => {
       const dataSource = createAccountActivityDataSource({
         messenger: assetsControllerMessenger,
         onActiveChainsUpdated: jest.fn(),
-        getAssetType: () => 'native',
         onAssetsUpdate: jest.fn(),
       });
 

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Stop publishing asset metadata (`assetsInfo`) from the websocket/account-activity balance-update path (`AccountActivityDataSource`); only balances are published and metadata is resolved from the Token API (the metadata source of truth) by `TokenDataSource` in the same pipeline pass
+  - The websocket payload's asset `unit` echoes on-chain contract symbols, which are attacker-controlled for airdropped tokens (e.g. scam-URL token names). Publishing them poisoned `state.assetsInfo`, which marked spam assets as "known" and permanently exempted them from spam filtering on subsequent updates. The payload's `decimals` is still used to convert raw amounts to human-readable balances.
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
 - Bump `@metamask/core-backend` from `^8.1.0` to `^8.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
 - Bump `@metamask/config-registry-controller` from `^2.0.0` to `^2.0.1` ([#9779](https://github.com/MetaMask/core/pull/9779))

@@ -896,8 +896,6 @@ export class AssetsController extends BaseController<
     this.#accountActivityDataSource = new AccountActivityDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
-      getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
-        this.#getAssetType(assetId),
       onAssetsUpdate: (response, request): Promise<void> =>
         this.handleAssetsUpdate(
           response,
