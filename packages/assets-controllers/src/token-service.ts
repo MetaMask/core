@@ -380,6 +380,17 @@ export type TokenRwaData = {
     start?: string;
     end?: string;
   };
+  /**
+   * Off-hours trading window. Present only when the asset's source reports
+   * off-hours tradability (i.e. tradableSessions contains "offhours").
+   * When absent, off-hours trading is not supported for this asset.
+   * nextOpen: when the off-hours window next opens (ISO-8601)
+   * nextClose: when the off-hours window next closes (ISO-8601)
+   */
+  offhours?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
   ticker?: string;
   instrumentType?: string;
 };
@@ -401,6 +412,17 @@ export type RwaTokenData = {
   industry: string[];
   market?: RwaMarket;
   nextPause?: Record<string, unknown>;
+  /**
+   * Off-hours trading window. Present only when the asset's source reports
+   * off-hours tradability (i.e. tradableSessions contains "offhours").
+   * When absent, off-hours trading is not supported for this asset.
+   * nextOpen: when the off-hours window next opens (ISO-8601)
+   * nextClose: when the off-hours window next closes (ISO-8601)
+   */
+  offhours?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
   sharesOutstanding?: number;
   restrictedCountries?: string[];
   updatedAt?: string;

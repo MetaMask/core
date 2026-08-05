@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `offhours` field to `TokenRwaData` and `RwaTokenData` types to support off-hours RWA trading windows ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - `offhours.nextOpen`: ISO-8601 datetime when the next off-hours window opens
+  - `offhours.nextClose`: ISO-8601 datetime when the next off-hours window closes
+  - Field is only present when the asset's source reports off-hours tradability; absence means off-hours trading is not supported
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.6.0` to `^7.6.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
