@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.6.0` to `^7.6.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/multichain-account-service` from `^13.0.0` to `^13.0.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/network-enablement-controller` from `^6.0.2` to `^6.0.3` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
 ## [111.0.0]
 
 ### Changed
