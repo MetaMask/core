@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `offhours` field to `TokenRwaData` and `RwaTokenData` types to support off-hours RWA trading windows ([#9792](https://github.com/MetaMask/core/pull/9792))
+  - `offhours.nextOpen`: ISO-8601 datetime when the next off-hours window opens
+  - `offhours.nextClose`: ISO-8601 datetime when the next off-hours window closes
+  - Field is only present when the asset's source reports off-hours tradability; absence means off-hours trading is not supported
 - Add 0G (`16661`/`0x4115`) entries in `multicall.ts` and `codefi-v2.ts` ([#9760](https://github.com/MetaMask/core/pull/9760))
 
 ### Changed
