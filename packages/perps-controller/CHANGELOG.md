@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/account-tree-controller` from `^7.5.5` to `^7.6.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - **BREAKING:** `placeOrder` now rejects `OrderParams.grouping: 'positionTpsl'` (and the equivalent `tpslLinkage: 'position'`) with `ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED`, where it was previously accepted and passed through to the exchange ([#9674](https://github.com/MetaMask/core/pull/9674))
   - The rejection is not new behaviour so much as an earlier, clearer one: HyperLiquid requires every order in a `positionTpsl` batch to be a trigger, and the parent being placed is an ordinary market or limit order, so the venue rejected the whole batch. This was confirmed against HyperLiquid testnet rather than assumed. A caller that previously sent this combination did not get position-bound TP/SL; it got a failed submission, further from the call site and without a typed error.
@@ -53,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `adaptOrderToSDK` now throws where it previously never threw: `ORDER_TRIGGER_PRICE_REQUIRED` when a trigger placement has no trigger price, and `ORDER_TIME_IN_FORCE_NOT_SUPPORTED` when a market order or trigger placement carries a time in force ([#9674](https://github.com/MetaMask/core/pull/9674))
 - `PERPS_EVENT_VALUE.ORDER_TYPE` lists the four trigger placement types, which `TradingService` emits verbatim in the `order_type` analytics property ([#9674](https://github.com/MetaMask/core/pull/9674))
 - `Order.parentOrderId` is now populated for real TP/SL child orders on the WebSocket order stream (previously only ever set by clients for synthetic display rows), which is what lets position state tell a position's own triggers apart from another order's ([#9674](https://github.com/MetaMask/core/pull/9674))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
 ### Fixed
 

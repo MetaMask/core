@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "69.4.0",
+  "version": "69.5.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "Ethereum",
@@ -56,16 +56,17 @@
   },
   "dependencies": {
     "@ethereumjs/common": "^4.4.0",
+    "@ethereumjs/rlp": "^5.0.2",
     "@ethereumjs/tx": "^5.4.0",
     "@ethereumjs/util": "^9.1.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/wallet": "^5.7.0",
-    "@metamask/accounts-controller": "^39.0.6",
+    "@metamask/accounts-controller": "^39.0.7",
     "@metamask/approval-controller": "^9.0.2",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
-    "@metamask/core-backend": "^8.1.0",
+    "@metamask/core-backend": "^8.1.1",
     "@metamask/gas-fee-controller": "^26.3.1",
     "@metamask/messenger": "^2.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
@@ -78,6 +79,7 @@
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "eth-method-registry": "^4.0.0",
+    "ethereum-cryptography": "^2.1.2",
     "fast-json-patch": "^3.1.1",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"

@@ -80,7 +80,7 @@ export const QuoteSchema = intersection([
     /**
      * The minimum amount that will be received, in atomic amount
      */
-    minDestTokenAmount: string(),
+    minDestTokenAmount: optional(string()),
     feeData: type({
       [FeeType.METABRIDGE]: intersection([
         FeeDataSchema,

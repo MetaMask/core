@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.2.4]
+
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/account-tree-controller` from `^7.5.5` to `^7.6.1` ([#9779](https://github.com/MetaMask/core/pull/9779), [#9791](https://github.com/MetaMask/core/pull/9791))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 
 ## [12.2.3]
@@ -489,7 +492,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.4...HEAD
+[12.2.4]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.3...@metamask/earn-controller@12.2.4
 [12.2.3]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.2...@metamask/earn-controller@12.2.3
 [12.2.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.1...@metamask/earn-controller@12.2.2
 [12.2.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.0...@metamask/earn-controller@12.2.1

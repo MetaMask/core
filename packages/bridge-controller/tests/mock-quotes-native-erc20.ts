@@ -1,9 +1,13 @@
+import { KnownCaipNamespace } from '@metamask/utils';
 import { merge } from 'lodash';
 
+import { toQuoteResponseV2 } from '../src/coercers/quote-response-v1-to-v2.js';
 import type { DeepPartial } from '../src/types.js';
 import type { QuoteResponseV1 } from '../src/validators/quote-response-v1.js';
 import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import type { QuoteResponse } from '../src/validators/quote-response.js';
 import { ActionTypes } from '../src/validators/step.js';
+import type { TxData } from '../src/validators/trade.js';
 
 export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
   {
@@ -260,12 +264,20 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
   },
 ];
 
-export const getMockBridgeQuotesNativeErc20V2 = (
-  quoteOverrides?: DeepPartial<QuoteResponseV1>,
-): QuoteResponseV1[] => {
+export const getMockBridgeQuotesNativeErc20V1 = (
+  quoteOverrides?: DeepPartial<QuoteResponseV1<TxData, TxData>>,
+): QuoteResponseV1<TxData, TxData>[] => {
   return mockBridgeQuotesNativeErc20V1.map((quote) => {
     const mergedQuote = merge({}, quote, quoteOverrides);
     validateQuoteResponseV1(mergedQuote);
-    return mergedQuote;
+    return mergedQuote as QuoteResponseV1<TxData, TxData>;
   });
+};
+
+export const getMockBridgeQuotesNativeErc20V2 = (
+  quoteOverrides?: DeepPartial<QuoteResponseV1<TxData>>,
+): (QuoteResponse & { namespace: KnownCaipNamespace.Eip155 })[] => {
+  return getMockBridgeQuotesNativeErc20V1(quoteOverrides).map(
+    toQuoteResponseV2,
+  ) as (QuoteResponse & { namespace: KnownCaipNamespace.Eip155 })[];
 };
