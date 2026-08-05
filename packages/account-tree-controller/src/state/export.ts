@@ -100,7 +100,7 @@ async function exportMnemonicWalletObject(
   );
   const { entropySourceId, mnemonic } = result as {
     entropySourceId: string;
-    mnemonic?: Uint8Array<ArrayBufferLike>;
+    mnemonic?: Uint8Array;
   };
 
   // We use the stable entropy source ID as the payload wallet ID, rather than the local wallet ID, to
