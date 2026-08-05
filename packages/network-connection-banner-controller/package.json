@@ -58,10 +58,10 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/client-controller": "^1.0.1",
     "@metamask/connectivity-controller": "^0.3.0",
-    "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/keyring-controller": "^27.1.1",
     "@metamask/messenger": "^2.0.0",
     "@metamask/network-controller": "^35.0.1",
-    "@metamask/network-enablement-controller": "^6.0.2",
+    "@metamask/network-enablement-controller": "^6.0.3",
     "@metamask/utils": "^11.11.0",
     "reselect": "^5.1.1"
   },
