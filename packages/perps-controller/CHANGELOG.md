@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/1174.0.0 ([#9780](https://github.com/MetaMask/core/pull/9780))
+- chore(perps-controller): remove TAT ticket refs from comments ([#9320](https://github.com/MetaMask/core/pull/9320))
+- Release/1163.0.0 ([#9735](https://github.com/MetaMask/core/pull/9735))
+- chore: bump accounts deps ([#9676](https://github.com/MetaMask/core/pull/9676))
+- refactor: add `.js` import extensions to Perps packages ([#9626](https://github.com/MetaMask/core/pull/9626))
+
 ### Added
 
 - **BREAKING:** Add trigger placement order types to `OrderType`: `stop_market`, `stop_limit`, `take_profit_market`, and `take_profit_limit`, placeable through `placeOrder` alongside the existing `market` and `limit` types ([#9674](https://github.com/MetaMask/core/pull/9674))
