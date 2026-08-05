@@ -125,7 +125,7 @@ function addLayer1FeeToNetworkFeeAmount(
   const layer1Amount =
     layer1GasFee === undefined
       ? receiptLayer1FeeAmount
-      : (() => {
+      : ((): string | undefined => {
           try {
             return String(BigInt(layer1GasFee));
           } catch {

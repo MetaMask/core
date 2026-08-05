@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Include L1 data fee and Mantle operator fee in `getLocalTransactionFees` network fee amounts, preferring `layer1GasFee` and falling back to receipt-derived L1 + operator fee
-
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+### Fixed
+
+- Include L1 data fee and Mantle operator fee in `getLocalTransactionFees` network fee amounts, preferring `layer1GasFee` and falling back to receipt-derived L1 + operator fee ([#9630](https://github.com/MetaMask/core/pull/9630))
 
 ## [2.0.0]
 

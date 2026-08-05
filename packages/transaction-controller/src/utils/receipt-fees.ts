@@ -29,7 +29,7 @@ function parseHexQuantity(value: string | undefined): bigint | undefined {
  * @returns Hex wei string.
  */
 function toHexWei(value: bigint): Hex {
-  return add0x(padHexToEvenLength(value.toString(16))) as Hex;
+  return add0x(padHexToEvenLength(value.toString(16)));
 }
 
 /**
@@ -55,8 +55,7 @@ export function getOperatorFeeFromReceipt(
     return undefined;
   }
 
-  const operatorFee =
-    gasUsed * operatorFeeScalar * 100n + operatorFeeConstant;
+  const operatorFee = gasUsed * operatorFeeScalar * 100n + operatorFeeConstant;
 
   return toHexWei(operatorFee);
 }
@@ -77,7 +76,9 @@ export function getLayer1FeeFromReceipt(
   const l1Fee = parseHexQuantity(receipt.l1Fee) ?? 0n;
   const operatorFeeHex = getOperatorFeeFromReceipt(receipt);
   const operatorFee =
-    operatorFeeHex === undefined ? 0n : (parseHexQuantity(operatorFeeHex) ?? 0n);
+    operatorFeeHex === undefined
+      ? 0n
+      : (parseHexQuantity(operatorFeeHex) ?? 0n);
 
   if (l1Fee === 0n && operatorFee === 0n) {
     // Distinguish "both zero" (valid) from "neither present".

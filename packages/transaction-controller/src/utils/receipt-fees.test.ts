@@ -18,7 +18,9 @@ describe('receipt-fees', () => {
     it('computes Mantle Arsia operator fee from receipt fields', () => {
       // gasUsed (52911) * scalar (100000000) * 100 + constant (0)
       // Odd-length hex is padded to even length.
-      expect(getOperatorFeeFromReceipt(MANTLE_RECEIPT)).toBe('0x01e1390598dc00');
+      expect(getOperatorFeeFromReceipt(MANTLE_RECEIPT)).toBe(
+        '0x01e1390598dc00',
+      );
     });
 
     it('returns undefined when operator fee fields are missing', () => {
