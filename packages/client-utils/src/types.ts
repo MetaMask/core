@@ -176,34 +176,26 @@ export type ActivityItem =
         transactionProtocol?: string;
       }
     >
-  | (Omit<
-      ActivityData<
-        'rampBuy' | 'rampSell',
-        {
-          from?: string;
-          fiat?: FiatAmount;
-          token?: TokenAmount;
-          fees?: Fee[];
-          provider?: {
-            id?: string;
-            name?: string;
-            orderLink?: string;
-          };
-          statusDescription?: string;
-          paymentDetails?: RampOrderPaymentDetail[];
-          // Stable identifier for orders that may not have a hash yet (e.g. a
-          // ramp order pending fiat settlement, where `hash` is empty until it
-          // settles on-chain). Lives in `data` as a ramp-specific property.
+  | ActivityData<
+      'rampBuy' | 'rampSell',
+      {
+        from?: string;
+        fiat?: FiatAmount;
+        token?: TokenAmount;
+        fees?: Fee[];
+        provider?: {
           id?: string;
-        }
-      >,
-      'chainId'
-    > & {
-      // Precreated stub orders (see `RampsController.addPrecreatedOrder`) may
-      // not have an assigned network yet, so unlike every other activity
-      // kind, a ramp order's chain id isn't guaranteed.
-      chainId?: CaipChainId;
-    });
+          name?: string;
+          orderLink?: string;
+        };
+        statusDescription?: string;
+        paymentDetails?: RampOrderPaymentDetail[];
+        // Stable identifier for orders that may not have a hash yet (e.g. a
+        // ramp order pending fiat settlement, where `hash` is empty until it
+        // settles on-chain). Lives in `data` as a ramp-specific property.
+        id?: string;
+      }
+    >;
 
 // Note: Update core-backend
 export type ValueTransfer = _ValueTransfer & {

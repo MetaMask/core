@@ -501,6 +501,41 @@ describe('services', () => {
             metametrics: {
               metametrics_id: 'mm-id',
               agent: Platform.EXTENSION,
+              identifier_type: 'SRP',
+            },
+          }),
+        }),
+      );
+    });
+
+    it('should include identifier_type override in metametrics when provided', async () => {
+      const mockResponse = createMockResponse(mockAuthResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const mockMetametrics = {
+        getMetaMetricsId: jest.fn().mockResolvedValue('mm-id'),
+        agent: Platform.EXTENSION as Platform.EXTENSION,
+      };
+
+      await authenticate(
+        'raw-message',
+        'signature',
+        AuthType.SRP,
+        Env.DEV,
+        mockMetametrics,
+        'TELEGRAM',
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({
+            signature: 'signature',
+            raw_message: 'raw-message',
+            metametrics: {
+              metametrics_id: 'mm-id',
+              agent: Platform.EXTENSION,
+              identifier_type: 'TELEGRAM',
             },
           }),
         }),
@@ -539,6 +574,7 @@ describe('services', () => {
               metametrics_id: 'mm-id',
               agent: Platform.MOBILE,
               app_version: '12.34.5',
+              identifier_type: 'SRP',
             },
           }),
         }),
@@ -572,6 +608,7 @@ describe('services', () => {
             metametrics: {
               metametrics_id: 'mm-id',
               agent: Platform.EXTENSION,
+              identifier_type: 'SRP',
             },
           }),
         }),

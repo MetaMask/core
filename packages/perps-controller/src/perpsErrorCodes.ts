@@ -68,6 +68,10 @@ export const PERPS_ERROR_CODES = {
   // server-side on the first USDC credit). Actionable: the user must fund the
   // account before any order can be placed.
   EXCHANGE_ACCOUNT_NOT_FOUND: 'EXCHANGE_ACCOUNT_NOT_FOUND',
+  // HyperLiquid exchange rejects agent-signed writes for multi-sig accounts
+  // without a multi-sig wrapper, or when the action nonce is stale/reused.
+  EXCHANGE_MULTI_SIG_REQUIRED: 'EXCHANGE_MULTI_SIG_REQUIRED',
+  EXCHANGE_INVALID_NONCE: 'EXCHANGE_INVALID_NONCE',
   // Transfer/swap errors
   TRANSFER_FAILED: 'TRANSFER_FAILED',
   SWAP_FAILED: 'SWAP_FAILED',

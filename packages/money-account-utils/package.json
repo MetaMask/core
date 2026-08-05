@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-utils",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shared money account utilities: mUSD constants and vault transaction builders",
   "keywords": [
     "Ethereum",
@@ -58,7 +58,7 @@
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/abstract-provider": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
-    "@metamask/transaction-controller": "^69.4.0",
+    "@metamask/transaction-controller": "^69.5.0",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
