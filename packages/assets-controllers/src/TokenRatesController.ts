@@ -3,10 +3,7 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import type {
-  ConfigRegistryControllerEvents,
-  ConfigRegistryControllerGetStateAction,
-} from '@metamask/config-registry-controller';
+import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -16,6 +13,7 @@ import type {
 import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
+import { hexToNumber, KnownCaipNamespace, toCaipChainId } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import {
@@ -23,7 +21,7 @@ import {
   TOKEN_PRICES_BATCH_SIZE,
 } from './assetsUtil.js';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service.js';
-import { getNativeTokenAddress, setNetworkConfigs } from './token-prices-service/codefi-v2.js';
+import { getNativeTokenAddress, setNetworkConfig } from './token-prices-service/codefi-v2.js';
 import { TokenRwaData } from './token-service.js';
 import type {
   TokensControllerGetStateAction,
@@ -103,15 +101,14 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | NetworkControllerGetStateAction
   | NetworkEnablementControllerGetStateAction
-  | ConfigRegistryControllerGetStateAction;
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction;
 
 /**
  * The external events available to the {@link TokenRatesController}.
  */
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
-  | NetworkControllerStateChangeEvent
-  | ConfigRegistryControllerEvents;
+  | NetworkControllerStateChangeEvent;
 
 /**
  * The name of the {@link TokenRatesController}.
@@ -263,11 +260,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     // Set native asset identifiers from NetworkEnablementController for CAIP-19 native token lookups
     this.#initNativeAssetIdentifiers();
 
-    // Feed the config registry's network configs to the price service as the
-    // primary source of native asset CAIP-19 IDs, and keep them current.
-    this.#initNetworkConfigs();
-    this.#subscribeToConfigRegistryStateChange();
-
     this.#subscribeToTokensStateChange();
 
     this.#subscribeToNetworkStateChange();
@@ -392,26 +384,29 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
-   * Seeds the config registry's network configs into the shared cache used
-   * by getAssetId, the primary source of native asset CAIP-19 IDs.
+   * Seeds the shared config registry cache used by getAssetId (the primary
+   * source of native asset CAIP-19 IDs) for the given chains, via
+   * ConfigRegistryController's per-chain `getNetworkConfigByCaip2ChainId`
+   * action. Called right before pricing a chain's assets, so lookups always
+   * reflect the registry's current state without needing to mirror its
+   * entire network map or subscribe to unrelated state changes.
+   *
+   * @param chainIds - The hexadecimal chain IDs about to be priced.
    */
-  #initNetworkConfigs(): void {
-    const { configs } = this.messenger.call('ConfigRegistryController:getState');
-    setNetworkConfigs(configs.networks);
-  }
-
-  /**
-   * Keeps the config registry cache current as ConfigRegistryController
-   * polls for updates, so getAssetId always reflects the registry's latest
-   * state (unlike the nativeAssetIdentifiers snapshot above).
-   */
-  #subscribeToConfigRegistryStateChange(): void {
-    this.messenger.subscribe(
-      'ConfigRegistryController:stateChanged',
-      (state) => {
-        setNetworkConfigs(state.configs.networks);
-      },
-    );
+  #seedNetworkConfigs(chainIds: Iterable<Hex>): void {
+    for (const chainId of new Set(chainIds)) {
+      const caipChainId = toCaipChainId(
+        KnownCaipNamespace.Eip155,
+        hexToNumber(chainId).toString(),
+      );
+      setNetworkConfig(
+        caipChainId,
+        this.messenger.call(
+          'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+          caipChainId,
+        ),
+      );
+    }
   }
 
   /**
@@ -481,6 +476,10 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     if (this.#disabled) {
       return;
     }
+
+    this.#seedNetworkConfigs(
+      chainIdAndNativeCurrency.map(({ chainId }) => chainId),
+    );
 
     const marketData: Record<Hex, Record<Hex, MarketDataDetails>> = {};
     const assetsByNativeCurrency: Record<

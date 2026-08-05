@@ -17,7 +17,7 @@ import {
   getSupportedNetworks,
   resetSupportedNetworksCache,
   getAssetId,
-  setNetworkConfigs,
+  setNetworkConfig,
   resetNetworkConfigsCache,
 } from './codefi-v2.js';
 
@@ -2147,7 +2147,7 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
   });
 
-  describe('setNetworkConfigs', () => {
+  describe('setNetworkConfig', () => {
     afterEach(() => {
       resetSupportedNetworksCache();
       resetNetworkConfigsCache();
@@ -2197,11 +2197,9 @@ describe('CodefiTokenPricesServiceV2', () => {
           },
         });
 
-      setNetworkConfigs({
-        'eip155:1': {
-          assets: { native: { assetId: registryAssetId } },
-        } as RegistryNetworkConfig,
-      });
+      setNetworkConfig('eip155:1', {
+        assets: { native: { assetId: registryAssetId } },
+      } as RegistryNetworkConfig);
 
       const service = new CodefiTokenPricesServiceV2();
 
@@ -2315,11 +2313,9 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     it('prefers the config registry entry over the hardcoded entry', () => {
-      setNetworkConfigs({
-        'eip155:1': {
-          assets: { native: { assetId: 'eip155:1/slip44:61' } },
-        } as RegistryNetworkConfig,
-      });
+      setNetworkConfig('eip155:1', {
+        assets: { native: { assetId: 'eip155:1/slip44:61' } },
+      } as RegistryNetworkConfig);
 
       expect(
         getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
@@ -2328,11 +2324,9 @@ describe('CodefiTokenPricesServiceV2', () => {
 
     it('prefers the config registry entry over nativeAssetIdentifiers when there is no hardcoded entry', () => {
       // 0x42 (OKXChain) is not in SPOT_PRICES_SUPPORT_INFO
-      setNetworkConfigs({
-        'eip155:66': {
-          assets: { native: { assetId: 'eip155:66/erc20:0xregistry' } },
-        } as RegistryNetworkConfig,
-      });
+      setNetworkConfig('eip155:66', {
+        assets: { native: { assetId: 'eip155:66/erc20:0xregistry' } },
+      } as RegistryNetworkConfig);
 
       expect(
         getAssetId({
@@ -2344,8 +2338,20 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     it('falls back to the hardcoded entry when the config registry has no entry for the chain', () => {
-      setNetworkConfigs({});
+      expect(
+        getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
+      ).toBe('eip155:1/slip44:60');
+    });
 
+    it('clears a chain from the config registry cache when set to undefined', () => {
+      setNetworkConfig('eip155:1', {
+        assets: { native: { assetId: 'eip155:1/slip44:61' } },
+      } as RegistryNetworkConfig);
+      expect(
+        getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
+      ).toBe('eip155:1/slip44:61');
+
+      setNetworkConfig('eip155:1', undefined);
       expect(
         getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
       ).toBe('eip155:1/slip44:60');
