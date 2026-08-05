@@ -51,14 +51,21 @@ export type PhishingDetectorConfiguration = {
   version?: number | string;
   allowlist: string[][];
   blocklist: string[][];
-  c2DomainBlocklist?: Set<string>;
+  c2DomainBlocklist?: string[];
   blocklistPaths?: PathTrie;
   fuzzylist: string[][];
   tolerance: number;
 };
 
+type InternalPhishingDetectorConfiguration = Omit<
+  PhishingDetectorConfiguration,
+  'c2DomainBlocklist'
+> & {
+  c2DomainBlocklist?: Set<string>;
+};
+
 export class PhishingDetector {
-  readonly #configs: PhishingDetectorConfiguration[];
+  readonly #configs: InternalPhishingDetectorConfiguration[];
 
   readonly #legacyConfig: boolean;
 
@@ -75,17 +82,24 @@ export class PhishingDetector {
   constructor(opts: PhishingDetectorOptions) {
     // recommended configuration
     if (Array.isArray(opts)) {
-      this.#configs = processConfigs(opts);
+      this.#configs = processConfigs(opts).map((config) => ({
+        ...config,
+        c2DomainBlocklist: new Set(config.c2DomainBlocklist ?? []),
+      }));
       this.#legacyConfig = false;
       // legacy configuration
     } else {
+      const baseConfig = getDefaultPhishingDetectorConfig({
+        allowlist: opts.whitelist,
+        blocklist: opts.blacklist,
+        fuzzylist: opts.fuzzylist,
+        tolerance: opts.tolerance,
+      });
       this.#configs = [
-        getDefaultPhishingDetectorConfig({
-          allowlist: opts.whitelist,
-          blocklist: opts.blacklist,
-          fuzzylist: opts.fuzzylist,
-          tolerance: opts.tolerance,
-        }),
+        {
+          ...baseConfig,
+          c2DomainBlocklist: new Set(baseConfig.c2DomainBlocklist ?? []),
+        },
       ];
       this.#legacyConfig = true;
     }
