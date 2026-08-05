@@ -36,10 +36,16 @@ const MOCK_HD_KEYRINGS = MOCK_ENTROPY_SOURCE_IDS.map((id) => ({
   metadata: { id, name: '' },
 }));
 
-const mockHdKeyrings = (...ids: string[]) =>
+const mockHdKeyrings = (
+  ...ids: string[]
+): {
+  type: typeof KeyringTypes.hd;
+  accounts: string[];
+  metadata: { id: string; name: string };
+}[] =>
   ids.map((id) => ({
     type: KeyringTypes.hd,
-    accounts: [] as string[],
+    accounts: [],
     metadata: { id, name: '' },
   }));
 
@@ -459,7 +465,7 @@ describe('AuthenticationController', () => {
      */
     async function testAndAssertFailingEndpoints(
       endpointFail: 'nonce' | 'login' | 'token',
-    ) {
+    ): Promise<void> {
       const mockEndpoints = mockAuthenticationFlowEndpoints({
         endpointFail,
       });
@@ -821,17 +827,23 @@ describe('AuthenticationController', () => {
         metametrics,
       });
 
-      // `#doPair` → `#getCanonicalProfileId` → `#getPrimaryEntropySourceId`
-      // reads KeyringController. Hook that read to fire the rearm — the
-      // realistic production race window (e.g. user adds an SRP while the
-      // pair API request is in flight).
+      // Keyring reads during this performSignIn:
+      //  1. SRP enumeration at the start of `performSignIn`
+      //  2. `#doPair` → `#getCanonicalProfileId` → `#getPrimaryEntropySourceId`
+      // Fire the rearm on (2) so we cover the in-#doPair race window
+      // (e.g. user adds an SRP while pairing is in flight), not enumeration.
+      let keyringReads = 0;
       mockKeyringControllerGetState.mockImplementation(() => {
-        controller.requestProfilePairing();
+        keyringReads += 1;
+        if (keyringReads === 2) {
+          controller.requestProfilePairing();
+        }
         return { isUnlocked: true, keyrings: MOCK_HD_KEYRINGS };
       });
 
       await controller.performSignIn();
 
+      expect(keyringReads).toBeGreaterThanOrEqual(2);
       expect(controller.state.needsProfilePairing).toBe(true);
     });
   });
@@ -1619,7 +1631,10 @@ const controllerName = 'AuthenticationController';
  *
  * @returns Auth Messenger
  */
-function createAuthenticationMessenger() {
+function createAuthenticationMessenger(): {
+  messenger: AuthenticationControllerMessenger;
+  baseMessenger: RootMessenger;
+} {
   const rootMessenger = getRootMessenger();
   const messenger = new Messenger<
     typeof controllerName,
@@ -1648,7 +1663,14 @@ function createAuthenticationMessenger() {
  *
  * @returns Mock Auth Messenger
  */
-function createMockAuthenticationMessenger() {
+function createMockAuthenticationMessenger(): {
+  messenger: AuthenticationControllerMessenger;
+  baseMessenger: RootMessenger;
+  mockSnapGetPublicKey: jest.Mock;
+  mockSnapSignMessage: jest.Mock;
+  mockKeyringControllerGetState: jest.Mock;
+  mockSeedlessOnboardingGetState: jest.Mock;
+} {
   const { baseMessenger, messenger } = createAuthenticationMessenger();
 
   const mockCall = jest.spyOn(messenger, 'call');
@@ -1722,7 +1744,7 @@ function createMockAuthenticationMessenger() {
  */
 function mockAuthenticationFlowEndpoints(params?: {
   endpointFail: 'nonce' | 'login' | 'token' | 'lineage' | 'customerService';
-}) {
+}): ReturnType<typeof arrangeAuthAPIs> {
   const {
     mockNonceUrl,
     mockOAuth2TokenUrl,
@@ -1756,7 +1778,10 @@ function mockAuthenticationFlowEndpoints(params?: {
  *
  * @returns mock metametrics method
  */
-function createMockAuthMetaMetrics() {
+function createMockAuthMetaMetrics(): {
+  getMetaMetricsId: jest.Mock;
+  agent: typeof Platform.EXTENSION;
+} {
   const getMetaMetricsId = jest
     .fn()
     .mockReturnValue(MOCK_LOGIN_RESPONSE.profile.metametrics_id);

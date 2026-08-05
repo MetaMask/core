@@ -577,8 +577,7 @@ export class AuthenticationController extends BaseController<
    */
   public async getBearerToken(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('getBearerToken');
-    const resolvedId =
-      entropySourceId ?? this.#getPrimaryEntropySourceId();
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getAccessToken(resolvedId);
   }
 
@@ -599,8 +598,7 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<UserProfile> {
     this.#assertIsUnlocked('getSessionProfile');
-    const resolvedId =
-      entropySourceId ?? this.#getPrimaryEntropySourceId();
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getUserProfile(resolvedId);
   }
 
@@ -654,8 +652,7 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<UserProfileLineage> {
     this.#assertIsUnlocked('getUserProfileLineage');
-    const resolvedId =
-      entropySourceId ?? this.#getPrimaryEntropySourceId();
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getUserProfileLineage(resolvedId);
   }
 
@@ -674,8 +671,7 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<string> {
     this.#assertIsUnlocked('getCustomerServiceToken');
-    const resolvedId =
-      entropySourceId ?? this.#getPrimaryEntropySourceId();
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getCustomerServiceToken(resolvedId);
   }
 
