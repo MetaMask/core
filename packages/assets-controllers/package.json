@@ -66,6 +66,7 @@
     "@metamask/accounts-controller": "^39.0.6",
     "@metamask/approval-controller": "^9.0.2",
     "@metamask/base-controller": "^9.1.0",
+    "@metamask/config-registry-controller": "^2.0.1",
     "@metamask/contract-metadata": "^2.4.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/core-backend": "^8.1.1",

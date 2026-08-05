@@ -12,6 +12,8 @@ describe('token-prices-service', () => {
         "resetSupportedNetworksCache",
         "SPOT_PRICES_SUPPORT_INFO",
         "getAssetId",
+        "setNetworkConfigs",
+        "resetNetworkConfigsCache",
       ]
     `);
   });

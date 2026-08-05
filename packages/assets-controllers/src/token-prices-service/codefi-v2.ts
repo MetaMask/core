@@ -6,8 +6,9 @@ import {
   DEFAULT_MAX_RETRIES,
   handleFetch,
 } from '@metamask/controller-utils';
+import type { RegistryNetworkConfig } from '@metamask/config-registry-controller';
 import type { ServicePolicy } from '@metamask/controller-utils';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import {
   hexToNumber,
   KnownCaipNamespace,
@@ -571,13 +572,51 @@ export function resetSupportedCurrenciesCache(): void {
 }
 
 /**
+ * In-memory cache of the config registry's network configurations, keyed by
+ * CAIP-2 chain ID. Populated via {@link setNetworkConfigs}, typically by
+ * TokenRatesController from ConfigRegistryController's state.
+ *
+ * This is a module-level cache (like {@link lastFetchedSupportedNetworks})
+ * rather than instance state so that {@link getAssetId} gives the same
+ * answer whether it's called internally by {@link fetchTokenPrices} or
+ * directly by external callers — there is only one source of truth for a
+ * given chain's native asset ID, not one per service instance.
+ */
+let cachedNetworkConfigs: Record<CaipChainId, RegistryNetworkConfig> | null =
+  null;
+
+/**
+ * Updates the config registry network configurations used by
+ * {@link getAssetId} to resolve native asset CAIP-19 IDs. Should be called
+ * with ConfigRegistryController's `state.configs.networks`, ideally on every
+ * state change so lookups stay current as the registry is polled.
+ *
+ * @param networks - Network configurations keyed by CAIP-2 chain ID.
+ */
+export function setNetworkConfigs(
+  networks: Record<CaipChainId, RegistryNetworkConfig>,
+): void {
+  cachedNetworkConfigs = networks;
+}
+
+/**
+ * Resets the config registry network configurations cache.
+ * This is primarily intended for testing purposes.
+ */
+export function resetNetworkConfigsCache(): void {
+  cachedNetworkConfigs = null;
+}
+
+/**
  * Derives the CAIP-19 asset ID used to query the Price API for a token on a
  * given chain.
  *
- * For native tokens, uses the hardcoded {@link SPOT_PRICES_SUPPORT_INFO} entry
- * when defined, otherwise falls back to the provided native asset identifiers
- * (sourced from NetworkEnablementController). For ERC20 tokens, constructs the
- * CAIP-19 ID dynamically.
+ * For native tokens, prefers the CAIP-19 ID from the config registry cache
+ * (`assets.native.assetId`, see {@link setNetworkConfigs}) when available,
+ * then the hardcoded {@link SPOT_PRICES_SUPPORT_INFO} entry, and finally
+ * falls back to the provided native asset identifiers (sourced from
+ * NetworkEnablementController). For ERC20 tokens, constructs the CAIP-19 ID
+ * dynamically.
  *
  * @param args - The arguments to this function.
  * @param args.chainId - The hexadecimal chain ID the token lives on.
@@ -606,12 +645,14 @@ export function getAssetId({
       nativeAddress.toLowerCase() === tokenAddress.toLowerCase();
 
     if (isNativeToken) {
+      const registryAssetId = cachedNetworkConfigs?.[caipChainId]?.assets
+        ?.native?.assetId as CaipAssetType | undefined;
       const hardcodedId = (
         SPOT_PRICES_SUPPORT_INFO as Partial<Record<Hex, string>>
       )[chainId];
-      return (hardcodedId ?? nativeAssetIdentifiers[caipChainId]) as
-        | CaipAssetType
-        | undefined;
+      return (registryAssetId ??
+        hardcodedId ??
+        nativeAssetIdentifiers[caipChainId]) as CaipAssetType | undefined;
     }
 
     return `${caipChainId}/erc20:${tokenAddress.toLowerCase()}` as CaipAssetType;

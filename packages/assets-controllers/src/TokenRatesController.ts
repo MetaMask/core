@@ -3,6 +3,10 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
+import type {
+  ConfigRegistryControllerEvents,
+  ConfigRegistryControllerGetStateAction,
+} from '@metamask/config-registry-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -19,7 +23,7 @@ import {
   TOKEN_PRICES_BATCH_SIZE,
 } from './assetsUtil.js';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service.js';
-import { getNativeTokenAddress } from './token-prices-service/codefi-v2.js';
+import { getNativeTokenAddress, setNetworkConfigs } from './token-prices-service/codefi-v2.js';
 import { TokenRwaData } from './token-service.js';
 import type {
   TokensControllerGetStateAction,
@@ -98,14 +102,16 @@ type ChainIdAndNativeCurrency = {
 export type AllowedActions =
   | TokensControllerGetStateAction
   | NetworkControllerGetStateAction
-  | NetworkEnablementControllerGetStateAction;
+  | NetworkEnablementControllerGetStateAction
+  | ConfigRegistryControllerGetStateAction;
 
 /**
  * The external events available to the {@link TokenRatesController}.
  */
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
-  | NetworkControllerStateChangeEvent;
+  | NetworkControllerStateChangeEvent
+  | ConfigRegistryControllerEvents;
 
 /**
  * The name of the {@link TokenRatesController}.
@@ -257,6 +263,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     // Set native asset identifiers from NetworkEnablementController for CAIP-19 native token lookups
     this.#initNativeAssetIdentifiers();
 
+    // Feed the config registry's network configs to the price service as the
+    // primary source of native asset CAIP-19 IDs, and keep them current.
+    this.#initNetworkConfigs();
+    this.#subscribeToConfigRegistryStateChange();
+
     this.#subscribeToTokensStateChange();
 
     this.#subscribeToNetworkStateChange();
@@ -378,6 +389,29 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         nativeAssetIdentifiers,
       );
     }
+  }
+
+  /**
+   * Seeds the config registry's network configs into the shared cache used
+   * by getAssetId, the primary source of native asset CAIP-19 IDs.
+   */
+  #initNetworkConfigs(): void {
+    const { configs } = this.messenger.call('ConfigRegistryController:getState');
+    setNetworkConfigs(configs.networks);
+  }
+
+  /**
+   * Keeps the config registry cache current as ConfigRegistryController
+   * polls for updates, so getAssetId always reflects the registry's latest
+   * state (unlike the nativeAssetIdentifiers snapshot above).
+   */
+  #subscribeToConfigRegistryStateChange(): void {
+    this.messenger.subscribe(
+      'ConfigRegistryController:stateChanged',
+      (state) => {
+        setNetworkConfigs(state.configs.networks);
+      },
+    );
   }
 
   /**

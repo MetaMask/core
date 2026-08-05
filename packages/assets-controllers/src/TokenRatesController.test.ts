@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { ConfigRegistryControllerState } from '@metamask/config-registry-controller';
 import { ChainId, toChecksumHexAddress } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -23,7 +24,11 @@ import type {
   AbstractTokenPricesService,
   EvmAssetWithMarketData,
 } from './token-prices-service/abstract-token-prices-service.js';
-import { ZERO_ADDRESS } from './token-prices-service/codefi-v2.js';
+import {
+  getAssetId,
+  resetNetworkConfigsCache,
+  ZERO_ADDRESS,
+} from './token-prices-service/codefi-v2.js';
 import {
   controllerName,
   TokenRatesController,
@@ -75,13 +80,25 @@ function buildTokenRatesControllerMessenger(
       'TokensController:getState',
       'NetworkController:getState',
       'NetworkEnablementController:getState',
+      'ConfigRegistryController:getState',
     ],
-    events: ['TokensController:stateChange', 'NetworkController:stateChange'],
+    events: [
+      'TokensController:stateChange',
+      'NetworkController:stateChange',
+      'ConfigRegistryController:stateChanged',
+    ],
   });
   return tokenRatesControllerMessenger;
 }
 
 describe('TokenRatesController', () => {
+  afterEach(() => {
+    // getAssetId's config registry cache is a module-level singleton (shared
+    // across the whole process, like getSupportedNetworks); reset it so
+    // tests don't leak state into each other.
+    resetNetworkConfigsCache();
+  });
+
   describe('constructor', () => {
     it('should set default state', async () => {
       await withController(async ({ controller }) => {
@@ -131,6 +148,55 @@ describe('TokenRatesController', () => {
           });
         },
       );
+    });
+
+    it('seeds the config registry cache used by getAssetId at construction', async () => {
+      await withController(
+        {
+          mockConfigRegistryState: {
+            configs: {
+              networks: {
+                'eip155:1': {
+                  assets: { native: { assetId: 'eip155:1/slip44:61' } },
+                },
+              },
+            },
+          },
+        },
+        async () => {
+          // getAssetId is the function extracted for client parity with
+          // fetchTokenPrices; it must reflect the same registry data the
+          // controller just seeded, with no params beyond chain/token.
+          expect(
+            getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
+          ).toBe('eip155:1/slip44:61');
+        },
+      );
+    });
+
+    it('keeps the config registry cache current as ConfigRegistryController state changes', async () => {
+      await withController(async ({ triggerConfigRegistryStateChange }) => {
+        expect(
+          getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
+        ).toBe('eip155:1/slip44:60'); // falls back to SPOT_PRICES_SUPPORT_INFO
+
+        triggerConfigRegistryStateChange({
+          configs: {
+            networks: {
+              'eip155:1': {
+                assets: { native: { assetId: 'eip155:1/slip44:61' } },
+              },
+            },
+          },
+          version: null,
+          lastFetched: null,
+          etag: null,
+        } as ConfigRegistryControllerState);
+
+        expect(
+          getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS }),
+        ).toBe('eip155:1/slip44:61');
+      });
     });
 
     it('clears persisted marketData at construction when isDeprecated() returns true', async () => {
@@ -1444,10 +1510,15 @@ type WithControllerCallback<ReturnValue> = ({
   controller,
   triggerTokensStateChange,
   triggerNetworkStateChange,
+  triggerConfigRegistryStateChange,
 }: {
   controller: TokenRatesController;
   triggerTokensStateChange: (state: TokensControllerState) => void;
   triggerNetworkStateChange: (state: NetworkState, patches?: Patch[]) => void;
+  triggerConfigRegistryStateChange: (
+    state: ConfigRegistryControllerState,
+    patches?: Patch[],
+  ) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -1458,6 +1529,7 @@ type WithControllerOptions = {
   >;
   mockTokensControllerState?: Partial<TokensControllerState>;
   mockNetworkState?: Partial<NetworkState>;
+  mockConfigRegistryState?: Partial<ConfigRegistryControllerState>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -1477,7 +1549,12 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, mockTokensControllerState, mockNetworkState } = rest;
+  const {
+    options,
+    mockTokensControllerState,
+    mockNetworkState,
+    mockConfigRegistryState,
+  } = rest;
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -1512,6 +1589,18 @@ async function withController<ReturnValue>(
     }),
   );
 
+  // Register ConfigRegistryController:getState handler
+  messenger.registerActionHandler(
+    'ConfigRegistryController:getState',
+    jest.fn().mockReturnValue({
+      configs: { networks: {} },
+      version: null,
+      lastFetched: null,
+      etag: null,
+      ...mockConfigRegistryState,
+    }),
+  );
+
   const controller = new TokenRatesController({
     tokenPricesService: buildMockTokenPricesService(),
     messenger: buildTokenRatesControllerMessenger(messenger),
@@ -1528,6 +1617,16 @@ async function withController<ReturnValue>(
         patches: Patch[] = [],
       ) => {
         messenger.publish('NetworkController:stateChange', state, patches);
+      },
+      triggerConfigRegistryStateChange: (
+        state: ConfigRegistryControllerState,
+        patches: Patch[] = [],
+      ) => {
+        messenger.publish(
+          'ConfigRegistryController:stateChanged',
+          state,
+          patches,
+        );
       },
     });
   } finally {

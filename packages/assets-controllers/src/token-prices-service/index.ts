@@ -11,4 +11,6 @@ export {
   resetSupportedNetworksCache,
   SPOT_PRICES_SUPPORT_INFO,
   getAssetId,
+  setNetworkConfigs,
+  resetNetworkConfigsCache,
 } from './codefi-v2.js';
