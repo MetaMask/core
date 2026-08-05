@@ -357,9 +357,9 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('throws for an invalid payload (missing wallets field)', async () => {
-      await expect(
-        AccountTreeSnapshot.deserialize({}),
-      ).rejects.toThrow('Invalid AccountTreePayload');
+      await expect(AccountTreeSnapshot.deserialize({})).rejects.toThrow(
+        'Invalid AccountTreePayload',
+      );
     });
 
     it('throws for a future version in the versioned envelope', async () => {

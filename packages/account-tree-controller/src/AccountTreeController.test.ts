@@ -6515,7 +6515,9 @@ describe('AccountTreeController', () => {
       const payload = snapshot.serialize();
 
       // Exported mnemonic wallet has no secret value.
-      expect((payload.data.wallets[0] as { value?: string }).value).toBeUndefined();
+      expect(
+        (payload.data.wallets[0] as { value?: string }).value,
+      ).toBeUndefined();
 
       // Reimport is a no-op for metadata when nothing changed.
       expect(await controller.importState(snapshot)).toBeUndefined();

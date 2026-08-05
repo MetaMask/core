@@ -1,4 +1,5 @@
 import type { VersionedState } from '@metamask/keyring-sdk';
+
 import type { IdMap } from './id-map.js';
 import type {
   AccountGroupPayloadId,
