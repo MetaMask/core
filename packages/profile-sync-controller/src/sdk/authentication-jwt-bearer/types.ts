@@ -9,6 +9,25 @@ export enum AuthType {
   SiWE = 'SiWE',
 }
 
+/**
+ * Login identifier type sent in the `/srp/login` metametrics object.
+ * Defaults to `SRP`; social-backed entropy overrides with the OAuth provider.
+ *
+ * Orthogonal to {@link SrpLoginTag}: a secondary entropy source can still be
+ * `GOOGLE` / `APPLE` / `TELEGRAM` if it is social-backed.
+ */
+export type LoginIdentifierType = 'SRP' | 'GOOGLE' | 'APPLE' | 'TELEGRAM';
+
+/**
+ * Tag appended to the SRP login `raw_message` so the auth server can
+ * distinguish primary vs secondary SRPs.
+ *
+ * Message format: `metamask:<nonce>:<pubkey>:<tag>`
+ *
+ * Orthogonal to {@link LoginIdentifierType}: tag is entropy-slot only.
+ */
+export type SrpLoginTag = 'primary' | 'secondary';
+
 export type AuthConfig = {
   env: Env;
   platform: Platform;

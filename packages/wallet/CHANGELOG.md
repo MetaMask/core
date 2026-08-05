@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/seedless-onboarding-controller` from `^10.1.0` to `^10.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
+
+## [9.0.0]
+
+### Added
+
+- **BREAKING:** Wire analytics into the default `NetworkController` initialization ([#9270](https://github.com/MetaMask/core/pull/9270))
+  - Adds an optional `instanceOptions.networkController.analyticsOptions` option (`isRpcEndpointUrlPublic` and `rpcServiceEventsSampleRate`, both optional) that the controller uses to emit `RPC Service Unavailable` and `RPC Service Degraded` events.
+  - The `Wallet` root messenger now requires the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions. Consumers must register handlers for them on the root messenger; a consumer that does not use analytics can register handlers that do nothing.
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.4.0` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/gas-fee-controller` from `^26.3.0` to `^26.3.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
 ## [8.1.0]
 
 ### Changed
@@ -121,7 +143,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...@metamask/wallet@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.0.0...@metamask/wallet@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.1...@metamask/wallet@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.0...@metamask/wallet@7.0.1

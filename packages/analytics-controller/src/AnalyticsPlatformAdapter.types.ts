@@ -61,6 +61,29 @@ export type AnalyticsTrackingEvent = {
 export type AnalyticsContext = Record<string, Json>;
 
 /**
+ * Names of the geolocation fields attached to an analytics event.
+ *
+ * These follow the schema that downstream analytics destinations expect, which
+ * is why they are snake_case rather than camelCase:
+ *
+ * - `country_code` is an ISO 3166-1 alpha-2 country code (e.g. `US`).
+ * - `region` is an ISO 3166-2 subdivision code without the country prefix
+ *   (e.g. `WA`).
+ * - `timezone` is an IANA time zone name (e.g. `America/Los_Angeles`).
+ */
+export type AnalyticsLocationField = 'country_code' | 'region' | 'timezone';
+
+/**
+ * Geolocation fields attached to the `location` key of {@link AnalyticsContext}.
+ *
+ * Each field is only present when the geolocation API returned a valid value
+ * for it.
+ */
+export type AnalyticsLocationContext = Partial<
+  Record<AnalyticsLocationField, string>
+>;
+
+/**
  * Platform adapter interface for analytics tracking
  * Implementations should handle platform-specific details (Segment SDK, etc.)
  */

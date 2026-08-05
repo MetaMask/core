@@ -141,9 +141,9 @@ import {
 import { getBalanceChanges } from './utils/balance-changes.js';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch.js';
 import {
-  generateEIP7702BatchTransaction,
   getDelegationAddress,
   signAuthorizationList,
+  updateEIP7702BatchData,
 } from './utils/eip7702.js';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions.js';
 import {
@@ -701,6 +701,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateSecurityAlertResponse',
   'updateSelectedGasFeeToken',
   'updateTransaction',
+  'updateTransactionMetadata',
   'updateTransactionGasFees',
   'wipeTransactions',
 ] as const;
@@ -773,6 +774,8 @@ export class TransactionController extends BaseController<
   readonly #signAbortCallbacks: Map<string, () => void> = new Map();
 
   readonly #skipSimulationTransactionIds: Set<string> = new Set();
+
+  readonly #simulationRequestTokens: Map<string, symbol> = new Map();
 
   readonly #testGasFeeFlows: boolean;
 
@@ -1620,6 +1623,32 @@ export class TransactionController extends BaseController<
     }));
 
     log('Transaction updated', { transactionId, note });
+  }
+
+  /**
+   * Updates transaction metadata.
+   *
+   * @param options - Update options.
+   * @param options.transactionId - ID of the transaction to update.
+   * @param options.callback - Function that mutates the transaction metadata.
+   * @param options.skipResimulate - Whether to skip automatic re-simulation.
+   * @returns The updated transaction metadata.
+   */
+  updateTransactionMetadata({
+    transactionId,
+    callback,
+    skipResimulate = false,
+  }: {
+    transactionId: string;
+    callback: (transactionMeta: TransactionMeta) => void;
+    skipResimulate?: boolean;
+  }): Readonly<TransactionMeta> {
+    return this.#updateTransactionInternal(
+      { transactionId, skipResimulateCheck: skipResimulate },
+      (transactionMeta) => {
+        callback(transactionMeta);
+      },
+    );
   }
 
   /**
@@ -2580,63 +2609,70 @@ export class TransactionController extends BaseController<
       transactionData,
     });
 
+    const currentTransaction = this.#getTransaction(transactionId);
+
+    if (!currentTransaction) {
+      throw new Error(
+        `Cannot update transaction as ID not found - ${transactionId}`,
+      );
+    }
+
+    const { nestedTransactions, transactionData: updatedTransactionData } =
+      updateEIP7702BatchData({
+        from: currentTransaction.txParams.from as Hex,
+        transactions: currentTransaction.nestedTransactions ?? [],
+        updates: [{ transactionIndex, transactionData }],
+      });
     const updatedTransactionMeta = this.#updateTransactionInternal(
-      {
-        transactionId,
-      },
+      { transactionId },
       (transactionMeta) => {
-        const { nestedTransactions, txParams } = transactionMeta;
-        const from = txParams.from as Hex;
-        const nestedTransaction = nestedTransactions?.[transactionIndex];
+        transactionMeta.nestedTransactions = nestedTransactions;
+        transactionMeta.txParams.data = updatedTransactionData;
+        transactionMeta.txParams.gas = undefined;
+        transactionMeta.gasLimitNoBuffer = undefined;
+        transactionMeta.gasUsed = undefined;
+        transactionMeta.securityAlertResponse = undefined;
+        transactionMeta.simulationData = undefined;
+        transactionMeta.simulationFails = undefined;
 
-        if (!nestedTransaction) {
-          throw new Error(
-            `Nested transaction not found with index - ${transactionIndex}`,
-          );
+        if (transactionMeta.revert) {
+          delete transactionMeta.revert.gas;
+
+          if (
+            !transactionMeta.revert.simulation &&
+            !transactionMeta.revert.receipt
+          ) {
+            transactionMeta.revert = undefined;
+          }
         }
-
-        nestedTransaction.data = transactionData;
-
-        const batchTransaction = generateEIP7702BatchTransaction(
-          from,
-          nestedTransactions,
-        );
-
-        transactionMeta.txParams.data = batchTransaction.data;
       },
     );
-
     const draftTransaction = cloneDeep({
       ...updatedTransactionMeta,
       txParams: {
         ...updatedTransactionMeta.txParams,
-        // Clear existing gas to force estimation
+        // Clear existing gas to force estimation.
         gas: undefined,
       },
     });
 
     await this.#updateGasEstimate(draftTransaction);
 
-    this.#updateTransactionInternal(
-      {
-        transactionId,
-      },
-      (transactionMeta) => {
-        transactionMeta.txParams.gas = draftTransaction.txParams.gas;
-        transactionMeta.simulationFails = draftTransaction.simulationFails;
-        transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
+    this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      transactionMeta.txParams.gas = draftTransaction.txParams.gas;
+      transactionMeta.simulationFails = draftTransaction.simulationFails;
+      transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
 
-        const draftGasRevert = draftTransaction.revert?.gas;
-        if (draftGasRevert) {
-          transactionMeta.revert = {
-            ...transactionMeta.revert,
-            gas: draftGasRevert,
-          };
-        }
-      },
-    );
+      const draftGasRevert = draftTransaction.revert?.gas;
+      if (draftGasRevert) {
+        transactionMeta.revert = {
+          ...transactionMeta.revert,
+          gas: draftGasRevert,
+        };
+      }
+    });
 
-    return updatedTransactionMeta.txParams.data as Hex;
+    return updatedTransactionData;
   }
 
   /**
@@ -4069,92 +4105,115 @@ export class TransactionController extends BaseController<
     let isGasFeeSponsored = false;
     let simulationRevert: Revert | undefined;
 
-    const isBalanceChangesSkipped =
-      this.#isBalanceChangesSkipped(transactionMeta);
+    const simulationRequestToken = Symbol(transactionId);
+    this.#simulationRequestTokens.set(transactionId, simulationRequestToken);
 
-    if (this.#isSimulationEnabled() && !isBalanceChangesSkipped) {
-      const balanceChangesResult = await this.#trace(
-        { name: 'Simulate', parentContext: traceContext },
-        () =>
-          getBalanceChanges({
-            blockTime,
-            chainId,
-            messenger: this.messenger,
-            networkClientId,
-            getSimulationConfig: (url, opts) => {
-              return this.#getSimulationConfig(url, {
-                txMeta: transactionMeta,
-                ...opts,
-              });
-            },
-            nestedTransactions,
-            txParams,
-          }),
-      );
-      simulationData = balanceChangesResult.simulationData;
-      gasUsed = balanceChangesResult.gasUsed;
-      simulationRevert = balanceChangesResult.simulationRevert;
+    try {
+      const isSimulationEnabled = this.#isSimulationEnabled();
+      const isBalanceChangesSkipped =
+        this.#isBalanceChangesSkipped(transactionMeta);
 
-      if (
-        blockTime &&
-        prevSimulationData &&
-        hasSimulationDataChanged(prevSimulationData, simulationData)
-      ) {
-        simulationData = {
-          ...simulationData,
-          isUpdatedAfterSecurityCheck: true,
-        };
+      if (isSimulationEnabled && !isBalanceChangesSkipped) {
+        const balanceChangesResult = await this.#trace(
+          { name: 'Simulate', parentContext: traceContext },
+          () =>
+            getBalanceChanges({
+              blockTime,
+              chainId,
+              messenger: this.messenger,
+              networkClientId,
+              getSimulationConfig: (url, opts) => {
+                return this.#getSimulationConfig(url, {
+                  txMeta: transactionMeta,
+                  ...opts,
+                });
+              },
+              nestedTransactions,
+              txParams,
+            }),
+        );
+        simulationData = balanceChangesResult.simulationData;
+        gasUsed = balanceChangesResult.gasUsed;
+        simulationRevert = balanceChangesResult.simulationRevert;
+
+        if (
+          blockTime &&
+          prevSimulationData &&
+          hasSimulationDataChanged(prevSimulationData, simulationData)
+        ) {
+          simulationData = {
+            ...simulationData,
+            isUpdatedAfterSecurityCheck: true,
+          };
+        }
       }
 
-      const gasFeeTokensResponse = await this.#getGasFeeTokens(transactionMeta);
+      if (isSimulationEnabled) {
+        const gasFeeTokensResponse =
+          await this.#getGasFeeTokens(transactionMeta);
 
-      gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
-      isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
-    }
+        gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
+        isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
+      }
 
-    const latestTransactionMeta = this.#getTransaction(transactionId);
+      if (
+        this.#simulationRequestTokens.get(transactionId) !==
+        simulationRequestToken
+      ) {
+        log('Ignoring stale simulation data', transactionId);
+        return;
+      }
 
-    /* istanbul ignore if */
-    if (!latestTransactionMeta) {
-      log(
-        'Cannot update simulation data as transaction not found',
-        transactionId,
-        simulationData,
+      const latestTransactionMeta = this.#getTransaction(transactionId);
+
+      /* istanbul ignore if */
+      if (!latestTransactionMeta) {
+        log(
+          'Cannot update simulation data as transaction not found',
+          transactionId,
+          simulationData,
+        );
+
+        return;
+      }
+
+      const updatedTransactionMeta = this.#updateTransactionInternal(
+        {
+          transactionId,
+          skipResimulateCheck: Boolean(blockTime),
+        },
+        (txMeta) => {
+          txMeta.gasFeeTokens = gasFeeTokens;
+          txMeta.isGasFeeSponsored =
+            txMeta.isGasFeeSponsored ?? isGasFeeSponsored;
+
+          if (txMeta.isGasFeeSponsored) {
+            txMeta.isExternalSign = true;
+          }
+
+          if (!this.#isBalanceChangesSkipped(txMeta)) {
+            txMeta.gasUsed = gasUsed;
+            txMeta.simulationData = simulationData;
+
+            if (simulationRevert) {
+              txMeta.revert = {
+                ...txMeta.revert,
+                simulation: simulationRevert,
+              };
+            }
+          }
+        },
       );
 
-      return;
+      log('Updated simulation data', transactionId, updatedTransactionMeta);
+    } finally {
+      if (
+        this.#simulationRequestTokens.get(transactionId) ===
+        simulationRequestToken
+      ) {
+        this.#simulationRequestTokens.delete(transactionId);
+      }
     }
-
-    const updatedTransactionMeta = this.#updateTransactionInternal(
-      {
-        transactionId,
-        skipResimulateCheck: Boolean(blockTime),
-      },
-      (txMeta) => {
-        txMeta.gasFeeTokens = gasFeeTokens;
-        txMeta.isGasFeeSponsored =
-          txMeta.isGasFeeSponsored ?? isGasFeeSponsored;
-
-        if (txMeta.isGasFeeSponsored) {
-          txMeta.isExternalSign = true;
-        }
-
-        txMeta.gasUsed = gasUsed;
-
-        if (!this.#isBalanceChangesSkipped(txMeta)) {
-          txMeta.simulationData = simulationData;
-
-          if (simulationRevert) {
-            txMeta.revert = {
-              ...txMeta.revert,
-              simulation: simulationRevert,
-            };
-          }
-        }
-      },
-    );
-
-    log('Updated simulation data', transactionId, updatedTransactionMeta);
   }
 
   #onGasFeePollerTransactionUpdate({

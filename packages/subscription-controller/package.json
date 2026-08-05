@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "6.2.1",
+  "version": "6.2.2",
   "description": "Handle user subscription",
   "keywords": [
     "Ethereum",
@@ -58,9 +58,9 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/messenger": "^2.0.0",
-    "@metamask/polling-controller": "^16.0.8",
-    "@metamask/profile-sync-controller": "^28.3.0",
-    "@metamask/transaction-controller": "^69.2.1",
+    "@metamask/polling-controller": "^16.0.9",
+    "@metamask/profile-sync-controller": "^29.0.0",
+    "@metamask/transaction-controller": "^69.5.0",
     "@metamask/utils": "^11.11.0",
     "bignumber.js": "^9.1.2"
   },

@@ -1,38 +1,42 @@
 import { toChecksumHexAddress } from '@metamask/controller-utils';
+// @ts-expect-error: No type definitions for '@metamask/slip44'
+import slip44data from '@metamask/slip44';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
   isStrictHexString,
+  KnownCaipNamespace,
   parseCaipChainId,
   toCaipAssetType,
 } from '@metamask/utils';
+import { getChainById } from 'eth-chainlist';
 
-import { nativeTokenAddress } from '../constants.js';
+import { nativeTokenAddress, nativeTokenDecimals } from '../constants.js';
 
-export type NativeAssetMetadata = {
-  symbol: string;
-  decimals: number;
-  assetId: CaipChainId | string;
-};
+const slip44BySymbol = ((): Map<string, string> => {
+  const coinTypeBySymbol = new Map<string, string>();
 
-type NativeAssetEntry = {
-  symbol: string;
-  decimals: number;
-  slip44: number;
-};
+  for (const [coinType, entry] of Object.entries(
+    slip44data as Record<string, { symbol: string }>,
+  )) {
+    const normalizedSymbol = entry.symbol.toUpperCase();
 
-const nativeAssetsByCaipChainId: Record<string, NativeAssetEntry> = {
-  'eip155:1': { symbol: 'ETH', decimals: 18, slip44: 60 },
-  'eip155:10': { symbol: 'ETH', decimals: 18, slip44: 60 },
-  'eip155:56': { symbol: 'BNB', decimals: 18, slip44: 714 },
-  'eip155:137': { symbol: 'POL', decimals: 18, slip44: 966 },
-  'eip155:324': { symbol: 'ETH', decimals: 18, slip44: 60 },
-  'eip155:1329': { symbol: 'SEI', decimals: 18, slip44: 19000118 },
-  'eip155:8453': { symbol: 'ETH', decimals: 18, slip44: 60 },
-  'eip155:42161': { symbol: 'ETH', decimals: 18, slip44: 60 },
-  'eip155:43114': { symbol: 'AVAX', decimals: 18, slip44: 9005 },
-  'eip155:59144': { symbol: 'ETH', decimals: 18, slip44: 60 },
-};
+    if (!coinTypeBySymbol.has(normalizedSymbol)) {
+      coinTypeBySymbol.set(normalizedSymbol, coinType);
+    }
+  }
+
+  const maticCoinType = coinTypeBySymbol.get('MATIC');
+  if (maticCoinType && !coinTypeBySymbol.has('POL')) {
+    coinTypeBySymbol.set('POL', maticCoinType);
+  }
+
+  return coinTypeBySymbol;
+})();
+
+function getCoinType(symbol: string): string | undefined {
+  return slip44BySymbol.get(symbol.toUpperCase());
+}
 
 /**
  * Normalizes a hex, decimal, numeric, or CAIP chain id to its CAIP-2 form.
@@ -57,37 +61,83 @@ export function formatChainIdToCaip(
     return Number.isNaN(reference) ? undefined : `eip155:${reference}`;
   }
 
+  if (chainId === '') {
+    return undefined;
+  }
+
   const reference = Number(chainId);
   return Number.isNaN(reference) ? undefined : `eip155:${reference}`;
 }
 
-/**
- * Looks up the native asset metadata for a chain from the canonical table.
- * Returns `undefined` (never throws) for chains outside the table — callers
- * degrade gracefully, matching the previous bridge-controller behaviour.
- *
- * @param chainId - Hex, numeric, decimal, or CAIP chain id.
- * @returns Native asset symbol/decimals/assetId, or `undefined` if unsupported.
- */
-export function getNativeAsset(
-  chainId: string | number,
-): NativeAssetMetadata | undefined {
+export function resolveNativeAssetId(
+  chainId: string | number | undefined,
+  symbol: string | undefined,
+): CaipAssetType | undefined {
+  if (chainId === undefined || !symbol) {
+    return undefined;
+  }
+
   const caipChainId = formatChainIdToCaip(chainId);
 
   if (!caipChainId) {
     return undefined;
   }
 
-  const entry = nativeAssetsByCaipChainId[caipChainId];
+  const assetReference = getCoinType(symbol);
 
-  if (!entry) {
+  if (!assetReference) {
+    return undefined;
+  }
+
+  const { namespace, reference } = parseCaipChainId(caipChainId);
+
+  return toCaipAssetType(namespace, reference, 'slip44', assetReference);
+}
+
+/**
+ * Resolves EVM native symbol, decimals, and slip44 asset id for a chain.
+ * Prefers eth-chainlist slip44 except testnet coin type 1, then falls back to
+ * `@metamask/slip44` by native symbol.
+ *
+ * @param chainId - CAIP-2 chain id (eip155 only).
+ * @returns Native asset metadata, or undefined when it cannot be resolved.
+ */
+export function getNativeAsset(chainId: CaipChainId):
+  | {
+      symbol: string;
+      decimals: number;
+      assetId: CaipAssetType;
+    }
+  | undefined {
+  const { namespace, reference } = parseCaipChainId(chainId);
+  if (namespace !== KnownCaipNamespace.Eip155) {
+    return undefined;
+  }
+
+  const chain = getChainById(Number(reference));
+  if (!chain) {
+    return undefined;
+  }
+
+  const { nativeCurrency, slip44 } = chain;
+  if (!nativeCurrency?.symbol) {
+    return undefined;
+  }
+
+  const slip44TestnetCoinType = 1;
+  const assetReference =
+    typeof slip44 === 'number' && slip44 !== slip44TestnetCoinType
+      ? String(slip44)
+      : getCoinType(nativeCurrency.symbol);
+
+  if (!assetReference) {
     return undefined;
   }
 
   return {
-    symbol: entry.symbol,
-    decimals: entry.decimals,
-    assetId: `${caipChainId}/slip44:${entry.slip44}`,
+    symbol: nativeCurrency.symbol,
+    decimals: nativeCurrency.decimals ?? nativeTokenDecimals,
+    assetId: toCaipAssetType(namespace, reference, 'slip44', assetReference),
   };
 }
 
@@ -122,11 +172,7 @@ export function formatAddressToAssetId(
   }
 
   if (isNativeAddress(address)) {
-    const nativeAssetId = getNativeAsset(caipChainId)?.assetId;
-
-    if (nativeAssetId) {
-      return nativeAssetId as CaipAssetType;
-    }
+    return undefined;
   }
 
   const checksummedAddress = toChecksumHexAddress(address);

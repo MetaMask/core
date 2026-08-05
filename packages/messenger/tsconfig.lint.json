@@ -3,5 +3,6 @@
   "compilerOptions": {
     "outDir": "./.tsc-lint-cache",
     "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
-  }
+  },
+  "exclude": ["**/*.tst.ts"]
 }

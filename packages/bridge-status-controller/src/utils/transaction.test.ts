@@ -8,7 +8,7 @@ import {
 } from '@metamask/bridge-controller';
 import type {
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   TxData,
 } from '@metamask/bridge-controller';
 import {
@@ -121,7 +121,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('getStatusRequestParams', () => {
     it('should extract status request parameters from a quote response', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -167,7 +167,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle quote with refuel flag set to true', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -209,7 +209,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle quote with multiple bridges', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1', 'bridge2'],
@@ -253,7 +253,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('getTxMetaFields', () => {
     it('should extract transaction meta fields from a quote response', () => {
-      const mockQuoteResponse: QuoteResponse & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -346,7 +346,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should include approvalTxId when provided', () => {
-      const mockQuoteResponse: QuoteResponse & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -522,7 +522,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('handleNonEvmTxResponse', () => {
     it('should handle string response format', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -633,7 +633,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle object response format with signature', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -721,7 +721,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle onClientRequest response format with signature', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -808,7 +808,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle object response format with txid', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -896,7 +896,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle object response format with hash', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -984,7 +984,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle object response format with txHash', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -1072,7 +1072,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle new unified interface response with transactionId', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -1168,7 +1168,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle empty or invalid response', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -1371,10 +1371,10 @@ describe('Bridge Status Controller Transaction Utils', () => {
           steps: [],
           feeData: {},
         },
-        // Required properties for QuoteResponse
+        // Required properties for QuoteResponseV1
         trade: {} as TxData,
         estimatedProcessingTimeInSeconds: 60,
-      } as unknown as QuoteResponse;
+      } as unknown as QuoteResponseV1;
 
       // Create a promise that will resolve after the delay
       const delayPromise = handleApprovalDelay(
@@ -1411,10 +1411,10 @@ describe('Bridge Status Controller Transaction Utils', () => {
           steps: [],
           feeData: {},
         },
-        // Required properties for QuoteResponse
+        // Required properties for QuoteResponseV1
         trade: {} as TxData,
         estimatedProcessingTimeInSeconds: 60,
-      } as unknown as QuoteResponse;
+      } as unknown as QuoteResponseV1;
 
       // Create a promise that will resolve after the delay
       const delayPromise = handleApprovalDelay(
@@ -1451,10 +1451,10 @@ describe('Bridge Status Controller Transaction Utils', () => {
           steps: [],
           feeData: {},
         },
-        // Required properties for QuoteResponse
+        // Required properties for QuoteResponseV1
         trade: {} as TxData,
         estimatedProcessingTimeInSeconds: 60,
-      } as unknown as QuoteResponse;
+      } as unknown as QuoteResponseV1;
 
       // Create a promise that will resolve after the delay
       const delayPromise = handleApprovalDelay(
@@ -1516,7 +1516,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('getClientRequest', () => {
     it('should generate a valid client request', () => {
-      const mockQuoteResponse: Omit<QuoteResponse<string>, 'approval'> &
+      const mockQuoteResponse: Omit<QuoteResponseV1<string>, 'approval'> &
         QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
@@ -1822,7 +1822,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         includeApproval?: boolean;
         includeResetApproval?: boolean;
       } = {},
-    ): QuoteResponse<TxData, TxData> & QuoteMetadata =>
+    ): QuoteResponseV1<TxData, TxData> & QuoteMetadata =>
       ({
         quote: {
           bridgeId: 'bridge1',

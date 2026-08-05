@@ -22,10 +22,11 @@ const config: KnipConfig = {
       ignoreDependencies: ['bats'],
     },
     'packages/perps-controller': {
+      // Run directly (`npx tsx tests/e2e/...`) rather than imported, so knip
+      // needs telling it is an entry point — otherwise the dependencies only
+      // it uses look unused.
+      entry: ['tests/e2e/*.ts'],
       ignoreDependencies: ['@metamask/accounts-controller'],
-      // The mobile client provides `core/Engine`; tests mock it via a
-      // relative path that doesn't resolve inside this monorepo.
-      ignoreUnresolved: [/^\.\.\/\.\.\/\.\.\/core\/Engine$/u],
     },
 
     // -- Per-workspace `ignoreDependencies` snapshots --
@@ -217,6 +218,10 @@ const config: KnipConfig = {
       ignoreDependencies: ['immer'],
     },
     'packages/wallet-cli': {
+      // `anvil` (from Foundry) is an external system binary the real-chain send
+      // e2e probes and spawns; it's installed via `foundryup`, not an npm
+      // package, so knip can't tie the invocation to a dependency.
+      ignoreBinaries: ['anvil'],
       // `tsx` is the dev-mode loader: it's referenced only as a `node --import`
       // argument string (in `daemon-spawn`'s source-entry path and `bin/dev`),
       // never as a traceable import, so knip can't see it.
