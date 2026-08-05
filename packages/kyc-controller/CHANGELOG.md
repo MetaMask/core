@@ -22,5 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add a new `polling` value to `KycSumSubStatus` and a new `sumsub.sessionStatus` field (typed as the new `KycSessionStatus`) that holds the latest polled status.
   - Add `KycController.getSessionStatus` for a one-off session-status fetch, and add an optional `sessionStatusPollIntervalMs` constructor option (defaults to 15000ms).
   - Add `KycService.getSessionStatus`, backed by the `GET /sessions/{id}/status` endpoint.
+- Add handling in `KycController.startSumSub` for applicants already being processed by the vendor ([#9615](https://github.com/MetaMask/core/pull/9615))
+  - When UKYC session creation reports `kycStatus: approved` with `finalStatus: pending` (the relay approved the applicant while the vendor is still finalizing), the sub-flow now stops before launching the SumSub SDK, sets the new `vendorProcessing` `KycSumSubStatus`, and surfaces a message via `statusMessage`.
+  - `KycService.createUkycSession` now returns optional `kycStatus` and `finalStatus` fields on `UkycSessionResponse`.
 
 [Unreleased]: https://github.com/MetaMask/core/

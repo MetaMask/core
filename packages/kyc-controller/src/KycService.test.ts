@@ -305,6 +305,25 @@ describe('KycService', () => {
       ).toStrictEqual(response);
     });
 
+    it('returns the relay and vendor statuses when present', async () => {
+      const response = {
+        sessionId: 'sid',
+        kycStatus: 'approved',
+        finalStatus: 'pending',
+      };
+      nock(MOCK_API_URL).post('/sessions').reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          jwtToken: 'jwt',
+          vendorMetadata: { foo: 'bar' },
+          wrappedEncryptionKey,
+          ukycCapabilityToken,
+        }),
+      ).toStrictEqual(response);
+    });
+
     it('throws on a malformed response', async () => {
       nock(MOCK_API_URL).post('/sessions').reply(200, { unexpected: true });
       const { service } = getService();

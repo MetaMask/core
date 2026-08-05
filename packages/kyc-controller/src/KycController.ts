@@ -73,21 +73,44 @@ const IN_PROGRESS_PHASES: KycPhase[] = [
 // until a terminal status is reached. Overridable via the constructor.
 const DEFAULT_SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
 
-// `finalStatus` values that end the polling loop. Anything else keeps polling.
+// UKYC status values. `kycStatus` (the relay-side decision) and `finalStatus`
+// (the vendor-side outcome) draw from the same vocabulary, so they are defined
+// once here and composed into the sets/checks below rather than repeated as
+// literals.
+const KYC_STATUSES = {
+  approved: 'approved',
+  completed: 'completed',
+  rejected: 'rejected',
+  failed: 'failed',
+  blocked: 'blocked',
+  pending: 'pending',
+} as const;
+
+// `finalStatus` values that end the polling loop. Anything else (e.g.
+// `KYC_STATUSES.pending`) keeps polling.
 const TERMINAL_SESSION_STATUSES: ReadonlySet<string> = new Set([
-  'approved',
-  'completed',
-  'rejected',
-  'failed',
-  'blocked',
+  KYC_STATUSES.approved,
+  KYC_STATUSES.completed,
+  KYC_STATUSES.rejected,
+  KYC_STATUSES.failed,
+  KYC_STATUSES.blocked,
 ]);
 
 // Terminal `finalStatus` values that represent a successful verification. Any
 // other terminal status resolves the sub-flow to `failed`.
 const SUCCESSFUL_SESSION_STATUSES: ReadonlySet<string> = new Set([
-  'approved',
-  'completed',
+  KYC_STATUSES.approved,
+  KYC_STATUSES.completed,
 ]);
+
+// Session creation can report that the applicant is already approved on the
+// relay (`kycStatus === KYC_STATUSES.approved`) while the vendor is still
+// finalizing its decision (`finalStatus === KYC_STATUSES.pending`, a
+// non-terminal status). In that case there is nothing left for the applicant
+// to do, so the sub-flow stops before launching the SDK and surfaces this
+// message.
+const VENDOR_PROCESSING_MESSAGE =
+  'Your KYC has been submitted and is being processed by the vendor.';
 
 // === STATE ===
 
@@ -1029,6 +1052,11 @@ export class KycController extends BaseController<
    *  5. fetches the SumSub applicant access token; and
    *  6. presents the SDK via the injected launcher.
    *
+   * If session creation reports the applicant is already approved on the relay
+   * while the vendor is still finalizing (`kycStatus: approved`,
+   * `finalStatus: pending`), the sub-flow stops at step 4 with a
+   * `vendorProcessing` status and a message rather than launching the SDK.
+   *
    * @param params - Optional parameters.
    * @param params.locale - BCP-47 locale for the SDK UI.
    * @param params.debug - Enables SDK debug logging.
@@ -1116,7 +1144,7 @@ export class KycController extends BaseController<
         expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
       });
 
-      const { sessionId } = await this.messenger.call(
+      const { sessionId, kycStatus, finalStatus } = await this.messenger.call(
         'KycService:createUkycSession',
         {
           jwtToken,
@@ -1128,6 +1156,25 @@ export class KycController extends BaseController<
           ukycCapabilityToken,
         },
       );
+
+      // A user who already finished the journey can return to a session the
+      // relay has already approved (`kycStatus`) while the vendor is still
+      // finalizing its own decision (`finalStatus`). There is nothing left to
+      // verify, so stop here and surface a message rather than launching the
+      // SDK again.
+      console.log('===============> kycStatus', kycStatus);
+      console.log('===============> finalStatus', finalStatus);
+      if (
+        kycStatus === KYC_STATUSES.approved &&
+        finalStatus === KYC_STATUSES.pending
+      ) {
+        const stillCurrent = this.#updateIfCurrent(generation, (state) => {
+          state.sumsub.status = 'vendorProcessing';
+          state.sumsub.sessionId = sessionId;
+          state.statusMessage = VENDOR_PROCESSING_MESSAGE;
+        });
+        return stillCurrent ? { kycStatus, finalStatus } : {};
+      }
 
       this.#updateIfCurrent(generation, (state) => {
         state.sumsub.status = 'fetchingToken';

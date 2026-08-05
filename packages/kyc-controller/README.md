@@ -444,6 +444,7 @@ stateDiagram-v2
     [*] --> idle
     idle --> creatingSession : startSumSub()
     creatingSession --> fetchingToken : createUkycSession() ok
+    creatingSession --> vendorProcessing : createUkycSession() kycStatus=approved, finalStatus=pending
     fetchingToken --> launching : createJourney() ok
     launching --> inProgress : onStatusChange (non-Completed)
     launching --> complete : onStatusChange = Completed
@@ -454,6 +455,13 @@ stateDiagram-v2
     fetchingToken --> failed : error
     launching --> failed : launcher unavailable / error
 ```
+
+> **Already processing on the vendor.** A user who already finished the journey
+> can return to a session the relay has approved (`kycStatus: approved`) while
+> the vendor is still finalizing its decision (`finalStatus: pending`). When
+> session creation reports this, the sub-flow stops at `vendorProcessing`
+> (setting `statusMessage`) instead of launching the SDK, so an already-approved
+> applicant is not asked to verify again.
 
 > **Completion is status-driven, not resolution-driven.** A resolved `launch`
 > is only recorded as `complete` when the SDK reported the `Completed` status
@@ -674,6 +682,6 @@ Reference client (metamask-mobile):
 | `app/core/Engine/controllers/kyc/kyc-service-init.ts`          | Construct service.                      |
 | `app/core/Engine/controllers/kyc/reactNativeSumSubLauncher.ts` | Native SumSub adapter.                  |
 | `app/core/Engine/messengers/kyc/*.ts`                          | Messenger delegation.                   |
-| `app/components/Views/MoonpayDemo/useKycFlow.ts`               | React ↔ controller binding.             |
+| `app/components/Views/MoonpayDemo/useKycFlow.ts`               | React ↔ controller binding.            |
 | `app/components/Views/MoonpayDemo/useMoonpayFrame.ts`          | WebView postMessage bridge.             |
 | `app/selectors/kycController.ts`                               | Redux selectors.                        |

@@ -1261,6 +1261,75 @@ describe('KycController', () => {
       });
     });
 
+    it('stops with a vendorProcessing status when the relay approved but the vendor is still pending', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        // The applicant already finished the journey: the relay reports
+        // `approved` while the vendor is still finalizing (`pending`).
+        handlers.createUkycSession.mockResolvedValue({
+          sessionId: 'sid',
+          kycStatus: 'approved',
+          finalStatus: 'pending',
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({
+          kycStatus: 'approved',
+          finalStatus: 'pending',
+        });
+        expect(controller.state.sumsub.status).toBe('vendorProcessing');
+        expect(controller.state.sumsub.sessionId).toBe('sid');
+        expect(controller.state.statusMessage).toMatch(
+          /being processed by the vendor/u,
+        );
+        // The SDK is never launched and no journey is created for an
+        // already-approved applicant.
+        expect(handlers.createJourney).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+      });
+    });
+
+    it('continues the flow when approved and the vendor is not pending', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        // A terminal vendor status (not `pending`) must not short-circuit.
+        handlers.createUkycSession.mockResolvedValue({
+          sessionId: 'sid',
+          kycStatus: 'approved',
+          finalStatus: 'approved',
+        });
+        launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+          onStatusChange?.('InProgress', 'Completed');
+          return { ok: true };
+        });
+        handlers.getSessionStatus.mockResolvedValue(sessionStatus('approved'));
+
+        await controller.startSumSub();
+
+        expect(handlers.createJourney).toHaveBeenCalled();
+        expect(launcher.launch).toHaveBeenCalled();
+      });
+    });
+
+    it('does not write vendorProcessing state when reset() runs while creating the session', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.createUkycSession.mockImplementation(async () => {
+          controller.reset();
+          return {
+            sessionId: 'sid',
+            kycStatus: 'approved',
+            finalStatus: 'pending',
+          };
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({});
+        expect(controller.state.sumsub.status).toBe('idle');
+        expect(controller.state.sumsub.sessionId).toBeNull();
+        expect(launcher.launch).not.toHaveBeenCalled();
+      });
+    });
+
     it('aborts when the attested session server public key does not match', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         handlers.getWrappingKey.mockResolvedValue({

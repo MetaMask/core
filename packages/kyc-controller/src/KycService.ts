@@ -155,6 +155,11 @@ export type JwksResponse = Infer<typeof JwksResponseStruct>;
 
 const UkycSessionResponseStruct = type({
   sessionId: string(),
+  // The relay-side KYC decision (e.g. `approved`) and the vendor-side final
+  // status (e.g. `pending`) at session-creation time. Present when the applicant
+  // already has a session in flight; absent for a brand-new session.
+  kycStatus: optional(string()),
+  finalStatus: optional(string()),
 });
 export type UkycSessionResponse = Infer<typeof UkycSessionResponseStruct>;
 

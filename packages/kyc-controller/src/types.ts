@@ -50,6 +50,10 @@ export type KycPhase =
  * - `polling` — the SDK finished and the controller is polling the UKYC
  *   backend for the session's final decision (see `KycSessionStatus`). The
  *   sub-flow resolves to `complete` or `failed` once a terminal status arrives.
+ * - `vendorProcessing` — session creation reported that the applicant is
+ *   already approved on the relay (`kycStatus`) while the vendor is still
+ *   finalizing its own decision (`finalStatus`). There is nothing left for the
+ *   applicant to do, so the SDK is not launched; see `statusMessage`.
  */
 export type KycSumSubStatus =
   | 'idle'
@@ -59,7 +63,8 @@ export type KycSumSubStatus =
   | 'inProgress'
   | 'polling'
   | 'complete'
-  | 'failed';
+  | 'failed'
+  | 'vendorProcessing';
 
 /**
  * The status of a UKYC session, returned by the `GET /sessions/{id}/status`
