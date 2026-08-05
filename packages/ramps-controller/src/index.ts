@@ -161,6 +161,10 @@ export {
   isCustomActionQuote,
   isInAppOnlyQuote,
 } from './quoteClassification.js';
+export {
+  TERMINAL_ORDER_STATUSES,
+  isTerminalOrderStatus,
+} from './orderStatus.js';
 export type { TypedError } from './errorNormalization.js';
 export {
   getErrorMessage,
