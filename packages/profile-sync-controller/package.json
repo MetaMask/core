@@ -110,7 +110,7 @@
   "dependencies": {
     "@metamask/address-book-controller": "^7.1.2",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/keyring-controller": "^27.1.1",
     "@metamask/messenger": "^2.0.0",
     "@metamask/seedless-onboarding-controller": "^10.1.1",
     "@metamask/snaps-controllers": "^19.0.0",
