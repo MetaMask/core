@@ -3,7 +3,7 @@ import type {
   BatchSellTradesResponse,
   BridgeClientId,
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   Trade,
   TxData,
 } from '@metamask/bridge-controller';
@@ -61,7 +61,7 @@ export type SubmitStepResult =
         'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId' | 'actionId'
       > & {
         historyKey: string;
-        quoteResponse: QuoteResponse & QuoteMetadata;
+        quoteResponse: QuoteResponseV1 & QuoteMetadata;
         batchSellData?: BatchSellTradesResponse;
         quoteIds?: string[];
       };
@@ -131,7 +131,7 @@ export type SubmitStrategyParams<
    */
   isStxEnabled: boolean;
   messenger: BridgeStatusControllerMessenger;
-  quoteResponses: (QuoteResponse<TradeType, TradeType> & QuoteMetadata)[];
+  quoteResponses: (QuoteResponseV1<TradeType, TradeType> & QuoteMetadata)[];
   /**
    * Set to true so hardware wallets get prompted for approval on mobile
    */

@@ -550,6 +550,7 @@ linkStyle default opacity:0.5
   profile_sync_controller --> base_controller;
   profile_sync_controller --> keyring_controller;
   profile_sync_controller --> messenger;
+  profile_sync_controller --> seedless_onboarding_controller;
   ramps_controller --> base_controller;
   ramps_controller --> controller_utils;
   ramps_controller --> messenger;

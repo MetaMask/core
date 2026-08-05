@@ -1,10 +1,12 @@
 import { merge } from 'lodash';
 
+import { toQuoteResponseV2 } from '../src/index.js';
 import type { DeepPartial } from '../src/types.js';
 import {
   validateQuoteResponseV1,
   QuoteResponseV1,
 } from '../src/validators/quote-response-v1.js';
+import type { QuoteResponse } from '../src/validators/quote-response.js';
 import { ActionTypes } from '../src/validators/step.js';
 
 export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
@@ -201,4 +203,10 @@ export const getMockBridgeQuotesErc20Erc20V1 = (
     validateQuoteResponseV1(mergedQuote);
     return mergedQuote;
   });
+};
+
+export const getMockBridgeQuotesErc20Erc20V2 = (
+  quoteOverrides?: DeepPartial<QuoteResponseV1>,
+): QuoteResponse[] => {
+  return getMockBridgeQuotesErc20Erc20V1(quoteOverrides).map(toQuoteResponseV2);
 };

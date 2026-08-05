@@ -60,7 +60,7 @@
     "@metamask/json-rpc-engine": "^10.5.0",
     "@metamask/message-manager": "^14.1.2",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/superstruct": "^3.1.0",
+    "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^11.11.0",
     "klona": "^2.0.6",
     "safe-stable-stringify": "^2.4.3"
