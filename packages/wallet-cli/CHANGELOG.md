@@ -36,5 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wrap daemon password and SRP in opaque `Password` and `Srp` types that redact on logging; validated and unwrapped only at trust boundaries ([#8863](https://github.com/MetaMask/core/pull/8863))
 - Bump `@metamask/analytics-controller` from `^1.2.1` to `^2.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
 [Unreleased]: https://github.com/MetaMask/core/

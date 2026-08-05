@@ -9,9 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+## [4.0.3]
+
+### Changed
+
 - Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.4.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
 
 ### Fixed
 
@@ -214,7 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.3...HEAD
+[4.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.2...@metamask/profile-metrics-controller@4.0.3
 [4.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.1...@metamask/profile-metrics-controller@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.0...@metamask/profile-metrics-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.2.0...@metamask/profile-metrics-controller@4.0.0

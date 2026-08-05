@@ -1,8 +1,12 @@
 import { AddressZero } from '@ethersproject/constants';
 import type { CaipAssetType } from '@metamask/utils';
 
-import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20.js';
+import {
+  getMockBridgeQuotesErc20Erc20V2,
+  mockBridgeQuotesErc20Erc20V1,
+} from '../../tests/mock-quotes-erc20-erc20.js';
 import { mockBridgeQuotesNativeErc20V1 } from '../../tests/mock-quotes-native-erc20.js';
+import { toQuoteResponseV2 } from '../coercers/quote-response-v1-to-v2.js';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
@@ -374,7 +378,6 @@ describe('fetch', () => {
           "lifi|quote.destChainId",
           "lifi|quote.destAsset",
           "lifi|quote.destTokenAmount",
-          "lifi|quote.minDestTokenAmount",
           "lifi|quote.feeData",
           "lifi|quote.steps",
           "socket|quote.requestId",
@@ -384,7 +387,6 @@ describe('fetch', () => {
           "socket|quote.destChainId",
           "socket|quote.destAsset.address",
           "socket|quote.destTokenAmount",
-          "socket|quote.minDestTokenAmount",
           "socket|quote.feeData",
           "socket|quote.steps",
         ]
@@ -758,7 +760,10 @@ describe('fetch', () => {
       signal,
       method: 'POST',
       body: JSON.stringify(
-        formatBatchSellTradesRequest(mockBridgeQuotesErc20Erc20V1, stxEnabled),
+        formatBatchSellTradesRequest(
+          mockBridgeQuotesErc20Erc20V1.map(toQuoteResponseV2),
+          stxEnabled,
+        ),
       ),
     });
 
@@ -782,7 +787,7 @@ describe('fetch', () => {
         const { signal } = new AbortController();
 
         const result = await fetchBatchSellTrades(
-          mockBridgeQuotesErc20Erc20V1,
+          getMockBridgeQuotesErc20Erc20V2(),
           false,
           signal,
           BridgeClientId.EXTENSION,
@@ -809,7 +814,7 @@ describe('fetch', () => {
 
         await expect(
           fetchBatchSellTrades(
-            mockBridgeQuotesErc20Erc20V1,
+            getMockBridgeQuotesErc20Erc20V2(),
             false,
             signal,
             BridgeClientId.EXTENSION,
@@ -875,7 +880,7 @@ describe('fetch', () => {
 
         await expect(
           fetchBatchSellTrades(
-            [...mockBridgeQuotesErc20Erc20V1, null],
+            [...getMockBridgeQuotesErc20Erc20V2(), null],
             false,
             signal,
             BridgeClientId.EXTENSION,
@@ -889,7 +894,7 @@ describe('fetch', () => {
         const result = await Promise.allSettled(
           Array.from({ length: 3 }, () =>
             fetchBatchSellTrades(
-              mockBridgeQuotesErc20Erc20V1,
+              getMockBridgeQuotesErc20Erc20V2(),
               false,
               signal,
               BridgeClientId.EXTENSION,
@@ -960,7 +965,7 @@ describe('fetch', () => {
         const { signal } = new AbortController();
 
         await fetchBatchSellTrades(
-          mockBridgeQuotesErc20Erc20V1,
+          getMockBridgeQuotesErc20Erc20V2(),
           true,
           signal,
           BridgeClientId.EXTENSION,
