@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `@metamask/config-registry-controller` as a dependency
+- Add `@metamask/config-registry-controller` as a dependency ([#9789](https://github.com/MetaMask/core/pull/9789))
 
 ### Changed
 
-- **BREAKING:** `TokenRatesControllerMessenger` now requires the `ConfigRegistryController:getState` action and `ConfigRegistryController:stateChanged` event to be delegated
+- **BREAKING:** `TokenRatesControllerMessenger` now requires the `ConfigRegistryController:getState` action and `ConfigRegistryController:stateChanged` event to be delegated ([#9789](https://github.com/MetaMask/core/pull/9789))
   - `getAssetId`/`CodefiTokenPricesServiceV2` now resolve native asset CAIP-19 IDs from the config registry's `assets.native.assetId` before falling back to the hardcoded `SPOT_PRICES_SUPPORT_INFO` map, then to `NetworkEnablementController`'s `nativeAssetIdentifiers`. This lets new chains get correct native-asset pricing without a `SPOT_PRICES_SUPPORT_INFO` release. `TokenRatesController` keeps the cache current as `ConfigRegistryController` polls for updates.
 - **BREAKING:** `DeFiPositionsControllerV2.fetchDeFiPositions` now polls while any selected account has `processingDefiPositions: true`, updating state only when every account is ready, invalidating the balances cache between attempts, sharing one in-flight promise per selected-account + `vsCurrency` key (so fast switches can join an earlier matching poll), and stopping on request failure or the max attempt limit ([#9711](https://github.com/MetaMask/core/pull/9711))
   - Clients must allow and delegate `RemoteFeatureFlagController:getState` on the `DeFiPositionsControllerV2` messenger.
