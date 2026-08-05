@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+
+## [1.1.0]
+
 ### Added
 
 - Add Money Account transaction batch builders, ported from MetaMask Mobile ([#9680](https://github.com/MetaMask/core/pull/9680))
@@ -31,5 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Guards: `isMusdToken`, `isMusdTokenOnChain`, `isMusdOnMoneyAccountChain`
 - Add `getTokenDisplaySymbol`, ported from MetaMask Mobile, which canonicalises the registry symbol of the mUSD token to its branded casing (`MUSD` → `mUSD`) and passes all other symbols through unchanged ([#9397](https://github.com/MetaMask/core/pull/9397))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.0.0...@metamask/money-account-utils@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/money-account-utils@1.0.0
