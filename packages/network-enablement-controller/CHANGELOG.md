@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.3]
+
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
@@ -393,7 +395,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.3...HEAD
+[6.0.3]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.2...@metamask/network-enablement-controller@6.0.3
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.1...@metamask/network-enablement-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.0...@metamask/network-enablement-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.6.0...@metamask/network-enablement-controller@6.0.0
