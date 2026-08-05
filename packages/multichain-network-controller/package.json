@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-network-controller",
-  "version": "3.2.2",
+  "version": "3.2.3",
   "description": "Multichain network controller",
   "keywords": [
     "Ethereum",
@@ -55,7 +55,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^39.0.6",
+    "@metamask/accounts-controller": "^39.0.7",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-api": "^24.0.0",
@@ -69,7 +69,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/keyring-controller": "^27.1.1",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.14.191",
