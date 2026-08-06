@@ -19,10 +19,10 @@ import { FloatStringSchema } from '../../validators/number.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
 import { QuoteResponseSchemaV2 } from '../../validators/quote-response.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
-import { FeeType } from '../../validators/quote.js';
 import type { TxData } from '../../validators/trade.js';
 import { isEvmQuoteResponse, isNativeAddress } from '../bridge.js';
 import { calcNormalizedTokenAmount } from '../number-formatters.js';
+import { includeIfTruthy } from './include-if-truthy.js';
 import type { QuoteMetadata, TokenAmountValues } from './types.js';
 
 export const calcNonEvmTotalNetworkFee = (
@@ -422,8 +422,6 @@ export const calcPriceImpact = (
  * Calculates quote metadata, such as converted fiat amounts and fees,
  * based on the controller state and the quote response
  *
- * @deprecated Use {@link calcQuoteMetadataV2} instead
- *
  * @param quote - The quote response to calculate the metadata for
  * @param options - The options for the calculation
  * @param options.bridgeFeesPerGas - The bridge fees per gas
@@ -526,79 +524,10 @@ export const calcQuoteMetadata = (
         Should only be used for display purposes.
      */
     gasFee,
-    ...(adjustedReturn &&
-      Object.values(adjustedReturn).some(Boolean) && { adjustedReturn }),
-    ...(cost && Object.values(cost).some(Boolean) && { cost }),
-    ...(includedTxFees &&
-      Object.values(includedTxFees).some(Boolean) && { includedTxFees }),
-    ...(relayerFee &&
-      Object.values(relayerFee).some(Boolean) && { relayerFee }),
-    ...(priceImpact &&
-      Object.values(priceImpact).some(Boolean) && {
-        priceImpact,
-      }),
-  };
-};
-
-/**
- * Builds a partial {@link QuoteResponse} object with fiat values derived from the usd values provided by the bridge-api
- *
- * @param quote - The quote response to calculate the metadata for
- * @param usdToFiatExchangeRateString - The usd to fiat exchange rate
- * @returns The partial {@link QuoteResponse} object with fiat values
- */
-export const calcQuoteMetadataV2 = (
-  quote: QuoteResponse,
-  usdToFiatExchangeRateString?: string,
-): DeepPartial<QuoteResponse> => {
-  if (!usdToFiatExchangeRateString) {
-    return {};
-  }
-
-  const usdToFiatExchangeRate = new BigNumber(usdToFiatExchangeRateString);
-
-  return {
-    quote: {
-      src: {
-        valueInCurrency:
-          quote.quote.src.usd &&
-          usdToFiatExchangeRate.times(quote.quote.src.usd).toFixed(),
-      },
-      dest: {
-        valueInCurrency:
-          quote.quote.dest.usd &&
-          usdToFiatExchangeRate.times(quote.quote.dest.usd).toFixed(),
-        minAmountValueInCurrency:
-          quote.quote.dest.minAmountUsd &&
-          usdToFiatExchangeRate.times(quote.quote.dest.minAmountUsd).toFixed(),
-      },
-      feeData: Object.fromEntries(
-        Object.values(FeeType).map((feeType) => [
-          feeType,
-          quote.quote.feeData[feeType]
-            ?.filter((fee) => fee.usd !== undefined)
-            ?.map((fee) => ({
-              valueInCurrency:
-                fee.usd && usdToFiatExchangeRate.times(fee.usd).toFixed(),
-            })),
-        ]),
-      ),
-      priceData: {
-        priceImpact: {
-          valueInCurrency:
-            quote.quote.priceData?.priceImpact?.usd &&
-            usdToFiatExchangeRate
-              .times(quote.quote.priceData.priceImpact.usd)
-              .toFixed(),
-        },
-        adjustedReturn: {
-          valueInCurrency:
-            quote.quote.priceData?.adjustedReturn?.usd &&
-            usdToFiatExchangeRate
-              .times(quote.quote.priceData.adjustedReturn.usd)
-              .toFixed(),
-        },
-      },
-    },
+    ...includeIfTruthy(adjustedReturn, { adjustedReturn }),
+    ...includeIfTruthy(cost, { cost }),
+    ...includeIfTruthy(includedTxFees, { includedTxFees }),
+    ...includeIfTruthy(relayerFee, { relayerFee }),
+    ...includeIfTruthy(priceImpact, { priceImpact }),
   };
 };

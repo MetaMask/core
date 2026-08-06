@@ -82,7 +82,6 @@ exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with me
           "valueInCurrency": "2.99772",
         },
       ],
-      "refuel": undefined,
       "relayer": [
         {
           "amount": "100000000000",
@@ -180,7 +179,6 @@ exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with me
       },
       "minAmount": "1800000000000000000",
       "minAmountNormalized": "1.8",
-      "minAmountValueInCurrency": undefined,
       "normalizedAmount": "2.1",
       "usd": "2",
       "valueInCurrency": "396",
@@ -210,7 +208,6 @@ exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with me
           "usd": undefined,
         },
       ],
-      "refuel": undefined,
       "relayer": [
         {
           "amount": "100000000000",
@@ -228,9 +225,6 @@ exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with me
       "txFee": undefined,
     },
     "priceData": {
-      "adjustedReturn": {
-        "valueInCurrency": undefined,
-      },
       "priceImpact": {
         "usd": "7.9",
         "valueInCurrency": "1564.2",

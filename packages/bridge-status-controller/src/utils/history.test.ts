@@ -114,17 +114,17 @@ describe('History Utils', () => {
   describe('getInitialHistoryItem', () => {
     const baseArgs = {
       bridgeTxMeta: { id: 'tx1', hash: '0xhash' },
-      quoteResponse: mergeQuoteMetadata(
-        {
+      quoteResponse: {
+        ...{
           quote: { srcChainId: 1, destChainId: 10 },
           estimatedProcessingTimeInSeconds: 60,
         },
-        {
+        ...{
           sentAmount: { amount: '1', usd: '2' },
           gasFee: { effective: { amount: '0.001', usd: '3' } },
           toTokenAmount: { amount: '1', usd: '4' },
         },
-      ),
+      },
       startTime: 1,
       slippagePercentage: 0,
       accountAddress: '0xaccount',

@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Add `migrationPhase` to selector params, which determines how metadata is resolved ([#9744](https://github.com/MetaMask/core/pull/9744))
-  - Phase 1 omits V2 quoteMetadata derived from the quotes response. Legacy metadata is served to the clients
-  - Phase 1.5 includes V2 quoteMetadata but falls back to legacy metadata
+  - Export `QuoteMetadataMigrationPhase` constant
+  - Phase 1 omits V2 quote metadata provided by the QuoteResponse. Legacy metadata is served to the clients
+  - Phase 1.5 includes V2 quote metadata but falls back to legacy metadata
   - Phase 2 omits legacy metadata from the quotes and enables removal of deprecated metadata utils
+  - Remove V1 support from mergeQuoteMetadata and add migrationPhase parameter
 - Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.1` ([#9798](https://github.com/MetaMask/core/pull/9798))
 - Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
 - Bump `@metamask/multichain-network-controller` from `^3.2.2` to `^3.2.3` ([#9791](https://github.com/MetaMask/core/pull/9791))

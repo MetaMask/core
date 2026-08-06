@@ -44,6 +44,7 @@ import {
 import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 import { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.js';
+import { QuoteMetadataMigrationPhase } from './utils/quote-metadata/types.js';
 import { BatchSellTransactionType } from './validators/batch-sell.js';
 import type { BridgeAssetV2 } from './validators/bridge-asset.js';
 import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
@@ -758,7 +759,7 @@ describe('Bridge Selectors', () => {
     });
 
     it('should return sorted quotes with metadata (Phase 1.5)', () => {
-      const migrationPhase = '1.5';
+      const migrationPhase = QuoteMetadataMigrationPhase.V2WithV1Fallback;
       const mockState = getMockState(1);
       const mockQuote = mockState.quotes[0];
       const quotes = mockState.quotes.map((quote) => ({
@@ -830,7 +831,7 @@ describe('Bridge Selectors', () => {
     });
 
     it('should return sorted quotes with metadata (Phase 2)', () => {
-      const migrationPhase = '2';
+      const migrationPhase = QuoteMetadataMigrationPhase.V2Only;
       const mockState = getMockState(1);
       const mockQuote = mockState.quotes[0];
       const quotes = mockState.quotes.map((quote) => ({
@@ -887,9 +888,6 @@ describe('Bridge Selectors', () => {
 
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(result.recommendedQuote).toMatchSnapshot();
-      // expect(result.recommendedQuote).not.toMatchObject(
-      //   toQuoteMetadataV1(result.recommendedQuote, migrationPhase),
-      // );
     });
 
     it('should return metadata when quotes are empty', () => {
@@ -2072,7 +2070,11 @@ describe('Bridge Selectors', () => {
               },
             },
           },
-          { ...mockClientParams, requestCount: 2, migrationPhase: '1' },
+          {
+            ...mockClientParams,
+            requestCount: 2,
+            migrationPhase: QuoteMetadataMigrationPhase.V1Data,
+          },
         );
 
       const { totalReceived, minimumReceived, recommendedQuotes, ...rest } =
@@ -2177,7 +2179,11 @@ describe('Bridge Selectors', () => {
               },
             },
           },
-          { ...mockClientParams, requestCount: 2, migrationPhase: '1' },
+          {
+            ...mockClientParams,
+            requestCount: 2,
+            migrationPhase: QuoteMetadataMigrationPhase.V1Data,
+          },
         );
 
       const { totalReceived, minimumReceived, recommendedQuotes, ...rest } =
@@ -2216,7 +2222,11 @@ describe('Bridge Selectors', () => {
             },
           },
         },
-        { ...mockClientParams, requestCount: 1, migrationPhase: '1' },
+        {
+          ...mockClientParams,
+          requestCount: 1,
+          migrationPhase: QuoteMetadataMigrationPhase.V1Data,
+        },
       );
 
       expect(recommendedQuotes).toHaveLength(1);

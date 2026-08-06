@@ -1014,17 +1014,17 @@ describe('metrics utils', () => {
         { key: 'bridge_quote_sorting', value: 'variant_b' },
       ];
       const result = getPreConfirmationPropertiesFromQuote(
-        mergeQuoteMetadata(
-          {
+        {
+          ...{
             quote: mockHistoryItem.quote,
             estimatedProcessingTimeInSeconds: 900,
           },
-          {
+          ...{
             adjustedReturn: { usd: '1980' },
             sentAmount: { usd: '2000' },
             gasFee: { effective: { usd: '2.54739' } },
           },
-        ) as never,
+        } as never,
         false,
         null,
         MetaMetricsSwapsEventSource.MainView,

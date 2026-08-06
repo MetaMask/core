@@ -2,11 +2,14 @@ import { is } from '@metamask/superstruct';
 import { merge } from 'lodash';
 
 import type { DeepPartial } from '../../types.js';
+import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
 import { QuoteResponseSchemaV2 } from '../../validators/quote-response.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { sumAmounts } from '../number-formatters.js';
-import type { QuoteMetadata } from './types.js';
+import { includeIfTruthy } from './include-if-truthy.js';
+import type { QuoteMetadata, TokenAmountValues } from './types.js';
+import { QuoteMetadataMigrationPhase } from './types.js';
 
 /**
  * Extracts legacy {@link QuoteMetadata} values from a {@link QuoteResponse} or {@link QuoteResponseV1}.
@@ -20,7 +23,7 @@ export const toQuoteMetadataV1 = (
   quoteResponse:
     | (DeepPartial<QuoteResponse | QuoteResponseV1> & QuoteMetadata)
     | null,
-  migrationPhase: '1' | '1.5' | '2' = '1',
+  migrationPhase: QuoteMetadataMigrationPhase = QuoteMetadataMigrationPhase.V1Data,
 ): QuoteMetadata => {
   /* istanbul ignore if */
   if (!quoteResponse) {
@@ -48,104 +51,82 @@ export const toQuoteMetadataV1 = (
     swapRate,
     gasFee,
     totalNetworkFee,
-    ...(adjustedReturn && Object.values(adjustedReturn).some(Boolean)
-      ? { adjustedReturn }
-      : {}),
-    ...(cost && Object.values(cost).some(Boolean) ? { cost } : {}),
-    ...(priceImpact && Object.values(priceImpact).some(Boolean)
-      ? { priceImpact }
-      : {}),
-    ...(relayerFee && Object.values(relayerFee).some(Boolean)
-      ? { relayerFee }
-      : {}),
-    ...(includedTxFees && Object.values(includedTxFees).some(Boolean)
-      ? { includedTxFees }
-      : {}),
+    ...includeIfTruthy(adjustedReturn, { adjustedReturn }),
+    ...includeIfTruthy(cost, { cost }),
+    ...includeIfTruthy(priceImpact, { priceImpact }),
+    ...includeIfTruthy(relayerFee, { relayerFee }),
+    ...includeIfTruthy(includedTxFees, { includedTxFees }),
   };
 
-  if (!is(quoteResponse, QuoteResponseSchemaV2) || migrationPhase === '1') {
-    // Return legacy metadata as-is, extract from quote
+  if (
+    migrationPhase === QuoteMetadataMigrationPhase.V1Data ||
+    !is(quoteResponse, QuoteResponseSchemaV2)
+  ) {
     return legacyMetadata;
   }
 
-  // Build V1 from V2 quote
-  const totalNetworkFeeV2 = sumAmounts(
-    quoteResponse?.quote?.feeData?.network,
-    quoteResponse?.quote?.feeData?.relayer,
-  );
-  const v2Metadata: QuoteMetadata | undefined = {
-    sentAmount: {
-      amount: quoteResponse?.quote?.src?.normalizedAmount,
-      usd: quoteResponse?.quote?.src?.usd,
-      valueInCurrency: quoteResponse?.quote?.src?.valueInCurrency,
+  const {
+    quote: {
+      src,
+      dest,
+      priceData,
+      feeData: { network, relayer, txFee },
     },
-    toTokenAmount: {
-      amount: quoteResponse?.quote?.dest?.normalizedAmount,
-      usd: quoteResponse?.quote?.dest?.usd,
-      valueInCurrency: quoteResponse?.quote?.dest?.valueInCurrency,
-    },
-    minToTokenAmount: {
-      amount: quoteResponse?.quote?.dest?.minAmountNormalized,
-      valueInCurrency: quoteResponse?.quote?.dest?.minAmountValueInCurrency,
-      usd: quoteResponse?.quote?.dest?.minAmountUsd,
-    },
-    swapRate: quoteResponse?.quote?.priceData?.swapRate,
-    adjustedReturn: {
-      usd: quoteResponse?.quote?.priceData?.adjustedReturn?.usd,
-      valueInCurrency:
-        quoteResponse?.quote?.priceData?.adjustedReturn?.valueInCurrency ??
-        undefined,
-    },
-    cost: {
-      valueInCurrency:
-        quoteResponse?.quote?.priceData?.priceImpact?.valueInCurrency ??
-        undefined,
-      usd: quoteResponse?.quote?.priceData?.priceImpact?.usd,
-    },
-    gasFee: {
-      total: {
-        amount:
-          quoteResponse?.quote?.feeData?.network?.[0]?.normalizedAmount ??
-          undefined,
-        usd: quoteResponse?.quote?.feeData?.network?.[0]?.usd,
-        valueInCurrency:
-          quoteResponse?.quote?.feeData?.network?.[0]?.valueInCurrency ??
-          undefined,
-      },
-    },
-    totalNetworkFee: {
-      amount: totalNetworkFeeV2?.normalizedAmount,
-      usd: totalNetworkFeeV2?.usd,
-      valueInCurrency: totalNetworkFeeV2?.valueInCurrency,
-    },
-    priceImpact: {
-      usd: quoteResponse?.quote?.priceData?.priceImpact?.usd,
-      valueInCurrency:
-        quoteResponse?.quote?.priceData?.priceImpact?.valueInCurrency ??
-        undefined,
-    },
-    relayerFee: {
-      amount:
-        quoteResponse?.quote?.feeData?.relayer?.[0]?.normalizedAmount ??
-        undefined,
-      usd: quoteResponse?.quote?.feeData?.relayer?.[0]?.usd,
-      valueInCurrency:
-        quoteResponse?.quote?.feeData?.relayer?.[0]?.valueInCurrency ??
-        undefined,
-    },
-    includedTxFees: {
-      amount: quoteResponse?.quote?.feeData?.txFee?.[0]?.normalizedAmount,
-      usd: quoteResponse?.quote?.feeData?.txFee?.[0]?.usd,
-      valueInCurrency:
-        quoteResponse?.quote?.feeData?.txFee?.[0]?.valueInCurrency ?? undefined,
-    },
+  } = quoteResponse;
+
+  const totalNetworkFeeV2 = sumAmounts(network, relayer);
+
+  const toTokenAmountValues = (
+    data?: DeepPartial<AmountsAndAsset>,
+  ): DeepPartial<TokenAmountValues> => {
+    return {
+      amount: data?.normalizedAmount,
+      usd: data?.usd,
+      valueInCurrency: data?.valueInCurrency,
+    };
   };
 
-  if (migrationPhase === '1.5') {
-    // Phase 1.5 uses legacyMetadata as fallback
+  // Build V1 from V2 quote
+  const v2Metadata: QuoteMetadata = {
+    ...includeIfTruthy(src, {
+      sentAmount: toTokenAmountValues(src),
+    }),
+    ...includeIfTruthy(dest, {
+      toTokenAmount: toTokenAmountValues(dest),
+      minToTokenAmount: {
+        amount: dest.minAmountNormalized,
+        valueInCurrency: dest.minAmountValueInCurrency,
+        usd: dest.minAmountUsd,
+      },
+    }),
+    ...(priceData?.swapRate && { swapRate: priceData.swapRate }),
+    ...includeIfTruthy(priceData?.adjustedReturn, {
+      adjustedReturn: toTokenAmountValues(priceData?.adjustedReturn),
+    }),
+    ...includeIfTruthy(network?.[0], {
+      gasFee: {
+        total: toTokenAmountValues(network?.[0]),
+      },
+    }),
+    ...includeIfTruthy(totalNetworkFeeV2, {
+      totalNetworkFee: toTokenAmountValues(totalNetworkFeeV2),
+    }),
+    ...(priceData?.priceImpact && {
+      priceImpact: toTokenAmountValues(priceData?.priceImpact),
+      // Use priceImpact as cost
+      cost: toTokenAmountValues(priceData?.priceImpact),
+    }),
+    ...includeIfTruthy(relayer?.[0], {
+      relayerFee: toTokenAmountValues(relayer?.[0]),
+    }),
+    ...includeIfTruthy(txFee?.[0], {
+      includedTxFees: toTokenAmountValues(txFee?.[0]),
+    }),
+  };
+
+  if (migrationPhase === QuoteMetadataMigrationPhase.V2WithV1Fallback) {
     return merge({}, legacyMetadata, v2Metadata);
   }
 
-  // Phase 2 only uses metadata from the API response
   return v2Metadata;
 };

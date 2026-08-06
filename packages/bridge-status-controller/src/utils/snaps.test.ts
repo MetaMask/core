@@ -74,20 +74,20 @@ describe('Snaps Utils', () => {
         const { time, ...result } = await handleNonEvmTx(
           messenger,
           transaction,
-          mergeQuoteMetadata(
-            {
+          {
+            ...{
               quote: {
                 srcChainId: ChainId.SOLANA,
                 srcAsset: { symbol: 'SOL' },
                 destAsset: { symbol: 'MATIC' },
               },
             },
-            {
+            ...{
               sentAmount: {
                 amount: '1000000000',
               },
             },
-          ) as never,
+          } as never,
           { id: accountId, metadata: { snap: { id: snapId } } } as never,
         );
 
@@ -161,20 +161,20 @@ describe('Snaps Utils', () => {
       const { time, ...result } = await handleNonEvmTx(
         messenger,
         transaction,
-        mergeQuoteMetadata(
-          {
+        {
+          ...{
             quote: {
               srcChainId: ChainId.SOLANA,
               srcAsset: { symbol: 'SOL' },
               destAsset: { symbol: 'MATIC' },
             },
           },
-          {
+          ...{
             sentAmount: {
               amount: '1000000000',
             },
           },
-        ) as never,
+        } as never,
         { id: accountId, metadata: { snap: { id: snapId } } } as never,
       );
 

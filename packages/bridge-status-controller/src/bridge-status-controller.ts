@@ -9,9 +9,9 @@ import {
   InputPrimaryDenomination,
   QuoteResponse,
   toQuoteMetadataV1,
-  mergeQuoteMetadata,
   toQuoteResponseV1,
 } from '@metamask/bridge-controller';
+import type { QuoteMetadataMigrationPhase } from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
   StatusTypes,
@@ -1367,12 +1367,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param quotesReceivedContext - The context for the QuotesReceived event
    * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
-   * @param migrationPhase - The active migration phase for the quote response
    * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
    * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
    * @param batchSellTrades - Contains transaction data for the quotes, provided by the obtainGaslessBatch API
    * @param inputPrimaryDenomination - The denomination shown as the primary source amount input at submission time.
+   * @param migrationPhase - The active migration phase for the quote response
    * @returns The transaction meta
    * @throws An error if transaction submission fails before it gets published
    */
@@ -1386,12 +1386,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     isStxEnabled: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
     location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.Unknown,
-    migrationPhase: '1' | '1.5' | '2' = '1',
     abTests?: Record<string, string>,
     activeAbTests?: { key: string; value: string }[],
     tokenSecurityTypeDestination?: string | null,
     batchSellTrades?: BatchSellTradesResponse | null,
     inputPrimaryDenomination?: InputPrimaryDenomination,
+    migrationPhase?: QuoteMetadataMigrationPhase,
   ): Promise<TransactionMeta> => {
     /**
      * If there are multiple quote responses, we assume that they all originate from the same src chain
@@ -1407,12 +1407,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         return quote;
       }
 
-      return mergeQuoteMetadata(
-        toQuoteResponseV1(quote),
-        toQuoteMetadataV1(quote, migrationPhase),
-        migrationPhase,
-        quote, // Use fiat/usd metadata from the quote response in phase 1.5 and 2
-      );
+      const quoteMetadataV1 = toQuoteMetadataV1(quote, migrationPhase);
+
+      // This coercion omits legacy metadata from the resulting V1 quote
+      const quoteResponseV1 = toQuoteResponseV1(quote);
+
+      // Merge legacy-shaped metadata to V1-shaped quote response
+      return { ...quoteResponseV1, ...quoteMetadataV1 };
     });
     const quoteResponse = quoteResponses[0];
 
@@ -1545,7 +1546,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   submitIntent = async (params: {
     quoteResponse: QuoteResponse;
     accountAddress: string;
-    migrationPhase: '1' | '1.5' | '2';
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
     activeAbTests?: { key: string; value: string }[];
@@ -1553,6 +1553,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     inputPrimaryDenomination?: InputPrimaryDenomination;
     isStxEnabled?: boolean;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
+    migrationPhase?: QuoteMetadataMigrationPhase;
   }): Promise<TransactionMeta> => {
     const {
       quoteResponse,
@@ -1574,25 +1575,25 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isStxEnabled,
       quotesReceivedContext,
       location,
-      migrationPhase,
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
       undefined,
       inputPrimaryDenomination,
+      migrationPhase,
     );
   };
 
   submitBatchSell = async (params: {
     quoteResponses: (QuoteResponse | null)[];
     accountAddress: string;
-    migrationPhase: '1' | '1.5' | '2';
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
     activeAbTests?: { key: string; value: string }[];
     isStxEnabled?: boolean;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
     tokenSecurityTypeDestination?: string | null;
+    migrationPhase?: QuoteMetadataMigrationPhase;
   }): Promise<TransactionMeta> => {
     /**
      * Retrieve the batch sell trades from the BridgeController's state to ensure we submit
@@ -1608,11 +1609,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       params.isStxEnabled ?? false,
       params.quotesReceivedContext,
       params.location,
-      params.migrationPhase,
       params.abTests,
       params.activeAbTests,
       params.tokenSecurityTypeDestination,
       batchSellTrades,
+      undefined,
+      params.migrationPhase,
     );
   };
 

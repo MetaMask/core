@@ -40,11 +40,12 @@ import { processFeatureFlags } from './utils/feature-flags.js';
 import { sumAmounts } from './utils/number-formatters.js';
 import {
   calcBatchFees,
-  calcQuoteMetadataV2,
   calcQuoteMetadata,
 } from './utils/quote-metadata/calculators.js';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
+import { toCurrencyValues } from './utils/quote-metadata/to-currency-values.js';
 import type { QuoteMetadata } from './utils/quote-metadata/types.js';
+import { QuoteMetadataMigrationPhase } from './utils/quote-metadata/types.js';
 import { getDefaultSlippagePercentage } from './utils/slippage.js';
 import type { QuoteResponse } from './validators/quote-response.js';
 
@@ -101,7 +102,7 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
-  migrationPhase: '1' | '1.5' | '2';
+  migrationPhase?: QuoteMetadataMigrationPhase;
 };
 
 type EvmTokenExchangeRate = { price?: number; currency?: string };
@@ -338,8 +339,18 @@ const selectMetadata = createBridgeSelector(
     selectBridgeFeesPerGas,
     selectExchangeRateSources,
     ({ quoteRequest }) => quoteRequest,
+    (_, { migrationPhase }: BridgeQuotesClientParams) => migrationPhase,
   ],
-  (quotes, bridgeFeesPerGas, exchangeRateSources, quoteRequest) => {
+  (
+    quotes,
+    bridgeFeesPerGas,
+    exchangeRateSources,
+    quoteRequest,
+    migrationPhase,
+  ) => {
+    if (migrationPhase === QuoteMetadataMigrationPhase.V2Only) {
+      return [];
+    }
     const { destTokenAddress, srcChainId, destChainId } = quoteRequest[0] ?? {};
 
     return quotes.map((quote) =>
@@ -385,11 +396,21 @@ const selectUsdToFiatExchangeRate = createBridgeSelector(
   },
 );
 
-const selectMetadataV2 = createBridgeSelector(
-  [({ quotes }) => quotes, selectUsdToFiatExchangeRate],
-  (quotes, usdToFiatExchangeRate) => {
+const selectCurrencyValues = createBridgeSelector(
+  [
+    ({ quotes }) => quotes,
+    selectUsdToFiatExchangeRate,
+    (_, { migrationPhase }: BridgeQuotesClientParams) => migrationPhase,
+  ],
+  (quotes, usdToFiatExchangeRateString, migrationPhase) => {
+    if (migrationPhase === QuoteMetadataMigrationPhase.V1Data) {
+      return [];
+    }
+    const usdToFiatExchangeRate = usdToFiatExchangeRateString
+      ? new BigNumber(usdToFiatExchangeRateString)
+      : undefined;
     return quotes.map((quote) =>
-      calcQuoteMetadataV2(quote, usdToFiatExchangeRate),
+      toCurrencyValues(quote, usdToFiatExchangeRate),
     );
   },
 );
@@ -398,7 +419,7 @@ const selectMetadataV2 = createBridgeSelector(
 const selectBridgeQuotesWithMetadata = createBridgeSelector(
   [
     selectMetadata,
-    selectMetadataV2,
+    selectCurrencyValues,
     ({ quotes }) => quotes,
     (_, { migrationPhase }: BridgeQuotesClientParams) => migrationPhase,
   ],
@@ -408,7 +429,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         quote,
         legacyQuoteMetadata[index],
         migrationPhase,
-        quoteMetadataV2?.[index],
+        quoteMetadataV2[index],
       );
     }),
 );
