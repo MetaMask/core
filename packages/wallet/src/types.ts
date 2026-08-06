@@ -37,7 +37,7 @@ export type InstanceSpecificOptions = {
   networkController: NetworkControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
-  subscriptionService: SubscriptionServiceInstanceOptions;
+  subscriptionService?: SubscriptionServiceInstanceOptions;
   subscriptionController?: SubscriptionControllerInstanceOptions;
   transactionController?: TransactionControllerInstanceOptions;
   passkeyController?: PasskeyControllerInstanceOptions;

@@ -286,6 +286,54 @@ describe('SubscriptionService', () => {
       ).not.toThrow();
     });
 
+    it('defaults fetchFunction to globalThis.fetch when omitted', async () => {
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        createMockResponse({
+          jsonData: {
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+          },
+        }),
+      );
+
+      try {
+        const rootMessenger = createRootMessenger();
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getBearerToken',
+          async () => MOCK_ACCESS_TOKEN,
+        );
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () => MOCK_SESSION_PROFILE,
+        );
+        const messenger: SubscriptionServiceMessenger = new Messenger({
+          namespace: serviceName,
+          parent: rootMessenger,
+        });
+        rootMessenger.delegate({
+          messenger,
+          actions: [
+            'AuthenticationController:getBearerToken',
+            'AuthenticationController:getSessionProfile',
+          ],
+          events: [],
+        });
+        const service = new SubscriptionService({
+          messenger,
+        });
+
+        await service.getSubscriptions();
+
+        expect(fetchSpy).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(Env.PRD, 'subscriptions'),
+          expect.anything(),
+        );
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
     it('defaults env to PRD when omitted', async () => {
       const fetchMock = jest.fn();
       const rootMessenger = createRootMessenger();

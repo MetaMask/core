@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Wire `SubscriptionController` and `SubscriptionService` into the default wallet initialization ([#9598](https://github.com/MetaMask/core/pull/9598))
-  - Adds a required `subscriptionService` slot to `instanceOptions` for `fetchFunction`, optional `env` (defaults to production), and optional `captureException`, `queryClientConfig`, and `policyOptions`.
+  - Adds an optional `subscriptionService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `SubscriptionService`.
   - Adds an optional `subscriptionController` slot to `instanceOptions` for an optional `pollingInterval`.
   - `SubscriptionService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile` from the wallet root messenger; hosts must register `AuthenticationController` on the root messenger for authenticated subscription API calls.
 

@@ -125,9 +125,6 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-    subscriptionService: {
-      fetchFunction: globalThis.fetch,
-    },
     subscriptionController: {},
   };
 }

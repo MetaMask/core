@@ -23,10 +23,6 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
   },
 };
 
-const SUBSCRIPTION_SERVICE_OPTIONS = {
-  fetchFunction: globalThis.fetch,
-};
-
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
     instanceOptions: {
@@ -43,7 +39,6 @@ async function setupWallet(): Promise<Wallet> {
         storage: new InMemoryStorageAdapter(),
       },
       remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-      subscriptionService: SUBSCRIPTION_SERVICE_OPTIONS,
     },
   });
 
@@ -110,7 +105,6 @@ describe('Wallet', () => {
           storage: new InMemoryStorageAdapter(),
         },
         remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-        subscriptionService: SUBSCRIPTION_SERVICE_OPTIONS,
       },
     });
 
@@ -163,7 +157,6 @@ describe('Wallet', () => {
           storage: new InMemoryStorageAdapter(),
         },
         remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-        subscriptionService: SUBSCRIPTION_SERVICE_OPTIONS,
       },
     });
     const { state } = wallet;
@@ -210,7 +203,6 @@ describe('Wallet', () => {
           storage: new InMemoryStorageAdapter(),
         },
         remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-        subscriptionService: SUBSCRIPTION_SERVICE_OPTIONS,
       },
     });
 
@@ -324,7 +316,6 @@ describe('Wallet', () => {
             storage: new InMemoryStorageAdapter(),
           },
           remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-          subscriptionService: SUBSCRIPTION_SERVICE_OPTIONS,
         },
       });
 
@@ -360,7 +351,6 @@ describe('Wallet', () => {
             storage: new InMemoryStorageAdapter(),
           },
           remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-          subscriptionService: SUBSCRIPTION_SERVICE_OPTIONS,
         },
       });
 
@@ -404,7 +394,6 @@ describe('Wallet', () => {
             storage: new InMemoryStorageAdapter(),
           },
           remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-          subscriptionService: SUBSCRIPTION_SERVICE_OPTIONS,
         },
       });
 
@@ -505,7 +494,6 @@ describe('Wallet', () => {
               }),
             },
           },
-          subscriptionService: SUBSCRIPTION_SERVICE_OPTIONS,
         },
       });
       const { messenger } = wallet;

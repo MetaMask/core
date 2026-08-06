@@ -112,7 +112,10 @@ export type SubscriptionServiceMessenger = Messenger<
 
 export type SubscriptionServiceOptions = {
   messenger: SubscriptionServiceMessenger;
-  fetchFunction: typeof fetch;
+  /**
+   * The `fetch` function to use for requests. Defaults to the global `fetch`.
+   */
+  fetchFunction?: typeof fetch;
   env?: Env;
   captureException?: (error: Error) => void;
   queryClientConfig?: QueryClientConfig;
@@ -155,7 +158,7 @@ export class SubscriptionService extends BaseDataService<
 
   constructor({
     messenger,
-    fetchFunction,
+    fetchFunction = globalThis.fetch,
     env = Env.PRD,
     captureException,
     queryClientConfig = {},

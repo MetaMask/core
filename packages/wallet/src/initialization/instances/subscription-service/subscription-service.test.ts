@@ -50,9 +50,7 @@ describe('subscriptionService', () => {
     const instance = subscriptionService.init({
       state: undefined,
       messenger,
-      options: {
-        fetchFunction: globalThis.fetch,
-      },
+      options: {},
     });
 
     expect(instance).toBeInstanceOf(SubscriptionService);
