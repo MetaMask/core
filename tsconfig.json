@@ -141,6 +141,9 @@
       "path": "./packages/keyring-controller"
     },
     {
+      "path": "./packages/kyc-controller"
+    },
+    {
       "path": "./packages/local-node-utils"
     },
     {

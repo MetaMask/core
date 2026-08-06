@@ -58,7 +58,7 @@
     "@metamask/auth-network-utils": "^0.3.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/browser-passworder": "^6.0.0",
-    "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/keyring-controller": "^27.1.1",
     "@metamask/messenger": "^2.0.0",
     "@metamask/toprf-secure-backup": "^1.1.0",
     "@metamask/utils": "^11.11.0",

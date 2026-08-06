@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2]
+
 ### Changed
 
 - Bump `@metamask/account-api` from `^1.1.1` to `^2.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/keyring-internal-snap-client` from `^10.0.5` to `^11.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/keyring-snap-sdk` from `^9.2.1` to `^10.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
 ## [2.1.1]
 
@@ -162,7 +165,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.2...HEAD
+[2.1.2]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.1...@metamask/snap-account-service@2.1.2
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.0...@metamask/snap-account-service@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.0.0...@metamask/snap-account-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@1.0.0...@metamask/snap-account-service@2.0.0

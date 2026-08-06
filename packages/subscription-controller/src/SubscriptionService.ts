@@ -1,80 +1,221 @@
+import type {
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { BaseDataService } from '@metamask/base-data-service';
+import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import { handleWhen, HttpError } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import { create } from '@metamask/superstruct';
+import type { Json } from '@metamask/utils';
+import type { QueryClientConfig } from '@tanstack/query-core';
+
 import {
+  Env,
   getEnvUrls,
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
 } from './constants.js';
-import type { Env } from './constants.js';
 import {
   createSentryError,
   getSubscriptionErrorFromResponse,
   SubscriptionServiceError,
 } from './errors.js';
 import { createModuleLogger, projectLogger } from './logger.js';
+import type { SubscriptionServiceMethodActions } from './SubscriptionService-method-action-types.js';
+import {
+  BillingPortalResponseStruct,
+  GetSubscriptionsResponseStruct,
+  PricingResponseStruct,
+  StartCryptoSubscriptionResponseStruct,
+  StartSubscriptionResponseStruct,
+  SubscriptionApiGeneralResponseStruct,
+  SubscriptionEligibilityArrayStruct,
+  SubscriptionStruct,
+  UpdatePaymentMethodCardResponseStruct,
+} from './SubscriptionService-structs.js';
 import type {
   AssignCohortRequest,
-  AuthUtils,
   BillingPortalResponse,
+  CancelSubscriptionRequest,
   GetSubscriptionsEligibilitiesRequest,
   GetSubscriptionsResponse,
-  ISubscriptionService,
+  LinkRewardsRequest,
   PricingResponse,
-  SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
+  SubmitSponsorshipIntentsRequest,
   SubmitUserEventRequest,
   Subscription,
+  SubscriptionApiGeneralResponse,
+  SubscriptionEligibility,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodCryptoRequest,
-  SubmitSponsorshipIntentsRequest,
-  LinkRewardsRequest,
-  SubscriptionApiGeneralResponse,
-  CancelSubscriptionRequest,
 } from './types.js';
 
-export type SubscriptionServiceConfig = {
-  env: Env;
-  auth: AuthUtils;
-  fetchFunction: typeof fetch;
-  captureException?: (error: Error) => void;
-};
+export const serviceName = 'SubscriptionService';
 
 export const SUBSCRIPTION_URL = (env: Env, path: string): string =>
   `${getEnvUrls(env).subscriptionApiUrl}/v1/${path}`;
 
+const MESSENGER_EXPOSED_METHODS = [
+  'getSubscriptions',
+  'cancelSubscription',
+  'unCancelSubscription',
+  'startSubscriptionWithCard',
+  'startSubscriptionWithCrypto',
+  'updatePaymentMethodCard',
+  'updatePaymentMethodCrypto',
+  'getSubscriptionsEligibilities',
+  'submitUserEvent',
+  'assignUserToCohort',
+  'submitSponsorshipIntents',
+  'linkRewards',
+  'getPricing',
+  'getBillingPortalUrl',
+] as const;
+
+export type SubscriptionServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+export type SubscriptionServiceActions =
+  | SubscriptionServiceMethodActions
+  | SubscriptionServiceInvalidateQueriesAction;
+
+type AllowedActions =
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+  | AuthenticationController.AuthenticationControllerGetSessionProfileAction;
+
+type AllowedEvents = never;
+
+export type SubscriptionServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
+
+export type SubscriptionServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+export type SubscriptionServiceEvents =
+  | SubscriptionServiceCacheUpdatedEvent
+  | SubscriptionServiceGranularCacheUpdatedEvent;
+
+export type SubscriptionServiceMessenger = Messenger<
+  typeof serviceName,
+  SubscriptionServiceActions | AllowedActions,
+  SubscriptionServiceEvents | AllowedEvents
+>;
+
+export type SubscriptionServiceOptions = {
+  messenger: SubscriptionServiceMessenger;
+  /**
+   * The `fetch` function to use for requests. Defaults to the global `fetch`.
+   */
+  fetchFunction?: typeof fetch;
+  env?: Env;
+  captureException?: (error: Error) => void;
+  queryClientConfig?: QueryClientConfig;
+  policyOptions?: CreateServicePolicyOptions;
+};
+
 const log = createModuleLogger(projectLogger, 'SubscriptionService');
 
-export class SubscriptionService implements ISubscriptionService {
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof HttpError) {
+    if (error.httpStatus === 429) {
+      return true;
+    }
+    return error.httpStatus < 400 || error.httpStatus >= 500;
+  }
+  return true;
+}
+
+const DEFAULT_POLICY_OPTIONS: CreateServicePolicyOptions = {
+  retryFilterPolicy: handleWhen(isRetryableError),
+};
+
+/**
+ * Data service for the Subscription API.
+ *
+ * All requests are authenticated via JWT Bearer tokens obtained from the
+ * `AuthenticationController:getBearerToken` messenger action. Cached queries
+ * are scoped by `profileId` from
+ * `AuthenticationController:getSessionProfile`.
+ */
+export class SubscriptionService extends BaseDataService<
+  typeof serviceName,
+  SubscriptionServiceMessenger
+> {
   readonly #env: Env;
 
   readonly #fetch: typeof fetch;
 
   readonly #captureException?: (error: Error) => void;
 
-  public authUtils: AuthUtils;
+  constructor({
+    messenger,
+    fetchFunction = globalThis.fetch,
+    env = Env.PRD,
+    captureException,
+    queryClientConfig = {},
+    policyOptions = {},
+  }: SubscriptionServiceOptions) {
+    super({
+      name: serviceName,
+      messenger,
+      queryClientConfig,
+      policyOptions: { ...DEFAULT_POLICY_OPTIONS, ...policyOptions },
+    });
 
-  constructor(config: SubscriptionServiceConfig) {
-    this.#env = config.env;
-    this.authUtils = config.auth;
-    this.#fetch = config.fetchFunction;
-    this.#captureException = config.captureException;
+    this.#env = env;
+    this.#fetch = fetchFunction;
+    this.#captureException = captureException;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
+  /**
+   * Fetches the user's subscriptions.
+   *
+   * @returns The subscriptions response.
+   */
   async getSubscriptions(): Promise<GetSubscriptionsResponse> {
-    const path = 'subscriptions';
-    return await this.#makeRequest<GetSubscriptionsResponse>({
-      path,
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'getSubscriptions',
+      requestParams: null,
+      path: 'subscriptions',
       errorMessage: SubscriptionServiceErrorMessage.FailedToGetSubscriptions,
     });
+
+    return create(jsonResponse, GetSubscriptionsResponseStruct);
   }
 
+  /**
+   * Cancels a subscription.
+   *
+   * @param params - The cancel subscription request.
+   * @returns The updated subscription.
+   */
   async cancelSubscription(
     params: CancelSubscriptionRequest,
   ): Promise<Subscription> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
     const path = `subscriptions/${params.subscriptionId}/cancel`;
-    return await this.#makeRequest<Subscription>({
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'cancelSubscription',
+      requestParams: params,
       path,
       method: 'POST',
       body: {
@@ -82,21 +223,43 @@ export class SubscriptionService implements ISubscriptionService {
       },
       errorMessage: SubscriptionServiceErrorMessage.FailedToCancelSubscription,
     });
+
+    return create(jsonResponse, SubscriptionStruct);
   }
 
+  /**
+   * Reverses a pending subscription cancellation.
+   *
+   * @param params - The uncancel subscription request.
+   * @param params.subscriptionId - The subscription ID to uncancel.
+   * @returns The updated subscription.
+   */
   async unCancelSubscription(params: {
     subscriptionId: string;
   }): Promise<Subscription> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
     const path = `subscriptions/${params.subscriptionId}/uncancel`;
-    return await this.#makeRequest<Subscription>({
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'unCancelSubscription',
+      requestParams: params,
       path,
       method: 'POST',
       body: {},
       errorMessage:
         SubscriptionServiceErrorMessage.FailedToUncancelSubscription,
     });
+
+    return create(jsonResponse, SubscriptionStruct);
   }
 
+  /**
+   * Starts a subscription with a card payment method.
+   *
+   * @param request - The start subscription request.
+   * @returns The checkout session response.
+   */
   async startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse> {
@@ -105,35 +268,64 @@ export class SubscriptionService implements ISubscriptionService {
         SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
       );
     }
-    const path = 'subscriptions/card';
 
-    return await this.#makeRequest<StartSubscriptionResponse>({
-      path,
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'startSubscriptionWithCard',
+      requestParams: request,
+      path: 'subscriptions/card',
       method: 'POST',
       body: request,
       errorMessage:
         SubscriptionServiceErrorMessage.FailedToStartSubscriptionWithCard,
     });
+
+    return create(jsonResponse, StartSubscriptionResponseStruct);
   }
 
+  /**
+   * Starts a subscription with a crypto payment method.
+   *
+   * @param request - The start crypto subscription request.
+   * @returns The created subscription response.
+   */
   async startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse> {
-    const path = 'subscriptions/crypto';
-    return await this.#makeRequest<StartCryptoSubscriptionResponse>({
-      path,
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'startSubscriptionWithCrypto',
+      requestParams: request,
+      path: 'subscriptions/crypto',
       method: 'POST',
       body: request,
       errorMessage:
         SubscriptionServiceErrorMessage.FailedToStartSubscriptionWithCrypto,
     });
+
+    return create(jsonResponse, StartCryptoSubscriptionResponseStruct);
   }
 
+  /**
+   * Updates a subscription's card payment method.
+   *
+   * @param request - The update payment method request.
+   * @returns The redirect URL response.
+   */
   async updatePaymentMethodCard(
     request: UpdatePaymentMethodCardRequest,
   ): Promise<UpdatePaymentMethodCardResponse> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
     const path = `subscriptions/${request.subscriptionId}/payment-method/card`;
-    return await this.#makeRequest<UpdatePaymentMethodCardResponse>({
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'updatePaymentMethodCard',
+      requestParams: request,
       path,
       method: 'PATCH',
       body: {
@@ -143,13 +335,25 @@ export class SubscriptionService implements ISubscriptionService {
       errorMessage:
         SubscriptionServiceErrorMessage.FailedToUpdatePaymentMethodCard,
     });
+
+    return create(jsonResponse, UpdatePaymentMethodCardResponseStruct);
   }
 
+  /**
+   * Updates a subscription's crypto payment method.
+   *
+   * @param request - The update payment method request.
+   */
   async updatePaymentMethodCrypto(
     request: UpdatePaymentMethodCryptoRequest,
   ): Promise<void> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
     const path = `subscriptions/${request.subscriptionId}/payment-method/crypto`;
-    await this.#makeRequest({
+    await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'updatePaymentMethodCrypto',
+      requestParams: request,
       path,
       method: 'PATCH',
       body: {
@@ -170,25 +374,32 @@ export class SubscriptionService implements ISubscriptionService {
   async getSubscriptionsEligibilities(
     request?: GetSubscriptionsEligibilitiesRequest,
   ): Promise<SubscriptionEligibility[]> {
-    const path = 'subscriptions/eligibility';
-    let query: Record<string, string> | undefined;
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    let queryParams: Record<string, string> | undefined;
     if (request?.balanceCategory !== undefined) {
-      query = { balanceCategory: request.balanceCategory };
+      queryParams = { balanceCategory: request.balanceCategory };
     }
-    const results = await this.#makeRequest<SubscriptionEligibility[]>({
-      path,
-      queryParams: query,
+
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'getSubscriptionsEligibilities',
+      requestParams: request ?? null,
+      path: 'subscriptions/eligibility',
+      queryParams,
       errorMessage:
         SubscriptionServiceErrorMessage.FailedToGetSubscriptionsEligibilities,
     });
 
+    const results = create(jsonResponse, SubscriptionEligibilityArrayStruct);
+
     return results.map((result) => ({
       ...result,
-      canSubscribe: result.canSubscribe || false,
-      canViewEntryModal: result.canViewEntryModal || false,
-      cohorts: result.cohorts || [],
+      canSubscribe: result.canSubscribe ?? false,
+      canViewEntryModal: result.canViewEntryModal ?? false,
+      cohorts: result.cohorts ?? [],
       assignedCohort: result.assignedCohort ?? null,
-      hasAssignedCohortExpired: result.hasAssignedCohortExpired || false,
+      hasAssignedCohortExpired: result.hasAssignedCohortExpired ?? false,
     }));
   }
 
@@ -199,9 +410,13 @@ export class SubscriptionService implements ISubscriptionService {
    * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed, cohort: 'post_tx' }
    */
   async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
-    const path = 'user-events';
-    await this.#makeRequest({
-      path,
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'submitUserEvent',
+      requestParams: request,
+      path: 'user-events',
       method: 'POST',
       body: request,
       errorMessage: SubscriptionServiceErrorMessage.FailedToSubmitUserEvent,
@@ -215,9 +430,13 @@ export class SubscriptionService implements ISubscriptionService {
    * @example { cohort: 'post_tx' }
    */
   async assignUserToCohort(request: AssignCohortRequest): Promise<void> {
-    const path = 'cohorts/assign';
-    await this.#makeRequest({
-      path,
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'assignUserToCohort',
+      requestParams: request,
+      path: 'cohorts/assign',
       method: 'POST',
       body: request,
       errorMessage: SubscriptionServiceErrorMessage.FailedToAssignUserToCohort,
@@ -236,9 +455,13 @@ export class SubscriptionService implements ISubscriptionService {
   async submitSponsorshipIntents(
     request: SubmitSponsorshipIntentsRequest,
   ): Promise<void> {
-    const path = 'transaction-sponsorship/intents';
-    await this.#makeRequest({
-      path,
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'submitSponsorshipIntents',
+      requestParams: request,
+      path: 'transaction-sponsorship/intents',
       method: 'POST',
       body: request,
       errorMessage:
@@ -256,81 +479,115 @@ export class SubscriptionService implements ISubscriptionService {
   async linkRewards(
     request: LinkRewardsRequest,
   ): Promise<SubscriptionApiGeneralResponse> {
-    const path = 'rewards/link';
-    return await this.#makeRequest<SubscriptionApiGeneralResponse>({
-      path,
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'linkRewards',
+      requestParams: request,
+      path: 'rewards/link',
       method: 'POST',
       body: request,
       errorMessage: SubscriptionServiceErrorMessage.FailedToLinkRewards,
     });
-  }
 
-  async getPricing(): Promise<PricingResponse> {
-    const path = 'pricing';
-    return await this.#makeRequest<PricingResponse>({
-      path,
-      errorMessage: SubscriptionServiceErrorMessage.FailedToGetPricing,
-    });
-  }
-
-  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
-    const path = 'billing-portal';
-    return await this.#makeRequest<BillingPortalResponse>({
-      path,
-      errorMessage: SubscriptionServiceErrorMessage.FailedToGetBillingPortalUrl,
-    });
+    return create(jsonResponse, SubscriptionApiGeneralResponseStruct);
   }
 
   /**
-   * Makes a request to the Subscription Service backend.
+   * Fetches subscription pricing information.
    *
-   * @param params - The request object containing the path, method, body, query parameters, and error message.
-   * @param params.path - The path of the request.
-   * @param params.method - The method of the request.
-   * @param params.body - The body of the request.
-   * @param params.queryParams - The query parameters of the request.
-   * @param params.errorMessage - The error message to throw if the request fails.
-   * @returns The result of the request.
+   * @returns The pricing response.
    */
-  async #makeRequest<Result>({
+  async getPricing(): Promise<PricingResponse> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'getPricing',
+      requestParams: null,
+      path: 'pricing',
+      errorMessage: SubscriptionServiceErrorMessage.FailedToGetPricing,
+    });
+
+    return create(jsonResponse, PricingResponseStruct);
+  }
+
+  /**
+   * Fetches the billing portal URL.
+   *
+   * @returns The billing portal response.
+   */
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'getBillingPortalUrl',
+      requestParams: null,
+      path: 'billing-portal',
+      errorMessage: SubscriptionServiceErrorMessage.FailedToGetBillingPortalUrl,
+    });
+
+    return create(jsonResponse, BillingPortalResponseStruct);
+  }
+
+  async #fetchJson({
+    profileKey,
+    bearerToken,
+    methodName,
+    requestParams,
     path,
     method = 'GET',
     body,
     queryParams,
     errorMessage,
   }: {
+    profileKey: string;
+    bearerToken: string;
+    methodName: string;
+    requestParams: unknown;
     path: string;
     method?: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH';
     body?: Record<string, unknown>;
     queryParams?: Record<string, string>;
     errorMessage: string;
-  }): Promise<Result> {
+  }): Promise<unknown> {
     const url = this.#getSubscriptionApiUrl(path);
-    const headers = await this.#getAuthorizationHeader();
+
+    if (queryParams) {
+      Object.entries(queryParams).forEach(([key, value]) => {
+        url.searchParams.append(key, value);
+      });
+    }
 
     try {
-      if (queryParams) {
-        Object.entries(queryParams).forEach(([key, value]) => {
-          url.searchParams.append(key, value);
-        });
-      }
+      return await this.fetchQuery({
+        queryKey: [
+          `${this.name}:${methodName}`,
+          profileKey,
+          requestParams as Json,
+        ],
+        staleTime: 0,
+        cacheTime: 0,
+        queryFn: async () => {
+          const response = await this.#fetch(url.toString(), {
+            method,
+            headers: {
+              'Content-Type': 'application/json',
+              ...this.#headersForToken(bearerToken),
+            },
+            body: body ? JSON.stringify(body) : undefined,
+          });
 
-      const response = await this.#fetch(url.toString(), {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
+          if (!response.ok) {
+            const apiError = await getSubscriptionErrorFromResponse(response);
+            throw new HttpError(response.status, apiError.message);
+          }
+
+          return response.json();
         },
-        body: body ? JSON.stringify(body) : undefined,
       });
-
-      if (!response.ok) {
-        const error = await getSubscriptionErrorFromResponse(response);
-        throw error;
-      }
-
-      const data = await response.json();
-      return data;
     } catch (error) {
       log(errorMessage, error);
 
@@ -341,6 +598,10 @@ export class SubscriptionService implements ISubscriptionService {
         createSentryError(errorMessageWithUrl, errorToCapture),
       );
 
+      if (error instanceof SubscriptionServiceError) {
+        throw error;
+      }
+
       throw new SubscriptionServiceError(
         `Failed to make request. ${errorMessageWithUrl}`,
         {
@@ -350,11 +611,17 @@ export class SubscriptionService implements ISubscriptionService {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
+  async #getAuthenticatedContext(): Promise<{
+    profileKey: string;
+    bearerToken: string;
+  }> {
     try {
-      const accessToken = await this.authUtils.getAccessToken();
-      return { Authorization: `Bearer ${accessToken}` };
+      const [bearerToken, sessionProfile] = await Promise.all([
+        this.messenger.call('AuthenticationController:getBearerToken'),
+        this.messenger.call('AuthenticationController:getSessionProfile'),
+      ]);
+
+      return { profileKey: sessionProfile.profileId, bearerToken };
     } catch (error) {
       const errorMessage =
         error instanceof Error
@@ -377,10 +644,13 @@ export class SubscriptionService implements ISubscriptionService {
     }
   }
 
+  #headersForToken(bearerToken: string): Record<string, string> {
+    return { Authorization: `Bearer ${bearerToken}` };
+  }
+
   #getSubscriptionApiUrl(path: string): URL {
     try {
-      const url = new URL(SUBSCRIPTION_URL(this.#env, path));
-      return url;
+      return new URL(SUBSCRIPTION_URL(this.#env, path));
     } catch (error) {
       const errorMessage =
         error instanceof Error
