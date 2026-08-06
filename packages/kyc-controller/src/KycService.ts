@@ -20,11 +20,9 @@ import {
 import { alpha2ToAlpha3 } from './countryCodes.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type { KycDisclaimer, KycSessionStatus } from './types.js';
-import {
-  encodeStorageAccessTokenForHeader,
-  UKYC_JWKS_PATH,
-} from './ukyc/index.js';
-import type { UkycStorageAccessToken } from './ukyc/index.js';
+import { UKYC_JWKS_PATH } from './ukyc/constants.js';
+import { encodeStorageAccessTokenForHeader } from './ukyc/storageAccessToken.js';
+import type { UkycStorageAccessToken } from './ukyc/storageAccessToken.js';
 
 // === GENERAL ===
 

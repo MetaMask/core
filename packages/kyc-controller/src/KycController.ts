@@ -24,15 +24,13 @@ import type {
   KycSumSubLauncher,
   KycSumSubStatus,
 } from './types.js';
-import {
-  deriveClientMaterial,
-  getOrCreateLocalUserSecret,
-  signStorageAccessToken,
-  toBase64Url,
-  verifyJwtChain,
-  wrapEncryptionKey,
-} from './ukyc/index.js';
-import type { UkycLocalUserSecretStore } from './ukyc/index.js';
+import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
+import { toBase64Url } from './ukyc/encoding.js';
+import { verifyJwtChain } from './ukyc/jwtChain.js';
+import { getOrCreateLocalUserSecret } from './ukyc/localUserSecret.js';
+import type { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
+import { signStorageAccessToken } from './ukyc/storageAccessToken.js';
+import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
 // === GENERAL ===
 

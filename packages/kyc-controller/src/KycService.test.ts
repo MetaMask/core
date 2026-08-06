@@ -8,12 +8,12 @@ import nock, { cleanAll } from 'nock';
 
 import type { KycServiceMessenger } from './KycService.js';
 import { KycService } from './KycService.js';
+import { UKYC_LOCAL_USER_SECRET_SIZE_BYTES } from './ukyc/constants.js';
+import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import {
-  deriveClientMaterial,
   encodeStorageAccessTokenForHeader,
   signStorageAccessToken,
-  UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
-} from './ukyc/index.js';
+} from './ukyc/storageAccessToken.js';
 
 const MOCK_API_URL = 'https://kyc-api.dev-api.cx.metamask.io';
 const MOCK_FRACTAL_URL = 'https://fractal.dev-api.cx.metamask.io';
