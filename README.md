@@ -583,8 +583,10 @@ linkStyle default opacity:0.5
   sentinel_api_service --> controller_utils;
   sentinel_api_service --> messenger;
   shield_controller --> base_controller;
+  shield_controller --> base_data_service;
   shield_controller --> controller_utils;
   shield_controller --> messenger;
+  shield_controller --> profile_sync_controller;
   shield_controller --> signature_controller;
   shield_controller --> transaction_controller;
   signature_controller --> accounts_controller;
@@ -669,6 +671,7 @@ linkStyle default opacity:0.5
   wallet --> passkey_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> seedless_onboarding_controller;
+  wallet --> shield_controller;
   wallet --> storage_service;
   wallet --> subscription_controller;
   wallet --> transaction_controller;

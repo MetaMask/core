@@ -8,6 +8,8 @@ export { networkController } from './network-controller/network-controller.js';
 export { passkeyController } from './passkey-controller/passkey-controller.js';
 export { remoteFeatureFlagController } from './remote-feature-flag-controller/remote-feature-flag-controller.js';
 export { seedlessOnboardingController } from './seedless-onboarding-controller/seedless-onboarding-controller.js';
+export { shieldApiService } from './shield-api-service/shield-api-service.js';
+export { shieldController } from './shield-controller/shield-controller.js';
 export { storageService } from './storage-service/storage-service.js';
 export { subscriptionController } from './subscription-controller/subscription-controller.js';
 export { subscriptionService } from './subscription-service/subscription-service.js';

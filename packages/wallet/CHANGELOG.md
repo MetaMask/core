@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Wire `ShieldController` and `ShieldApiService` into the default wallet initialization ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - Adds an optional `shieldApiService` slot to `instanceOptions` for optional `env` (defaults to production), polling, and policy configuration. `fetchFunction` defaults to `globalThis.fetch` via `ShieldApiService`.
+  - `shieldController` instance options are now controller-only (`transactionHistoryLimit`, `coverageHistoryLimit`, `normalizeSignatureRequest`).
+  - `ShieldApiService` delegates `AuthenticationController:getBearerToken`; `ShieldController` delegates `ShieldApiService:*` actions plus `TransactionController:stateChange` and `SignatureController:stateChange`.
+  - Hosts must register `AuthenticationController` and `SignatureController` on the wallet root messenger and explicitly call `ShieldController:start` after wiring.
 - **BREAKING:** Wire `SubscriptionController` and `SubscriptionService` into the default wallet initialization ([#9598](https://github.com/MetaMask/core/pull/9598))
   - Adds an optional `subscriptionService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `SubscriptionService`.
   - Adds an optional `subscriptionController` slot to `instanceOptions` for an optional `pollingInterval`.
