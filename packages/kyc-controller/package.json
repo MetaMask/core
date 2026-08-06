@@ -42,7 +42,7 @@
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
-    "build:watch": "chokidar 'src/**/*.ts' -c 'ts-bridge --project tsconfig.build.json --verbose --no-references' --initial",
+    "build:watch": "yarn build && chokidar 'src/**/*.ts' -c 'ts-bridge --project tsconfig.build.json --verbose --no-references' --initial",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/kyc-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/kyc-controller",
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
