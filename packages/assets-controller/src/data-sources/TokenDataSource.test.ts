@@ -403,9 +403,7 @@ describe('TokenDataSource', () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
-      assetsResponse: [
-        createMockAssetResponse(spamLower, { occurrences: 1 }),
-      ],
+      assetsResponse: [createMockAssetResponse(spamLower, { occurrences: 1 })],
       suggestedOccurrenceFloors: { '1': 3 },
     });
 

@@ -374,15 +374,17 @@ describe('AccountActivityDataSource', () => {
           createBalanceUpdate({
             asset: { type: paidAsset, unit: 'USDC', decimals: 6 },
             postBalance: { amount: '0' },
-            transfers: [
-              { from: EVM_ADDRESS, to: '0xpool', amount: '1000000' },
-            ],
+            transfers: [{ from: EVM_ADDRESS, to: '0xpool', amount: '1000000' }],
           }),
           createBalanceUpdate({
             asset: { type: receivedAsset, unit: 'NEW', decimals: 18 },
             postBalance: { amount: '1000000000000000000' },
             transfers: [
-              { from: '0xpool', to: EVM_ADDRESS, amount: '1000000000000000000' },
+              {
+                from: '0xpool',
+                to: EVM_ADDRESS,
+                amount: '1000000000000000000',
+              },
             ],
           }),
         ],
