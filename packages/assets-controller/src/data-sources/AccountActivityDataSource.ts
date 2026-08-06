@@ -33,17 +33,47 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // ============================================================================
 
 /**
+ * Whether the account actively sent funds in this activity message — i.e. the
+ * update was caused by a transaction the user participated in (swap, payment)
+ * rather than a passive incoming transfer (airdrop, unsolicited spam send).
+ *
+ * @param updates - Balance updates from account-activity websocket payload.
+ * @param address - The account address the message is for.
+ * @returns True when any transfer in the message has the account as sender.
+ */
+function isUserInitiatedActivity(
+  updates: BalanceUpdate[],
+  address: string,
+): boolean {
+  const addressLower = address.toLowerCase();
+  return updates.some((update) =>
+    update.transfers?.some(
+      (transfer) => transfer.from?.toLowerCase() === addressLower,
+    ),
+  );
+}
+
+/**
  * Convert AccountActivityMessage balance updates into a {@link DataResponse}
  * for AssetsController.
  *
+ * When the message is user-initiated (the account sent funds in the same
+ * transaction — see {@link isUserInitiatedActivity}), its assets are listed
+ * on `userInteractedAssets` so TokenDataSource exempts them from
+ * occurrence-floor / Blockaid spam filtering (a swap output chosen by the
+ * user must always show, even for a brand-new token). Passive incoming
+ * transfers get no exemption, so spam airdrops are still filtered.
+ *
  * @param updates - Balance updates from account-activity websocket payload.
  * @param accountId - Internal account UUID.
+ * @param address - The account address the message is for.
  * @param getAssetType - Resolver for asset metadata type.
  * @returns DataResponse with merge mode when balances are present.
  */
 function processAccountActivityBalanceUpdates(
   updates: BalanceUpdate[],
   accountId: string,
+  address: string,
   getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl',
 ): DataResponse {
   const assetsBalance = Object.create(null) as Record<
@@ -93,9 +123,13 @@ function processAccountActivityBalanceUpdates(
   }
 
   const response: DataResponse = { updateMode: 'merge' };
-  if (Object.keys(assetsBalance[accountId]).length > 0) {
+  const assetIds = Object.keys(assetsBalance[accountId]) as Caip19AssetId[];
+  if (assetIds.length > 0) {
     response.assetsBalance = assetsBalance;
     response.assetsInfo = assetsMetadata;
+    if (isUserInitiatedActivity(updates, address)) {
+      response.userInteractedAssets = assetIds;
+    }
   }
 
   return response;
@@ -285,6 +319,7 @@ export class AccountActivityDataSource extends AbstractDataSource<
       const response = processAccountActivityBalanceUpdates(
         updates,
         account.id,
+        address,
         (assetId) => this.#getAssetType(assetId),
       );
 

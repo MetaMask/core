@@ -392,6 +392,59 @@ describe('TokenDataSource', () => {
     );
   });
 
+  it('middleware strips stub assetsInfo and case-mismatched balances for filtered spam', async () => {
+    // Websocket stubs may leave assetsInfo without image, and balance keys may
+    // differ in address casing from the Token API assetId.
+    const spamChecksum =
+      'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
+    const spamLower =
+      'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [createMockAssetResponse(spamLower, { occurrences: 1 })],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [spamChecksum],
+        },
+        assetsBalance: {
+          'mock-account-id': {
+            [spamChecksum]: { amount: '50' },
+          },
+        },
+        assetsInfo: {
+          [spamChecksum]: {
+            type: 'erc20',
+            name: 'SPAM',
+            symbol: 'SPAM',
+            decimals: 18,
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[spamChecksum]).toBeUndefined();
+    expect(context.response.assetsInfo?.[spamLower]).toBeUndefined();
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as
+          | Record<string, unknown>
+          | undefined
+      )?.[spamChecksum],
+    ).toBeUndefined();
+    expect(context.response.detectedAssets?.['mock-account-id']).not.toContain(
+      spamChecksum,
+    );
+  });
+
   it('middleware skips assets with existing metadata containing image in response', async () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
@@ -971,6 +1024,114 @@ describe('TokenDataSource', () => {
     );
     expect(context.response.detectedAssets?.['mock-account-id']).not.toContain(
       spamAsset,
+    );
+  });
+
+  it('middleware removes stub assetsInfo and case-mismatched balances for filtered spam', async () => {
+    // Websocket may leave a stub assetsInfo entry and a differently-cased
+    // balance key; filtering must clear both so spam cannot linger in state.
+    const spamAssetChecksummed =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+    const spamAssetLower =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(spamAssetLower, { occurrences: 1 }),
+      ],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [spamAssetChecksummed],
+        },
+        assetsBalance: {
+          'mock-account-id': {
+            [spamAssetChecksummed]: { amount: '50' },
+          },
+        },
+        assetsInfo: {
+          [spamAssetChecksummed]: {
+            type: 'erc20',
+            symbol: 'SPAM',
+            name: 'SPAM',
+            decimals: 18,
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[spamAssetChecksummed]).toBeUndefined();
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as
+          | Record<string, unknown>
+          | undefined
+      )?.[spamAssetChecksummed],
+    ).toBeUndefined();
+    expect(context.response.detectedAssets?.['mock-account-id']).not.toContain(
+      spamAssetChecksummed,
+    );
+  });
+
+  it('middleware skips occurrence filter for user-interacted assets (e.g. swap outputs)', async () => {
+    // Assets on response.userInteractedAssets were acquired through
+    // user-initiated activity and must keep balance and metadata even when
+    // below the occurrence floor (passive detection still filters).
+    const lowOccurrenceAsset =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(lowOccurrenceAsset, { occurrences: 1 }),
+      ],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        userInteractedAssets: [lowOccurrenceAsset],
+        detectedAssets: {
+          'mock-account-id': [lowOccurrenceAsset],
+        },
+        assetsBalance: {
+          'mock-account-id': {
+            [lowOccurrenceAsset]: { amount: '50' },
+          },
+        },
+        assetsInfo: {
+          [lowOccurrenceAsset]: {
+            type: 'erc20',
+            symbol: 'SWAP',
+            name: 'SWAP',
+            decimals: 18,
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[lowOccurrenceAsset]).toBeDefined();
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as
+          | Record<string, unknown>
+          | undefined
+      )?.[lowOccurrenceAsset],
+    ).toBeDefined();
+    expect(context.response.detectedAssets?.['mock-account-id']).toContain(
+      lowOccurrenceAsset,
     );
   });
 

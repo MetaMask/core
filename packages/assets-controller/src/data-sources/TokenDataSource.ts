@@ -358,9 +358,16 @@ export class TokenDataSource {
    * 4. Calls next() at the end to continue the middleware chain
    *
    * Spam filtering (EVM occurrence floors / non-EVM Blockaid) applies only to
-   * newly `detectedAssets`. Balance-only heals — assets already present in
-   * `assetsBalance` but missing `assetsInfo`, which DetectionMiddleware skips —
-   * are enriched without being filtered out of balances.
+   * newly `detectedAssets` from passive discovery (auto-detection, airdrops).
+   * It is skipped when:
+   * - the asset is a balance-only heal (already in `assetsBalance`, Detection skipped),
+   * - the asset is a user-imported custom asset, or
+   * - the asset is listed on `response.userInteractedAssets` — acquired through
+   *   user-initiated activity (e.g. a swap output), so it must always show.
+   *
+   * Filtered-out detected assets are removed from `assetsBalance`,
+   * `detectedAssets`, and any stub `assetsInfo` already on the response so spam
+   * cannot linger in state.
    *
    * @returns The middleware function for the assets pipeline.
    */
@@ -385,6 +392,14 @@ export class TokenDataSource {
         Object.values(customAssets ?? {})
           .flat()
           .map((id) => id.toLowerCase()),
+      );
+
+      // Assets acquired through user-initiated on-chain activity (the user
+      // sent funds in the same transaction, e.g. swap outputs reported by the
+      // account-activity websocket). Exempt from spam filtering like custom
+      // assets — the user chose to acquire them.
+      const userInteractedAssetIds = new Set<string>(
+        (response.userInteractedAssets ?? []).map((id) => id.toLowerCase()),
       );
 
       // Always include native asset IDs from NetworkEnablementController
@@ -526,11 +541,13 @@ export class TokenDataSource {
         // can import whatever they want and we must keep their metadata even
         // if the API has fewer aggregator hits than the floor.
         // Balance-only heals also bypass — see `balanceHealAssetIds` below.
+        // User-initiated acquisitions bypass — see `userInteractedAssetIds`.
         const allowedEvmIds = new Set(
           evmErc20Ids.filter(
             (id) =>
               customAssetIds.has(id.toLowerCase()) ||
               balanceHealAssetIds.has(id.toLowerCase()) ||
+              userInteractedAssetIds.has(id.toLowerCase()) ||
               (occurrencesByAssetId.get(id) ?? 0) >=
                 getOccurrenceFloorForAsset(id, suggestedOccurrenceFloors) ||
               id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
@@ -538,17 +555,19 @@ export class TokenDataSource {
         );
 
         // Non-EVM: Blockaid bulk scan.
-        // Custom assets and balance-only heals bypass Blockaid filtering.
+        // Custom assets, balance-only heals, and user-initiated acquisitions bypass.
         const nonEvmToScan = nonEvmTokenIds.filter(
           (id) =>
             !customAssetIds.has(id.toLowerCase()) &&
-            !balanceHealAssetIds.has(id.toLowerCase()),
+            !balanceHealAssetIds.has(id.toLowerCase()) &&
+            !userInteractedAssetIds.has(id.toLowerCase()),
         );
         const allowedNonEvmIds = new Set([
           ...nonEvmTokenIds.filter(
             (id) =>
               customAssetIds.has(id.toLowerCase()) ||
-              balanceHealAssetIds.has(id.toLowerCase()),
+              balanceHealAssetIds.has(id.toLowerCase()) ||
+              userInteractedAssetIds.has(id.toLowerCase()),
           ),
           ...(await this.#filterBlockaidSpamTokens(nonEvmToScan)),
         ]);
@@ -572,10 +591,12 @@ export class TokenDataSource {
         response.assetsInfo ??= {};
 
         const filteredOutAssets = new Set<string>();
+        const filteredOutAssetsLower = new Set<string>();
 
         for (const assetData of metadataResponse) {
           if (!allowedAssetIds.has(assetData.assetId)) {
             filteredOutAssets.add(assetData.assetId);
+            filteredOutAssetsLower.add(assetData.assetId.toLowerCase());
             continue;
           }
 
@@ -592,8 +613,20 @@ export class TokenDataSource {
             for (const accountBalances of Object.values(
               response.assetsBalance,
             )) {
-              for (const assetId of filteredOutAssets) {
-                delete (accountBalances as Record<string, unknown>)[assetId];
+              for (const assetId of Object.keys(
+                accountBalances as Record<string, unknown>,
+              )) {
+                if (filteredOutAssetsLower.has(assetId.toLowerCase())) {
+                  delete (accountBalances as Record<string, unknown>)[assetId];
+                }
+              }
+            }
+          }
+
+          if (response.assetsInfo) {
+            for (const assetId of Object.keys(response.assetsInfo)) {
+              if (filteredOutAssetsLower.has(assetId.toLowerCase())) {
+                delete response.assetsInfo[assetId as Caip19AssetId];
               }
             }
           }
@@ -603,7 +636,7 @@ export class TokenDataSource {
               response.detectedAssets,
             )) {
               response.detectedAssets[accountId] = assetIds.filter(
-                (id) => !filteredOutAssets.has(id),
+                (id) => !filteredOutAssetsLower.has(id.toLowerCase()),
               );
             }
           }
