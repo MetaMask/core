@@ -169,7 +169,7 @@ export class ShieldApiService extends BaseDataService<
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
    * @param args.env - The environment used to resolve the Shield API URL.
-   * @param args.fetch - The fetch implementation.
+   * @param args.fetch - The fetch implementation. Defaults to `globalThis.fetch`.
    * @param args.captureException - Optional error reporter.
    * @param args.getCoverageResultTimeout - Timeout for coverage result polling.
    * @param args.getCoverageResultPollInterval - Poll interval for coverage results.
@@ -180,7 +180,7 @@ export class ShieldApiService extends BaseDataService<
   constructor({
     messenger,
     env,
-    fetch: fetchFn,
+    fetch: fetchFn = globalThis.fetch,
     captureException: captureExceptionFn,
     getCoverageResultTimeout = 5000,
     getCoverageResultPollInterval = 1000,
@@ -189,7 +189,10 @@ export class ShieldApiService extends BaseDataService<
   }: {
     messenger: ShieldApiServiceMessenger;
     env: Env;
-    fetch: typeof globalThis.fetch;
+    /**
+     * The `fetch` function to use for requests. Defaults to the global `fetch`.
+     */
+    fetch?: typeof globalThis.fetch;
     captureException?: (error: Error) => void;
     getCoverageResultTimeout?: number;
     getCoverageResultPollInterval?: number;

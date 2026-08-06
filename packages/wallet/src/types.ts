@@ -40,6 +40,6 @@ export type InstanceSpecificOptions = {
   transactionController?: TransactionControllerInstanceOptions;
   passkeyController?: PasskeyControllerInstanceOptions;
   seedlessOnboardingController?: SeedlessOnboardingControllerInstanceOptions;
-  shieldApiService: ShieldApiServiceInstanceOptions;
+  shieldApiService?: ShieldApiServiceInstanceOptions;
   shieldController?: ShieldControllerInstanceOptions;
 };

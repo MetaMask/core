@@ -39,9 +39,7 @@ function registerActionHandler(
   ).registerActionHandler(actionType, handler);
 }
 
-const SHIELD_API_SERVICE_OPTIONS = {
-  fetchFunction: globalThis.fetch,
-};
+const SHIELD_API_SERVICE_OPTIONS = {};
 
 describe('shieldApiService', () => {
   it('is registered as a default initialization configuration', () => {

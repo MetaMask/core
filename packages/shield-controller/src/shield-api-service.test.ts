@@ -148,6 +148,44 @@ describe('ShieldApiService', () => {
     jest.clearAllMocks();
   });
 
+  it('defaults fetch to globalThis.fetch when omitted', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+    } as unknown as Response);
+    fetchSpy.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
+    } as unknown as Response);
+
+    try {
+      const rootMessenger = createRootMessenger();
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getBearerToken',
+        async () => MOCK_TOKEN,
+      );
+      const messenger = createServiceMessenger(rootMessenger);
+      rootMessenger.delegate({
+        messenger,
+        actions: ['AuthenticationController:getBearerToken'],
+        events: [],
+      });
+      const service = new ShieldApiService({
+        messenger,
+        env: Env.PRD,
+      });
+
+      await service.checkCoverage({ txMeta: generateMockTxMeta() });
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        `${getShieldApiBaseUrl(Env.PRD)}/v1/transaction/coverage/init`,
+        expect.anything(),
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it('should check coverage', async () => {
     const { service, fetchMock, getBearerToken } = setup();
 

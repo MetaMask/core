@@ -83,9 +83,6 @@ export type CreateWalletResult = {
  * - `transactionController` — swaps processing disabled and no client hooks;
  *   see the slot's inline comment for why the daemon relies on the
  *   controller's defaults for everything else.
- * - `shieldApiService` — `fetch` with the default production environment; the daemon
- *   does not register `AuthenticationController` or `SignatureController`, so
- *   hosts must call `ShieldController:start` only after wiring those peers.
  *
  * The optional `keyringController` slot is intentionally omitted so the
  * controller's built-in defaults (e.g. the PBKDF2 encryptor) apply.
@@ -144,9 +141,6 @@ function buildInstanceOptions(
       // (`getPermittedAccounts`, `isSimulationEnabled`, `trace`, …) is left at
       // the controller's default.
       hooks: {},
-    },
-    shieldApiService: {
-      fetchFunction: globalThis.fetch,
     },
   };
 }

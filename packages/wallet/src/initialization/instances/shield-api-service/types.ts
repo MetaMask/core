@@ -17,6 +17,6 @@ type ShieldApiServiceCommonOptions = Pick<
  * Per-instance options for the wallet's `ShieldApiService`.
  */
 export type ShieldApiServiceInstanceOptions = ShieldApiServiceCommonOptions & {
-  fetchFunction: ShieldApiServiceOptions['fetch'];
+  fetchFunction?: ShieldApiServiceOptions['fetch'];
   env?: Env;
 };

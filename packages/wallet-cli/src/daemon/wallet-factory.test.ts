@@ -124,10 +124,6 @@ describe('createWallet', () => {
     );
     expect(instanceOptions.transactionController?.disableSwaps).toBe(true);
     expect(instanceOptions.transactionController?.hooks).toStrictEqual({});
-    expect(instanceOptions.shieldApiService.env).toBeUndefined();
-    expect(instanceOptions.shieldApiService.fetchFunction).toBe(
-      globalThis.fetch,
-    );
     expect(ClientConfigApiService).toHaveBeenCalled();
 
     await dispose();

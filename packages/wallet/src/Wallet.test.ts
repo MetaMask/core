@@ -28,10 +28,6 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
   },
 };
 
-const SHIELD_API_SERVICE_OPTIONS = {
-  fetchFunction: jest.fn(),
-};
-
 function getInstanceOptions(): WalletOptions['instanceOptions'] {
   return {
     connectivityController: {
@@ -47,7 +43,6 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-    shieldApiService: SHIELD_API_SERVICE_OPTIONS,
   };
 }
 
