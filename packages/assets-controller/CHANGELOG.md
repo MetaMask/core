@@ -74,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Exempt assets acquired through user-initiated activity from occurrence-floor / Blockaid spam filtering while keeping the filter for passive discovery (auto-detection, airdrops):
+- Exempt assets acquired through user-initiated activity from occurrence-floor / Blockaid spam filtering while keeping the filter for passive discovery (auto-detection, airdrops) ([#9768](https://github.com/MetaMask/core/pull/9768)):
   - `AccountActivityDataSource` inspects websocket transfers and lists assets on a new `DataResponse.userInteractedAssets` field when the account sent funds in the same transaction (e.g. a swap), so swap outputs always show even for brand-new tokens below the floor
   - `TokenDataSource` bypasses spam filtering for `userInteractedAssets` (like custom assets); incoming-only websocket updates (spam airdrops) remain subject to the occurrence floor
   - Filtered-out spam is now also removed from stub `assetsInfo` on the response, and balance deletions match asset IDs case-insensitively
