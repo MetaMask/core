@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Strip leading zero digits from `value` in `eth_estimateGas` requests, so gas estimation no longer fails on RPC nodes that reject non-canonical hex quantities such as `0x00` (e.g. Go's `hexutil` parsing)
+- Strip leading zero digits from `value` in `eth_estimateGas` requests, so gas estimation no longer fails on RPC nodes that reject non-canonical hex quantities such as `0x00` (e.g. Go's `hexutil` parsing) ([#9797](https://github.com/MetaMask/core/pull/9797))
 
 ## [69.5.0]
 
