@@ -1450,7 +1450,7 @@ export class KycController extends BaseController<
    *
    * `sumsub.result` is typed as the recursive `Json`, and expanding
    * `Draft<Json>` (which happens whenever an updater touches `sumsub.result`)
-   * trips TypeScript's "type instantiation is excessively deep" guard. By
+   * can trip TypeScript's "type instantiation is excessively deep" guard. By
    * typing the callback parameter as the plain {@link KycControllerState}
    * instead of Immer's `Draft`, we avoid expanding the draft type while keeping
    * the same mutate-in-place semantics (the underlying value is still the Immer
@@ -1460,7 +1460,10 @@ export class KycController extends BaseController<
    */
   #applyUpdate(updater: (state: KycControllerState) => void): void {
     this.update((state) => {
-      updater(state as unknown as KycControllerState);
+      // `@ts-expect-error` cannot be used: ts-bridge does not surface
+      // TS2589, so the directive is unused and fails the build.
+      // type issue only happens at the IDE level.
+      updater(state);
     });
   }
 
