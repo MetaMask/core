@@ -94,6 +94,38 @@ describe('ClaimsService', () => {
 
       expect(service).toBeInstanceOf(ClaimsService);
     });
+
+    it('defaults fetchFunction to globalThis.fetch when omitted', async () => {
+      const MOCK_CONFIGURATIONS: ClaimsConfigurationsResponse = {
+        validSubmissionWindowDays: 21,
+        networks: [1, 5, 11155111],
+      };
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
+      } as unknown as Response);
+
+      try {
+        const { messenger } = createMockClaimsServiceMessenger(
+          jest.fn().mockResolvedValue('test-token'),
+          jest.fn().mockResolvedValue(MOCK_SESSION_PROFILE),
+          jest.fn(),
+        );
+        const service = new ClaimsService({
+          env: Env.DEV,
+          messenger,
+        });
+
+        await service.fetchClaimsConfigurations();
+
+        expect(fetchSpy).toHaveBeenCalledWith(
+          `${CLAIMS_API_URL_MAP[Env.DEV]}/configurations`,
+          expect.anything(),
+        );
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
   });
 
   describe('fetchClaimsConfigurations', () => {

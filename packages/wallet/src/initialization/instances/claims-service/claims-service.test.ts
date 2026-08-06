@@ -13,7 +13,6 @@ import type { ClaimsServiceInstanceOptions } from './types.js';
 
 const REQUIRED_OPTIONS: ClaimsServiceInstanceOptions = {
   env: Env.DEV,
-  fetchFunction: globalThis.fetch,
 };
 
 type ActionHandler = (...args: unknown[]) => unknown;
@@ -58,7 +57,7 @@ describe('claimsService', () => {
     const instance = claimsService.init({
       state: undefined,
       messenger,
-      options: REQUIRED_OPTIONS,
+      options: {},
     });
 
     expect(instance).toBeInstanceOf(ClaimsService);

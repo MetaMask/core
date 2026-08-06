@@ -1,5 +1,4 @@
 import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
-import { Env } from '@metamask/claims-controller';
 import { getDefaultClaimsControllerState } from '@metamask/claims-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
@@ -41,10 +40,6 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
-    claimsService: {
-      env: Env.DEV,
-      fetchFunction: globalThis.fetch,
-    },
   };
 }
 

@@ -10,8 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Wire `ClaimsService` and `ClaimsController` into the default wallet initialization ([#9588](https://github.com/MetaMask/core/pull/9588))
-  - Passing `instanceOptions.claimsService.fetchFunction` is now required.
-  - `instanceOptions.claimsService.env` is optional and defaults to production (`Env.PRD`); pass a different value per build flavor when not targeting production.
+  - Adds an optional `claimsService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `ClaimsService`.
   - `ClaimsService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile`; hosts must register `AuthenticationController` on the supplied root messenger before authenticated Claims API calls succeed.
 
 ### Changed

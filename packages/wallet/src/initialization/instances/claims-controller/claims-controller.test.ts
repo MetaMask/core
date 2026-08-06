@@ -17,7 +17,6 @@ import { claimsController } from './claims-controller.js';
 
 const CLAIMS_SERVICE_OPTIONS: ClaimsServiceInstanceOptions = {
   env: Env.DEV,
-  fetchFunction: globalThis.fetch,
 };
 
 type ActionHandler = (...args: unknown[]) => unknown;

@@ -83,8 +83,6 @@ export type CreateWalletResult = {
  * - `transactionController` — swaps processing disabled and no client hooks;
  *   see the slot's inline comment for why the daemon relies on the
  *   controller's defaults for everything else.
- * - `claimsService` — production Claims API environment and the platform
- *   `fetch` implementation.
  *
  * The optional `keyringController` slot is intentionally omitted so the
  * controller's built-in defaults (e.g. the PBKDF2 encryptor) apply.
@@ -143,9 +141,6 @@ function buildInstanceOptions(
       // (`getPermittedAccounts`, `isSimulationEnabled`, `trace`, …) is left at
       // the controller's default.
       hooks: {},
-    },
-    claimsService: {
-      fetchFunction: globalThis.fetch,
     },
   };
 }

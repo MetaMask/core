@@ -11,6 +11,6 @@ type ClaimsServiceCommonOptions = Pick<
  * Per-instance options for the wallet's `ClaimsService`.
  */
 export type ClaimsServiceInstanceOptions = ClaimsServiceCommonOptions & {
-  fetchFunction: ClaimsServiceOptions['fetchFunction'];
+  fetchFunction?: ClaimsServiceOptions['fetchFunction'];
   env?: Env;
 };

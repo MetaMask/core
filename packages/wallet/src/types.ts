@@ -31,7 +31,7 @@ export type WalletOptions = {
 
 export type InstanceSpecificOptions = {
   approvalController?: ApprovalControllerInstanceOptions;
-  claimsService: ClaimsServiceInstanceOptions;
+  claimsService?: ClaimsServiceInstanceOptions;
   claimsController?: ClaimsControllerInstanceOptions;
   connectivityController: ConnectivityControllerInstanceOptions;
   gasFeeController: GasFeeControllerInstanceOptions;

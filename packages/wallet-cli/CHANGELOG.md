@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Wire the `claimsService` slot in the daemon wallet's instance options (`globalThis.fetch`), so the daemon initializes `ClaimsService` with the wallet's required configuration ([#9588](https://github.com/MetaMask/core/pull/9588))
 - Add the `mm wallet send` command and a dedicated daemon `sendTransaction` RPC handler for sending a transaction through the daemon-hosted `TransactionController` ([#9636](https://github.com/MetaMask/core/pull/9636))
   - The command converts the ether `--value` to wei, resolves the network client (`--network-client-id` or `--chain-id`) and sender (defaulting to the selected account), previews the resolved plan, and broadcasts after confirmation, printing the resulting transaction hash. `--yes` skips the prompt; `--dry-run` resolves and validates without broadcasting.
   - The `sendTransaction` handler awaits the broadcast server-side and returns a serializable `{ transactionHash, transactionId, status }`, because `addTransaction`'s `result` promise cannot travel back over the generic `call` dispatch. Transactions are submitted as internal (auto-approved by the daemon).
@@ -28,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The daemon no longer passes `claimsService` in wallet instance options; `ClaimsService` defaults to `globalThis.fetch` ([#9588](https://github.com/MetaMask/core/pull/9588))
 - The daemon client (`sendCommand`) now retries only on `ECONNREFUSED`, not `ECONNRESET`, since a reset can drop after the daemon has already acted on a request — re-sending could execute a non-idempotent action (e.g. a transaction broadcast) twice ([#9608](https://github.com/MetaMask/core/pull/9608))
 - `--password` / `MM_WALLET_PASSWORD` is now optional on `mm daemon start`; on subsequent runs, omitting it starts the daemon with a locked keyring, and the persisted vault is auto-unlocked when a password is supplied ([#8821](https://github.com/MetaMask/core/pull/8821))
 - The daemon RPC server now validates `params` against each handler's superstruct before dispatch, returning a `-32602 invalidParams` error on mismatch instead of passing raw params to the handler ([#8846](https://github.com/MetaMask/core/pull/8846))

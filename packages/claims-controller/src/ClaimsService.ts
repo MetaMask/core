@@ -103,7 +103,10 @@ export type ClaimsServiceMessenger = Messenger<
 export type ClaimsServiceConfig = {
   env: Env;
   messenger: ClaimsServiceMessenger;
-  fetchFunction: typeof fetch;
+  /**
+   * The `fetch` function to use for requests. Defaults to the global `fetch`.
+   */
+  fetchFunction?: typeof fetch;
   captureException?: (error: Error) => void;
   queryClientConfig?: QueryClientConfig;
   policyOptions?: CreateServicePolicyOptions;
@@ -132,7 +135,7 @@ export class ClaimsService extends BaseDataService<
   constructor({
     env,
     messenger,
-    fetchFunction,
+    fetchFunction = globalThis.fetch,
     captureException: captureExceptionFn,
     queryClientConfig = {},
     policyOptions = {},
