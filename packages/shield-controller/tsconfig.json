@@ -8,6 +8,9 @@
       "path": "../base-controller"
     },
     {
+      "path": "../base-data-service"
+    },
+    {
       "path": "../signature-controller"
     },
     {
@@ -15,6 +18,9 @@
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../profile-sync-controller"
     },
     {
       "path": "../controller-utils"

@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Wire `ClaimsService` and `ClaimsController` into the default wallet initialization ([#9588](https://github.com/MetaMask/core/pull/9588))
   - Adds an optional `claimsService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `ClaimsService`.
   - `ClaimsService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile`; hosts must register `AuthenticationController` on the supplied root messenger before authenticated Claims API calls succeed.
+- **BREAKING:** Wire `ShieldController` and `ShieldApiService` into the default wallet initialization ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - Adds an optional `shieldApiService` slot to `instanceOptions` for optional `env` (defaults to production), polling, and policy configuration. `fetchFunction` defaults to `globalThis.fetch` via `ShieldApiService`.
+  - `shieldController` instance options are now controller-only (`transactionHistoryLimit`, `coverageHistoryLimit`, `normalizeSignatureRequest`).
+  - `ShieldApiService` delegates `AuthenticationController:getBearerToken`; `ShieldController` delegates `ShieldApiService:*` actions plus `TransactionController:stateChange` and `SignatureController:stateChange`.
+  - Hosts must register `AuthenticationController` and `SignatureController` on the wallet root messenger and explicitly call `ShieldController:start` after wiring.
 - **BREAKING:** Wire `SubscriptionController` and `SubscriptionService` into the default wallet initialization ([#9598](https://github.com/MetaMask/core/pull/9598))
   - Adds an optional `subscriptionService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `SubscriptionService`.
   - Adds an optional `subscriptionController` slot to `instanceOptions` for an optional `pollingInterval`.

@@ -2,6 +2,10 @@ import { getDefaultAddressBookControllerState } from '@metamask/address-book-con
 import { getDefaultClaimsControllerState } from '@metamask/claims-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
+import {
+  getDefaultShieldControllerState,
+  ShieldController,
+} from '@metamask/shield-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
@@ -375,6 +379,19 @@ describe('Wallet', () => {
       expect(
         wallet.messenger.call('TransactionController:getState'),
       ).toStrictEqual(expect.objectContaining({ transactions: [] }));
+    });
+  });
+
+  describe('ShieldController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('ShieldController')).toBeInstanceOf(
+        ShieldController,
+      );
+      expect(wallet.messenger.call('ShieldController:getState')).toStrictEqual(
+        getDefaultShieldControllerState(),
+      );
     });
   });
 
