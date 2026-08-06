@@ -5987,7 +5987,7 @@ __metadata:
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/account-tree-controller": "npm:^7.6.1"
     "@metamask/accounts-controller": "npm:^39.0.7"
-    "@metamask/assets-controllers": "npm:^111.0.0"
+    "@metamask/assets-controllers": "npm:^111.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/client-controller": "npm:^1.0.1"
@@ -6027,7 +6027,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@npm:^111.0.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
+"@metamask/assets-controllers@npm:^111.1.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -6262,7 +6262,7 @@ __metadata:
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^39.0.7"
     "@metamask/assets-controller": "npm:^13.1.1"
-    "@metamask/assets-controllers": "npm:^111.0.0"
+    "@metamask/assets-controllers": "npm:^111.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
@@ -7675,6 +7675,23 @@ __metadata:
   checksum: 10/261cad056370ec89c2d2b29afddfe50dfe0dca302a0f70380eb1fc96c31348bcefdd087d0e17fbe7dec39603408eea1acf8ebc36f230a8b8897fa9e231e4a2b2
   languageName: node
   linkType: hard
+
+"@metamask/kyc-controller@workspace:packages/kyc-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/kyc-controller@workspace:packages/kyc-controller"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^30.0.0"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^30.4.2"
+    ts-jest: "npm:^29.4.11"
+    tsx: "npm:^4.20.5"
+    typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
 
 "@metamask/local-node-utils@npm:^1.0.0, @metamask/local-node-utils@workspace:packages/local-node-utils":
   version: 0.0.0-use.local
@@ -9230,18 +9247,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/subscription-controller@workspace:packages/subscription-controller":
+"@metamask/subscription-controller@npm:^6.2.2, @metamask/subscription-controller@workspace:packages/subscription-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/subscription-controller@workspace:packages/subscription-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
+    "@metamask/base-data-service": "npm:^0.1.3"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/polling-controller": "npm:^16.0.9"
     "@metamask/profile-sync-controller": "npm:^29.0.0"
+    "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^69.5.0"
     "@metamask/utils": "npm:^11.11.0"
+    "@tanstack/query-core": "npm:^4.43.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     bignumber.js: "npm:^9.1.2"
@@ -9353,7 +9373,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/assets-controller": "npm:^13.1.1"
-    "@metamask/assets-controllers": "npm:^111.0.0"
+    "@metamask/assets-controllers": "npm:^111.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
@@ -9547,6 +9567,7 @@ __metadata:
     "@metamask/seedless-onboarding-controller": "npm:^10.1.1"
     "@metamask/shield-controller": "npm:^5.1.3"
     "@metamask/storage-service": "npm:^1.0.2"
+    "@metamask/subscription-controller": "npm:^6.2.2"
     "@metamask/transaction-controller": "npm:^69.5.0"
     "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"

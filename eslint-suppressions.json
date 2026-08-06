@@ -2184,17 +2184,12 @@
   },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/subscription-controller/src/errors.ts": {
     "no-restricted-syntax": {
       "count": 1
-    }
-  },
-  "packages/subscription-controller/src/index.ts": {
-    "no-restricted-syntax": {
-      "count": 2
     }
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {

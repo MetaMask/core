@@ -21,6 +21,7 @@
     { "path": "../seedless-onboarding-controller/tsconfig.build.json" },
     { "path": "../shield-controller/tsconfig.build.json" },
     { "path": "../storage-service/tsconfig.build.json" },
+    { "path": "../subscription-controller/tsconfig.build.json" },
     { "path": "../transaction-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
