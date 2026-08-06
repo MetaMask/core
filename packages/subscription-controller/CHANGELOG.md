@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `SubscriptionController` no longer constructs or accepts a `SubscriptionService` instance. `SubscriptionControllerOptions` now accepts only `{ messenger, state?, pollingInterval? }`, and the controller calls `SubscriptionService:*` messenger actions instead of invoking a service directly.
   - Removed `SubscriptionControllerServiceOptions`, `SubscriptionServiceConfig`, and direct `auth: AuthUtils` construction.
   - Removed the `AuthenticationController:stateChange` event from `SubscriptionControllerMessenger` (and the `AllowedEvents` type export); the controller never subscribed to this event.
-- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.1` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798))
 
 ## [6.2.2]
 
