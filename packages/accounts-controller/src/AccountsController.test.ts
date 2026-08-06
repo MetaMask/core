@@ -3392,6 +3392,58 @@ describe('AccountsController', () => {
     );
   });
 
+  describe('clearState', () => {
+    it('resets state to the default values', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockAccount2.address]: mockAccount2.id,
+          },
+        },
+      });
+
+      accountsController.clearState();
+
+      expect(accountsController.state).toStrictEqual(defaultState);
+    });
+
+    it('is a no-op when state is already empty', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: defaultState,
+      });
+
+      accountsController.clearState();
+
+      expect(accountsController.state).toStrictEqual(defaultState);
+    });
+
+    it('is callable via the messenger', () => {
+      const { accountsController, messenger } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+          },
+        },
+      });
+
+      messenger.call('AccountsController:clearState');
+
+      expect(accountsController.state).toStrictEqual(defaultState);
+    });
+  });
+
   describe('loadBackup', () => {
     it('load a backup', async () => {
       const { accountsController } = setupAccountsController({

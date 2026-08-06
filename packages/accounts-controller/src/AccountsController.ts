@@ -102,6 +102,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAccounts',
   'updateAccountMetadata',
   'loadBackup',
+  'clearState',
 ] as const;
 
 /**
@@ -264,13 +265,20 @@ const accountsControllerMetadata = {
   },
 };
 
-const defaultState: AccountsControllerState = {
-  internalAccounts: {
-    accounts: {},
-    selectedAccount: '',
-  },
-  accountIdByAddress: {},
-};
+/**
+ * Returns the default state for the AccountsController.
+ *
+ * @returns The default AccountsController state.
+ */
+function getDefaultAccountsControllerState(): AccountsControllerState {
+  return {
+    internalAccounts: {
+      accounts: {},
+      selectedAccount: '',
+    },
+    accountIdByAddress: {},
+  };
+}
 
 /**
  * @deprecated This constant is deprecated and will be removed in a future version.
@@ -342,7 +350,7 @@ export class AccountsController extends BaseController<
       name: controllerName,
       metadata: accountsControllerMetadata,
       state: {
-        ...defaultState,
+        ...getDefaultAccountsControllerState(),
         ...state,
         accountIdByAddress,
       },
@@ -744,6 +752,18 @@ export class AccountsController extends BaseController<
         },
       );
     }
+  }
+
+  /**
+   * Clears the controller state and resets to default values.
+   *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+   */
+  clearState(): void {
+    this.update(() => {
+      return getDefaultAccountsControllerState();
+    });
   }
 
   /**

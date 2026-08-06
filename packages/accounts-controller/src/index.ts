@@ -33,6 +33,7 @@ export type {
   AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerUpdateAccountsAction,
   AccountsControllerLoadBackupAction,
+  AccountsControllerClearStateAction,
 } from './AccountsController-method-action-types.js';
 export { EMPTY_ACCOUNT, AccountsController } from './AccountsController.js';
 export {
