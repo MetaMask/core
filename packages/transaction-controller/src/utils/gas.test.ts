@@ -870,8 +870,9 @@ describe('gas', () => {
       });
     });
 
-    it.each<[string, string | undefined, string]>([
+    it.each<[string, string | null | undefined, string]>([
       ['undefined', undefined, '0x0'],
+      ['null', null, '0x0'],
       ['zero with leading zero digits', '0x00', '0x0'],
       [
         'a quantity with leading zero digits',
@@ -895,7 +896,7 @@ describe('gas', () => {
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
-            value,
+            value: value as string | undefined,
           },
         });
 

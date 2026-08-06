@@ -795,15 +795,13 @@ function normalizeAuthorizationList(
  * @returns The normalized transaction value.
  */
 function normalizeValue(value: string | undefined): string {
-  if (value === undefined) {
-    return '0x0';
+  const valueOrDefault = value ?? '0x0';
+
+  if (!isStrictHexString(valueOrDefault)) {
+    return valueOrDefault;
   }
 
-  if (!isStrictHexString(value)) {
-    return value;
-  }
-
-  const stripped = remove0x(value).replace(/^0+/u, '');
+  const stripped = remove0x(valueOrDefault).replace(/^0+/u, '');
 
   return stripped.length === 0 ? '0x0' : add0x(stripped);
 }
