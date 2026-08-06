@@ -870,35 +870,48 @@ describe('gas', () => {
       });
     });
 
-    it('normalizes value in estimate request', async () => {
-      mockQuery({
-        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-        estimateGasResponse: toHex(GAS_MOCK),
-      });
+    it.each<[string, string | undefined, string]>([
+      ['undefined', undefined, '0x0'],
+      ['zero with leading zero digits', '0x00', '0x0'],
+      [
+        'a quantity with leading zero digits',
+        '0x0de0b6b3a7640000',
+        '0xde0b6b3a7640000',
+      ],
+      ['an already canonical quantity', '0x1', '0x1'],
+      ['not a strict hex string', '123', '123'],
+    ])(
+      'normalizes value in estimate request when value is %s',
+      async (_case, value, expectedValue) => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_MOCK),
+        });
 
-      await estimateGas({
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        messenger: MESSENGER_MOCK,
-        txParams: {
-          ...TRANSACTION_META_MOCK.txParams,
-          value: undefined,
-        },
-      });
-
-      expect(rpcRequestMock).toHaveBeenCalledWith({
-        messenger: MESSENGER_MOCK,
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        method: 'eth_estimateGas',
-        params: [
-          {
+        await estimateGas({
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          isSimulationEnabled: false,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          messenger: MESSENGER_MOCK,
+          txParams: {
             ...TRANSACTION_META_MOCK.txParams,
-            value: '0x0',
+            value,
           },
-        ],
-      });
-    });
+        });
+
+        expect(rpcRequestMock).toHaveBeenCalledWith({
+          messenger: MESSENGER_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          method: 'eth_estimateGas',
+          params: [
+            {
+              ...TRANSACTION_META_MOCK.txParams,
+              value: expectedValue,
+            },
+          ],
+        });
+      },
+    );
 
     it('normalizes authorization list in estimate request', async () => {
       mockQuery({
