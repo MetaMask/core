@@ -84,21 +84,20 @@ export class PhishingDetector {
     if (Array.isArray(opts)) {
       this.#configs = processConfigs(opts).map((config) => ({
         ...config,
-        c2DomainBlocklist: new Set(config.c2DomainBlocklist ?? []),
+        c2DomainBlocklist: new Set<string>(config.c2DomainBlocklist),
       }));
       this.#legacyConfig = false;
       // legacy configuration
     } else {
-      const baseConfig = getDefaultPhishingDetectorConfig({
-        allowlist: opts.whitelist,
-        blocklist: opts.blacklist,
-        fuzzylist: opts.fuzzylist,
-        tolerance: opts.tolerance,
-      });
       this.#configs = [
         {
-          ...baseConfig,
-          c2DomainBlocklist: new Set(baseConfig.c2DomainBlocklist ?? []),
+          ...getDefaultPhishingDetectorConfig({
+            allowlist: opts.whitelist,
+            blocklist: opts.blacklist,
+            fuzzylist: opts.fuzzylist,
+            tolerance: opts.tolerance,
+          }),
+          c2DomainBlocklist: new Set<string>(),
         },
       ];
       this.#legacyConfig = true;
