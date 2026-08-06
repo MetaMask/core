@@ -1160,8 +1160,6 @@ export class KycController extends BaseController<
       // finalizing its own decision (`finalStatus`). There is nothing left to
       // verify, so stop here and surface a message rather than launching the
       // SDK again.
-      console.log('===============> kycStatus', kycStatus);
-      console.log('===============> finalStatus', finalStatus);
       if (
         kycStatus === KYC_STATUSES.approved &&
         finalStatus === KYC_STATUSES.pending
