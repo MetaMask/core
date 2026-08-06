@@ -314,8 +314,13 @@ const PACKAGES: Record<string, PackageInfo> = {
   'sentinel-api-service': {
     teams: ['@MetaMask/confirmations', '@MetaMask/transactions'],
   },
+  'shield-api-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-api-service',
+  },
   'shield-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-controller',
   },
   'signature-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -353,6 +358,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'subscription-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-controller',
+  },
+  'subscription-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-service',
   },
   'transaction-controller': {
     teams: ['@MetaMask/confirmations'],

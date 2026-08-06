@@ -18,6 +18,22 @@ import {
   SubscriptionControllerErrorMessage,
 } from './constants.js';
 import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types.js';
+import type {
+  SubscriptionServiceAssignUserToCohortAction,
+  SubscriptionServiceCancelSubscriptionAction,
+  SubscriptionServiceGetBillingPortalUrlAction,
+  SubscriptionServiceGetPricingAction,
+  SubscriptionServiceGetSubscriptionsAction,
+  SubscriptionServiceGetSubscriptionsEligibilitiesAction,
+  SubscriptionServiceLinkRewardsAction,
+  SubscriptionServiceStartSubscriptionWithCardAction,
+  SubscriptionServiceStartSubscriptionWithCryptoAction,
+  SubscriptionServiceSubmitSponsorshipIntentsAction,
+  SubscriptionServiceSubmitUserEventAction,
+  SubscriptionServiceUnCancelSubscriptionAction,
+  SubscriptionServiceUpdatePaymentMethodCardAction,
+  SubscriptionServiceUpdatePaymentMethodCryptoAction,
+} from './SubscriptionService-method-action-types.js';
 import {
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -46,7 +62,6 @@ import type {
   CancelSubscriptionRequest,
 } from './types.js';
 import type {
-  ISubscriptionService,
   PricingResponse,
   ProductType,
   StartSubscriptionRequest,
@@ -81,8 +96,21 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetStateAction
   | SubscriptionControllerMethodActions;
 
-export type AllowedActions =
-  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+type AllowedActions =
+  | SubscriptionServiceGetPricingAction
+  | SubscriptionServiceGetSubscriptionsAction
+  | SubscriptionServiceGetSubscriptionsEligibilitiesAction
+  | SubscriptionServiceCancelSubscriptionAction
+  | SubscriptionServiceUnCancelSubscriptionAction
+  | SubscriptionServiceStartSubscriptionWithCardAction
+  | SubscriptionServiceStartSubscriptionWithCryptoAction
+  | SubscriptionServiceUpdatePaymentMethodCardAction
+  | SubscriptionServiceUpdatePaymentMethodCryptoAction
+  | SubscriptionServiceGetBillingPortalUrlAction
+  | SubscriptionServiceSubmitSponsorshipIntentsAction
+  | SubscriptionServiceSubmitUserEventAction
+  | SubscriptionServiceAssignUserToCohortAction
+  | SubscriptionServiceLinkRewardsAction
   | AuthenticationController.AuthenticationControllerPerformSignOutAction;
 
 // Events
@@ -93,8 +121,7 @@ export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
 export type SubscriptionControllerEvents =
   SubscriptionControllerStateChangeEvent;
 
-export type AllowedEvents =
-  AuthenticationController.AuthenticationControllerStateChangeEvent;
+type AllowedEvents = never;
 
 // Messenger
 export type SubscriptionControllerMessenger = Messenger<
@@ -113,11 +140,6 @@ export type SubscriptionControllerOptions = {
    * Initial state to set on this controller.
    */
   state?: Partial<SubscriptionControllerState>;
-
-  /**
-   * Subscription service to use for the subscription controller.
-   */
-  subscriptionService: ISubscriptionService;
 
   /**
    * Polling interval to use for the subscription controller.
@@ -223,23 +245,20 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   SubscriptionControllerState,
   SubscriptionControllerMessenger
 > {
-  readonly #subscriptionService: ISubscriptionService;
-
   /**
    * Creates a new SubscriptionController instance.
    *
    * @param options - The options for the SubscriptionController.
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
-   * @param options.subscriptionService - The subscription service for communicating with subscription server.
    * @param options.pollingInterval - The polling interval to use for the subscription controller.
    */
-  constructor({
-    messenger,
-    state,
-    subscriptionService,
-    pollingInterval = DEFAULT_POLLING_INTERVAL,
-  }: SubscriptionControllerOptions) {
+  constructor(options: SubscriptionControllerOptions) {
+    const {
+      messenger,
+      state,
+      pollingInterval = DEFAULT_POLLING_INTERVAL,
+    } = options;
     super({
       name: controllerName,
       metadata: subscriptionControllerMetadata,
@@ -251,7 +270,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     });
 
     this.setIntervalLength(pollingInterval);
-    this.#subscriptionService = subscriptionService;
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -264,7 +282,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @returns The pricing information.
    */
   async getPricing(): Promise<PricingResponse> {
-    const pricing = await this.#subscriptionService.getPricing();
+    const pricing = await this.messenger.call('SubscriptionService:getPricing');
     this.update((state) => {
       state.pricing = pricing;
     });
@@ -284,7 +302,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       trialedProducts: newTrialedProducts,
       lastSubscription: newLastSubscription,
       rewardAccountId: newRewardAccountId,
-    } = await this.#subscriptionService.getSubscriptions();
+    } = await this.messenger.call('SubscriptionService:getSubscriptions');
 
     // check if the new subscriptions are different from the current subscriptions
     const areSubscriptionsEqual = this.#areSubscriptionsEqual(
@@ -349,7 +367,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   async getSubscriptionsEligibilities(
     request?: GetSubscriptionsEligibilitiesRequest,
   ): Promise<SubscriptionEligibility[]> {
-    return await this.#subscriptionService.getSubscriptionsEligibilities(
+    return await this.messenger.call(
+      'SubscriptionService:getSubscriptionsEligibilities',
       request,
     );
   }
@@ -357,8 +376,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   async cancelSubscription(request: CancelSubscriptionRequest): Promise<void> {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
-    const cancelledSubscription =
-      await this.#subscriptionService.cancelSubscription(request);
+    const cancelledSubscription = await this.messenger.call(
+      'SubscriptionService:cancelSubscription',
+      request,
+    );
 
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
@@ -376,10 +397,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }): Promise<void> {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
-    const uncancelledSubscription =
-      await this.#subscriptionService.unCancelSubscription({
+    const uncancelledSubscription = await this.messenger.call(
+      'SubscriptionService:unCancelSubscription',
+      {
         subscriptionId: request.subscriptionId,
-      });
+      },
+    );
 
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
@@ -397,8 +420,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   ): Promise<StartSubscriptionResponse> {
     this.#assertIsUserNotSubscribed({ products: request.products });
 
-    const response =
-      await this.#subscriptionService.startSubscriptionWithCard(request);
+    const response = await this.messenger.call(
+      'SubscriptionService:startSubscriptionWithCard',
+      request,
+    );
     // note: no need to trigger access token refresh after startSubscriptionWithCard request because this only return stripe checkout session url, subscription not created yet
 
     return response;
@@ -408,8 +433,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse> {
     this.#assertIsUserNotSubscribed({ products: request.products });
-    const response =
-      await this.#subscriptionService.startSubscriptionWithCrypto(request);
+    const response = await this.messenger.call(
+      'SubscriptionService:startSubscriptionWithCrypto',
+      request,
+    );
 
     return response;
   }
@@ -568,12 +595,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   ): Promise<UpdatePaymentMethodCardResponse | Subscription[]> {
     if (opts.paymentType === PAYMENT_TYPES.byCard) {
       const { paymentType, ...cardRequest } = opts;
-      return await this.#subscriptionService.updatePaymentMethodCard(
+      return await this.messenger.call(
+        'SubscriptionService:updatePaymentMethodCard',
         cardRequest,
       );
     } else if (opts.paymentType === PAYMENT_TYPES.byCrypto) {
       const { paymentType, ...cryptoRequest } = opts;
-      await this.#subscriptionService.updatePaymentMethodCrypto(cryptoRequest);
+      await this.messenger.call(
+        'SubscriptionService:updatePaymentMethodCrypto',
+        cryptoRequest,
+      );
       return await this.getSubscriptions();
     }
     throw new Error('Invalid payment type');
@@ -585,7 +616,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @returns The billing portal URL
    */
   async getBillingPortalUrl(): Promise<BillingPortalResponse> {
-    return await this.#subscriptionService.getBillingPortalUrl();
+    return await this.messenger.call('SubscriptionService:getBillingPortalUrl');
   }
 
   /**
@@ -681,7 +712,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
     const billingCycles = productPrice.minBillingCycles;
 
-    await this.#subscriptionService.submitSponsorshipIntents({
+    await this.messenger.call('SubscriptionService:submitSponsorshipIntents', {
       ...request,
       paymentTokenSymbol,
       billingCycles,
@@ -697,7 +728,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed, cohort: 'post_tx' }
    */
   async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
-    await this.#subscriptionService.submitUserEvent(request);
+    await this.messenger.call('SubscriptionService:submitUserEvent', request);
   }
 
   /**
@@ -707,7 +738,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @example { cohort: 'post_tx' }
    */
   async assignUserToCohort(request: AssignCohortRequest): Promise<void> {
-    await this.#subscriptionService.assignUserToCohort(request);
+    await this.messenger.call(
+      'SubscriptionService:assignUserToCohort',
+      request,
+    );
   }
 
   /**
@@ -726,9 +760,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
     // link rewards to the subscription
-    const response = await this.#subscriptionService.linkRewards({
-      rewardAccountId: request.rewardAccountId,
-    });
+    const response = await this.messenger.call(
+      'SubscriptionService:linkRewards',
+      {
+        rewardAccountId: request.rewardAccountId,
+      },
+    );
     if (!response.success) {
       throw new Error(SubscriptionControllerErrorMessage.LinkRewardsFailed);
     }
