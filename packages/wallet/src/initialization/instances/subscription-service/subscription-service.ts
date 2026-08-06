@@ -13,8 +13,8 @@ export const subscriptionService: InitializationConfiguration<
   name: 'SubscriptionService',
   init: ({ messenger, options }) =>
     new SubscriptionService({
-      messenger,
       ...options,
+      messenger,
     }),
   getMessenger: (parent) => {
     const messenger: SubscriptionServiceMessenger = new Messenger({

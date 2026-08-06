@@ -30,9 +30,9 @@ export const subscriptionController: InitializationConfiguration<
   name: 'SubscriptionController',
   init: ({ state, messenger, options }) =>
     new SubscriptionController({
+      ...options,
       messenger,
       state,
-      ...options,
     }),
   getMessenger: (parent) => {
     const messenger: SubscriptionControllerMessenger = new Messenger({
