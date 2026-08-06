@@ -6,7 +6,7 @@ import type {
   FeeMarketEIP1559Values,
   GasPriceValue,
   TransactionParams,
-} from '../types';
+} from '../types.js';
 
 /**
  * Returns new transaction parameters with increased gas fees.

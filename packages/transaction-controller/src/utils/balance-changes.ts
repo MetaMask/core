@@ -7,7 +7,7 @@ import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { simulateTransactions } from '../api/simulation-api';
+import { simulateTransactions } from '../api/simulation-api.js';
 import type {
   SimulationResponseLog,
   SimulationRequestTransaction,
@@ -15,18 +15,18 @@ import type {
   SimulationResponseCallTrace,
   SimulationResponseTransaction,
   SimulationRequest,
-} from '../api/simulation-api';
+} from '../api/simulation-api.js';
 import {
   ABI_SIMULATION_ERC20_WRAPPED,
   ABI_SIMULATION_ERC721_LEGACY,
-} from '../constants';
+} from '../constants.js';
 import {
   SimulationError,
   SimulationInvalidResponseError,
   SimulationRevertedError,
-} from '../errors';
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+} from '../errors.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   Revert,
   SimulationBalanceChange,
@@ -36,10 +36,10 @@ import type {
   TransactionParams,
   NestedTransactionMetadata,
   GetSimulationConfig,
-} from '../types';
-import { SimulationTokenStandard } from '../types';
-import { getNativeBalance } from './balance';
-import { decodeRevert } from './revert-reason';
+} from '../types.js';
+import { SimulationTokenStandard } from '../types.js';
+import { getNativeBalance } from './balance.js';
+import { decodeRevert } from './revert-reason.js';
 
 export enum SupportedToken {
   ERC20 = 'erc20',

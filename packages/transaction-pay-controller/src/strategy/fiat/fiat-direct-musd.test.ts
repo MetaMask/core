@@ -3,20 +3,20 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../../constants';
+import { TransactionPayStrategy } from '../../constants.js';
 import type {
   PayStrategyGetQuotesRequest,
   TransactionFiatPayment,
   TransactionPayRequiredToken,
   TransactionPayQuote,
-} from '../../types';
-import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
-import { getTransaction } from '../../utils/transaction';
-import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants';
+} from '../../types.js';
+import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
+import { getTransaction } from '../../utils/transaction.js';
+import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import {
   getDirectMusdFiatQuote,
   isDirectMusdMoneyAccountQuote,
-} from './fiat-direct-musd';
+} from './fiat-direct-musd.js';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');

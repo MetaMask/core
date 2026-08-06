@@ -7,8 +7,8 @@ import type {
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { TransactionControllerMessenger } from '..';
-import type { TransactionControllerFeatureFlags } from './feature-flags';
+import type { TransactionControllerMessenger } from '../index.js';
+import type { TransactionControllerFeatureFlags } from './feature-flags.js';
 import {
   getAcceleratedPollingParams,
   getBatchSizeLimit,
@@ -22,8 +22,10 @@ import {
   getTransactionHistoryLimit,
   FeatureFlag,
   getTimeoutAttempts,
-} from './feature-flags';
-import { isValidSignature } from './signature';
+  getReplaceUnderpricedDappGasFeesEnabled,
+  getReplaceUnderpricedSavedGasFeesEnabled,
+} from './feature-flags.js';
+import { isValidSignature } from './signature.js';
 
 jest.mock('./signature');
 
@@ -819,6 +821,52 @@ describe('Feature Flags Utils', () => {
           messenger: controllerMessenger,
         }),
       ).toBe(GAS_BUFFER_5_MOCK);
+    });
+  });
+
+  describe.each([
+    [
+      'getReplaceUnderpricedDappGasFeesEnabled',
+      getReplaceUnderpricedDappGasFeesEnabled,
+      'replaceUnderpricedDappGasFees' as const,
+    ],
+    [
+      'getReplaceUnderpricedSavedGasFeesEnabled',
+      getReplaceUnderpricedSavedGasFeesEnabled,
+      'replaceUnderpricedSavedGasFees' as const,
+    ],
+  ])('%s', (_name, getter, flagKey) => {
+    it('returns false if no feature flags set', () => {
+      mockFeatureFlags({});
+
+      expect(getter(CHAIN_ID_MOCK, controllerMessenger)).toBe(false);
+    });
+
+    it('returns default value if no chain-specific config', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          [flagKey]: {
+            default: true,
+          },
+        },
+      });
+
+      expect(getter(CHAIN_ID_MOCK, controllerMessenger)).toBe(true);
+    });
+
+    it('returns chain-specific value when available', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          [flagKey]: {
+            default: true,
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: false,
+            },
+          },
+        },
+      });
+
+      expect(getter(CHAIN_ID_MOCK, controllerMessenger)).toBe(false);
     });
   });
 

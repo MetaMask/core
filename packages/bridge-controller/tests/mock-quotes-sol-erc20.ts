@@ -1,9 +1,11 @@
 import { merge } from 'lodash';
 
-import type { DeepPartial } from '../src/types';
-import type { QuoteResponseV1 } from '../src/validators/quote-response-v1';
-import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1';
-import { ActionTypes } from '../src/validators/step';
+import { toQuoteResponseV2 } from '../src/coercers/quote-response-v1-to-v2.js';
+import type { DeepPartial } from '../src/types.js';
+import type { QuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import type { QuoteResponse } from '../src/validators/quote-response.js';
+import { ActionTypes } from '../src/validators/step.js';
 
 export const mockBridgeQuotesSolErc20V1: QuoteResponseV1[] = [
   {
@@ -180,7 +182,7 @@ export const mockBridgeQuotesSolErc20V1: QuoteResponseV1[] = [
   },
 ];
 
-export const getMockBridgeQuotesSolErc20V2 = (
+export const getMockBridgeQuotesSolErc20V1 = (
   quoteOverrides?: DeepPartial<QuoteResponseV1>,
 ): QuoteResponseV1[] => {
   return mockBridgeQuotesSolErc20V1.map((quote) => {
@@ -188,4 +190,10 @@ export const getMockBridgeQuotesSolErc20V2 = (
     validateQuoteResponseV1(mergedQuote);
     return mergedQuote;
   });
+};
+
+export const getMockBridgeQuotesSolErc20V2 = (
+  quoteOverrides?: DeepPartial<QuoteResponseV1>,
+): QuoteResponse[] => {
+  return getMockBridgeQuotesSolErc20V1(quoteOverrides).map(toQuoteResponseV2);
 };

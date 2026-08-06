@@ -3,8 +3,8 @@ import type { Web3Provider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
-import { reduceInBatchesSerially } from './assetsUtil';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController.js';
+import { reduceInBatchesSerially } from './assetsUtil.js';
 
 // https://github.com/mds1/multicall/blob/main/deployments.json
 const MULTICALL_CONTRACT_BY_CHAINID = {
@@ -319,6 +319,11 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x13b2': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Robinhood Chain (4663)
   '0x1237': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Somnia (5031), MultiCallV3 per docs.somnia.network/developer/smart-contracts
+  '0x13a7': '0x5e44F178E8cF9B2F5409B6f18ce936aB817C5a11',
+  // 0G (16661), canonical mds1/multicall3 deployment, live-verified
+  // (matching bytecode across primary + both fallback RPCs)
+  '0x4115': '0xcA11bde05977b3631167028862bE2a173976CA11',
 } as Record<Hex, Hex>;
 
 const multicallAbi = [

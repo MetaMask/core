@@ -1,7 +1,7 @@
 import type {
   CodeownersRule,
   CodeownersSection,
-} from './scripts/manage-codeowners/types';
+} from './scripts/manage-codeowners/types.js';
 
 /**
  * Metadata about a package in the monorepo, used to generate CODEOWNERS
@@ -160,6 +160,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'gas-fee-controller': {
     teams: ['@MetaMask/confirmations'],
+    initializationPath: 'gas-fee-controller',
   },
   'gator-permissions-controller': {
     teams: ['@MetaMask/delegation'],
@@ -183,6 +184,9 @@ const PACKAGES: Record<string, PackageInfo> = {
   'keyring-controller': {
     teams: ['@MetaMask/accounts-engineers', '@MetaMask/core-platform'],
     initializationPath: 'keyring-controller',
+  },
+  'kyc-controller': {
+    teams: ['@MetaMask/universal-kyc'],
   },
   'local-node-utils': {
     teams: [
@@ -214,6 +218,9 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'money-account-upgrade-controller': {
     teams: ['@MetaMask/earn', '@MetaMask/delegation'],
+  },
+  'money-account-utils': {
+    teams: ['@MetaMask/earn'],
   },
   'multichain-account-service': {
     teams: ['@MetaMask/accounts-engineers'],
@@ -248,6 +255,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'passkey-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'passkey-controller',
   },
   'permission-controller': {
     teams: ['@MetaMask/core-platform'],
@@ -298,6 +306,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'seedless-onboarding-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'seedless-onboarding-controller',
   },
   'selected-network-controller': {
     teams: ['@MetaMask/core-platform'],
@@ -305,8 +314,13 @@ const PACKAGES: Record<string, PackageInfo> = {
   'sentinel-api-service': {
     teams: ['@MetaMask/confirmations', '@MetaMask/transactions'],
   },
+  'shield-api-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-api-service',
+  },
   'shield-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-controller',
   },
   'signature-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -344,6 +358,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'subscription-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-controller',
+  },
+  'subscription-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-service',
   },
   'transaction-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -457,6 +476,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('money-account-api-data-service'),
         buildRuleForPackage('chomp-api-service'),
         buildRuleForPackage('money-account-upgrade-controller'),
+        buildRuleForPackage('money-account-utils'),
       ],
     },
     {
@@ -549,6 +569,10 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('subscription-controller'),
         buildRuleForPackage('claims-controller'),
       ],
+    },
+    {
+      title: 'Universal KYC Team',
+      rules: [buildRuleForPackage('kyc-controller')],
     },
   ];
 }
@@ -686,7 +710,9 @@ function buildPackageReleaseSection(): CodeownersSection {
     'money-account-controller',
     'chomp-api-service',
     'money-account-upgrade-controller',
+    'money-account-utils',
     'snap-account-service',
+    'kyc-controller',
   ] as const satisfies (keyof typeof PACKAGES)[];
 
   return {
@@ -700,6 +726,7 @@ function buildPackageReleaseSection(): CodeownersSection {
       return [
         { pattern: `${workspacePath}/package.json`, owners },
         { pattern: `${workspacePath}/CHANGELOG.md`, owners },
+        { pattern: `${workspacePath}/tsconfig.*`, owners },
       ];
     }),
   };

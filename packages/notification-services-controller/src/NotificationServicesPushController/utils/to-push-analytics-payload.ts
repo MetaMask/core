@@ -1,4 +1,4 @@
-import type { PushAnalyticsPayload } from '../types';
+import type { PushAnalyticsPayload } from '../types/index.js';
 
 /**
  * Builds the first-class push analytics payload from the top-level FCM `data`

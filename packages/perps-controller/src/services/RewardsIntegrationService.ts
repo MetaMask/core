@@ -1,13 +1,13 @@
 import {
   BASIS_POINTS_DIVISOR,
   BUILDER_FEE_CONFIG,
-} from '../constants/hyperLiquidConfig';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
-import type { PerpsPlatformDependencies } from '../types';
-import type { PerpsControllerMessengerBase } from '../types/messenger';
-import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils';
-import { ensureError } from '../utils/errorUtils';
-import { formatAccountToCaipAccountId } from '../utils/rewardsUtils';
+} from '../constants/hyperLiquidConfig.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import type { PerpsPlatformDependencies } from '../types/index.js';
+import type { PerpsControllerMessengerBase } from '../types/messenger.js';
+import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
+import { ensureError } from '../utils/errorUtils.js';
+import { formatAccountToCaipAccountId } from '../utils/rewardsUtils.js';
 
 /**
  * RewardsIntegrationService

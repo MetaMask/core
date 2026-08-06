@@ -1,5 +1,5 @@
-export { SentinelApiService } from './sentinel-api-service';
-export { SentinelEnvironment, serviceName } from './constants';
+export { SentinelApiService } from './sentinel-api-service.js';
+export { SentinelEnvironment, serviceName } from './constants.js';
 export type {
   SentinelApiServiceActions,
   SentinelApiServiceEvents,
@@ -27,20 +27,20 @@ export type {
   SentinelSmartTransactionRequest,
   SentinelSmartTransactionResponse,
   SentinelStateOverrides,
-} from './types';
+} from './types.js';
 export {
   SentinelFeature,
   SentinelKind,
   SentinelSmartTransactionStatus,
-} from './types';
+} from './types.js';
 export type {
   SentinelApiServiceGetNetworksAction,
   SentinelApiServiceSimulateTransactionsAction,
   SentinelApiServiceSubmitRelayTransactionAction,
   SentinelApiServiceGetSmartTransactionAction,
-} from './sentinel-api-service-method-action-types';
+} from './sentinel-api-service-method-action-types.js';
 export {
   SentinelApiResponseValidationError,
   SentinelChainNotSupportedError,
   SentinelJsonRpcError,
-} from './errors';
+} from './errors.js';

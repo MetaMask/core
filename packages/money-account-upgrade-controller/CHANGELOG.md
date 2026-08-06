@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [3.0.0]
+
 ### Added
 
 - **BREAKING:** Add persisted state tracking fully upgraded accounts ([#9500](https://github.com/MetaMask/core/pull/9500))
@@ -24,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `upgradeAccount` now skips the step sequence entirely when the account is recorded in state as upgraded under the active config fingerprint, and records the account after a successful run. If the chain, CHOMP contract addresses, or Delegation Framework version change, the fingerprint no longer matches and the sequence re-runs ([#9500](https://github.com/MetaMask/core/pull/9500))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/authenticated-user-storage` from `^3.0.0` to `^3.0.1` ([#9458](https://github.com/MetaMask/core/pull/9458))
+- Bump `@metamask/chomp-api-service` from `^3.1.0` to `^4.0.0` ([#9592](https://github.com/MetaMask/core/pull/9592))
 
 ## [2.2.1]
 
@@ -158,7 +172,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.1...HEAD
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.0...@metamask/money-account-upgrade-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.2.1...@metamask/money-account-upgrade-controller@3.0.0
 [2.2.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.2.0...@metamask/money-account-upgrade-controller@2.2.1
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.1.0...@metamask/money-account-upgrade-controller@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.5...@metamask/money-account-upgrade-controller@2.1.0

@@ -17,8 +17,8 @@ import {
 import {
   AssetsControllerMessenger,
   getDefaultAssetsControllerState,
-} from '../AssetsController';
-import { STAKING_INTERFACE } from '../data-sources/evm-rpc-services/services/StakedBalanceFetcher';
+} from '../AssetsController.js';
+import { STAKING_INTERFACE } from '../data-sources/evm-rpc-services/services/StakedBalanceFetcher.js';
 
 // Test escape hatch for mocking areas that do not need explicit types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,6 +53,7 @@ export function createMockAssetControllerMessenger(): {
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
       'AssetsController:getState',
       // RpcDataSource
+      'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       // RpcDataSource, StakedBalanceDataSource
@@ -61,20 +62,6 @@ export function createMockAssetControllerMessenger(): {
       'SnapController:getRunnableSnaps',
       'SnapController:handleRequest',
       'PermissionController:getPermissions',
-      // BackendWebsocketDataSource
-      'BackendWebSocketService:connect',
-      'BackendWebSocketService:disconnect',
-      'BackendWebSocketService:forceReconnection',
-      'BackendWebSocketService:sendMessage',
-      'BackendWebSocketService:sendRequest',
-      'BackendWebSocketService:getConnectionInfo',
-      'BackendWebSocketService:getSubscriptionsByChannel',
-      'BackendWebSocketService:channelHasSubscription',
-      'BackendWebSocketService:findSubscriptionsByChannelPrefix',
-      'BackendWebSocketService:addChannelCallback',
-      'BackendWebSocketService:removeChannelCallback',
-      'BackendWebSocketService:getChannelCallbacks',
-      'BackendWebSocketService:subscribe',
     ],
     events: [
       // AssetsController
@@ -92,10 +79,9 @@ export function createMockAssetControllerMessenger(): {
       // SnapDataSource
       'AccountsController:accountBalancesUpdated',
       'PermissionController:stateChange',
-      // BackendWebsocketDataSource
-      'BackendWebSocketService:connectionStateChanged',
-      // AccountActivityService
+      // AccountActivityService (real-time balances + chain status)
       'AccountActivityService:balanceUpdated',
+      'AccountActivityService:statusChanged',
     ],
   });
 
@@ -183,6 +169,11 @@ export function registerRpcDataSourceActions(
         [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
       },
     }),
+  );
+
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+    () => undefined,
   );
 }
 

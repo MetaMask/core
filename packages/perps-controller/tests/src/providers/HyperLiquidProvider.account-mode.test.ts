@@ -3,18 +3,18 @@ jest.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
 
-import { CandlePeriod } from '../../../src/constants/chartConfig';
+import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
   BUILDER_FEE_CONFIG,
   REFERRAL_CONFIG,
-} from '../../../src/constants/hyperLiquidConfig';
-import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig';
-import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes';
-import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider';
-import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService';
-import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService';
-import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService';
-import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache';
+} from '../../../src/constants/hyperLiquidConfig.js';
+import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
+import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
 import type {
   ClosePositionParams,
   DepositParams,
@@ -22,7 +22,7 @@ import type {
   PerpsPlatformDependencies,
   LiveDataConfig,
   OrderParams,
-} from '../../../src/types';
+} from '../../../src/types/index.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -30,12 +30,12 @@ import {
   validateDepositParams,
   validateOrderParams,
   validateWithdrawalParams,
-} from '../../../src/utils/hyperLiquidValidation';
-import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient';
+} from '../../../src/utils/hyperLiquidValidation.js';
+import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidWalletService');
@@ -188,6 +188,9 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
   // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
   // so tests that predated the gate still see spot folded into spendable/withdrawable.
   userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+  // Single-signer account by default; Hyperliquid returns null when the user
+  // has no multi-sig signer set.
+  userToMultiSigSigners: jest.fn().mockResolvedValue(null),
   meta: jest.fn().mockResolvedValue({
     universe: [
       { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
@@ -1554,6 +1557,197 @@ describe('HyperLiquidProvider', () => {
         attempted: true,
         enabled: true,
       });
+    });
+
+    // ─────────────────────────────────────────────────
+    // Hyperliquid multi-sig accounts (TAT-3214)
+    //
+    // Hyperliquid rejects every single-signer exchange write for an account
+    // that was converted to multi-sig with "ApiRequestError: Multi-sig
+    // required". Attempting the migration surfaced that error on the Perps
+    // tab on every entry.
+    // ─────────────────────────────────────────────────
+
+    it('skips unified account migration for Hyperliquid multi-sig accounts', async () => {
+      // Arrange - migratable mode, but the account has a multi-sig signer set
+      const mockExchangeClient = createMockExchangeClient();
+      const userToMultiSigSigners = jest.fn().mockResolvedValue({
+        authorizedUsers: ['0xabc0000000000000000000000000000000000001'],
+        threshold: 2,
+      });
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('default'),
+          userToMultiSigSigners,
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(mockExchangeClient);
+
+      // Act
+      await provider.getMarketDataWithPrices();
+
+      // Assert - the signer set was queried and no write was attempted
+      expect(userToMultiSigSigners).toHaveBeenCalledWith({
+        user: USER_ADDRESS,
+      });
+      expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
+      expect(mockExchangeClient.userSetAbstraction).not.toHaveBeenCalled();
+      // No migration_required event — the migration is not possible at all.
+      expect(
+        mockPlatformDependencies.metrics.trackPerpsEvent,
+      ).not.toHaveBeenCalledWith(
+        'Perp Account Setup',
+        expect.objectContaining({ status: 'migration_required' }),
+      );
+      expect(
+        mockPlatformDependencies.metrics.trackPerpsEvent,
+      ).toHaveBeenCalledWith(
+        'Perp Account Setup',
+        expect.objectContaining({
+          status: 'not_applicable',
+          error_message: 'multi_sig_account',
+        }),
+      );
+    });
+
+    it('caches attempted-but-not-enabled readiness for Hyperliquid multi-sig accounts', async () => {
+      // Arrange
+      const mockCompleteInFlight = jest.fn();
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).setInFlight.mockReturnValue(mockCompleteInFlight);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('default'),
+          userToMultiSigSigners: jest.fn().mockResolvedValue({
+            authorizedUsers: ['0xabc0000000000000000000000000000000000001'],
+            threshold: 2,
+          }),
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(createMockExchangeClient());
+
+      // Act
+      await provider.getMarketDataWithPrices();
+
+      // Assert - final state, so the next entry short-circuits instead of
+      // re-attempting a write that can never succeed.
+      expect(
+        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+          .set,
+      ).toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
+        attempted: true,
+        enabled: false,
+      });
+      // Unified mode stays off, so spot must not be folded.
+      expect(
+        mockSubscriptionService.setUserAbstractionMode,
+      ).not.toHaveBeenCalled();
+      expect(mockCompleteInFlight).toHaveBeenCalled();
+    });
+
+    it('treats a Multi-sig required rejection as benign instead of reporting an error', async () => {
+      // The signer-set lookup and the write can race (the account is
+      // converted between the two calls), and other single-signer write paths
+      // can hit the same rejection. Classify it rather than surfacing it.
+      const mockExchangeClient = createMockExchangeClient();
+      mockExchangeClient.agentSetAbstraction = jest
+        .fn()
+        .mockRejectedValue(new Error('ApiRequestError: Multi-sig required'));
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('default'),
+          // Stale null — the account became multi-sig after the probe.
+          userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(mockExchangeClient);
+
+      // Act
+      await provider.getMarketDataWithPrices();
+
+      // Assert - not forwarded to the client error surface / Sentry
+      expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+      expect(
+        mockPlatformDependencies.metrics.trackPerpsEvent,
+      ).not.toHaveBeenCalledWith(
+        'Perp Account Setup',
+        expect.objectContaining({ status: 'failed' }),
+      );
+      expect(
+        mockPlatformDependencies.metrics.trackPerpsEvent,
+      ).toHaveBeenCalledWith(
+        'Perp Account Setup',
+        expect.objectContaining({
+          previous_abstraction_mode: 'default',
+          status: 'not_applicable',
+          error_message: 'multi_sig_account',
+        }),
+      );
+      expect(
+        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+          .set,
+      ).toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
+        attempted: true,
+        enabled: false,
+      });
+    });
+
+    it('still migrates single-signer accounts when the multi-sig probe fails', async () => {
+      // Fail open: a transient info-API failure must never block migration
+      // for the overwhelming majority of accounts. The catch-path classifier
+      // remains the safety net.
+      const mockExchangeClient = createMockExchangeClient();
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('default'),
+          userToMultiSigSigners: jest
+            .fn()
+            .mockRejectedValue(new Error('Transient HL network blip')),
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(mockExchangeClient);
+
+      // Act
+      await provider.getMarketDataWithPrices();
+
+      // Assert
+      expect(mockExchangeClient.agentSetAbstraction).toHaveBeenCalledWith({
+        abstraction: 'u',
+      });
+      expect(
+        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+          .set,
+      ).toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
+        attempted: true,
+        enabled: true,
+      });
+    });
+
+    it('does not query the multi-sig signer set when no migration write is needed', async () => {
+      // Accounts already on a compatible mode never reach a write, so they
+      // must not pay an extra Hyperliquid round trip.
+      const userToMultiSigSigners = jest.fn().mockResolvedValue(null);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+          userToMultiSigSigners,
+        }),
+      );
+
+      // Act
+      await provider.getMarketDataWithPrices();
+
+      // Assert
+      expect(userToMultiSigSigners).not.toHaveBeenCalled();
     });
 
     // ─────────────────────────────────────────────────

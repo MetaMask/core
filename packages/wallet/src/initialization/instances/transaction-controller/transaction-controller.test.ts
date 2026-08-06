@@ -115,6 +115,9 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),
     },
+    gasFeeController: {
+      clientId: 'test',
+    },
     networkController: {
       infuraProjectId: 'test-infura-project-id',
     },
@@ -122,6 +125,7 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    subscriptionController: {},
   };
 }
 

@@ -3,16 +3,19 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { getMessengerMock } from '../../tests/messenger-mock';
-import type { TransactionPayQuote } from '../../types';
-import type { FeatureFlags } from '../../utils/feature-flags';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { TransactionPayQuote } from '../../types.js';
+import type { FeatureFlags } from '../../utils/feature-flags.js';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-} from '../../utils/feature-flags';
-import { submitViaRelayExecute } from './relay-submit-execute';
-import type { RelayQuote } from './types';
+} from '../../utils/feature-flags.js';
+import {
+  getRelayExecuteRequest,
+  submitViaRelayExecute,
+} from './relay-submit-execute.js';
+import type { RelayQuote } from './types.js';
 
 jest.mock('../../utils/feature-flags');
 
@@ -454,6 +457,276 @@ describe('Relay Submit Execute', () => {
       ).rejects.toThrow(
         'Execute: Missing metamask.signature — cannot submit to /relay/execute without the HMAC token',
       );
+    });
+  });
+
+  describe('getRelayExecuteRequest', () => {
+    beforeEach(() => {
+      getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
+    });
+
+    it('builds execute request with authorizationList when delegation has one', async () => {
+      const result = await getRelayExecuteRequest({
+        allParams,
+        messenger,
+        quote,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      expect(result.data.authorizationList).toStrictEqual([
+        {
+          chainId: 1,
+          address: '0xdelegateAddr',
+          nonce: 0,
+          yParity: 0,
+          r: '0xr',
+          s: '0xs',
+        },
+      ]);
+    });
+
+    it('omits authorizationList when delegation has none', async () => {
+      getDelegationTransactionMock.mockResolvedValue({
+        ...DELEGATION_RESULT_MOCK,
+        authorizationList: undefined,
+      });
+
+      const result = await getRelayExecuteRequest({
+        allParams,
+        messenger,
+        quote,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      expect(result.data.authorizationList).toBeUndefined();
+    });
+
+    it('returns correct executionKind and requestId', async () => {
+      const result = await getRelayExecuteRequest({
+        allParams,
+        messenger,
+        quote,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      expect(result.executionKind).toBe('rawCalls');
+      expect(result.requestId).toBe(REQUEST_ID_MOCK);
+    });
+
+    it('sets nestedTransactions from allParams', async () => {
+      await getRelayExecuteRequest({
+        allParams,
+        messenger,
+        quote,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: expect.objectContaining({
+          nestedTransactions: [
+            {
+              data: '0x1234',
+              to: '0xfedcb',
+              value: '0x4d2',
+            },
+          ],
+        }),
+        isSubsidized: false,
+      });
+    });
+
+    it('uses 0x fallback when params.data is undefined', async () => {
+      const paramsWithoutData = [
+        {
+          to: '0xfedcb' as Hex,
+          data: undefined,
+          value: '0x4d2' as Hex,
+        },
+      ];
+
+      await getRelayExecuteRequest({
+        allParams: paramsWithoutData,
+        messenger,
+        quote,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: expect.objectContaining({
+          nestedTransactions: [
+            expect.objectContaining({
+              data: '0x',
+            }),
+          ],
+        }),
+        isSubsidized: false,
+      });
+    });
+
+    it('does not regenerate batch txParams when regenerateBatchParams is false (default)', async () => {
+      transaction.txParams.data = '0xoriginaldata2' as Hex;
+      transaction.txParams.to = '0xoriginalto2' as Hex;
+
+      await getRelayExecuteRequest({
+        allParams,
+        messenger,
+        quote,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      const call = getDelegationTransactionMock.mock.calls[0][0] as {
+        transaction: TransactionMeta;
+      };
+
+      // Without regenerateBatchParams, txParams retains the original to/data
+      expect(call.transaction.txParams.to).toBe('0xoriginalto2');
+      expect(call.transaction.txParams.data).toBe('0xoriginaldata2');
+    });
+
+    it('does not regenerate txParams when regenerateBatchParams is false (default)', async () => {
+      transaction.txParams.data = '0xoriginaldata' as Hex;
+      transaction.txParams.to = '0xoriginalto' as Hex;
+
+      await getRelayExecuteRequest({
+        allParams,
+        messenger,
+        quote,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      const call = getDelegationTransactionMock.mock.calls[0][0] as {
+        transaction: TransactionMeta;
+      };
+
+      expect(call.transaction.txParams.from).toBe(FROM_MOCK);
+      expect(call.transaction.txParams.data).toBe('0xoriginaldata');
+      expect(call.transaction.txParams.to).toBe('0xoriginalto');
+    });
+
+    it('uses single nested transaction directly without batch wrapping when regenerateBatchParams is true and single param', async () => {
+      // Single param: no EIP-7702 batch wrapping; txParams.to/data/value come from the single nested tx
+      await getRelayExecuteRequest({
+        allParams,
+        messenger,
+        quote,
+        regenerateBatchParams: true,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      const call = getDelegationTransactionMock.mock.calls[0][0] as {
+        transaction: TransactionMeta;
+      };
+
+      // txParams should reflect the single nested transaction directly (not a batch wrapper)
+      expect(call.transaction.txParams.to).toBe(allParams[0].to);
+      expect(call.transaction.txParams.data).toBe(allParams[0].data);
+      expect(call.transaction.txParams.value).toBe(allParams[0].value);
+    });
+
+    it('uses single nested transaction directly in txParams when regenerateBatchParams is true', async () => {
+      await getRelayExecuteRequest({
+        allParams,
+        messenger,
+        quote,
+        regenerateBatchParams: true,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: expect.objectContaining({
+          txParams: expect.objectContaining({
+            from: FROM_MOCK,
+            to: '0xfedcb',
+            data: '0x1234',
+            value: '0x4d2',
+          }),
+        }),
+        isSubsidized: false,
+      });
+    });
+
+    it('calls generateEIP7702BatchTransaction for multiple params when regenerateBatchParams is true', async () => {
+      const batchFrom = '0x1111111111111111111111111111111111111111' as Hex;
+      quote.request.from = batchFrom;
+
+      const multiParams = [
+        {
+          to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex,
+          data: '0x1111' as Hex,
+          value: '0x1' as Hex,
+        },
+        {
+          to: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex,
+          data: '0x2222' as Hex,
+          value: '0x2' as Hex,
+        },
+      ];
+
+      const expectedBatch = generateEIP7702BatchTransaction(
+        batchFrom,
+        multiParams,
+      );
+
+      await getRelayExecuteRequest({
+        allParams: multiParams,
+        messenger,
+        quote,
+        regenerateBatchParams: true,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: expect.objectContaining({
+          txParams: expect.objectContaining({
+            from: batchFrom,
+            to: expectedBatch.to,
+            data: expectedBatch.data,
+            value: '0x0',
+          }),
+        }),
+        isSubsidized: false,
+      });
+    });
+
+    it('calls getDelegationTransaction with isSubsidized: true when specified', async () => {
+      await getRelayExecuteRequest({
+        allParams,
+        isSubsidized: true,
+        messenger,
+        quote,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: expect.objectContaining({}),
+        isSubsidized: true,
+      });
+    });
+
+    it('calls getDelegationTransaction with isSubsidized: false by default', async () => {
+      await getRelayExecuteRequest({
+        allParams,
+        messenger,
+        quote,
+        requestId: REQUEST_ID_MOCK,
+        transaction,
+      });
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: expect.objectContaining({}),
+        isSubsidized: false,
+      });
     });
   });
 });

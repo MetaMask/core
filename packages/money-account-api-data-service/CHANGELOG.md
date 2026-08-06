@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+## [0.4.0]
+
+### Changed
+
+- Add best-effort profile JWT authentication to Money Account API requests, falling back to unauthenticated requests when a token is unavailable ([#9661](https://github.com/MetaMask/core/pull/9661))
+
+## [0.3.0]
+
 ### Added
 
 - Add optional `trace` callback to `MoneyAccountApiDataService` constructor for network request tracing ([#9451](https://github.com/MetaMask/core/pull/9451))
@@ -29,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.0...HEAD
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.3.0...@metamask/money-account-api-data-service@0.4.0
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.2.0...@metamask/money-account-api-data-service@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.1.0...@metamask/money-account-api-data-service@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/money-account-api-data-service@0.1.0

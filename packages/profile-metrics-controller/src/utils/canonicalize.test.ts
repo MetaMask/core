@@ -1,7 +1,7 @@
 import {
   canonicalizeAddress,
   ProofUnsupportedNamespaceError,
-} from './canonicalize';
+} from './canonicalize.js';
 
 describe('canonicalizeAddress', () => {
   describe('eip155', () => {

@@ -9,22 +9,22 @@ import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { AuthenticatedUserStorageServiceMethodActions } from './authenticated-user-storage-method-action-types';
-import type { Environment } from './env';
-import { getUserStorageApiUrl } from './env';
+import type { AuthenticatedUserStorageServiceMethodActions } from './authenticated-user-storage-method-action-types.js';
+import type { Environment } from './env.js';
+import { getUserStorageApiUrl } from './env.js';
 import type {
   AssetsWatchlistBlob,
   ClientType,
   DelegationResponse,
   DelegationSubmission,
   NotificationPreferences,
-} from './types';
+} from './types.js';
 import {
   assertAssetsWatchlistBlob,
   assertAssetsWatchlistBlobForWrite,
   assertDelegationResponseArray,
   assertNotificationPreferences,
-} from './validators';
+} from './validators.js';
 
 // === GENERAL ===
 

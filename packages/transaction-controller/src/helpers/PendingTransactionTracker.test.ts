@@ -2,12 +2,12 @@ import type { BlockTracker } from '@metamask/network-controller';
 import { Json } from '@metamask/utils';
 import { freeze } from 'immer';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta } from '../types';
-import { TransactionStatus } from '../types';
-import { rpcRequest } from '../utils/provider';
-import { PendingTransactionTracker } from './PendingTransactionTracker';
-import { TransactionPoller } from './TransactionPoller';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { TransactionStatus } from '../types.js';
+import { rpcRequest } from '../utils/provider.js';
+import { PendingTransactionTracker } from './PendingTransactionTracker.js';
+import { TransactionPoller } from './TransactionPoller.js';
 
 const ID_MOCK = 'testId';
 const CHAIN_ID_MOCK = '0x1';

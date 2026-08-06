@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes should trigger quote polling if request is valid 1`] = `
 {
@@ -34,7 +34,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
       "resetApproval": false,
       "slippage": 0.5,
       "srcChainId": "10",
-      "srcTokenAddress": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "srcTokenAddress": "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
       "srcTokenAmount": "1000000000000000000",
       "walletAddress": "0x30E8ccaD5A980BDF30447f8c2C48e70989D9d294",
     },
@@ -61,7 +61,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
 }
 `;
 
-exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes should trigger quote polling if request is valid 2`] = `
+exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes should trigger quote polling if request is valid 3`] = `
 [
   [
     "Unified SwapBridge Input Changed",

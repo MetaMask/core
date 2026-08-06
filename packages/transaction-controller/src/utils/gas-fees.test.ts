@@ -1,16 +1,22 @@
 import type { NetworkClientId } from '@metamask/network-controller';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { GasFeeFlow, GasFeeFlowResponse } from '../types.js';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionType,
   UserFeeLevel,
-} from '../types';
-import type { UpdateGasFeesRequest } from './gas-fees';
-import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees';
-import { rpcRequest } from './provider';
+} from '../types.js';
+import {
+  getReplaceUnderpricedDappGasFeesEnabled,
+  getReplaceUnderpricedSavedGasFeesEnabled,
+} from './feature-flags.js';
+import type { UpdateGasFeesRequest } from './gas-fees.js';
+import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees.js';
+import { rpcRequest } from './provider.js';
+
+jest.mock('./feature-flags');
 
 jest.mock('./provider', () => ({
   rpcRequest: jest.fn(),
@@ -26,6 +32,7 @@ const GAS_HEX_MOCK = toHex(GAS_MOCK);
 const GAS_HEX_WEI_MOCK = toHex(GAS_MOCK * 1e9);
 const GAS_LOW_HEX_WEI_MOCK = toHex(GAS_LOW_MOCK * 1e9);
 const GAS_HIGH_HEX_WEI_MOCK = toHex(GAS_HIGH_MOCK * 1e9);
+const UNDERPRICED_GAS_HEX_WEI_MOCK = toHex((GAS_LOW_MOCK - 1) * 1e9);
 const ORIGIN_MOCK = 'test.com';
 const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
@@ -100,6 +107,12 @@ function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
 describe('gas-fees', () => {
   let updateGasFeeRequest: jest.Mocked<UpdateGasFeesRequest>;
   const rpcRequestMock = jest.mocked(rpcRequest);
+  const getReplaceUnderpricedDappGasFeesEnabledMock = jest.mocked(
+    getReplaceUnderpricedDappGasFeesEnabled,
+  );
+  const getReplaceUnderpricedSavedGasFeesEnabledMock = jest.mocked(
+    getReplaceUnderpricedSavedGasFeesEnabled,
+  );
   let gasFeeFlowMock: jest.Mocked<GasFeeFlow>;
 
   /**
@@ -169,9 +182,31 @@ describe('gas-fees', () => {
         );
       });
 
-      it('are ignored for internal transactions (e.g. swaps and bridges)', async () => {
+      it('are applied for internal wallet transactions', async () => {
+        updateGasFeeRequest.txMeta.isInternal = true;
+        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce(
+          SAVED_GAS_FEES_MOCK,
+        );
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.getSavedGasFees).toHaveBeenCalledTimes(1);
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          '0x1ca35f0e00', // 123 gwei
+        );
+      });
+
+      it.each([
+        TransactionType.swap,
+        TransactionType.swapAndSend,
+        TransactionType.swapApproval,
+        TransactionType.bridge,
+        TransactionType.bridgeApproval,
+      ])('are ignored for %s transactions', async (type) => {
         mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
         updateGasFeeRequest.txMeta.isInternal = true;
+        updateGasFeeRequest.txMeta.type = type;
         updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce(
           SAVED_GAS_FEES_MOCK,
         );
@@ -728,6 +763,263 @@ describe('gas-fees', () => {
 
         expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
           UserFeeLevel.DAPP_SUGGESTED,
+        );
+      });
+    });
+
+    describe('replaces underpriced dapp-suggested gas fees', () => {
+      beforeEach(() => {
+        getReplaceUnderpricedDappGasFeesEnabledMock.mockReturnValue(true);
+
+        updateGasFeeRequest.txMeta.origin = ORIGIN_MOCK;
+        updateGasFeeRequest.txMeta.txParams.maxFeePerGas =
+          UNDERPRICED_GAS_HEX_WEI_MOCK;
+        updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas =
+          UNDERPRICED_GAS_HEX_WEI_MOCK;
+
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
+      });
+
+      it('with suggested medium values if request maxFeePerGas below low estimate', async () => {
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+      });
+
+      it('and sets userFeeLevel to medium', async () => {
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.MEDIUM,
+        );
+      });
+
+      it('with suggested medium values if request gasPrice below low estimate and no other fee properties', async () => {
+        delete updateGasFeeRequest.txMeta.txParams.maxFeePerGas;
+        delete updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas;
+        updateGasFeeRequest.txMeta.txParams.gasPrice =
+          UNDERPRICED_GAS_HEX_WEI_MOCK;
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.txParams.gasPrice).toBeUndefined();
+      });
+
+      it('unless request maxFeePerGas is at or above low estimate', async () => {
+        updateGasFeeRequest.txMeta.txParams.maxFeePerGas = GAS_LOW_HEX_WEI_MOCK;
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_LOW_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          UNDERPRICED_GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.DAPP_SUGGESTED,
+        );
+      });
+
+      it('unless feature flag is disabled', async () => {
+        getReplaceUnderpricedDappGasFeesEnabledMock.mockReturnValue(false);
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          UNDERPRICED_GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.DAPP_SUGGESTED,
+        );
+      });
+
+      it('unless transaction is internal', async () => {
+        updateGasFeeRequest.txMeta.isInternal = true;
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          UNDERPRICED_GAS_HEX_WEI_MOCK,
+        );
+      });
+
+      it('unless request has gasPrice alongside maxPriorityFeePerGas', async () => {
+        delete updateGasFeeRequest.txMeta.txParams.maxFeePerGas;
+        updateGasFeeRequest.txMeta.txParams.gasPrice =
+          UNDERPRICED_GAS_HEX_WEI_MOCK;
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          UNDERPRICED_GAS_HEX_WEI_MOCK,
+        );
+      });
+
+      it('unless request maxFeePerGas cannot be parsed', async () => {
+        updateGasFeeRequest.txMeta.txParams.maxFeePerGas = 'invalid-hex';
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          'invalid-hex',
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.DAPP_SUGGESTED,
+        );
+      });
+
+      it('unless estimates are unavailable', async () => {
+        gasFeeFlowMock.getGasFees.mockRejectedValue(new Error('TestError'));
+        rpcRequestMock.mockResolvedValue(GAS_HEX_WEI_MOCK);
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          UNDERPRICED_GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.DAPP_SUGGESTED,
+        );
+      });
+
+      it('unless estimates and gas price fallback are both unavailable', async () => {
+        gasFeeFlowMock.getGasFees.mockRejectedValue(new Error('TestError'));
+        rpcRequestMock.mockRejectedValue(new Error('TestError'));
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(rpcRequestMock).not.toHaveBeenCalled();
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          UNDERPRICED_GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          UNDERPRICED_GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.DAPP_SUGGESTED,
+        );
+      });
+    });
+
+    it('uses gasPrice fallback if flow returns unsupported estimate type', async () => {
+      mockGasFeeFlowMockResponse({
+        estimates: {
+          type: 'unsupportedType',
+        },
+      } as unknown as GasFeeFlowResponse);
+
+      rpcRequestMock.mockResolvedValue(GAS_HEX_WEI_MOCK);
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+        GAS_HEX_WEI_MOCK,
+      );
+    });
+
+    describe('replaces underpriced saved gas fees', () => {
+      beforeEach(() => {
+        getReplaceUnderpricedSavedGasFeesEnabledMock.mockReturnValue(true);
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
+      });
+
+      it('with suggested medium values if saved maxBaseFee below low estimate', async () => {
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+          maxBaseFee: String(GAS_LOW_MOCK - 1),
+          priorityFee: '1',
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.MEDIUM,
+        );
+      });
+
+      it('unless saved maxBaseFee is at or above low estimate', async () => {
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+          maxBaseFee: String(GAS_LOW_MOCK),
+          priorityFee: '1',
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_LOW_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.CUSTOM,
+        );
+      });
+
+      it('unless saved preference is level-based', async () => {
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+          level: GasFeeEstimateLevel.Low,
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_LOW_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          GasFeeEstimateLevel.Low,
+        );
+      });
+
+      it('unless feature flag is disabled', async () => {
+        getReplaceUnderpricedSavedGasFeesEnabledMock.mockReturnValue(false);
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+          maxBaseFee: String(GAS_LOW_MOCK - 1),
+          priorityFee: '1',
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          UNDERPRICED_GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.CUSTOM,
+        );
+      });
+
+      it('unless estimates are unavailable', async () => {
+        gasFeeFlowMock.getGasFees.mockRejectedValue(new Error('TestError'));
+        rpcRequestMock.mockResolvedValue(GAS_HEX_WEI_MOCK);
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+          maxBaseFee: String(GAS_LOW_MOCK - 1),
+          priorityFee: '1',
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          UNDERPRICED_GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.CUSTOM,
         );
       });
     });

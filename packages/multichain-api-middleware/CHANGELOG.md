@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [4.0.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.6` ([#9470](https://github.com/MetaMask/core/pull/9470), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
 
 ## [4.0.1]
 
@@ -280,7 +288,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.2...HEAD
+[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.1...@metamask/multichain-api-middleware@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.0...@metamask/multichain-api-middleware@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.5...@metamask/multichain-api-middleware@4.0.0
 [3.1.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.4...@metamask/multichain-api-middleware@3.1.5

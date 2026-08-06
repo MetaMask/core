@@ -6,9 +6,7 @@ export type {
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
-  AllowedActions,
-  AllowedEvents,
-} from './SubscriptionController';
+} from './SubscriptionController.js';
 export type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
@@ -33,11 +31,11 @@ export type {
   SubscriptionControllerClearStateAction,
   SubscriptionControllerTriggerAccessTokenRefreshAction,
   SubscriptionControllerStopAllPollingAction,
-} from './SubscriptionController-method-action-types';
+} from './SubscriptionController-method-action-types.js';
 export {
   SubscriptionController,
   getDefaultSubscriptionControllerState,
-} from './SubscriptionController';
+} from './SubscriptionController.js';
 export type {
   SubscriptionApiError,
   Subscription,
@@ -84,7 +82,7 @@ export type {
   AssignCohortRequest,
   GetSubscriptionsEligibilitiesRequest,
   ModalType,
-} from './types';
+} from './types.js';
 export {
   CANCEL_TYPES,
   CRYPTO_PAYMENT_METHOD_ERRORS,
@@ -96,12 +94,40 @@ export {
   COHORT_NAMES,
   BALANCE_CATEGORIES,
   MODAL_TYPE,
-} from './types';
-export { SubscriptionServiceError } from './errors';
+} from './types.js';
+export { SubscriptionServiceError } from './errors.js';
 export {
   Env,
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
-} from './constants';
-export type { SubscriptionServiceConfig } from './SubscriptionService';
-export { SubscriptionService } from './SubscriptionService';
+} from './constants.js';
+export type {
+  SubscriptionServiceOptions,
+  SubscriptionServiceMessenger,
+  SubscriptionServiceActions,
+  SubscriptionServiceEvents,
+  SubscriptionServiceCacheUpdatedEvent,
+  SubscriptionServiceGranularCacheUpdatedEvent,
+  SubscriptionServiceInvalidateQueriesAction,
+} from './SubscriptionService.js';
+export {
+  SubscriptionService,
+  serviceName as subscriptionServiceName,
+  SUBSCRIPTION_URL,
+} from './SubscriptionService.js';
+export type {
+  SubscriptionServiceGetSubscriptionsAction,
+  SubscriptionServiceCancelSubscriptionAction,
+  SubscriptionServiceUnCancelSubscriptionAction,
+  SubscriptionServiceStartSubscriptionWithCardAction,
+  SubscriptionServiceStartSubscriptionWithCryptoAction,
+  SubscriptionServiceUpdatePaymentMethodCardAction,
+  SubscriptionServiceUpdatePaymentMethodCryptoAction,
+  SubscriptionServiceGetSubscriptionsEligibilitiesAction,
+  SubscriptionServiceSubmitUserEventAction,
+  SubscriptionServiceAssignUserToCohortAction,
+  SubscriptionServiceSubmitSponsorshipIntentsAction,
+  SubscriptionServiceLinkRewardsAction,
+  SubscriptionServiceGetPricingAction,
+  SubscriptionServiceGetBillingPortalUrlAction,
+} from './SubscriptionService-method-action-types.js';

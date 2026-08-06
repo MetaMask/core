@@ -22,7 +22,7 @@ import {
 } from '../../base-data-service/tests/mocks.js';
 import { createUIQueryClient } from './createUIQueryClient.js';
 
-const DATA_SERVICES = ['ExampleDataService'];
+const DATA_SERVICES = ['ExampleDataService'] as const;
 
 function createClients(config?: QueryClientConfig): {
   service: ExampleDataService;
@@ -100,6 +100,28 @@ describe('createUIQueryClient', () => {
       },
     ]);
 
+    service.destroy();
+  });
+
+  it('proxies requests to the messenger adapter', async () => {
+    const { service } = createClients();
+    const messengerAdapter = {
+      call: jest.fn((actionType, assets) => {
+        if (actionType === getAssetsQueryKey[0]) {
+          return service.getAssets(assets);
+        }
+        throw new Error(`Unknown action: ${actionType}`);
+      }),
+      subscribe: jest.fn(),
+      unsubscribe: jest.fn(),
+    };
+    const client = createUIQueryClient(DATA_SERVICES, messengerAdapter);
+
+    await client.fetchQuery({
+      queryKey: getAssetsQueryKey,
+    });
+
+    expect(messengerAdapter.call).toHaveBeenCalledWith(...getAssetsQueryKey);
     service.destroy();
   });
 
@@ -228,6 +250,46 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
+  it('supports customizing invalidation', async () => {
+    const { clientA, messenger, service } = createClients();
+
+    const spy = jest.spyOn(messenger, 'call');
+
+    const observer = new QueryObserver(clientA, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    const promise = new Promise((resolve) => {
+      observer.subscribe((event) => {
+        if (event.status === 'success') {
+          resolve(event.data);
+        }
+      });
+    });
+
+    await promise;
+
+    // Replace the mock response and invalidate
+    mockAssets({
+      status: 200,
+      body: [],
+    });
+
+    await clientA.invalidateQueries(
+      { queryKey: getAssetsQueryKey, refetchType: 'all' },
+      { throwOnError: true },
+    );
+
+    expect(spy).toHaveBeenCalledWith(
+      'ExampleDataService:invalidateQueries',
+      { queryKey: getAssetsQueryKey, refetchType: 'all' },
+      { throwOnError: true },
+    );
+
+    observer.destroy();
+    service.destroy();
+  });
+
   it('does not remove from the cache if observers still are subscribed', async () => {
     jest.useFakeTimers();
 
@@ -261,7 +323,7 @@ describe('createUIQueryClient', () => {
 
     await Promise.all([promiseA, promiseB]);
 
-    // Advance the full cacheTime of ExampleDataService
+    // Advance the full gcTime of ExampleDataService
     jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     const queryData = clientA.getQueryData(getAssetsQueryKey);
@@ -278,7 +340,7 @@ describe('createUIQueryClient', () => {
     jest.useFakeTimers();
 
     const defaultOptions = {
-      queries: { cacheTime: inMilliseconds(5, Duration.Minute) },
+      queries: { gcTime: inMilliseconds(5, Duration.Minute) },
     };
 
     const { clientA, clientB, service } = createClients({ defaultOptions });
@@ -341,12 +403,14 @@ describe('createUIQueryClient', () => {
 
     const observerA = new InfiniteQueryObserver(clientA, {
       queryKey: getActivityQueryKey,
+      initialPageParam: undefined,
       getNextPageParam,
       getPreviousPageParam,
     });
 
     const observerB = new InfiniteQueryObserver(clientB, {
       queryKey: getActivityQueryKey,
+      initialPageParam: undefined,
       getNextPageParam,
       getPreviousPageParam,
     });
@@ -401,7 +465,7 @@ describe('createUIQueryClient', () => {
     const promise = new Promise<Error>((_resolve, reject) => {
       observer.subscribe((event) => {
         if (event.status === 'error') {
-          reject(event.error as Error);
+          reject(event.error);
         }
       });
     });

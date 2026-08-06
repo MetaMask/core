@@ -8,13 +8,15 @@ import {
 } from '@metamask/utils';
 import { bytesToUtf8 } from '@noble/ciphers/utils';
 
-import { SecretType } from './constants';
+import { SecretType } from './constants.js';
+import type { SecretMetadata } from './SecretMetadata.js';
 import type {
   DecodedBaseJWTToken,
   DecodedNodeAuthToken,
   DeserializedVaultData,
+  InvalidPrimarySecretDataTypeErrorData,
   VaultData,
-} from './types';
+} from './types.js';
 
 /**
  * Decode the node auth token from base64 to json object.
@@ -172,4 +174,16 @@ export function getSecretTypeFromDataType(
     default:
       throw new Error(`Unknown EncAccountDataType: ${String(dataType)}`);
   }
+}
+
+/**
+ * Build non-sensitive type labels for secret metadata items.
+ *
+ * @param secrets - The secret metadata items in fetch order.
+ * @returns One `SecretType` or `EncAccountDataType` per item.
+ */
+export function getInvalidPrimarySecretDataTypeErrorData(
+  secrets: SecretMetadata<string | Uint8Array>[],
+): InvalidPrimarySecretDataTypeErrorData {
+  return secrets.map((secret) => secret.dataType ?? secret.type);
 }

@@ -5,7 +5,7 @@ import {
   TransactionType,
 } from '@metamask/keyring-api';
 
-import { CustomTransactionTypeLabel } from '../../src/mappers/keyring-transaction-mapper';
+import { CustomTransactionTypeLabel } from '../../src/mappers/keyring-transaction-mapper.js';
 
 const accountId = '00000000-0000-4000-8000-000000000000';
 const stellarUsdcAsset = `stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN`;
@@ -20,6 +20,8 @@ export const keyringTransactionFixtures = {
     senderAddress: 'sender-address',
     bitcoinSubject: 'bc1qcj8v4ft5uvt59jjrxd856a48xegclwne78h0ye',
     bitcoinOutput: 'bc1qc5tzsfpd3zjecma6529kanjtug69rf58mtfxmu',
+    solanaSubject: 'EsEduLCwNdAbJZ2oTr1wB1ymQw76NuwswWwG6imzQN7H',
+    solanaCounterparty: '8ekCy2jHHUbW2yeNGFWYJT9Hm9FW7SvZcZK66dSZCDiF',
   },
   constants: {
     uint256Max:
@@ -392,6 +394,122 @@ export const keyringTransactionFixtures = {
         to: [{ address: 'spender-address', asset: null }],
         fees: [],
         events: [],
+      } as never,
+    },
+    // MultichainTransactionsController payload for a Solana→Base bridge source
+    // leg. First fungible in `from` is another party's USDC; the subject's
+    // outflow is SOL.
+    solanaBridgeSendWithForeignUsdc: {
+      subjectAddress: 'EsEduLCwNdAbJZ2oTr1wB1ymQw76NuwswWwG6imzQN7H',
+      transaction: {
+        account: '625152a4-4667-4328-99bd-b38db43658f5',
+        chain: SolScope.Mainnet,
+        events: [
+          {
+            status: TransactionStatus.Confirmed,
+            timestamp: 1784776645,
+          },
+        ],
+        fees: [
+          {
+            asset: {
+              amount: '0.000005',
+              fungible: true,
+              type: `${SolScope.Mainnet}/slip44:501`,
+              unit: 'SOL',
+            },
+            type: 'base',
+          },
+          {
+            asset: {
+              amount: '0.000050564',
+              fungible: true,
+              type: `${SolScope.Mainnet}/slip44:501`,
+              unit: 'SOL',
+            },
+            type: 'priority',
+          },
+        ],
+        from: [
+          {
+            address: '8ekCy2jHHUbW2yeNGFWYJT9Hm9FW7SvZcZK66dSZCDiF',
+            asset: {
+              amount: '0.069181',
+              fungible: true,
+              type: `${SolScope.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`,
+              unit: 'USDC',
+            },
+          },
+          {
+            address: 'EsEduLCwNdAbJZ2oTr1wB1ymQw76NuwswWwG6imzQN7H',
+            asset: {
+              amount: '0.00531264',
+              fungible: true,
+              type: `${SolScope.Mainnet}/slip44:501`,
+              unit: 'SOL',
+            },
+          },
+        ],
+        id: '3Tph6Faw2YMshJt7pkCaCbTHTX4mYJLE6h72DR6Q4uDta9HmrNCfReXuDDPKUCbCxn7NUNALvgNjii19fKdgWBfA',
+        status: TransactionStatus.Confirmed,
+        timestamp: 1784776645,
+        to: [
+          {
+            address: '8ekCy2jHHUbW2yeNGFWYJT9Hm9FW7SvZcZK66dSZCDiF',
+            asset: {
+              amount: '0.000892125',
+              fungible: true,
+              type: `${SolScope.Mainnet}/token:So11111111111111111111111111111111111111112`,
+              unit: '',
+            },
+          },
+          {
+            address: '2Gr2S7Nk7nbXzWkzGD1FSqvgHqdPnyN2rLJWsQnenP3w',
+            asset: {
+              amount: '0.069181',
+              fungible: true,
+              type: `${SolScope.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`,
+              unit: 'USDC',
+            },
+          },
+          {
+            address: '2Gr2S7Nk7nbXzWkzGD1FSqvgHqdPnyN2rLJWsQnenP3w',
+            asset: {
+              amount: '0.00237336',
+              fungible: true,
+              type: `${SolScope.Mainnet}/slip44:501`,
+              unit: 'SOL',
+            },
+          },
+          {
+            address: '47YRE7eLAdYzvGqSH1XLg2o8xUtywk7sS5BKv1oR4Y7i',
+            asset: {
+              amount: '0.000007875',
+              fungible: true,
+              type: `${SolScope.Mainnet}/slip44:501`,
+              unit: 'SOL',
+            },
+          },
+          {
+            address: 'AyJKchXeuZgW8ZQ2uC2EvgPJXE9bKJRYmWs9gt3Ug8JP',
+            asset: {
+              amount: '0.00203928',
+              fungible: true,
+              type: `${SolScope.Mainnet}/slip44:501`,
+              unit: 'SOL',
+            },
+          },
+          {
+            address: '5pVN5XZB8cYBjNLFrsBCPWkCQBan5K5Mq2dWGzwPgGJV',
+            asset: {
+              amount: '0.000892125',
+              fungible: true,
+              type: `${SolScope.Mainnet}/slip44:501`,
+              unit: 'SOL',
+            },
+          },
+        ],
+        type: TransactionType.Send,
       } as never,
     },
   },

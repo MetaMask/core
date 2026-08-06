@@ -32,6 +32,8 @@ export const tokenTransferLogTopicHash =
 
 export const nativeTokenAddress = '0x0000000000000000000000000000000000000000';
 
+export const nativeTokenDecimals = 18;
+
 export const swapsWrappedTokensAddresses = {
   '0x1': '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
   '0x539': '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',

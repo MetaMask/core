@@ -1,8 +1,8 @@
 import type {
   UnprocessedRawNotification,
   OnChainNotification,
-} from '../NotificationServicesController/types/notification-api';
-import { isOnChainNotification } from './notification-api-type-guards';
+} from '../NotificationServicesController/types/notification-api/index.js';
+import { isOnChainNotification } from './notification-api-type-guards.js';
 
 /**
  * Checks if the given value is an on-chain notification using the v4 `notification_type` discriminator.

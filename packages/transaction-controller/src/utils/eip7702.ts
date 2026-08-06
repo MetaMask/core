@@ -1,29 +1,42 @@
+import { RLP } from '@ethereumjs/rlp';
+import {
+  bigIntToUnpaddedBytes,
+  bytesToHex,
+  ecrecover,
+  hexToBytes,
+  pubToAddress,
+} from '@ethereumjs/util';
 import { defaultAbiCoder } from '@ethersproject/abi';
 import { Contract } from '@ethersproject/contracts';
 import { toHex } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger, add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { keccak256 } from 'ethereum-cryptography/keccak';
 
-import { ABI_IERC7821 } from '../constants';
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { ABI_IERC7821 } from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   BatchTransactionParams,
+  NestedTransactionUpdate,
   Authorization,
   AuthorizationList,
   TransactionMeta,
-} from '../types';
+} from '../types.js';
 import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
-} from './feature-flags';
-import { rpcRequest } from './provider';
+} from './feature-flags.js';
+import { rpcRequest } from './provider.js';
 
 export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
 export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
 export const ERROR_MESSGE_PUBLIC_KEY = 'EIP-7702 public key not specified';
+
+/** EIP-7702 authorization signature magic prefix. */
+const EIP7702_AUTHORIZATION_MAGIC = 0x05;
 
 /**
  * ERC-7579 ModeCode encoding for the ERC-7821 `execute` function.
@@ -161,6 +174,64 @@ export async function isAccountUpgradedToEIP7702(
   return {
     delegationAddress,
     isSupported,
+  };
+}
+
+/**
+ * Update indexed transactions in an EIP-7702 batch and regenerate its calldata.
+ *
+ * @param options - Update options.
+ * @param options.from - The sender address.
+ * @param options.transactions - The existing nested transactions.
+ * @param options.updates - Indexed calldata updates.
+ * @returns Updated nested transactions and regenerated batch calldata.
+ */
+export function updateEIP7702BatchData({
+  from,
+  transactions,
+  updates,
+}: {
+  from: Hex;
+  transactions: BatchTransactionParams[];
+  updates: NestedTransactionUpdate[];
+}): {
+  nestedTransactions: BatchTransactionParams[];
+  transactionData: Hex;
+} {
+  const updatesByIndex = new Map<number, Hex>();
+
+  for (const { transactionIndex, transactionData } of updates) {
+    if (updatesByIndex.has(transactionIndex)) {
+      throw new Error(
+        `Duplicate nested transaction index - ${transactionIndex}`,
+      );
+    }
+
+    if (!transactions[transactionIndex]) {
+      throw new Error(
+        `Nested transaction not found with index - ${transactionIndex}`,
+      );
+    }
+
+    updatesByIndex.set(transactionIndex, transactionData);
+  }
+
+  const nestedTransactions = transactions.map((transaction, index) => {
+    const transactionData = updatesByIndex.get(index);
+
+    return {
+      ...transaction,
+      ...(transactionData === undefined ? {} : { data: transactionData }),
+    };
+  });
+  const batchTransaction = generateEIP7702BatchTransaction(
+    from,
+    nestedTransactions,
+  );
+
+  return {
+    nestedTransactions,
+    transactionData: batchTransaction.data as Hex,
   };
 }
 
@@ -303,6 +374,13 @@ async function signAuthorization(
   messenger: TransactionControllerMessenger,
   index: number,
 ): Promise<Required<Authorization>> {
+  // Retain pre-signed authorizations (e.g. Money Account upgrades signed by an
+  // account other than `txParams.from`) instead of re-signing with `from`.
+  if (isAuthorizationSigned(authorization)) {
+    log('Retaining pre-signed authorization', authorization);
+    return authorization;
+  }
+
   const finalAuthorization = prepareAuthorization(
     authorization,
     transactionMeta,
@@ -339,6 +417,78 @@ async function signAuthorization(
   log('Signed authorization', result);
 
   return result;
+}
+
+/**
+ * Whether an authorization already includes a complete EIP-7702 signature.
+ *
+ * @param authorization - Authorization to check.
+ * @returns True when chainId, nonce, and signature components are all present.
+ */
+export function isAuthorizationSigned(
+  authorization: Authorization,
+): authorization is Required<Authorization> {
+  return Boolean(
+    authorization.chainId &&
+    authorization.nonce !== undefined &&
+    authorization.r &&
+    authorization.s &&
+    authorization.yParity !== undefined,
+  );
+}
+
+/**
+ * Recover the authority (signer) of a fully signed EIP-7702 authorization.
+ *
+ * Per EIP-7702: `authority = ecrecover(keccak(MAGIC || rlp([chain_id, address, nonce])), y_parity, r, s)`.
+ *
+ * @param authorization - Fully signed authorization.
+ * @returns The recovered authority address, or undefined if recovery fails.
+ */
+export function recoverAuthorizationAuthority(
+  authorization: Required<Authorization>,
+): Hex | undefined {
+  try {
+    const chainIdBytes = bigIntToUnpaddedBytes(BigInt(authorization.chainId));
+    const addressBytes = hexToBytes(authorization.address);
+    const nonceBytes = bigIntToUnpaddedBytes(BigInt(authorization.nonce));
+    const rlpEncoded = RLP.encode([chainIdBytes, addressBytes, nonceBytes]);
+    const messageHash = keccak256(
+      Uint8Array.from([EIP7702_AUTHORIZATION_MAGIC, ...rlpEncoded]),
+    );
+    const publicKey = ecrecover(
+      messageHash,
+      BigInt(authorization.yParity),
+      bigIntToUnpaddedBytes(BigInt(authorization.r)),
+      bigIntToUnpaddedBytes(BigInt(authorization.s)),
+    );
+
+    return bytesToHex(pubToAddress(publicKey));
+  } catch (error) {
+    log('Failed to recover authorization authority', { authorization, error });
+    return undefined;
+  }
+}
+
+/**
+ * Resolve which account an authorization nonce belongs to for nonce tracking.
+ *
+ * Unsigned authorizations are signed by the outer transaction sender (`from`).
+ * Signed authorizations recover their authority independently per EIP-7702.
+ *
+ * @param authorization - Authorization entry.
+ * @param transactionFrom - Outer transaction sender.
+ * @returns Authority address, or undefined when a signed auth cannot be recovered.
+ */
+export function getAuthorizationAuthority(
+  authorization: Authorization,
+  transactionFrom: string,
+): Hex | undefined {
+  if (!isAuthorizationSigned(authorization)) {
+    return transactionFrom as Hex;
+  }
+
+  return recoverAuthorizationAuthority(authorization);
 }
 
 /**

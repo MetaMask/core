@@ -1,28 +1,28 @@
-export { fetchWithTimeout } from './fetchWithTimeout';
-export { normalizeAmountString } from './normalizeAmountString';
+export { fetchWithTimeout } from './fetchWithTimeout.js';
+export { normalizeAmountString } from './normalizeAmountString.js';
 export {
   normalizeAssetId,
   clearNormalizeAssetIdCacheForTesting,
-} from './normalizeAssetId';
+} from './normalizeAssetId.js';
 export {
   formatExchangeRatesForBridge,
   clearFormatExchangeRatesForBridgeCacheForTesting,
-} from './formatExchangeRatesForBridge';
+} from './formatExchangeRatesForBridge.js';
 export {
   formatStateForTransactionPay,
   clearFormatStateForTransactionPayCacheForTesting,
-} from './formatStateForTransactionPay';
+} from './formatStateForTransactionPay.js';
 export type {
   BridgeExchangeRatesFormat,
   FormatExchangeRatesForBridgeParams,
-} from './formatExchangeRatesForBridge';
+} from './formatExchangeRatesForBridge.js';
 export type {
   AccountForLegacyFormat,
   FormatStateForTransactionPayParams,
   LegacyToken,
   TransactionPayLegacyFormat,
-} from './formatStateForTransactionPay';
+} from './formatStateForTransactionPay.js';
 export {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
-} from './native-assets';
+} from './native-assets.js';

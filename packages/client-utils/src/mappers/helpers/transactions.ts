@@ -11,10 +11,21 @@ import {
 } from '@metamask/transaction-controller';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
-import type { Fee, Status, TokenAmount, ValueTransfer } from '../../types';
-import { nativeTokenAddress } from '../constants';
-import { formatAddressToAssetId, getNativeAsset } from './caip';
-import { getKnownTokenMetadata } from './token-metadata';
+import type {
+  AssetType,
+  Fee,
+  Status,
+  TokenAmount,
+  ValueTransfer,
+} from '../../types.js';
+import { nativeTokenDecimals } from '../constants.js';
+import {
+  formatAddressToAssetId,
+  formatChainIdToCaip,
+  getNativeAsset,
+  resolveNativeAssetId,
+} from './caip.js';
+import { getKnownTokenMetadata } from './token-metadata.js';
 
 // Adds optional `isSmartTransaction` to `TransactionMeta`.
 export type TransactionGroup = {
@@ -26,9 +37,7 @@ export type TransactionGroup = {
   transactions: TransactionMeta[];
 };
 
-const nativeTokenDecimals = 18;
-
-function toNetworkFeeAmount(
+function calculateNetworkFee(
   gasUsed: string | number | undefined,
   gasPrice: string | number | undefined,
 ): string | undefined {
@@ -43,54 +52,110 @@ function toNetworkFeeAmount(
   }
 }
 
-function buildBaseNetworkFee(amount: string, chainId: string | number): Fee {
+function toNetworkFee(
+  amount: string,
+  chainId: CaipChainId,
+  symbol?: string,
+): Fee {
   const nativeAsset = getNativeAsset(chainId);
+
+  if (nativeAsset) {
+    return {
+      type: 'base',
+      amount,
+      decimals: nativeTokenDecimals,
+      assetType: 'native',
+      symbol: symbol ?? nativeAsset.symbol,
+      assetId: nativeAsset.assetId,
+    };
+  }
+
+  const assetId = symbol ? resolveNativeAssetId(chainId, symbol) : undefined;
 
   return {
     type: 'base',
     amount,
-    ...(nativeAsset?.decimals === undefined
-      ? { decimals: nativeTokenDecimals }
-      : { decimals: nativeAsset.decimals }),
-    ...(nativeAsset?.symbol ? { symbol: nativeAsset.symbol } : {}),
-    ...(nativeAsset?.assetId ? { assetId: nativeAsset.assetId } : {}),
+    decimals: nativeTokenDecimals,
+    assetType: 'native',
+    ...(symbol ? { symbol } : {}),
+    ...(assetId ? { assetId } : {}),
   };
+}
+
+function getAssetTypeFromTransferType(
+  transferType: string | undefined,
+): AssetType | undefined {
+  if (transferType === 'normal' || transferType === 'internal') {
+    return 'native';
+  }
+
+  if (transferType === 'erc20') {
+    return 'erc20';
+  }
+
+  if (transferType === ERC721.toLowerCase() || transferType === 'erc721') {
+    return 'erc721';
+  }
+
+  if (transferType === ERC1155.toLowerCase() || transferType === 'erc1155') {
+    return 'erc1155';
+  }
+
+  return undefined;
 }
 
 function getNetworkFee(
   transaction: V1TransactionByHashResponse,
-  chainId: string,
 ): Fee | undefined {
-  const amount = toNetworkFeeAmount(
+  const chainId = formatChainIdToCaip(transaction.chainId);
+
+  if (!chainId) {
+    return undefined;
+  }
+
+  const amount = calculateNetworkFee(
     transaction.gasUsed,
     transaction.effectiveGasPrice,
   );
 
-  return amount ? buildBaseNetworkFee(amount, chainId) : undefined;
+  if (!amount) {
+    return undefined;
+  }
+
+  return toNetworkFee(amount, chainId);
 }
 
 export function getFees(
   transaction: V1TransactionByHashResponse,
-  chainId: string,
 ): Fee[] | undefined {
-  const networkFee = getNetworkFee(transaction, chainId);
+  const networkFee = getNetworkFee(transaction);
 
   return networkFee ? [networkFee] : undefined;
 }
 
 export function getLocalTransactionFees(
-  transactionGroup: Pick<TransactionGroup, 'primaryTransaction'>,
+  transactionGroup: Pick<TransactionGroup, 'primaryTransaction'> & {
+    nativeAssetSymbol?: string;
+  },
 ): Fee[] | undefined {
-  const { primaryTransaction } = transactionGroup;
-  const amount = toNetworkFeeAmount(
+  const { primaryTransaction, nativeAssetSymbol } = transactionGroup;
+  const chainId = formatChainIdToCaip(primaryTransaction.chainId);
+
+  if (!chainId) {
+    return undefined;
+  }
+
+  const amount = calculateNetworkFee(
     primaryTransaction.txReceipt?.gasUsed,
     primaryTransaction.txReceipt?.effectiveGasPrice ??
       primaryTransaction.txParams?.gasPrice,
   );
 
-  return amount
-    ? [buildBaseNetworkFee(amount, primaryTransaction.chainId)]
-    : undefined;
+  if (!amount) {
+    return undefined;
+  }
+
+  return [toNetworkFee(amount, chainId, nativeAssetSymbol)];
 }
 
 const inProgressTransactionStatuses = [
@@ -244,23 +309,13 @@ export function getNftPaymentTransfer({
 
 const resolveAssetId = (
   chainId: CaipChainId,
-  {
-    contractAddress,
-    transferType,
-  }: {
-    contractAddress?: string;
-    transferType?: string;
-  },
+  contractAddress: string | undefined,
 ): string | undefined => {
-  if (contractAddress) {
-    return formatAddressToAssetId(contractAddress, chainId);
+  if (!contractAddress) {
+    return undefined;
   }
 
-  if (transferType === 'normal' || transferType === 'internal') {
-    return formatAddressToAssetId(nativeTokenAddress, chainId);
-  }
-
-  return undefined;
+  return formatAddressToAssetId(contractAddress, chainId);
 };
 
 /**
@@ -333,16 +388,16 @@ export function getTokenAmountFromTransfer(
     return undefined;
   }
 
-  const assetId =
-    transfer && !isNftTransfer
-      ? resolveAssetId(chainId, {
-          contractAddress: transfer.contractAddress,
-          transferType: transfer.transferType,
-        })
-      : undefined;
-
   const hasTransferAmount =
     !isNftTransfer && amount !== null && amount !== undefined;
+  const assetType = getAssetTypeFromTransferType(transferType);
+
+  let assetId: string | undefined;
+  if (assetType === 'native') {
+    assetId = resolveNativeAssetId(chainId, symbol);
+  } else if (transfer && !isNftTransfer) {
+    assetId = resolveAssetId(chainId, transfer.contractAddress);
+  }
 
   return {
     direction,
@@ -350,6 +405,7 @@ export function getTokenAmountFromTransfer(
     ...(transfer.decimal === undefined ? {} : { decimals: transfer.decimal }),
     ...(symbol ? { symbol } : {}),
     ...(assetId ? { assetId } : {}),
+    ...(assetType ? { assetType } : {}),
   };
 }
 
@@ -366,42 +422,11 @@ export function getTokenMetadataFromKnownToken(
 
   return {
     direction,
+    assetType: 'erc20',
     ...(tokenMetadata.symbol ? { symbol: tokenMetadata.symbol } : {}),
     ...(tokenMetadata.decimals === undefined
       ? {}
       : { decimals: tokenMetadata.decimals }),
     ...(tokenMetadata.assetId ? { assetId: tokenMetadata.assetId } : {}),
   };
-}
-
-/**
- * When the transfer omits contractAddress, fall back to the indexed tx `to` field.
- *
- * @param token - Parsed token amount from the value transfer.
- * @param fallbackContractAddress - Indexed transaction `to` address used as ERC-20 fallback.
- * @param transferType - Value transfer type; native (`normal`) transfers skip the fallback.
- * @param chainId - CAIP-2 chain id for asset id encoding.
- * @returns Token amount with `assetId` set when a fallback address applies.
- */
-export function withFallbackTokenAssetId(
-  token: TokenAmount | undefined,
-  fallbackContractAddress: string | undefined,
-  transferType: string | undefined,
-  chainId: CaipChainId,
-): TokenAmount | undefined {
-  if (
-    !token ||
-    token.assetId ||
-    transferType === 'normal' ||
-    !fallbackContractAddress
-  ) {
-    return token;
-  }
-
-  const assetId = formatAddressToAssetId(fallbackContractAddress, chainId);
-  if (!assetId) {
-    return token;
-  }
-
-  return { ...token, assetId };
 }

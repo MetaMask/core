@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
-import type { JsonRpcRequestMock } from '../../../tests/mock-network';
+import type { JsonRpcRequestMock } from '../../../tests/mock-network.js';
 
 /**
  * Builds mock eth_gasPrice request.

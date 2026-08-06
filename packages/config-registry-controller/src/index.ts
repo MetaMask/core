@@ -4,13 +4,12 @@ export type {
   ConfigRegistryControllerActions,
   ConfigRegistryControllerGetStateAction,
   ConfigRegistryControllerEvents,
-  ConfigRegistryControllerStateChangeEvent,
   ConfigRegistryControllerMessenger,
 } from './ConfigRegistryController.js';
 export type {
   ConfigRegistryControllerStartPollingAction,
   ConfigRegistryControllerStopPollingAction,
-  ConfigRegistryControllerMethodActions,
+  ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
 } from './ConfigRegistryController-method-action-types.js';
 export {
   ConfigRegistryController,

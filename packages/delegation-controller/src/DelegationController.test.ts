@@ -8,8 +8,11 @@ import type {
 } from '@metamask/messenger';
 import { hexToNumber } from '@metamask/utils';
 
-import { ROOT_AUTHORITY } from './constants';
-import { controllerName, DelegationController } from './DelegationController';
+import { ROOT_AUTHORITY } from './constants.js';
+import {
+  controllerName,
+  DelegationController,
+} from './DelegationController.js';
 import type {
   Address,
   Delegation,
@@ -17,8 +20,8 @@ import type {
   DelegationControllerState,
   DeleGatorEnvironment,
   Hex,
-} from './types';
-import { toDelegationStruct } from './utils';
+} from './types.js';
+import { toDelegationStruct } from './utils.js';
 
 type AllDelegationControllerActions =
   MessengerActions<DelegationControllerMessenger>;

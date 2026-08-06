@@ -8,24 +8,24 @@ import {
   isTransactionPayStrategy,
   STABLECOINS,
   TransactionPayStrategy,
-} from '../constants';
-import { projectLogger } from '../logger';
-import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
+} from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionPayFiatAsset } from '../strategy/fiat/constants.js';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
   FIAT_ENABLED_TYPES,
-} from '../strategy/fiat/constants';
+} from '../strategy/fiat/constants.js';
 import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
-} from '../strategy/relay/constants';
+} from '../strategy/relay/constants.js';
 import {
   SERVER_POLLING_INTERVAL,
   SERVER_URL_BASE,
-} from '../strategy/server/constants';
-import type { TransactionPayControllerMessenger } from '../types';
+} from '../strategy/server/constants.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
@@ -191,6 +191,7 @@ type FeatureFlagsExtendedRaw = {
   payStrategies?: {
     relay?: {
       gaslessEnabled?: boolean;
+      validationEnabled?: boolean;
     };
     server?: {
       enabled?: boolean;
@@ -199,6 +200,11 @@ type FeatureFlagsExtendedRaw = {
       pollingTimeout?: number;
     };
   };
+};
+
+type EIP7702FeatureFlag = {
+  contracts?: Record<Hex, { address: Hex; signature: Hex }[]>;
+  supportedChains?: Hex[];
 };
 
 export type PayStrategiesConfig = {
@@ -628,6 +634,26 @@ export function isRelayExecuteEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.gaslessEnabled ?? false;
+}
+
+/**
+ * Whether Relay quote validation is enabled.
+ *
+ * Acts as an emergency kill switch: when disabled (default), Relay quotes are
+ * surfaced without being simulated/validated.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if Relay quote validation is enabled.
+ */
+export function isRelayValidationEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+  return featureFlags.payStrategies?.relay?.validationEnabled ?? false;
 }
 
 /**
@@ -1084,7 +1110,7 @@ export function isEIP7702Chain(
 ): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
-    | { supportedChains?: Hex[] }
+    | EIP7702FeatureFlag
     | undefined;
 
   const supportedChains = eip7702Flags?.supportedChains ?? [];
@@ -1092,4 +1118,26 @@ export function isEIP7702Chain(
   return supportedChains.some(
     (supported) => supported.toLowerCase() === chainId.toLowerCase(),
   );
+}
+
+/**
+ * Get the EIP-7702 upgrade contract address for a chain from the
+ * `confirmations_eip_7702.contracts` feature flag, if any.
+ *
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID to resolve the upgrade contract for.
+ * @returns The upgrade contract address, or `undefined` when none is set.
+ */
+export function getEIP7702UpgradeContractAddress(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+): Hex | undefined {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
+    | EIP7702FeatureFlag
+    | undefined;
+
+  const contracts = getCaseInsensitive(eip7702Flags?.contracts, chainId);
+
+  return contracts?.[0]?.address;
 }

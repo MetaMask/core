@@ -6,8 +6,14 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { CandlePeriod, TimeDuration } from '../constants/chartConfig';
-import type { CandleData, OrderType } from './perps-types';
+import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type {
+  CandleData,
+  OrderType,
+  TpslLinkage,
+  TriggerDirection,
+  TriggerOrderType,
+} from './perps-types.js';
 
 /**
  * Connection states for WebSocket management.
@@ -173,13 +179,13 @@ export type TrackingData = {
   // Chart library active when the trade was initiated (e.g., lightweight, advanced)
   chartLibrary?: string;
 
-  // Entry point / discovery attribution (TAT-3080). Propagated onto trade/close/
+  // Entry point / discovery attribution. Propagated onto trade/close/
   // cancel/risk events as entry_point, discovery_source, perp_discovery_source.
   entryPoint?: string;
   discoverySource?: string;
   perpDiscoverySource?: string;
 
-  // HyperLiquid protocol fee rate (TAT-3149). Emitted as hl_fee_rate on trade +
+  // HyperLiquid protocol fee rate. Emitted as hl_fee_rate on trade +
   // close events when present; omitted entirely when unavailable.
   hlFeeRate?: number;
 
@@ -202,7 +208,7 @@ export type TPSLTrackingData = {
   /**
    * @deprecated Source of the TP/SL update (e.g., 'tp_sl_view', 'position_card').
    * Prefer `entryPoint` / `discoverySource` / `perpDiscoverySource` for risk-event
-   * attribution (TAT-3080); `source` is retained for backward compatibility.
+   * attribution; `source` is retained for backward compatibility.
    */
   source: string;
   positionSize: number; // Unsigned position size for metrics
@@ -211,7 +217,7 @@ export type TPSLTrackingData = {
   isEditingExistingPosition?: boolean; // true = editing existing position, false = creating for new order
   entryPrice?: number; // Entry price for percentage calculations
 
-  // Entry point / discovery attribution (TAT-3080), propagated onto risk events.
+  // Entry point / discovery attribution, propagated onto risk events.
   entryPoint?: string;
   discoverySource?: string;
   perpDiscoverySource?: string;
@@ -226,7 +232,7 @@ export type OrderParams = {
   price?: string; // Limit price (required for limit orders)
   reduceOnly?: boolean; // Reduce-only flag
   isFullClose?: boolean; // Indicates closing 100% of position (skips $10 minimum validation)
-  timeInForce?: 'GTC' | 'IOC' | 'ALO'; // Time in force
+  timeInForce?: 'GTC' | 'IOC' | 'ALO'; // Time in force for plain limit orders
 
   // USD as source of truth (hybrid approach)
   usdAmount?: string; // USD amount (primary source of truth, provider calculates size from this)
@@ -240,10 +246,29 @@ export type OrderParams = {
    */
   slippage?: number;
 
+  // Trigger placement (stop_market, stop_limit, take_profit_market, take_profit_limit).
+  // Required for those order types and rejected for market/limit orders.
+  triggerPrice?: string; // Price at which the resting order activates
+
   // Advanced order features
   takeProfitPrice?: string; // Take profit price
   stopLossPrice?: string; // Stop loss price
+  // Partial TP/SL: size of the attached TP/SL order. Omit for a TP/SL covering
+  // the full order size. Must be positive and no greater than `size`.
+  takeProfitSize?: string; // Quantity covered by the attached take profit
+  stopLossSize?: string; // Quantity covered by the attached stop loss
   clientOrderId?: string; // Optional client-provided order ID
+  /**
+   * How an attached TP/SL is linked: to this order (`order`), to the resulting
+   * position (`position`), or absent (`none`). Defaults to `none` without TP/SL
+   * and `order` with TP/SL. Takes precedence over the deprecated `grouping`.
+   */
+  tpslLinkage?: TpslLinkage;
+  /**
+   * @deprecated Use `tpslLinkage`. This field carries HyperLiquid's own grouping
+   * vocabulary; it is honoured for existing callers but a provider-agnostic
+   * placement should not depend on protocol wording.
+   */
   grouping?: 'na' | 'normalTpsl' | 'positionTpsl'; // Override grouping (defaults: 'na' without TP/SL, 'normalTpsl' with TP/SL)
   currentPrice?: number; // Current market price (avoids extra API call if provided)
   leverage?: number; // Leverage to apply for the order (e.g., 10 for 10x leverage)
@@ -291,11 +316,42 @@ export type Position = {
     sinceOpen: string; // Funding since position opened
     sinceChange: string; // Funding since last size change
   };
-  takeProfitPrice?: string; // Take profit price (if set)
-  stopLossPrice?: string; // Stop loss price (if set)
+  /**
+   * Take profit price (if set).
+   *
+   * Legacy summary field: it may also reflect a TP/SL child of a *pending* order
+   * on this market, which `takeProfitOrders` and `takeProfitCount` deliberately
+   * exclude because such a child protects that order rather than the position.
+   * A position can therefore report a price here with an empty array and a count
+   * of `0`. Prefer `takeProfitOrders` for anything that must be exact.
+   */
+  takeProfitPrice?: string;
+  /**
+   * Stop loss price (if set). Same caveat as `takeProfitPrice`.
+   */
+  stopLossPrice?: string;
   takeProfitCount: number; // Take profit count, how many tps can affect the position
   stopLossCount: number; // Stop loss count, how many sls can affect the position
+  // Full view of the trigger orders attached to this position, including
+  // quantity-scoped (partial) ones. The scalar `takeProfitPrice`/`stopLossPrice`
+  // fields above only carry one price each and cannot represent partial TP/SL.
+  takeProfitOrders?: PositionTriggerOrder[];
+  stopLossOrders?: PositionTriggerOrder[];
   providerId?: PerpsProviderType; // Multi-provider: which provider holds this position (injected by aggregator)
+};
+
+/**
+ * A trigger order attached to a position, as surfaced in position state.
+ * Provider-agnostic: protocols map their own trigger representation onto this.
+ */
+export type PositionTriggerOrder = {
+  orderId: string; // Exchange order ID (cancelable)
+  direction: TriggerDirection; // Whether the trigger takes profit or stops loss. Always known: recovered from the trigger price against the entry when the exchange does not name the placement type
+  orderType?: TriggerOrderType; // Normalized placement type. Absent when the exchange reported an unnamed trigger, whose execution mode cannot be recovered
+  triggerPrice: string; // Price at which the order activates
+  size: string; // Quantity this trigger closes (resolved to position size when the protocol encodes "whole position")
+  isPartial: boolean; // true when `size` is smaller than the position size
+  reduceOnly: boolean; // Whether the trigger can only reduce the position
 };
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
@@ -354,7 +410,12 @@ export type AccountState = {
 export type ClosePositionParams = {
   symbol: string; // Asset identifier to close (e.g., 'ETH', 'BTC', 'xyz:TSLA')
   size?: string; // Size to close (omit for full close)
-  orderType?: OrderType; // Close order type (default: market)
+  /**
+   * Close order type (default: market). Only `market` and `limit` are meaningful
+   * here: `ClosePositionParams` carries no trigger price, so a trigger-based
+   * close is not expressible and would be rejected during placement.
+   */
+  orderType?: OrderType;
   price?: string; // Limit price (required for limit close)
   currentPrice?: number; // Current market price for validation
 
@@ -371,8 +432,24 @@ export type ClosePositionParams = {
 
   /**
    * Optional live position data from WebSocket.
-   * If provided, skips the REST API position fetch (avoids rate limiting issues).
-   * If not provided, falls back to fetching positions via REST API cache.
+   *
+   * Pass a WebSocket-sourced snapshot only. The provider treats its own
+   * WebSocket position cache as fresher than this value and overrides the
+   * snapshot's size and side with it, so a REST-sourced (potentially older)
+   * position gives no benefit here.
+   *
+   * Providing it avoids a position fetch in the common case, but does not
+   * guarantee one is skipped: when the WebSocket cache does not cover the
+   * symbol's DEX (for example a HIP-3 DEX whose subscription has not published
+   * this session), the provider issues a single `clearinghouseState` request for
+   * that DEX alone, because the cache's silence proves nothing about the symbol.
+   * If that request succeeds, its answer is authoritative — the close fails with
+   * `No position found for <symbol>` when the DEX reports the symbol gone, even
+   * if it reports no positions at all. This snapshot is used only when that
+   * request fails, since a failed lookup proves nothing either.
+   *
+   * If not provided, the position is read from the WebSocket cache, falling back
+   * to a REST fetch when the cache is not initialized.
    */
   position?: Position;
 };
@@ -1065,7 +1142,9 @@ export type MaintenanceMarginParams = {
 };
 
 export type FeeCalculationParams = {
-  orderType: 'market' | 'limit';
+  // Trigger placements are charged as their execution kind (a stop_limit pays
+  // limit-order fees when it fills, a stop_market pays taker fees).
+  orderType: OrderType;
   isMaker?: boolean;
   amount?: string;
   symbol: string; // Required: Asset identifier for HIP-3 fee calculation (e.g., 'BTC', 'xyz:TSLA')
@@ -1097,6 +1176,12 @@ export type UpdatePositionTPSLParams = {
   symbol: string; // Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA')
   takeProfitPrice?: string; // Optional: undefined to remove
   stopLossPrice?: string; // Optional: undefined to remove
+  // Partial TP/SL: quantity covered by the TP/SL order. Omit to cover the whole
+  // position. When either size is provided the TP/SL orders are placed as
+  // standalone reduce-only triggers, since a position-bound TP/SL cannot carry a
+  // quantity.
+  takeProfitSize?: string;
+  stopLossSize?: string;
   // Optional tracking data for MetaMetrics events
   trackingData?: TPSLTrackingData;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
@@ -1128,6 +1213,10 @@ export type Order = {
   takeProfitOrderId?: string; // Take profit order ID
   detailedOrderType?: string; // Full order type from exchange (e.g., 'Take Profit Limit', 'Stop Market')
   isTrigger?: boolean; // Whether this is a trigger order (TP/SL)
+  // Normalized trigger placement type, set for trigger orders only. `orderType`
+  // above stays coarse (how the order executes) so existing consumers keep
+  // their meaning; this field carries the full placement type.
+  triggerOrderType?: TriggerOrderType;
   reduceOnly?: boolean; // Whether this is a reduce-only order
   isPositionTpsl?: boolean; // Whether this TP/SL is associated with the full position
   parentOrderId?: string; // Parent order ID for display-only synthetic TP/SL rows
@@ -1433,7 +1522,7 @@ export enum PerpsAnalyticsEvent {
   RiskManagement = 'Perp Risk Management',
   PerpsError = 'Perp Error',
   AccountSetup = 'Perp Account Setup',
-  // New funnel + search events (TAT-3084, TAT-3202).
+  // New funnel + search events.
   // Names must match MetaMetrics/Mixpanel exactly; no other event names may be added.
   TransactionConsidered = 'Perp Transaction Considered',
   TradeQuoteReceived = 'Perp Trade Quote Received',
@@ -1443,7 +1532,7 @@ export enum PerpsAnalyticsEvent {
 }
 
 /**
- * UTM / discovery attribution context for Perps analytics (TAT-3133, TAT-3140).
+ * UTM / discovery attribution context for Perps analytics.
  *
  * Held transiently in-memory by PerpsController (never persisted in state) and
  * merged into analytics event properties so client-originated UTM attribution
@@ -1959,10 +2048,10 @@ export function isVersionGatedFeatureFlag(
 // ============================================================================
 // Sub-module type re-exports
 // These types live in separate files within types/ and need to be accessible
-// from the root barrel via `export * from './types'`.
+// from the root barrel via `export * from './types.js'`.
 // ============================================================================
-export type * from './perps-types';
-export * from './transactionTypes';
+export type * from './perps-types.js';
+export * from './transactionTypes.js';
 // hyperliquid-types: selective export to avoid OrderType clash with main types
 export type {
   AssetPosition,
@@ -1980,4 +2069,4 @@ export type {
   MetaAndAssetCtxsResponse,
   PredictedFundingsResponse,
   SpotMetaResponse,
-} from './hyperliquid-types';
+} from './hyperliquid-types.js';

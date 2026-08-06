@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 
-import type { CandlePeriod } from '../constants/chartConfig';
-import { PerpsMeasurementName } from '../constants/performanceMetrics';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import { PerpsTraceNames, PerpsTraceOperations } from '../types';
+import type { CandlePeriod } from '../constants/chartConfig.js';
+import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { PerpsTraceNames, PerpsTraceOperations } from '../types/index.js';
 import type {
   PerpsProvider,
   Position,
@@ -33,12 +33,12 @@ import type {
   PerpsPlatformDependencies,
   PerpsMarketData,
   TerminalAssetMetadata,
-} from '../types';
-import type { CandleData } from '../types/perps-types';
-import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest';
-import { ensureError, isAbortError } from '../utils/errorUtils';
-import { applyMarketFilters } from '../utils/marketUtils';
-import type { ServiceContext } from './ServiceContext';
+} from '../types/index.js';
+import type { CandleData } from '../types/perps-types.js';
+import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
+import { ensureError, isAbortError } from '../utils/errorUtils.js';
+import { applyMarketFilters } from '../utils/marketUtils.js';
+import type { ServiceContext } from './ServiceContext.js';
 
 /**
  * MarketDataService

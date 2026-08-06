@@ -14,8 +14,8 @@ import type {
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
-import { buildDelegationStep } from './build-delegations';
+import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
+import { buildDelegationStep } from './build-delegations.js';
 
 jest.mock('@metamask/delegation-core', () => ({
   ROOT_AUTHORITY:

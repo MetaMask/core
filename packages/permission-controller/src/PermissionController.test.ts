@@ -5188,13 +5188,7 @@ describe('PermissionController', () => {
             },
           ),
         ).rejects.toThrow(
-          new errors.InvalidMergedPermissionsError(
-            origin,
-            new Error(
-              `${CaveatTypes.filterArrayResponse} values must be arrays`,
-            ),
-            {},
-          ),
+          `${CaveatTypes.filterArrayResponse} values must be arrays`,
         );
 
         expect(callActionSpy).not.toHaveBeenCalled();

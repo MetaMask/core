@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SentinelApiService } from './sentinel-api-service';
+import type { SentinelApiService } from './sentinel-api-service.js';
 
 /**
  * Fetches the Sentinel supported-network registry. The result is cached, as

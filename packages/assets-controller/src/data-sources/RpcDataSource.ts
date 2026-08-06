@@ -17,6 +17,9 @@ import {
   isCaipChainId,
   parseCaipAssetType,
   parseCaipChainId,
+  hexToNumber,
+  toCaipChainId,
+  KnownCaipNamespace,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BigNumberJS from 'bignumber.js';
@@ -24,8 +27,8 @@ import BigNumberJS from 'bignumber.js';
 import type {
   AssetsControllerGetStateAction,
   AssetsControllerMessenger,
-} from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
+} from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   ChainId,
   Caip19AssetId,
@@ -34,33 +37,33 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
-} from '../types';
-import { normalizeAssetId } from '../utils';
-import { ZERO_ADDRESS } from '../utils/constants';
-import { AbstractDataSource } from './AbstractDataSource';
+} from '../types.js';
+import { ZERO_ADDRESS } from '../utils/constants.js';
+import { normalizeAssetId } from '../utils/index.js';
+import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,
   SubscriptionRequest,
-} from './AbstractDataSource';
+} from './AbstractDataSource.js';
 import {
   BalanceFetcher,
   MulticallClient,
   TokenDetector,
   TokensApiClient,
-} from './evm-rpc-services';
+} from './evm-rpc-services/index.js';
 import type {
   BalancePollingInput,
   DetectionPollingInput,
   TokenListQueryClient,
-} from './evm-rpc-services';
+} from './evm-rpc-services/index.js';
 import type {
   Address,
   AssetFetchEntry,
   Provider as RpcProvider,
   BalanceFetchResult,
   TokenDetectionResult,
-} from './evm-rpc-services/types';
-import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets';
+} from './evm-rpc-services/types/index.js';
+import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets.js';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
@@ -272,8 +275,20 @@ export class RpcDataSource extends AbstractDataSource<
     });
 
     // Initialize MulticallClient with a provider getter
-    this.#multicallClient = new MulticallClient((hexChainId: string) => {
-      return this.#getMulticallProvider(hexChainId);
+    this.#multicallClient = new MulticallClient({
+      getProvider: (hexChainId: string): RpcProvider => {
+        return this.#getMulticallProvider(hexChainId);
+      },
+      getMulticall3AddressForChain: (hexChainId: Hex): Hex | undefined =>
+        // The messenger is not being called from a constructor, so this is safe.
+        // eslint-disable-next-line no-restricted-syntax
+        this.#messenger.call(
+          'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+          toCaipChainId(
+            KnownCaipNamespace.Eip155,
+            hexToNumber(hexChainId).toString(),
+          ),
+        )?.contracts?.multicall3,
     });
 
     // Create messenger adapters for BalanceFetcher and TokenDetector
@@ -284,6 +299,8 @@ export class RpcDataSource extends AbstractDataSource<
         assetsBalance: Record<string, Record<string, { amount: string }>>;
         customAssets?: Record<string, string[]>;
       } => {
+        // The messenger is not being called from a constructor, so this is safe.
+        // eslint-disable-next-line no-restricted-syntax
         const state = this.#messenger.call('AssetsController:getState');
         return {
           assetsBalance: (state.assetsBalance ?? {}) as Record<

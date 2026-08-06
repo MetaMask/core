@@ -1242,9 +1242,7 @@ describe('PollingBlockTracker', () => {
           const promiseToCheckLatestBlock1 = blockTracker.checkForLatestBlock();
           const promiseToCheckLatestBlock2 = blockTracker.checkForLatestBlock();
 
-          expect(promiseToCheckLatestBlock1).toStrictEqual(
-            promiseToCheckLatestBlock2,
-          );
+          expect(promiseToCheckLatestBlock1).toBe(promiseToCheckLatestBlock2);
         },
       );
     });

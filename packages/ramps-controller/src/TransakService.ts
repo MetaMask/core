@@ -4,7 +4,10 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
+import packageJson from '../package.json';
+import { RAMPS_SDK_VERSION } from './RampsService.js';
 import { TRANSAK_ERROR_CODES } from './transakErrorCodes.js';
 import type { TransakServiceMethodActions } from './TransakService-method-action-types.js';
 
@@ -265,6 +268,7 @@ export type TransakIdProofStatus = {
 export enum TransakEnvironment {
   Production = 'production',
   Staging = 'staging',
+  Development = 'development',
 }
 
 enum TransakApiProviders {
@@ -285,9 +289,9 @@ export class TransakOrderIdTransformer {
     environment: TransakEnvironment,
   ): string {
     const provider =
-      environment === TransakEnvironment.Staging
-        ? 'transak-native-staging'
-        : 'transak-native';
+      environment === TransakEnvironment.Production
+        ? 'transak-native'
+        : 'transak-native-staging';
     return `/providers/${provider}/orders/${transakOrderId}`;
   }
 
@@ -322,6 +326,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getUserLimits',
   'requestOtt',
   'generatePaymentWidgetUrl',
+  'createWidgetUrl',
   'submitPurposeOfUsageForm',
   'patchUser',
   'submitSsnDetails',
@@ -335,7 +340,11 @@ const MESSENGER_EXPOSED_METHODS = [
 
 export type TransakServiceActions = TransakServiceMethodActions;
 
-type AllowedActions = never;
+/**
+ * Actions from other messengers that {@link TransakService} calls.
+ */
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 export type TransakServiceEvents = never;
 
@@ -391,7 +400,9 @@ function getTransakApiBaseUrl(environment: TransakEnvironment): string {
   switch (environment) {
     case TransakEnvironment.Production:
       return 'https://api-gateway.transak.com';
+    // Transak has no dev environment; development uses their staging gateway.
     case TransakEnvironment.Staging:
+    case TransakEnvironment.Development:
       return 'https://api-gateway-stg.transak.com';
     default:
       throw new Error(`Invalid Transak environment: ${String(environment)}`);
@@ -404,16 +415,20 @@ function getRampsBaseUrl(environment: TransakEnvironment): string {
       return 'https://on-ramp.api.cx.metamask.io';
     case TransakEnvironment.Staging:
       return 'https://on-ramp.uat-api.cx.metamask.io';
+    case TransakEnvironment.Development:
+      return 'https://on-ramp.dev-api.cx.metamask.io';
     default:
       throw new Error(`Invalid Transak environment: ${String(environment)}`);
   }
 }
 
 function getRampsProviderPath(environment: TransakEnvironment): string {
+  // The dev ramps API registers the same `transak-native-staging` provider
+  // id as UAT; only production uses `transak-native`.
   const providerId =
-    environment === TransakEnvironment.Staging
-      ? TransakApiProviders.TransakNativeStaging
-      : TransakApiProviders.TransakNative;
+    environment === TransakEnvironment.Production
+      ? TransakApiProviders.TransakNative
+      : TransakApiProviders.TransakNativeStaging;
   return `/providers/${providerId}`;
 }
 
@@ -421,12 +436,23 @@ function getPaymentWidgetBaseUrl(environment: TransakEnvironment): string {
   switch (environment) {
     case TransakEnvironment.Production:
       return 'https://global.transak.com';
+    // Transak has no dev environment; development uses their staging widget.
     case TransakEnvironment.Staging:
+    case TransakEnvironment.Development:
       return 'https://global-stg.transak.com';
     default:
       throw new Error(`Invalid Transak environment: ${String(environment)}`);
   }
 }
+
+/**
+ * Transak requires `referrerDomain` in `widgetParams` alongside the partner
+ * API key (which the ramps API proxy injects server-side). Identifies the
+ * MetaMask client to Transak. Default when the client does not pass a
+ * `referrerDomain` constructor option (e.g. the mobile app passes its
+ * package name / bundle id).
+ */
+const TRANSAK_REFERRER_DOMAIN = 'metamask.io';
 
 // === TRANSAK API ERROR ===
 
@@ -470,6 +496,20 @@ export class TransakService {
 
   #accessToken: TransakAccessToken | null = null;
 
+  /**
+   * Optional ramps API base URL override for local development (mirrors
+   * `RampsService`'s `baseUrlOverride`). Applies to the requests this service
+   * sends to the ramps API (orders, widget-url proxy), not to direct Transak
+   * API calls.
+   */
+  readonly #rampsApiBaseUrlOverride?: string;
+
+  /**
+   * Identifies the client to Transak in `widgetParams` (e.g. the mobile app's
+   * package name / bundle id). Defaults to `metamask.io`.
+   */
+  readonly #referrerDomain: string;
+
   constructor({
     messenger,
     environment = TransakEnvironment.Staging,
@@ -478,6 +518,8 @@ export class TransakService {
     apiKey,
     policyOptions = {},
     orderRetryDelayMs = 2000,
+    rampsApiBaseUrlOverride,
+    referrerDomain = TRANSAK_REFERRER_DOMAIN,
   }: {
     messenger: TransakServiceMessenger;
     environment?: TransakEnvironment;
@@ -486,6 +528,8 @@ export class TransakService {
     apiKey?: string;
     policyOptions?: CreateServicePolicyOptions;
     orderRetryDelayMs?: number;
+    rampsApiBaseUrlOverride?: string;
+    referrerDomain?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -499,6 +543,8 @@ export class TransakService {
     this.#context = context;
     this.#apiKey = apiKey ?? null;
     this.#orderRetryDelayMs = orderRetryDelayMs;
+    this.#rampsApiBaseUrlOverride = rampsApiBaseUrlOverride;
+    this.#referrerDomain = referrerDomain;
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -715,11 +761,34 @@ export class TransakService {
     });
   }
 
+  /**
+   * Gets the ramps API base URL, respecting the local-development override
+   * when set (same semantics as `RampsService`'s `baseUrlOverride`).
+   *
+   * @returns The ramps API base URL to use.
+   */
+  #getRampsApiBaseUrl(): string {
+    return this.#rampsApiBaseUrlOverride ?? getRampsBaseUrl(this.#environment);
+  }
+
+  /**
+   * Adds the common request parameters to a ramps API proxy URL, mirroring
+   * `RampsService`'s `#addCommonParams`.
+   *
+   * @param url - The URL to add parameters to.
+   */
+  #addRampsCommonParams(url: URL): void {
+    url.searchParams.set('action', 'deposit');
+    url.searchParams.set('sdk', RAMPS_SDK_VERSION);
+    url.searchParams.set('controller', packageJson.version);
+    url.searchParams.set('context', this.#context);
+  }
+
   async #ordersApiGet<ResponseType>(
     path: string,
     params?: Record<string, string>,
   ): Promise<ResponseType> {
-    const baseUrl = getRampsBaseUrl(this.#environment);
+    const baseUrl = this.#getRampsApiBaseUrl();
     const providerPath = getRampsProviderPath(this.#environment);
     const url = new URL(`${providerPath}${path}`, baseUrl);
 
@@ -1020,6 +1089,11 @@ export class TransakService {
     );
   }
 
+  /**
+   * @deprecated Use {@link createWidgetUrl} instead. The OTT flow requires the
+   * partner API key on the client and Transak is deprecating `request-ott`.
+   * @returns The one-time token response.
+   */
   async requestOtt(): Promise<TransakOttResponse> {
     this.#ensureAccessToken();
     const result = await this.#transakPost<TransakOttResponse>(
@@ -1028,6 +1102,15 @@ export class TransakService {
     return result;
   }
 
+  /**
+   * @deprecated Use {@link createWidgetUrl} instead. This builds the widget
+   * URL client-side and embeds the partner API key in it.
+   * @param ottToken - The one-time token for widget authentication.
+   * @param quote - The buy quote to pre-fill in the widget.
+   * @param walletAddress - The destination wallet address.
+   * @param extraParams - Optional additional URL parameters.
+   * @returns The fully constructed widget URL string.
+   */
   generatePaymentWidgetUrl(
     ottToken: string,
     quote: TransakBuyQuote,
@@ -1062,6 +1145,78 @@ export class TransakService {
     const widgetUrl = new URL(widgetBaseUrl);
     widgetUrl.search = params.toString();
     return widgetUrl.toString();
+  }
+
+  /**
+   * Creates a Transak payment widget URL through the ramps API proxy
+   * (`POST {rampsBaseUrl}/providers/{providerId}/widget-url`). The proxy
+   * injects the partner API key and derives the user IP server-side, so
+   * neither leaves the backend. Replaces the OTT flow ({@link requestOtt} +
+   * {@link generatePaymentWidgetUrl}).
+   *
+   * Requires both a Transak access token (user must be logged in to Transak)
+   * and a MetaMask bearer token from `AuthenticationController`.
+   *
+   * @param quote - The buy quote to pre-fill in the widget.
+   * @param walletAddress - The destination wallet address.
+   * @param extraParams - Optional additional widget parameters (e.g. theming).
+   * Keys must be on the proxy's allowlist or the request is rejected.
+   * @returns The single-use widget URL (expires after 5 minutes).
+   */
+  async createWidgetUrl(
+    quote: TransakBuyQuote,
+    walletAddress: string,
+    extraParams?: Record<string, string>,
+  ): Promise<string> {
+    this.#ensureAccessToken();
+    const bearerToken = await this.#messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+
+    const baseUrl = this.#getRampsApiBaseUrl();
+    const providerPath = getRampsProviderPath(this.#environment);
+    const url = new URL(`${providerPath}/widget-url`, baseUrl);
+
+    this.#addRampsCommonParams(url);
+
+    const widgetParams: Record<string, string | number> = {
+      referrerDomain: this.#referrerDomain,
+      fiatCurrency: quote.fiatCurrency,
+      cryptoCurrencyCode: quote.cryptoCurrency,
+      fiatAmount: quote.fiatAmount,
+      network: quote.network,
+      paymentMethod: quote.paymentMethod,
+      walletAddress,
+      hideExchangeScreen: 'true',
+      disableWalletAddressEdit: 'true',
+      hideMenu: 'true',
+      redirectURL:
+        'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+      ...extraParams,
+    };
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    };
+    if (this.#accessToken?.accessToken) {
+      headers['x-transak-access-token'] = this.#accessToken.accessToken;
+    }
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url.toString(), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ widgetParams }),
+      });
+      if (!fetchResponse.ok) {
+        await this.#throwTransakApiError(fetchResponse, url);
+      }
+      return fetchResponse.json() as Promise<{ widgetUrl: string }>;
+    });
+
+    return response.widgetUrl;
   }
 
   async submitPurposeOfUsageForm(purpose: string[]): Promise<void> {

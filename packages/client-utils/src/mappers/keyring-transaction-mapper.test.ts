@@ -1,7 +1,7 @@
 import { SolScope } from '@metamask/keyring-api';
 
-import { keyringTransactionFixtures } from '../../test/fixtures/keyring-transactions';
-import { mapKeyringTransaction } from './keyring-transaction-mapper';
+import { keyringTransactionFixtures } from '../../test/fixtures/keyring-transactions.js';
+import { mapKeyringTransaction } from './keyring-transaction-mapper.js';
 
 describe('mapKeyringTransaction', () => {
   it('maps keyring send transactions with token amount data', () => {
@@ -210,6 +210,29 @@ describe('mapKeyringTransaction', () => {
           amount: '0.000003',
           direction: 'out',
           symbol: 'BTC',
+        },
+      },
+    });
+  });
+
+  it('uses the subject outflow for a Solana bridge send', () => {
+    const item = mapKeyringTransaction(
+      keyringTransactionFixtures.mapArgs.solanaBridgeSendWithForeignUsdc,
+    );
+
+    expect(item).toMatchObject({
+      type: 'send',
+      chainId: SolScope.Mainnet,
+      status: 'success',
+      hash: '3Tph6Faw2YMshJt7pkCaCbTHTX4mYJLE6h72DR6Q4uDta9HmrNCfReXuDDPKUCbCxn7NUNALvgNjii19fKdgWBfA',
+      data: {
+        from: keyringTransactionFixtures.addresses.solanaSubject,
+        to: keyringTransactionFixtures.addresses.solanaCounterparty,
+        token: {
+          amount: '0.00531264',
+          assetId: `${SolScope.Mainnet}/slip44:501`,
+          direction: 'out',
+          symbol: 'SOL',
         },
       },
     });

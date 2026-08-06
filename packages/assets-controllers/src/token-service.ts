@@ -6,7 +6,7 @@ import {
 } from '@metamask/controller-utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
-import { isTokenListSupportedForNetwork } from './assetsUtil';
+import { isTokenListSupportedForNetwork } from './assetsUtil.js';
 
 export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
@@ -380,6 +380,10 @@ export type TokenRwaData = {
     start?: string;
     end?: string;
   };
+  offhours?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
   ticker?: string;
   instrumentType?: string;
 };
@@ -401,6 +405,10 @@ export type RwaTokenData = {
   industry: string[];
   market?: RwaMarket;
   nextPause?: Record<string, unknown>;
+  offhours?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
   sharesOutstanding?: number;
   restrictedCountries?: string[];
   updatedAt?: string;

@@ -27,6 +27,7 @@
   "metamask/eip-7702-internal-rpc-middleware": "team-delegation",
   "metamask/earn-controller": "team-earn",
   "metamask/money-account-balance-service": "team-earn",
+  "metamask/money-account-utils": "team-earn",
   "metamask/money-account-api-data-service": "team-earn",
   "metamask/notification-services-controller": "team-assets",
   "metamask/compliance-controller": "team-perps",
@@ -94,5 +95,6 @@
   "metamask/money-account-upgrade-controller": "team-earn",
   "metamask/snap-account-service": "team-accounts-framework",
   "metamask/platform-api-docs": "team-core-platform",
-  "metamask/smart-transactions-controller": "team-transactions"
+  "metamask/smart-transactions-controller": "team-transactions",
+  "metamask/kyc-controller": "team-universal-kyc"
 }

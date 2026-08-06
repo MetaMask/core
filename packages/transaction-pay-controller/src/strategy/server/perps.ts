@@ -8,8 +8,8 @@ import {
   CHAIN_ID_HYPERCORE,
   HYPERCORE_USDC_DECIMALS,
   USDC_DECIMALS,
-} from '../../constants';
-import type { QuoteRequest } from '../../types';
+} from '../../constants.js';
+import type { QuoteRequest } from '../../types.js';
 
 /**
  * Shared 20-byte sentinel address emitted by the server strategy to flag a

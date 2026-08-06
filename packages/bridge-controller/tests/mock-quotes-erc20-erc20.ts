@@ -1,11 +1,13 @@
 import { merge } from 'lodash';
 
-import type { DeepPartial } from '../src/types';
+import { toQuoteResponseV2 } from '../src/index.js';
+import type { DeepPartial } from '../src/types.js';
 import {
   validateQuoteResponseV1,
   QuoteResponseV1,
-} from '../src/validators/quote-response-v1';
-import { ActionTypes } from '../src/validators/step';
+} from '../src/validators/quote-response-v1.js';
+import type { QuoteResponse } from '../src/validators/quote-response.js';
+import { ActionTypes } from '../src/validators/step.js';
 
 export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
   {
@@ -18,12 +20,12 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
       srcChainId: 10,
       srcAsset: {
         chainId: 10,
-        address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+        address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
         assetId: 'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
         symbol: 'USDC',
         name: 'USD Coin',
         decimals: 6,
-        icon: 'https://media.socket.tech/tokens/all/USDC',
+        iconUrl: 'https://media.socket.tech/tokens/all/USDC',
       },
       srcTokenAmount: '14000000',
       destChainId: 137,
@@ -34,7 +36,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
         symbol: 'USDC',
         name: 'Native USD Coin (POS)',
         decimals: 6,
-        icon: 'https://media.socket.tech/tokens/all/USDC',
+        iconUrl: 'https://media.socket.tech/tokens/all/USDC',
       },
       destTokenAmount: '13984280',
       minDestTokenAmount: '13700000',
@@ -43,18 +45,18 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
           amount: '0',
           asset: {
             chainId: 10,
-            address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
             assetId:
               'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
             symbol: 'USDC',
             name: 'USD Coin',
             decimals: 6,
-            icon: 'https://media.socket.tech/tokens/all/USDC',
           },
         },
       },
       bridgeId: 'socket',
       bridges: ['across'],
+      aggregator: 'socket',
       protocols: ['across'],
       steps: [
         {
@@ -69,7 +71,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
             symbol: 'USDC',
             name: 'USD Coin',
             decimals: 6,
-            icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
+            iconUrl: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
           destAsset: {
             chainId: 137,
@@ -79,7 +81,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
             symbol: 'USDC',
             name: 'Native USD Coin (POS)',
             decimals: 6,
-            icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
+            iconUrl: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
         },
       ],
@@ -113,7 +115,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
         symbol: 'USDC',
         name: 'USD Coin',
         decimals: 6,
-        icon: 'https://media.socket.tech/tokens/all/USDC',
+        iconUrl: 'https://media.socket.tech/tokens/all/USDC',
       },
       srcTokenAmount: '14000000',
       destChainId: 137,
@@ -124,7 +126,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
         symbol: 'USDC',
         name: 'Native USD Coin (POS)',
         decimals: 6,
-        icon: 'https://media.socket.tech/tokens/all/USDC',
+        iconUrl: 'https://media.socket.tech/tokens/all/USDC',
       },
       destTokenAmount: '13800000',
       minDestTokenAmount: '13530000',
@@ -139,7 +141,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
             symbol: 'USDC',
             name: 'USD Coin',
             decimals: 6,
-            icon: 'https://media.socket.tech/tokens/all/USDC',
+            iconUrl: 'https://media.socket.tech/tokens/all/USDC',
           },
         },
       },
@@ -158,7 +160,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
             symbol: 'USDC',
             name: 'USD Coin',
             decimals: 6,
-            icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
+            iconUrl: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
           destAsset: {
             chainId: 137,
@@ -168,7 +170,7 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
             symbol: 'USDC',
             name: 'Native USD Coin (POS)',
             decimals: 6,
-            icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
+            iconUrl: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
         },
       ],
@@ -201,4 +203,10 @@ export const getMockBridgeQuotesErc20Erc20V1 = (
     validateQuoteResponseV1(mergedQuote);
     return mergedQuote;
   });
+};
+
+export const getMockBridgeQuotesErc20Erc20V2 = (
+  quoteOverrides?: DeepPartial<QuoteResponseV1>,
+): QuoteResponse[] => {
+  return getMockBridgeQuotesErc20Erc20V1(quoteOverrides).map(toQuoteResponseV2);
 };

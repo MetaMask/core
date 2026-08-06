@@ -18,6 +18,7 @@ export type {
   RampsControllerGetRequestStateAction,
   RampsControllerSetUserRegionAction,
   RampsControllerSetSelectedProviderAction,
+  RampsControllerSetSelectedProviderForAssetAction,
   RampsControllerInitAction,
   RampsControllerGetCountriesAction,
   RampsControllerGetTokensAction,
@@ -109,8 +110,10 @@ export {
   RampsApiService,
   RampsOrderStatus,
   RAMPS_SDK_VERSION,
+  getDefaultRedirectCallbackUrl,
 } from './RampsService.js';
 export type {
+  RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetPaymentMethodsAction,
@@ -142,7 +145,9 @@ export type { RequestSelectorResult } from './selectors.js';
 export { createRequestSelector } from './selectors.js';
 export type { HeadlessFeatureFlagsLookup } from './featureFlags.js';
 export {
+  HEADLESS_ALL_PROVIDERS_FEATURE_VERSION,
   MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
+  getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
 } from './featureFlags.js';
 export {
@@ -156,6 +161,10 @@ export {
   isCustomActionQuote,
   isInAppOnlyQuote,
 } from './quoteClassification.js';
+export {
+  TERMINAL_ORDER_STATUSES,
+  isTerminalOrderStatus,
+} from './orderStatus.js';
 export type { TypedError } from './errorNormalization.js';
 export {
   getErrorMessage,
@@ -209,4 +218,5 @@ export type {
   TransakServiceGetOrderAction,
   TransakServiceRequestOttAction,
   TransakServiceGeneratePaymentWidgetUrlAction,
+  TransakServiceCreateWidgetUrlAction,
 } from './TransakService-method-action-types.js';

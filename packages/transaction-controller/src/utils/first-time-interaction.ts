@@ -1,37 +1,12 @@
-import type { TransactionDescription } from '@ethersproject/abi';
 import type { TraceContext, TraceCallback } from '@metamask/controller-utils';
 import { hexToNumber } from '@metamask/utils';
 
-import { getAccountAddressRelationship } from '../api/accounts-api';
-import type { GetAccountAddressRelationshipRequest } from '../api/accounts-api';
-import { projectLogger as log } from '../logger';
-import { TransactionType } from '../types';
-import type { TransactionMeta } from '../types';
-import { decodeTransactionData } from './transaction-type';
-import { validateParamTo } from './validation';
-
-const TOKEN_TRANSFER_TYPES = [
-  TransactionType.tokenMethodTransfer,
-  TransactionType.tokenMethodTransferFrom,
-  TransactionType.tokenMethodSafeTransferFrom,
-];
-
-/**
- * Returns the effective recipient for first-time-interaction checks (decoded from data for token transfers).
- * Used when comparing existing transactions so we match by actual recipient, not txParams.to (the token
- * contract for ERC20/ERC721/ERC1155 transfer methods).
- *
- * @param tx - Transaction meta with txParams and type
- * @returns Effective recipient address, or undefined
- */
-function getEffectiveRecipient(tx: TransactionMeta): string | undefined {
-  const { data, to } = tx?.txParams ?? {};
-  if (data && TOKEN_TRANSFER_TYPES.includes(tx?.type as TransactionType)) {
-    const parsed = decodeTransactionData(data) as TransactionDescription;
-    return (parsed?.args?._to ?? parsed?.args?.to ?? to) as string | undefined;
-  }
-  return to;
-}
+import { getAccountAddressRelationship } from '../api/accounts-api.js';
+import type { GetAccountAddressRelationshipRequest } from '../api/accounts-api.js';
+import { projectLogger as log } from '../logger.js';
+import type { TransactionMeta } from '../types.js';
+import { getEffectiveRecipient } from './recipient.js';
+import { validateParamTo } from './validation.js';
 
 type UpdateFirstTimeInteractionRequest = {
   existingTransactions: TransactionMeta[];
