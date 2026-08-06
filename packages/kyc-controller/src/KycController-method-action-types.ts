@@ -139,6 +139,11 @@ export type KycControllerGetKycStatusAction = {
  * 5. fetches the SumSub applicant access token; and
  * 6. presents the SDK via the injected launcher.
  *
+ * If session creation reports the applicant is already approved on the relay
+ * while the vendor is still finalizing (`kycStatus: approved`,
+ * `finalStatus: pending`), the sub-flow stops at step 4 with a
+ * `vendorProcessing` status and a message rather than launching the SDK.
+ *
  * @param params - Optional parameters.
  * @param params.locale - BCP-47 locale for the SDK UI.
  * @param params.debug - Enables SDK debug logging.
