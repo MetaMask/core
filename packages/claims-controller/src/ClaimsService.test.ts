@@ -207,7 +207,7 @@ describe('ClaimsService', () => {
 
       const service = createMockClaimsService();
 
-      await expect(service.fetchClaimsConfigurations()).resolves.toStrictEqual(
+      expect(await service.fetchClaimsConfigurations()).toStrictEqual(
         responseWithExtraFields,
       );
     });
@@ -296,9 +296,7 @@ describe('ClaimsService', () => {
 
       const service = createMockClaimsService();
 
-      await expect(service.getClaims()).resolves.toStrictEqual([
-        claimWithExtraFields,
-      ]);
+      expect(await service.getClaims()).toStrictEqual([claimWithExtraFields]);
     });
   });
 
@@ -377,7 +375,7 @@ describe('ClaimsService', () => {
 
       const service = createMockClaimsService();
 
-      await expect(service.getClaimById('1')).resolves.toStrictEqual(
+      expect(await service.getClaimById('1')).toStrictEqual(
         claimWithExtraFields,
       );
     });
@@ -501,9 +499,9 @@ describe('ClaimsService', () => {
 
       const service = createMockClaimsService();
 
-      await expect(
-        service.generateMessageForClaimSignature(1, '0x123'),
-      ).resolves.toStrictEqual(responseWithExtraFields);
+      expect(
+        await service.generateMessageForClaimSignature(1, '0x123'),
+      ).toStrictEqual(responseWithExtraFields);
     });
   });
 
