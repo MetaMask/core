@@ -190,6 +190,9 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/accounts-engineers', '@MetaMask/core-platform'],
     initializationPath: 'keyring-controller',
   },
+  'kyc-controller': {
+    teams: ['@MetaMask/universal-kyc'],
+  },
   'local-node-utils': {
     teams: [
       '@MetaMask/mobile-platform',
@@ -355,6 +358,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'subscription-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-controller',
+  },
+  'subscription-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-service',
   },
   'transaction-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -562,6 +570,10 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('claims-controller'),
       ],
     },
+    {
+      title: 'Universal KYC Team',
+      rules: [buildRuleForPackage('kyc-controller')],
+    },
   ];
 }
 
@@ -700,6 +712,7 @@ function buildPackageReleaseSection(): CodeownersSection {
     'money-account-upgrade-controller',
     'money-account-utils',
     'snap-account-service',
+    'kyc-controller',
   ] as const satisfies (keyof typeof PACKAGES)[];
 
   return {

@@ -86,6 +86,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
+- [`@metamask/kyc-controller`](packages/kyc-controller)
 - [`@metamask/local-node-utils`](packages/local-node-utils)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
@@ -192,6 +193,7 @@ linkStyle default opacity:0.5
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
+  kyc_controller(["@metamask/kyc-controller"]);
   local_node_utils(["@metamask/local-node-utils"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
@@ -615,6 +617,7 @@ linkStyle default opacity:0.5
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   subscription_controller --> base_controller;
+  subscription_controller --> base_data_service;
   subscription_controller --> controller_utils;
   subscription_controller --> messenger;
   subscription_controller --> polling_controller;
@@ -669,6 +672,7 @@ linkStyle default opacity:0.5
   wallet --> remote_feature_flag_controller;
   wallet --> seedless_onboarding_controller;
   wallet --> storage_service;
+  wallet --> subscription_controller;
   wallet --> transaction_controller;
   wallet_cli --> analytics_controller;
   wallet_cli --> base_controller;

@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Wire `ClaimsService` and `ClaimsController` into the default wallet initialization ([#9588](https://github.com/MetaMask/core/pull/9588))
   - Adds an optional `claimsService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `ClaimsService`.
   - `ClaimsService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile`; hosts must register `AuthenticationController` on the supplied root messenger before authenticated Claims API calls succeed.
+- **BREAKING:** Wire `SubscriptionController` and `SubscriptionService` into the default wallet initialization ([#9598](https://github.com/MetaMask/core/pull/9598))
+  - Adds an optional `subscriptionService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `SubscriptionService`.
+  - Adds an optional `subscriptionController` slot to `instanceOptions` for an optional `pollingInterval`.
+  - `SubscriptionService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile` from the wallet root messenger; hosts must register `AuthenticationController` on the root messenger for authenticated subscription API calls.
 
 ### Changed
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [111.1.0]
+
+### Added
+
+- Add `offhours` field to `TokenRwaData` and `RwaTokenData` types to support off-hours RWA trading windows ([#9792](https://github.com/MetaMask/core/pull/9792))
+  - `offhours.nextOpen`: ISO-8601 datetime when the next off-hours window opens
+  - `offhours.nextClose`: ISO-8601 datetime when the next off-hours window closes
+  - Field is only present when the asset's source reports off-hours tradability; absence means off-hours trading is not supported
+- Add 0G (`16661`/`0x4115`) entries in `multicall.ts` and `codefi-v2.ts` ([#9760](https://github.com/MetaMask/core/pull/9760))
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.6.0` to `^7.6.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
@@ -3401,7 +3411,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.0...HEAD
+[111.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.0.0...@metamask/assets-controllers@111.1.0
 [111.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.1...@metamask/assets-controllers@111.0.0
 [110.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.0...@metamask/assets-controllers@110.1.1
 [110.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.3...@metamask/assets-controllers@110.1.0
