@@ -186,6 +186,31 @@ describe('ClaimsService', () => {
         ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
       );
     });
+
+    it('accepts responses with unrecognized fields', async () => {
+      mockFetchFunction.mockRestore();
+      mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
+        'test-token',
+      );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValueOnce(
+        MOCK_SESSION_PROFILE,
+      );
+
+      const responseWithExtraFields = {
+        ...MOCK_CONFIGURATIONS,
+        newApiField: 'additive',
+      };
+      mockFetchFunction.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(responseWithExtraFields),
+      });
+
+      const service = createMockClaimsService();
+
+      await expect(service.fetchClaimsConfigurations()).resolves.toStrictEqual(
+        responseWithExtraFields,
+      );
+    });
   });
 
   describe('getClaims', () => {
@@ -242,6 +267,39 @@ describe('ClaimsService', () => {
         ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS,
       );
     });
+
+    it('accepts claims with unrecognized fields', async () => {
+      mockFetchFunction.mockRestore();
+      mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
+        'test-token',
+      );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValueOnce(
+        MOCK_SESSION_PROFILE,
+      );
+
+      const claimWithExtraFields = {
+        ...MOCK_CLAIM_1,
+        newApiField: 'additive',
+        attachments: [
+          {
+            publicUrl: 'https://example.com/file.png',
+            contentType: 'image/png',
+            originalname: 'file.png',
+            newAttachmentField: true,
+          },
+        ],
+      };
+      mockFetchFunction.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce([claimWithExtraFields]),
+      });
+
+      const service = createMockClaimsService();
+
+      await expect(service.getClaims()).resolves.toStrictEqual([
+        claimWithExtraFields,
+      ]);
+    });
   });
 
   describe('getClaimById', () => {
@@ -296,6 +354,31 @@ describe('ClaimsService', () => {
 
       await expect(service.getClaimById('1')).rejects.toThrow(
         ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+      );
+    });
+
+    it('accepts a claim with unrecognized fields', async () => {
+      mockFetchFunction.mockRestore();
+      mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
+        'test-token',
+      );
+      mockAuthenticationControllerGetSessionProfile.mockResolvedValueOnce(
+        MOCK_SESSION_PROFILE,
+      );
+
+      const claimWithExtraFields = {
+        ...MOCK_CLAIM_1,
+        newApiField: 'additive',
+      };
+      mockFetchFunction.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(claimWithExtraFields),
+      });
+
+      const service = createMockClaimsService();
+
+      await expect(service.getClaimById('1')).resolves.toStrictEqual(
+        claimWithExtraFields,
       );
     });
 
@@ -399,6 +482,28 @@ describe('ClaimsService', () => {
           new Error('error: Unknown error, statusCode: 500'),
         ),
       );
+    });
+
+    it('accepts responses with unrecognized fields', async () => {
+      mockFetchFunction.mockRestore();
+      mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
+        'test-token',
+      );
+
+      const responseWithExtraFields = {
+        ...MOCK_MESSAGE,
+        newApiField: 'additive',
+      };
+      mockFetchFunction.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(responseWithExtraFields),
+      });
+
+      const service = createMockClaimsService();
+
+      await expect(
+        service.generateMessageForClaimSignature(1, '0x123'),
+      ).resolves.toStrictEqual(responseWithExtraFields);
     });
   });
 

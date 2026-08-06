@@ -2,22 +2,22 @@ import {
   array,
   enums,
   integer,
-  object,
   optional,
   string,
+  type,
 } from '@metamask/superstruct';
 
 import { ClaimStatusEnum } from './constants.js';
 
 const HexStringStruct = string();
 
-const AttachmentStruct = object({
+const AttachmentStruct = type({
   publicUrl: string(),
   contentType: string(),
   originalname: string(),
 });
 
-export const ClaimStruct = object({
+export const ClaimStruct = type({
   id: string(),
   shortId: string(),
   chainId: string(),
@@ -34,12 +34,12 @@ export const ClaimStruct = object({
   intercomId: optional(string()),
 });
 
-export const ClaimsConfigurationsResponseStruct = object({
+export const ClaimsConfigurationsResponseStruct = type({
   validSubmissionWindowDays: integer(),
   networks: array(integer()),
 });
 
-export const GenerateSignatureMessageResponseStruct = object({
+export const GenerateSignatureMessageResponseStruct = type({
   message: string(),
   nonce: string(),
 });
