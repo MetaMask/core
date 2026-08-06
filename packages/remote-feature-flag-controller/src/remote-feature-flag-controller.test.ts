@@ -1686,10 +1686,6 @@ describe('RemoteFeatureFlagController', () => {
             sharedFlag: 'remoteValue',
             remoteOnly: true,
           },
-          rawRemoteFeatureFlags: {
-            sharedFlag: 'remoteValue',
-            remoteOnly: true,
-          },
           localOverrides: {
             sharedFlag: 'overrideValue',
           },
@@ -1750,58 +1746,6 @@ describe('RemoteFeatureFlagController', () => {
         defaultFlag: 'defaultValue',
       });
       expect(controller.state.localOverrides).toStrictEqual({});
-    });
-
-    it('strips default-only keys from the processed layer on init', () => {
-      const { controller, messenger } = createController({
-        state: {
-          // Stale baked-in default from a previous session
-          remoteFeatureFlags: {
-            defaultOnly: 'staleDefault',
-            remoteFlag: 'remoteValue',
-          },
-          rawRemoteFeatureFlags: {
-            remoteFlag: 'remoteValue',
-          },
-        },
-        defaultFeatureFlags: {
-          defaultOnly: 'currentDefault',
-        },
-      });
-
-      expect(controller.state.remoteFeatureFlags).toStrictEqual({
-        defaultOnly: 'currentDefault',
-        remoteFlag: 'remoteValue',
-      });
-
-      messenger.call('RemoteFeatureFlagController:clearAllFlagOverrides');
-
-      expect(controller.state.remoteFeatureFlags).toStrictEqual({
-        defaultOnly: 'currentDefault',
-        remoteFlag: 'remoteValue',
-      });
-    });
-
-    it('treats undefined rawRemoteFeatureFlags as empty when stripping defaults on init', () => {
-      const { controller } = createController({
-        state: {
-          remoteFeatureFlags: {
-            defaultOnly: 'staleDefault',
-            remoteFlag: 'remoteValue',
-          },
-          rawRemoteFeatureFlags: undefined,
-        },
-        defaultFeatureFlags: {
-          defaultOnly: 'currentDefault',
-        },
-      });
-
-      // defaultOnly is stripped from processed (not in raw) and replaced by
-      // the current default; remoteFlag is kept because it is not a default key.
-      expect(controller.state.remoteFeatureFlags).toStrictEqual({
-        defaultOnly: 'currentDefault',
-        remoteFlag: 'remoteValue',
-      });
     });
 
     it('treats undefined localOverrides as empty when updating the cache', async () => {

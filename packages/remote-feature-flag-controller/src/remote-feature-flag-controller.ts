@@ -269,20 +269,14 @@ export class RemoteFeatureFlagController extends BaseController<
       prevClientVersion !== clientVersion;
 
     const localOverrides = initialState.localOverrides ?? {};
-    const rawRemoteFeatureFlags = initialState.rawRemoteFeatureFlags ?? {};
 
     // Rebuild the processed remote layer from last session's effective flags by
-    // stripping local overrides and default-only keys (absent from raw).
+    // stripping local overrides.
     const processedRemoteFeatureFlags = {
       ...initialState.remoteFeatureFlags,
     };
     for (const [flagName, overrideValue] of Object.entries(localOverrides)) {
       if (processedRemoteFeatureFlags[flagName] === overrideValue) {
-        delete processedRemoteFeatureFlags[flagName];
-      }
-    }
-    for (const flagName of Object.keys(defaultFeatureFlags)) {
-      if (rawRemoteFeatureFlags[flagName] === undefined) {
         delete processedRemoteFeatureFlags[flagName];
       }
     }
