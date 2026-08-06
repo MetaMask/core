@@ -5,6 +5,7 @@
   },
   "references": [
     { "path": "../base-controller" },
+    { "path": "../base-data-service" },
     { "path": "../controller-utils" },
     { "path": "../geolocation-controller" },
     { "path": "../messenger" },

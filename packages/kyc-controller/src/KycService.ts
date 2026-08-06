@@ -1,8 +1,11 @@
+import { BaseDataService } from '@metamask/base-data-service';
 import type {
-  CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import { HttpError } from '@metamask/controller-utils';
 import type { GeolocationControllerGetGeolocationAction } from '@metamask/geolocation-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
@@ -16,6 +19,9 @@ import {
   StructError,
   type,
 } from '@metamask/superstruct';
+import type { Json } from '@metamask/utils';
+import { Duration, inMilliseconds } from '@metamask/utils';
+import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
@@ -56,9 +62,17 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
+ * Invalidates cached queries serviced by {@link KycService}.
+ */
+export type KycServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
  * Actions that {@link KycService} exposes to other consumers.
  */
-export type KycServiceActions = KycServiceMethodActions;
+export type KycServiceActions =
+  | KycServiceMethodActions
+  | KycServiceInvalidateQueriesAction;
 
 /**
  * Actions from other messengers that {@link KycService} calls.
@@ -68,9 +82,23 @@ type AllowedActions =
   | GeolocationControllerGetGeolocationAction;
 
 /**
+ * Published when {@link KycService}'s cache is updated.
+ */
+export type KycServiceCacheUpdatedEvent =
+  DataServiceCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Published when a single key within {@link KycService}'s cache is updated.
+ */
+export type KycServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
  * Events that {@link KycService} exposes to other consumers.
  */
-export type KycServiceEvents = never;
+export type KycServiceEvents =
+  | KycServiceCacheUpdatedEvent
+  | KycServiceGranularCacheUpdatedEvent;
 
 /**
  * Events from other messengers that {@link KycService} subscribes to.
@@ -107,6 +135,12 @@ export type KycServiceOptions = {
    * {@link KycService.fetchJwks}.
    */
   fractalEncryptionBaseUrl?: string;
+  /**
+   * Shared configuration applied to all queries exposed by the service (e.g. a
+   * default `staleTime`/`cacheTime`). Each data service gets its own
+   * `QueryClient`.
+   */
+  queryClientConfig?: QueryClientConfig;
   policyOptions?: CreateServicePolicyOptions;
 };
 
@@ -233,19 +267,23 @@ export type GetSessionStatusParams = {
  * identity + document-verification flow. It is stateless and platform-agnostic:
  * HTTP is performed through an injected `fetch`, and the auth bearer token and
  * geolocation come from other controllers via the messenger.
+ *
+ * It extends {@link BaseDataService}, so every request is routed through
+ * `fetchQuery`: it is wrapped in the shared service policy (retries, circuit
+ * breaker) and its result is exposed via the service's `QueryClient`. Read-only
+ * endpoints (`fetchDisclaimers`, `fetchJwks`) are cached with a `staleTime`;
+ * the session-creating and status-polling endpoints opt out of caching
+ * (`staleTime`/`cacheTime` of `0`) so they never serve a stale result.
  */
-export class KycService {
-  readonly name: typeof serviceName;
-
-  readonly #messenger: KycServiceMessenger;
-
+export class KycService extends BaseDataService<
+  typeof serviceName,
+  KycServiceMessenger
+> {
   readonly #fetch: typeof fetch;
 
   readonly #baseUrl: string;
 
   readonly #fractalEncryptionBaseUrl: string;
-
-  readonly #policy: ServicePolicy;
 
   /**
    * Constructs a new KycService.
@@ -258,6 +296,8 @@ export class KycService {
    * @param options.fractalEncryptionBaseUrl - Base URL of the Fractal
    * encryption service, from which the JWKS used to verify the wrapping-key
    * `jwtChain` is fetched.
+   * @param options.queryClientConfig - Shared configuration for all queries
+   * exposed by the service.
    * @param options.policyOptions - Options for the request service policy.
    */
   constructor({
@@ -266,15 +306,19 @@ export class KycService {
     env,
     baseUrl,
     fractalEncryptionBaseUrl,
-    policyOptions,
+    queryClientConfig = {},
+    policyOptions = {},
   }: KycServiceOptions) {
-    this.name = serviceName;
-    this.#messenger = messenger;
+    super({
+      name: serviceName,
+      messenger,
+      queryClientConfig,
+      policyOptions,
+    });
     this.#fetch = fetchFunction;
     this.#baseUrl = baseUrl ?? KYC_API_URLS[env];
     this.#fractalEncryptionBaseUrl = fractalEncryptionBaseUrl ?? '';
-    this.#policy = createServicePolicy(policyOptions ?? {});
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
@@ -288,7 +332,7 @@ export class KycService {
    * @throws If the country cannot be determined or mapped.
    */
   async getGeoCountry(): Promise<string> {
-    const location = await this.#messenger.call(
+    const location = await this.messenger.call(
       'GeolocationController:getGeolocation',
     );
     // Guard nullish/empty geolocation with the documented domain error rather
@@ -328,7 +372,11 @@ export class KycService {
   }): Promise<KycDisclaimer[]> {
     const url = new URL('/vendors/moonpay/disclaimers', this.#baseUrl);
     url.searchParams.set('country', country);
-    const data = await this.#request(url, { method: 'GET' });
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchDisclaimers`, country],
+      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
+      staleTime: inMilliseconds(5, Duration.Minute),
+    });
     return this.#validateResponse(
       data,
       DisclaimersResponseStruct,
@@ -346,9 +394,21 @@ export class KycService {
     params: CreateSessionParams,
   ): Promise<Infer<typeof CreateSessionResponseStruct>> {
     const url = new URL('/vendors/moonpay/sessions', this.#baseUrl);
-    const data = await this.#request(url, {
-      method: 'POST',
-      body: JSON.stringify(params),
+    const data = await this.fetchQuery({
+      queryKey: [
+        `${this.name}:createSession`,
+        params.email,
+        params.termsAcceptedAt,
+        params.disclaimerIds,
+      ],
+      queryFn: async () =>
+        this.#requestJson(url, {
+          method: 'POST',
+          body: JSON.stringify(params),
+        }),
+      // A session-creating mutation must never serve a stale/cached result.
+      staleTime: 0,
+      cacheTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -368,13 +428,26 @@ export class KycService {
     params: CheckKycRequiredParams,
   ): Promise<{ kycRequired: boolean }> {
     const url = new URL('/vendors/moonpay/kyc-required', this.#baseUrl);
-    const data = await this.#request(url, {
-      method: 'POST',
-      body: JSON.stringify({
-        accessToken: params.accessToken,
-        country: params.country,
-        capabilities: params.capabilities ?? [{ product: 'ramps' }],
-      }),
+    const capabilities = params.capabilities ?? [{ product: 'ramps' }];
+    const data = await this.fetchQuery({
+      queryKey: [
+        `${this.name}:checkKycRequired`,
+        params.accessToken,
+        params.country,
+        capabilities,
+      ],
+      queryFn: async () =>
+        this.#requestJson(url, {
+          method: 'POST',
+          body: JSON.stringify({
+            accessToken: params.accessToken,
+            country: params.country,
+            capabilities,
+          }),
+        }),
+      // The requirement can change server-side, so always re-check.
+      staleTime: 0,
+      cacheTime: 0,
     });
     const { required } = this.#validateResponse(
       data,
@@ -402,11 +475,18 @@ export class KycService {
     params: GetWrappingKeyParams,
   ): Promise<WrappingKeyResponse> {
     const url = new URL('/wrapping-key', this.#baseUrl);
-    const data = await this.#request(url, {
-      method: 'POST',
-      body: JSON.stringify({
-        sessionClientPublicKey: params.sessionClientPublicKey,
-      }),
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:getWrappingKey`, params.sessionClientPublicKey],
+      queryFn: async () =>
+        this.#requestJson(url, {
+          method: 'POST',
+          body: JSON.stringify({
+            sessionClientPublicKey: params.sessionClientPublicKey,
+          }),
+        }),
+      // A per-session key exchange must always run fresh.
+      staleTime: 0,
+      cacheTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -431,11 +511,12 @@ export class KycService {
       );
     }
     const url = new URL(UKYC_JWKS_PATH, this.#fractalEncryptionBaseUrl);
-    const data = await this.#request(
-      url,
-      { method: 'GET' },
-      { authenticated: false },
-    );
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchJwks`, this.#fractalEncryptionBaseUrl],
+      queryFn: async () =>
+        this.#requestJson(url, { method: 'GET' }, { authenticated: false }),
+      staleTime: inMilliseconds(1, Duration.Hour),
+    });
     return this.#validateResponse(data, JwksResponseStruct, 'JWKS');
   }
 
@@ -452,18 +533,28 @@ export class KycService {
     params: CreateUkycSessionParams,
   ): Promise<UkycSessionResponse> {
     const url = new URL('/sessions', this.#baseUrl);
-    const data = await this.#request(url, {
-      method: 'POST',
-      body: JSON.stringify({
-        vendorId: 'moonpay',
-        vendorUserId: 'mockedId',
-        jwtToken: params.jwtToken,
-        vendorMetadata: params.vendorMetadata,
-        wrappedEncryptionKey: params.wrappedEncryptionKey,
-        ukycCapabilityToken: encodeStorageAccessTokenForHeader(
-          params.ukycCapabilityToken,
-        ),
-      }),
+    const data = await this.fetchQuery({
+      queryKey: [
+        `${this.name}:createUkycSession`,
+        params.wrappedEncryptionKey.sessionId,
+      ],
+      queryFn: async () =>
+        this.#requestJson(url, {
+          method: 'POST',
+          body: JSON.stringify({
+            vendorId: 'moonpay',
+            vendorUserId: 'mockedId',
+            jwtToken: params.jwtToken,
+            vendorMetadata: params.vendorMetadata,
+            wrappedEncryptionKey: params.wrappedEncryptionKey,
+            ukycCapabilityToken: encodeStorageAccessTokenForHeader(
+              params.ukycCapabilityToken,
+            ),
+          }),
+        }),
+      // A session-creating mutation must never serve a stale/cached result.
+      staleTime: 0,
+      cacheTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -486,8 +577,12 @@ export class KycService {
       `/sessions/${encodeURIComponent(sessionId)}/journey`,
       this.#baseUrl,
     );
-    const data = await this.#request(url, {
-      method: 'POST',
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:createJourney`, sessionId],
+      queryFn: async () => this.#requestJson(url, { method: 'POST' }),
+      // Journeys are (re)created on demand; do not reuse a cached token.
+      staleTime: 0,
+      cacheTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -511,7 +606,13 @@ export class KycService {
       `/sessions/${encodeURIComponent(params.sessionId)}/status`,
       this.#baseUrl,
     );
-    const data = await this.#request(url, { method: 'GET' });
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:getSessionStatus`, params.sessionId],
+      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
+      // Status is polled for a terminal decision, so it must always be fresh.
+      staleTime: 0,
+      cacheTime: 0,
+    });
     return this.#validateResponse(
       data,
       SessionStatusResponseStruct,
@@ -556,9 +657,11 @@ export class KycService {
   }
 
   /**
-   * Performs a JSON request wrapped in the service policy.
+   * Performs a single JSON request.
    *
-   * Requests are authenticated with the wallet bearer token by default; pass
+   * This is meant to be used as the `queryFn` for {@link fetchQuery}, which
+   * wraps it in the shared service policy (retries, circuit breaker). Requests
+   * are authenticated with the wallet bearer token by default; pass
    * `{ authenticated: false }` for calls to services that do not expect it
    * (e.g. the Fractal JWKS endpoint).
    *
@@ -569,11 +672,11 @@ export class KycService {
    * to `true`.
    * @returns The parsed JSON response.
    */
-  async #request(
+  async #requestJson(
     url: URL,
     init: RequestInit,
     options: { authenticated?: boolean } = {},
-  ): Promise<unknown> {
+  ): Promise<Json> {
     const { authenticated = true } = options;
 
     const headers: Record<string, string> = {};
@@ -585,7 +688,7 @@ export class KycService {
     }
 
     if (authenticated) {
-      const bearerToken = await this.#messenger.call(
+      const bearerToken = await this.messenger.call(
         'AuthenticationController:getBearerToken',
       );
       assert(bearerToken, string());
@@ -597,20 +700,17 @@ export class KycService {
       headers.Authorization = `Bearer ${bearerToken}`;
     }
 
-    const response = await this.#policy.execute(async () => {
-      const localResponse = await this.#fetch(url.toString(), {
-        ...init,
-        headers,
-      });
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
-        );
-      }
-      return localResponse;
+    const response = await this.#fetch(url.toString(), {
+      ...init,
+      headers,
     });
+    if (!response.ok) {
+      throw new HttpError(
+        response.status,
+        `Fetching '${url.toString()}' failed with status '${response.status}'`,
+      );
+    }
 
-    return response.json();
+    return (await response.json()) as Json;
   }
 }
