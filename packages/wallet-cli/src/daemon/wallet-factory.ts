@@ -132,9 +132,6 @@ function buildInstanceOptions(
     storageService: {
       storage: new InMemoryStorageAdapter(),
     },
-    subscriptionService: {
-      fetchFunction: globalThis.fetch,
-    },
     transactionController: {
       // The CLI exposes no swaps surface, so skip the swaps-specific
       // post-processing a full wallet client runs (mobile makes the same
