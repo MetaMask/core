@@ -125,6 +125,9 @@
 /packages/subscription-controller           @MetaMask/web3auth
 /packages/claims-controller                 @MetaMask/web3auth
 
+## Universal KYC Team
+/packages/kyc-controller    @MetaMask/universal-kyc
+
 ## Joint team ownership
 /packages/announcement-controller                 @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
 /packages/client-utils                            @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
@@ -156,7 +159,11 @@
 /packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/seedless-onboarding-controller/    @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/shield-api-service/                @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/shield-controller/                 @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/storage-service/                   @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/subscription-controller/           @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/subscription-service/              @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/transaction-controller/            @MetaMask/confirmations
 
 ## Package Release related
@@ -355,3 +362,6 @@
 /packages/snap-account-service/package.json                    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/CHANGELOG.md                    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/tsconfig.*                      @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/kyc-controller/package.json                          @MetaMask/universal-kyc @MetaMask/core-platform
+/packages/kyc-controller/CHANGELOG.md                          @MetaMask/universal-kyc @MetaMask/core-platform
+/packages/kyc-controller/tsconfig.*                            @MetaMask/universal-kyc @MetaMask/core-platform
