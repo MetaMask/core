@@ -1,7 +1,7 @@
 import { areUint8ArraysEqual } from '@metamask/utils';
 import { box } from 'tweetnacl';
 
-import { base64UrlToBytes, toBase64Url } from './encoding.js';
+import { base64UrlToBytes, toBase64Url } from '../encoding.js';
 import { wrapEncryptionKey } from './wrapEncryptionKey.js';
 
 const DATA_ENCRYPTION_KEY = new Uint8Array(32).fill(7);

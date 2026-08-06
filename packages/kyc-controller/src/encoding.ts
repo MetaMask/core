@@ -1,8 +1,7 @@
 import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 
 /**
- * Encoding helpers shared across the UKYC client-material and
- * storage-authorization modules.
+ * Shared base64url encoding helpers used by frame crypto and UKYC modules.
  *
  * These are platform-agnostic: they rely on `@metamask/utils` rather than
  * `Buffer` / `atob`, so they run unchanged on mobile, extension, and web.

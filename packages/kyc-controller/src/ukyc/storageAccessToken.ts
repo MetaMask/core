@@ -6,7 +6,7 @@ import {
   UKYC_STORAGE_ACCESS_TOKEN_VERSION,
 } from './constants.js';
 import type { UkycClientMaterial } from './deriveClientMaterial.js';
-import { toBase64Url } from './encoding.js';
+import { toBase64Url } from '../encoding.js';
 
 /**
  * Mints `storage_access_token` capabilities — the client-signed, scoped,

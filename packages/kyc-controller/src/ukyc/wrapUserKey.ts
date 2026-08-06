@@ -5,7 +5,7 @@ import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { hexToBytes, randomBytes } from '@noble/hashes/utils';
 
-import { toBase64Url } from './encoding.js';
+import { toBase64Url } from '../encoding.js';
 
 /**
  * Wraps (encrypts) a symmetric key so that only the holder of a given X25519

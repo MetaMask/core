@@ -2,7 +2,7 @@ import { areUint8ArraysEqual } from '@metamask/utils';
 
 import { base64UrlToBytes, toBase64Url } from './encoding.js';
 
-describe('UKYC encoding', () => {
+describe('encoding', () => {
   describe('toBase64Url', () => {
     it('produces unpadded, url-safe base64', () => {
       // 0xFB 0xFF encodes to "+/8=" in standard base64, exercising both the

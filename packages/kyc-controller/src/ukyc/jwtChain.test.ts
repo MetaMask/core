@@ -1,7 +1,7 @@
 import { stringToBytes } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
 
-import { toBase64Url } from './encoding.js';
+import { toBase64Url } from '../encoding.js';
 import type { Jwk } from './jwtChain.js';
 import { verifyJwtChain } from './jwtChain.js';
 

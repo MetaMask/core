@@ -25,7 +25,7 @@ import type {
   KycSumSubStatus,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
-import { toBase64Url } from './ukyc/encoding.js';
+import { toBase64Url } from './encoding.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import { getOrCreateLocalUserSecret } from './ukyc/localUserSecret.js';
 import type { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';

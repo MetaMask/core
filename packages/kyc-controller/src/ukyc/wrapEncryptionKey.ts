@@ -1,6 +1,6 @@
 import { randomBytes, box } from 'tweetnacl';
 
-import { base64UrlToBytes, toBase64Url } from './encoding.js';
+import { base64UrlToBytes, toBase64Url } from '../encoding.js';
 
 /**
  * Wraps the `data_encryption_key` for the UKYC session server using NaCl's

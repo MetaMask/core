@@ -14,8 +14,9 @@
  *        key    = HKDF-SHA256(shared, salt=none, info=none, 32 bytes)
  *        plain  = AES-256-GCM.decrypt(key, iv, ciphertext || 16-byte tag)
  *
- * This module is platform-agnostic: it uses `@noble/*` + `@scure/base` and
- * avoids `Buffer` / `atob` so it runs unchanged on mobile, extension, and web.
+ * This module is platform-agnostic: it uses `@noble/*` and `@metamask/utils`
+ * (via the shared encoding helpers) and avoids `Buffer` / `atob` so it runs
+ * unchanged on mobile, extension, and web.
  */
 
 import { gcm } from '@noble/ciphers/aes';
@@ -23,7 +24,8 @@ import { x25519 } from '@noble/curves/ed25519';
 import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
-import { base64 } from '@scure/base';
+
+import { base64UrlToBytes } from './encoding.js';
 
 /**
  * An X25519 keypair used for the Check/Auth frame key exchange.
@@ -92,22 +94,6 @@ export function generateKeyPair(): X25519KeyPair {
 }
 
 /**
- * Decode a base64 / base64url string to bytes without relying on `atob` or
- * `Buffer`.
- *
- * @param value - The (possibly url-safe, possibly unpadded) base64 string.
- * @returns The decoded bytes.
- */
-function base64ToBytes(value: string): Uint8Array {
-  const normalized = value.replace(/-/gu, '+').replace(/_/gu, '/');
-  const padded = normalized.padEnd(
-    normalized.length + ((4 - (normalized.length % 4)) % 4),
-    '=',
-  );
-  return base64.decode(padded);
-}
-
-/**
  * Decode a binary envelope field that may be hex or base64.
  *
  * @param value - The encoded field.
@@ -121,7 +107,7 @@ function decodeBinary(value: string, encoding?: 'hex' | 'base64'): Uint8Array {
   if (isHex) {
     return hexToBytes(value);
   }
-  return base64ToBytes(value);
+  return base64UrlToBytes(value);
 }
 
 /**
@@ -154,7 +140,7 @@ function normalizeEnvelope(
     } else {
       let decodedText: string | null = null;
       try {
-        decodedText = new TextDecoder().decode(base64ToBytes(trimmed));
+        decodedText = new TextDecoder().decode(base64UrlToBytes(trimmed));
       } catch {
         decodedText = null;
       }
