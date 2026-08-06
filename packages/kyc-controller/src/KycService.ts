@@ -37,16 +37,6 @@ import type { UkycStorageAccessToken } from './ukyc/storageAccessToken.js';
  */
 export const serviceName = 'KycService';
 
-/**
- * The supported environments for the Universal KYC API.
- */
-export type KycServiceEnvironment = 'production' | 'development';
-
-const KYC_API_URLS: Record<KycServiceEnvironment, string> = {
-  production: 'https://kyc-api.cx.metamask.io',
-  development: 'https://kyc-api.dev-api.cx.metamask.io',
-};
-
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -121,13 +111,10 @@ export type KycServiceMessenger = Messenger<
 export type KycServiceOptions = {
   messenger: KycServiceMessenger;
   fetch: typeof fetch;
-  env: KycServiceEnvironment;
   /**
-   * Overrides the base URL derived from `env`. When provided, this value is
-   * used verbatim as the base URL for all requests, which is useful for
-   * targeting a local or staging KYC API.
+   * Mandatory value that sets the base url to KYC api
    */
-  baseUrl?: string;
+  baseUrl: string;
   /**
    * Base URL of the Fractal encryption service, from which the JWKS used to
    * verify the `jwtChain` returned by {@link KycService.getWrappingKey} is
@@ -291,8 +278,7 @@ export class KycService extends BaseDataService<
    * @param options - The constructor options.
    * @param options.messenger - The messenger suited for this service.
    * @param options.fetch - A function used to make HTTP requests.
-   * @param options.env - The environment; determines the base URL.
-   * @param options.baseUrl - Overrides the base URL derived from `env`.
+   * @param options.baseUrl - Base URL of the KYC API
    * @param options.fractalEncryptionBaseUrl - Base URL of the Fractal
    * encryption service, from which the JWKS used to verify the wrapping-key
    * `jwtChain` is fetched.
@@ -303,7 +289,6 @@ export class KycService extends BaseDataService<
   constructor({
     messenger,
     fetch: fetchFunction,
-    env,
     baseUrl,
     fractalEncryptionBaseUrl,
     queryClientConfig = {},
@@ -316,7 +301,10 @@ export class KycService extends BaseDataService<
       policyOptions,
     });
     this.#fetch = fetchFunction;
-    this.#baseUrl = baseUrl ?? KYC_API_URLS[env];
+    if (!baseUrl) {
+      throw new Error('KycService: baseUrl is required');
+    }
+    this.#baseUrl = baseUrl;
     this.#fractalEncryptionBaseUrl = fractalEncryptionBaseUrl ?? '';
     this.messenger.registerMethodActionHandlers(
       this,

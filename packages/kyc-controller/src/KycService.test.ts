@@ -426,8 +426,8 @@ describe('KycService', () => {
     });
   });
 
-  describe('baseUrl override', () => {
-    it('uses the provided baseUrl instead of the env-derived URL', async () => {
+  describe('baseUrl', () => {
+    it('uses the provided baseUrl for requests', async () => {
       const customUrl = 'https://kyc-api.local.test';
       const disclaimers = [
         { id: '1', display_name: 'Terms', url: 'https://t' },
@@ -440,6 +440,12 @@ describe('KycService', () => {
 
       expect(await service.fetchDisclaimers({ country: 'USA' })).toStrictEqual(
         disclaimers,
+      );
+    });
+
+    it('throws when baseUrl is empty', () => {
+      expect(() => getService({ baseUrl: '' })).toThrow(
+        'KycService: baseUrl is required',
       );
     });
   });
@@ -474,7 +480,7 @@ type RootMessenger = Messenger<
  * @param args.bearerToken - The bearer token the auth handler returns.
  * @param args.geolocation - The location the geolocation handler returns.
  * @param args.defaultPolicy - When true, omit `policyOptions` to use defaults.
- * @param args.baseUrl - When provided, overrides the env-derived base URL.
+ * @param args.baseUrl - Base URL of the KYC API.
  * @param args.fractalEncryptionBaseUrl - Fractal base URL; `null` omits the
  * option so the service falls back to an empty string.
  * @returns The service, root messenger, and service messenger.
@@ -483,7 +489,7 @@ function getService({
   bearerToken = 'test-bearer',
   geolocation = 'US-NY',
   defaultPolicy = false,
-  baseUrl,
+  baseUrl = MOCK_API_URL,
   // `null` means "omit the option entirely" (exercises the constructor's
   // `?? ''` fallback); omitting the field defaults to the mock Fractal URL.
   fractalEncryptionBaseUrl = MOCK_FRACTAL_URL,
@@ -525,9 +531,8 @@ function getService({
   const service = new KycService({
     fetch,
     messenger,
-    env: 'development',
+    baseUrl,
     ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
-    ...(baseUrl ? { baseUrl } : {}),
     ...(defaultPolicy ? {} : { policyOptions: { maxRetries: 0 } }),
   });
 

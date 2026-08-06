@@ -39,7 +39,6 @@ export type {
   JwksResponse,
   KycServiceActions,
   KycServiceCacheUpdatedEvent,
-  KycServiceEnvironment,
   KycServiceEvents,
   KycServiceGranularCacheUpdatedEvent,
   KycServiceInvalidateQueriesAction,
