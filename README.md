@@ -616,6 +616,7 @@ linkStyle default opacity:0.5
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   subscription_controller --> base_controller;
+  subscription_controller --> base_data_service;
   subscription_controller --> controller_utils;
   subscription_controller --> messenger;
   subscription_controller --> polling_controller;
@@ -669,6 +670,7 @@ linkStyle default opacity:0.5
   wallet --> remote_feature_flag_controller;
   wallet --> seedless_onboarding_controller;
   wallet --> storage_service;
+  wallet --> subscription_controller;
   wallet --> transaction_controller;
   wallet_cli --> analytics_controller;
   wallet_cli --> base_controller;
