@@ -23,7 +23,6 @@ import {
   SubscriptionController,
 } from './SubscriptionController.js';
 import type {
-  AllowedEvents,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerState,
@@ -42,7 +41,6 @@ import type {
   SubmitSponsorshipIntentsMethodParams,
   ProductType,
   RecurringInterval,
-  ISubscriptionService,
 } from './types.js';
 import {
   CANCEL_TYPES,
@@ -156,16 +154,29 @@ const MOCK_COHORTS = [
   },
 ];
 
+const SUBSCRIPTION_SERVICE_ACTIONS = [
+  'SubscriptionService:getSubscriptions',
+  'SubscriptionService:cancelSubscription',
+  'SubscriptionService:unCancelSubscription',
+  'SubscriptionService:startSubscriptionWithCard',
+  'SubscriptionService:startSubscriptionWithCrypto',
+  'SubscriptionService:updatePaymentMethodCard',
+  'SubscriptionService:updatePaymentMethodCrypto',
+  'SubscriptionService:getSubscriptionsEligibilities',
+  'SubscriptionService:submitUserEvent',
+  'SubscriptionService:assignUserToCohort',
+  'SubscriptionService:submitSponsorshipIntents',
+  'SubscriptionService:linkRewards',
+  'SubscriptionService:getPricing',
+  'SubscriptionService:getBillingPortalUrl',
+] as const;
+
 /**
  * Creates a custom subscription messenger, in case tests need different permissions
  *
- * @param props - overrides
- * @param props.overrideEvents - override events
  * @returns base messenger, and messenger. You can pass this into the mocks below to mock messenger calls
  */
-function createCustomSubscriptionMessenger(props?: {
-  overrideEvents?: AllowedEvents['type'][];
-}): {
+function createCustomSubscriptionMessenger(): {
   rootMessenger: RootMessenger;
   messenger: SubscriptionControllerMessenger;
 } {
@@ -185,10 +196,9 @@ function createCustomSubscriptionMessenger(props?: {
   rootMessenger.delegate({
     messenger,
     actions: [
-      'AuthenticationController:getBearerToken',
+      ...SUBSCRIPTION_SERVICE_ACTIONS,
       'AuthenticationController:performSignOut',
     ],
-    events: props?.overrideEvents ?? ['AuthenticationController:stateChange'],
   });
 
   return {
@@ -229,13 +239,23 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
   };
 }
 
-/**
- * Creates a mock subscription service for testing.
- *
- * @returns The mock service and related mocks.
- */
-function createMockSubscriptionService(): {
-  mockService: jest.Mocked<ISubscriptionService>;
+function registerMockSubscriptionService(rootMessenger: RootMessenger): {
+  mockService: {
+    getSubscriptions: jest.Mock;
+    cancelSubscription: jest.Mock;
+    unCancelSubscription: jest.Mock;
+    startSubscriptionWithCard: jest.Mock;
+    getPricing: jest.Mock;
+    startSubscriptionWithCrypto: jest.Mock;
+    updatePaymentMethodCard: jest.Mock;
+    updatePaymentMethodCrypto: jest.Mock;
+    getBillingPortalUrl: jest.Mock;
+    getSubscriptionsEligibilities: jest.Mock;
+    submitUserEvent: jest.Mock;
+    submitSponsorshipIntents: jest.Mock;
+    assignUserToCohort: jest.Mock;
+    linkRewards: jest.Mock;
+  };
   mockGetSubscriptions: jest.Mock;
   mockCancelSubscription: jest.Mock;
   mockUnCancelSubscription: jest.Mock;
@@ -261,6 +281,63 @@ function createMockSubscriptionService(): {
   const mockSubmitSponsorshipIntents = jest.fn();
   const mockAssignUserToCohort = jest.fn();
   const mockLinkRewards = jest.fn();
+
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:getSubscriptions',
+    mockGetSubscriptions,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:cancelSubscription',
+    mockCancelSubscription,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:unCancelSubscription',
+    mockUnCancelSubscription,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:startSubscriptionWithCard',
+    mockStartSubscriptionWithCard,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:getPricing',
+    mockGetPricing,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:startSubscriptionWithCrypto',
+    mockStartSubscriptionWithCrypto,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:updatePaymentMethodCard',
+    mockUpdatePaymentMethodCard,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:updatePaymentMethodCrypto',
+    mockUpdatePaymentMethodCrypto,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:getBillingPortalUrl',
+    mockGetBillingPortalUrl,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:getSubscriptionsEligibilities',
+    mockGetSubscriptionsEligibilities,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:submitUserEvent',
+    mockSubmitUserEvent,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:submitSponsorshipIntents',
+    mockSubmitSponsorshipIntents,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:assignUserToCohort',
+    mockAssignUserToCohort,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:linkRewards',
+    mockLinkRewards,
+  );
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -302,7 +379,9 @@ type WithControllerCallback<ReturnValue> = (params: {
   initialState: SubscriptionControllerState;
   messenger: SubscriptionControllerMessenger;
   rootMessenger: RootMessenger;
-  mockService: ReturnType<typeof createMockSubscriptionService>['mockService'];
+  mockService: ReturnType<
+    typeof registerMockSubscriptionService
+  >['mockService'];
   mockPerformSignOut: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -324,11 +403,10 @@ async function withController<ReturnValue>(
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const { messenger, mockPerformSignOut, rootMessenger } =
     createMockSubscriptionMessenger();
-  const { mockService } = createMockSubscriptionService();
+  const { mockService } = registerMockSubscriptionService(rootMessenger);
 
   const controller = new SubscriptionController({
     messenger,
-    subscriptionService: mockService,
     ...rest,
   });
 
@@ -353,8 +431,8 @@ describe('SubscriptionController', () => {
     });
 
     it('should be able to instantiate with initial state', () => {
-      const { mockService } = createMockSubscriptionService();
-      const { messenger } = createMockSubscriptionMessenger();
+      const { messenger, rootMessenger } = createMockSubscriptionMessenger();
+      registerMockSubscriptionService(rootMessenger);
       const initialState: Partial<SubscriptionControllerState> = {
         subscriptions: [MOCK_SUBSCRIPTION],
       };
@@ -362,27 +440,11 @@ describe('SubscriptionController', () => {
       const controller = new SubscriptionController({
         messenger,
         state: initialState,
-        subscriptionService: mockService,
         pollingInterval: 10_000,
       });
 
       expect(controller).toBeDefined();
       expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-    });
-
-    it('should be able to instantiate with custom subscription service', () => {
-      const { messenger } = createMockSubscriptionMessenger();
-      const { mockService } = createMockSubscriptionService();
-
-      const controller = new SubscriptionController({
-        messenger,
-        subscriptionService: mockService,
-      });
-
-      expect(controller).toBeDefined();
-      expect(controller.state).toStrictEqual(
-        getDefaultSubscriptionControllerState(),
-      );
     });
   });
 
