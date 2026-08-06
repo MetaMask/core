@@ -564,6 +564,10 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('claims-controller'),
       ],
     },
+    {
+      title: 'Universal KYC Team',
+      rules: [buildRuleForPackage('kyc-controller')],
+    },
   ];
 }
 

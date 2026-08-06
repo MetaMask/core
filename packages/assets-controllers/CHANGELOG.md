@@ -7,9 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [111.1.0]
+
+### Added
+
+- Add `offhours` field to `TokenRwaData` and `RwaTokenData` types to support off-hours RWA trading windows ([#9792](https://github.com/MetaMask/core/pull/9792))
+  - `offhours.nextOpen`: ISO-8601 datetime when the next off-hours window opens
+  - `offhours.nextClose`: ISO-8601 datetime when the next off-hours window closes
+  - Field is only present when the asset's source reports off-hours tradability; absence means off-hours trading is not supported
+- Add 0G (`16661`/`0x4115`) entries in `multicall.ts` and `codefi-v2.ts` ([#9760](https://github.com/MetaMask/core/pull/9760))
+
 ### Changed
 
+- Bump `@metamask/account-tree-controller` from `^7.6.0` to `^7.6.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/multichain-account-service` from `^13.0.0` to `^13.0.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/network-enablement-controller` from `^6.0.2` to `^6.0.3` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [111.0.0]
+
+### Changed
+
+- **BREAKING:** `DeFiPositionsControllerV2.fetchDeFiPositions` now polls while any selected account has `processingDefiPositions: true`, updating state only when every account is ready, invalidating the balances cache between attempts, sharing one in-flight promise per selected-account + `vsCurrency` key (so fast switches can join an earlier matching poll), and stopping on request failure or the max attempt limit ([#9711](https://github.com/MetaMask/core/pull/9711))
+  - Clients must allow and delegate `RemoteFeatureFlagController:getState` on the `DeFiPositionsControllerV2` messenger.
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+## [110.1.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^8.1.0` to `^8.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/account-tree-controller` from `^7.5.5` to `^7.6.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/phishing-controller` from `^17.3.0` to `^17.3.1` ([#9746](https://github.com/MetaMask/core/pull/9746))
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
 
 ## [110.1.0]
 
@@ -3378,7 +3411,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.0...HEAD
+[111.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.0.0...@metamask/assets-controllers@111.1.0
+[111.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.1...@metamask/assets-controllers@111.0.0
+[110.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.0...@metamask/assets-controllers@110.1.1
 [110.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.3...@metamask/assets-controllers@110.1.0
 [110.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.2...@metamask/assets-controllers@110.0.3
 [110.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.0.1...@metamask/assets-controllers@110.0.2

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of `KycController` and `KycService`, a shared, platform-agnostic KYC / identity-verification controller used across MetaMask clients ([#9615](https://github.com/MetaMask/core/pull/9615))
+- Initial release of the `@metamask/kyc-controller` package for managing KYC / identity verification state across MetaMask clients ([#9781](https://github.com/MetaMask/core/pull/9781))
   - `KycController` (`BaseController`) owns the flow state machine, the Check/Auth frame message protocol, X25519 credential decryption, and SumSub orchestration via an injected `KycSumSubLauncher` adapter.
   - `KycService` performs the Universal KYC (UKYC) HTTP calls via an injected `fetch`, sourcing the auth bearer token and geolocation through the messenger.
   - Exposes a vendor-neutral, per-product surface (`ramps`, `card`) plus reselect selectors.

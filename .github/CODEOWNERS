@@ -128,6 +128,9 @@
 /packages/subscription-controller           @MetaMask/web3auth
 /packages/claims-controller                 @MetaMask/web3auth
 
+## Universal KYC Team
+/packages/kyc-controller    @MetaMask/universal-kyc
+
 ## Joint team ownership
 /packages/announcement-controller                 @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
 /packages/client-utils                            @MetaMask/core-extension-ux @MetaMask/mobile-core-ux

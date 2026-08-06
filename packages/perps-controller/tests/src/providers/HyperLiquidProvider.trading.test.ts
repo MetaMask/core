@@ -959,6 +959,58 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(true);
     });
 
+    it('self-heals an empty prefetch asset map before validating the coin on cancel', async () => {
+      const { validateCoinExists: realValidateCoinExists } = jest.requireActual(
+        '../../../src/utils/hyperLiquidValidation',
+      );
+      mockValidateCoinExists.mockImplementation(realValidateCoinExists);
+
+      provider = createTestProvider();
+
+      const result = await provider.cancelOrder({
+        orderId: '123',
+        symbol: 'BTC',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockClientService.getExchangeClient().cancel).toHaveBeenCalled();
+    });
+
+    it('still rejects a genuinely unknown coin after cancel hydration', async () => {
+      const { validateCoinExists: realValidateCoinExists } = jest.requireActual(
+        '../../../src/utils/hyperLiquidValidation',
+      );
+      mockValidateCoinExists.mockImplementation(realValidateCoinExists);
+
+      provider = createTestProvider();
+
+      const result = await provider.cancelOrder({
+        orderId: '123',
+        symbol: 'NOT_A_REAL_COIN',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN);
+    });
+
+    it('propagates unrelated cancel failures unchanged', async () => {
+      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+        createMockExchangeClient({
+          cancel: jest
+            .fn()
+            .mockRejectedValue(new Error('Insufficient margin to cancel')),
+        }),
+      );
+
+      const result = await provider.cancelOrder({
+        orderId: '123',
+        symbol: 'BTC',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Insufficient margin');
+    });
+
     it('retries USD-based order when rejected for $10 minimum with adjusted amount', async () => {
       // Create provider with PUMP in the asset mapping
       provider = createTestProvider({
@@ -2948,6 +3000,51 @@ describe('HyperLiquidProvider', () => {
         expect(result.failureCount).toBe(1);
         expect(result.results[0].success).toBe(false);
         expect(result.results[0].error).toBe('API error');
+      });
+
+      it('maps recognized per-status batch cancel rejections to a standardized code', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest.fn().mockResolvedValue({
+              response: {
+                data: {
+                  statuses: ['success', { error: 'multi-sig required' }],
+                },
+              },
+            }),
+          }),
+        );
+
+        const result = await provider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+          { orderId: '456', symbol: 'ETH' },
+        ]);
+
+        expect(result.successCount).toBe(1);
+        expect(result.failureCount).toBe(1);
+        expect(result.results[0].error).toBeUndefined();
+        expect(result.results[1].error).toBe(
+          PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+        );
+      });
+
+      it('maps recognized batch cancel rejections to a standardized code', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest
+              .fn()
+              .mockRejectedValue(new Error('multi-sig required')),
+          }),
+        );
+
+        const result = await provider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+        ]);
+
+        expect(result.success).toBe(false);
+        expect(result.results[0].error).toBe(
+          PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+        );
       });
     });
 

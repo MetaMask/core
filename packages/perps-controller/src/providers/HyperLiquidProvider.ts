@@ -136,6 +136,7 @@ import {
 } from '../utils/accountUtils.js';
 import {
   ensureError,
+  isHyperLiquidMultiSigRequiredError,
   isHyperLiquidUserNotFoundError,
   isKeyringLockedError,
 } from '../utils/errorUtils.js';
@@ -511,6 +512,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     'isolated position does not have sufficient margin available to decrease leverage':
       PERPS_ERROR_CODES.ORDER_LEVERAGE_REDUCTION_FAILED,
     'could not immediately match': PERPS_ERROR_CODES.IOC_CANCEL,
+    'multi-sig required': PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+    'invalid nonce': PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE,
   };
 
   // Track whether clients have been initialized (lazy initialization)
@@ -786,6 +789,44 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Decide whether the Hyperliquid account is a multi-sig account.
+   *
+   * Hyperliquid rejects every single-signer exchange write for a converted
+   * multi-sig account with `ApiRequestError: Multi-sig required`, so the
+   * unified-account migration must not be attempted for those accounts.
+   *
+   * If the probe throws (transient network), returns `false` — fail open so
+   * one bad probe never blocks migration for a normal single-signer account.
+   * The `isHyperLiquidMultiSigRequiredError` fallback in the write's catch
+   * block remains the safety net.
+   *
+   * @param userAddress - The wallet address to check.
+   * @returns True only when Hyperliquid reports a multi-sig signer set.
+   * @private
+   */
+  async #isHyperliquidMultiSigAccount(userAddress: string): Promise<boolean> {
+    try {
+      const infoClient = this.#clientService.getInfoClient();
+      const signers = await infoClient.userToMultiSigSigners({
+        user: userAddress,
+      });
+      return signers !== null && signers !== undefined;
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[isHyperliquidMultiSigAccount] Probe failed, assuming single-signer',
+        {
+          user: userAddress,
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.isHyperliquidMultiSigAccount',
+          ).message,
+        },
+      );
+      return false;
+    }
+  }
+
+  /**
    * Attempt to enable HyperLiquid Unified Account mode for HIP-3 orders
    *
    * If successful, HyperLiquid automatically manages collateral transfers for HIP-3 orders.
@@ -980,6 +1021,34 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
+      // Hyperliquid rejects every single-signer exchange write for a converted
+      // multi-sig account with "ApiRequestError: Multi-sig required", which
+      // surfaced on the Perps tab on every entry (TAT-3214). Probe right
+      // before the write so accounts that never reach one (already compatible,
+      // deferred, unknown mode) do not pay the extra round trip.
+      const isMultiSig = await this.#isHyperliquidMultiSigAccount(userAddress);
+      if (isMultiSig) {
+        this.#deps.debugLogger.log(
+          '[ensureUnifiedAccountEnabled] Multi-sig account, skipping unified account migration',
+          { user: userAddress, network, mode: currentMode },
+        );
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+          [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
+          [PERPS_EVENT_PROPERTY.STATUS]:
+            PERPS_EVENT_VALUE.STATUS.NOT_APPLICABLE,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'multi_sig_account',
+        });
+        // Final state: the write can never succeed for this account, so cache
+        // it as attempted with unified mode off. Perps keeps working through
+        // the programmatic collateral-transfer fallback.
+        TradingReadinessCache.set(network, userAddress, {
+          attempted: true,
+          enabled: false,
+        });
+        completeInFlight();
+        return;
+      }
+
       // Track which mode users are currently on before we attempt migration.
       // This tells us the distribution of legacy modes across our user base.
       this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
@@ -1071,6 +1140,31 @@ export class HyperLiquidProvider implements PerpsProvider {
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'no_hl_account',
         });
         this.#unifiedAccountSetupNeedsRetry = true;
+        completeInFlight();
+        return;
+      }
+
+      // Safety net for the multi-sig probe: the account can be converted
+      // between the lookup and the write, and the probe fails open on
+      // transient info-API errors. Either way the rejection is a permanent
+      // account-shape condition, not a failure worth reporting or retrying.
+      if (isHyperLiquidMultiSigRequiredError(error)) {
+        this.#deps.debugLogger.log(
+          '[ensureUnifiedAccountEnabled] Multi-sig account (race/probe fallback), skipping unified account migration',
+          { user: userAddress, network, mode: currentMode },
+        );
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+          ...(currentMode && {
+            [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
+          }),
+          [PERPS_EVENT_PROPERTY.STATUS]:
+            PERPS_EVENT_VALUE.STATUS.NOT_APPLICABLE,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'multi_sig_account',
+        });
+        TradingReadinessCache.set(network, userAddress, {
+          attempted: true,
+          enabled: false,
+        });
         completeInFlight();
         return;
       }
@@ -2393,6 +2487,39 @@ export class HyperLiquidProvider implements PerpsProvider {
     };
   }
 
+  #isMappedAccountModeExchangeError(error: Error): boolean {
+    return (
+      error.message === PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED ||
+      error.message === PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE
+    );
+  }
+
+  async #getTradingErrorContext(
+    method: string,
+    error: Error,
+    extra?: Record<string, unknown>,
+  ): Promise<{
+    tags?: Record<string, string | number>;
+    context?: { name: string; data: Record<string, unknown> };
+    extras?: Record<string, unknown>;
+  }> {
+    const contextExtra = { ...extra };
+    if (this.#isMappedAccountModeExchangeError(error)) {
+      try {
+        const userAddress =
+          await this.#walletService.getUserAddressWithDefault();
+        const abstractionMode =
+          this.#subscriptionService.getCachedAbstractionMode(userAddress);
+        if (abstractionMode) {
+          contextExtra[PERPS_EVENT_PROPERTY.ABSTRACTION_MODE] = abstractionMode;
+        }
+      } catch {
+        // Best-effort context enrichment only.
+      }
+    }
+    return this.#getErrorContext(method, contextExtra);
+  }
+
   /**
    * Get supported deposit routes with complete asset and routing information
    *
@@ -3439,8 +3566,11 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params - The operation parameters.
    * @returns The result of the operation.
    */
-  #handleOrderError(params: HandleOrderErrorParams): OrderResult {
+  async #handleOrderError(
+    params: HandleOrderErrorParams,
+  ): Promise<OrderResult> {
     const { error, symbol, orderType, isBuy } = params;
+    const mappedError = this.#mapError(error);
 
     // A wallet with no Hyperliquid account is an expected pre-account state,
     // not an app defect — same policy already applied to every other
@@ -3454,8 +3584,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     } else {
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.handleOrderError'),
-        this.#getErrorContext('placeOrder', {
+        mappedError,
+        await this.#getTradingErrorContext('placeOrder', mappedError, {
           symbol,
           orderType,
           isBuy,
@@ -3463,7 +3593,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     }
 
-    const mappedError = this.#mapError(error);
     return createErrorResult(mappedError, { success: false });
   }
 
@@ -3711,7 +3840,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           adjustedUsdAmount = (estimatedUsd * 1.015).toFixed(2);
         } else {
           // No price information available - cannot retry
-          return this.#handleOrderError({
+          return await this.#handleOrderError({
             error,
             symbol: params.symbol,
             orderType: params.orderType,
@@ -3737,7 +3866,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
-      return this.#handleOrderError({
+      return await this.#handleOrderError({
         error,
         symbol: params.symbol,
         orderType: params.orderType,
@@ -4061,7 +4190,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     try {
       this.#deps.debugLogger.log('Canceling order:', params);
 
-      // Validate coin exists
+      // Hydrate the asset map before coin validation so a cold start (e.g.
+      // service-worker restart with an empty prefetch map) can self-heal
+      // without signature prompts on invalid cancels. Trading setup (builder
+      // fee, referral, unified account) runs only after validation passes,
+      // matching placeOrder / editOrder.
+      await this.#ensureReady();
+
       const coinValidation = validateCoinExists(
         params.symbol,
         this.#symbolToAssetId,
@@ -4070,7 +4205,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(coinValidation.error);
       }
 
-      // Ensure provider is ready for trading (includes signing operations)
       await this.#ensureReadyForTrading();
 
       const exchangeClient = this.#clientService.getExchangeClient();
@@ -4088,22 +4222,37 @@ export class HyperLiquidProvider implements PerpsProvider {
         ],
       });
 
-      const success = result.response?.data?.statuses?.[0] === 'success';
+      const status = result.response?.data?.statuses?.[0];
+      if (status === 'success') {
+        return {
+          success: true,
+          orderId: params.orderId,
+        };
+      }
 
-      return {
-        success,
+      // HyperLiquid usually rejects a cancel without throwing: the status entry
+      // carries the raw exchange string (e.g. "multi-sig required"). Map it the
+      // same way as a thrown rejection so callers get a standardized code
+      // instead of a generic message. The SDK types every status as 'success',
+      // so the rejection shape needs the same cast cancelOrders already uses.
+      const rawError =
+        (status as { error?: string } | undefined)?.error ??
+        'Order cancellation failed';
+
+      return createErrorResult(this.#mapError(new Error(rawError)), {
+        success: false,
         orderId: params.orderId,
-        error: success ? undefined : 'Order cancellation failed',
-      };
+      });
     } catch (error) {
+      const mappedError = this.#mapError(error);
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.cancelOrder'),
-        this.#getErrorContext('cancelOrder', {
+        mappedError,
+        await this.#getTradingErrorContext('cancelOrder', mappedError, {
           orderId: params.orderId,
           coin: params.symbol,
         }),
       );
-      return createErrorResult(error, { success: false });
+      return createErrorResult(mappedError, { success: false });
     }
   }
 
@@ -4166,20 +4315,26 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: successCount > 0,
         successCount,
         failureCount,
-        results: statuses.map((status, index) => ({
-          orderId: params[index].orderId,
-          symbol: params[index].symbol,
-          success: status === 'success',
-          error:
-            status === 'success'
-              ? undefined
-              : (status as { error: string }).error,
-        })),
+        results: statuses.map((status, index) => {
+          // Map each per-status rejection the same way cancelOrder does, so a
+          // batch cancel reports standardized codes rather than raw exchange
+          // strings for the rejections this provider recognizes.
+          const statusError = (status as { error?: string } | undefined)?.error;
+          return {
+            orderId: params[index].orderId,
+            symbol: params[index].symbol,
+            success: status === 'success',
+            error: statusError
+              ? this.#mapError(new Error(statusError)).message
+              : undefined,
+          };
+        }),
       };
     } catch (error) {
+      const mappedError = this.#mapError(error);
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.cancelOrders'),
-        this.#getErrorContext('cancelOrders', {
+        mappedError,
+        await this.#getTradingErrorContext('cancelOrders', mappedError, {
           orderCount: params.length,
         }),
       );
@@ -4194,7 +4349,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           success: false,
           error:
             error instanceof Error
-              ? error.message
+              ? mappedError.message
               : PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
         })),
       };
