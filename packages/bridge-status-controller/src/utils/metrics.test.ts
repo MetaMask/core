@@ -3,7 +3,6 @@ import {
   FeeType,
   ActionTypes,
   MetaMetricsSwapsEventSource,
-  mergeQuoteMetadata,
 } from '@metamask/bridge-controller';
 import {
   MetricsSwapType,

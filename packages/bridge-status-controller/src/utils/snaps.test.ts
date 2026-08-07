@@ -1,4 +1,4 @@
-import { ChainId, mergeQuoteMetadata } from '@metamask/bridge-controller';
+import { ChainId } from '@metamask/bridge-controller';
 /* eslint-disable consistent-return */
 import { v4 as uuid } from 'uuid';
 

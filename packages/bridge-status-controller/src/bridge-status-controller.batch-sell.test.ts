@@ -7,7 +7,6 @@ import type {
 import {
   BatchSellTransactionType,
   FeatureId,
-  mergeQuoteMetadata,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';

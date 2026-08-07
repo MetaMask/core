@@ -4,7 +4,6 @@
 import {
   BridgeClientId,
   UnifiedSwapBridgeEventName,
-  mergeQuoteMetadata,
   StatusTypes,
   QuoteResponse as QuoteResponseV1,
   getNativeAssetForChainId,

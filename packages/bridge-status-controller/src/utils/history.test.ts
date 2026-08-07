@@ -1,4 +1,4 @@
-import { StatusTypes, mergeQuoteMetadata } from '@metamask/bridge-controller';
+import { StatusTypes } from '@metamask/bridge-controller';
 import type { Quote } from '@metamask/bridge-controller';
 
 import type {

@@ -77,8 +77,11 @@ export const toQuoteMetadataV1 = (
   const totalNetworkFeeV2 = sumAmounts(network, relayer);
 
   const toTokenAmountValues = (
-    data?: DeepPartial<AmountsAndAsset>,
-  ): DeepPartial<TokenAmountValues> => {
+    data?: Pick<
+      AmountsAndAsset,
+      'normalizedAmount' | 'usd' | 'valueInCurrency'
+    >,
+  ): Partial<TokenAmountValues> => {
     return {
       amount: data?.normalizedAmount,
       usd: data?.usd,

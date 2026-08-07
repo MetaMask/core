@@ -1,6 +1,7 @@
 import { BigNumber } from 'bignumber.js';
 
 import type { DeepPartial } from '../../types.js';
+import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { FeeType } from '../../validators/quote.js';
 
@@ -24,10 +25,9 @@ export const toCurrencyValues = (
   const toFiat = ({
     usd,
     valueInCurrency,
-  }: {
-    usd?: string;
-    valueInCurrency?: string;
-  }): { valueInCurrency: string } | undefined => {
+  }: Pick<AmountsAndAsset, 'usd' | 'valueInCurrency'>):
+    | Pick<AmountsAndAsset, 'valueInCurrency'>
+    | undefined => {
     if (usd && usdToFiatExchangeRate) {
       return { valueInCurrency: usdToFiatExchangeRate.times(usd).toFixed() };
     }
@@ -61,10 +61,7 @@ export const toCurrencyValues = (
         Object.fromEntries(
           Object.values(FeeType)
             .filter((feeType) => feeData[feeType])
-            .map((feeType) => [
-              feeType,
-              feeData[feeType]?.map((fee) => toFiat(fee)),
-            ]),
+            .map((feeType) => [feeType, feeData[feeType]?.map(toFiat)]),
         ),
       priceData: {
         ...(priceImpactFiat && {
