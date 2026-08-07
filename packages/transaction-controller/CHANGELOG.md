@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Extend `isSimulationEnabled` option to accept an optional `TransactionMeta` argument, enabling callback consumers to inspect the relevant transaction ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Extend `isSimulationEnabled` option to accept an optional `TransactionMeta` argument, enabling callback consumers to inspect the relevant transaction ([#9800](https://github.com/MetaMask/core/pull/9800))
 
 ## [69.5.1]
 
