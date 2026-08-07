@@ -746,6 +746,14 @@ describe('importState', () => {
       });
       await fn({ keyrings: [], addNewKeyring });
       expect(addNewKeyring).toHaveBeenCalledWith(KeyringTypes.simple);
+      expect(keyringV2.createAccounts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'private-key:import',
+          accountType: EthAccountType.Eoa,
+          privateKey: '0xdeadbeef',
+          encoding: 'hexadecimal',
+        }),
+      );
     });
 
     it('reuses the existing simple keyring when one is already present', async () => {
@@ -815,6 +823,14 @@ describe('importState', () => {
         addNewKeyring,
       });
       expect(addNewKeyring).not.toHaveBeenCalled();
+      expect(keyringV2.createAccounts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'private-key:import',
+          accountType: EthAccountType.Eoa,
+          privateKey: '0xdeadbeef',
+          encoding: 'hexadecimal',
+        }),
+      );
     });
 
     it('imports a private key when the account does not exist locally', async () => {
@@ -879,6 +895,14 @@ describe('importState', () => {
 
       expect(mocks.KeyringController.withController).toHaveBeenCalledWith(
         expect.any(Function),
+      );
+      expect(keyringV2.createAccounts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'private-key:import',
+          accountType: EthAccountType.Eoa,
+          privateKey: '0xdeadbeef',
+          encoding: 'hexadecimal',
+        }),
       );
       expect(mocks.setters.setGroupName).toHaveBeenCalledWith(
         pkGroupId,

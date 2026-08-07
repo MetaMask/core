@@ -298,6 +298,7 @@ async function importPrivateKeyWallet(
 
           return keyringV2.createAccounts({
             type: 'private-key:import',
+            accountType: EthAccountType.Eoa,
             privateKey,
             encoding,
           });
