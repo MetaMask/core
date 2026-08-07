@@ -19,6 +19,7 @@ import {
   PENDING_ORDER_STATUSES,
   TERMINAL_ORDER_STATUSES,
 } from './orderStatus.js';
+import { mergePaymentMethodsById } from './paymentMethodMerge.js';
 import {
   getProvidersServingAsset,
   providerServesAsset,
@@ -340,6 +341,30 @@ export type TransakState = {
  */
 export type NativeProvidersState = {
   transak: TransakState;
+};
+
+/**
+ * Response from {@link RampsController.getPaymentMethodsForContext}.
+ *
+ * Methods are request-eligible for the resolved provider set; they are not a
+ * guarantee that every amount will produce a quote (provider fiat limits still
+ * apply at quote time).
+ */
+export type PaymentMethodsForContextResponse = {
+  /**
+   * Deduped payment methods contributed by the resolved provider set.
+   */
+  methods: PaymentMethod[];
+  /**
+   * Suggested selection for this request only. Written to controller state only
+   * when `updateState` was true on the call.
+   */
+  selected: PaymentMethod | null;
+  /**
+   * Provider IDs whose methods were requested (after resolution / allowlist
+   * filtering).
+   */
+  providerIds: string[];
 };
 
 /**
@@ -807,6 +832,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setSelectedToken',
   'getProviders',
   'getPaymentMethods',
+  'getPaymentMethodsForContext',
   'setSelectedPaymentMethod',
   'getQuotes',
   'addOrder',
@@ -1830,6 +1856,146 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Fetches payment methods for a quoting context without coupling callers to
+   * the Buy flow's globally selected provider/token catalog.
+   *
+   * Provider contribution mirrors {@link getQuotes}:
+   * - explicit `providers` (optionally filtered when
+   *   `restrictToKnownOrNativeProviders` is set)
+   * - auto-select / restrict path, including `moneyHeadlessAllProviders`
+   *   widening: flag off uses the restricted/native resolver; flag on uses
+   *   supporting providers, intersected with the flag allowlist when that
+   *   allowlist is non-empty (pick-survivor set for picker methods)
+   * - when those resolution flags and `providers` are omitted, uses only
+   *   `providers.selected` (UB2 selected-provider context)
+   *
+   * By default this is request-only: it does **not** mutate
+   * `paymentMethods.data` or `paymentMethods.selected`. Pass `updateState:
+   * true` only when the caller explicitly wants Buy-catalog write semantics
+   * (UB2). Headless / MM Pay selection stays TPC-owned.
+   *
+   * Methods are request-eligible for the resolved provider set; they are not
+   * guaranteed to produce a quote for every amount (provider fiat limits still
+   * apply at quote time).
+   *
+   * @param options - Context for the payment-method fetch.
+   * @param options.region - Region code. Defaults to `userRegion`.
+   * @param options.assetId - Required CAIP-19 quoting asset.
+   * @param options.providers - Explicit provider ids.
+   * @param options.autoSelectProvider - Resolve providers like `getQuotes`.
+   * @param options.preferredProviderIds - Preferred ids for auto-selection.
+   * @param options.restrictToKnownOrNativeProviders - Headless gating.
+   * @param options.updateState - When true, write `paymentMethods` state.
+   * @param options.preferPaymentMethodId - Preserve this id when still present.
+   * @param options.forceRefresh - Bypass request cache for provider fetches.
+   * @param options.ttl - Custom TTL for provider payment-method fetches.
+   * @returns Deduped methods, a request-only suggested selection, and the
+   *   provider ids that contributed.
+   */
+  async getPaymentMethodsForContext(options: {
+    region?: string;
+    assetId: string;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNativeProviders?: boolean;
+    updateState?: boolean;
+    preferPaymentMethodId?: string;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<PaymentMethodsForContextResponse> {
+    const regionToUse = options.region ?? this.#requireRegion();
+    const normalizedRegion = regionToUse.toLowerCase().trim();
+    const assetId = options.assetId.trim();
+    if (assetId === '') {
+      throw new Error('assetId is required.');
+    }
+
+    const providerIds = await this.#resolveProviderIdsForPaymentMethods({
+      assetId,
+      region: normalizedRegion,
+      providers: options.providers,
+      autoSelectProvider: options.autoSelectProvider,
+      preferredProviderIds: options.preferredProviderIds,
+      restrictToKnownOrNativeProviders:
+        options.restrictToKnownOrNativeProviders,
+    });
+
+    if (providerIds.length === 0) {
+      if (options.updateState === true) {
+        this.update((state) => {
+          state.paymentMethods.data = [];
+          state.paymentMethods.selected = null;
+        });
+      }
+      return { methods: [], selected: null, providerIds };
+    }
+
+    const settled = await Promise.allSettled(
+      providerIds.map(async (providerId) => {
+        const cacheKey = createCacheKey('getPaymentMethodsForContext', [
+          normalizedRegion,
+          assetId,
+          providerId,
+        ]);
+        return this.executeRequest(
+          cacheKey,
+          async () => {
+            return this.messenger.call('RampsService:getPaymentMethods', {
+              region: normalizedRegion,
+              assetId,
+              provider: providerId,
+            });
+          },
+          {
+            forceRefresh: options.forceRefresh,
+            ttl: options.ttl,
+            // Intentionally omit resourceType / isResultCurrent so this
+            // request-only path never drives Buy paymentMethods loading or
+            // selection state unless `updateState` is explicitly set below.
+          },
+        );
+      }),
+    );
+
+    const successfulLists: PaymentMethod[][] = [];
+    const failures: unknown[] = [];
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        successfulLists.push(result.value.payments);
+      } else {
+        failures.push(result.reason);
+      }
+    }
+
+    if (successfulLists.length === 0) {
+      const firstFailure = failures[0];
+      throw firstFailure instanceof Error
+        ? firstFailure
+        : new Error('Failed to fetch payment methods for context.');
+    }
+
+    const methods = mergePaymentMethodsById(successfulLists);
+    const preferredId =
+      options.preferPaymentMethodId ?? this.state.paymentMethods.selected?.id;
+    const selected =
+      (preferredId
+        ? (methods.find((method) => method.id === preferredId) ?? null)
+        : null) ??
+      methods[0] ??
+      null;
+
+    if (options.updateState === true) {
+      this.update((state) => {
+        state.paymentMethods.data = methods;
+        state.paymentMethods.selected = selected;
+      });
+    }
+
+    return { methods, selected, providerIds };
+  }
+
+  /**
    * Sets the user's selected payment method.
    *
    * Accepts either a payment method ID (looked up from state) or a full
@@ -2359,6 +2525,83 @@ export class RampsController extends BaseController<
       return [];
     }
     return [supporting[0].id];
+  }
+
+  /**
+   * Resolves provider IDs that should contribute payment methods for a
+   * quoting context. Mirrors {@link getQuotes} provider-set selection, with
+   * one intentional difference on the widened path: when the all-providers
+   * flag allowlist is non-empty, returns supporting providers intersected
+   * with that allowlist (pick survivors for the picker). Does not mutate
+   * state.
+   *
+   * @param options - Resolution inputs aligned with `getQuotes`.
+   * @returns Provider IDs for this request only.
+   */
+  async #resolveProviderIdsForPaymentMethods({
+    assetId,
+    region,
+    providers,
+    autoSelectProvider,
+    preferredProviderIds,
+    restrictToKnownOrNativeProviders,
+  }: {
+    assetId: string;
+    region: string;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNativeProviders?: boolean;
+  }): Promise<string[]> {
+    const wantsAutoSelection =
+      !providers &&
+      (autoSelectProvider === true ||
+        restrictToKnownOrNativeProviders === true);
+    const { enabled: allProvidersEnabled, allowlist: providerAllowlist } =
+      wantsAutoSelection
+        ? this.#resolveAllProvidersFlag()
+        : { enabled: false, allowlist: undefined };
+    const widenToAllProviders = wantsAutoSelection && allProvidersEnabled;
+
+    if (providers) {
+      return restrictToKnownOrNativeProviders
+        ? this.#filterProviderIdsBySupport({
+            providerIds: providers,
+            assetId,
+            region,
+          })
+        : providers;
+    }
+
+    if (widenToAllProviders) {
+      const { supporting } = await this.#getSupportingProvidersForRegion({
+        assetId,
+        region,
+      });
+      if (providerAllowlist && providerAllowlist.length > 0) {
+        const allowedProviderIds = new Set(
+          providerAllowlist.map(normalizeHeadlessProviderId),
+        );
+        return supporting
+          .filter((provider) =>
+            allowedProviderIds.has(normalizeHeadlessProviderId(provider.id)),
+          )
+          .map((provider) => provider.id);
+      }
+      return supporting.map((provider) => provider.id);
+    }
+
+    if (autoSelectProvider || restrictToKnownOrNativeProviders) {
+      return this.#resolveProviderIdsForQuote({
+        assetId,
+        region,
+        preferredProviderIds,
+        restrictToKnownOrNative: restrictToKnownOrNativeProviders,
+      });
+    }
+
+    const selectedId = this.state.providers.selected?.id;
+    return selectedId ? [selectedId] : [];
   }
 
   /**
