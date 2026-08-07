@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Refresh `transactionMeta.layer1GasFee` from the receipt on confirmation so Activity Details include Mantle operator fee (and OP Stack L1 fee) based on inclusion-time values rather than the pre-confirm estimate alone ([#9630](https://github.com/MetaMask/core/pull/9630))
 
+## [69.5.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+### Fixed
+
+- Strip leading zero digits from `value` in `eth_estimateGas` requests, so gas estimation no longer fails on RPC nodes that reject non-canonical hex quantities such as `0x00` (e.g. Go's `hexutil` parsing) ([#9797](https://github.com/MetaMask/core/pull/9797))
+
 ## [69.5.0]
 
 ### Added
@@ -2670,7 +2680,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.1...HEAD
+[69.5.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.0...@metamask/transaction-controller@69.5.1
 [69.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.4.0...@metamask/transaction-controller@69.5.0
 [69.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.3.0...@metamask/transaction-controller@69.4.0
 [69.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.2.1...@metamask/transaction-controller@69.3.0
