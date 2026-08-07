@@ -426,6 +426,7 @@ linkStyle default opacity:0.5
   keyring_controller --> controller_utils;
   keyring_controller --> messenger;
   kyc_controller --> base_controller;
+  kyc_controller --> base_data_service;
   kyc_controller --> controller_utils;
   kyc_controller --> geolocation_controller;
   kyc_controller --> messenger;
