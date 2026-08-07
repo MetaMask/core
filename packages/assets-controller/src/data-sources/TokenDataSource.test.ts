@@ -974,6 +974,112 @@ describe('TokenDataSource', () => {
     );
   });
 
+  it('middleware strips stub metadata of filtered-out assets so it does not persist', async () => {
+    const spamAsset =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [createMockAssetResponse(spamAsset, { occurrences: 1 })],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    // Websocket-shaped update: detected asset with a seeded metadata stub
+    // (name/symbol, no image). If the stub survived filtering it would
+    // persist to state and mask re-detection of the spam token.
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [spamAsset],
+        },
+        assetsBalance: {
+          'mock-account-id': {
+            [spamAsset]: { amount: '50' },
+          },
+        },
+        assetsInfo: {
+          [spamAsset]: {
+            type: 'erc20',
+            name: 'Spam Token',
+            symbol: 'SPAM',
+            decimals: 18,
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as Record<
+          string,
+          unknown
+        >
+      )?.[spamAsset],
+    ).toBeUndefined();
+    expect(context.response.assetsInfo?.[spamAsset]).toBeUndefined();
+  });
+
+  it('occurrenceFilterMiddleware drops new low-occurrence tokens before detection', async () => {
+    const spamAsset =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 5 }),
+        createMockAssetResponse(spamAsset, { occurrences: 1 }),
+      ],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    // Websocket-shaped update: brand-new tokens (absent from state) with
+    // seeded metadata stubs. Runs BEFORE DetectionMiddleware.
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['balance'] }),
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '100' },
+            [spamAsset]: { amount: '50' },
+          },
+        },
+        assetsInfo: {
+          [spamAsset]: {
+            type: 'erc20',
+            name: 'Spam Token',
+            symbol: 'SPAM',
+            decimals: 18,
+          },
+        },
+      },
+      getAssetsState: jest.fn().mockReturnValue({
+        assetsBalance: {},
+        assetsInfo: {},
+      }),
+    });
+
+    await controller.occurrenceFilterMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      expect.arrayContaining([MOCK_TOKEN_ASSET, spamAsset]),
+      { includeOccurrences: true },
+    );
+
+    const accountBalances = context.response.assetsBalance?.[
+      'mock-account-id'
+    ] as Record<string, unknown>;
+    expect(accountBalances[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(accountBalances[spamAsset]).toBeUndefined();
+    expect(context.response.assetsInfo?.[spamAsset]).toBeUndefined();
+    expect(next).toHaveBeenCalled();
+  });
+
   it('middleware uses per-chain suggested occurrence floors from Token API', async () => {
     // Monad (143) suggests floor 1 — a token with occurrences=1 should pass.
     const monadToken =
