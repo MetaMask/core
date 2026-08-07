@@ -1,6 +1,26 @@
 import { DEFAULT_TRACKED_ASSETS_BY_CHAIN } from '../defaults.js';
-import type { AssetsControllerStateInternal, Caip19AssetId } from '../types.js';
 import { isNativeAssetId } from './native-assets.js';
+
+/**
+ * The state slices {@link cleanupUnusedMetadata} operates on. The cleanup
+ * only ever inspects keys (asset IDs) — values are never read — so value
+ * types are `unknown`. This makes the parameter satisfiable both by
+ * `AssetsControllerState` and by the immer draft passed to
+ * `BaseController.update` (whose `WritableDraft`-wrapped values are not
+ * assignable to their base types), so no type assertion is needed at call
+ * sites. Omitting `assetPreferences` also guarantees at the type level that
+ * the cleanup cannot touch it.
+ */
+export type CleanupUnusedMetadataState = {
+  /** Shared metadata for all assets, keyed by CAIP-19 asset ID. */
+  assetsInfo: Record<string, unknown>;
+  /** Per-account balances, keyed by account ID then CAIP-19 asset ID. */
+  assetsBalance: Record<string, Record<string, unknown>>;
+  /** Price data for assets, keyed by CAIP-19 asset ID. */
+  assetsPrice: Record<string, unknown>;
+  /** Custom assets added by users per account (CAIP-19 asset IDs). */
+  customAssets: Record<string, readonly string[]>;
+};
 
 /** Lowercase CAIP-19 IDs of every default tracked asset, across all chains. */
 const DEFAULT_TRACKED_ASSET_IDS: ReadonlySet<string> = new Set(
@@ -33,9 +53,7 @@ const DEFAULT_TRACKED_ASSET_IDS: ReadonlySet<string> = new Set(
  *
  * @param state - The controller state to clean up (mutated in place).
  */
-export function cleanupUnusedMetadata(
-  state: AssetsControllerStateInternal,
-): void {
+export function cleanupUnusedMetadata(state: CleanupUnusedMetadataState): void {
   const referencedAssetIds = new Set<string>();
   for (const accountBalances of Object.values(state.assetsBalance)) {
     for (const assetId of Object.keys(accountBalances)) {
@@ -55,12 +73,12 @@ export function cleanupUnusedMetadata(
 
   for (const assetId of Object.keys(state.assetsInfo)) {
     if (isUnused(assetId)) {
-      delete state.assetsInfo[assetId as Caip19AssetId];
+      delete state.assetsInfo[assetId];
     }
   }
   for (const assetId of Object.keys(state.assetsPrice)) {
     if (isUnused(assetId)) {
-      delete state.assetsPrice[assetId as Caip19AssetId];
+      delete state.assetsPrice[assetId];
     }
   }
 }

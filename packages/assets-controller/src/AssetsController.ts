@@ -1366,18 +1366,14 @@ export class AssetsController extends BaseController<
       this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets();
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
-      this.update((state) =>
-        cleanupUnusedMetadata(state as AssetsControllerStateInternal),
-      );
+      this.update((state) => cleanupUnusedMetadata(state));
     } catch (error) {
       log('Failed to fetch assets on startup', error);
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets();
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
-      this.update((state) =>
-        cleanupUnusedMetadata(state as AssetsControllerStateInternal),
-      );
+      this.update((state) => cleanupUnusedMetadata(state));
     } finally {
       releaseLock();
     }
