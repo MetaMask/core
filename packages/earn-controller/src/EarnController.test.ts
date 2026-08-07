@@ -1363,7 +1363,8 @@ describe('EarnController', () => {
         // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2,
+        ).toHaveBeenNthCalledWith(
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1377,7 +1378,8 @@ describe('EarnController', () => {
         // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2,
+        ).toHaveBeenNthCalledWith(
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1391,7 +1393,8 @@ describe('EarnController', () => {
         // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2,
+        ).toHaveBeenNthCalledWith(
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           true,
@@ -1405,7 +1408,8 @@ describe('EarnController', () => {
         // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2,
+        ).toHaveBeenNthCalledWith(
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1429,7 +1433,8 @@ describe('EarnController', () => {
         // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2,
+        ).toHaveBeenNthCalledWith(
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1444,7 +1449,8 @@ describe('EarnController', () => {
         // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2,
+        ).toHaveBeenNthCalledWith(
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1458,7 +1464,8 @@ describe('EarnController', () => {
         // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2,
+        ).toHaveBeenNthCalledWith(
+          2,
           [mockAccount1Address],
           ChainId.HOODI,
           false,
