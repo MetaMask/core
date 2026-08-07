@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getPaymentMethodsForContext(options)` and `RampsController:getPaymentMethodsForContext` messenger action for context-scoped payment-method retrieval aligned with `getQuotes` provider resolution ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add `getPaymentMethodsForContext(options)` and `RampsController:getPaymentMethodsForContext` messenger action for context-scoped payment-method retrieval aligned with `getQuotes` provider resolution ([#9801](https://github.com/MetaMask/core/pull/9801))
   - Supports explicit `providers`, selected-provider (UB2) context, and headless auto-select / restrict paths, including `moneyHeadlessAllProviders` widening with allowlist pick-survivor intersection.
   - Request-only by default (`updateState` unset/false): does not mutate Buy `paymentMethods.data` / `.selected`.
   - Fans out per contributing provider, dedupes by canonical payment id, and merges collision metadata (conservative delay, best score, deterministic name/icon).
