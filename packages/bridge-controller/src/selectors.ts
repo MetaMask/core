@@ -38,10 +38,14 @@ import {
 } from './utils/caip-formatters.js';
 import { processFeatureFlags } from './utils/feature-flags.js';
 import { sumAmounts } from './utils/number-formatters.js';
-import { calcBatchFees } from './utils/quote-metadata/calculators.js';
-import { calcQuoteMetadata } from './utils/quote-metadata/calculators.js';
+import {
+  calcBatchFees,
+  calcQuoteMetadata,
+} from './utils/quote-metadata/calculators.js';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
+import { toCurrencyValues } from './utils/quote-metadata/to-currency-values.js';
 import type { QuoteMetadata } from './utils/quote-metadata/types.js';
+import { QuoteMetadataMigrationPhase } from './utils/quote-metadata/types.js';
 import { getDefaultSlippagePercentage } from './utils/slippage.js';
 import type { QuoteResponse } from './validators/quote-response.js';
 
@@ -98,6 +102,7 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
+  migrationPhase?: QuoteMetadataMigrationPhase;
 };
 
 type EvmTokenExchangeRate = { price?: number; currency?: string };
@@ -334,8 +339,18 @@ const selectMetadata = createBridgeSelector(
     selectBridgeFeesPerGas,
     selectExchangeRateSources,
     ({ quoteRequest }) => quoteRequest,
+    (_, { migrationPhase }: BridgeQuotesClientParams) => migrationPhase,
   ],
-  (quotes, bridgeFeesPerGas, exchangeRateSources, quoteRequest) => {
+  (
+    quotes,
+    bridgeFeesPerGas,
+    exchangeRateSources,
+    quoteRequest,
+    migrationPhase,
+  ) => {
+    if (migrationPhase === QuoteMetadataMigrationPhase.V2Only) {
+      return [];
+    }
     const { destTokenAddress, srcChainId, destChainId } = quoteRequest[0] ?? {};
 
     return quotes.map((quote) =>
@@ -362,13 +377,61 @@ const selectMetadata = createBridgeSelector(
   },
 );
 
+const selectUsdToFiatExchangeRate = createBridgeSelector(
+  [
+    selectExchangeRateSources,
+    ({ quoteRequest }) =>
+      getNativeAssetForChainId(quoteRequest[0]?.srcChainId ?? 1)?.assetId,
+  ],
+  (exchangeRateSources, nativeAssetId) => {
+    const exchangeRate = selectExchangeRateByAssetId(
+      exchangeRateSources,
+      nativeAssetId,
+    );
+    return exchangeRate?.exchangeRate && exchangeRate?.usdExchangeRate
+      ? new BigNumber(exchangeRate.exchangeRate)
+          .div(exchangeRate.usdExchangeRate)
+          .toFixed()
+      : undefined;
+  },
+);
+
+const selectCurrencyValues = createBridgeSelector(
+  [
+    ({ quotes }) => quotes,
+    selectUsdToFiatExchangeRate,
+    (_, { migrationPhase }: BridgeQuotesClientParams) => migrationPhase,
+  ],
+  (quotes, usdToFiatExchangeRateString, migrationPhase) => {
+    if (migrationPhase === QuoteMetadataMigrationPhase.V1Data) {
+      return [];
+    }
+    const usdToFiatExchangeRate = usdToFiatExchangeRateString
+      ? new BigNumber(usdToFiatExchangeRateString)
+      : undefined;
+    return quotes.map((quote) =>
+      toCurrencyValues(quote, usdToFiatExchangeRate),
+    );
+  },
+);
+
 // Selects cross-chain swap quotes including their metadata
 const selectBridgeQuotesWithMetadata = createBridgeSelector(
-  [selectMetadata, ({ quotes }) => quotes],
-  (quoteMetadata, quotes) =>
-    quotes.map((quote, index) =>
-      mergeQuoteMetadata(quote, quoteMetadata[index]),
-    ),
+  [
+    selectMetadata,
+    selectCurrencyValues,
+    ({ quotes }) => quotes,
+    (_, { migrationPhase }: BridgeQuotesClientParams) => migrationPhase,
+  ],
+  (legacyQuoteMetadata, quoteMetadataV2, quotes, migrationPhase) =>
+    quotes.map((quote, index) => {
+      return mergeQuoteMetadata(
+        quote,
+        legacyQuoteMetadata[index],
+        migrationPhase,
+        quoteMetadataV2[index],
+      );
+    }),
 );
 
 const selectSortedBridgeQuotes = createBridgeSelector(

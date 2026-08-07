@@ -313,8 +313,8 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     id: txMetaId,
     hash: srcTxHash === 'undefined' ? undefined : srcTxHash,
   } as TransactionMeta,
-  quoteResponse: mergeQuoteMetadata(
-    {
+  quoteResponse: {
+    ...{
       quote: getMockQuote({ srcChainId, destChainId }),
       trade: {
         chainId: srcChainId,
@@ -327,7 +327,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
       approval: undefined,
       estimatedProcessingTimeInSeconds: 15,
     },
-    {
+    ...{
       sentAmount: {
         amount: '1.234',
         valueInCurrency: undefined,
@@ -355,7 +355,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
       swapRate: '1.234',
       cost: { valueInCurrency: undefined, usd: undefined },
     },
-  ),
+  },
   accountAddress: account,
   startTime: 1729964825189,
   slippagePercentage: 0,
@@ -2260,40 +2260,43 @@ describe('BridgeStatusController', () => {
       trade:
         'AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=',
     };
-    const mockQuoteResponse = mergeQuoteMetadata(mockQuote, {
-      sentAmount: {
-        amount: '1',
-        valueInCurrency: '100',
-        usd: '100',
+    const mockQuoteResponse = {
+      ...mockQuote,
+      ...{
+        sentAmount: {
+          amount: '1',
+          valueInCurrency: '100',
+          usd: '100',
+        },
+        toTokenAmount: {
+          amount: '0.5',
+          valueInCurrency: '1000',
+          usd: '1000',
+        },
+        minToTokenAmount: {
+          amount: '0.475',
+          valueInCurrency: '950',
+          usd: '950',
+        },
+        totalNetworkFee: {
+          amount: '0.1',
+          valueInCurrency: '10',
+          usd: '10',
+        },
+        gasFee: {
+          total: { amount: '0.05', valueInCurrency: '5', usd: '5' },
+        },
+        adjustedReturn: {
+          valueInCurrency: '985',
+          usd: '985',
+        },
+        cost: {
+          valueInCurrency: '15',
+          usd: '15',
+        },
+        swapRate: '0.5',
       },
-      toTokenAmount: {
-        amount: '0.5',
-        valueInCurrency: '1000',
-        usd: '1000',
-      },
-      minToTokenAmount: {
-        amount: '0.475',
-        valueInCurrency: '950',
-        usd: '950',
-      },
-      totalNetworkFee: {
-        amount: '0.1',
-        valueInCurrency: '10',
-        usd: '10',
-      },
-      gasFee: {
-        total: { amount: '0.05', valueInCurrency: '5', usd: '5' },
-      },
-      adjustedReturn: {
-        valueInCurrency: '985',
-        usd: '985',
-      },
-      cost: {
-        valueInCurrency: '15',
-        usd: '15',
-      },
-      swapRate: '0.5',
-    });
+    };
 
     const mockSolanaAccount = {
       id: 'solana-account-1',

@@ -22,6 +22,7 @@ import type { QuoteResponse } from '../../validators/quote-response.js';
 import type { TxData } from '../../validators/trade.js';
 import { isEvmQuoteResponse, isNativeAddress } from '../bridge.js';
 import { calcNormalizedTokenAmount } from '../number-formatters.js';
+import { includeIfTruthy } from './include-if-truthy.js';
 import type { QuoteMetadata, TokenAmountValues } from './types.js';
 
 export const calcNonEvmTotalNetworkFee = (
@@ -523,16 +524,10 @@ export const calcQuoteMetadata = (
         Should only be used for display purposes.
      */
     gasFee,
-    ...(adjustedReturn &&
-      Object.values(adjustedReturn).some(Boolean) && { adjustedReturn }),
-    ...(cost && Object.values(cost).some(Boolean) && { cost }),
-    ...(includedTxFees &&
-      Object.values(includedTxFees).some(Boolean) && { includedTxFees }),
-    ...(relayerFee &&
-      Object.values(relayerFee).some(Boolean) && { relayerFee }),
-    ...(priceImpact &&
-      Object.values(priceImpact).some(Boolean) && {
-        priceImpact,
-      }),
+    ...includeIfTruthy(adjustedReturn, { adjustedReturn }),
+    ...includeIfTruthy(cost, { cost }),
+    ...includeIfTruthy(includedTxFees, { includedTxFees }),
+    ...includeIfTruthy(relayerFee, { relayerFee }),
+    ...includeIfTruthy(priceImpact, { priceImpact }),
   };
 };

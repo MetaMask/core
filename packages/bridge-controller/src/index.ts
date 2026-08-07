@@ -67,10 +67,11 @@ export type {
   DeepPartial,
 } from './types.js';
 
-export {
-  type QuoteMetadata,
-  type TokenAmountValues,
+export type {
+  QuoteMetadata,
+  TokenAmountValues,
 } from './utils/quote-metadata/types.js';
+export { QuoteMetadataMigrationPhase } from './utils/quote-metadata/types.js';
 export {
   validateQuoteResponseV1,
   QuoteResponseSchemaV1,

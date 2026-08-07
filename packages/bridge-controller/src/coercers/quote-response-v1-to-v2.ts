@@ -99,13 +99,13 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
       ...(destWalletAddress && { walletAddress: destWalletAddress }),
       minAmount: minDestTokenAmount,
     },
-    priceData: {
-      ...(priceData?.priceImpact && {
+    ...(priceData?.priceImpact && {
+      priceData: {
         priceImpact: {
           amount: priceData.priceImpact,
         },
-      }),
-    },
+      },
+    }),
     feeData: {
       [FeeType.METABRIDGE]: [
         {
