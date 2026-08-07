@@ -14,10 +14,10 @@ import {
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import type {
   GetAmountDataCallback,
+  GetBalanceCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
-  ResolveSourceAmountCallback,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -69,6 +69,8 @@ export class TransactionPayController extends BaseController<
 > {
   readonly #getAmountData?: GetAmountDataCallback;
 
+  readonly #getBalance?: GetBalanceCallback;
+
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
 
   readonly #fiatOptions?: TransactionPayFiatOptions;
@@ -85,18 +87,16 @@ export class TransactionPayController extends BaseController<
 
   readonly #polymarket?: PolymarketCallbacks;
 
-  readonly #resolveSourceAmount?: ResolveSourceAmountCallback;
-
   constructor({
     fiatOptions,
     getAmountData,
+    getBalance,
     getDelegationTransaction,
     getPaymentOverrideData,
     getStrategy,
     getStrategies,
     messenger,
     polymarket,
-    resolveSourceAmount,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -107,13 +107,13 @@ export class TransactionPayController extends BaseController<
     });
 
     this.#getAmountData = getAmountData;
+    this.#getBalance = getBalance;
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#fiatOptions = fiatOptions;
     this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
-    this.#resolveSourceAmount = resolveSourceAmount;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -374,12 +374,7 @@ export class TransactionPayController extends BaseController<
         isPostQuoteUpdated ||
         isAccountOverrideUpdated
       ) {
-        updateSourceAmounts(
-          transactionId,
-          current as never,
-          this.messenger,
-          this.#resolveSourceAmount,
-        );
+        updateSourceAmounts(transactionId, current as never, this.messenger, this.#getBalance);
 
         shouldUpdateQuotes = true;
       }

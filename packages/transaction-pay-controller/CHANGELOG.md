@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `getBalance` callback to `TransactionPayControllerOptions` to override the source balance used for max-amount source-amount calculation
+
 ## [26.4.0]
 
 ### Changed

@@ -938,9 +938,9 @@ describe('TransactionPayController', () => {
       });
     });
 
-    it('forwards the resolveSourceAmount option to updateSourceAmounts', () => {
-      const resolveSourceAmount = jest.fn();
-      const controller = createController({ resolveSourceAmount });
+    it('forwards getBalance callback to updateSourceAmounts', () => {
+      const getBalance = jest.fn().mockReturnValue({ balanceHuman: '9.9', balanceRaw: '9900000' });
+      const controller = createController({ getBalance });
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
@@ -951,16 +951,14 @@ describe('TransactionPayController', () => {
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.sourceAmounts = [
-          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
-        ];
+        data.isMaxAmount = true;
       });
 
       expect(updateSourceAmountsMock).toHaveBeenCalledWith(
         TRANSACTION_ID_MOCK,
         expect.any(Object),
         messenger,
-        resolveSourceAmount,
+        getBalance,
       );
     });
   });
