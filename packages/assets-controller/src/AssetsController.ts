@@ -1366,9 +1366,6 @@ export class AssetsController extends BaseController<
       this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets();
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
-      // Only prune after a successful refresh: on failure the balance
-      // picture may be incomplete, so pruning against it could delete
-      // metadata for assets that are still held.
       this.update((state) => cleanupUnusedMetadata(state));
     } catch (error) {
       log('Failed to fetch assets on startup', error);
