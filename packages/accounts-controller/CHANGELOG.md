@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `clearState` method to reset controller state to defaults, exposed as `AccountsController:clearState` ([#9799](https://github.com/MetaMask/core/pull/9799))
+- Export `getDefaultAccountsControllerState` helper ([#9799](https://github.com/MetaMask/core/pull/9799))
+
 ## [39.0.7]
 
 ### Changed
