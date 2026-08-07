@@ -45,7 +45,11 @@ import type {
   AccountsControllerMessenger,
   AccountsControllerState,
 } from './AccountsController.js';
-import { AccountsController, EMPTY_ACCOUNT } from './AccountsController.js';
+import {
+  AccountsController,
+  EMPTY_ACCOUNT,
+  getDefaultAccountsControllerState,
+} from './AccountsController.js';
 import {
   getUUIDOptionsFromAddressOfNormalAccount,
   keyringTypeToName,
@@ -3412,17 +3416,21 @@ describe('AccountsController', () => {
 
       accountsController.clearState();
 
-      expect(accountsController.state).toStrictEqual(defaultState);
+      expect(accountsController.state).toStrictEqual(
+        getDefaultAccountsControllerState(),
+      );
     });
 
     it('is a no-op when state is already empty', () => {
       const { accountsController } = setupAccountsController({
-        initialState: defaultState,
+        initialState: getDefaultAccountsControllerState(),
       });
 
       accountsController.clearState();
 
-      expect(accountsController.state).toStrictEqual(defaultState);
+      expect(accountsController.state).toStrictEqual(
+        getDefaultAccountsControllerState(),
+      );
     });
 
     it('is callable via the messenger', () => {
@@ -3440,7 +3448,9 @@ describe('AccountsController', () => {
 
       messenger.call('AccountsController:clearState');
 
-      expect(accountsController.state).toStrictEqual(defaultState);
+      expect(accountsController.state).toStrictEqual(
+        getDefaultAccountsControllerState(),
+      );
     });
   });
 

@@ -268,9 +268,11 @@ const accountsControllerMetadata = {
 /**
  * Returns the default state for the AccountsController.
  *
+ * @deprecated This function is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @returns The default AccountsController state.
  */
-function getDefaultAccountsControllerState(): AccountsControllerState {
+export function getDefaultAccountsControllerState(): AccountsControllerState {
   return {
     internalAccounts: {
       accounts: {},
