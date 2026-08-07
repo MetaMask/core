@@ -30,59 +30,34 @@ export function buildNativeAssetsFromConstant(): Record<
   return nativeAssetsMap;
 }
 
-/**
- * Lowercase CAIP-19 IDs of every native asset in the hardcoded registry,
- * built lazily on first use. Needed for natives that are not expressible
- * through the `slip44`/zero-address conventions (e.g. METIS and MNT, which
- * use a "dead" ERC-20 address).
- */
-let knownNativeAssetIds: ReadonlySet<string> | undefined;
+const KNOWN_NATIVE_ASSET_IDS: ReadonlySet<string> = new Set(
+  Object.values(buildNativeAssetsFromConstant()).map((assetId) =>
+    assetId.toLowerCase(),
+  ),
+);
 
 /**
- * Get the lazily-built set of lowercase native asset IDs from the
- * hardcoded registry.
+ * Whether a CAIP-19 asset ID represents a chain's native asset — via the
+ * `slip44` namespace, the zero-address ERC-20 convention, or the hardcoded
+ * native asset registry (non-standard natives like METIS/MNT).
  *
- * @returns The set of known native asset IDs.
- */
-function getKnownNativeAssetIds(): ReadonlySet<string> {
-  knownNativeAssetIds ??= new Set(
-    Object.values(buildNativeAssetsFromConstant()).map((assetId) =>
-      assetId.toLowerCase(),
-    ),
-  );
-  return knownNativeAssetIds;
-}
-
-/**
- * Whether a CAIP-19 asset ID represents a chain's native asset. Pure (no
- * network, no controller state) counterpart of
- * `AssetsController.#isNativeAsset`: recognizes the `slip44` asset
- * namespace, the zero-address ERC-20 convention, and the hardcoded native
- * asset registry. It does not consult the runtime native asset map fetched
- * from chainid.network — but every entry that map adds beyond the hardcoded
- * registry is `slip44`-shaped, so the first rule already covers them.
- *
- * @param assetId - The asset ID to check (any casing). Malformed IDs are
- * reported as non-native rather than throwing.
+ * @param assetId - The asset ID to check (any casing); malformed IDs are
+ * reported as non-native.
  * @returns True when the asset ID is a native asset.
  */
 export function isNativeAssetId(assetId: string): boolean {
-  if (getKnownNativeAssetIds().has(assetId.toLowerCase())) {
+  if (KNOWN_NATIVE_ASSET_IDS.has(assetId.toLowerCase())) {
     return true;
   }
-
   if (!isCaipAssetType(assetId)) {
     return false;
   }
-  const parsed = parseCaipAssetType(assetId);
 
-  if (parsed.assetNamespace === 'slip44') {
-    return true;
-  }
-
+  const { assetNamespace, assetReference } = parseCaipAssetType(assetId);
   return (
-    parsed.assetNamespace === 'erc20' &&
-    parsed.assetReference.toLowerCase() === ZERO_ADDRESS
+    assetNamespace === 'slip44' ||
+    (assetNamespace === 'erc20' &&
+      assetReference.toLowerCase() === ZERO_ADDRESS)
   );
 }
 
