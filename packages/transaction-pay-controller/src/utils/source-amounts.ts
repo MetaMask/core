@@ -53,10 +53,16 @@ export function updateSourceAmounts(
     return;
   }
 
-  const transaction = getTransaction(transactionId, messenger);
-  const balanceOverride = getBalance && transaction
-    ? getBalance({ transaction: transaction as TransactionMeta, transactionData })
+  const transaction = getBalance
+    ? getTransaction(transactionId, messenger)
     : undefined;
+  const balanceOverride =
+    getBalance && transaction && isMaxAmount
+      ? getBalance({
+          transaction: transaction as TransactionMeta,
+          transactionData,
+        })
+      : undefined;
 
   // For post-quote flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
@@ -144,8 +150,12 @@ function calculatePostQuoteSourceAmounts(
       return true;
     })
     .map((token) => ({
-      sourceAmountHuman: isMaxAmount ? (balanceOverride?.balanceHuman ?? token.balanceHuman) : token.amountHuman,
-      sourceAmountRaw: isMaxAmount ? (balanceOverride?.balanceRaw ?? token.balanceRaw) : token.amountRaw,
+      sourceAmountHuman: isMaxAmount
+        ? (balanceOverride?.balanceHuman ?? token.balanceHuman)
+        : token.amountHuman,
+      sourceAmountRaw: isMaxAmount
+        ? (balanceOverride?.balanceRaw ?? token.balanceRaw)
+        : token.amountRaw,
       sourceBalanceRaw: balanceOverride?.balanceRaw ?? token.balanceRaw,
       sourceChainId: token.chainId,
       sourceTokenAddress: token.address,
@@ -232,7 +242,8 @@ function calculateSourceAmount(
   // deposits funded from the money account (e.g. Send to Perps).
   if (isMaxAmount && paymentOverride !== PaymentOverride.MoneyAccount) {
     return {
-      sourceAmountHuman: balanceOverride?.balanceHuman ?? paymentToken.balanceHuman,
+      sourceAmountHuman:
+        balanceOverride?.balanceHuman ?? paymentToken.balanceHuman,
       sourceAmountRaw: balanceOverride?.balanceRaw ?? paymentToken.balanceRaw,
       targetTokenAddress: token.address,
     };

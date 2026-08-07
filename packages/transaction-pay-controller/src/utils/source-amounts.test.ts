@@ -268,7 +268,6 @@ describe('Source Amounts Utils', () => {
       ]);
     });
 
-
     it('uses getBalance override for isMaxAmount standard flow', () => {
       const getBalance = jest.fn().mockReturnValue({
         balanceHuman: '9.9',
@@ -282,7 +281,12 @@ describe('Source Amounts Utils', () => {
         tokens: [TRANSACTION_TOKEN_MOCK],
       };
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger, getBalance);
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
 
       expect(transactionData.sourceAmounts).toStrictEqual([
         {
@@ -303,7 +307,12 @@ describe('Source Amounts Utils', () => {
         tokens: [TRANSACTION_TOKEN_MOCK],
       };
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger, getBalance);
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
 
       expect(transactionData.sourceAmounts).toStrictEqual([
         {
@@ -326,9 +335,90 @@ describe('Source Amounts Utils', () => {
         tokens: [TRANSACTION_TOKEN_MOCK],
       };
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger, getBalance);
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
 
       // isMaxAmount is false, so fiat-derived amounts should be used (not the override)
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '2',
+          sourceAmountRaw: '2000000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('does not call getBalance when transaction is not found', () => {
+      // First call (top of updateSourceAmounts) returns undefined; subsequent
+      // calls (getStrategyContext) return the normal mock so no crash.
+      getTransactionMock.mockReturnValueOnce(undefined);
+
+      const getBalance = jest.fn().mockReturnValue({
+        balanceHuman: '9.9',
+        balanceRaw: '9900000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      expect(getBalance).not.toHaveBeenCalled();
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: PAYMENT_TOKEN_MOCK.balanceHuman,
+          sourceAmountRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('ignores getBalance override when paymentOverride is MoneyAccount and isMaxAmount is true', () => {
+      const getBalance = jest.fn().mockReturnValue({
+        balanceHuman: '9.9',
+        balanceRaw: '9900000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentOverride: PaymentOverride.MoneyAccount,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          balanceHuman: '0.62',
+          balanceRaw: '620000',
+          balanceUsd: '0.62',
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            amountUsd: '6.0',
+          },
+        ],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      // MoneyAccount branch uses fiat-derived amounts, not the getBalance override.
+      // usdRate mock is 3.0 -> source human = 6 / 3 = 2, raw = 2 * 10^6.
       expect(transactionData.sourceAmounts).toStrictEqual([
         {
           sourceAmountHuman: '2',
@@ -368,7 +458,12 @@ describe('Source Amounts Utils', () => {
         ],
       };
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger, getBalance);
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
 
       expect(transactionData.sourceAmounts).toStrictEqual([
         {
