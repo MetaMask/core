@@ -450,6 +450,31 @@ describe('transaction helpers', () => {
       ]);
     });
 
+    it('adds operator fee from receipt when l1Fee is absent', () => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0x1388',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x1',
+              effectiveGasPrice: '0x2',
+              operatorFeeScalar: '0x1',
+              operatorFeeConstant: '0xa',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          // L2 (2) + operator (1 * 1 * 100 + 10 = 110)
+          amount: '112',
+          decimals: 18,
+          assetType: 'native',
+        },
+      ]);
+    });
+
     it('prefers layer1GasFee over receipt fees to avoid double-counting', () => {
       expect(
         getLocalTransactionFees({
@@ -467,6 +492,79 @@ describe('transaction helpers', () => {
           },
         } as Parameters<typeof getLocalTransactionFees>[0])?.[0]?.amount,
       ).toBe('21000100000000');
+    });
+
+    it('ignores invalid receipt fee hex and keeps the L2 network fee', () => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0x1388',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x5208',
+              effectiveGasPrice: '0x3b9aca00',
+              l1Fee: 'not-a-hex',
+              operatorFeeScalar: 'also-bad',
+              operatorFeeConstant: '0x0',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '21000000000000',
+          decimals: 18,
+          assetType: 'native',
+        },
+      ]);
+    });
+
+    it('ignores invalid layer1GasFee and keeps the L2 network fee', () => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0x1388',
+            layer1GasFee: 'not-a-hex',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x5208',
+              effectiveGasPrice: '0x3b9aca00',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '21000000000000',
+          decimals: 18,
+          assetType: 'native',
+        },
+      ]);
+    });
+
+    it('ignores empty receipt fee hex values', () => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0x1388',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x5208',
+              effectiveGasPrice: '0x3b9aca00',
+              l1Fee: '0x',
+              operatorFeeScalar: '',
+              operatorFeeConstant: '0X',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '21000000000000',
+          decimals: 18,
+          assetType: 'native',
+        },
+      ]);
     });
   });
 

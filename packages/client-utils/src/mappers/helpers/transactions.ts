@@ -122,26 +122,23 @@ function addLayer1FeeToNetworkFeeAmount(
   layer1GasFee: string | undefined,
   receiptLayer1FeeAmount: string | undefined,
 ): string {
-  const layer1Amount =
-    layer1GasFee === undefined
-      ? receiptLayer1FeeAmount
-      : ((): string | undefined => {
-          try {
-            return String(BigInt(layer1GasFee));
-          } catch {
-            return undefined;
-          }
-        })();
+  let layer1Amount: string | undefined;
+
+  if (layer1GasFee === undefined) {
+    layer1Amount = receiptLayer1FeeAmount;
+  } else {
+    try {
+      layer1Amount = String(BigInt(layer1GasFee));
+    } catch {
+      layer1Amount = undefined;
+    }
+  }
 
   if (!layer1Amount) {
     return networkFeeAmount;
   }
 
-  try {
-    return String(BigInt(networkFeeAmount) + BigInt(layer1Amount));
-  } catch {
-    return networkFeeAmount;
-  }
+  return String(BigInt(networkFeeAmount) + BigInt(layer1Amount));
 }
 
 function toNetworkFee(
@@ -256,9 +253,12 @@ export function getLocalTransactionFees(
     return undefined;
   }
 
-  const receiptLayer1FeeAmount = primaryTransaction.txReceipt
-    ? getReceiptLayer1FeeAmount(primaryTransaction.txReceipt)
-    : undefined;
+  const receiptLayer1FeeAmount = getReceiptLayer1FeeAmount(
+    // L2 fee above requires receipt gasUsed, so txReceipt is present here.
+    primaryTransaction.txReceipt as NonNullable<
+      typeof primaryTransaction.txReceipt
+    >,
+  );
 
   const amount = addLayer1FeeToNetworkFeeAmount(
     l2Amount,
