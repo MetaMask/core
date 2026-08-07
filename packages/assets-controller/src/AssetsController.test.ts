@@ -2917,6 +2917,68 @@ describe('AssetsController', () => {
       });
     });
 
+    it('cleans up unused assetsInfo and assetsPrice entries after the startup refresh', async () => {
+      const unreferencedAssetId =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const zeroBalanceAssetId =
+        'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7' as Caip19AssetId;
+      // Default tracked asset on a chain that is NOT enabled in this test
+      // (only eip155:1 is enabled): metadata is pre-seeded but no balance
+      // entry exists, and it must survive the cleanup.
+      const musdOnMonadAssetId =
+        'eip155:143/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA' as Caip19AssetId;
+
+      await withController(
+        {
+          clientControllerState: { isUiOpen: true },
+          state: {
+            assetsInfo: {
+              ...buildDefaultAssetsInfo(),
+              [unreferencedAssetId]: {
+                type: 'erc20',
+                symbol: 'DAI',
+                name: 'Dai Stablecoin',
+                decimals: 18,
+              },
+              [zeroBalanceAssetId]: {
+                type: 'erc20',
+                symbol: 'USDT',
+                name: 'Tether USD',
+                decimals: 6,
+              },
+            },
+            assetsPrice: {
+              [unreferencedAssetId]: {
+                assetPriceType: 'fungible',
+                price: 1,
+                usdPrice: 1,
+                lastUpdated: 0,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: { [zeroBalanceAssetId]: { amount: '0' } },
+            },
+          },
+        },
+        async ({ controller, messenger }) => {
+          expect(
+            controller.state.assetsInfo[unreferencedAssetId],
+          ).toBeDefined();
+
+          await activateTracking(messenger);
+
+          expect(
+            controller.state.assetsInfo[unreferencedAssetId],
+          ).toBeUndefined();
+          expect(
+            controller.state.assetsPrice[unreferencedAssetId],
+          ).toBeUndefined();
+          expect(controller.state.assetsInfo[zeroBalanceAssetId]).toBeDefined();
+          expect(controller.state.assetsInfo[musdOnMonadAssetId]).toBeDefined();
+        },
+      );
+    });
+
     it('stops tracking on keyring lock', async () => {
       await withController(async ({ messenger }) => {
         messenger.publish('KeyringController:unlock');

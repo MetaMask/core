@@ -139,6 +139,7 @@ import type {
   SubscriptionResponse,
   Asset,
 } from './types.js';
+import { cleanupUnusedMetadata } from './utils/cleanupUnusedMetadata.js';
 import { ZERO_ADDRESS } from './utils/constants.js';
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement.js';
 import {
@@ -1365,12 +1366,18 @@ export class AssetsController extends BaseController<
       this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets();
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
+      this.update((state) =>
+        cleanupUnusedMetadata(state as AssetsControllerState),
+      );
     } catch (error) {
       log('Failed to fetch assets on startup', error);
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets();
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
+      this.update((state) =>
+        cleanupUnusedMetadata(state as AssetsControllerState),
+      );
     } finally {
       releaseLock();
     }
