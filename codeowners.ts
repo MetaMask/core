@@ -98,6 +98,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'claims-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'claims-controller',
+  },
+  'claims-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'claims-service',
   },
   'client-controller': {
     teams: [
@@ -184,6 +189,9 @@ const PACKAGES: Record<string, PackageInfo> = {
   'keyring-controller': {
     teams: ['@MetaMask/accounts-engineers', '@MetaMask/core-platform'],
     initializationPath: 'keyring-controller',
+  },
+  'kyc-controller': {
+    teams: ['@MetaMask/universal-kyc'],
   },
   'local-node-utils': {
     teams: [
@@ -311,8 +319,13 @@ const PACKAGES: Record<string, PackageInfo> = {
   'sentinel-api-service': {
     teams: ['@MetaMask/confirmations', '@MetaMask/transactions'],
   },
+  'shield-api-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-api-service',
+  },
   'shield-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-controller',
   },
   'signature-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -350,6 +363,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'subscription-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-controller',
+  },
+  'subscription-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-service',
   },
   'transaction-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -557,6 +575,10 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('claims-controller'),
       ],
     },
+    {
+      title: 'Universal KYC Team',
+      rules: [buildRuleForPackage('kyc-controller')],
+    },
   ];
 }
 
@@ -695,6 +717,7 @@ function buildPackageReleaseSection(): CodeownersSection {
     'money-account-upgrade-controller',
     'money-account-utils',
     'snap-account-service',
+    'kyc-controller',
   ] as const satisfies (keyof typeof PACKAGES)[];
 
   return {

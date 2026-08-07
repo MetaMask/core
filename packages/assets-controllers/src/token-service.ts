@@ -380,6 +380,10 @@ export type TokenRwaData = {
     start?: string;
     end?: string;
   };
+  offhours?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
   ticker?: string;
   instrumentType?: string;
 };
@@ -401,6 +405,10 @@ export type RwaTokenData = {
   industry: string[];
   market?: RwaMarket;
   nextPause?: Record<string, unknown>;
+  offhours?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
   sharesOutstanding?: number;
   restrictedCountries?: string[];
   updatedAt?: string;

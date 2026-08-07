@@ -7,11 +7,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 
 import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data.js';
-import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend.js';
 import {
   createMockMessenger,
   RootMessenger,
 } from '../tests/mocks/messenger.js';
+import { MOCK_COVERAGE_ID } from '../tests/mocks/shield-api-service.js';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
@@ -23,7 +23,7 @@ import {
   ShieldControllerMessenger,
 } from './ShieldController.js';
 import type { ShieldControllerState } from './ShieldController.js';
-import type { NormalizeSignatureRequestFn, ShieldBackend } from './types.js';
+import type { NormalizeSignatureRequestFn } from './types.js';
 
 /**
  * Sets up a ShieldController for testing.
@@ -49,13 +49,11 @@ function setup({
   controller: ShieldController;
   messenger: ShieldControllerMessenger;
   rootMessenger: RootMessenger;
-  backend: jest.Mocked<ShieldBackend>;
+  shieldApiService: ReturnType<typeof createMockMessenger>['shieldApiService'];
 } {
-  const backend = createMockBackend();
-  const { messenger, rootMessenger } = createMockMessenger();
+  const { messenger, rootMessenger, shieldApiService } = createMockMessenger();
 
   const controller = new ShieldController({
-    backend,
     coverageHistoryLimit,
     transactionHistoryLimit,
     messenger,
@@ -67,14 +65,14 @@ function setup({
     controller,
     messenger,
     rootMessenger,
-    backend,
+    shieldApiService,
   };
 }
 
 describe('ShieldController', () => {
   describe('checkCoverage', () => {
     it('should trigger checkCoverage when a new transaction is added', async () => {
-      const { rootMessenger, messenger, backend } = setup();
+      const { rootMessenger, messenger, shieldApiService } = setup();
       const txMeta = generateMockTxMeta();
       const coverageResultReceived = setupCoverageResultReceived(messenger);
       rootMessenger.publish(
@@ -83,11 +81,11 @@ describe('ShieldController', () => {
         undefined as never,
       );
       expect(await coverageResultReceived).toBeUndefined();
-      expect(backend.checkCoverage).toHaveBeenCalledWith({ txMeta });
+      expect(shieldApiService.checkCoverage).toHaveBeenCalledWith({ txMeta });
     });
 
     it('should tolerate calling start and stop multiple times', async () => {
-      const { backend, rootMessenger, messenger } = setup();
+      const { shieldApiService, rootMessenger, messenger } = setup();
       rootMessenger.call('ShieldController:stop');
       rootMessenger.call('ShieldController:stop');
       rootMessenger.call('ShieldController:start');
@@ -100,11 +98,11 @@ describe('ShieldController', () => {
         undefined as never,
       );
       expect(await coverageResultReceived).toBeUndefined();
-      expect(backend.checkCoverage).toHaveBeenCalledWith({ txMeta });
+      expect(shieldApiService.checkCoverage).toHaveBeenCalledWith({ txMeta });
     });
 
     it('should no longer trigger checkCoverage when controller is stopped', async () => {
-      const { rootMessenger, backend } = setup();
+      const { rootMessenger, shieldApiService } = setup();
       rootMessenger.call('ShieldController:stop');
       const txMeta = generateMockTxMeta();
       const coverageResultReceived = new Promise<void>((resolve, reject) => {
@@ -125,7 +123,7 @@ describe('ShieldController', () => {
       await expect(coverageResultReceived).rejects.toThrow(
         'Coverage result not received',
       );
-      expect(backend.checkCoverage).not.toHaveBeenCalled();
+      expect(shieldApiService.checkCoverage).not.toHaveBeenCalled();
     });
 
     it('should purge coverage history when the limit is exceeded', async () => {
@@ -158,7 +156,7 @@ describe('ShieldController', () => {
     TX_META_SIMULATION_DATA_MOCKS.forEach(
       ({ description, previousSimulationData, newSimulationData }) => {
         it(`should check coverage when ${description}`, async () => {
-          const { rootMessenger, messenger, backend } = setup();
+          const { rootMessenger, messenger, shieldApiService } = setup();
           const previousTxMeta = {
             ...generateMockTxMeta(),
             simulationData: previousSimulationData,
@@ -172,7 +170,7 @@ describe('ShieldController', () => {
             undefined as never,
           );
           expect(await coverageResultReceived).toBeUndefined();
-          expect(backend.checkCoverage).toHaveBeenCalledWith({
+          expect(shieldApiService.checkCoverage).toHaveBeenCalledWith({
             txMeta: previousTxMeta,
           });
 
@@ -187,7 +185,7 @@ describe('ShieldController', () => {
             undefined as never,
           );
           expect(await coverageResultReceived2).toBeUndefined();
-          expect(backend.checkCoverage).toHaveBeenCalledWith({
+          expect(shieldApiService.checkCoverage).toHaveBeenCalledWith({
             coverageId: MOCK_COVERAGE_ID,
             txMeta: txMeta2,
           });
@@ -196,15 +194,15 @@ describe('ShieldController', () => {
     );
 
     it('throws an error when the coverage ID has changed', async () => {
-      const { backend, rootMessenger } = setup();
-      backend.checkCoverage.mockResolvedValueOnce({
+      const { shieldApiService, rootMessenger } = setup();
+      shieldApiService.checkCoverage.mockResolvedValueOnce({
         coverageId: '0x00',
         status: 'covered',
         metrics: {
           latency: 0,
         },
       });
-      backend.checkCoverage.mockResolvedValueOnce({
+      shieldApiService.checkCoverage.mockResolvedValueOnce({
         coverageId: '0x01',
         status: 'covered',
         metrics: {
@@ -223,7 +221,7 @@ describe('ShieldController', () => {
     const MOCK_SIGNATURE_REQUEST = generateMockSignatureRequest();
 
     it('should check signature coverage', async () => {
-      const { rootMessenger, backend } = setup();
+      const { rootMessenger, shieldApiService } = setup();
       const coverageResultReceived = new Promise<void>((resolve) => {
         rootMessenger.subscribe(
           'ShieldController:coverageResultReceived',
@@ -240,7 +238,7 @@ describe('ShieldController', () => {
         undefined as never,
       );
       expect(await coverageResultReceived).toBeUndefined();
-      expect(backend.checkSignatureCoverage).toHaveBeenCalledWith({
+      expect(shieldApiService.checkSignatureCoverage).toHaveBeenCalledWith({
         signatureRequest: MOCK_SIGNATURE_REQUEST,
       });
     });
@@ -258,7 +256,7 @@ describe('ShieldController', () => {
         .mockImplementationOnce((_signatureRequest: SignatureRequest) => {
           return MOCK_NORMALIZED_SIGNATURE_REQUEST;
         });
-      const { rootMessenger, backend } = setup({
+      const { rootMessenger, shieldApiService } = setup({
         normalizeSignatureRequest: normalizeSignatureRequestMock,
       });
       const coverageResultReceived = new Promise<void>((resolve) => {
@@ -278,7 +276,7 @@ describe('ShieldController', () => {
       );
 
       expect(await coverageResultReceived).toBeUndefined();
-      expect(backend.checkSignatureCoverage).toHaveBeenCalledWith({
+      expect(shieldApiService.checkSignatureCoverage).toHaveBeenCalledWith({
         signatureRequest: MOCK_NORMALIZED_SIGNATURE_REQUEST,
       });
       expect(normalizeSignatureRequestMock).toHaveBeenCalledWith(
@@ -288,7 +286,7 @@ describe('ShieldController', () => {
   });
 
   it('should check coverage for multiple signature request', async () => {
-    const { rootMessenger, backend } = setup();
+    const { rootMessenger, shieldApiService } = setup();
     const signatureRequest1 = generateMockSignatureRequest();
     const coverageResultReceived1 = new Promise<void>((resolve) => {
       rootMessenger.subscribe(
@@ -306,7 +304,7 @@ describe('ShieldController', () => {
       undefined as never,
     );
     expect(await coverageResultReceived1).toBeUndefined();
-    expect(backend.checkSignatureCoverage).toHaveBeenCalledWith({
+    expect(shieldApiService.checkSignatureCoverage).toHaveBeenCalledWith({
       signatureRequest: signatureRequest1,
     });
 
@@ -328,7 +326,7 @@ describe('ShieldController', () => {
     );
 
     expect(await coverageResultReceived2).toBeUndefined();
-    expect(backend.checkSignatureCoverage).toHaveBeenCalledWith({
+    expect(shieldApiService.checkSignatureCoverage).toHaveBeenCalledWith({
       signatureRequest: signatureRequest2,
     });
   });
@@ -392,8 +390,8 @@ describe('ShieldController', () => {
 
       const { updatedSignatureRequest } = await runTest(components);
 
-      // Check that backend was called
-      expect(components.backend.logSignature).toHaveBeenCalledWith({
+      // Check that shieldApiService was called
+      expect(components.shieldApiService.logSignature).toHaveBeenCalledWith({
         signatureRequest: updatedSignatureRequest,
         signature: '0x00',
         status: 'shown',
@@ -403,7 +401,7 @@ describe('ShieldController', () => {
     it('logs not_shown when coverageId is missing', async () => {
       const components = setup();
 
-      components.backend.checkSignatureCoverage.mockResolvedValue({
+      components.shieldApiService.checkSignatureCoverage.mockResolvedValue({
         // @ts-expect-error - testing mock
         coverageId: undefined,
         status: 'unknown',
@@ -411,8 +409,8 @@ describe('ShieldController', () => {
 
       const { updatedSignatureRequest } = await runTest(components);
 
-      // Check that backend was called
-      expect(components.backend.logSignature).toHaveBeenCalledWith({
+      // Check that shieldApiService was called
+      expect(components.shieldApiService.logSignature).toHaveBeenCalledWith({
         signatureRequest: updatedSignatureRequest,
         signature: '0x00',
         status: 'not_shown',
@@ -428,8 +426,8 @@ describe('ShieldController', () => {
         },
       });
 
-      // Check that backend was not called
-      expect(components.backend.logSignature).not.toHaveBeenCalled();
+      // Check that shieldApiService was not called
+      expect(components.shieldApiService.logSignature).not.toHaveBeenCalled();
     });
   });
 
@@ -481,8 +479,8 @@ describe('ShieldController', () => {
       const components = setup();
       const { updatedTxMeta } = await runTest(components);
 
-      // Check that backend was called
-      expect(components.backend.logTransaction).toHaveBeenCalledWith({
+      // Check that shieldApiService was called
+      expect(components.shieldApiService.logTransaction).toHaveBeenCalledWith({
         txMeta: updatedTxMeta,
         status: 'shown',
         transactionHash: '0x00',
@@ -493,7 +491,7 @@ describe('ShieldController', () => {
     it('logs not_shown when coverageId is missing', async () => {
       const components = setup();
 
-      components.backend.checkCoverage.mockResolvedValue({
+      components.shieldApiService.checkCoverage.mockResolvedValue({
         // @ts-expect-error - testing mock
         coverageId: undefined,
         status: 'unknown',
@@ -501,8 +499,8 @@ describe('ShieldController', () => {
 
       const { updatedTxMeta } = await runTest(components);
 
-      // Check that backend was called
-      expect(components.backend.logTransaction).toHaveBeenCalledWith({
+      // Check that shieldApiService was called
+      expect(components.shieldApiService.logTransaction).toHaveBeenCalledWith({
         status: 'not_shown',
         transactionHash: '0x00',
         rawTransactionHex: '0xdeadbeef',
@@ -517,8 +515,8 @@ describe('ShieldController', () => {
         updateTransaction: (txMeta) => delete txMeta.hash,
       });
 
-      // Check that backend was not called
-      expect(components.backend.logTransaction).not.toHaveBeenCalled();
+      // Check that shieldApiService was not called
+      expect(components.shieldApiService.logTransaction).not.toHaveBeenCalled();
     });
 
     it('does not log when raw transaction hex is missing', async () => {
@@ -528,8 +526,8 @@ describe('ShieldController', () => {
         updateTransaction: (txMeta) => delete txMeta.rawTx,
       });
 
-      // Check that backend was not called
-      expect(components.backend.logTransaction).not.toHaveBeenCalled();
+      // Check that shieldApiService was not called
+      expect(components.shieldApiService.logTransaction).not.toHaveBeenCalled();
     });
   });
 
