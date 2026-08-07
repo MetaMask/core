@@ -936,6 +936,32 @@ describe('importState', () => {
       ).rejects.toThrow('Failed to import private key for account');
     });
 
+    it('throws when the keyring has no v2 interface', async () => {
+      const { context, mocks } = setup();
+      mocks.KeyringController.withController = makeWithControllerMock({
+        newKeyringV2: undefined,
+      });
+
+      await expect(
+        importSnapshot(context, {
+          wallets: [
+            {
+              id: 'wallet:private-key',
+              type: 'private-key',
+              metadata: { name: 'Imported Accounts' },
+              groups: [
+                {
+                  id: `wallet:private-key/${ADDR_C}`,
+                  value: { privateKey: '0xdeadbeef', encoding: 'hexadecimal' },
+                  metadata: { name: 'Fail', pinned: false, hidden: false },
+                },
+              ],
+            },
+          ],
+        }),
+      ).rejects.toThrow('Simple keyring has no v2 interface');
+    });
+
     it('skips a private-key group whose value carries a non-EVM type', async () => {
       const { context, mocks } = setup();
 
