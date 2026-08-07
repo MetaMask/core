@@ -56,15 +56,13 @@ export function updateSourceAmounts(
     return;
   }
 
-  const transaction = getBalance
-    ? getTransaction(transactionId, messenger)
-    : undefined;
+  const transaction =
+    getBalance && isMaxAmount
+      ? getTransaction(transactionId, messenger)
+      : undefined;
   const balanceOverride =
-    getBalance && transaction && isMaxAmount
-      ? getBalance({
-          transaction: transaction as TransactionMeta,
-          transactionData,
-        })
+    getBalance && transaction
+      ? getBalance({ transaction, transactionData })
       : undefined;
 
   // For post-quote flows, source amounts are calculated differently
@@ -116,6 +114,7 @@ export function updateSourceAmounts(
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param isHyperliquidSource - Whether the source is HyperLiquid (perps withdrawal).
  * @param isPolymarketDepositWallet - Whether the source is a Polymarket deposit wallet.
+ * @param balanceOverride - Optional balance override from the `getBalance` callback.
  * @returns Array of source amounts.
  */
 function calculatePostQuoteSourceAmounts(
