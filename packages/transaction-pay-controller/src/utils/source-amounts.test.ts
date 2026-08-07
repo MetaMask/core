@@ -386,7 +386,7 @@ describe('Source Amounts Utils', () => {
       ]);
     });
 
-    it('ignores getBalance override when paymentOverride is MoneyAccount and isMaxAmount is true', () => {
+    it('uses getBalance override for MoneyAccount max when getBalance is provided', () => {
       const getBalance = jest.fn().mockReturnValue({
         balanceHuman: '9.9',
         balanceRaw: '9900000',
@@ -417,7 +417,38 @@ describe('Source Amounts Utils', () => {
         getBalance,
       );
 
-      // MoneyAccount branch uses fiat-derived amounts, not the getBalance override.
+      // getBalance is provided, so the override is applied even for MoneyAccount.
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '9.9',
+          sourceAmountRaw: '9900000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('preserves MoneyAccount max guard when getBalance is not provided', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentOverride: PaymentOverride.MoneyAccount,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          balanceHuman: '0.62',
+          balanceRaw: '620000',
+          balanceUsd: '0.62',
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            amountUsd: '6.0',
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      // No getBalance callback: MoneyAccount guard applies, fiat-derived amounts used.
       // usdRate mock is 3.0 -> source human = 6 / 3 = 2, raw = 2 * 10^6.
       expect(transactionData.sourceAmounts).toStrictEqual([
         {

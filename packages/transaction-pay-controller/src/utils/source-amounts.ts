@@ -243,7 +243,14 @@ function calculateSourceAmount(
   // reflects the full withdrawable total (mUSD + vmUSD). Using the typed
   // fiat-derived source keeps isMaxAmount=true (EXACT_INPUT) correct for
   // deposits funded from the money account (e.g. Send to Perps).
-  if (isMaxAmount && paymentOverride !== PaymentOverride.MoneyAccount) {
+  // Exception: when a getBalance callback is provided (balanceOverride is
+  // defined), the callback is authoritative and bypasses the MoneyAccount
+  // guard — all balance complexity lives in the callback.
+  if (
+    isMaxAmount &&
+    (balanceOverride !== undefined ||
+      paymentOverride !== PaymentOverride.MoneyAccount)
+  ) {
     return {
       sourceAmountHuman:
         balanceOverride?.balanceHuman ?? paymentToken.balanceHuman,
