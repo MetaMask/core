@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `getBalance` callback to `TransactionPayControllerOptions` to override the source balance used for max-amount source-amount calculation
+- Add optional `getBalance` callback to `TransactionPayControllerOptions` to override the source balance used for max-amount source-amount calculation ([#9802](https://github.com/MetaMask/core/pull/9802))
 
 ### Changed
 

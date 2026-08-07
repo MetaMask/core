@@ -374,7 +374,12 @@ export class TransactionPayController extends BaseController<
         isPostQuoteUpdated ||
         isAccountOverrideUpdated
       ) {
-        updateSourceAmounts(transactionId, current as never, this.messenger, this.#getBalance);
+        updateSourceAmounts(
+          transactionId,
+          current as never,
+          this.messenger,
+          this.#getBalance,
+        );
 
         shouldUpdateQuotes = true;
       }

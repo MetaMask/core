@@ -56,13 +56,15 @@ export function updateSourceAmounts(
     return;
   }
 
-  const transaction =
-    getBalance && isMaxAmount
-      ? getTransaction(transactionId, messenger)
-      : undefined;
+  const transaction = getBalance
+    ? getTransaction(transactionId, messenger)
+    : undefined;
   const balanceOverride =
-    getBalance && transaction
-      ? getBalance({ transaction: transaction as TransactionMeta, transactionData })
+    getBalance && transaction && isMaxAmount
+      ? getBalance({
+          transaction: transaction as TransactionMeta,
+          transactionData,
+        })
       : undefined;
 
   // For post-quote flows, source amounts are calculated differently
@@ -151,8 +153,12 @@ function calculatePostQuoteSourceAmounts(
       return true;
     })
     .map((token) => ({
-      sourceAmountHuman: isMaxAmount ? (balanceOverride?.balanceHuman ?? token.balanceHuman) : token.amountHuman,
-      sourceAmountRaw: isMaxAmount ? (balanceOverride?.balanceRaw ?? token.balanceRaw) : token.amountRaw,
+      sourceAmountHuman: isMaxAmount
+        ? (balanceOverride?.balanceHuman ?? token.balanceHuman)
+        : token.amountHuman,
+      sourceAmountRaw: isMaxAmount
+        ? (balanceOverride?.balanceRaw ?? token.balanceRaw)
+        : token.amountRaw,
       sourceBalanceRaw: balanceOverride?.balanceRaw ?? token.balanceRaw,
       sourceChainId: token.chainId,
       sourceTokenAddress: token.address,
