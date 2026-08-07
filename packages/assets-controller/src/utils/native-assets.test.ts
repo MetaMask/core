@@ -4,6 +4,7 @@ import { fetchWithErrorHandling } from '@metamask/controller-utils';
 import {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
+  isNativeAssetId,
 } from './native-assets.js';
 import { normalizeAssetId } from './normalizeAssetId.js';
 
@@ -22,6 +23,53 @@ describe('buildNativeAssetsFromConstant', () => {
     for (const assetId of supportInfoValues) {
       expect(Object.values(result)).toContain(normalizeAssetId(assetId));
     }
+  });
+});
+
+describe('isNativeAssetId', () => {
+  it('recognizes slip44 natives, including chains outside the hardcoded registry', () => {
+    expect(isNativeAssetId('eip155:1/slip44:60')).toBe(true);
+    expect(
+      isNativeAssetId('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'),
+    ).toBe(true);
+  });
+
+  it('recognizes the zero-address ERC-20 convention on any chain', () => {
+    expect(
+      isNativeAssetId(
+        'eip155:424242/erc20:0x0000000000000000000000000000000000000000',
+      ),
+    ).toBe(true);
+  });
+
+  it('recognizes registry-only natives case-insensitively (e.g. METIS dead address)', () => {
+    expect(
+      isNativeAssetId(
+        'eip155:1088/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000',
+      ),
+    ).toBe(true);
+    expect(
+      isNativeAssetId(
+        'eip155:1088/erc20:0xDEADDEADDEADDEADDEADDEADDEADDEADDEAD0000',
+      ),
+    ).toBe(true);
+  });
+
+  it('reports regular ERC-20 tokens as non-native', () => {
+    expect(
+      isNativeAssetId(
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      ),
+    ).toBe(false);
+  });
+
+  it('reports malformed and NFT asset IDs as non-native without throwing', () => {
+    expect(isNativeAssetId('not-a-caip-id')).toBe(false);
+    expect(
+      isNativeAssetId(
+        'eip155:1/erc721:0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D/1234',
+      ),
+    ).toBe(false);
   });
 });
 

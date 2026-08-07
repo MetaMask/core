@@ -1367,7 +1367,7 @@ export class AssetsController extends BaseController<
       this.#subscribeAssets();
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
       this.update((state) =>
-        cleanupUnusedMetadata(state as AssetsControllerState),
+        cleanupUnusedMetadata(state as AssetsControllerStateInternal),
       );
     } catch (error) {
       log('Failed to fetch assets on startup', error);
@@ -1376,7 +1376,7 @@ export class AssetsController extends BaseController<
       this.#subscribeAssets();
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
       this.update((state) =>
-        cleanupUnusedMetadata(state as AssetsControllerState),
+        cleanupUnusedMetadata(state as AssetsControllerStateInternal),
       );
     } finally {
       releaseLock();

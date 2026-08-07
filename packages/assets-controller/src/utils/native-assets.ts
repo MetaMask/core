@@ -1,8 +1,9 @@
 import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
-import { parseCaipAssetType } from '@metamask/utils';
+import { isCaipAssetType, parseCaipAssetType } from '@metamask/utils';
 
 import type { Caip19AssetId, ChainId } from '../types.js';
+import { ZERO_ADDRESS } from './constants.js';
 import { normalizeAssetId } from './normalizeAssetId.js';
 
 const CHAINID_NETWORK_URL = 'https://chainid.network/chains.json';
@@ -27,6 +28,62 @@ export function buildNativeAssetsFromConstant(): Record<
     nativeAssetsMap[chainId] = normalizeAssetId(nativeAssetId);
   }
   return nativeAssetsMap;
+}
+
+/**
+ * Lowercase CAIP-19 IDs of every native asset in the hardcoded registry,
+ * built lazily on first use. Needed for natives that are not expressible
+ * through the `slip44`/zero-address conventions (e.g. METIS and MNT, which
+ * use a "dead" ERC-20 address).
+ */
+let knownNativeAssetIds: ReadonlySet<string> | undefined;
+
+/**
+ * Get the lazily-built set of lowercase native asset IDs from the
+ * hardcoded registry.
+ *
+ * @returns The set of known native asset IDs.
+ */
+function getKnownNativeAssetIds(): ReadonlySet<string> {
+  knownNativeAssetIds ??= new Set(
+    Object.values(buildNativeAssetsFromConstant()).map((assetId) =>
+      assetId.toLowerCase(),
+    ),
+  );
+  return knownNativeAssetIds;
+}
+
+/**
+ * Whether a CAIP-19 asset ID represents a chain's native asset. Pure (no
+ * network, no controller state) counterpart of
+ * `AssetsController.#isNativeAsset`: recognizes the `slip44` asset
+ * namespace, the zero-address ERC-20 convention, and the hardcoded native
+ * asset registry. It does not consult the runtime native asset map fetched
+ * from chainid.network — but every entry that map adds beyond the hardcoded
+ * registry is `slip44`-shaped, so the first rule already covers them.
+ *
+ * @param assetId - The asset ID to check (any casing). Malformed IDs are
+ * reported as non-native rather than throwing.
+ * @returns True when the asset ID is a native asset.
+ */
+export function isNativeAssetId(assetId: string): boolean {
+  if (getKnownNativeAssetIds().has(assetId.toLowerCase())) {
+    return true;
+  }
+
+  if (!isCaipAssetType(assetId)) {
+    return false;
+  }
+  const parsed = parseCaipAssetType(assetId);
+
+  if (parsed.assetNamespace === 'slip44') {
+    return true;
+  }
+
+  return (
+    parsed.assetNamespace === 'erc20' &&
+    parsed.assetReference.toLowerCase() === ZERO_ADDRESS
+  );
 }
 
 /**
