@@ -7,6 +7,7 @@ import {
   number,
   optional,
   string,
+  tuple,
   type,
   union,
 } from '@metamask/superstruct';
@@ -29,10 +30,10 @@ const VALID_MARKET_TYPES = new Set<string>(Object.values(MarketCategory));
  * Runtime validation schema for a single market item returned by
  * `GET {terminalApiUrl}`.
  *
- * Uses `type()` (loose object matching) so that extra fields the API sends
- * (e.g. `price`, `iconUrl`, `trend`) are silently accepted.
- * Each item is individually validated; items that fail validation are
- * filtered out and logged rather than rejecting the entire response.
+ * Uses `type()` (loose object matching), so extra fields the API sends
+ * beyond this schema (e.g. `iconUrl`) are silently accepted. Each item is
+ * validated individually; items that fail are filtered out and logged
+ * instead of rejecting the whole response.
  */
 const TerminalPerpetualItemStruct = type({
   symbol: string(),
@@ -46,9 +47,17 @@ const TerminalPerpetualItemStruct = type({
   minimumOrderSize: optional(number()),
   keywords: optional(nullable(array(string()))),
   tags: optional(nullable(array(string()))),
-  categories: optional(nullable(array(string()))),
-  marketType: optional(nullable(string())),
+  // The API field is singular `category`, not `categories` — mapped to our
+  // `marketType` below, which is the name used everywhere else.
+  category: optional(nullable(string())),
   listedAt: optional(nullable(union([number(), string()]))),
+  price: optional(union([string(), number()])),
+  change24h: optional(union([string(), number()])),
+  changePercent24h: optional(union([string(), number()])),
+  funding: optional(union([string(), number()])),
+  volume24h: optional(union([string(), number()])),
+  openInterest: optional(union([string(), number()])),
+  trend: optional(array(tuple([number(), string()]))),
 });
 
 type TerminalPerpetualItem = Infer<typeof TerminalPerpetualItemStruct>;
@@ -246,15 +255,11 @@ export class TerminalMarketService {
       if (Array.isArray(item.tags) && item.tags.length > 0) {
         entry.tags = item.tags;
       }
-      if (Array.isArray(item.categories) && item.categories.length > 0) {
-        entry.categories = item.categories;
-      }
       if (
-        typeof item.marketType === 'string' &&
-        VALID_MARKET_TYPES.has(item.marketType)
+        typeof item.category === 'string' &&
+        VALID_MARKET_TYPES.has(item.category)
       ) {
-        entry.marketType =
-          item.marketType as TerminalAssetMetadata['marketType'];
+        entry.marketType = item.category as TerminalAssetMetadata['marketType'];
       }
 
       if (item.listedAt !== null && item.listedAt !== undefined) {
@@ -265,6 +270,33 @@ export class TerminalMarketService {
         if (isFinite(listedAtMs)) {
           entry.listedAt = listedAtMs;
         }
+      }
+
+      // Surfacing these lets MarketDataService build markets straight from
+      // Terminal data and skip the HyperLiquid price fetch entirely.
+      if (item.price !== undefined) {
+        entry.price = item.price;
+      }
+      if (item.change24h !== undefined) {
+        entry.change24h = item.change24h;
+      }
+      if (item.changePercent24h !== undefined) {
+        entry.changePercent24h = item.changePercent24h;
+      }
+      if (item.funding !== undefined) {
+        entry.funding = item.funding;
+      }
+      if (item.volume24h !== undefined) {
+        entry.volume24h = item.volume24h;
+      }
+      if (item.openInterest !== undefined) {
+        entry.openInterest = item.openInterest;
+      }
+      if (item.maxLeverage !== undefined) {
+        entry.maxLeverage = item.maxLeverage;
+      }
+      if (item.trend && item.trend.length > 0) {
+        entry.trend = item.trend;
       }
 
       map.set(item.symbol, entry);

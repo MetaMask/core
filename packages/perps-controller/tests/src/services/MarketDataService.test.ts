@@ -1,4 +1,5 @@
 import type { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
 import { MarketDataService } from '../../../src/services/MarketDataService.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
 import type {
@@ -1146,7 +1147,6 @@ describe('MarketDataService', () => {
           description: 'The original cryptocurrency and largest by market cap.',
           keywords: ['crypto', 'layer-1'],
           tags: ['top-10'],
-          categories: ['crypto'],
           marketType: 'crypto',
         },
       ],
@@ -1354,7 +1354,6 @@ describe('MarketDataService', () => {
         );
         expect(result[0]?.keywords).toEqual(['crypto', 'layer-1']);
         expect(result[0]?.tags).toEqual(['top-10']);
-        expect(result[0]?.categories).toEqual(['crypto']);
         expect(result[0]?.marketType).toBe('crypto');
         expect(result[1]?.name).toBe('Ethereum');
         expect(result[1]?.keywords).toEqual(['defi']);
@@ -1458,6 +1457,194 @@ describe('MarketDataService', () => {
 
         expect(result[0]?.listedAt).toBe(listedAtMs);
         expect(result[1]?.listedAt).toBeUndefined();
+      });
+    });
+
+    describe('getMarketDataWithPrices — Terminal-sourced pricing', () => {
+      const terminalMetadataWithPrices = new Map<
+        string,
+        TerminalAssetMetadata
+      >([
+        [
+          'BTC',
+          {
+            name: 'Bitcoin',
+            description:
+              'The original cryptocurrency and largest by market cap.',
+            keywords: ['crypto', 'layer-1'],
+            price: '50000.5',
+            change24h: '500',
+            changePercent24h: 1.5,
+            volume24h: '1000000',
+            openInterest: '10',
+            funding: '0.0001',
+            maxLeverage: 50,
+            trend: [
+              [1_700_000_000_000, '49000'],
+              [1_700_003_600_000, '50000.5'],
+            ],
+          },
+        ],
+        [
+          'xyz:TSLA',
+          {
+            name: 'Tesla',
+            marketType: 'stock',
+            price: '250.25',
+          },
+        ],
+        [
+          // No usable price — should be dropped from the Terminal-sourced
+          // result rather than partially rendered.
+          'NODATA',
+          { name: 'No Data Market' },
+        ],
+        [
+          // A '0' price is treated the same as no price - dropped instead
+          // of rendered as $0.00.
+          'ZERO',
+          { name: 'Zero Price Market', price: '0' },
+        ],
+      ]);
+
+      it('builds market data directly from Terminal metadata and skips the provider entirely when price data is present', async () => {
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadataWithPrices,
+        });
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(mockProvider.getMarketDataWithPrices).not.toHaveBeenCalled();
+
+        const btc = result.find((market) => market.symbol === 'BTC');
+        expect(btc).toMatchObject({
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          description:
+            'The original cryptocurrency and largest by market cap.',
+          keywords: ['crypto', 'layer-1'],
+          maxLeverage: '50x',
+          price: '$50000.50',
+          change24hPercent: '1.50%',
+          fundingRate: 0.0001,
+          isHip3: false,
+          trend: [
+            [1_700_000_000_000, '49000'],
+            [1_700_003_600_000, '50000.5'],
+          ],
+        });
+      });
+
+      it('derives HIP-3 marketSource/isHip3 from the DEX-prefixed symbol', async () => {
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadataWithPrices,
+        });
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        const tsla = result.find((market) => market.symbol === 'xyz:TSLA');
+        expect(tsla).toMatchObject({
+          marketSource: 'xyz',
+          isHip3: true,
+          marketType: 'stock',
+          price: '$250.25',
+        });
+      });
+
+      it('falls back to default display values for fields Terminal did not provide', async () => {
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadataWithPrices,
+        });
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        // xyz:TSLA only has a `price` in its Terminal metadata fixture — every
+        // other numeric field should fall back rather than render as garbage.
+        const tsla = result.find((market) => market.symbol === 'xyz:TSLA');
+        expect(tsla).toMatchObject({
+          change24h: PERPS_CONSTANTS.ZeroAmountDetailedDisplay,
+          change24hPercent: '0.00%',
+          volume: PERPS_CONSTANTS.FallbackPriceDisplay,
+          openInterest: PERPS_CONSTANTS.FallbackPriceDisplay,
+          fundingRate: undefined,
+          maxLeverage: '1x',
+        });
+      });
+
+      it('drops symbols with no usable price rather than partially rendering them', async () => {
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadataWithPrices,
+        });
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(
+          result.find((market) => market.symbol === 'NODATA'),
+        ).toBeUndefined();
+      });
+
+      it('drops symbols with a price of "0" rather than rendering $0.00', async () => {
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadataWithPrices,
+        });
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(
+          result.find((market) => market.symbol === 'ZERO'),
+        ).toBeUndefined();
+      });
+
+      it('falls back to the provider when Terminal metadata has no usable price for any symbol', async () => {
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadata,
+        });
+        mockProvider.getMarketDataWithPrices.mockResolvedValue([
+          {
+            symbol: 'BTC',
+            name: 'BTC',
+            maxLeverage: '50x',
+            price: '$50000.00',
+            change24h: '+$500.00',
+            change24hPercent: '+1.00%',
+            volume: '$1000000',
+          },
+        ]);
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalled();
+        expect(result[0]?.name).toBe('Bitcoin');
       });
     });
   });
