@@ -9,11 +9,6 @@ import type {
   RootMessenger,
 } from '../../defaults.js';
 import { claimsService } from './claims-service.js';
-import type { ClaimsServiceInstanceOptions } from './types.js';
-
-const REQUIRED_OPTIONS: ClaimsServiceInstanceOptions = {
-  env: Env.DEV,
-};
 
 type ActionHandler = (...args: unknown[]) => unknown;
 
@@ -63,7 +58,7 @@ describe('claimsService', () => {
     expect(instance).toBeInstanceOf(ClaimsService);
   });
 
-  it('forwards env, fetchFunction, and policy options to the service', async () => {
+  it('forwards fetchFunction and policy options to the service', async () => {
     const rootMessenger = getRootMessenger();
     const mockGetBearerToken = jest.fn().mockResolvedValue('test-token');
     registerActionHandler(
@@ -79,7 +74,6 @@ describe('claimsService', () => {
       state: undefined,
       messenger,
       options: {
-        ...REQUIRED_OPTIONS,
         fetchFunction: mockFetch,
         policyOptions: { maxRetries: 0 },
       },
@@ -107,7 +101,7 @@ describe('claimsService', () => {
     });
   });
 
-  it('exposes service actions through the root messenger', async () => {
+  it('defaults to the production claims API URL', () => {
     const rootMessenger = getRootMessenger();
     registerActionHandler(
       rootMessenger,
@@ -120,7 +114,30 @@ describe('claimsService', () => {
     claimsService.init({
       state: undefined,
       messenger,
-      options: REQUIRED_OPTIONS,
+      options: {},
+    });
+
+    expect(rootMessenger.call('ClaimsService:getClaimsApiUrl')).toBe(
+      'https://claims.api.cx.metamask.io',
+    );
+  });
+
+  it('uses the provided env for the claims API URL', () => {
+    const rootMessenger = getRootMessenger();
+    registerActionHandler(
+      rootMessenger,
+      'AuthenticationController',
+      'AuthenticationController:getBearerToken',
+      jest.fn().mockResolvedValue('test-token'),
+    );
+
+    const messenger = claimsService.getMessenger(rootMessenger);
+    claimsService.init({
+      state: undefined,
+      messenger,
+      options: {
+        env: Env.DEV,
+      },
     });
 
     expect(rootMessenger.call('ClaimsService:getClaimsApiUrl')).toBe(
