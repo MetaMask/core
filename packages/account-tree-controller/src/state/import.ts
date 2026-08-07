@@ -8,7 +8,6 @@ import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import { EthAccountType, KeyringAccount } from '@metamask/keyring-api';
-import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { decodeMnemonicWords } from '@metamask/keyring-sdk';
 
@@ -282,11 +281,22 @@ async function importPrivateKeyWallet(
       }
 
       const { privateKey, encoding } = payloadGroup.value;
-      const result = await context.messenger.call(
-        'KeyringController:withKeyringV2',
-        { type: KeyringType.PrivateKey },
-        async ({ keyring }) => {
-          await keyring.createAccounts({
+      const accounts = await context.messenger.call(
+        'KeyringController:withController',
+        async (controller) => {
+          // Find the existing simple keyring or create one if this is the
+          // first private-key import (e.g. during onboarding).
+          const existing = controller.keyrings.find(
+            ({ keyring }) => keyring.type === KeyringTypes.simple,
+          );
+          const { keyringV2 } =
+            existing ?? (await controller.addNewKeyring(KeyringTypes.simple));
+
+          if (!keyringV2) {
+            throw new Error('Simple keyring has no v2 interface');
+          }
+
+          return keyringV2.createAccounts({
             type: 'private-key:import',
             privateKey,
             encoding,
@@ -295,7 +305,7 @@ async function importPrivateKeyWallet(
       );
 
       // There should only be 1 account in the keyring after import.
-      const [account] = result as KeyringAccount[];
+      const [account] = accounts as KeyringAccount[];
       if (!account) {
         throw new Error('Failed to import private key for account');
       }

@@ -16,7 +16,6 @@ import type {
 } from '../types.js';
 import type { ImportContext } from './import.js';
 import { importState } from './import.js';
-import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
 
 // Valid 20-byte hex addresses for use with getUUIDFromAddressOfNormalAccount.
@@ -117,7 +116,7 @@ function setup({
   mocks: {
     KeyringController: {
       withKeyringV2Unsafe: jest.Mock;
-      withKeyringV2: jest.Mock;
+      withController: jest.Mock;
     };
     MultichainAccountService: {
       createMultichainAccountWallet: jest.Mock;
@@ -138,7 +137,7 @@ function setup({
   const mocks = {
     KeyringController: {
       withKeyringV2Unsafe: jest.fn(),
-      withKeyringV2: jest.fn(),
+      withController: jest.fn(),
     },
     MultichainAccountService: {
       createMultichainAccountWallet: jest.fn(),
@@ -157,8 +156,8 @@ function setup({
       switch (action) {
         case 'KeyringController:withKeyringV2Unsafe':
           return mocks.KeyringController.withKeyringV2Unsafe(...args);
-        case 'KeyringController:withKeyringV2':
-          return mocks.KeyringController.withKeyringV2(...args);
+        case 'KeyringController:withController':
+          return mocks.KeyringController.withController(...args);
         case 'MultichainAccountService:createMultichainAccountWallet':
           return mocks.MultichainAccountService.createMultichainAccountWallet(
             ...args,
@@ -201,21 +200,33 @@ function makeWithKeyringV2UnsafeMock(keyring: unknown): jest.Mock {
     );
 }
 
-function makeWithKeyringV2Mock(
-  keyring: unknown,
-  result: unknown = undefined,
-): jest.Mock {
-  return jest
-    .fn()
-    .mockImplementation(
-      async (
-        _selector: unknown,
-        fn: (ctx: { keyring: unknown }) => unknown,
-      ) => {
-        await fn({ keyring });
-        return result;
-      },
-    );
+type WithControllerFn = (ctx: {
+  keyrings: { keyring: { type: string }; keyringV2: unknown }[];
+  addNewKeyring: jest.Mock;
+}) => Promise<unknown>;
+
+function makeWithControllerMock({
+  existingKeyringV2,
+  newKeyringV2,
+}: {
+  existingKeyringV2?: unknown;
+  newKeyringV2?: unknown;
+} = {}): jest.Mock {
+  return jest.fn().mockImplementation(async (fn: WithControllerFn) => {
+    const keyrings = existingKeyringV2
+      ? [
+          {
+            keyring: { type: KeyringTypes.simple },
+            keyringV2: existingKeyringV2,
+          },
+        ]
+      : [];
+    const addNewKeyring = jest.fn().mockResolvedValue({
+      keyring: { type: KeyringTypes.simple },
+      keyringV2: newKeyringV2,
+    });
+    return fn({ keyrings, addNewKeyring });
+  });
 }
 
 async function importSnapshot(
@@ -668,22 +679,14 @@ describe('importState', () => {
       );
     });
 
-    it('imports a private key when the account does not exist locally', async () => {
+    it('creates a new simple keyring when none exists (onboarding)', async () => {
       const newAccountId = getUUIDFromAddressOfNormalAccount(ADDR_B);
       const pkGroupId = toAccountGroupId(MOCK_PK_WALLET_ID, ADDR_B);
 
       const { context, mocks, walletsRef } = setup();
-      mocks.KeyringController.withKeyringV2 = makeWithKeyringV2Mock(
-        { createAccounts: jest.fn() },
-        [{ id: newAccountId }],
-      );
 
-      // Simulate the wallet tree being updated after import.
-      mocks.KeyringController.withKeyringV2.mockImplementation(
-        async (
-          _selector: unknown,
-          fn: (ctx: { keyring: unknown }) => unknown,
-        ) => {
+      const keyringV2 = {
+        createAccounts: jest.fn().mockImplementation(async () => {
           walletsRef.current = {
             [MOCK_PK_WALLET_ID]: {
               id: MOCK_PK_WALLET_ID,
@@ -708,10 +711,152 @@ describe('importState', () => {
               },
             },
           };
-          await fn({ keyring: { createAccounts: jest.fn() } });
           return [{ id: newAccountId }];
-        },
-      );
+        }),
+      };
+      // No existingKeyringV2 -> addNewKeyring will be called.
+      mocks.KeyringController.withController = makeWithControllerMock({
+        newKeyringV2: keyringV2,
+      });
+
+      await importSnapshot(context, {
+        wallets: [
+          {
+            id: 'wallet:private-key',
+            type: 'private-key',
+            metadata: { name: 'Imported Accounts' },
+            groups: [
+              {
+                id: `wallet:private-key/${ADDR_B}`,
+                value: { privateKey: '0xdeadbeef', encoding: 'hexadecimal' },
+                metadata: { name: 'New Import', pinned: false, hidden: false },
+              },
+            ],
+          },
+        ],
+      });
+
+      // addNewKeyring was invoked (keyrings array was empty).
+      const [[fn]] = mocks.KeyringController.withController.mock.calls as [
+        [WithControllerFn],
+      ];
+      const addNewKeyring = jest.fn().mockResolvedValue({
+        keyring: { type: KeyringTypes.simple },
+        keyringV2,
+      });
+      await fn({ keyrings: [], addNewKeyring });
+      expect(addNewKeyring).toHaveBeenCalledWith(KeyringTypes.simple);
+    });
+
+    it('reuses the existing simple keyring when one is already present', async () => {
+      const newAccountId = getUUIDFromAddressOfNormalAccount(ADDR_B);
+      const pkGroupId = toAccountGroupId(MOCK_PK_WALLET_ID, ADDR_B);
+
+      const { context, mocks, walletsRef } = setup();
+
+      const keyringV2 = {
+        createAccounts: jest.fn().mockImplementation(async () => {
+          walletsRef.current = {
+            [MOCK_PK_WALLET_ID]: {
+              id: MOCK_PK_WALLET_ID,
+              type: AccountWalletType.Keyring,
+              status: 'ready',
+              groups: {
+                [pkGroupId]: {
+                  id: pkGroupId,
+                  type: AccountGroupType.SingleAccount,
+                  accounts: [newAccountId],
+                  metadata: {
+                    name: 'New Import',
+                    pinned: false,
+                    hidden: false,
+                    lastSelected: 0,
+                  },
+                },
+              },
+              metadata: {
+                name: 'Imported Accounts',
+                keyring: { type: KeyringTypes.simple },
+              },
+            },
+          };
+          return [{ id: newAccountId }];
+        }),
+      };
+      // existingKeyringV2 provided -> addNewKeyring must NOT be called.
+      mocks.KeyringController.withController = makeWithControllerMock({
+        existingKeyringV2: keyringV2,
+      });
+
+      await importSnapshot(context, {
+        wallets: [
+          {
+            id: 'wallet:private-key',
+            type: 'private-key',
+            metadata: { name: 'Imported Accounts' },
+            groups: [
+              {
+                id: `wallet:private-key/${ADDR_B}`,
+                value: { privateKey: '0xdeadbeef', encoding: 'hexadecimal' },
+                metadata: { name: 'New Import', pinned: false, hidden: false },
+              },
+            ],
+          },
+        ],
+      });
+
+      // addNewKeyring was NOT invoked (existing keyring was reused).
+      const [[fn]] = mocks.KeyringController.withController.mock.calls as [
+        [WithControllerFn],
+      ];
+      const addNewKeyring = jest.fn();
+      await fn({
+        keyrings: [{ keyring: { type: KeyringTypes.simple }, keyringV2 }],
+        addNewKeyring,
+      });
+      expect(addNewKeyring).not.toHaveBeenCalled();
+    });
+
+    it('imports a private key when the account does not exist locally', async () => {
+      const newAccountId = getUUIDFromAddressOfNormalAccount(ADDR_B);
+      const pkGroupId = toAccountGroupId(MOCK_PK_WALLET_ID, ADDR_B);
+
+      const { context, mocks, walletsRef } = setup();
+
+      // Simulate the wallet tree being updated during the import and the
+      // new account being returned by createAccounts.
+      const keyringV2 = {
+        createAccounts: jest.fn().mockImplementation(async () => {
+          walletsRef.current = {
+            [MOCK_PK_WALLET_ID]: {
+              id: MOCK_PK_WALLET_ID,
+              type: AccountWalletType.Keyring,
+              status: 'ready',
+              groups: {
+                [pkGroupId]: {
+                  id: pkGroupId,
+                  type: AccountGroupType.SingleAccount,
+                  accounts: [newAccountId],
+                  metadata: {
+                    name: 'New Import',
+                    pinned: false,
+                    hidden: false,
+                    lastSelected: 0,
+                  },
+                },
+              },
+              metadata: {
+                name: 'Imported Accounts',
+                keyring: { type: KeyringTypes.simple },
+              },
+            },
+          };
+          return [{ id: newAccountId }];
+        }),
+      };
+      mocks.KeyringController.withController = makeWithControllerMock({
+        newKeyringV2: keyringV2,
+      });
 
       const payload = {
         wallets: [
@@ -732,8 +877,7 @@ describe('importState', () => {
 
       await importSnapshot(context, payload);
 
-      expect(mocks.KeyringController.withKeyringV2).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(mocks.KeyringController.withController).toHaveBeenCalledWith(
         expect.any(Function),
       );
       expect(mocks.setters.setGroupName).toHaveBeenCalledWith(
@@ -742,12 +886,11 @@ describe('importState', () => {
       );
     });
 
-    it('throws when withKeyringV2 returns an empty account list', async () => {
+    it('throws when createAccounts returns an empty account list', async () => {
       const { context, mocks } = setup();
-      mocks.KeyringController.withKeyringV2 = makeWithKeyringV2Mock(
-        { createAccounts: jest.fn() },
-        [], // Empty -> no account was imported.
-      );
+      mocks.KeyringController.withController = makeWithControllerMock({
+        newKeyringV2: { createAccounts: jest.fn().mockResolvedValue([]) },
+      });
 
       await expect(
         importSnapshot(context, {
@@ -798,16 +941,15 @@ describe('importState', () => {
       };
 
       await importSnapshot(context, payload);
-      expect(mocks.KeyringController.withKeyringV2).not.toHaveBeenCalled();
+      expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
       expect(mocks.setters.setGroupName).not.toHaveBeenCalled();
     });
 
     it('does not skip a private-key group whose value type is eip155:eoa', async () => {
       const { context, mocks } = setup();
-      mocks.KeyringController.withKeyringV2 = makeWithKeyringV2Mock(
-        { createAccounts: jest.fn() },
-        [],
-      );
+      mocks.KeyringController.withController = makeWithControllerMock({
+        newKeyringV2: { createAccounts: jest.fn().mockResolvedValue([]) },
+      });
 
       const payload = {
         wallets: [
@@ -830,11 +972,11 @@ describe('importState', () => {
         ],
       };
 
-      // withKeyringV2 is called (not skipped), but returns [] so it throws.
+      // withController is called (not skipped), but createAccounts returns [] so it throws.
       await expect(importSnapshot(context, payload)).rejects.toThrow(
         'Failed to import private key for account',
       );
-      expect(mocks.KeyringController.withKeyringV2).toHaveBeenCalled();
+      expect(mocks.KeyringController.withController).toHaveBeenCalled();
     });
 
     it('skips a private-key group that has no value and account does not exist locally', async () => {
@@ -864,10 +1006,13 @@ describe('importState', () => {
     it('skips metadata when the local group is not found after import', async () => {
       const { context, mocks } = setup();
       // State stays empty -- the import succeeds but leaves no group in the tree.
-      mocks.KeyringController.withKeyringV2 = makeWithKeyringV2Mock(
-        { createAccounts: jest.fn() },
-        [{ id: 'some-account-id' }],
-      );
+      mocks.KeyringController.withController = makeWithControllerMock({
+        newKeyringV2: {
+          createAccounts: jest
+            .fn()
+            .mockResolvedValue([{ id: 'some-account-id' }]),
+        },
+      });
 
       const payload = {
         wallets: [
