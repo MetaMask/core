@@ -18,6 +18,8 @@ import type {
 import { TransactionPayStrategy } from '../index.js';
 import { projectLogger } from '../logger.js';
 import type {
+  GetBalanceCallback,
+  GetBalanceResponse,
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayRequiredToken,
@@ -38,6 +40,7 @@ export function updateSourceAmounts(
   transactionId: string,
   transactionData: TransactionData | undefined,
   messenger: TransactionPayControllerMessenger,
+  getBalance?: GetBalanceCallback,
 ): void {
   if (!transactionData) {
     return;
@@ -50,6 +53,11 @@ export function updateSourceAmounts(
     return;
   }
 
+  const transaction = getTransaction(transactionId, messenger);
+  const balanceOverride = getBalance && transaction
+    ? getBalance({ transaction: transaction as TransactionMeta, transactionData })
+    : undefined;
+
   // For post-quote flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
   if (isPostQuote) {
@@ -60,6 +68,7 @@ export function updateSourceAmounts(
       isMaxAmount ?? false,
       isHyperliquidSource,
       isPolymarketDepositWallet,
+      balanceOverride,
     );
     log('Updated post-quote source amounts', { transactionId, sourceAmounts });
     transactionData.sourceAmounts = sourceAmounts;
@@ -78,6 +87,7 @@ export function updateSourceAmounts(
         isMaxAmount ?? false,
         isQuoteRequired,
         paymentOverride,
+        balanceOverride,
       ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
@@ -105,6 +115,7 @@ function calculatePostQuoteSourceAmounts(
   isMaxAmount: boolean,
   isHyperliquidSource?: boolean,
   isPolymarketDepositWallet?: boolean,
+  balanceOverride?: GetBalanceResponse,
 ): TransactionPaySourceAmount[] {
   return tokens
     .filter((token) => {
@@ -133,9 +144,9 @@ function calculatePostQuoteSourceAmounts(
       return true;
     })
     .map((token) => ({
-      sourceAmountHuman: isMaxAmount ? token.balanceHuman : token.amountHuman,
-      sourceAmountRaw: isMaxAmount ? token.balanceRaw : token.amountRaw,
-      sourceBalanceRaw: token.balanceRaw,
+      sourceAmountHuman: isMaxAmount ? (balanceOverride?.balanceHuman ?? token.balanceHuman) : token.amountHuman,
+      sourceAmountRaw: isMaxAmount ? (balanceOverride?.balanceRaw ?? token.balanceRaw) : token.amountRaw,
+      sourceBalanceRaw: balanceOverride?.balanceRaw ?? token.balanceRaw,
       sourceChainId: token.chainId,
       sourceTokenAddress: token.address,
       targetTokenAddress: paymentToken.address,
@@ -162,6 +173,7 @@ function calculateSourceAmount(
   isMaxAmount: boolean,
   isQuoteRequired?: boolean,
   paymentOverride?: PaymentOverride,
+  balanceOverride?: GetBalanceResponse,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -220,8 +232,8 @@ function calculateSourceAmount(
   // deposits funded from the money account (e.g. Send to Perps).
   if (isMaxAmount && paymentOverride !== PaymentOverride.MoneyAccount) {
     return {
-      sourceAmountHuman: paymentToken.balanceHuman,
-      sourceAmountRaw: paymentToken.balanceRaw,
+      sourceAmountHuman: balanceOverride?.balanceHuman ?? paymentToken.balanceHuman,
+      sourceAmountRaw: balanceOverride?.balanceRaw ?? paymentToken.balanceRaw,
       targetTokenAddress: token.address,
     };
   }

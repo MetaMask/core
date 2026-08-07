@@ -14,6 +14,7 @@ import {
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import type {
   GetAmountDataCallback,
+  GetBalanceCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
@@ -68,6 +69,8 @@ export class TransactionPayController extends BaseController<
 > {
   readonly #getAmountData?: GetAmountDataCallback;
 
+  readonly #getBalance?: GetBalanceCallback;
+
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
 
   readonly #fiatOptions?: TransactionPayFiatOptions;
@@ -87,6 +90,7 @@ export class TransactionPayController extends BaseController<
   constructor({
     fiatOptions,
     getAmountData,
+    getBalance,
     getDelegationTransaction,
     getPaymentOverrideData,
     getStrategy,
@@ -103,6 +107,7 @@ export class TransactionPayController extends BaseController<
     });
 
     this.#getAmountData = getAmountData;
+    this.#getBalance = getBalance;
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#fiatOptions = fiatOptions;
     this.#getPaymentOverrideData = getPaymentOverrideData;
@@ -369,7 +374,7 @@ export class TransactionPayController extends BaseController<
         isPostQuoteUpdated ||
         isAccountOverrideUpdated
       ) {
-        updateSourceAmounts(transactionId, current as never, this.messenger);
+        updateSourceAmounts(transactionId, current as never, this.messenger, this.#getBalance);
 
         shouldUpdateQuotes = true;
       }
