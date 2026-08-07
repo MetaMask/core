@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Remove `TPageData` type parameter from `invalidateQueries` method ([#9526](https://github.com/MetaMask/core/pull/9526))
   - This is technically a breaking change, but this was not used in any of our codebases
+- **BREAKING:** Improve type safety of constructor by ensuring the messenger has required actions/events ([#9525](https://github.com/MetaMask/core/pull/9525))
+  - No change needed, unless the messenger being passed into the constructor was typed incorrectly.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
