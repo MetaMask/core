@@ -17,8 +17,7 @@ describe('TerminalMarketService', () => {
       marginTableId: 0,
       keywords: ['crypto', 'layer-1'],
       tags: ['top-10'],
-      categories: ['crypto'],
-      marketType: 'crypto',
+      category: 'crypto',
     },
     {
       symbol: 'ETH',
@@ -35,9 +34,8 @@ describe('TerminalMarketService', () => {
       maxLeverage: 5,
       marginTableId: 2,
       onlyIsolated: true,
-      marketType: 'stock',
+      category: 'stock',
       tags: ['us-equities'],
-      categories: ['stock'],
     },
   ];
 
@@ -91,19 +89,82 @@ describe('TerminalMarketService', () => {
         description: 'The original cryptocurrency and largest by market cap.',
         keywords: ['crypto', 'layer-1'],
         tags: ['top-10'],
-        categories: ['crypto'],
         marketType: 'crypto',
+        maxLeverage: 50,
       });
       expect(metadata.get('ETH')).toStrictEqual({
         name: 'Ethereum',
         keywords: ['defi', 'layer-1'],
+        maxLeverage: 25,
       });
       expect(metadata.get('xyz:TSLA')).toStrictEqual({
         name: 'Tesla',
         marketType: 'stock',
         tags: ['us-equities'],
-        categories: ['stock'],
+        maxLeverage: 5,
       });
+    });
+
+    it('extracts declared price/trend fields from validated items', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            {
+              symbol: 'BTC',
+              name: 'Bitcoin',
+              price: '67000.5',
+              change24h: '-120.3',
+              changePercent24h: '-0.18',
+              funding: '0.0001',
+              volume24h: 1234567890,
+              openInterest: '987654321',
+              trend: [
+                [1_700_000_000_000, '66000'],
+                [1_700_003_600_000, '67000.5'],
+              ],
+            },
+          ]),
+      } as Response);
+
+      const { metadata } = await service.fetchMarkets();
+
+      expect(metadata.get('BTC')).toStrictEqual({
+        name: 'Bitcoin',
+        price: '67000.5',
+        change24h: '-120.3',
+        changePercent24h: '-0.18',
+        funding: '0.0001',
+        volume24h: 1234567890,
+        openInterest: '987654321',
+        trend: [
+          [1_700_000_000_000, '66000'],
+          [1_700_003_600_000, '67000.5'],
+        ],
+      });
+    });
+
+    it('rejects items whose trend is malformed rather than silently ignoring it', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            { symbol: 'BTC', name: 'Bitcoin', trend: 'not-an-array' },
+            { symbol: 'ETH', name: 'Ethereum', trend: [[1, 2]] },
+            { symbol: 'VALID', name: 'Valid' },
+          ]),
+      } as Response);
+
+      const { markets, metadata } = await service.fetchMarkets();
+
+      expect(markets).toHaveLength(1);
+      expect(markets[0]?.name).toBe('VALID');
+      expect(metadata.size).toBe(1);
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(2);
     });
 
     it('uses the full terminalApiUrl without path concatenation', async () => {
@@ -265,11 +326,11 @@ describe('TerminalMarketService', () => {
               szDecimals: 5,
               maxLeverage: 50,
               marginTableId: 0,
-              // Extra properties not in the schema
               price: 67000.5,
-              iconUrl: 'https://example.com/btc.png',
-              trend: 'bullish',
               volume24h: 1234567890,
+              // Extra properties not in the schema
+              iconUrl: 'https://example.com/btc.png',
+              sentiment: 'bullish',
               sparklineData: [65000, 66000, 67000],
             },
           ]),
@@ -295,10 +356,10 @@ describe('TerminalMarketService', () => {
         statusText: 'OK',
         json: () =>
           Promise.resolve([
-            { symbol: 'BTC', name: 'Bitcoin', marketType: 'crypto' },
-            { symbol: 'TSLA', name: 'Tesla', marketType: 'stock' },
-            { symbol: 'MEME', name: 'MemeCoin', marketType: 'meme' },
-            { symbol: 'FOO', name: 'Foo', marketType: '' },
+            { symbol: 'BTC', name: 'Bitcoin', category: 'crypto' },
+            { symbol: 'TSLA', name: 'Tesla', category: 'stock' },
+            { symbol: 'MEME', name: 'MemeCoin', category: 'meme' },
+            { symbol: 'FOO', name: 'Foo', category: '' },
           ]),
       } as Response);
 

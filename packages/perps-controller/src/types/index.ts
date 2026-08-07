@@ -101,13 +101,23 @@ export type TerminalAssetMetadata = {
   description?: string;
   keywords?: string[];
   tags?: string[];
-  categories?: string[];
   marketType?: MarketType;
   /**
    * Epoch ms when this market was listed on the Terminal backend.
    * Normalized from the raw API value (number or ISO string).
    */
   listedAt?: number;
+  // Live price fields below, as returned raw (unformatted) by the Terminal
+  // API.
+  price?: string | number;
+  change24h?: string | number;
+  changePercent24h?: string | number;
+  funding?: string | number;
+  volume24h?: string | number;
+  openInterest?: string | number;
+  maxLeverage?: number;
+  /** Hourly price points as `[timestampMs, priceString]` tuples. */
+  trend?: [number, string][];
 };
 
 // Market type filter for UI category badges
@@ -618,15 +628,16 @@ export type PerpsMarketData = {
    */
   tags?: string[];
   /**
-   * Market categories from Terminal API metadata (e.g., ['crypto', 'meme'])
-   */
-  categories?: string[];
-  /**
    * Epoch ms when this market was listed on the Terminal backend.
    * Sourced from the Terminal API `listedAt` field.
    * Clients can use this to surface recently added markets (e.g. markets listed within the last 30 days).
    */
   listedAt?: number;
+  /**
+   * Hourly price points as `[timestampMs, priceString]` tuples. Only set
+   * when using the Terminal API backend.
+   */
+  trend?: [number, string][];
 };
 
 export type ToggleTestnetResult = {
