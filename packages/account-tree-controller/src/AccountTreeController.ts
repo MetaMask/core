@@ -36,6 +36,10 @@ import type { Rule } from './rule.js';
 import { EntropyRule } from './rules/entropy.js';
 import { KeyringRule } from './rules/keyring.js';
 import { SnapRule } from './rules/snap.js';
+import { exportState } from './state/export.js';
+import { importState } from './state/import.js';
+import type { ExportStateOptions } from './state/payload.js';
+import type { AccountTreeSnapshot } from './state/snapshot.js';
 import type {
   AccountTreeControllerConfig,
   AccountTreeControllerInternalBackupAndSyncConfig,
@@ -65,6 +69,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'syncWithUserStorageAtLeastOnce',
   'init',
   'reinit',
+  'exportState',
+  'importState',
 ] as const;
 
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
@@ -1853,6 +1859,54 @@ export class AccountTreeController extends BaseController<
    */
   async syncWithUserStorageAtLeastOnce(): Promise<void> {
     return this.#backupAndSyncService.performFullSyncAtLeastOnce();
+  }
+
+  /**
+   * Produces a versioned snapshot of the current wallet and group state.
+   *
+   * When `options.includeSecrets` is `true` and the vault is unlocked,
+   * mnemonic phrases and private keys are included in the snapshot.
+   *
+   * @param options - Export options.
+   * @returns A promise resolving to an `AccountTreeSnapshot`.
+   */
+  async exportState(
+    options?: ExportStateOptions,
+  ): Promise<AccountTreeSnapshot> {
+    return exportState(
+      { getState: () => this.state, messenger: this.messenger },
+      options,
+    );
+  }
+
+  /**
+   * Applies a validated snapshot to the current state.
+   *
+   * Accepts an {@link AccountTreeSnapshot} only — untrusted wire data must be
+   * parsed with {@link AccountTreeSnapshot.deserialize} first. Callers may
+   * filter the snapshot with {@link AccountTreeSnapshot.filterWallets},
+   * {@link AccountTreeSnapshot.filterGroups}, or
+   * {@link AccountTreeSnapshot.filterAllGroups} before importing.
+   *
+   * New mnemonic wallets are imported via `MultichainAccountService` and new
+   * private-key accounts via `KeyringController`. Metadata (name, pinned,
+   * hidden) is applied to all existing and newly created wallets / groups.
+   *
+   * @param snapshot - The validated snapshot to import.
+   * @returns A promise that resolves when the import is complete.
+   */
+  async importState(snapshot: AccountTreeSnapshot): Promise<void> {
+    return importState(
+      {
+        getState: () => this.state,
+        messenger: this.messenger,
+        setWalletName: (id, name) => this.setAccountWalletName(id, name),
+        setGroupName: (id, name) => this.setAccountGroupName(id, name, true),
+        setGroupPinned: (id, pinned) => this.setAccountGroupPinned(id, pinned),
+        setGroupHidden: (id, hidden) => this.setAccountGroupHidden(id, hidden),
+      },
+      snapshot,
+    );
   }
 
   /**

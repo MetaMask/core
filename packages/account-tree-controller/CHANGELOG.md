@@ -21,11 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `{import,export}State` actions ([#9663](https://github.com/MetaMask/core/pull/9663))
+  - Those methods/actions can be used to export a proper snapshot of the account-tree (including secrets or not).
+  - The payload is versionned and will auto-migrate its payload if needed on the receiving end.
+  - Currently, wallet and group IDs are not the same as the local ones, mostly because local IDs are not stable and cannot be used in a cross-client context.
 - Add `getAccountFromSelectedAccountGroup` and `setSelectedAccountGroupByAccountId` methods ([#9739](https://github.com/MetaMask/core/pull/9739))
 
 ### Changed
 
-- Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-api` from `^23.5.0` to `^24.0.0` ([#9676](https://github.com/MetaMask/core/pull/9676), [#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
 - Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
 

@@ -40,6 +40,8 @@ export type {
   AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
   AccountTreeControllerInitAction,
   AccountTreeControllerReinitAction,
+  AccountTreeControllerExportStateAction,
+  AccountTreeControllerImportStateAction,
 } from './AccountTreeController-method-action-types.js';
 
 export type { AccountContext } from './AccountTreeController.js';
@@ -48,3 +50,29 @@ export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
 } from './AccountTreeController.js';
+
+export type {
+  AccountTreePayload,
+  AccountTreePayloadStructType,
+  AccountWalletMnemonicPayload,
+  AccountWalletPrivateKeyPayload,
+  AccountWalletMnemonicGroupEntry,
+  AccountWalletPrivateKeyGroupEntry,
+  AccountWalletPayloadId,
+  AccountGroupPayloadId,
+  AccountTreeSnapshotWallet,
+  AccountTreeSnapshotGroup,
+  ExportStateOptions,
+} from './state/payload.js';
+
+export {
+  AccountTreePayloadStruct,
+  assertValidAccountTreePayload,
+  migrate,
+  migrations,
+} from './state/payload.js';
+
+export type { VersionedState } from '@metamask/keyring-sdk';
+
+export { AccountTreeSnapshot } from './state/snapshot.js';
+export { IdMap } from './state/id-map.js';

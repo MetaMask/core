@@ -59,6 +59,7 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/keyring-api": "^24.0.0",
     "@metamask/keyring-controller": "^27.1.1",
+    "@metamask/keyring-sdk": "^3.1.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/multichain-account-service": "^13.0.1",
     "@metamask/profile-sync-controller": "^29.0.0",
@@ -73,6 +74,7 @@
   "devDependencies": {
     "@metamask/account-api": "^2.0.0",
     "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/eth-hd-keyring": "^15.0.0",
     "@metamask/providers": "^22.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",

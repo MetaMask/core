@@ -6389,4 +6389,163 @@ describe('AccountTreeController', () => {
       });
     });
   });
+
+  describe('exportState / importState round-trip', () => {
+    it('preserves wallet and group metadata across a metadata-only export/import cycle', async () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      // Set custom metadata before export.
+      controller.setAccountWalletName(walletId, 'My Custom Wallet');
+      controller.setAccountGroupName(groupId, 'My Custom Account');
+      controller.setAccountGroupPinned(groupId, true);
+      controller.setAccountGroupHidden(groupId, false);
+
+      // Register handlers that export needs but the default setup() doesn't provide.
+      // withKeyringV2Unsafe: returns the entropy source ID derived from the keyring.
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async (
+          _selector: unknown,
+          callback: (ctx: { keyring: unknown }) => unknown,
+        ) =>
+          callback({
+            keyring: {
+              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
+              mnemonic: null,
+            },
+          }),
+      );
+
+      // --- EXPORT ---
+      const snapshot = await controller.exportState();
+      const payload = snapshot.serialize();
+
+      expect(payload.data.wallets).toHaveLength(1);
+      const exportedWallet = payload.data.wallets[0];
+      expect(exportedWallet.type).toBe('mnemonic');
+      expect(exportedWallet.metadata.name).toBe('My Custom Wallet');
+      expect(exportedWallet.groups[0]?.metadata.name).toBe('My Custom Account');
+      expect(exportedWallet.groups[0]?.metadata.pinned).toBe(true);
+      expect(exportedWallet.groups[0]?.metadata.hidden).toBe(false);
+
+      // The snapshot's idMap bridges local IDs ↔ payload IDs.
+      expect(snapshot.toPayloadId(walletId)).toBe(
+        `wallet:${MOCK_HD_KEYRING_1.metadata.id}`,
+      );
+      expect(
+        snapshot.toLocalId(`wallet:${MOCK_HD_KEYRING_1.metadata.id}`),
+      ).toBe(walletId);
+
+      // Mutate metadata so the import can restore it.
+      controller.setAccountWalletName(walletId, 'Overwritten Wallet Name');
+      controller.setAccountGroupName(groupId, 'Overwritten Account Name');
+      controller.setAccountGroupPinned(groupId, false);
+      controller.setAccountGroupHidden(groupId, true);
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Overwritten Wallet Name');
+
+      // --- IMPORT ---
+      // withKeyringV2Unsafe is called again during import to find the matching wallet.
+      // It's already registered; the existing handler stays in place.
+      await controller.importState(snapshot);
+
+      // After import, original metadata should be restored.
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('My Custom Wallet');
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.metadata.name,
+      ).toBe('My Custom Account');
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.metadata.pinned,
+      ).toBe(true);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.metadata.hidden,
+      ).toBe(false);
+    });
+
+    it('round-trips a snapshot with includeSecrets: false and vault locked', async () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Override KeyringController:getState to report a locked vault.
+      mocks.KeyringController.getState.mockReturnValue({
+        isUnlocked: false,
+        keyrings: mocks.KeyringController.keyrings,
+      });
+
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async (
+          _selector: unknown,
+          callback: (ctx: { keyring: unknown }) => unknown,
+        ) =>
+          callback({
+            keyring: {
+              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
+              mnemonic: null,
+            },
+          }),
+      );
+
+      // Export without secrets is allowed even when the vault is locked.
+      const snapshot = await controller.exportState({ includeSecrets: false });
+      const payload = snapshot.serialize();
+
+      // Exported mnemonic wallet has no secret value.
+      expect(
+        (payload.data.wallets[0] as { value?: string }).value,
+      ).toBeUndefined();
+
+      // Reimport is a no-op for metadata when nothing changed.
+      expect(await controller.importState(snapshot)).toBeUndefined();
+    });
+
+    it('throws when exporting with includeSecrets: true and the vault is locked', async () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      mocks.KeyringController.getState.mockReturnValue({
+        isUnlocked: false,
+        keyrings: mocks.KeyringController.keyrings,
+      });
+
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async () => undefined,
+      );
+
+      await expect(
+        controller.exportState({ includeSecrets: true }),
+      ).rejects.toThrow(
+        'Cannot include secrets in export when vault is locked',
+      );
+    });
+  });
 });
