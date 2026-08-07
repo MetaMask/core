@@ -652,7 +652,12 @@ export class Messenger<
     const subscribers = this.#events.get(eventType);
 
     if (subscribers) {
-      for (const [handler, { selector }] of subscribers.entries()) {
+      // The subscriber collection is snapshotted before iterating so that
+      // mutating it during publish (e.g. a handler subscribing or
+      // unsubscribing) does not affect which handlers are called for this
+      // event. Only the handlers registered at the time the event was
+      // published are called, matching the behavior of `EventEmitter`.
+      for (const [handler, { selector }] of [...subscribers.entries()]) {
         try {
           if (selector) {
             const previousValue = this.#eventPayloadCache.get(handler);

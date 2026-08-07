@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Unlike `delegate`, this method requires all external actions and events to be listed, producing a TypeScript error showing exactly which items are missing.
 - Add `MessengerNamespace` utility type to extract the namespace from a Messenger type ([#8338](https://github.com/MetaMask/core/pull/8338))
 
+### Fixed
+
+- Prohibit retroactive delivery of published events: a handler subscribed while an event is being published no longer receives the in-flight event ([#9773](https://github.com/MetaMask/core/pull/9773))
+  - The subscriber collection is now snapshotted before it is iterated during publish, so only handlers registered at the time the event was published are called, matching the behavior of `EventEmitter`. Consequently, a handler unsubscribed while an event is being published still receives the in-flight event.
+
 ## [2.0.0]
 
 ### Added
