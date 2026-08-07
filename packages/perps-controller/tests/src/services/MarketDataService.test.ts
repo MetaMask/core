@@ -1461,51 +1461,50 @@ describe('MarketDataService', () => {
     });
 
     describe('getMarketDataWithPrices — Terminal-sourced pricing', () => {
-      const terminalMetadataWithPrices = new Map<
-        string,
-        TerminalAssetMetadata
-      >([
+      const terminalMetadataWithPrices = new Map<string, TerminalAssetMetadata>(
         [
-          'BTC',
-          {
-            name: 'Bitcoin',
-            description:
-              'The original cryptocurrency and largest by market cap.',
-            keywords: ['crypto', 'layer-1'],
-            price: '50000.5',
-            change24h: '500',
-            changePercent24h: 1.5,
-            volume24h: '1000000',
-            openInterest: '10',
-            funding: '0.0001',
-            maxLeverage: 50,
-            trend: [
-              [1_700_000_000_000, '49000'],
-              [1_700_003_600_000, '50000.5'],
-            ],
-          },
+          [
+            'BTC',
+            {
+              name: 'Bitcoin',
+              description:
+                'The original cryptocurrency and largest by market cap.',
+              keywords: ['crypto', 'layer-1'],
+              price: '50000.5',
+              change24h: '500',
+              changePercent24h: 1.5,
+              volume24h: '1000000',
+              openInterest: '10',
+              funding: '0.0001',
+              maxLeverage: 50,
+              trend: [
+                [1_700_000_000_000, '49000'],
+                [1_700_003_600_000, '50000.5'],
+              ],
+            },
+          ],
+          [
+            'xyz:TSLA',
+            {
+              name: 'Tesla',
+              marketType: 'stock',
+              price: '250.25',
+            },
+          ],
+          [
+            // No usable price — should be dropped from the Terminal-sourced
+            // result rather than partially rendered.
+            'NODATA',
+            { name: 'No Data Market' },
+          ],
+          [
+            // A '0' price is treated the same as no price - dropped instead
+            // of rendered as $0.00.
+            'ZERO',
+            { name: 'Zero Price Market', price: '0' },
+          ],
         ],
-        [
-          'xyz:TSLA',
-          {
-            name: 'Tesla',
-            marketType: 'stock',
-            price: '250.25',
-          },
-        ],
-        [
-          // No usable price — should be dropped from the Terminal-sourced
-          // result rather than partially rendered.
-          'NODATA',
-          { name: 'No Data Market' },
-        ],
-        [
-          // A '0' price is treated the same as no price - dropped instead
-          // of rendered as $0.00.
-          'ZERO',
-          { name: 'Zero Price Market', price: '0' },
-        ],
-      ]);
+      );
 
       it('builds market data directly from Terminal metadata and skips the provider entirely when price data is present', async () => {
         mockTerminalService.fetchMarkets.mockResolvedValue({
@@ -1525,8 +1524,7 @@ describe('MarketDataService', () => {
         expect(btc).toMatchObject({
           symbol: 'BTC',
           name: 'Bitcoin',
-          description:
-            'The original cryptocurrency and largest by market cap.',
+          description: 'The original cryptocurrency and largest by market cap.',
           keywords: ['crypto', 'layer-1'],
           maxLeverage: '50x',
           price: '$50000.50',
