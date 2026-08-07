@@ -2536,6 +2536,12 @@ export class RampsController extends BaseController<
    * state.
    *
    * @param options - Resolution inputs aligned with `getQuotes`.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @param options.providers - Explicit provider IDs, when provided.
+   * @param options.autoSelectProvider - Resolve providers like `getQuotes`.
+   * @param options.preferredProviderIds - Preferred provider IDs in order.
+   * @param options.restrictToKnownOrNativeProviders - Headless gating.
    * @returns Provider IDs for this request only.
    */
   async #resolveProviderIdsForPaymentMethods({

@@ -7114,9 +7114,8 @@ describe('RampsController', () => {
             },
           );
 
-          const result = await controller.getPaymentMethodsForContext(
-            headlessOptions,
-          );
+          const result =
+            await controller.getPaymentMethodsForContext(headlessOptions);
 
           expect(requestedProviders).toStrictEqual([NATIVE]);
           expect(result.providerIds).toStrictEqual([NATIVE]);
@@ -7176,9 +7175,8 @@ describe('RampsController', () => {
             },
           );
 
-          const result = await controller.getPaymentMethodsForContext(
-            headlessOptions,
-          );
+          const result =
+            await controller.getPaymentMethodsForContext(headlessOptions);
 
           expect(requestedProviders.sort()).toStrictEqual(
             [NATIVE, MOONPAY].sort(),
@@ -7186,7 +7184,9 @@ describe('RampsController', () => {
           expect(result.providerIds.sort()).toStrictEqual(
             [NATIVE, MOONPAY].sort(),
           );
-          expect(result.methods.map((method) => method.id).sort()).toStrictEqual(
+          expect(
+            result.methods.map((method) => method.id).sort(),
+          ).toStrictEqual(
             [cardMethod.id, applePayMethod.id, buyOnlyMethod.id].sort(),
           );
           const mergedCard = result.methods.find(
@@ -7212,10 +7212,7 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createMockUserRegion('us-ca'),
-              providers: createResourceState(
-                [native, moonpay, revolut],
-                null,
-              ),
+              providers: createResourceState([native, moonpay, revolut], null),
             },
           },
         },
@@ -7237,9 +7234,8 @@ describe('RampsController', () => {
             },
           );
 
-          const result = await controller.getPaymentMethodsForContext(
-            headlessOptions,
-          );
+          const result =
+            await controller.getPaymentMethodsForContext(headlessOptions);
 
           expect(requestedProviders).toStrictEqual([MOONPAY]);
           expect(result.providerIds).toStrictEqual([MOONPAY]);
@@ -7383,9 +7379,8 @@ describe('RampsController', () => {
             },
           );
 
-          const result = await controller.getPaymentMethodsForContext(
-            headlessOptions,
-          );
+          const result =
+            await controller.getPaymentMethodsForContext(headlessOptions);
 
           expect(result.methods).toStrictEqual([cardMethod]);
           expect(result.providerIds.sort()).toStrictEqual(
@@ -7536,10 +7531,7 @@ describe('RampsController', () => {
             state: {
               userRegion: createMockUserRegion('us-ca'),
               providers: createResourceState([moonpay], moonpay),
-              paymentMethods: createResourceState(
-                [cardMethod],
-                cardMethod,
-              ),
+              paymentMethods: createResourceState([cardMethod], cardMethod),
             },
           },
         },

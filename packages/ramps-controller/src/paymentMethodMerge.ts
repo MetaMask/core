@@ -96,7 +96,7 @@ function mergePaymentMethodCollision(
     name,
     icon,
     score,
-    ...(delay !== undefined ? { delay } : {}),
+    ...(delay === undefined ? {} : { delay }),
     disclaimer: current.disclaimer ?? incoming.disclaimer,
     pendingOrderDescription:
       current.pendingOrderDescription ?? incoming.pendingOrderDescription,
