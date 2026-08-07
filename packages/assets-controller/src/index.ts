@@ -166,14 +166,10 @@ export type {
 
 // Middlewares
 export {
-  CustomAssetGraduationMiddleware,
   DetectionMiddleware,
   RpcFallbackMiddleware,
 } from './middlewares/index.js';
-export type {
-  CustomAssetGraduationMiddlewareOptions,
-  RpcFallbackMiddlewareOptions,
-} from './middlewares/index.js';
+export type { RpcFallbackMiddlewareOptions } from './middlewares/index.js';
 
 // Utilities
 export {

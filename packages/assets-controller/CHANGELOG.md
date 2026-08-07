@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add an optional `customAssets` option to `AssetsController.getAssets`, overriding which pinned assets are attached to the fetch request (sent to the Accounts API as `includeAssetIds` and to the RPC fallback). When omitted, every asset pinned by the requested accounts is attached, as before ([#9600](https://github.com/MetaMask/core/pull/9600))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.1` ([#9798](https://github.com/MetaMask/core/pull/9798))
@@ -75,6 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **BREAKING:** Remove `CustomAssetGraduationMiddleware` (and `CustomAssetGraduationMiddlewareOptions`) from the public API. User-pinned custom assets are now treated as "display no matter what" and are no longer auto-removed when a balance is detected ([#9600](https://github.com/MetaMask/core/pull/9600))
+- **BREAKING:** Remove the `customAssetsOnly` field from `DataRequest`. Whether an RPC poll is asset-scoped is now decided inside `RpcDataSource` from the claimed `customAssets` on the subscription request: chains outside its regular assignment get a poll scoped to an explicit `assetIds` list instead of a controller-driven request flag ([#9600](https://github.com/MetaMask/core/pull/9600))
 - **BREAKING:** Remove `BackendWebsocketDataSource` and its factory/types (`BackendWebsocketDataSource`, `createBackendWebsocketDataSource`, `BackendWebsocketDataSourceOptions`, `BackendWebsocketDataSourceState`). Real-time balance updates and per-chain status are now consumed from `AccountActivityService` via `AccountActivityDataSource`, which manages the WebSocket connection and subscriptions. Consumers no longer need to delegate `BackendWebSocketService` actions/events to the `AssetsController` messenger ([#9517](https://github.com/MetaMask/core/pull/9517))
 
 ## [11.3.1]

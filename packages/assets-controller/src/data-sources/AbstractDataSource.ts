@@ -1,4 +1,7 @@
+import { parseCaipAssetType } from '@metamask/utils';
+
 import type {
+  Caip19AssetId,
   ChainId,
   DataRequest,
   DataResponse,
@@ -109,6 +112,31 @@ export abstract class AbstractDataSource<
    */
   getActiveChainsSync(): ChainId[] {
     return this.state.activeChains;
+  }
+
+  /**
+   * Claim the pinned assets this source commits to serving. Called during the
+   * subscription handoff; claimed assets are not offered to lower-priority
+   * sources. Assets a source cannot resolve at fetch time are released via
+   * `DataResponse.unprocessedCustomAssets`. Default: claim assets on this
+   * source's assigned chains.
+   *
+   * @param customAssets - Candidate CAIP-19 asset IDs still unclaimed.
+   * @param assignedChains - Chains assigned to this source in the handoff.
+   * @returns The claimed subset of `customAssets`.
+   */
+  claimCustomAssets(
+    customAssets: Caip19AssetId[],
+    assignedChains: ChainId[],
+  ): Caip19AssetId[] {
+    const assigned = new Set<ChainId>(assignedChains);
+    return customAssets.filter((assetId) => {
+      try {
+        return assigned.has(parseCaipAssetType(assetId).chainId);
+      } catch {
+        return false;
+      }
+    });
   }
 
   /**

@@ -106,7 +106,6 @@ import {
 } from './defaults.js';
 import { AssetsDataSourceError } from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
-import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware.js';
 import {
   createParallelBalanceMiddleware,
@@ -140,7 +139,6 @@ import type {
   Asset,
 } from './types.js';
 import { ZERO_ADDRESS } from './utils/constants.js';
-import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement.js';
 import {
   normalizeAmountString,
   normalizeAssetId,
@@ -826,8 +824,6 @@ export class AssetsController extends BaseController<
 
   readonly #detectionMiddleware: DetectionMiddleware;
 
-  readonly #customAssetGraduationMiddleware: CustomAssetGraduationMiddleware;
-
   readonly #rpcFallbackMiddleware: RpcFallbackMiddleware;
 
   readonly #tokenDataSource: TokenDataSource;
@@ -965,19 +961,6 @@ export class AssetsController extends BaseController<
       ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
-    this.#customAssetGraduationMiddleware = new CustomAssetGraduationMiddleware(
-      {
-        getSelectedAccountId: (): AccountId | undefined => {
-          try {
-            return this.#getSelectedAccounts()[0]?.id;
-          } catch {
-            return undefined;
-          }
-        },
-        removeCustomAsset: (accountId, assetId): void =>
-          this.removeCustomAsset(accountId, assetId),
-      },
-    );
     this.#rpcFallbackMiddleware = new RpcFallbackMiddleware({
       rpcDataSource: this.#rpcDataSource,
     });
@@ -1609,6 +1592,12 @@ export class AssetsController extends BaseController<
       assetsForPriceUpdate?: Caip19AssetId[];
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
       updateMode?: AssetsUpdateMode;
+      /**
+       * Pinned assets to attach to this fetch instead of every pin in state.
+       * Use for targeted fetches (e.g. a newly added token). Entries outside
+       * the requested chains are dropped.
+       */
+      customAssets?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -1619,12 +1608,29 @@ export class AssetsController extends BaseController<
       return this.#getAssetsFromState(accounts, chainIds, assetTypes);
     }
 
-    // Collect custom assets for all requested accounts
-    const customAssets: Caip19AssetId[] = [];
-    for (const account of accounts) {
-      const accountCustomAssets = this.getCustomAssets(account.id);
-      customAssets.push(...accountCustomAssets);
+    // Pinned assets for this fetch: the caller's override when provided,
+    // otherwise every pin of the requested accounts — always scoped to the
+    // requested chains.
+    const requestedChains = new Set<string>(chainIds);
+    const candidateCustomAssets =
+      options?.customAssets ??
+      accounts.flatMap((account) => this.getCustomAssets(account.id));
+    const customAssetsSet = new Set<Caip19AssetId>();
+    for (const assetId of candidateCustomAssets) {
+      try {
+        const normalizedAssetId = normalizeAssetId(assetId);
+        if (
+          requestedChains.has(parseCaipAssetType(normalizedAssetId).chainId)
+        ) {
+          customAssetsSet.add(normalizedAssetId);
+        }
+      } catch {
+        // Skip unparseable asset IDs
+      }
     }
+    const customAssets = [...customAssetsSet];
+
+    const hiddenAssets = this.#getHiddenAssetIds();
 
     if (options?.forceUpdate) {
       // Pipeline spans only on unlock/first-init fetch; later forceUpdates pass
@@ -1637,6 +1643,7 @@ export class AssetsController extends BaseController<
         assetTypes,
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
+        excludeAssetIds: hiddenAssets.length > 0 ? hiddenAssets : undefined,
         forceUpdate: true,
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
@@ -1645,6 +1652,9 @@ export class AssetsController extends BaseController<
       // Snap and RPC are excluded here due to their latency (snap triggers account
       // creation, RPC is slow on many chains). Results are committed to state
       // immediately so the UI can display balances without waiting for them.
+      // Errored chains and unresolved pins (`unprocessedCustomAssets`) are
+      // recovered by RPC in the slow pipeline (`#getSlowPipelineChainIds`),
+      // keeping RPC off the fast path.
       //
       // Fast/slow pipelines use merge so partial API snapshots cannot wipe
       // tokens missing from the response (e.g. USDC when only native balance
@@ -1655,11 +1665,6 @@ export class AssetsController extends BaseController<
               this.#accountsApiDataSource,
               this.#stakedBalanceDataSource,
             ]),
-            // Graduation must run BEFORE the RPC fallback so it only sees
-            // AccountsApi/Websocket balances. RPC intentionally carries
-            // custom assets and must never trigger graduation.
-            this.#customAssetGraduationMiddleware,
-            this.#rpcFallbackMiddleware,
             this.#detectionMiddleware,
             createParallelMiddleware([
               this.#tokenDataSource,
@@ -2140,7 +2145,8 @@ export class AssetsController extends BaseController<
       balances[accountId][normalizedAssetId] ??= { amount: '0' };
     });
 
-    // Fetch data for the newly added custom asset (merge to preserve other chains)
+    // Fetch only the new pin (merge preserves other chains); the account's
+    // other pins are already covered by the subscription.
     const account = this.#getSelectedAccounts().find((a) => a.id === accountId);
     if (account) {
       const chainId = extractChainId(normalizedAssetId);
@@ -2150,11 +2156,11 @@ export class AssetsController extends BaseController<
         assetTypes: ['fungible'],
         forceUpdate: true,
         updateMode: 'merge',
+        customAssets: [normalizedAssetId],
       });
     }
 
-    // Re-evaluate subscriptions so the supplemental RPC poll picks up the
-    // new customAsset on chains another data source already owns.
+    // Re-evaluate subscriptions so polls pick up the new pin.
     this.#subscribeAssets();
   }
 
@@ -2182,8 +2188,7 @@ export class AssetsController extends BaseController<
       }
     });
 
-    // Re-evaluate subscriptions so the supplemental RPC poll for that chain
-    // is torn down when no more customAssets remain there.
+    // Re-evaluate subscriptions so polls drop the removed pin.
     this.#subscribeAssets();
   }
 
@@ -2219,6 +2224,9 @@ export class AssetsController extends BaseController<
       }
       state.assetPreferences[normalizedAssetId].hidden = true;
     });
+
+    // Re-evaluate subscriptions so polls exclude the newly hidden asset.
+    this.#subscribeAssets();
   }
 
   /**
@@ -2240,6 +2248,27 @@ export class AssetsController extends BaseController<
         }
       }
     });
+
+    // Re-evaluate subscriptions so polls stop excluding the asset.
+    this.#subscribeAssets();
+  }
+
+  /**
+   * Collect globally hidden asset IDs (from `assetPreferences`), forwarded on
+   * data requests as `excludeAssetIds`.
+   *
+   * @returns The CAIP-19 asset IDs the user has hidden.
+   */
+  #getHiddenAssetIds(): Caip19AssetId[] {
+    const hidden: Caip19AssetId[] = [];
+    for (const [assetId, prefs] of Object.entries(
+      this.state.assetPreferences,
+    )) {
+      if (prefs.hidden) {
+        hidden.push(assetId as Caip19AssetId);
+      }
+    }
+    return hidden;
   }
 
   // ============================================================================
@@ -2537,8 +2566,19 @@ export class AssetsController extends BaseController<
       this.#accountsApiDataSource.getActiveChainsSync(),
     );
 
+    // Chains whose pins went unresolved (`unprocessedCustomAssets`): route
+    // them to the slow pipeline so RPC fetches the pins.
+    const unprocessedCustomAssetChains = new Set<ChainId>(
+      (fastResponse.unprocessedCustomAssets ?? []).map(
+        (assetId) => assetId.split('/')[0] as ChainId,
+      ),
+    );
+
     return chainIds.filter((chainId) => {
       if (fastResponse.errors?.[chainId]) {
+        return true;
+      }
+      if (unprocessedCustomAssetChains.has(chainId)) {
         return true;
       }
       if (!accountsApiChains.has(chainId)) {
@@ -3126,16 +3166,10 @@ export class AssetsController extends BaseController<
       if (!subscriptionKey.startsWith('ds:')) {
         continue;
       }
-      // Subscription keys take the form `ds:<SourceName>` for the regular
-      // subscription or `ds:<SourceName>:<suffix>` for supplemental
-      // subscriptions (e.g. `ds:RpcDataSource:custom`). Split on `:` and
-      // pick the source-name segment so both shapes resolve correctly.
+      // Subscription keys take the form `ds:<SourceName>`.
       const [, sourceId] = subscriptionKey.split(':');
       const source = allSources.find((ds) => ds.getName() === sourceId);
       if (source) {
-        // Unsubscribe by the actual key — `#unsubscribeDataSource` only
-        // knows the regular `ds:<SourceName>` shape and would miss
-        // supplemental subscriptions, leaking their polling timers.
         this.#unsubscribeBySubscriptionKey(source, subscriptionKey);
       }
     }
@@ -3181,10 +3215,12 @@ export class AssetsController extends BaseController<
    * Strategy to minimize data source calls:
    * 1. Collect all chains to subscribe based on enabled networks
    * 2. Map chains to accounts based on their scopes
-   * 3. Split by data source (ordered by priority) - each data source gets ONE subscription
+   * 3. Split by data source (priority order) - each source gets ONE
+   *    subscription, claiming chains AND pinned assets (`claimCustomAssets`);
+   *    unclaimed assets fall through to lower-priority sources.
    *
    * This ensures we make minimal subscriptions to each data source while covering
-   * all accounts and chains.
+   * all accounts, chains, and pinned assets.
    *
    * @param accounts - Accounts to subscribe balance updates for.
    * @param chainIds - Chain IDs to subscribe for.
@@ -3198,14 +3234,26 @@ export class AssetsController extends BaseController<
       new Set(chainIds),
     );
     const remainingChains = new Set(chainToAccounts.keys());
+    // Pins on enabled chains, offered to the sources in priority order; pins
+    // on disabled chains are not worth polling.
+    const remainingCustomAssets = new Set<Caip19AssetId>();
+    for (const account of accounts) {
+      for (const assetId of this.getCustomAssets(account.id)) {
+        try {
+          if (remainingChains.has(parseCaipAssetType(assetId).chainId)) {
+            remainingCustomAssets.add(assetId);
+          }
+        } catch {
+          // Skip unparseable asset IDs
+        }
+      }
+    }
     // When basic functionality is on, use all balance data sources; when off,
     // RPC only.
     const isBasicFunctionality = this.#isBasicFunctionality();
     const balanceDataSources = isBasicFunctionality
       ? this.#allBalanceDataSources
       : [this.#rpcDataSource];
-
-    let rpcAssignedChains: Set<ChainId> = new Set();
 
     for (const source of balanceDataSources) {
       const availableChains = new Set(source.getActiveChainsSync());
@@ -3218,15 +3266,20 @@ export class AssetsController extends BaseController<
         }
       }
 
-      if (assignedChains.length === 0) {
+      const claimedAssets = source.claimCustomAssets(
+        [...remainingCustomAssets],
+        assignedChains,
+      );
+      for (const assetId of claimedAssets) {
+        remainingCustomAssets.delete(assetId);
+      }
+
+      if (assignedChains.length === 0 && claimedAssets.length === 0) {
         this.#unsubscribeDataSource(source);
         continue;
       }
 
-      if (source === this.#rpcDataSource) {
-        rpcAssignedChains = new Set(assignedChains);
-      }
-
+      const claimedAssetsSet = new Set(claimedAssets);
       const seenIds = new Set<string>();
       const accountsForSource = assignedChains
         .flatMap((chainId) => chainToAccounts.get(chainId) ?? [])
@@ -3237,70 +3290,37 @@ export class AssetsController extends BaseController<
           seenIds.add(account.id);
           return true;
         });
+      // Owners of claimed assets must be on the subscription even when none
+      // of their chains were assigned to this source (asset-only coverage).
+      if (claimedAssetsSet.size > 0) {
+        for (const account of accounts) {
+          if (seenIds.has(account.id)) {
+            continue;
+          }
+          if (
+            this.getCustomAssets(account.id).some((assetId) =>
+              claimedAssetsSet.has(assetId),
+            )
+          ) {
+            seenIds.add(account.id);
+            accountsForSource.push(account);
+          }
+        }
+      }
       if (accountsForSource.length > 0) {
-        this.#subscribeDataSource(source, accountsForSource, assignedChains);
+        this.#subscribeDataSource(source, accountsForSource, assignedChains, {
+          customAssets: claimedAssets,
+        });
+      } else {
+        this.#unsubscribeDataSource(source);
       }
     }
 
-    // Supplemental RPC subscription for customAssets on chains another data
-    // source claimed during regular handoff. RPC is the sole balance fetcher
-    // for customAssets, so we must always poll them — even when (e.g.)
-    // AccountsApi is already covering the chain for normal balances. The
-    // supplemental subscription runs in `customAssetsOnly` mode so it does
-    // NOT double-poll the regular tracked balances.
-    this.#subscribeRpcCustomAssetsSupplement(
-      accounts,
-      chainToAccounts,
-      rpcAssignedChains,
-    );
-  }
-
-  /**
-   * Guarantee that customAssets are **always** polled by RPC, even when
-   * AccountsApi or another data source has claimed the chain in the
-   * regular handoff. RPC is the sole balance fetcher for user-imported
-   * tokens (see `pickRpcCustomAssetsSupplement` for the full rationale),
-   * so we run a dedicated subscription in `customAssetsOnly` mode under a
-   * distinct subscription key (`ds:RpcDataSource:custom`) that does not
-   * interfere with the regular RPC subscription.
-   *
-   * @param accounts - Accounts to consider for customAssets.
-   * @param chainToAccounts - Map of chain → accounts (built by caller).
-   * @param rpcAssignedChains - Chains RPC was assigned in the regular handoff.
-   */
-  #subscribeRpcCustomAssetsSupplement(
-    accounts: InternalAccount[],
-    chainToAccounts: Map<ChainId, InternalAccount[]>,
-    rpcAssignedChains: Set<ChainId>,
-  ): void {
-    const rpc = this.#rpcDataSource;
-    const supplementalKey = `ds:${rpc.getName()}:custom`;
-
-    const decision = pickRpcCustomAssetsSupplement({
-      accountIds: accounts.map((account) => account.id),
-      customAssetsByAccount: this.state.customAssets,
-      rpcAssignedChains,
-      rpcAvailableChains: new Set(rpc.getActiveChainsSync()),
-      enabledChains: new Set(chainToAccounts.keys()),
-    });
-
-    if (decision.chains.length === 0) {
-      this.#unsubscribeBySubscriptionKey(rpc, supplementalKey);
-      return;
+    if (remainingCustomAssets.size > 0) {
+      log('Custom assets unclaimed by any data source', {
+        assetIds: [...remainingCustomAssets],
+      });
     }
-
-    const supplementalAccounts = accounts.filter((account) =>
-      decision.accountIds.has(account.id),
-    );
-    if (supplementalAccounts.length === 0) {
-      this.#unsubscribeBySubscriptionKey(rpc, supplementalKey);
-      return;
-    }
-
-    this.#subscribeDataSource(rpc, supplementalAccounts, decision.chains, {
-      subscriptionKey: supplementalKey,
-      customAssetsOnly: true,
-    });
   }
 
   /**
@@ -3387,18 +3407,23 @@ export class AssetsController extends BaseController<
    * @param chains - Array of chain IDs to subscribe for.
    * @param options - Optional subscription overrides.
    * @param options.subscriptionKey - Custom subscription key (default: `ds:<sourceId>`).
-   * @param options.customAssetsOnly - When true, only poll customAssets for these chains.
+   * @param options.customAssets - Pinned assets this source claimed
+   * (`claimCustomAssets`), forwarded on the poll request.
    */
   #subscribeDataSource(
     source: AbstractDataSource<string, DataSourceState>,
     accounts: InternalAccount[],
     chains: ChainId[],
-    options: { subscriptionKey?: string; customAssetsOnly?: boolean } = {},
+    options: {
+      subscriptionKey?: string;
+      customAssets?: Caip19AssetId[];
+    } = {},
   ): void {
     const sourceId = source.getName();
     const subscriptionKey = options.subscriptionKey ?? `ds:${sourceId}`;
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
     const isUpdate = existingSubscription !== undefined;
+    const customAssets = options.customAssets ?? [];
 
     log('Subscribe to data source', {
       sourceId,
@@ -3406,17 +3431,19 @@ export class AssetsController extends BaseController<
       isUpdate,
       accountCount: accounts.length,
       chainCount: chains.length,
-      customAssetsOnly: options.customAssetsOnly === true,
+      customAssetCount: customAssets.length,
     });
+
+    // Globally hidden assets, forwarded as `excludeAssetIds`.
+    const hiddenAssets = this.#getHiddenAssetIds();
 
     const subscribeReq: SubscriptionRequest = {
       request: this.#buildDataRequest(accounts, chains, {
         assetTypes: ['fungible'],
         dataTypes: ['balance'],
         updateInterval: this.#defaultUpdateInterval,
-        ...(options.customAssetsOnly === true
-          ? { customAssetsOnly: true }
-          : {}),
+        customAssets: customAssets.length > 0 ? customAssets : undefined,
+        excludeAssetIds: hiddenAssets.length > 0 ? hiddenAssets : undefined,
       }),
       subscriptionId: subscriptionKey,
       isUpdate,
@@ -3866,20 +3893,14 @@ export class AssetsController extends BaseController<
               ),
             };
 
-        // Graduate custom assets only when AccountsAPI / AccountActivity reports
-        // them. RPC already fetches custom assets on purpose, and Snap handles
-        // non-EVM chains the rule does not apply to, so skip the middleware for
-        // those.
-        const shouldGraduateCustomAssets =
-          sourceId === 'AccountsApiDataSource' ||
-          sourceId === 'AccountActivityDataSource';
-
-        const enrichmentSources: AssetsDataSource[] = [
-          ...(shouldGraduateCustomAssets
-            ? [this.#customAssetGraduationMiddleware]
-            : []),
-          this.#detectionMiddleware,
-        ];
+        // Recover errored chains and unresolved pins on RPC before enrichment,
+        // mirroring the force-update pipeline. In RPC-only mode the poll
+        // already uses RPC, so there is nothing to fall back to.
+        const enrichmentSources: AssetsDataSource[] = [];
+        if (this.#isBasicFunctionality()) {
+          enrichmentSources.push(this.#rpcFallbackMiddleware);
+        }
+        enrichmentSources.push(this.#detectionMiddleware);
         if (this.#isBasicFunctionality()) {
           enrichmentSources.push(
             createParallelMiddleware([
