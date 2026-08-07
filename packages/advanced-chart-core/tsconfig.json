@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "lib": ["ES2020", "DOM", "ES2022.Array"],
+    "types": ["jest"]
+  },
+  "references": [],
+  "include": ["../../types", "./src"]
+}

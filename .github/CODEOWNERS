@@ -26,6 +26,7 @@
 /packages/assets-controllers               @MetaMask/metamask-assets
 /packages/network-enablement-controller    @MetaMask/metamask-assets
 /packages/assets-controller                @MetaMask/metamask-assets
+/packages/advanced-chart-core              @MetaMask/metamask-assets
 
 ## Confirmations Team
 /packages/address-book-controller       @MetaMask/confirmations
@@ -193,6 +194,9 @@
 /packages/approval-controller/package.json                     @MetaMask/confirmations @MetaMask/core-platform
 /packages/approval-controller/CHANGELOG.md                     @MetaMask/confirmations @MetaMask/core-platform
 /packages/approval-controller/tsconfig.*                       @MetaMask/confirmations @MetaMask/core-platform
+/packages/advanced-chart-core/package.json                     @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/advanced-chart-core/CHANGELOG.md                     @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/advanced-chart-core/tsconfig.*                       @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controllers/package.json                      @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controllers/CHANGELOG.md                      @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controllers/tsconfig.*                        @MetaMask/metamask-assets @MetaMask/core-platform

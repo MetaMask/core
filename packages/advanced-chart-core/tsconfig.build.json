@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2020", "DOM", "ES2022.Array"],
+    "types": []
+  },
+  "references": [],
+  "include": ["./src"]
+}

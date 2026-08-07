@@ -315,6 +315,17 @@ const config = createConfig([
     },
   },
   {
+    // `@metamask/advanced-chart-core` is the TradingView Advanced Charts engine
+    // that runs inside a WebView/iframe, so it legitimately references browser
+    // globals (`window`, `document`, `requestAnimationFrame`).
+    // TODO: Introduce a platform transport seam so these globals are injected
+    // rather than referenced directly.
+    files: ['packages/advanced-chart-core/src/**/*.ts'],
+    rules: {
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
     files: [
       'packages/wallet-cli/src/**/*.test.{js,ts}',
       'packages/wallet-cli/tests/**/*.{js,ts}',
