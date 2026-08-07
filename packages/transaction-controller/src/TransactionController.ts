@@ -843,7 +843,7 @@ export class TransactionController extends BaseController<
       ((): Promise<boolean> => Promise.resolve(false));
     this.#isFirstTimeInteractionEnabled =
       isFirstTimeInteractionEnabled ?? ((): boolean => true);
-    this.#isSimulationEnabled = isSimulationEnabled ?? ((_txMeta?: TransactionMeta): boolean => true);
+    this.#isSimulationEnabled = isSimulationEnabled ?? ((): boolean => true);
     this.#isSwapsDisabled = disableSwaps ?? false;
     this.#isTimeoutEnabled = isTimeoutEnabled ?? ((): boolean => true);
     this.#publicKeyEIP7702 = publicKeyEIP7702;
