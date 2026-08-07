@@ -58,7 +58,7 @@
     "@metamask/account-tree-controller": "^7.6.1",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-controller": "^27.1.1",
-    "@metamask/messenger": "^2.1.0",
+    "@metamask/messenger": "^2.0.0",
     "@metamask/profile-sync-controller": "^29.0.0",
     "@metamask/remote-feature-flag-controller": "^5.0.0",
     "@metamask/utils": "^11.11.0",

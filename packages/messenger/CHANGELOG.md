@@ -7,17 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.1.0]
-
-### Uncategorized
-
-- Constrain MessengerAdapter to match given data services ([#9475](https://github.com/MetaMask/core/pull/9475))
-- Add lint:tsc package script ([#9652](https://github.com/MetaMask/core/pull/9652))
-- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
-- refactor: add `.js` import extensions to Core Platform packages ([#9571](https://github.com/MetaMask/core/pull/9571))
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
-
 ### Added
 
 - Add `delegateAll` method for exhaustive delegation with compile-time checking ([#8338](https://github.com/MetaMask/core/pull/8338))
@@ -133,8 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing `RestrictedMessenger` instances should be replaced with a `Messenger` with the `parent` constructor parameter set to the global messenger. We can now use the same class everywhere, passing capabilities using `delegate`.
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@2.1.0...HEAD
-[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@2.0.0...@metamask/messenger@2.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@2.0.0...HEAD
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.2.0...@metamask/messenger@2.0.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.1...@metamask/messenger@1.2.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.0...@metamask/messenger@1.1.1

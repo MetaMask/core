@@ -99,9 +99,9 @@
   },
   "dependencies": {
     "@metamask/abi-utils": "^2.0.3",
-    "@metamask/base-controller": "^9.2.0",
+    "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
-    "@metamask/messenger": "^2.1.0",
+    "@metamask/messenger": "^2.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^11.11.0",
     "@nktkas/hyperliquid": "^0.33.1",

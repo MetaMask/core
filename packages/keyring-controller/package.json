@@ -56,7 +56,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask/base-controller": "^9.2.0",
+    "@metamask/base-controller": "^9.1.0",
     "@metamask/browser-passworder": "^6.0.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/eth-hd-keyring": "^15.0.0",
@@ -64,7 +64,7 @@
     "@metamask/eth-simple-keyring": "^13.0.0",
     "@metamask/keyring-api": "^24.0.0",
     "@metamask/keyring-internal-api": "^12.0.0",
-    "@metamask/messenger": "^2.1.0",
+    "@metamask/messenger": "^2.0.0",
     "@metamask/utils": "^11.11.0",
     "async-mutex": "^0.5.0",
     "ethereumjs-wallet": "^1.0.1",
