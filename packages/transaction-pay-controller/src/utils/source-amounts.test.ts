@@ -268,6 +268,246 @@ describe('Source Amounts Utils', () => {
       ]);
     });
 
+    it('uses getBalance override for isMaxAmount standard flow', () => {
+      const getBalance = jest.fn().mockReturnValue({
+        balanceHuman: '9.9',
+        balanceRaw: '9900000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '9.9',
+          sourceAmountRaw: '9900000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('falls back to payment token balance when getBalance returns undefined', () => {
+      const getBalance = jest.fn().mockReturnValue(undefined);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: PAYMENT_TOKEN_MOCK.balanceHuman,
+          sourceAmountRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('ignores getBalance when isMaxAmount is false', () => {
+      const getBalance = jest.fn().mockReturnValue({
+        balanceHuman: '9.9',
+        balanceRaw: '9900000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      // isMaxAmount is false, so fiat-derived amounts should be used (not the override)
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '2',
+          sourceAmountRaw: '2000000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('does not call getBalance when transaction is not found', () => {
+      // First call (top of updateSourceAmounts) returns undefined; subsequent
+      // calls (getStrategyContext) return the normal mock so no crash.
+      getTransactionMock.mockReturnValueOnce(undefined);
+
+      const getBalance = jest.fn().mockReturnValue({
+        balanceHuman: '9.9',
+        balanceRaw: '9900000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      expect(getBalance).not.toHaveBeenCalled();
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: PAYMENT_TOKEN_MOCK.balanceHuman,
+          sourceAmountRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('uses getBalance override for MoneyAccount max when getBalance is provided', () => {
+      const getBalance = jest.fn().mockReturnValue({
+        balanceHuman: '9.9',
+        balanceRaw: '9900000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentOverride: PaymentOverride.MoneyAccount,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          balanceHuman: '0.62',
+          balanceRaw: '620000',
+          balanceUsd: '0.62',
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            amountUsd: '6.0',
+          },
+        ],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      // getBalance is provided, so the override is applied even for MoneyAccount.
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '9.9',
+          sourceAmountRaw: '9900000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('preserves MoneyAccount max guard when getBalance is not provided', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentOverride: PaymentOverride.MoneyAccount,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          balanceHuman: '0.62',
+          balanceRaw: '620000',
+          balanceUsd: '0.62',
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            amountUsd: '6.0',
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      // No getBalance callback: MoneyAccount guard applies, fiat-derived amounts used.
+      // usdRate mock is 3.0 -> source human = 6 / 3 = 2, raw = 2 * 10^6.
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '2',
+          sourceAmountRaw: '2000000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('uses getBalance override for isMaxAmount post-quote flow', () => {
+      const DESTINATION_TOKEN = {
+        address: '0xdef' as const,
+        balanceFiat: '100.00',
+        balanceHuman: '1.00',
+        balanceRaw: '1000000000000000000',
+        balanceUsd: '100.00',
+        chainId: '0x38' as const,
+        decimals: 18,
+        symbol: 'BNB',
+      };
+
+      const getBalance = jest.fn().mockReturnValue({
+        balanceHuman: '5.5',
+        balanceRaw: '5500000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        isPostQuote: true,
+        paymentToken: DESTINATION_TOKEN,
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            skipIfBalance: false,
+          },
+        ],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '5.5',
+          sourceAmountRaw: '5500000',
+          sourceBalanceRaw: '5500000',
+          sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+          sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+          targetTokenAddress: DESTINATION_TOKEN.address,
+        },
+      ]);
+    });
+
     it('uses fiat-derived source amount for MoneyAccount max instead of payment token balance', () => {
       // Money account withdrawable (mUSD + vmUSD) is reflected in the typed
       // required token amount. The pay token's on-chain balance is only the
