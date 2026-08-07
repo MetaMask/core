@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Avoid duplicate `refreshEarnEligibility`/`refreshPooledStakes`/`refreshLendingPositions` calls when `AccountTreeController:selectedAccountGroupChange` fires with an address that was already just refreshed (e.g. immediately after `init()` during startup hydration)
+- Only eagerly prefetch pooled staking data for Ethereum Mainnet on startup/network change, no longer also prefetching the Hoodi testnet by default; Hoodi remains fully supported via explicit `chainId` calls
+
 ## [12.2.4]
 
 ### Changed
