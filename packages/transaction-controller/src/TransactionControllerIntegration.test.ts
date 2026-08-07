@@ -274,6 +274,7 @@ const setupController = async (
       'AccountsController:getSelectedAccount',
       'AccountsController:getState',
       'ApprovalController:addRequest',
+      'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
       'GasFeeController:fetchGasFeeEstimates',
       'KeyringController:signTransaction',
       'NetworkController:findNetworkClientIdByChainId',
@@ -317,6 +318,11 @@ const setupController = async (
     'KeyringController:signTransaction',
     async (transaction: TypedTransaction) =>
       transaction.toJSON() as TypedTxData,
+  );
+
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+    () => undefined,
   );
 
   const options: TransactionControllerOptions = {

@@ -13,6 +13,7 @@ import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types.js';
 import { rpcRequest } from '../utils/provider.js';
 import { bnFromHex, padHexToEvenLength } from '../utils/utils.js';
 import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow.js';
+import { GasEstimationStrategy } from '../../../config-registry-controller/src/config-registry-api-service/types.js';
 
 jest.mock('../utils/provider');
 
@@ -258,7 +259,35 @@ describe('OracleLayer1GasFeeFlow', () => {
       });
     });
 
-    it('uses default oracle configuration when subclasses do not override helpers', async () => {
+    it('uses the registry network configuration oracle address when subclasses do not override helpers', async () => {
+      const serializedTransactionMock = Buffer.from(
+        SERIALIZED_TRANSACTION_MOCK,
+        'hex',
+      );
+
+      const typedTransactionMock = createMockTypedTransaction(
+        serializedTransactionMock,
+      );
+
+      jest
+        .spyOn(TransactionFactory, 'fromTxData')
+        .mockReturnValueOnce(typedTransactionMock);
+
+      const flow = new DefaultOracleLayer1GasFeeFlow({
+        getRegistryGasStrategyForChain: (): GasEstimationStrategy => ({
+          type: 'l1Oracle',
+          l1OracleAddress: '0x123',
+        }),
+      });
+      await flow.getLayer1Fee(request);
+
+      expect(rpcRequestMock).toHaveBeenCalledTimes(1);
+      const { to } = getEthCallObject(rpcRequestMock.mock.calls[0]);
+      expect(to).toBe('0x123');
+      expect(typedTransactionMock.sign).not.toHaveBeenCalled();
+    });
+
+    it('uses default oracle configuration when subclasses do not override helpers and registry config is undefined', async () => {
       const serializedTransactionMock = Buffer.from(
         SERIALIZED_TRANSACTION_MOCK,
         'hex',
