@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `ClaimsControllerOptions` and `ClaimsServiceConfig` types ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `ClaimsService-method-action-types.ts` with generated method action types for `ClaimsService` ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `ClaimsService:invalidateQueries` action and `ClaimsService:cacheUpdated` events via `BaseDataService` ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `@metamask/base-data-service` `^0.1.3`, `@metamask/superstruct` `^3.1.0`, and `@tanstack/query-core` `^4.43.0` as dependencies ([#9588](https://github.com/MetaMask/core/pull/9588))
+
 ### Changed
 
+- Migrate `ClaimsService` to `BaseDataService` with TanStack Query caching, circuit-breaker policy support, and response validation ([#9588](https://github.com/MetaMask/core/pull/9588))
+- `ClaimsServiceConfig.fetchFunction` is optional and defaults to `globalThis.fetch` ([#9588](https://github.com/MetaMask/core/pull/9588))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
 ## [0.5.4]
