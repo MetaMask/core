@@ -55,11 +55,11 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^9.1.0",
+    "@metamask/base-controller": "^9.2.0",
     "@metamask/config-registry-controller": "^2.0.1",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-api": "^24.0.0",
-    "@metamask/messenger": "^2.0.0",
+    "@metamask/messenger": "^2.1.0",
     "@metamask/multichain-network-controller": "^3.2.3",
     "@metamask/network-controller": "^35.0.1",
     "@metamask/slip44": "^4.3.0",

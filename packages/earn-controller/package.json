@@ -58,10 +58,10 @@
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/account-tree-controller": "^7.6.1",
-    "@metamask/base-controller": "^9.1.0",
+    "@metamask/base-controller": "^9.2.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-api": "^24.0.0",
-    "@metamask/messenger": "^2.0.0",
+    "@metamask/messenger": "^2.1.0",
     "@metamask/network-controller": "^35.0.1",
     "@metamask/stake-sdk": "^3.2.1",
     "reselect": "^5.1.1"
