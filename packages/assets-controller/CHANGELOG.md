@@ -19,9 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Preserve pooled-staking balances across Accounts API chain-slice updates (e.g. network switch / `replaceCoveredChainBalances`): exclude staking contract asset IDs from `AccountsApiDataSource` v5/v6 balance processing, and keep prior staked amounts when a merge replace omits them so Accounts API cannot reset staked ETH to missing/0 ([#9753](https://github.com/MetaMask/core/pull/9753))
-
-### Fixed
-
 - Stop publishing `assetsInfo` from websocket balance updates; metadata is now resolved from the Token API by `TokenDataSource` to prevent WS poisoning (incorrect WS symbols and no detection metadata). Prevents bypassing token detection spam filtering ([#9790](https://github.com/MetaMask/core/pull/9790))
 
 ## [13.1.1]
