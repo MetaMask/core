@@ -35,6 +35,9 @@ const log = createModuleLogger(projectLogger, 'source-amounts');
  * @param transactionId - ID of the transaction to update.
  * @param transactionData - Existing transaction data.
  * @param messenger - Controller messenger.
+ * @param getBalance - Optional callback to override the source balance used for max-amount
+ * calculation. Called only when `isMaxAmount` is true. Return `undefined` to fall back to
+ * the built-in token balance.
  */
 export function updateSourceAmounts(
   transactionId: string,
@@ -53,15 +56,13 @@ export function updateSourceAmounts(
     return;
   }
 
-  const transaction = getBalance
-    ? getTransaction(transactionId, messenger)
-    : undefined;
+  const transaction =
+    getBalance && isMaxAmount
+      ? getTransaction(transactionId, messenger)
+      : undefined;
   const balanceOverride =
-    getBalance && transaction && isMaxAmount
-      ? getBalance({
-          transaction: transaction as TransactionMeta,
-          transactionData,
-        })
+    getBalance && transaction
+      ? getBalance({ transaction, transactionData })
       : undefined;
 
   // For post-quote flows, source amounts are calculated differently
@@ -113,6 +114,7 @@ export function updateSourceAmounts(
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param isHyperliquidSource - Whether the source is HyperLiquid (perps withdrawal).
  * @param isPolymarketDepositWallet - Whether the source is a Polymarket deposit wallet.
+ * @param balanceOverride - Optional balance override from the `getBalance` callback.
  * @returns Array of source amounts.
  */
 function calculatePostQuoteSourceAmounts(
@@ -173,6 +175,7 @@ function calculatePostQuoteSourceAmounts(
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @param paymentOverride - Optional payment source override for the transaction.
+ * @param balanceOverride - Optional balance override from the `getBalance` callback.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
