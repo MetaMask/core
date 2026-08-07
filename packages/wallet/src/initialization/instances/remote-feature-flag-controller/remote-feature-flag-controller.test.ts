@@ -212,6 +212,24 @@ describe('remoteFeatureFlagController', () => {
     ).not.toHaveBeenCalled();
   });
 
+  it('forwards defaultFeatureFlags to the controller', () => {
+    const messenger =
+      remoteFeatureFlagController.getMessenger(getRootMessenger());
+
+    const instance = remoteFeatureFlagController.init({
+      state: undefined,
+      messenger,
+      options: {
+        clientConfigApiService: getClientConfigApiService(),
+        defaultFeatureFlags: { defaultFlag: true },
+      },
+    });
+
+    expect(instance.state.remoteFeatureFlags).toStrictEqual({
+      defaultFlag: true,
+    });
+  });
+
   it('exposes its state through the root messenger', () => {
     const rootMessenger = getRootMessenger();
     const messenger = remoteFeatureFlagController.getMessenger(rootMessenger);
