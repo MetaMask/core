@@ -19,8 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Preserve pooled-staking balances across Accounts API chain-slice updates (e.g. network switch / `replaceCoveredChainBalances`): exclude staking contract asset IDs from `AccountsApiDataSource` v5/v6 balance processing, and keep prior staked amounts when a merge replace omits them so Accounts API cannot reset staked ETH to missing/0 ([#9753](https://github.com/MetaMask/core/pull/9753))
-- Clean up unused `assetsInfo` and `assetsPrice` entries on startup so those persisted state slices no longer grow unbounded (neither had a delete path before) ([#9806](https://github.com/MetaMask/core/pull/9806))
-  - At the end of the startup refresh, entries are deleted for assets that are not held by any account in state (a balance key for any account counts, including `{ amount: '0' }`), not in any account's `customAssets`, not native assets, and not default tracked assets (`DEFAULT_TRACKED_ASSETS_BY_CHAIN`). Asset IDs are compared case-insensitively, and `assetPreferences` is left untouched.
+- Clean up unused `assetsInfo` and `assetsPrice` entries after a successful startup refresh so those persisted state slices no longer grow unbounded ([#9806](https://github.com/MetaMask/core/pull/9806))
 
 ## [13.1.1]
 
