@@ -348,6 +348,7 @@ linkStyle default opacity:0.5
   chomp_api_service --> controller_utils;
   chomp_api_service --> messenger;
   claims_controller --> base_controller;
+  claims_controller --> base_data_service;
   claims_controller --> controller_utils;
   claims_controller --> keyring_controller;
   claims_controller --> messenger;
@@ -662,6 +663,7 @@ linkStyle default opacity:0.5
   wallet --> address_book_controller;
   wallet --> approval_controller;
   wallet --> base_controller;
+  wallet --> claims_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
   wallet --> gas_fee_controller;
