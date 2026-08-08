@@ -21,6 +21,7 @@ export enum ErrorCode {
 
 const TRANSACTION_ENVELOPE_TYPES_FEE_MARKET = [
   TransactionEnvelopeType.feeMarket,
+  TransactionEnvelopeType.blob,
   TransactionEnvelopeType.setCode,
 ];
 
