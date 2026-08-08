@@ -44,6 +44,9 @@ export function getAccountWalletNameFromKeyringType(
     case KeyringTypes.qr: {
       return 'QR';
     }
+    case KeyringTypes.keystone: {
+      return 'Keystone';
+    }
     // Those keyrings should never really be used in such context since they
     // should be used by other grouping rules.
     case KeyringType.Hd:
@@ -94,6 +97,9 @@ export function getAccountGroupPrefixFromKeyringType(
     case KeyringType.Qr:
     case KeyringTypes.qr: {
       return 'QR Account';
+    }
+    case KeyringTypes.keystone: {
+      return 'Keystone Account';
     }
     // Those keyrings should never really be used in such context since they
     // should be used by other grouping rules.
