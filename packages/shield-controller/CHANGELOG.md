@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+
 ### Uncategorized
 
 - refactor: add `.js` import extensions to Web3Auth packages ([#9627](https://github.com/MetaMask/core/pull/9627))
@@ -283,7 +285,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.3...@metamask/shield-controller@6.0.0
 [5.1.3]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.2...@metamask/shield-controller@5.1.3
 [5.1.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.1...@metamask/shield-controller@5.1.2
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.0...@metamask/shield-controller@5.1.1
