@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/claims-controller` from `^0.5.4` to `^0.6.0` ([#9809](https://github.com/MetaMask/core/pull/9809))
+- Bump `@metamask/shield-controller` from `^5.1.3` to `^6.0.0` ([#9809](https://github.com/MetaMask/core/pull/9809))
+- Bump `@metamask/subscription-controller` from `^6.2.2` to `^7.0.0` ([#9809](https://github.com/MetaMask/core/pull/9809))
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.1` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/seedless-onboarding-controller` from `^10.1.0` to `^10.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
