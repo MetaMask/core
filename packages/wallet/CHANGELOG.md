@@ -7,24 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.0]
+
 ### Added
 
 - Add optional `instanceOptions.remoteFeatureFlagController.defaultFeatureFlags` to pass client-side default feature flags through to `RemoteFeatureFlagController` ([#9747](https://github.com/MetaMask/core/pull/9747))
-- **BREAKING:** Wire `ClaimsService` and `ClaimsController` into the default wallet initialization ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Wire `ClaimsService` and `ClaimsController` into the default wallet initialization ([#9588](https://github.com/MetaMask/core/pull/9588))
   - Adds an optional `claimsService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `ClaimsService`.
   - `ClaimsService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile`; hosts must register `AuthenticationController` on the supplied root messenger before authenticated Claims API calls succeed.
-- **BREAKING:** Wire `ShieldController` and `ShieldApiService` into the default wallet initialization ([#9616](https://github.com/MetaMask/core/pull/9616))
+- Wire `ShieldController` and `ShieldApiService` into the default wallet initialization ([#9616](https://github.com/MetaMask/core/pull/9616))
   - Adds an optional `shieldApiService` slot to `instanceOptions` for optional `env` (defaults to production), polling, and policy configuration. `fetchFunction` defaults to `globalThis.fetch` via `ShieldApiService`.
   - `shieldController` instance options are now controller-only (`transactionHistoryLimit`, `coverageHistoryLimit`, `normalizeSignatureRequest`).
   - `ShieldApiService` delegates `AuthenticationController:getBearerToken`; `ShieldController` delegates `ShieldApiService:*` actions plus `TransactionController:stateChange` and `SignatureController:stateChange`.
   - Hosts must register `AuthenticationController` and `SignatureController` on the wallet root messenger and explicitly call `ShieldController:start` after wiring.
-- **BREAKING:** Wire `SubscriptionController` and `SubscriptionService` into the default wallet initialization ([#9598](https://github.com/MetaMask/core/pull/9598))
+- Wire `SubscriptionController` and `SubscriptionService` into the default wallet initialization ([#9598](https://github.com/MetaMask/core/pull/9598))
   - Adds an optional `subscriptionService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `SubscriptionService`.
   - Adds an optional `subscriptionController` slot to `instanceOptions` for an optional `pollingInterval`.
   - `SubscriptionService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile` from the wallet root messenger; hosts must register `AuthenticationController` on the root messenger for authenticated subscription API calls.
 
 ### Changed
 
+- Bump `@metamask/claims-controller` from `^0.5.4` to `^0.6.0` ([#9809](https://github.com/MetaMask/core/pull/9809))
+- Bump `@metamask/shield-controller` from `^5.1.3` to `^6.0.0` ([#9809](https://github.com/MetaMask/core/pull/9809))
+- Bump `@metamask/subscription-controller` from `^6.2.2` to `^7.0.0` ([#9809](https://github.com/MetaMask/core/pull/9809))
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.1` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/seedless-onboarding-controller` from `^10.1.0` to `^10.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
@@ -161,7 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...@metamask/wallet@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...@metamask/wallet@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.0.0...@metamask/wallet@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.1...@metamask/wallet@8.0.0
