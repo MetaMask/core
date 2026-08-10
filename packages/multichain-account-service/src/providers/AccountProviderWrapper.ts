@@ -177,7 +177,7 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     if (!this.isEnabled) {
       return;
     }
-    return this.provider.ensureReady();
+    await this.provider.ensureReady();
   }
 
   /**
