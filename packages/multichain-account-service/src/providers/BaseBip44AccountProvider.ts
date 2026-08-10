@@ -117,9 +117,9 @@ export type Bip44AccountProvider<
     accountIds: Account['id'][],
   ): boolean;
   /**
-   * Ensures the underlying platform (e.g. the snap runtime) is ready before
-   * any account operation is attempted. EVM providers return immediately; snap
-   * providers wait for the snap platform and keyring to be available.
+   * Ensures the provider is ready before any account operation is attempted:
+   * - EVM providers return immediately.
+   * - Snap providers will wait for the Snap platform and keyring to be available.
    *
    * @returns A promise that resolves when the provider is ready to use.
    */
@@ -243,7 +243,7 @@ export abstract class BaseBip44AccountProvider<
   }
 
   async ensureReady(): Promise<void> {
-    // no-op for non-snap providers
+    // No-op for non-snap providers.
   }
 
   abstract get capabilities(): KeyringCapabilities;
