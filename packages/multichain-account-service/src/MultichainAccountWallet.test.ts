@@ -820,6 +820,40 @@ describe('MultichainAccountWallet', () => {
       expect(statusAtEnsureReady[0]).toBe('ready');
     });
 
+    it('skips a provider that fails ensureReady but still aligns the others', async () => {
+      // EVM + two non-EVM providers; SOL fails ensureReady, BTC succeeds.
+      const { wallet, providers } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // SOL — will fail ensureReady
+          [], // BTC — will succeed ensureReady
+        ],
+      });
+
+      const [, solProvider, btcProvider] = providers;
+
+      solProvider.ensureReady.mockRejectedValueOnce(
+        new Error('Snap platform not ready'),
+      );
+
+      // Use a deferred promise as a reliable signal that the BTC alignment ran.
+      const { promise: btcAligned, resolve: resolveBtcAligned } =
+        createDeferredPromise();
+      btcProvider.createAccounts.mockImplementationOnce(async () => {
+        resolveBtcAligned();
+        return [];
+      });
+
+      await wallet.createMultichainAccountGroups({ from: 0, to: 0 });
+
+      // Wait until BTC alignment has actually run.
+      await btcAligned;
+
+      // SOL was excluded (ensureReady failed); BTC proceeded normally.
+      expect(solProvider.createAccounts).not.toHaveBeenCalled();
+      expect(btcProvider.createAccounts).toHaveBeenCalled();
+    });
+
     it('logs an error to console when post-alignment fails unexpectedly', async () => {
       // Group 0 exists for EVM; SOL has no accounts yet (will be aligned).
       const { wallet, providers, messenger } = setup({

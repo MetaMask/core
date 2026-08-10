@@ -483,6 +483,43 @@ export class MultichainAccountWallet<
   }
 
   /**
+   * Calls `ensureReady` on every provider concurrently (best-effort).
+   *
+   * Returns the subset of providers that became ready and a list of failure
+   * messages for the ones that did not, following the same `{ ..., failures }`
+   * pattern used by {@link MultichainAccountWallet.#buildGroupState}.
+   *
+   * @param providers - Providers to check.
+   * @returns Ready providers and failure messages for those that were not.
+   */
+  async #ensureReadyProviders(
+    providers: Bip44AccountProvider<Account>[],
+  ): Promise<{
+    readyProviders: Bip44AccountProvider<Account>[];
+    failures: string[];
+  }> {
+    const results = await Promise.allSettled(
+      providers.map((provider) => provider.ensureReady()),
+    );
+
+    const readyProviders: Bip44AccountProvider<Account>[] = [];
+    const failures: string[] = [];
+
+    for (const [i, result] of results.entries()) {
+      const provider = providers[i];
+      if (result.status === 'fulfilled') {
+        readyProviders.push(provider as Bip44AccountProvider<Account>);
+      } else {
+        failures.push(
+          `[${provider?.getName()}] ${toErrorMessage(result.reason)}`,
+        );
+      }
+    }
+
+    return { readyProviders, failures };
+  }
+
+  /**
    * Align accounts for a range of group indices (non-locking).
    *
    * Calls all providers in parallel via the batch API. Provider failures are
@@ -747,18 +784,32 @@ export class MultichainAccountWallet<
     // been created yet.
     if (!waitForAllProvidersToFinishCreatingAccounts) {
       const alignOtherAccounts = async (): Promise<void> => {
-        // Ensure the Snap platform is ready for every non-EVM provider BEFORE
+        // Ensure the Snap platform is ready for each non-EVM provider BEFORE
         // acquiring the wallet lock. Without this guard the lock would be held
         // while waiting for onboarding to complete, blocking all subsequent
         // wallet operations that also need the lock.
-        await Promise.all(
-          otherProviders.map((provider) => provider.ensureReady()),
-        );
+        //
+        // This is best-effort: providers that fail to become ready are excluded
+        // from this round. Explicit alignments triggered later will recover them.
+        const { readyProviders, failures } =
+          await this.#ensureReadyProviders(otherProviders);
+
+        if (failures.length) {
+          const error = failures.reduce(
+            (message, failure) => `${message}\n- ${failure}`,
+            'Some providers are not ready and will be skipped for post-alignment:',
+          );
+          this.#log(`${WARNING_PREFIX} ${error}`);
+        }
+
+        if (readyProviders.length === 0) {
+          return;
+        }
 
         this.#log(`Aligning accounts... (post)`);
 
         await this.#withLock('in-progress:alignment', async () => {
-          await this.#alignAccountsForRange({ from, to }, otherProviders, {
+          await this.#alignAccountsForRange({ from, to }, readyProviders, {
             trace: {
               data: {
                 post: true, // Tag to identify post-alignment traces in analytics.
