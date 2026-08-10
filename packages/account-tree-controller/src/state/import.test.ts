@@ -124,9 +124,9 @@ function setup({
     };
     setters: {
       setWalletName: jest.Mock;
-      setGroupName: jest.Mock;
-      setGroupPinned: jest.Mock;
-      setGroupHidden: jest.Mock;
+      setAccountGroupName: jest.Mock;
+      setAccountGroupPinned: jest.Mock;
+      setAccountGroupHideen: jest.Mock;
     };
   };
   /* eslint-enable @typescript-eslint/naming-convention */
@@ -145,9 +145,9 @@ function setup({
     },
     setters: {
       setWalletName: jest.fn(),
-      setGroupName: jest.fn(),
-      setGroupPinned: jest.fn(),
-      setGroupHidden: jest.fn(),
+      setAccountGroupName: jest.fn(),
+      setAccountGroupPinned: jest.fn(),
+      setAccountGroupHideen: jest.fn(),
     },
   };
 
@@ -183,9 +183,9 @@ function setup({
     }),
     messenger,
     setWalletName: mocks.setters.setWalletName,
-    setGroupName: mocks.setters.setGroupName,
-    setGroupPinned: mocks.setters.setGroupPinned,
-    setGroupHidden: mocks.setters.setGroupHidden,
+    setAccountGroupName: mocks.setters.setAccountGroupName,
+    setAccountGroupPinned: mocks.setters.setAccountGroupPinned,
+    setAccountGroupHideen: mocks.setters.setAccountGroupHideen,
   };
 
   return { context, mocks, walletsRef };
@@ -256,27 +256,27 @@ describe('importState', () => {
         MOCK_HD_WALLET_ID,
         'My Renamed Wallet',
       );
-      expect(mocks.setters.setGroupName).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
         MOCK_HD_GROUP_ID_0,
         'Renamed Account 1',
       );
-      expect(mocks.setters.setGroupPinned).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupPinned).toHaveBeenCalledWith(
         MOCK_HD_GROUP_ID_0,
         true,
       );
-      expect(mocks.setters.setGroupHidden).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupHideen).toHaveBeenCalledWith(
         MOCK_HD_GROUP_ID_0,
         false,
       );
-      expect(mocks.setters.setGroupName).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
         MOCK_HD_GROUP_ID_1,
         'Renamed Account 2',
       );
-      expect(mocks.setters.setGroupPinned).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupPinned).toHaveBeenCalledWith(
         MOCK_HD_GROUP_ID_1,
         false,
       );
-      expect(mocks.setters.setGroupHidden).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupHideen).toHaveBeenCalledWith(
         MOCK_HD_GROUP_ID_1,
         true,
       );
@@ -665,15 +665,15 @@ describe('importState', () => {
 
       await importSnapshot(context, payload);
 
-      expect(mocks.setters.setGroupName).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
         pkGroupId,
         'Renamed Imported',
       );
-      expect(mocks.setters.setGroupPinned).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupPinned).toHaveBeenCalledWith(
         pkGroupId,
         true,
       );
-      expect(mocks.setters.setGroupHidden).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupHideen).toHaveBeenCalledWith(
         pkGroupId,
         false,
       );
@@ -904,7 +904,7 @@ describe('importState', () => {
           encoding: 'hexadecimal',
         }),
       );
-      expect(mocks.setters.setGroupName).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
         pkGroupId,
         'New Import',
       );
@@ -992,7 +992,7 @@ describe('importState', () => {
 
       await importSnapshot(context, payload);
       expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
-      expect(mocks.setters.setGroupName).not.toHaveBeenCalled();
+      expect(mocks.setters.setAccountGroupName).not.toHaveBeenCalled();
     });
 
     it('does not skip a private-key group whose value type is eip155:eoa', async () => {
@@ -1050,7 +1050,7 @@ describe('importState', () => {
       };
 
       await importSnapshot(context, payload);
-      expect(mocks.setters.setGroupName).not.toHaveBeenCalled();
+      expect(mocks.setters.setAccountGroupName).not.toHaveBeenCalled();
     });
 
     it('skips metadata when the local group is not found after import', async () => {
@@ -1082,7 +1082,7 @@ describe('importState', () => {
       };
 
       await importSnapshot(context, payload);
-      expect(mocks.setters.setGroupName).not.toHaveBeenCalled();
+      expect(mocks.setters.setAccountGroupName).not.toHaveBeenCalled();
     });
   });
 });

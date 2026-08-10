@@ -32,9 +32,9 @@ export type ImportContext = {
   messenger: AccountTreeControllerMessenger;
   setWalletName: (walletId: AccountWalletId, name: string) => void;
   /** Sets a group name. Implementations must resolve name conflicts automatically. */
-  setGroupName: (groupId: AccountGroupId, name: string) => void;
-  setGroupPinned: (groupId: AccountGroupId, pinned: boolean) => void;
-  setGroupHidden: (groupId: AccountGroupId, hidden: boolean) => void;
+  setAccountGroupName: (groupId: AccountGroupId, name: string) => void;
+  setAccountGroupPinned: (groupId: AccountGroupId, pinned: boolean) => void;
+  setAccountGroupHideen: (groupId: AccountGroupId, hidden: boolean) => void;
 };
 
 /**
@@ -114,9 +114,9 @@ function setGroupMetadata(
   localGroupId: AccountGroupId,
   payloadGroupMetadata: AccountWalletMnemonicGroupEntry['metadata'],
 ): void {
-  context.setGroupName(localGroupId, payloadGroupMetadata.name);
-  context.setGroupPinned(localGroupId, payloadGroupMetadata.pinned);
-  context.setGroupHidden(localGroupId, payloadGroupMetadata.hidden);
+  context.setAccountGroupName(localGroupId, payloadGroupMetadata.name);
+  context.setAccountGroupPinned(localGroupId, payloadGroupMetadata.pinned);
+  context.setAccountGroupHideen(localGroupId, payloadGroupMetadata.hidden);
 }
 
 /**

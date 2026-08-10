@@ -1901,9 +1901,12 @@ export class AccountTreeController extends BaseController<
         getState: () => this.state,
         messenger: this.messenger,
         setWalletName: (id, name) => this.setAccountWalletName(id, name),
-        setGroupName: (id, name) => this.setAccountGroupName(id, name, true),
-        setGroupPinned: (id, pinned) => this.setAccountGroupPinned(id, pinned),
-        setGroupHidden: (id, hidden) => this.setAccountGroupHidden(id, hidden),
+        setAccountGroupName: (id, name) =>
+          this.setAccountGroupName(id, name, true),
+        setAccountGroupPinned: (id, pinned) =>
+          this.setAccountGroupPinned(id, pinned),
+        setAccountGroupHideen: (id, hidden) =>
+          this.setAccountGroupHidden(id, hidden),
       },
       snapshot,
     );
