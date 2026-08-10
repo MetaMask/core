@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Adds an optional `subscriptionService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `SubscriptionService`.
   - Adds an optional `subscriptionController` slot to `instanceOptions` for an optional `pollingInterval`.
   - `SubscriptionService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile` from the wallet root messenger; hosts must register `AuthenticationController` on the root messenger for authenticated subscription API calls.
+- Add optional `instanceOptions.remoteFeatureFlagController.defaultFeatureFlags` to pass client-side default feature flags through to `RemoteFeatureFlagController` ([#9747](https://github.com/MetaMask/core/pull/9747))
 
 ### Changed
 
