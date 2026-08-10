@@ -38,10 +38,10 @@ import type {
 import type { CandleData } from '../types/perps-types.js';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
 import { ensureError, isAbortError } from '../utils/errorUtils.js';
-import { parseAssetName } from '../utils/hyperLiquidAdapter.js';
 import {
   calculateOpenInterestUSD,
-  formatChange,
+  deriveHip3MarketFields,
+  formatMarketPriceFields,
 } from '../utils/marketDataTransform.js';
 import { applyMarketFilters } from '../utils/marketUtils.js';
 import type { ServiceContext } from './ServiceContext.js';
@@ -87,34 +87,25 @@ function buildMarketsFromTerminalMetadata(
     );
     const fundingRate = toNumber(meta.funding);
 
-    const { dex } = parseAssetName(symbol);
-    const isHip3 = Boolean(dex);
+    const { marketSource, isHip3, isNewMarket } = deriveHip3MarketFields(
+      symbol,
+      meta.marketType,
+    );
 
     result.push({
       symbol,
       name: meta.name ?? symbol,
       ...(meta.description !== undefined && { description: meta.description }),
       maxLeverage: `${meta.maxLeverage ?? 1}x`,
-      price: formatters.formatPerpsFiat(currentPrice, {
-        ranges: formatters.priceRangesUniversal,
-      }),
-      change24h: isNaN(change24h)
-        ? PERPS_CONSTANTS.ZeroAmountDetailedDisplay
-        : formatChange(change24h, formatters),
-      change24hPercent: isNaN(change24hPercent)
-        ? '0.00%'
-        : formatters.formatPercentage(change24hPercent),
-      volume: isNaN(volume)
-        ? PERPS_CONSTANTS.FallbackPriceDisplay
-        : formatters.formatVolume(volume),
-      openInterest: isNaN(openInterest)
-        ? PERPS_CONSTANTS.FallbackPriceDisplay
-        : formatters.formatVolume(openInterest),
+      ...formatMarketPriceFields(
+        { currentPrice, change24h, change24hPercent, volume, openInterest },
+        formatters,
+      ),
       fundingRate: isNaN(fundingRate) ? undefined : fundingRate,
-      marketSource: dex ?? undefined,
+      marketSource,
       ...(meta.marketType !== undefined && { marketType: meta.marketType }),
       isHip3,
-      isNewMarket: isHip3 && !meta.marketType,
+      isNewMarket,
       ...(meta.keywords !== undefined && { keywords: meta.keywords }),
       ...(meta.tags !== undefined && { tags: meta.tags }),
       ...(meta.listedAt !== undefined && { listedAt: meta.listedAt }),

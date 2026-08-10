@@ -106,6 +106,92 @@ export function isMarketTradable(params: {
 }
 
 /**
+ * The formatted display fields shared by every PerpsMarketData source
+ * (HyperLiquid provider, Terminal API). Kept in one place so the two
+ * `isNaN` → fallback/format ladders can't drift apart.
+ */
+type FormattedMarketPriceFields = Pick<
+  PerpsMarketData,
+  'price' | 'change24h' | 'change24hPercent' | 'volume' | 'openInterest'
+>;
+
+/**
+ * Format the numeric price/volume/change fields shared by every
+ * PerpsMarketData source into their display strings, falling back to the
+ * platform's placeholder display values when a field is unavailable
+ * (`NaN`).
+ *
+ * @param fields - Raw numeric fields (pass `NaN` for anything unavailable).
+ * @param fields.currentPrice - Current price.
+ * @param fields.change24h - Absolute 24h price change.
+ * @param fields.change24hPercent - 24h price change as a percentage.
+ * @param fields.volume - 24h volume.
+ * @param fields.openInterest - Open interest in USD.
+ * @param formatters - Injectable formatters for platform-agnostic formatting.
+ * @returns The formatted display fields.
+ */
+export function formatMarketPriceFields(
+  fields: {
+    currentPrice: number;
+    change24h: number;
+    change24hPercent: number;
+    volume: number;
+    openInterest: number;
+  },
+  formatters: MarketDataFormatters,
+): FormattedMarketPriceFields {
+  const { currentPrice, change24h, change24hPercent, volume, openInterest } =
+    fields;
+
+  return {
+    price: isNaN(currentPrice)
+      ? PERPS_CONSTANTS.FallbackPriceDisplay
+      : formatters.formatPerpsFiat(currentPrice, {
+          ranges: formatters.priceRangesUniversal,
+        }),
+    change24h: isNaN(change24h)
+      ? PERPS_CONSTANTS.ZeroAmountDetailedDisplay
+      : formatChange(change24h, formatters),
+    change24hPercent: isNaN(change24hPercent)
+      ? '0.00%'
+      : formatters.formatPercentage(change24hPercent),
+    volume: isNaN(volume)
+      ? PERPS_CONSTANTS.FallbackPriceDisplay
+      : formatters.formatVolume(volume),
+    openInterest: isNaN(openInterest)
+      ? PERPS_CONSTANTS.FallbackPriceDisplay
+      : formatters.formatVolume(openInterest),
+  };
+}
+
+/**
+ * Derive the HIP-3 display fields from a possibly DEX-prefixed symbol
+ * (e.g. `xyz:TSLA`). Shared by every PerpsMarketData source so "new market"
+ * classification can't diverge between them.
+ *
+ * @param symbol - Asset symbol, e.g. `'BTC'` or `'xyz:TSLA'`.
+ * @param marketType - Market type already known for this symbol, if any.
+ * @returns `marketSource` (the DEX prefix, or `undefined` for HIP-2), plus
+ * `isHip3` and `isNewMarket` (a HIP-3 market with no explicit category yet).
+ */
+export function deriveHip3MarketFields(
+  symbol: string,
+  marketType: MarketType | undefined,
+): {
+  marketSource: string | undefined;
+  isHip3: boolean;
+  isNewMarket: boolean;
+} {
+  const { dex } = parseAssetName(symbol);
+  const isHip3 = Boolean(dex);
+  return {
+    marketSource: dex ?? undefined,
+    isHip3,
+    isNewMarket: isHip3 && !marketType,
+  };
+}
+
+/**
  * HyperLiquid-specific market data structure
  */
 export type HyperLiquidMarketData = {
@@ -298,42 +384,22 @@ export function transformMarketData(
       fundingRate = fundingData.predictedFundingRate;
     }
 
-    // Extract DEX and base symbol for display
-    // e.g., "flx:TSLA" → { dex: "flx", symbol: "TSLA" }
-    const { dex } = parseAssetName(symbol);
-    const marketSource = dex ?? undefined;
-
-    // HIP-3 markets have a DEX prefix (e.g., xyz:TSLA, flx:GOLD)
-    // Crypto markets (HIP-2) don't have a prefix (e.g., BTC, ETH)
-    const isHip3 = Boolean(dex);
-
     // Determine market type from explicit static mapping
     const marketType: MarketType | undefined = assetMarketTypes?.[symbol];
 
-    // Mark as "new" if it's a HIP-3 market but not explicitly categorized
-    const isNewMarket = isHip3 && !marketType;
+    const { marketSource, isHip3, isNewMarket } = deriveHip3MarketFields(
+      symbol,
+      marketType,
+    );
 
     return {
       symbol,
       name: getHyperLiquidAssetName(symbol, assetNames),
       maxLeverage: `${asset.maxLeverage}x`,
-      price: isNaN(currentPrice)
-        ? PERPS_CONSTANTS.FallbackPriceDisplay
-        : formatters.formatPerpsFiat(currentPrice, {
-            ranges: formatters.priceRangesUniversal,
-          }),
-      change24h: isNaN(change24h)
-        ? PERPS_CONSTANTS.ZeroAmountDetailedDisplay
-        : formatChange(change24h, formatters),
-      change24hPercent: isNaN(change24hPercent)
-        ? '0.00%'
-        : formatters.formatPercentage(change24hPercent),
-      volume: isNaN(volume)
-        ? PERPS_CONSTANTS.FallbackPriceDisplay
-        : formatters.formatVolume(volume),
-      openInterest: isNaN(openInterest)
-        ? PERPS_CONSTANTS.FallbackPriceDisplay
-        : formatters.formatVolume(openInterest),
+      ...formatMarketPriceFields(
+        { currentPrice, change24h, change24hPercent, volume, openInterest },
+        formatters,
+      ),
       nextFundingTime: fundingData.nextFundingTime,
       fundingIntervalHours: fundingData.fundingIntervalHours,
       fundingRate,
