@@ -508,7 +508,7 @@ export class MultichainAccountWallet<
     for (const [i, result] of results.entries()) {
       const provider = providers[i];
       if (result.status === 'fulfilled') {
-        readyProviders.push(provider as Bip44AccountProvider<Account>);
+        readyProviders.push(provider);
       } else {
         failures.push(
           `[${provider?.getName()}] ${toErrorMessage(result.reason)}`,
