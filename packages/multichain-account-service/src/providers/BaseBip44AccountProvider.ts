@@ -116,6 +116,14 @@ export type Bip44AccountProvider<
     context: { entropySource: EntropySourceId; groupIndex: number },
     accountIds: Account['id'][],
   ): boolean;
+  /**
+   * Ensures the underlying platform (e.g. the snap runtime) is ready before
+   * any account operation is attempted. EVM providers return immediately; snap
+   * providers wait for the snap platform and keyring to be available.
+   *
+   * @returns A promise that resolves when the provider is ready to use.
+   */
+  ensureReady(): Promise<void>;
 };
 
 export abstract class BaseBip44AccountProvider<
@@ -232,6 +240,10 @@ export abstract class BaseBip44AccountProvider<
     return (
       accountIds.length >= 1 && accountIds.every((id) => this.accounts.has(id))
     );
+  }
+
+  async ensureReady(): Promise<void> {
+    // no-op for non-snap providers
   }
 
   abstract get capabilities(): KeyringCapabilities;

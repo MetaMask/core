@@ -798,6 +798,28 @@ describe('MultichainAccountWallet', () => {
       expect(wallet.getMultichainAccountGroup(1)).toBeUndefined();
     });
 
+    it('calls ensureReady on non-EVM providers before acquiring the wallet lock in the fire-and-forget alignment path', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+
+      const [, solProvider] = providers;
+      const statusAtEnsureReady: string[] = [];
+
+      solProvider.ensureReady.mockImplementation(async () => {
+        // The wallet lock must NOT be held when ensureReady is called.
+        statusAtEnsureReady.push(wallet.status);
+      });
+
+      await wallet.createMultichainAccountGroups({ from: 0, to: 0 });
+
+      // Wait for the fire-and-forget alignment to complete.
+      await waitForOtherProvidersToHaveBeenCalled([solProvider]);
+
+      expect(solProvider.ensureReady).toHaveBeenCalledTimes(1);
+      expect(statusAtEnsureReady[0]).toBe('ready');
+    });
+
     it('logs an error to console when post-alignment fails unexpectedly', async () => {
       // Group 0 exists for EVM; SOL has no accounts yet (will be aligned).
       const { wallet, providers, messenger } = setup({
