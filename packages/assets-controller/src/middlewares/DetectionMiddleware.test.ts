@@ -17,6 +17,13 @@ const MOCK_ASSET_1 =
 const MOCK_ASSET_2 =
   'eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7' as Caip19AssetId;
 const MOCK_NATIVE_ASSET = 'eip155:1/slip44:60' as Caip19AssetId;
+const MOCK_SOL_NATIVE_ASSET =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as Caip19AssetId;
+const MOCK_SPL_ASSET =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
+// Mainnet pooled-staking contract — exempt from detection gating.
+const MOCK_STAKING_ASSET =
+  'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df' as Caip19AssetId;
 
 function createMockAccount(
   overrides?: Partial<InternalAccount>,
@@ -433,6 +440,204 @@ describe('DetectionMiddleware', () => {
       normalizeAssetId(MOCK_NATIVE_ASSET),
     ]);
     expect(next).toHaveBeenCalledWith(context);
+  });
+
+  describe('when token detection is disabled', () => {
+    const setupDisabled = (): DetectionMiddleware =>
+      new DetectionMiddleware({ isTokenDetectionEnabled: () => false });
+
+    it('does not detect new tokens and strips them from the response (erc20 and SPL), keeping natives', async () => {
+      const middleware = setupDisabled();
+      const context = createMiddlewareContext({
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_ASSET_1]: { amount: '1000' },
+              [MOCK_SPL_ASSET]: { amount: '5' },
+              [MOCK_NATIVE_ASSET]: { amount: '2' },
+              [MOCK_SOL_NATIVE_ASSET]: { amount: '3' },
+            },
+          },
+          assetsInfo: {
+            [MOCK_ASSET_1]: {
+              type: 'erc20',
+              name: 'Stub Token',
+              symbol: 'STUB',
+              decimals: 18,
+            },
+          },
+        },
+      });
+      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+      await middleware.assetsMiddleware(context, next);
+
+      // Tokens are gone from balances and stub metadata; natives survive and
+      // are still detected so their metadata/prices get fetched.
+      expect(context.response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({
+        [MOCK_NATIVE_ASSET]: { amount: '2' },
+        [MOCK_SOL_NATIVE_ASSET]: { amount: '3' },
+      });
+      expect(context.response.assetsInfo?.[MOCK_ASSET_1]).toBeUndefined();
+      expect(context.response.detectedAssets).toStrictEqual({
+        [MOCK_ACCOUNT_ID]: [MOCK_NATIVE_ASSET, MOCK_SOL_NATIVE_ASSET],
+      });
+      expect(next).toHaveBeenCalledWith(context);
+    });
+
+    it('keeps balance updates for tokens already tracked in state balances', async () => {
+      const middleware = setupDisabled();
+      const context = createMiddlewareContext({
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_ASSET_1]: { amount: '1000' },
+            },
+          },
+        },
+        getAssetsState: jest.fn().mockReturnValue({
+          assetsInfo: {},
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_1]: { amount: '5' } },
+          },
+          customAssets: {},
+          assetsPrice: {},
+        }),
+      });
+      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+      await middleware.assetsMiddleware(context, next);
+
+      expect(
+        context.response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_1],
+      ).toStrictEqual({ amount: '1000' });
+      expect(context.response.detectedAssets).toBeUndefined();
+    });
+
+    it('keeps balance updates for tokens known through state metadata', async () => {
+      const middleware = setupDisabled();
+      const context = createMiddlewareContext(
+        {
+          response: {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_1]: { amount: '1000' },
+              },
+            },
+          },
+        },
+        [MOCK_ASSET_1],
+      );
+      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+      await middleware.assetsMiddleware(context, next);
+
+      expect(
+        context.response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_1],
+      ).toStrictEqual({ amount: '1000' });
+    });
+
+    it('keeps and still detects custom assets (user-imported)', async () => {
+      const middleware = setupDisabled();
+      const context = createMiddlewareContext({
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_ASSET_1]: { amount: '1000' },
+              [MOCK_ASSET_2]: { amount: '2000' },
+            },
+          },
+        },
+        getAssetsState: jest.fn().mockReturnValue({
+          assetsInfo: {},
+          assetsBalance: {},
+          customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1] },
+          assetsPrice: {},
+        }),
+      });
+      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+      await middleware.assetsMiddleware(context, next);
+
+      // Custom asset survives and is detected; the other token is stripped.
+      expect(context.response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({
+        [MOCK_ASSET_1]: { amount: '1000' },
+      });
+      expect(context.response.detectedAssets).toStrictEqual({
+        [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
+      });
+    });
+
+    it('exempts custom assets stored in a different address case', async () => {
+      const middleware = setupDisabled();
+      const checksummedAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const context = createMiddlewareContext({
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_ASSET_1]: { amount: '1000' },
+            },
+          },
+        },
+        getAssetsState: jest.fn().mockReturnValue({
+          assetsInfo: {},
+          assetsBalance: {},
+          customAssets: { [MOCK_ACCOUNT_ID]: [checksummedAsset] },
+          assetsPrice: {},
+        }),
+      });
+      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+      await middleware.assetsMiddleware(context, next);
+
+      expect(
+        context.response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_1],
+      ).toStrictEqual({ amount: '1000' });
+    });
+
+    it('keeps staking contract balances', async () => {
+      const middleware = setupDisabled();
+      const context = createMiddlewareContext({
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_STAKING_ASSET]: { amount: '1.5' },
+            },
+          },
+        },
+      });
+      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+      await middleware.assetsMiddleware(context, next);
+
+      expect(
+        context.response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[
+          MOCK_STAKING_ASSET
+        ],
+      ).toStrictEqual({ amount: '1.5' });
+    });
+
+    it('does not queue prices for stripped tokens but still queues natives', async () => {
+      const middleware = setupDisabled();
+      const context = createMiddlewareContext({
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_ASSET_1]: { amount: '1000' },
+              [MOCK_NATIVE_ASSET]: { amount: '2' },
+            },
+          },
+        },
+      });
+      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+      await middleware.assetsMiddleware(context, next);
+
+      expect(context.request.assetsForPriceUpdate).toStrictEqual([
+        normalizeAssetId(MOCK_NATIVE_ASSET),
+      ]);
+    });
   });
 
   it('retrieves middleware from instance', async () => {

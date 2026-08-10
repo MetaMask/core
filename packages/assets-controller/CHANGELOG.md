@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `DetectionMiddlewareOptions` with an `isTokenDetectionEnabled` callback to `DetectionMiddleware`. `AssetsController` wires it from the `useTokenDetection` preference read via `PreferencesController:getState` (defaulting to enabled when `PreferencesController` is not registered), so when the user's token-autodetection preference is off, new-to-state fungible tokens (`erc20` and `token` namespaces, e.g. ERC-20 and SPL) are neither detected nor persisted from any pipeline, including websocket (account-activity) updates — their balances and stub metadata are stripped from the response. Native assets, staking-contract assets, custom (user-imported) assets, and holdings already tracked in state are unaffected
+
 ### Changed
 
+- **BREAKING:** `AssetsControllerMessenger` now requires the `PreferencesController:getState` action to be allowed
+  - `AssetsController` calls it to read the user's `useTokenDetection` preference; clients must add the action to the allowed actions when constructing the restricted messenger
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
 
 ## [13.1.2]
