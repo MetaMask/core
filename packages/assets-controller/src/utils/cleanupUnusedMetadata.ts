@@ -12,10 +12,8 @@ export type CleanupUnusedMetadataState = {
 };
 
 /**
- * Delete `assetsInfo` / `assetsPrice` entries whose asset ID (compared
- * case-insensitively) is not held by any account, not a custom asset, not a
- * default tracked asset, and not a native asset. `assetPreferences` is
- * deliberately left untouched.
+ * Delete `assetsInfo` / `assetsPrice` entries for assets that are not held,
+ * custom, default tracked, or native.
  *
  * @param state - The controller state to clean up (mutated in place).
  */
