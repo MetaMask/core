@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `instanceOptions.remoteFeatureFlagController.defaultFeatureFlags` to pass client-side default feature flags through to `RemoteFeatureFlagController` ([#9747](https://github.com/MetaMask/core/pull/9747))
+- **BREAKING:** Wire `ClaimsService` and `ClaimsController` into the default wallet initialization ([#9588](https://github.com/MetaMask/core/pull/9588))
+  - Adds an optional `claimsService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `ClaimsService`.
+  - `ClaimsService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile`; hosts must register `AuthenticationController` on the supplied root messenger before authenticated Claims API calls succeed.
 - **BREAKING:** Wire `ShieldController` and `ShieldApiService` into the default wallet initialization ([#9616](https://github.com/MetaMask/core/pull/9616))
   - Adds an optional `shieldApiService` slot to `instanceOptions` for optional `env` (defaults to production), polling, and policy configuration. `fetchFunction` defaults to `globalThis.fetch` via `ShieldApiService`.
   - `shieldController` instance options are now controller-only (`transactionHistoryLimit`, `coverageHistoryLimit`, `normalizeSignatureRequest`).
@@ -24,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.1` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/seedless-onboarding-controller` from `^10.1.0` to `^10.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
-- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
 ## [9.0.0]
