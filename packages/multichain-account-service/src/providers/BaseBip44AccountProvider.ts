@@ -243,7 +243,7 @@ export abstract class BaseBip44AccountProvider<
   }
 
   async ensureReady(): Promise<void> {
-    // no-op for non-snap providers
+    // No-op for non-snap providers.
   }
 
   abstract get capabilities(): KeyringCapabilities;
