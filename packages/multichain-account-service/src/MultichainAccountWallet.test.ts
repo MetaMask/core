@@ -210,8 +210,9 @@ describe('MultichainAccountWallet', () => {
       // EVM provider is called during group creation.
       expect(evmProvider.createAccounts).toHaveBeenCalled();
 
-      // The fire-and-forget alignment acquires the lock as a microtask before the test
-      // resumes, so by the time we reach here SOL has already been called with the batch API.
+      // Alignment fires as fire-and-forget, so wait for this.
+      await waitForOtherProvidersToHaveBeenCalled([solProvider]);
+
       expect(solProvider.createAccounts).toHaveBeenCalledWith({
         type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: wallet.entropySource,
