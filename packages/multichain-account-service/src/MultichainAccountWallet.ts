@@ -747,7 +747,7 @@ export class MultichainAccountWallet<
     // been created yet.
     if (!waitForAllProvidersToFinishCreatingAccounts) {
       const alignOtherAccounts = async (): Promise<void> => {
-        // Ensure the snap platform is ready for every non-EVM provider BEFORE
+        // Ensure the Snap platform is ready for every non-EVM provider BEFORE
         // acquiring the wallet lock. Without this guard the lock would be held
         // while waiting for onboarding to complete, blocking all subsequent
         // wallet operations that also need the lock.
