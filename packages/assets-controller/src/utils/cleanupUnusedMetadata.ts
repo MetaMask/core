@@ -4,12 +4,6 @@ import { isNativeAssetId } from './native-assets.js';
 
 type AssetIdKeyedRecord = Record<string, unknown>;
 
-/**
- * The state slices {@link cleanupUnusedMetadata} operates on. Only keys are
- * inspected, so slice values are `unknown` — this keeps both
- * `AssetsControllerState` and the immer draft passed to
- * `BaseController.update` assignable without type assertions.
- */
 export type CleanupUnusedMetadataState = {
   assetsInfo: AssetIdKeyedRecord;
   assetsBalance: Record<string, AssetIdKeyedRecord>;
