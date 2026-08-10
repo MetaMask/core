@@ -146,6 +146,33 @@ describe('TerminalMarketService', () => {
       });
     });
 
+    it('accepts null price/trend fields instead of rejecting the whole item', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            {
+              symbol: 'BTC',
+              name: 'Bitcoin',
+              price: null,
+              change24h: null,
+              changePercent24h: null,
+              funding: null,
+              volume24h: null,
+              openInterest: null,
+              trend: null,
+            },
+          ]),
+      } as Response);
+
+      const { markets, metadata } = await service.fetchMarkets();
+
+      expect(markets).toHaveLength(1);
+      expect(metadata.get('BTC')).toStrictEqual({ name: 'Bitcoin' });
+    });
+
     it('rejects items whose trend is malformed rather than silently ignoring it', async () => {
       jest.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,

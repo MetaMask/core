@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `TerminalMarketService` now reads the Terminal API's `category` field (a singular string) correctly, instead of the non-existent `categories`/`marketType` field names it validated against before. `PerpsMarketData.marketType` was silently staying `undefined` for Terminal-sourced markets as a result, which broke category filtering and the "new market" badge for HIP-3 assets ([#9808](https://github.com/MetaMask/core/pull/9808))
 - `MarketDataService.getMarketDataWithPrices` now applies the same allowlist/blocklist filtering as the HyperLiquid provider path to Terminal-sourced markets, so blocklisted or non-allowlisted HIP-3 markets no longer show up as tradeable just because the provider call was skipped ([#9808](https://github.com/MetaMask/core/pull/9808))
+- `TerminalMarketService` now accepts `null` for the Terminal API's `price`/`change24h`/`changePercent24h`/`funding`/`volume24h`/`openInterest`/`trend` fields instead of failing schema validation and dropping the entire item, which previously made markets with a `null` price disappear from both `getMarkets` and `getMarketDataWithPrices` ([#9808](https://github.com/MetaMask/core/pull/9808))
 
 ## [11.0.0]
 

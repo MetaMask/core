@@ -51,13 +51,13 @@ const TerminalPerpetualItemStruct = type({
   // `marketType` below, which is the name used everywhere else.
   category: optional(nullable(string())),
   listedAt: optional(nullable(union([number(), string()]))),
-  price: optional(union([string(), number()])),
-  change24h: optional(union([string(), number()])),
-  changePercent24h: optional(union([string(), number()])),
-  funding: optional(union([string(), number()])),
-  volume24h: optional(union([string(), number()])),
-  openInterest: optional(union([string(), number()])),
-  trend: optional(array(tuple([number(), string()]))),
+  price: optional(nullable(union([string(), number()]))),
+  change24h: optional(nullable(union([string(), number()]))),
+  changePercent24h: optional(nullable(union([string(), number()]))),
+  funding: optional(nullable(union([string(), number()]))),
+  volume24h: optional(nullable(union([string(), number()]))),
+  openInterest: optional(nullable(union([string(), number()]))),
+  trend: optional(nullable(array(tuple([number(), string()])))),
 });
 
 type TerminalPerpetualItem = Infer<typeof TerminalPerpetualItemStruct>;
@@ -274,22 +274,25 @@ export class TerminalMarketService {
 
       // Surfacing these lets MarketDataService build markets straight from
       // Terminal data and skip the HyperLiquid price fetch entirely.
-      if (item.price !== undefined) {
+      if (item.price !== null && item.price !== undefined) {
         entry.price = item.price;
       }
-      if (item.change24h !== undefined) {
+      if (item.change24h !== null && item.change24h !== undefined) {
         entry.change24h = item.change24h;
       }
-      if (item.changePercent24h !== undefined) {
+      if (
+        item.changePercent24h !== null &&
+        item.changePercent24h !== undefined
+      ) {
         entry.changePercent24h = item.changePercent24h;
       }
-      if (item.funding !== undefined) {
+      if (item.funding !== null && item.funding !== undefined) {
         entry.funding = item.funding;
       }
-      if (item.volume24h !== undefined) {
+      if (item.volume24h !== null && item.volume24h !== undefined) {
         entry.volume24h = item.volume24h;
       }
-      if (item.openInterest !== undefined) {
+      if (item.openInterest !== null && item.openInterest !== undefined) {
         entry.openInterest = item.openInterest;
       }
       if (item.maxLeverage !== undefined) {
