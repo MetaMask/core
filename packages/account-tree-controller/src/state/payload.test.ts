@@ -147,7 +147,7 @@ describe('migrate', () => {
     ).rejects.toThrow('Invalid AccountTreePayload');
   });
 
-  it('redacts mnemonic secrets in validation error messages', async () => {
+  it('does not include payload values in validation error messages for mnemonic wallets', async () => {
     const secretMnemonic =
       'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
@@ -168,7 +168,7 @@ describe('migrate', () => {
     } catch (error) {
       expectedError = error;
     }
-    expect(String(expectedError)).toContain('***');
+    expect(String(expectedError)).not.toContain('123');
 
     const validWithSecret = await migrate({
       wallets: [

@@ -295,7 +295,12 @@ function unversioned<S extends ObjectSchema & { version: unknown }>(
 const formatValidationErrorMessages = (error: StructError): string =>
   error
     .failures()
-    .map(({ path, message }) => `[${path.join('.')}] ${message}`)
+    .map(({ path, type, refinement }) => {
+      // Use type/refinement (static strings) instead of message so no payload
+      // values ever appear in the output.
+      const location = path.length > 0 ? path.join('.') : '<root>';
+      return `[${location}] expected: ${refinement ?? type}`;
+    })
     .join(', ');
 
 /**
