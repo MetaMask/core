@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Correct Somnia (`5031`/`0x13a7`)'s `SPOT_PRICES_SUPPORT_INFO` entry in `codefi-v2.ts` from the invented `slip44:111115031` placeholder to `slip44:5031`, now that Somnia has a real SLIP-44 registry entry ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.1` ([#9798](https://github.com/MetaMask/core/pull/9798))
