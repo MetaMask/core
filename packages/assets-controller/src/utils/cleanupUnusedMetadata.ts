@@ -18,14 +18,18 @@ export type CleanupUnusedMetadataState = {
  * @param state - The controller state to clean up (mutated in place).
  */
 export function cleanupUnusedMetadata(state: CleanupUnusedMetadataState): void {
+  const defaultTrackedAssetIds = [
+    ...DEFAULT_TRACKED_ASSETS_BY_CHAIN.values(),
+  ].flat();
+  const heldAssetIds = Object.values(state.assetsBalance).flatMap(
+    (accountBalances) => Object.keys(accountBalances),
+  );
+  const customAssetIds = Object.values(state.customAssets).flat();
+
   const keptAssetIds = new Set(
-    [
-      ...[...DEFAULT_TRACKED_ASSETS_BY_CHAIN.values()].flat(),
-      ...Object.values(state.assetsBalance).flatMap((accountBalances) =>
-        Object.keys(accountBalances),
-      ),
-      ...Object.values(state.customAssets).flat(),
-    ].map((assetId) => assetId.toLowerCase()),
+    [...defaultTrackedAssetIds, ...heldAssetIds, ...customAssetIds].map(
+      (assetId) => assetId.toLowerCase(),
+    ),
   );
   const isUnused = (assetId: string): boolean =>
     !keptAssetIds.has(assetId.toLowerCase()) && !isNativeAssetId(assetId);
