@@ -132,15 +132,15 @@ export type AccountTreePayload = {
 };
 
 /**
- * Recursively readonly view of `T` used by snapshot filtering predicate types.
+ * Recursively readonly view of `Value` used by snapshot filtering predicate types.
  *
  * @typeParam T - The mutable source type to expose as deeply read-only.
  */
-export type DeepReadonly<T> = T extends readonly (infer Item)[]
+export type DeepReadonly<Value> = Value extends readonly (infer Item)[]
   ? readonly DeepReadonly<Item>[]
-  : T extends object
-    ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
-    : T;
+  : Value extends object
+    ? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> }
+    : Value;
 
 /**
  * Deeply read-only wallet view passed to {@link AccountTreeSnapshot.filterWallets}

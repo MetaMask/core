@@ -585,10 +585,9 @@ describe('exportState', () => {
       expect(payload.data.wallets).toHaveLength(1);
       expect(payload.data.wallets[0]?.type).toBe('private-key');
       expect(payload.data.wallets[0]?.groups).toHaveLength(2);
-      expect(payload.data.wallets[0]?.groups.map((group) => group.id)).toEqual([
-        'wallet:private-key/0xabc',
-        'wallet:private-key/0xdef',
-      ]);
+      expect(
+        payload.data.wallets[0]?.groups.map((group) => group.id),
+      ).toStrictEqual(['wallet:private-key/0xabc', 'wallet:private-key/0xdef']);
     });
   });
 });

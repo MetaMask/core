@@ -140,7 +140,7 @@ describe('AccountTreeSnapshot', () => {
         (group) => group.id.endsWith('/0'),
       );
 
-      const wallets = filtered.serialize().data.wallets;
+      const { wallets } = filtered.serialize().data;
       expect(wallets).toHaveLength(2);
       expect(wallets[0]?.groups).toHaveLength(1);
       expect(wallets[0]?.groups[0]?.id).toBe('wallet:entropy-source-1/0');
@@ -217,7 +217,7 @@ describe('AccountTreeSnapshot', () => {
         group.id.endsWith('/0'),
       );
 
-      const wallets = filtered.serialize().data.wallets;
+      const { wallets } = filtered.serialize().data;
       expect(wallets).toHaveLength(1);
       expect(wallets[0]?.type).toBe('mnemonic');
       expect(wallets[0]?.groups).toHaveLength(1);

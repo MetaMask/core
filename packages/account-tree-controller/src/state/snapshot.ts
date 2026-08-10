@@ -8,10 +8,8 @@ import type {
   AccountTreeSnapshotWallet,
   AccountTreeWalletEntry,
   AccountWalletMnemonicGroupEntry,
-  AccountWalletMnemonicPayload,
   AccountWalletPayloadId,
   AccountWalletPrivateKeyGroupEntry,
-  AccountWalletPrivateKeyPayload,
 } from './payload.js';
 import { migrations, migrate } from './payload.js';
 
@@ -21,7 +19,7 @@ import { migrations, migrate } from './payload.js';
  * @param value - Value to freeze.
  * @returns The frozen value.
  */
-function deepFreeze<T>(value: T): T {
+function deepFreeze<Value>(value: Value): Value {
   if (value === null || typeof value !== 'object') {
     return value;
   }

@@ -151,6 +151,7 @@ describe('migrate', () => {
     const secretMnemonic =
       'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
+    let expectedError: unknown;
     try {
       await migrate({
         wallets: [
@@ -165,8 +166,9 @@ describe('migrate', () => {
       });
       throw new Error('Expected migrate to throw');
     } catch (error) {
-      expect(String(error)).toContain('***');
+      expectedError = error;
     }
+    expect(String(expectedError)).toContain('***');
 
     const validWithSecret = await migrate({
       wallets: [
@@ -186,6 +188,7 @@ describe('migrate', () => {
     const secretKey =
       '4c0883a69102937d6231471b5dbb6e538eba0ef8b09f0bf4e8b8e1e4e3e3b3c2';
 
+    let expectedError: unknown;
     try {
       await migrate({
         wallets: [
@@ -208,8 +211,9 @@ describe('migrate', () => {
       });
       throw new Error('Expected migrate to throw');
     } catch (error) {
-      expect(String(error)).not.toContain(secretKey);
+      expectedError = error;
     }
+    expect(String(expectedError)).not.toContain(secretKey);
   });
 });
 
