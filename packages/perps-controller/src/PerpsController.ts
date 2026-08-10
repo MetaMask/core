@@ -3143,6 +3143,7 @@ export class PerpsController extends BaseController<
   async getMarketDataWithPrices(
     params?: GetMarketDataWithPricesParams,
   ): Promise<PerpsMarketData[]> {
+    const isMarketAllowed = this.#buildMarketAllowedFilter();
     if (params?.standalone) {
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
@@ -3150,6 +3151,7 @@ export class PerpsController extends BaseController<
         provider,
         params,
         context: this.#createServiceContext('getMarketDataWithPrices'),
+        isMarketAllowed,
       });
     }
 
@@ -3158,6 +3160,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('getMarketDataWithPrices'),
+      isMarketAllowed,
     });
   }
 

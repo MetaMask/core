@@ -967,14 +967,18 @@ export class MarketDataService {
    * @param options.provider - The perps provider instance.
    * @param options.params - Optional filter/sort/limit params.
    * @param options.context - The service context for dependencies.
+   * @param options.isMarketAllowed - Optional filter callback applied to
+   * Terminal-priced markets so that allowlist/blocklist rules from the provider
+   * layer are enforced even when the provider is bypassed.
    * @returns The result of the operation.
    */
   async getMarketDataWithPrices(options: {
     provider: PerpsProvider;
     params?: GetMarketDataWithPricesParams;
     context: ServiceContext;
+    isMarketAllowed?: (symbol: string) => boolean;
   }): Promise<PerpsMarketData[]> {
-    const { provider, params, context } = options;
+    const { provider, params, context, isMarketAllowed } = options;
     const useTerminalApi = params?.useTerminalApi;
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
@@ -1015,12 +1019,21 @@ export class MarketDataService {
         }
       }
 
-      const terminalPricedMarkets = terminalMetadata
+      let terminalPricedMarkets = terminalMetadata
         ? buildMarketsFromTerminalMetadata(
             terminalMetadata,
             this.#deps.marketDataFormatters,
           )
         : [];
+
+      // Same allowlist/blocklist rules the provider applies, so HIP-3
+      // markets that aren't tradeable don't surface here just because we
+      // bypassed the provider.
+      if (isMarketAllowed) {
+        terminalPricedMarkets = terminalPricedMarkets.filter((market) =>
+          isMarketAllowed(market.symbol),
+        );
+      }
 
       let enriched: PerpsMarketData[];
       if (terminalPricedMarkets.length > 0) {

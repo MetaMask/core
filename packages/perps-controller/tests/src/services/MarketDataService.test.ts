@@ -1559,6 +1559,48 @@ describe('MarketDataService', () => {
         });
       });
 
+      it('applies isMarketAllowed to Terminal-sourced markets like it does for the provider path', async () => {
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadataWithPrices,
+        });
+
+        const isMarketAllowed = jest
+          .fn()
+          .mockImplementation((symbol: string) => symbol !== 'xyz:TSLA');
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+          isMarketAllowed,
+        });
+
+        expect(mockProvider.getMarketDataWithPrices).not.toHaveBeenCalled();
+        expect(
+          result.find((market) => market.symbol === 'xyz:TSLA'),
+        ).toBeUndefined();
+        expect(result.find((market) => market.symbol === 'BTC')).toBeDefined();
+      });
+
+      it('falls back to the provider when isMarketAllowed excludes every Terminal-sourced market', async () => {
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadataWithPrices,
+        });
+        mockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+        const isMarketAllowed = jest.fn().mockReturnValue(false);
+
+        await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+          isMarketAllowed,
+        });
+
+        expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalled();
+      });
+
       it('falls back to default display values for fields Terminal did not provide', async () => {
         mockTerminalService.fetchMarkets.mockResolvedValue({
           markets: terminalMarkets,
