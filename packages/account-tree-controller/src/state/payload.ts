@@ -1,23 +1,25 @@
+import { KeyringAccountTypeStruct } from '@metamask/keyring-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type { MigrationChain } from '@metamask/keyring-sdk';
-import { createMigrations } from '@metamask/keyring-sdk';
+import { createMigrations, JsonObjectStruct } from '@metamask/keyring-sdk';
 import {
-  assert,
   array,
+  assert,
   boolean,
   define,
   enums,
   integer,
+  is,
   literal,
   object,
+  omit,
   exactOptional,
   sensitive,
   string,
   StructError,
   union,
 } from '@metamask/superstruct';
-import type { Infer } from '@metamask/superstruct';
-import type { Json } from '@metamask/utils';
+import type { Infer, ObjectSchema, ObjectType, Struct } from '@metamask/superstruct';
 
 /** Stable cross-device wallet identifier. Format: `wallet:<entropySourceId>`. */
 export type AccountWalletPayloadId = `wallet:${string}`;
@@ -126,8 +128,9 @@ export type AccountTreeWalletEntry =
   | AccountWalletMnemonicPayload
   | AccountWalletPrivateKeyPayload;
 
-/** Portable snapshot of the full account tree state (inner data, without version envelope). */
+/** Portable snapshot of the full account tree state (flat versioned format). */
 export type AccountTreePayload = {
+  version: number;
   wallets: AccountTreeWalletEntry[];
 };
 
@@ -216,7 +219,7 @@ const AccountWalletGroupPayloadMetadataStruct = object({
 const AccountWalletPrivateKeyValueStruct = object({
   privateKey: sensitive(string()),
   encoding: enums(['hexadecimal', 'base58', 'base32']),
-  type: exactOptional(string()),
+  type: exactOptional(KeyringAccountTypeStruct),
 });
 
 const AccountWalletMnemonicGroupEntryStruct = object({
@@ -252,14 +255,14 @@ const AccountTreeWalletEntryStruct = union([
 ]);
 
 /**
- * Superstruct schema for an {@link AccountTreePayload} (inner data, without version envelope).
+ * Superstruct schema for a fully versioned {@link AccountTreePayload}.
  *
- * Validates v1 wallet entries (`'mnemonic'` and `'private-key'` only) and
- * rejects unsupported wallet types. Secret fields (`value`, `privateKey`) use
- * the Superstruct `sensitive()` wrapper so validation failures redact secrets
- * from error output.
+ * Validates the `version` integer alongside v1 wallet entries (`'mnemonic'` and
+ * `'private-key'` only). Secret fields (`value`, `privateKey`) use the Superstruct
+ * `sensitive()` wrapper so validation failures redact secrets from error output.
  */
 export const AccountTreePayloadStruct = object({
+  version: integer(),
   wallets: array(AccountTreeWalletEntryStruct),
 });
 
@@ -267,6 +270,21 @@ export const AccountTreePayloadStruct = object({
 export type AccountTreePayloadStructType = Infer<
   typeof AccountTreePayloadStruct
 >;
+
+/**
+ * Returns a copy of `struct` without the `version` field.
+ *
+ * Migration step `inputSchema` receives state data after the SDK has stripped
+ * `version`, so step schemas must not include that field.
+ *
+ * @param struct - An object struct that includes a `version` field.
+ * @returns The same struct shape minus `version`.
+ */
+function unversioned<S extends ObjectSchema & { version: unknown }>(
+  struct: Struct<ObjectType<S>, S>,
+) {
+  return omit(struct, ['version']);
+}
 
 /**
  * Formats Superstruct validation failures into a single error message string.
@@ -318,10 +336,8 @@ export function assertValidAccountTreePayload(
  */
 export const migrations: MigrationChain<AccountTreePayload> =
   createMigrations().add({
-    migrate(data: Json): AccountTreePayload {
-      assertValidAccountTreePayload(data);
-      return data;
-    },
+    inputSchema: unversioned(AccountTreePayloadStruct),
+    migrate: (data) => data,
   });
 
 /** Current version of the {@link AccountTreePayload} format, derived from the migration chain. */
@@ -339,6 +355,19 @@ export const ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION = migrations.version;
  * @throws If `raw` is not a valid payload, its version is unsupported, or any wallet type is unrecognized.
  */
 export async function migrate(raw: unknown): Promise<AccountTreePayload> {
-  const { data } = await migrations.apply(raw as Json);
-  return data;
+  if (!is(raw, JsonObjectStruct)) {
+    throw new Error('Invalid AccountTreePayload: expected a plain JSON object');
+  }
+  try {
+    const { state } = await migrations.apply(raw);
+    assertValidAccountTreePayload(state);
+    return state;
+  } catch (error) {
+    if (error instanceof StructError) {
+      throw new Error(
+        `Invalid AccountTreePayload: ${formatValidationErrorMessages(error)}`,
+      );
+    }
+    throw error;
+  }
 }

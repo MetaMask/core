@@ -7541,15 +7541,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^24.0.0":
-  version: 24.0.0
-  resolution: "@metamask/keyring-api@npm:24.0.0"
+"@metamask/keyring-api@npm:24.1.0, @metamask/keyring-api@npm:^24.0.0":
+  version: 24.1.0
+  resolution: "@metamask/keyring-api@npm:24.1.0"
   dependencies:
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.11.0"
     bitcoin-address-validation: "npm:^2.2.3"
-  checksum: 10/5160a3e2b9f1f753730bc877479aa1d375ac55dc023e8e34def4f2eeb2175864b096249af12e24f19d8240569c7bb977fcc424ab3023759189e1161c23d62879
+  checksum: 10/bb2544281d1ec30900245cbd7d056234a69d121520851bf0c1f1ee13f0bbc4b111444ef47192ae2f1cfd8e265764d5e581d6bfed4e7b29f4cd020a4b7b950bb9
   languageName: node
   linkType: hard
 
@@ -7618,14 +7618,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-sdk@npm:^3.0.0, @metamask/keyring-sdk@npm:^3.1.0":
-  version: 3.1.0
-  resolution: "@metamask/keyring-sdk@npm:3.1.0"
+"@metamask/keyring-sdk@npm:@metamask-previews/keyring-sdk@3.1.0-00307a3":
+  version: 3.1.0-00307a3
+  resolution: "@metamask-previews/keyring-sdk@npm:3.1.0-00307a3"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
-    "@metamask/keyring-utils": "npm:^5.0.0"
+    "@metamask/keyring-api": "npm:24.1.0"
+    "@metamask/keyring-utils": "npm:5.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.11.0"
@@ -7633,7 +7633,7 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     ethereum-cryptography: "npm:^2.2.1"
     uuid: "npm:^9.0.1"
-  checksum: 10/9bec3d530da5484e9b28234c1d5e62bdd402d0cec25d107152efdc617e5d818becb25049621c97cc6af821e151ce43af798cbc1c421828c28c1ed20e611d2477
+  checksum: 10/d69f0639a59f8207ba9dbe87b6abbfe5fa7e1903da517702e75015638c22811fe0ef09c990e0e28a0f438bf16ff9651d96afd2b939891e398a88f3479891f2b8
   languageName: node
   linkType: hard
 
@@ -7669,7 +7669,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^5.0.0":
+"@metamask/keyring-utils@npm:5.0.0, @metamask/keyring-utils@npm:^5.0.0":
   version: 5.0.0
   resolution: "@metamask/keyring-utils@npm:5.0.0"
   dependencies:

@@ -97,10 +97,10 @@ describe('migrate', () => {
     );
   });
 
-  it('throws if version in the versioned envelope exceeds the current migration version', async () => {
+  it('throws if the flat state version exceeds the current migration version', async () => {
     const futureVersion = ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION + 1;
     await expect(
-      migrate({ version: futureVersion, data: { wallets: [] } }),
+      migrate({ version: futureVersion, wallets: [] }),
     ).rejects.toThrow(
       `State version ${futureVersion} is newer than the latest migration version ${ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION}`,
     );
@@ -219,18 +219,33 @@ describe('migrate', () => {
 
 describe('assertValidAccountTreePayload', () => {
   it('does not throw for a valid payload', () => {
-    expect(() => assertValidAccountTreePayload({ wallets: [] })).not.toThrow();
+    expect(() =>
+      assertValidAccountTreePayload({
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+        wallets: [],
+      }),
+    ).not.toThrow();
   });
 
   it('throws with "Invalid AccountTreePayload:" prefix for an invalid payload', () => {
     expect(() =>
-      assertValidAccountTreePayload({ wallets: 'not-an-array' }),
+      assertValidAccountTreePayload({
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+        wallets: 'not-an-array',
+      }),
     ).toThrow('Invalid AccountTreePayload:');
+  });
+
+  it('throws when the version field is missing', () => {
+    expect(() => assertValidAccountTreePayload({ wallets: [] })).toThrow(
+      'Invalid AccountTreePayload:',
+    );
   });
 
   it('throws when a group ID does not match the expected format', () => {
     expect(() =>
       assertValidAccountTreePayload({
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:entropy',
@@ -254,6 +269,7 @@ describe('AccountTreeSnapshot.deserialize validation', () => {
   it('rejects payloads with unsupported wallet types', async () => {
     await expect(
       AccountTreeSnapshot.deserialize({
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:ledger',

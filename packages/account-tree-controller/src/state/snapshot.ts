@@ -1,5 +1,3 @@
-import type { VersionedState } from '@metamask/keyring-sdk';
-
 import type { IdMap } from './id-map.js';
 import type {
   AccountGroupPayloadId,
@@ -212,14 +210,15 @@ export class AccountTreeSnapshot {
   }
 
   /**
-   * Serializes the snapshot to a versioned state envelope wrapping the {@link AccountTreePayload}.
+   * Serializes the snapshot to a flat {@link AccountTreePayload} with `version` inlined
+   * alongside the wallet entries.
    *
    * Returns the constructor-frozen wallet tree without copying it again.
    *
-   * @returns The versioned payload envelope.
+   * @returns The versioned flat payload.
    */
-  serialize(): VersionedState<AccountTreePayload> {
-    return { version: migrations.version, data: { wallets: this.#entries } };
+  serialize(): AccountTreePayload {
+    return { version: migrations.version, wallets: this.#entries };
   }
 
   /**
