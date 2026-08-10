@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Ensure providers are ready before running post-alignment ([#9663](https://github.com/MetaMask/core/pull/9663))
+  - This prevents to lock a multichain account wallet if one of its provider is not ready yet to proceed.
+  - By checking this before locking the multichain account wallet, we prevent potential deadlocks.
+
 ## [13.0.1]
 
 ### Changed

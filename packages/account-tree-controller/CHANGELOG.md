@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `:{import,export}State` ([#9663](https://github.com/MetaMask/core/pull/9663))
+  - This can be used to serialize/deserialize the entire account-tree state (metadata + secrets if needed).
+  - The payload is versionned and the whole import/export system will be future-proof with internal migration mechanism (allowing to be used cross-clients).
+
 ## [7.6.1]
 
 ### Changed
