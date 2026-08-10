@@ -19,6 +19,9 @@ const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const MOCK_TOKEN_ASSET =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
+// Same token as MOCK_TOKEN_ASSET, in the checksummed form state stores.
+const MOCK_TOKEN_ASSET_CHECKSUMMED =
+  'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET = 'eip155:1/slip44:60' as Caip19AssetId;
 const MOCK_BTC_ASSET =
   'bip122:000000000019d6689c085ae165831e93/slip44:0' as Caip19AssetId;
@@ -1078,6 +1081,181 @@ describe('TokenDataSource', () => {
     expect(accountBalances[spamAsset]).toBeUndefined();
     expect(context.response.assetsInfo?.[spamAsset]).toBeUndefined();
     expect(next).toHaveBeenCalled();
+  });
+
+  it('occurrenceFilterMiddleware keeps holdings already in state balances when the response uses a different address case', async () => {
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 1 }),
+      ],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    // AccountActivity (websocket) delivers lower-case ERC-20 IDs, while state
+    // stores them checksummed — the same holding, different case.
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['balance'] }),
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '100' },
+          },
+        },
+      },
+      getAssetsState: jest.fn().mockReturnValue({
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET_CHECKSUMMED]: { amount: '42' },
+          },
+        },
+        assetsInfo: {},
+      }),
+    });
+
+    await controller.occurrenceFilterMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).not.toHaveBeenCalled();
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as Record<
+          string,
+          unknown
+        >
+      )[MOCK_TOKEN_ASSET],
+    ).toStrictEqual({ amount: '100' });
+  });
+
+  it('occurrenceFilterMiddleware keeps holdings known only through state metadata when the response uses a different address case', async () => {
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 1 }),
+      ],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['balance'] }),
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '100' },
+          },
+        },
+      },
+      getAssetsState: jest.fn().mockReturnValue({
+        assetsBalance: {},
+        assetsInfo: {
+          [MOCK_TOKEN_ASSET_CHECKSUMMED]: {
+            type: 'erc20',
+            name: 'USD Coin',
+            symbol: 'USDC',
+            decimals: 6,
+          },
+        },
+      }),
+    });
+
+    await controller.occurrenceFilterMiddleware(context, next);
+
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as Record<
+          string,
+          unknown
+        >
+      )[MOCK_TOKEN_ASSET],
+    ).toStrictEqual({ amount: '100' });
+  });
+
+  it('occurrenceFilterMiddleware keeps a custom asset that CustomAssetGraduationMiddleware just removed from customAssets', async () => {
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 1 }),
+      ],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    // Graduation runs first and empties `customAssets`, so the exemption is
+    // gone by the time this middleware reads state; the zero balance seeded
+    // by `addCustomAsset` (checksummed) is what marks the asset as known.
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['balance'] }),
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '100' },
+          },
+        },
+      },
+      getAssetsState: jest.fn().mockReturnValue({
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET_CHECKSUMMED]: { amount: '0' },
+          },
+        },
+        assetsInfo: {},
+        customAssets: { 'mock-account-id': [] },
+      }),
+    });
+
+    await controller.occurrenceFilterMiddleware(context, next);
+
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as Record<
+          string,
+          unknown
+        >
+      )[MOCK_TOKEN_ASSET],
+    ).toStrictEqual({ amount: '100' });
+  });
+
+  it('occurrenceFilterMiddleware exempts custom assets recorded in a different address case', async () => {
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 1 }),
+      ],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['balance'] }),
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '100' },
+          },
+        },
+      },
+      getAssetsState: jest.fn().mockReturnValue({
+        assetsBalance: {},
+        assetsInfo: {},
+        customAssets: { 'mock-account-id': [MOCK_TOKEN_ASSET_CHECKSUMMED] },
+      }),
+    });
+
+    await controller.occurrenceFilterMiddleware(context, next);
+
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as Record<
+          string,
+          unknown
+        >
+      )[MOCK_TOKEN_ASSET],
+    ).toStrictEqual({ amount: '100' });
   });
 
   it('middleware uses per-chain suggested occurrence floors from Token API', async () => {

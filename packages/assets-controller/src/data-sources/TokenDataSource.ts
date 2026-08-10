@@ -375,6 +375,14 @@ export class TokenDataSource {
           .map((id) => id.toLowerCase()),
       );
 
+      // State keys are checksummed, but AccountActivity delivers lower-case
+      // ERC-20 IDs, so every lookup below compares lower-cased IDs. Matching
+      // case-sensitively would classify existing holdings as new and delete
+      // the very balance update this pipeline pass is meant to persist.
+      const knownMetadataIds = new Set(
+        Object.keys(stateMetadata).map((id) => id.toLowerCase()),
+      );
+
       // Candidates: EVM ERC-20s that are genuinely new (absent from state
       // balances and metadata) — the same assets DetectionMiddleware would
       // mark as newly detected right after this middleware.
@@ -382,13 +390,17 @@ export class TokenDataSource {
       for (const [accountId, accountBalances] of Object.entries(
         response.assetsBalance ?? {},
       )) {
-        const stateAccountBalances = stateBalances[accountId] ?? {};
+        const knownBalanceIds = new Set(
+          Object.keys(stateBalances[accountId] ?? {}).map((id) =>
+            id.toLowerCase(),
+          ),
+        );
         for (const assetId of Object.keys(accountBalances)) {
           const caipAssetId = assetId as Caip19AssetId;
           const lowerId = assetId.toLowerCase();
           if (
-            stateAccountBalances[caipAssetId] !== undefined ||
-            stateMetadata[caipAssetId] !== undefined ||
+            knownBalanceIds.has(lowerId) ||
+            knownMetadataIds.has(lowerId) ||
             customAssetIds.has(lowerId) ||
             lowerId.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`)
           ) {

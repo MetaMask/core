@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Apply occurrence-floor spam filtering to tokens received through account-activity (websocket) updates: new tokens are enriched with Token API occurrence counts before detection and dropped when below the per-chain suggested floor, and stub metadata of filtered-out assets is stripped from the pipeline response so spam tokens never persist to state ([#9803](https://github.com/MetaMask/core/pull/9803))
+- Checksum the lower-case ERC-20 asset IDs delivered by `AccountActivityDataSource` before they enter the assets pipeline, so middleware comparisons against state (which keys assets by checksummed ID) no longer treat an existing holding as a brand-new asset — previously such balance updates could be re-detected, or dropped entirely by spam filtering, and never reach state ([#9803](https://github.com/MetaMask/core/pull/9803))
 - Preserve pooled-staking balances across Accounts API chain-slice updates (e.g. network switch / `replaceCoveredChainBalances`): exclude staking contract asset IDs from `AccountsApiDataSource` v5/v6 balance processing, and keep prior staked amounts when a merge replace omits them so Accounts API cannot reset staked ETH to missing/0 ([#9753](https://github.com/MetaMask/core/pull/9753))
 
 ## [13.1.1]
