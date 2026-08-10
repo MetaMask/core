@@ -19,7 +19,12 @@ import {
   StructError,
   union,
 } from '@metamask/superstruct';
-import type { Infer, ObjectSchema, ObjectType, Struct } from '@metamask/superstruct';
+import type {
+  Infer,
+  ObjectSchema,
+  ObjectType,
+  Struct,
+} from '@metamask/superstruct';
 
 /** Stable cross-device wallet identifier. Format: `wallet:<entropySourceId>`. */
 export type AccountWalletPayloadId = `wallet:${string}`;
