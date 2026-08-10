@@ -21,6 +21,7 @@ export const remoteFeatureFlagController: InitializationConfiguration<
       prevClientVersion: options.prevClientVersion,
       fetchInterval: options.fetchInterval,
       disabled: options.disabled,
+      defaultFeatureFlags: options.defaultFeatureFlags,
     }),
   getMessenger: (parent) =>
     new Messenger({

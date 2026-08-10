@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This can be used to serialize/deserialize the entire account-tree state (metadata + secrets if needed).
   - The payload is versionned and the whole import/export system will be future-proof with internal migration mechanism (allowing to be used cross-clients).
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.7` to `^39.1.0` ([#9807](https://github.com/MetaMask/core/pull/9807))
+
 ## [7.6.1]
 
 ### Changed
