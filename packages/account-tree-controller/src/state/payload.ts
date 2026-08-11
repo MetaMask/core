@@ -181,11 +181,6 @@ export type AccountTreeSnapshotGroup = DeepReadonly<
 >;
 
 /**
- * @deprecated Use {@link AccountTreeSnapshotWallet} instead.
- */
-export type AccountTreeSnapshotEntry = AccountTreeSnapshotWallet;
-
-/**
  * Constructs an {@link AccountWalletPayloadId} from an entropy source ID.
  *
  * @param entropySourceId - Stable entropy source ID returned by `HdKeyring.toEntropySourceId()`.
