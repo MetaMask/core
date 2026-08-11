@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
+
+## [7.0.0]
+
+### Changed
+
 - **BREAKING:** Refactor subscription API access behind a messenger-backed `SubscriptionService` ([#9598](https://github.com/MetaMask/core/pull/9598))
   - `SubscriptionService` now extends `BaseDataService`, authenticates via `AuthenticationController:getBearerToken`, exposes all endpoint methods as `SubscriptionService:*` messenger actions, validates responses with `@metamask/superstruct`, and scopes query keys by `profileId` from `AuthenticationController:getSessionProfile`.
   - New exports: `SubscriptionServiceOptions`, `SubscriptionServiceMessenger`, service action/event types, and `subscriptionServiceName`. Construct `SubscriptionService` with `{ messenger, fetchFunction?, env?, captureException?, queryClientConfig?, policyOptions? }`.
@@ -400,7 +406,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.2...@metamask/subscription-controller@7.0.0
 [6.2.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.1...@metamask/subscription-controller@6.2.2
 [6.2.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.0...@metamask/subscription-controller@6.2.1
 [6.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.3...@metamask/subscription-controller@6.2.0

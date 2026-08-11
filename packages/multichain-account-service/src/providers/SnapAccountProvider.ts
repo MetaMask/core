@@ -151,7 +151,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
    * @returns A promise that resolves when the Snap is ready.
    * @throws An error if the Snap could not become ready.
    */
-  async ensureReady(): Promise<void> {
+  override async ensureReady(): Promise<void> {
     return this.messenger.call('SnapAccountService:ensureReady', this.snapId);
   }
 

@@ -31,6 +31,11 @@ const EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
 const SOLANA_ADDRESS = 'DjVE6JNiYqPL2QXyCUUh8rNjHrbz9hXHNYt99MQ59qw1';
 
 const ETH_ASSET = 'eip155:1/slip44:60' as Caip19AssetId;
+// The websocket delivers lower-case addresses; state keys them checksummed.
+const USDC_ASSET_LOWERCASE =
+  'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
+const USDC_ASSET_CHECKSUMMED =
+  'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 
 /**
  * Build an InternalAccount for tests.
@@ -350,6 +355,60 @@ describe('AccountActivityDataSource', () => {
       await Promise.resolve();
 
       expect(getAssetType).toHaveBeenCalledWith(ETH_ASSET);
+
+      cleanup();
+    });
+
+    it('checksums the lower-case ERC-20 asset IDs the websocket delivers', async () => {
+      const account = createMockAccount();
+      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+        groupAccounts: [account],
+      });
+
+      triggerBalanceUpdated({
+        address: EVM_ADDRESS,
+        chain: CHAIN_MAINNET,
+        updates: [
+          createBalanceUpdate({
+            asset: { type: USDC_ASSET_LOWERCASE, unit: 'USDC', decimals: 6 },
+            postBalance: { amount: '1000000' },
+          }),
+        ],
+      });
+
+      await Promise.resolve();
+
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.assetsBalance[account.id]).toHaveProperty(
+        USDC_ASSET_CHECKSUMMED,
+      );
+      expect(response.assetsBalance[account.id]).not.toHaveProperty(
+        USDC_ASSET_LOWERCASE,
+      );
+      expect(response.assetsInfo).toHaveProperty(USDC_ASSET_CHECKSUMMED);
+
+      cleanup();
+    });
+
+    it('keeps an unparseable asset ID as-is', async () => {
+      const account = createMockAccount();
+      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+        groupAccounts: [account],
+      });
+
+      const malformedAssetId = 'eip155:1/erc20:not-an-address' as Caip19AssetId;
+      triggerBalanceUpdated({
+        address: EVM_ADDRESS,
+        chain: CHAIN_MAINNET,
+        updates: [createBalanceUpdate({ asset: { type: malformedAssetId } })],
+      });
+
+      await Promise.resolve();
+
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.assetsBalance[account.id]).toHaveProperty(
+        malformedAssetId,
+      );
 
       cleanup();
     });

@@ -17,6 +17,7 @@ import type {
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
+  ResolveSourceAmountCallback,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -84,6 +85,8 @@ export class TransactionPayController extends BaseController<
 
   readonly #polymarket?: PolymarketCallbacks;
 
+  readonly #resolveSourceAmount?: ResolveSourceAmountCallback;
+
   constructor({
     fiatOptions,
     getAmountData,
@@ -93,6 +96,7 @@ export class TransactionPayController extends BaseController<
     getStrategies,
     messenger,
     polymarket,
+    resolveSourceAmount,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -109,6 +113,7 @@ export class TransactionPayController extends BaseController<
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
+    this.#resolveSourceAmount = resolveSourceAmount;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -369,7 +374,12 @@ export class TransactionPayController extends BaseController<
         isPostQuoteUpdated ||
         isAccountOverrideUpdated
       ) {
-        updateSourceAmounts(transactionId, current as never, this.messenger);
+        updateSourceAmounts(
+          transactionId,
+          current as never,
+          this.messenger,
+          this.#resolveSourceAmount,
+        );
 
         shouldUpdateQuotes = true;
       }
