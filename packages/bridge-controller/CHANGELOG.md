@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.1` ([#9798](https://github.com/MetaMask/core/pull/9798))
+- Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.6.0` ([#9822](https://github.com/MetaMask/core/pull/9822))
 - Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
 - Bump `@metamask/multichain-network-controller` from `^3.2.2` to `^3.2.3` ([#9791](https://github.com/MetaMask/core/pull/9791))
 - Bump `@metamask/assets-controllers` from `^111.0.0` to `^111.1.0` ([#9793](https://github.com/MetaMask/core/pull/9793))
