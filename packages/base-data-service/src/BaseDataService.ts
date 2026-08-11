@@ -13,6 +13,7 @@ import type { Json } from '@metamask/utils';
 import {
   DefaultOptions,
   DehydratedState,
+  FetchInfiniteQueryOptions,
   FetchQueryOptions,
   GetNextPageParamFunction,
   GetPreviousPageParamFunction,
@@ -22,7 +23,7 @@ import {
   OmitKeyof,
   QueryClient,
   QueryClientConfig,
-  QueryFunction,
+  SkipToken,
   WithRequired,
   dehydrate,
   hydrate,
@@ -38,6 +39,22 @@ import {
 
 // Data service queries use the following format: ['ServiceActionName', ...params]
 export type QueryKey = [string, ...Json[]];
+
+/**
+ * The supertype of all messengers, scoped to a namespace.
+ *
+ * @template Namespace - The namespace for the messenger's own actions and
+ * events.
+ */
+export type BaseMessenger<Namespace extends string> = Messenger<
+  Namespace,
+  ActionConstraint,
+  EventConstraint,
+  // Use `any` to allow any parent to be set. `any` is harmless in a type constraint anyway,
+  // it's the one totally safe place to use it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any
+>;
 
 export type DataServiceGranularCacheUpdatedPayload =
   | { type: 'added' | 'updated'; state: DehydratedState }
@@ -55,10 +72,10 @@ type CacheUpdatedType = DataServiceCacheUpdatedPayload['type'];
 
 export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   type: `${ServiceName}:invalidateQueries`;
-  handler: (
-    filters?: InvalidateQueryFilters,
-    options?: InvalidateOptions,
-  ) => Promise<void>;
+  handler: BaseDataService<
+    ServiceName,
+    BaseMessenger<ServiceName>
+  >['invalidateQueries'];
 };
 
 export type DataServiceActions<ServiceName extends string> =
@@ -120,15 +137,7 @@ type PersistedCache = {
 
 export class BaseDataService<
   ServiceName extends string,
-  ServiceMessenger extends Messenger<
-    ServiceName,
-    ActionConstraint,
-    EventConstraint,
-    // Use `any` to allow any parent to be set. `any` is harmless in a type constraint anyway,
-    // it's the one totally safe place to use it.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    any
-  >,
+  ServiceMessenger extends BaseMessenger<ServiceName>,
 > {
   public readonly name: ServiceName;
 
@@ -240,8 +249,13 @@ export class BaseDataService<
   /**
    * Fetch a query.
    *
-   * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
-   * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options - The options defining the query. Note that although this
+   * method wraps `fetchQuery` from `@tanstack/query-core`, there are a few
+   * restrictions:
+   * - `queryKey` and `queryFn` are required
+   * - `queryFn` must be a function, not a skip token
+   * - `retry` and `retryDelay` are not available (retries can be customized
+   *   using the constructor's `servicePolicyOptions`).
    * @returns The query results.
    */
   protected async fetchQuery<
@@ -257,9 +271,14 @@ export class BaseDataService<
       >,
       'queryKey'
     > & {
-      // Data services always provide a concrete query function; the `skipToken`
-      // sentinel added in query-core v5 is not supported here.
-      queryFn: QueryFunction<TQueryFnData, TQueryKey>;
+      // @tanstack/query-core's fetchQuery function accepts a "skip" token,
+      // but data services always provide a concrete query function.
+      queryFn: NonNullable<
+        Exclude<
+          FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>['queryFn'],
+          SkipToken
+        >
+      >;
     },
   ): Promise<TData> {
     return this.#queryClient.fetchQuery({
@@ -272,10 +291,17 @@ export class BaseDataService<
   /**
    * Fetch a paginated query.
    *
-   * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
-   * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options - The options defining the query. Note that although this
+   * method wraps `fetchInfiniteQuery` from `@tanstack/query-core`, there are a
+   * few differences:
+   * - `queryKey` and `queryFn` are required
+   * - `queryFn` must be a function, not a skip token
+   * - `retry` and `retryDelay` are not available (retries can be customized
+   *   using the constructor's `servicePolicyOptions`).
    * @param pageParam - An optional page parameter.
-   * @returns The query result, exclusively the requested page is returned.
+   * @returns A page's worth of data (i.e. what `queryFn` returns). Note that
+   * this is different from `@tanstack/query-core`'s `fetchInfiniteQuery`
+   * method, which returns all pages.
    */
   protected async fetchInfiniteQuery<
     TQueryFnData extends Json,
@@ -297,12 +323,23 @@ export class BaseDataService<
       >,
       'queryKey'
     > & {
-      // Data services always provide a concrete query function; the `skipToken`
-      // sentinel added in query-core v5 is not supported here.
-      queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
-      // These are required by query-core v5 for infinite queries but remain
-      // optional here: consumers may drive pagination purely by passing an
-      // explicit `pageParam` (see below).
+      // @tanstack/query-core's fetchInfiniteQuery function accepts a "skip"
+      // token, but data services always provide a concrete query function.
+      queryFn: NonNullable<
+        Exclude<
+          FetchInfiniteQueryOptions<
+            TQueryFnData,
+            TError,
+            TData,
+            TQueryKey,
+            TPageParam
+          >['queryFn'],
+          SkipToken
+        >
+      >;
+      // These are required by @tanstack/query-core for infinite queries but
+      // remain optional here: consumers may drive pagination purely by passing
+      // an explicit `pageParam` (see below).
       initialPageParam?: TPageParam;
       getNextPageParam?: GetNextPageParamFunction<TPageParam, TQueryFnData>;
       getPreviousPageParam?: GetPreviousPageParamFunction<
@@ -323,12 +360,14 @@ export class BaseDataService<
     });
 
     if (!query?.state.data || pageParam === undefined) {
-      // query-core v5 requires an `initialPageParam`, which becomes the param of
-      // the first (and only) page this fetches. Prefer an explicit per-call
-      // `pageParam` (a cold jump to a specific page); otherwise use the
+      // @tanstack/query-core requires an `initialPageParam`, which becomes the
+      // param of the first (and only) page this fetches. Prefer an explicit
+      // per-call `pageParam` (a cold jump to a specific page); otherwise use the
       // consumer's `initialPageParam`. Branching on a strict `undefined` check
       // (rather than `??`) preserves `null`, which is a valid `Json` page param
-      // and query-core's usual first-page sentinel.
+      // and query-core's usual first-page sentinel. The value can legitimately
+      // be `undefined` here (the very first page), which query-core accepts at
+      // runtime but not in its `TPageParam` type, hence the cast.
       let initialPageParam: TPageParam;
       if (pageParam === undefined) {
         initialPageParam = options.initialPageParam as TPageParam;
@@ -346,11 +385,9 @@ export class BaseDataService<
         ...options,
         initialPageParam,
         // Provide a no-op `getNextPageParam` when the consumer omits one.
-        // query-core v5 walks `getNextPageParam` when it refetches a multi-page
-        // infinite query, so a missing resolver would throw once more than one
-        // page has been cached. The no-op rebuilds the cache down to the first
-        // page; the consumer repopulates it by re-navigating with explicit
-        // page params.
+        // @tanstack/query-core walks `getNextPageParam` when it refetches a
+        // multi-page infinite query, so a missing resolver would throw once more
+        // than one page has been cached.
         getNextPageParam: options.getNextPageParam ?? ((): null => null),
         queryFn: (context) =>
           this.#policy.execute(() => options.queryFn(context)),
@@ -369,10 +406,9 @@ export class BaseDataService<
 
     const direction = deepEqual(pageParam, previous) ? 'backward' : 'forward';
 
-    // query-core v5 no longer accepts an explicit page param via the `fetchMore`
-    // meta; it derives the next/previous param from these callbacks instead.
-    // Override them to return exactly the requested page so pagination works
-    // even when the consumer did not provide page-param callbacks.
+    // Override the next/previous param callbacks to return exactly the
+    // requested page, so pagination works even when the consumer did not
+    // provide page-param callbacks.
     const result = await query.fetch(
       {
         ...query.options,
@@ -403,7 +439,7 @@ export class BaseDataService<
    * @returns Nothing.
    */
   async invalidateQueries(
-    filters?: InvalidateQueryFilters,
+    filters?: InvalidateQueryFilters<Json[]>,
     options?: InvalidateOptions,
   ): Promise<void> {
     return this.#queryClient.invalidateQueries(filters, options);
