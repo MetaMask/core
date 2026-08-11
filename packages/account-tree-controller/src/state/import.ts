@@ -15,7 +15,10 @@ import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from '../types.js';
-import type { AccountWalletEntropyObject } from '../wallet.js';
+import type {
+  AccountWalletEntropyObject,
+  AccountWalletKeyringObject,
+} from '../wallet.js';
 import { isMnemonicWalletObject } from './export.js';
 import type {
   AccountWalletMnemonicGroupEntry,
@@ -100,6 +103,28 @@ function findLocalWalletMnemonicFromId(
     );
   }
   return localWallet;
+}
+
+/**
+ * Returns the local simple-keyring wallet, or `undefined` if none exists yet.
+ *
+ * The private-key wallet ID is static (derived solely from {@link KeyringTypes.simple}),
+ * so no runtime argument is needed to locate it.
+ *
+ * @param context - Import context.
+ * @returns The keyring wallet object, or `undefined` if not present in state.
+ */
+function findLocalWalletPrivateKey(
+  context: ImportContext,
+): AccountWalletKeyringObject | undefined {
+  const localWalletId = toAccountWalletId(
+    AccountWalletType.Keyring,
+    KeyringTypes.simple,
+  );
+  const localWallet = context.getState().accountTree.wallets[localWalletId];
+  return localWallet?.type === AccountWalletType.Keyring
+    ? (localWallet as AccountWalletKeyringObject)
+    : undefined;
 }
 
 /**
@@ -265,11 +290,9 @@ async function importPrivateKeyWallet(
     );
     const localGroupId = toAccountGroupId(localWalletId, payloadAccountAddress);
 
-    let localWallets = context.getState().accountTree.wallets;
-    let localWallet = localWallets[localWalletId];
-    let localGroup = localWallet?.groups[localGroupId];
-
     // EVM accounts have deterministic IDs, so we can re-use this to find the local group if it exists.
+    let localWallet = findLocalWalletPrivateKey(context);
+    let localGroup = localWallet?.groups[localGroupId];
     const hasAccount =
       localGroup?.accounts.some((id) => id === payloadAccountId) ?? false;
 
@@ -312,9 +335,8 @@ async function importPrivateKeyWallet(
       }
     }
 
-    // Find the local group that contains this account.
-    localWallets = context.getState().accountTree.wallets;
-    localWallet = localWallets[localWalletId];
+    // Re-read wallet and group from state to get fresh data after the import.
+    localWallet = findLocalWalletPrivateKey(context);
     localGroup = localWallet?.groups[localGroupId];
     if (!localGroup) {
       continue;
