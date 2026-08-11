@@ -84,4 +84,21 @@ describe('orderCalculations - scale ladder', () => {
       ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
     });
   });
+
+  describe('splitScaleSizes - rung count', () => {
+    // Exported on its own, so it cannot rely on computeScalePriceLadder having
+    // vetted the count first: zero would return an empty split, and a
+    // fractional count slices that do not sum to the total.
+    it.each([
+      ['zero', 0],
+      ['negative', -3],
+      ['a single rung', 1],
+      ['fractional', 2.5],
+      ['above the supported ladder size', 21],
+    ])('rejects %s', (_label, count) => {
+      expect(() =>
+        splitScaleSizes({ totalSize: 1, count, szDecimals: 4 }),
+      ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
+    });
+  });
 });

@@ -380,6 +380,17 @@ export function splitScaleSizes(params: {
 }): string[] {
   const { totalSize, count, szDecimals } = params;
 
+  // Checked here as well as in `computeScalePriceLadder`: this is exported on
+  // its own, and a count of zero would otherwise return an empty split while a
+  // fractional one would return slices that do not sum to the total.
+  if (
+    !Number.isInteger(count) ||
+    count < SCALE_ORDER_COUNT.min ||
+    count > SCALE_ORDER_COUNT.max
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
+  }
+
   const multiplier = Math.pow(10, szDecimals);
   const totalUnits = Math.round(totalSize * multiplier);
 

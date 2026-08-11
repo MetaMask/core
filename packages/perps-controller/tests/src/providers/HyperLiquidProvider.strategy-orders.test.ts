@@ -543,27 +543,30 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ...overrides.exchange,
     });
     const infoClient = createMockInfoClient({
-      // A chase measures what is still resting before it re-prices, so the
-      // account has to show the orders these tests place. Full size by default;
-      // the partial-fill test overrides it.
-      frontendOpenOrders: jest.fn().mockResolvedValue(
-        [55, 66].map((oid) => ({
-          coin: 'ETH',
-          side: 'B',
-          limitPx: '2999',
-          sz: '1',
-          origSz: '1',
-          oid,
-          timestamp: 1_700_000_000_000,
-          isTrigger: false,
-          triggerCondition: 'N/A',
-          triggerPx: '0',
-          children: [],
-          isPositionTpsl: false,
-          reduceOnly: false,
-          orderType: 'Limit',
-        })),
-      ),
+      // A chase reads what its cancelled order left unfilled before re-placing.
+      // Nothing filled by default; the partial-fill tests override this.
+      orderStatus: jest.fn().mockResolvedValue({
+        status: 'order',
+        order: {
+          status: 'canceled',
+          order: {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '2999',
+            sz: '1',
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+          },
+        },
+      }),
       l2Book: jest.fn().mockResolvedValue({
         coin: 'ETH',
         levels: [
@@ -2329,6 +2332,61 @@ describe('HyperLiquidProvider - strategy order types', () => {
           ],
         });
 
+    it('reads the remainder after the cancel, not before it', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+      });
+      const callOrder: string[] = [];
+      const cancel = jest.fn().mockImplementation(async () => {
+        callOrder.push('cancel');
+        return { status: 'ok', response: { data: { statuses: ['success'] } } };
+      });
+      const orderStatus = jest.fn().mockImplementation(async () => {
+        callOrder.push('orderStatus');
+        return {
+          status: 'order',
+          order: {
+            status: 'canceled',
+            order: {
+              coin: 'ETH',
+              side: 'B',
+              limitPx: '2999',
+              sz: '0.4',
+              origSz: '1',
+              oid: 55,
+              timestamp: 1_700_000_000_000,
+              isTrigger: false,
+              triggerCondition: 'N/A',
+              triggerPx: '0',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: false,
+              orderType: 'Limit',
+            },
+          },
+        };
+      });
+
+      useStrategyClients({
+        exchange: { order, cancel },
+        info: { l2Book: bookThatMoves(), orderStatus },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+
+      await jest.advanceTimersByTimeAsync(1000);
+
+      // Once the cancel has landed no further fills can reach the order, so the
+      // remainder it reports is final. Reading first would leave a window in
+      // which a fill lands and is then re-placed on top.
+      expect(callOrder).toStrictEqual(['cancel', 'orderStatus']);
+    });
+
     it('replaces a partly filled order at its remaining size', async () => {
       const order = jest
         .fn()
@@ -2345,25 +2403,29 @@ describe('HyperLiquidProvider - strategy order types', () => {
         exchange: { order },
         info: {
           l2Book: bookThatMoves(),
-          // 0.6 of the 1 ETH filled before the chase came back round.
-          frontendOpenOrders: jest.fn().mockResolvedValue([
-            {
-              coin: 'ETH',
-              side: 'B',
-              limitPx: '2999',
-              sz: '0.4',
-              origSz: '1',
-              oid: 55,
-              timestamp: 1_700_000_000_000,
-              isTrigger: false,
-              triggerCondition: 'N/A',
-              triggerPx: '0',
-              children: [],
-              isPositionTpsl: false,
-              reduceOnly: false,
-              orderType: 'Limit',
+          // 0.6 of the 1 ETH had filled by the time the cancel landed.
+          orderStatus: jest.fn().mockResolvedValue({
+            status: 'order',
+            order: {
+              status: 'canceled',
+              order: {
+                coin: 'ETH',
+                side: 'B',
+                limitPx: '2999',
+                sz: '0.4',
+                origSz: '1',
+                oid: 55,
+                timestamp: 1_700_000_000_000,
+                isTrigger: false,
+                triggerCondition: 'N/A',
+                triggerPx: '0',
+                children: [],
+                isPositionTpsl: false,
+                reduceOnly: false,
+                orderType: 'Limit',
+              },
             },
-          ]),
+          }),
         },
       });
 
@@ -2391,8 +2453,29 @@ describe('HyperLiquidProvider - strategy order types', () => {
         exchange: { order },
         info: {
           l2Book: bookThatMoves(),
-          // The order is no longer on the book at all.
-          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+          // The cancel landed on an order that had already filled in full.
+          orderStatus: jest.fn().mockResolvedValue({
+            status: 'order',
+            order: {
+              status: 'filled',
+              order: {
+                coin: 'ETH',
+                side: 'B',
+                limitPx: '2999',
+                sz: '0',
+                origSz: '1',
+                oid: 55,
+                timestamp: 1_700_000_000_000,
+                isTrigger: false,
+                triggerCondition: 'N/A',
+                triggerPx: '0',
+                children: [],
+                isPositionTpsl: false,
+                reduceOnly: false,
+                orderType: 'Limit',
+              },
+            },
+          }),
         },
       });
 
@@ -2404,9 +2487,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       await jest.advanceTimersByTimeAsync(5000);
 
-      // Nothing was cancelled and nothing was re-placed: the chase is done.
+      // Nothing was re-placed and the loop stopped: the chase is done.
       expect(order).toHaveBeenCalledTimes(1);
-      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
     });
   });
 

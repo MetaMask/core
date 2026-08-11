@@ -1,3 +1,4 @@
+import { PERPS_EVENT_VALUE } from '../../../src/constants/eventNames.js';
 import {
   CHASE_ORDER_CONFIG,
   HYPERLIQUID_ORDER_LIMITS,
@@ -419,6 +420,14 @@ describe('hyperLiquidValidation - strategy order types', () => {
 
     it('leaves twap on the market-order max value', () => {
       expect(getMaxOrderValue(50, 'twap')).toBe(getMaxOrderValue(50, 'market'));
+    });
+  });
+
+  describe('analytics order_type values', () => {
+    // TradingService emits `order_type` verbatim, so a placement type missing
+    // from this enum shows up in dashboards as an unmapped value.
+    it.each(STRATEGY_ORDER_TYPES)('enumerates %s', (orderType) => {
+      expect(Object.values(PERPS_EVENT_VALUE.ORDER_TYPE)).toContain(orderType);
     });
   });
 });

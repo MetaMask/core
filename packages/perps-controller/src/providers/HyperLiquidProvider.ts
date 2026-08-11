@@ -4804,18 +4804,6 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (touchPrice !== session.restingPrice && session.orderId) {
-      // Measured before the cancel: once the order is off the book there is
-      // nothing left to read, and the replacement must not re-place size that
-      // has already been filled.
-      const restingSize = await this.#readRestingChaseSize(session);
-      if (restingSize === null) {
-        // Gone entirely — it filled between ticks.
-        session.orderId = null;
-        session.active = false;
-        this.#deps.debugLogger.log('Chase order fully filled', { sessionId });
-        return;
-      }
-
       const outcome = await this.#cancelChaseChild(session);
 
       // The cancel is a second round trip, and this is the window where a
@@ -4847,11 +4835,23 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
         return;
       } else {
+        // The cancel has landed, so no further fills can reach this order and
+        // what it did not fill is now fixed. Sampling before the cancel would
+        // have left a window in which a fill lands and is then re-placed.
+        const remaining = await this.#readCancelledChaseRemainder(session);
+
         // The old order is off the book, so the session owns nothing until the
         // replacement rests. Recorded before the attempt, not after: if
         // `#restChaseOrder` throws, the session must not be left pointing at an
         // order ID that no longer exists.
         session.orderId = null;
+
+        if (remaining === null) {
+          // It filled completely between ticks; there is nothing left to chase.
+          session.active = false;
+          this.#deps.debugLogger.log('Chase order fully filled', { sessionId });
+          return;
+        }
 
         // Published *before* the placement starts, not from the promise it
         // returns: the window opens the moment `#restChaseOrder` is entered, so
@@ -4870,11 +4870,11 @@ export class HyperLiquidProvider implements PerpsProvider {
             assetId: session.assetId,
             isBuy: session.isBuy,
             price: touchPrice,
-            size: restingSize,
+            size: remaining,
             reduceOnly: session.reduceOnly,
             builderFee: session.builderFee,
           });
-          session.size = restingSize;
+          session.size = remaining;
         } finally {
           // Cleared before the waiters wake, so they see the settled session.
           session.pendingReplacement = null;
@@ -4918,27 +4918,36 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Read how much of a chase's resting order is still on the book.
+   * Read what a chase's just-cancelled order left unfilled.
    *
    * A chase re-prices by cancelling and re-placing, and the order it cancels
-   * may have partially filled first. Re-placing the session's original size
-   * would then execute more than the caller asked for, so the replacement is
-   * sized from what the venue still shows resting.
+   * may have partially filled first; re-placing the session's original size
+   * would execute more than the caller asked for.
    *
-   * There is an unavoidable residue: a fill landing between this read and the
-   * cancel is not reflected. That window is one round trip, against the whole
-   * order size before this existed.
+   * Read *after* the cancel on purpose. The order's status endpoint answers for
+   * an order that is no longer on the book, and once the cancel has landed no
+   * further fills can reach it — so the unfilled size it reports is final.
+   * Sampling the open-order book beforehand would instead leave a one-round-trip
+   * window in which a fill lands and is then re-placed on top.
    *
-   * @param session - The session whose resting order to measure.
-   * @returns The size still resting, or null when the order is gone entirely.
+   * @param session - The session whose cancelled order to measure.
+   * @returns The unfilled size, or null when nothing is left to chase.
    */
-  async #readRestingChaseSize(session: ChaseSession): Promise<string | null> {
-    const openOrders = await this.#fetchOpenOrders({ dexName: null });
-    const resting = openOrders.find(
-      (order) => order.oid.toString() === session.orderId,
-    );
+  async #readCancelledChaseRemainder(
+    session: ChaseSession,
+  ): Promise<string | null> {
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const status = await this.#clientService.getInfoClient().orderStatus({
+      user: userAddress,
+      oid: parseInt(session.orderId as string, 10),
+    });
 
-    return resting ? String(resting.sz) : null;
+    if (status.status !== 'order') {
+      return null;
+    }
+
+    const remaining = String(status.order.order.sz);
+    return parseFloat(remaining) > 0 ? remaining : null;
   }
 
   /**
