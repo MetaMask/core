@@ -3578,6 +3578,11 @@ export class AssetsController extends BaseController<
 
     this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
 
+    // The selected account group can be empty during onboarding or wallet reset.
+    if (accounts.length === 0) {
+      return;
+    }
+
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
       if (accounts.length > 0) {
