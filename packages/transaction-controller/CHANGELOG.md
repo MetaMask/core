@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Skip resimulation check when failing incomplete transactions at startup, preventing a crash when `isSimulationEnabled` depends on controllers not yet registered ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Skip resimulation check when failing incomplete transactions at startup, preventing a crash when `isSimulationEnabled` depends on controllers not yet registered ([#9821](https://github.com/MetaMask/core/pull/9821))
 
 ### Changed
 
