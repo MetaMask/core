@@ -1,5 +1,6 @@
 import {
   ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+  AccountWalletPayloadType,
   assertAccountTreePayload,
   parsePayloadGroupId,
   toWalletPayloadId,
@@ -76,7 +77,7 @@ describe('assertAccountTreePayload', () => {
         wallets: [
           {
             id: 'wallet:entropy',
-            type: 'mnemonic',
+            type: AccountWalletPayloadType.Mnemonic,
             metadata: { name: 'Wallet' },
             groups: [
               {

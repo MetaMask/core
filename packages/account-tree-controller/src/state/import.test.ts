@@ -16,7 +16,13 @@ import type {
 } from '../types.js';
 import type { ImportContext } from './import.js';
 import { importState } from './import.js';
-import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION } from './payload.js';
+import {
+  ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+  AccountWalletPayloadType,
+  AccountWalletPrivateKeyEncoding,
+  toGroupPayloadId,
+  toWalletPayloadId,
+} from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
 
 // Valid 20-byte hex addresses for use with getUUIDFromAddressOfNormalAccount.
@@ -28,12 +34,15 @@ const MOCK_ENTROPY_ID = 'mock-entropy-id';
 const MOCK_HD_WALLET_ID = toMultichainAccountWalletId(MOCK_ENTROPY_ID);
 const MOCK_HD_GROUP_ID_0 = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 0);
 const MOCK_HD_GROUP_ID_1 = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 1);
-const MOCK_PK_WALLET_ID = toAccountWalletId(
+const MOCK_PRIVATE_KEY_WALLET_ID = toAccountWalletId(
   AccountWalletType.Keyring,
   KeyringTypes.simple,
 );
 
-const MOCK_PAYLOAD_WALLET_ID = `wallet:${MOCK_ENTROPY_ID}` as const;
+const MOCK_MNEMONIC_WALLET_PAYLOAD_ID = toWalletPayloadId(MOCK_ENTROPY_ID);
+const MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID = toWalletPayloadId(
+  AccountWalletPayloadType.PrivateKey,
+);
 
 const TEST_MNEMONIC =
   'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -42,17 +51,17 @@ const MNEMONIC_PAYLOAD = {
   version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
   wallets: [
     {
-      id: MOCK_PAYLOAD_WALLET_ID,
-      type: 'mnemonic',
+      id: MOCK_MNEMONIC_WALLET_PAYLOAD_ID,
+      type: AccountWalletPayloadType.Mnemonic,
       metadata: { name: 'My Renamed Wallet' },
       groups: [
         {
-          id: `${MOCK_PAYLOAD_WALLET_ID}/0`,
+          id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 0),
           groupIndex: 0,
           metadata: { name: 'Renamed Account 1', pinned: true, hidden: false },
         },
         {
-          id: `${MOCK_PAYLOAD_WALLET_ID}/1`,
+          id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 1),
           groupIndex: 1,
           metadata: { name: 'Renamed Account 2', pinned: false, hidden: true },
         },
@@ -308,8 +317,8 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:entropy-only',
-            type: 'mnemonic',
+            id: toWalletPayloadId('entropy-only'),
+            type: AccountWalletPayloadType.Mnemonic,
             // No mnemonic -> will early-return after not finding the wallet.
             metadata: { name: 'X' },
             groups: [],
@@ -333,8 +342,8 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:unknown-entropy',
-            type: 'mnemonic',
+            id: toWalletPayloadId('unknown-entropy'),
+            type: AccountWalletPayloadType.Mnemonic,
             metadata: { name: 'Unknown' },
             groups: [],
           },
@@ -362,8 +371,8 @@ describe('importState', () => {
           version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
-              id: 'wallet:no-match-entropy',
-              type: 'mnemonic',
+              id: toWalletPayloadId('no-match-entropy'),
+              type: AccountWalletPayloadType.Mnemonic,
               value: TEST_MNEMONIC,
               metadata: { name: 'Wallet' },
               groups: [],
@@ -409,8 +418,8 @@ describe('importState', () => {
           version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
-              id: 'wallet:no-match',
-              type: 'mnemonic',
+              id: toWalletPayloadId('no-match'),
+              type: AccountWalletPayloadType.Mnemonic,
               value: TEST_MNEMONIC,
               metadata: { name: 'Wallet' },
               groups: [],
@@ -439,13 +448,13 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:unknown-entropy',
-            type: 'mnemonic',
+            id: toWalletPayloadId('unknown-entropy'),
+            type: AccountWalletPayloadType.Mnemonic,
             value: TEST_MNEMONIC,
             metadata: { name: 'My Renamed Wallet' },
             groups: [
               {
-                id: 'wallet:unknown-entropy/0',
+                id: toGroupPayloadId(toWalletPayloadId('unknown-entropy'), 0),
                 groupIndex: 0,
                 metadata: { name: 'Account 1', pinned: false, hidden: false },
               },
@@ -501,17 +510,17 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: MOCK_PAYLOAD_WALLET_ID,
-            type: 'mnemonic',
+            id: MOCK_MNEMONIC_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.Mnemonic,
             metadata: { name: 'Wallet 1' },
             groups: [
               {
-                id: `${MOCK_PAYLOAD_WALLET_ID}/0`,
+                id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 0),
                 groupIndex: 0,
                 metadata: { name: 'Account 1', pinned: false, hidden: false },
               },
               {
-                id: `${MOCK_PAYLOAD_WALLET_ID}/1`,
+                id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 1),
                 groupIndex: 1,
                 metadata: { name: 'Account 2', pinned: true, hidden: false },
               },
@@ -582,17 +591,17 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: MOCK_PAYLOAD_WALLET_ID,
-            type: 'mnemonic',
+            id: MOCK_MNEMONIC_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.Mnemonic,
             metadata: { name: 'Wallet 1' },
             groups: [
               {
-                id: `${MOCK_PAYLOAD_WALLET_ID}/0`,
+                id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 0),
                 groupIndex: 0,
                 metadata: { name: 'Account 0', pinned: false, hidden: false },
               },
               {
-                id: `${MOCK_PAYLOAD_WALLET_ID}/1`,
+                id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 1),
                 groupIndex: 1,
                 metadata: {
                   name: 'Account 1 (missing)',
@@ -601,7 +610,7 @@ describe('importState', () => {
                 },
               },
               {
-                id: `${MOCK_PAYLOAD_WALLET_ID}/2`,
+                id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 2),
                 groupIndex: 2,
                 metadata: { name: 'Account 2', pinned: false, hidden: false },
               },
@@ -623,11 +632,11 @@ describe('importState', () => {
   describe('private-key wallets', () => {
     it('applies metadata to an existing private-key account group', async () => {
       const accountId = getUUIDFromAddressOfNormalAccount(ADDR_A);
-      const pkGroupId = toAccountGroupId(MOCK_PK_WALLET_ID, ADDR_A);
+      const pkGroupId = toAccountGroupId(MOCK_PRIVATE_KEY_WALLET_ID, ADDR_A);
 
       const pkWallets: AccountTreeControllerState['accountTree']['wallets'] = {
-        [MOCK_PK_WALLET_ID]: {
-          id: MOCK_PK_WALLET_ID,
+        [MOCK_PRIVATE_KEY_WALLET_ID]: {
+          id: MOCK_PRIVATE_KEY_WALLET_ID,
           type: AccountWalletType.Keyring,
           status: 'ready',
           groups: {
@@ -656,12 +665,15 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:private-key',
-            type: 'private-key',
+            id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.PrivateKey,
             metadata: { name: 'Imported Accounts' },
             groups: [
               {
-                id: `wallet:private-key/${ADDR_A}`,
+                id: toGroupPayloadId(
+                  MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+                  ADDR_A,
+                ),
                 metadata: {
                   name: 'Renamed Imported',
                   pinned: true,
@@ -691,15 +703,15 @@ describe('importState', () => {
 
     it('creates a new simple keyring when none exists (onboarding)', async () => {
       const newAccountId = getUUIDFromAddressOfNormalAccount(ADDR_B);
-      const pkGroupId = toAccountGroupId(MOCK_PK_WALLET_ID, ADDR_B);
+      const pkGroupId = toAccountGroupId(MOCK_PRIVATE_KEY_WALLET_ID, ADDR_B);
 
       const { context, mocks, walletsRef } = setup();
 
       const keyringV2 = {
         createAccounts: jest.fn().mockImplementation(async () => {
           walletsRef.current = {
-            [MOCK_PK_WALLET_ID]: {
-              id: MOCK_PK_WALLET_ID,
+            [MOCK_PRIVATE_KEY_WALLET_ID]: {
+              id: MOCK_PRIVATE_KEY_WALLET_ID,
               type: AccountWalletType.Keyring,
               status: 'ready',
               groups: {
@@ -733,13 +745,19 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:private-key',
-            type: 'private-key',
+            id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.PrivateKey,
             metadata: { name: 'Imported Accounts' },
             groups: [
               {
-                id: `wallet:private-key/${ADDR_B}`,
-                value: { privateKey: '0xdeadbeef', encoding: 'hexadecimal' },
+                id: toGroupPayloadId(
+                  MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+                  ADDR_B,
+                ),
+                value: {
+                  privateKey: '0xdeadbeef',
+                  encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
+                },
                 metadata: { name: 'New Import', pinned: false, hidden: false },
               },
             ],
@@ -762,22 +780,22 @@ describe('importState', () => {
           type: 'private-key:import',
           accountType: EthAccountType.Eoa,
           privateKey: '0xdeadbeef',
-          encoding: 'hexadecimal',
+          encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
         }),
       );
     });
 
     it('reuses the existing simple keyring when one is already present', async () => {
       const newAccountId = getUUIDFromAddressOfNormalAccount(ADDR_B);
-      const pkGroupId = toAccountGroupId(MOCK_PK_WALLET_ID, ADDR_B);
+      const pkGroupId = toAccountGroupId(MOCK_PRIVATE_KEY_WALLET_ID, ADDR_B);
 
       const { context, mocks, walletsRef } = setup();
 
       const keyringV2 = {
         createAccounts: jest.fn().mockImplementation(async () => {
           walletsRef.current = {
-            [MOCK_PK_WALLET_ID]: {
-              id: MOCK_PK_WALLET_ID,
+            [MOCK_PRIVATE_KEY_WALLET_ID]: {
+              id: MOCK_PRIVATE_KEY_WALLET_ID,
               type: AccountWalletType.Keyring,
               status: 'ready',
               groups: {
@@ -811,13 +829,19 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:private-key',
-            type: 'private-key',
+            id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.PrivateKey,
             metadata: { name: 'Imported Accounts' },
             groups: [
               {
-                id: `wallet:private-key/${ADDR_B}`,
-                value: { privateKey: '0xdeadbeef', encoding: 'hexadecimal' },
+                id: toGroupPayloadId(
+                  MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+                  ADDR_B,
+                ),
+                value: {
+                  privateKey: '0xdeadbeef',
+                  encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
+                },
                 metadata: { name: 'New Import', pinned: false, hidden: false },
               },
             ],
@@ -840,14 +864,14 @@ describe('importState', () => {
           type: 'private-key:import',
           accountType: EthAccountType.Eoa,
           privateKey: '0xdeadbeef',
-          encoding: 'hexadecimal',
+          encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
         }),
       );
     });
 
     it('imports a private key when the account does not exist locally', async () => {
       const newAccountId = getUUIDFromAddressOfNormalAccount(ADDR_B);
-      const pkGroupId = toAccountGroupId(MOCK_PK_WALLET_ID, ADDR_B);
+      const pkGroupId = toAccountGroupId(MOCK_PRIVATE_KEY_WALLET_ID, ADDR_B);
 
       const { context, mocks, walletsRef } = setup();
 
@@ -856,8 +880,8 @@ describe('importState', () => {
       const keyringV2 = {
         createAccounts: jest.fn().mockImplementation(async () => {
           walletsRef.current = {
-            [MOCK_PK_WALLET_ID]: {
-              id: MOCK_PK_WALLET_ID,
+            [MOCK_PRIVATE_KEY_WALLET_ID]: {
+              id: MOCK_PRIVATE_KEY_WALLET_ID,
               type: AccountWalletType.Keyring,
               status: 'ready',
               groups: {
@@ -890,13 +914,19 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:private-key',
-            type: 'private-key',
+            id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.PrivateKey,
             metadata: { name: 'Imported Accounts' },
             groups: [
               {
-                id: `wallet:private-key/${ADDR_B}`,
-                value: { privateKey: '0xdeadbeef', encoding: 'hexadecimal' },
+                id: toGroupPayloadId(
+                  MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+                  ADDR_B,
+                ),
+                value: {
+                  privateKey: '0xdeadbeef',
+                  encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
+                },
                 metadata: { name: 'New Import', pinned: false, hidden: false },
               },
             ],
@@ -914,7 +944,7 @@ describe('importState', () => {
           type: 'private-key:import',
           accountType: EthAccountType.Eoa,
           privateKey: '0xdeadbeef',
-          encoding: 'hexadecimal',
+          encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
         }),
       );
       expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
@@ -934,13 +964,19 @@ describe('importState', () => {
           version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
-              id: 'wallet:private-key',
-              type: 'private-key',
+              id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+              type: AccountWalletPayloadType.PrivateKey,
               metadata: { name: 'Imported Accounts' },
               groups: [
                 {
-                  id: `wallet:private-key/${ADDR_C}`,
-                  value: { privateKey: '0xdeadbeef', encoding: 'hexadecimal' },
+                  id: toGroupPayloadId(
+                    MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+                    ADDR_C,
+                  ),
+                  value: {
+                    privateKey: '0xdeadbeef',
+                    encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
+                  },
                   metadata: { name: 'Fail', pinned: false, hidden: false },
                 },
               ],
@@ -961,13 +997,19 @@ describe('importState', () => {
           version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
-              id: 'wallet:private-key',
-              type: 'private-key',
+              id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+              type: AccountWalletPayloadType.PrivateKey,
               metadata: { name: 'Imported Accounts' },
               groups: [
                 {
-                  id: `wallet:private-key/${ADDR_C}`,
-                  value: { privateKey: '0xdeadbeef', encoding: 'hexadecimal' },
+                  id: toGroupPayloadId(
+                    MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+                    ADDR_C,
+                  ),
+                  value: {
+                    privateKey: '0xdeadbeef',
+                    encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
+                  },
                   metadata: { name: 'Fail', pinned: false, hidden: false },
                 },
               ],
@@ -984,15 +1026,18 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:private-key',
-            type: 'private-key',
+            id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.PrivateKey,
             metadata: { name: 'Imported Accounts' },
             groups: [
               {
-                id: `wallet:private-key/${ADDR_A}`,
+                id: toGroupPayloadId(
+                  MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+                  ADDR_A,
+                ),
                 value: {
                   privateKey: '5Kb8kLf9z...',
-                  encoding: 'base58',
+                  encoding: AccountWalletPrivateKeyEncoding.Base58,
                   type: 'bip122:p2wpkh',
                 },
                 metadata: {
@@ -1021,15 +1066,18 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:private-key',
-            type: 'private-key',
+            id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.PrivateKey,
             metadata: { name: 'Imported Accounts' },
             groups: [
               {
-                id: `wallet:private-key/${ADDR_A}`,
+                id: toGroupPayloadId(
+                  MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+                  ADDR_A,
+                ),
                 value: {
                   privateKey: '0xdeadbeef',
-                  encoding: 'hexadecimal',
+                  encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
                   type: EthAccountType.Eoa,
                 },
                 metadata: { name: 'EVM Account', pinned: false, hidden: false },
@@ -1053,12 +1101,15 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:private-key',
-            type: 'private-key',
+            id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.PrivateKey,
             metadata: { name: 'Imported Accounts' },
             groups: [
               {
-                id: `wallet:private-key/${ADDR_C}`,
+                id: toGroupPayloadId(
+                  MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+                  ADDR_C,
+                ),
                 // No value -> skip.
                 metadata: { name: 'Missing', pinned: false, hidden: false },
               },
@@ -1086,13 +1137,19 @@ describe('importState', () => {
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
-            id: 'wallet:private-key',
-            type: 'private-key',
+            id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.PrivateKey,
             metadata: { name: 'Imported Accounts' },
             groups: [
               {
-                id: `wallet:private-key/${ADDR_C}`,
-                value: { privateKey: '0xdeadbeef', encoding: 'hexadecimal' },
+                id: toGroupPayloadId(
+                  MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
+                  ADDR_C,
+                ),
+                value: {
+                  privateKey: '0xdeadbeef',
+                  encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
+                },
                 metadata: { name: 'Orphan', pinned: false, hidden: false },
               },
             ],

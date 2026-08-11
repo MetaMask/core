@@ -3,21 +3,31 @@ import type {
   AccountWalletMnemonicPayload,
   AccountWalletPrivateKeyPayload,
 } from './payload.js';
-import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION } from './payload.js';
+import {
+  ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+  AccountWalletPayloadType,
+  toGroupPayloadId,
+  toWalletPayloadId,
+} from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
 
+const MOCK_MNEMONIC_PAYLOAD_ID = toWalletPayloadId('entropy-source-1');
+const MOCK_PK_PAYLOAD_ID = toWalletPayloadId(
+  AccountWalletPayloadType.PrivateKey,
+);
+
 const MOCK_MNEMONIC_WALLET: AccountWalletMnemonicPayload = {
-  id: 'wallet:entropy-source-1',
-  type: 'mnemonic',
+  id: MOCK_MNEMONIC_PAYLOAD_ID,
+  type: AccountWalletPayloadType.Mnemonic,
   metadata: { name: 'Wallet 1' },
   groups: [
     {
-      id: 'wallet:entropy-source-1/0',
+      id: toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0),
       groupIndex: 0,
       metadata: { name: 'Account 1', pinned: false, hidden: false },
     },
     {
-      id: 'wallet:entropy-source-1/1',
+      id: toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 1),
       groupIndex: 1,
       metadata: { name: 'Account 2', pinned: true, hidden: false },
     },
@@ -25,12 +35,12 @@ const MOCK_MNEMONIC_WALLET: AccountWalletMnemonicPayload = {
 };
 
 const MOCK_PRIVATE_KEY_WALLET: AccountWalletPrivateKeyPayload = {
-  id: 'wallet:private-key',
-  type: 'private-key',
+  id: MOCK_PK_PAYLOAD_ID,
+  type: AccountWalletPayloadType.PrivateKey,
   metadata: { name: 'Imported Accounts' },
   groups: [
     {
-      id: 'wallet:private-key/0xdeadbeef',
+      id: toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xdeadbeef'),
       metadata: { name: 'Imported 1', pinned: false, hidden: true },
     },
   ],
@@ -38,11 +48,14 @@ const MOCK_PRIVATE_KEY_WALLET: AccountWalletPrivateKeyPayload = {
 
 function buildIdMap(): IdMap {
   const map = new IdMap();
-  map.add('entropy:wallet-1', 'wallet:entropy-source-1');
-  map.add('entropy:wallet-1/0', 'wallet:entropy-source-1/0');
-  map.add('entropy:wallet-1/1', 'wallet:entropy-source-1/1');
-  map.add('keyring:simple', 'wallet:private-key');
-  map.add('keyring:simple/0xdeadbeef', 'wallet:private-key/0xdeadbeef');
+  map.add('entropy:wallet-1', MOCK_MNEMONIC_PAYLOAD_ID);
+  map.add('entropy:wallet-1/0', toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0));
+  map.add('entropy:wallet-1/1', toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 1));
+  map.add('keyring:simple', MOCK_PK_PAYLOAD_ID);
+  map.add(
+    'keyring:simple/0xdeadbeef',
+    toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xdeadbeef'),
+  );
   return map;
 }
 
@@ -69,11 +82,11 @@ describe('AccountTreeSnapshot', () => {
         MOCK_PRIVATE_KEY_WALLET,
       ]);
       const filtered = snapshot.filterWallets(
-        (wallet) => wallet.type === 'mnemonic',
+        (wallet) => wallet.type === AccountWalletPayloadType.Mnemonic,
       );
       expect(filtered.serialize().wallets).toHaveLength(1);
       expect(filtered.serialize().wallets[0]?.id).toBe(
-        'wallet:entropy-source-1',
+        MOCK_MNEMONIC_PAYLOAD_ID,
       );
     });
 
@@ -83,7 +96,7 @@ describe('AccountTreeSnapshot', () => {
         MOCK_PRIVATE_KEY_WALLET,
       ]);
       const filtered = snapshot.filterWallets(() => true);
-      expect(filtered.toLocalId('wallet:entropy-source-1')).toBeUndefined();
+      expect(filtered.toLocalId(MOCK_MNEMONIC_PAYLOAD_ID)).toBeUndefined();
     });
 
     it('preserves the original idMap through wallet filtering', () => {
@@ -94,24 +107,24 @@ describe('AccountTreeSnapshot', () => {
       );
 
       const filtered = snapshot.filterWallets(
-        (wallet) => wallet.type === 'mnemonic',
+        (wallet) => wallet.type === AccountWalletPayloadType.Mnemonic,
       );
 
-      expect(filtered.toLocalId('wallet:entropy-source-1')).toBe(
+      expect(filtered.toLocalId(MOCK_MNEMONIC_PAYLOAD_ID)).toBe(
         'entropy:wallet-1',
       );
-      expect(filtered.toLocalId('wallet:entropy-source-1/0')).toBe(
-        'entropy:wallet-1/0',
-      );
-      expect(filtered.toLocalId('wallet:private-key')).toBe('keyring:simple');
-      expect(filtered.toLocalId('wallet:private-key/0xdeadbeef')).toBe(
-        'keyring:simple/0xdeadbeef',
-      );
+      expect(
+        filtered.toLocalId(toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0)),
+      ).toBe('entropy:wallet-1/0');
+      expect(filtered.toLocalId(MOCK_PK_PAYLOAD_ID)).toBe('keyring:simple');
+      expect(
+        filtered.toLocalId(toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xdeadbeef')),
+      ).toBe('keyring:simple/0xdeadbeef');
     });
 
     it('handles wallet entries whose IDs are not in the idMap', () => {
       const map = new IdMap();
-      map.add('entropy:wallet-1', 'wallet:entropy-source-1');
+      map.add('entropy:wallet-1', MOCK_MNEMONIC_PAYLOAD_ID);
 
       const snapshot = new AccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
@@ -119,10 +132,10 @@ describe('AccountTreeSnapshot', () => {
       );
 
       const filtered = snapshot.filterWallets(() => true);
-      expect(filtered.toLocalId('wallet:entropy-source-1')).toBe(
+      expect(filtered.toLocalId(MOCK_MNEMONIC_PAYLOAD_ID)).toBe(
         'entropy:wallet-1',
       );
-      expect(filtered.toLocalId('wallet:private-key')).toBeUndefined();
+      expect(filtered.toLocalId(MOCK_PK_PAYLOAD_ID)).toBeUndefined();
     });
   });
 
@@ -134,14 +147,16 @@ describe('AccountTreeSnapshot', () => {
       ]);
 
       const filtered = snapshot.filterGroups(
-        'wallet:entropy-source-1',
+        MOCK_MNEMONIC_PAYLOAD_ID,
         (group) => group.id.endsWith('/0'),
       );
 
       const { wallets } = filtered.serialize();
       expect(wallets).toHaveLength(2);
       expect(wallets[0]?.groups).toHaveLength(1);
-      expect(wallets[0]?.groups[0]?.id).toBe('wallet:entropy-source-1/0');
+      expect(wallets[0]?.groups[0]?.id).toBe(
+        toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0),
+      );
       expect(wallets[1]?.groups).toHaveLength(1);
     });
 
@@ -152,12 +167,14 @@ describe('AccountTreeSnapshot', () => {
       ]);
 
       const filtered = snapshot.filterGroups(
-        'wallet:entropy-source-1',
+        MOCK_MNEMONIC_PAYLOAD_ID,
         () => false,
       );
 
       expect(filtered.serialize().wallets).toHaveLength(1);
-      expect(filtered.serialize().wallets[0]?.type).toBe('private-key');
+      expect(filtered.serialize().wallets[0]?.type).toBe(
+        AccountWalletPayloadType.PrivateKey,
+      );
     });
 
     it('filters private-key wallet groups and preserves the idMap', () => {
@@ -167,12 +184,12 @@ describe('AccountTreeSnapshot', () => {
         map,
       );
 
-      const filtered = snapshot.filterGroups('wallet:private-key', () => true);
+      const filtered = snapshot.filterGroups(MOCK_PK_PAYLOAD_ID, () => true);
 
       expect(filtered.serialize().wallets).toHaveLength(2);
-      expect(filtered.toLocalId('wallet:private-key/0xdeadbeef')).toBe(
-        'keyring:simple/0xdeadbeef',
-      );
+      expect(
+        filtered.toLocalId(toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xdeadbeef')),
+      ).toBe('keyring:simple/0xdeadbeef');
     });
 
     it('preserves the idMap when filtering mnemonic wallet groups', () => {
@@ -183,16 +200,16 @@ describe('AccountTreeSnapshot', () => {
       );
 
       const filtered = snapshot.filterGroups(
-        'wallet:entropy-source-1',
+        MOCK_MNEMONIC_PAYLOAD_ID,
         (group) => group.id.endsWith('/0'),
       );
 
-      expect(filtered.toLocalId('wallet:entropy-source-1/0')).toBe(
-        'entropy:wallet-1/0',
-      );
-      expect(filtered.toLocalId('wallet:entropy-source-1/1')).toBe(
-        'entropy:wallet-1/1',
-      );
+      expect(
+        filtered.toLocalId(toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0)),
+      ).toBe('entropy:wallet-1/0');
+      expect(
+        filtered.toLocalId(toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 1)),
+      ).toBe('entropy:wallet-1/1');
     });
 
     it('throws when the wallet ID is not in the snapshot', () => {
@@ -217,7 +234,7 @@ describe('AccountTreeSnapshot', () => {
 
       const { wallets } = filtered.serialize();
       expect(wallets).toHaveLength(1);
-      expect(wallets[0]?.type).toBe('mnemonic');
+      expect(wallets[0]?.type).toBe(AccountWalletPayloadType.Mnemonic);
       expect(wallets[0]?.groups).toHaveLength(1);
     });
 
@@ -228,11 +245,13 @@ describe('AccountTreeSnapshot', () => {
       ]);
 
       const filtered = snapshot.filterAllGroups(
-        (_group, wallet) => wallet.type === 'private-key',
+        (_group, wallet) => wallet.type === AccountWalletPayloadType.PrivateKey,
       );
 
       expect(filtered.serialize().wallets).toHaveLength(1);
-      expect(filtered.serialize().wallets[0]?.type).toBe('private-key');
+      expect(filtered.serialize().wallets[0]?.type).toBe(
+        AccountWalletPayloadType.PrivateKey,
+      );
     });
 
     it('preserves the idMap when filtering all groups', () => {
@@ -243,13 +262,13 @@ describe('AccountTreeSnapshot', () => {
       );
 
       const filtered = snapshot.filterAllGroups(
-        (_group, wallet) => wallet.type === 'mnemonic',
+        (_group, wallet) => wallet.type === AccountWalletPayloadType.Mnemonic,
       );
 
-      expect(filtered.toLocalId('wallet:entropy-source-1/0')).toBe(
-        'entropy:wallet-1/0',
-      );
-      expect(filtered.toLocalId('wallet:private-key')).toBe('keyring:simple');
+      expect(
+        filtered.toLocalId(toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0)),
+      ).toBe('entropy:wallet-1/0');
+      expect(filtered.toLocalId(MOCK_PK_PAYLOAD_ID)).toBe('keyring:simple');
     });
   });
 
@@ -257,7 +276,7 @@ describe('AccountTreeSnapshot', () => {
     it('returns the local ID for a known payload wallet ID', () => {
       const map = buildIdMap();
       const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
-      expect(snapshot.toLocalId('wallet:entropy-source-1')).toBe(
+      expect(snapshot.toLocalId(MOCK_MNEMONIC_PAYLOAD_ID)).toBe(
         'entropy:wallet-1',
       );
     });
@@ -265,14 +284,14 @@ describe('AccountTreeSnapshot', () => {
     it('returns the local ID for a known payload group ID', () => {
       const map = buildIdMap();
       const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
-      expect(snapshot.toLocalId('wallet:entropy-source-1/0')).toBe(
-        'entropy:wallet-1/0',
-      );
+      expect(
+        snapshot.toLocalId(toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0)),
+      ).toBe('entropy:wallet-1/0');
     });
 
     it('returns undefined when no idMap is present', () => {
       const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET]);
-      expect(snapshot.toLocalId('wallet:entropy-source-1')).toBeUndefined();
+      expect(snapshot.toLocalId(MOCK_MNEMONIC_PAYLOAD_ID)).toBeUndefined();
     });
 
     it('returns undefined for an unknown payload ID', () => {
@@ -289,7 +308,7 @@ describe('AccountTreeSnapshot', () => {
       const map = buildIdMap();
       const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
       expect(snapshot.toPayloadId('entropy:wallet-1')).toBe(
-        'wallet:entropy-source-1',
+        MOCK_MNEMONIC_PAYLOAD_ID,
       );
     });
 
@@ -297,7 +316,7 @@ describe('AccountTreeSnapshot', () => {
       const map = buildIdMap();
       const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
       expect(snapshot.toPayloadId('entropy:wallet-1/0')).toBe(
-        'wallet:entropy-source-1/0',
+        toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0),
       );
     });
 
@@ -346,7 +365,7 @@ describe('AccountTreeSnapshot', () => {
       const snapshot = await AccountTreeSnapshot.deserialize(raw);
       expect(snapshot.serialize().wallets).toHaveLength(1);
       expect(snapshot.serialize().wallets[0]?.id).toBe(
-        'wallet:entropy-source-1',
+        MOCK_MNEMONIC_PAYLOAD_ID,
       );
     });
 
@@ -356,7 +375,7 @@ describe('AccountTreeSnapshot', () => {
         wallets: [MOCK_MNEMONIC_WALLET],
       };
       const snapshot = await AccountTreeSnapshot.deserialize(raw);
-      expect(snapshot.toLocalId('wallet:entropy-source-1')).toBeUndefined();
+      expect(snapshot.toLocalId(MOCK_MNEMONIC_PAYLOAD_ID)).toBeUndefined();
       expect(snapshot.toPayloadId('entropy:wallet-1')).toBeUndefined();
     });
 

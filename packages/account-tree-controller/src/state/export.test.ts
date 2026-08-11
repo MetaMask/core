@@ -16,6 +16,16 @@ import {
   isMnemonicWalletObject,
   isPrivateKeyWalletObject,
 } from './export.js';
+import {
+  AccountWalletPayloadType,
+  AccountWalletPrivateKeyEncoding,
+  toGroupPayloadId,
+  toWalletPayloadId,
+} from './payload.js';
+
+const MOCK_PK_PAYLOAD_ID = toWalletPayloadId(
+  AccountWalletPayloadType.PrivateKey,
+);
 
 const MOCK_HD_WALLET_ID = toAccountWalletId(
   AccountWalletType.Entropy,
@@ -287,8 +297,8 @@ describe('exportState', () => {
       const snapshot = await exportState(context);
       const wallet = snapshot.serialize().wallets[0];
 
-      expect(wallet?.id).toBe('wallet:stable-entropy-id');
-      expect(wallet?.type).toBe('mnemonic');
+      expect(wallet?.id).toBe(toWalletPayloadId('stable-entropy-id'));
+      expect(wallet?.type).toBe(AccountWalletPayloadType.Mnemonic);
       expect(wallet?.metadata.name).toBe('Wallet 1');
       expect((wallet as { value?: string }).value).toBeUndefined();
     });
@@ -327,17 +337,19 @@ describe('exportState', () => {
 
       const snapshot = await exportState(context);
 
-      expect(snapshot.toLocalId('wallet:stable-entropy-id')).toBe(
+      expect(snapshot.toLocalId(toWalletPayloadId('stable-entropy-id'))).toBe(
         MOCK_HD_WALLET_ID,
       );
-      expect(snapshot.toLocalId('wallet:stable-entropy-id/0')).toBe(
-        MOCK_HD_GROUP_ID,
-      );
+      expect(
+        snapshot.toLocalId(
+          toGroupPayloadId(toWalletPayloadId('stable-entropy-id'), 0),
+        ),
+      ).toBe(MOCK_HD_GROUP_ID);
       expect(snapshot.toPayloadId(MOCK_HD_WALLET_ID)).toBe(
-        'wallet:stable-entropy-id',
+        toWalletPayloadId('stable-entropy-id'),
       );
       expect(snapshot.toPayloadId(MOCK_HD_GROUP_ID)).toBe(
-        'wallet:stable-entropy-id/0',
+        toGroupPayloadId(toWalletPayloadId('stable-entropy-id'), 0),
       );
     });
 
@@ -417,10 +429,12 @@ describe('exportState', () => {
 
       expect(payload.wallets).toHaveLength(1);
       const wallet = payload.wallets[0];
-      expect(wallet?.id).toBe('wallet:private-key');
-      expect(wallet?.type).toBe('private-key');
+      expect(wallet?.id).toBe(MOCK_PK_PAYLOAD_ID);
+      expect(wallet?.type).toBe(AccountWalletPayloadType.PrivateKey);
       expect(wallet?.groups).toHaveLength(1);
-      expect(wallet?.groups[0]?.id).toBe('wallet:private-key/0xabc');
+      expect(wallet?.groups[0]?.id).toBe(
+        toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xabc'),
+      );
       expect((wallet?.groups[0] as { value?: unknown })?.value).toBeUndefined();
     });
 
@@ -432,7 +446,7 @@ describe('exportState', () => {
       });
       mocks.KeyringController.withKeyringV2 = makePrivateKeyExportHandler({
         privateKey: '0xdeadbeef',
-        encoding: 'hexadecimal',
+        encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
       });
 
       const snapshot = await exportState(context, { includeSecrets: true });
@@ -441,7 +455,9 @@ describe('exportState', () => {
       };
 
       expect(group.value?.privateKey).toBe('0xdeadbeef');
-      expect(group.value?.encoding).toBe('hexadecimal');
+      expect(group.value?.encoding).toBe(
+        AccountWalletPrivateKeyEncoding.Hexadecimal,
+      );
       expect(group.value?.type).toBe('eip155:eoa');
     });
 
@@ -531,10 +547,10 @@ describe('exportState', () => {
 
       const snapshot = await exportState(context);
 
-      expect(snapshot.toLocalId('wallet:private-key')).toBe(MOCK_PK_WALLET_ID);
-      expect(snapshot.toLocalId('wallet:private-key/0xabc')).toBe(
-        MOCK_PK_GROUP_ID,
-      );
+      expect(snapshot.toLocalId(MOCK_PK_PAYLOAD_ID)).toBe(MOCK_PK_WALLET_ID);
+      expect(
+        snapshot.toLocalId(toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xabc')),
+      ).toBe(MOCK_PK_GROUP_ID);
     });
 
     it('merges multiple simple-keyring wallets into one private-key payload entry', async () => {
@@ -583,10 +599,15 @@ describe('exportState', () => {
       const payload = snapshot.serialize();
 
       expect(payload.wallets).toHaveLength(1);
-      expect(payload.wallets[0]?.type).toBe('private-key');
+      expect(payload.wallets[0]?.type).toBe(
+        AccountWalletPayloadType.PrivateKey,
+      );
       expect(payload.wallets[0]?.groups).toHaveLength(2);
       expect(payload.wallets[0]?.groups.map((group) => group.id)).toStrictEqual(
-        ['wallet:private-key/0xabc', 'wallet:private-key/0xdef'],
+        [
+          toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xabc'),
+          toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xdef'),
+        ],
       );
     });
   });
