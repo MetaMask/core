@@ -215,6 +215,43 @@ export type GetAmountDataCallback = (
   request: GetAmountDataRequest,
 ) => Promise<GetAmountDataResponse>;
 
+/** Request passed to {@link ResolveSourceAmountCallback}. */
+export type ResolveSourceAmountRequest = {
+  /** Whether the user selected the maximum amount. */
+  isMaxAmount: boolean;
+
+  /** Selected payment (source) token. */
+  paymentToken: TransactionPaymentToken;
+
+  /** Optional payment source override for the transaction. */
+  paymentOverride?: PaymentOverride;
+
+  /** Required (target) token to be covered. */
+  token: TransactionPayRequiredToken;
+};
+
+/** Response returned by {@link ResolveSourceAmountCallback}. */
+export type ResolveSourceAmountResponse = {
+  /**
+   * Exact source token amount in atomic (raw) units. Used verbatim as the
+   * quote's source amount, bypassing the default fiat-derived calculation.
+   */
+  sourceAmountRaw: string;
+};
+
+/**
+ * Optional callback that lets the client supply an exact atomic source amount
+ * for a required token, bypassing the default fiat-derived source calculation.
+ *
+ * Returns `undefined` to fall back to the default calculation. Must be
+ * synchronous: it is consumed during synchronous source-amount computation, so
+ * the client should read from already-available (cached) state rather than
+ * performing async lookups.
+ */
+export type ResolveSourceAmountCallback = (
+  request: ResolveSourceAmountRequest,
+) => ResolveSourceAmountResponse | undefined;
+
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
   fiatPayment: TransactionFiatPayment,
@@ -277,6 +314,12 @@ export type TransactionPayControllerOptions = {
 
   /** Callbacks for the Polymarket relayer; required only for the Polymarket deposit-wallet flow. */
   polymarket?: PolymarketCallbacks;
+
+  /**
+   * Optional callback to supply an exact atomic source amount for a required
+   * token, bypassing the default fiat-derived source calculation.
+   */
+  resolveSourceAmount?: ResolveSourceAmountCallback;
 
   /** Initial state of the controller. */
   state?: Partial<TransactionPayControllerState>;

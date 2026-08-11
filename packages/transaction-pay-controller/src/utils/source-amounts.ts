@@ -21,6 +21,7 @@ import type {
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayRequiredToken,
+  ResolveSourceAmountCallback,
 } from '../types.js';
 import { getTokenFiatRate, isSameToken } from './token.js';
 import { getTransaction } from './transaction.js';
@@ -33,11 +34,13 @@ const log = createModuleLogger(projectLogger, 'source-amounts');
  * @param transactionId - ID of the transaction to update.
  * @param transactionData - Existing transaction data.
  * @param messenger - Controller messenger.
+ * @param resolveSourceAmount - Optional callback supplying an exact atomic source amount.
  */
 export function updateSourceAmounts(
   transactionId: string,
   transactionData: TransactionData | undefined,
   messenger: TransactionPayControllerMessenger,
+  resolveSourceAmount?: ResolveSourceAmountCallback,
 ): void {
   if (!transactionData) {
     return;
@@ -78,6 +81,7 @@ export function updateSourceAmounts(
         isMaxAmount ?? false,
         isQuoteRequired,
         paymentOverride,
+        resolveSourceAmount,
       ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
@@ -152,6 +156,7 @@ function calculatePostQuoteSourceAmounts(
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @param paymentOverride - Optional payment source override for the transaction.
+ * @param resolveSourceAmount - Optional callback supplying an exact atomic source amount.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
@@ -162,6 +167,7 @@ function calculateSourceAmount(
   isMaxAmount: boolean,
   isQuoteRequired?: boolean,
   paymentOverride?: PaymentOverride,
+  resolveSourceAmount?: ResolveSourceAmountCallback,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -198,6 +204,36 @@ function calculateSourceAmount(
     return undefined;
   }
 
+  if (token.amountRaw === '0') {
+    log('Skipping token as zero amount', { tokenAddress: token.address });
+    return undefined;
+  }
+
+  const resolvedSourceAmount = resolveSourceAmount?.({
+    token,
+    paymentToken,
+    isMaxAmount,
+    paymentOverride,
+  });
+
+  if (resolvedSourceAmount) {
+    const { sourceAmountRaw } = resolvedSourceAmount;
+    const sourceAmountHuman = new BigNumber(sourceAmountRaw)
+      .shiftedBy(-paymentToken.decimals)
+      .toString(10);
+
+    log('Resolved source amount from callback', {
+      tokenAddress: token.address,
+      sourceAmountRaw,
+    });
+
+    return {
+      sourceAmountHuman,
+      sourceAmountRaw,
+      targetTokenAddress: token.address,
+    };
+  }
+
   const sourceAmountHumanValue = new BigNumber(token.amountUsd).div(
     paymentTokenFiatRate.usdRate,
   );
@@ -207,11 +243,6 @@ function calculateSourceAmount(
   const sourceAmountRaw = sourceAmountHumanValue
     .shiftedBy(paymentToken.decimals)
     .toFixed(0);
-
-  if (token.amountRaw === '0') {
-    log('Skipping token as zero amount', { tokenAddress: token.address });
-    return undefined;
-  }
 
   // Money account Max must not use the pay token's on-chain balance. That
   // balance is only un-vaulted mUSD, while the typed required amount already
