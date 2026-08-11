@@ -23,7 +23,7 @@ import type { DeepReadonly } from './utils.js';
 export type AccountWalletPayloadId = `wallet:${string}`;
 
 /** Stable cross-device group identifier. Format: `wallet:<entropySourceId>/<groupSubId>`. */
-export type AccountGroupPayloadId = `wallet:${string}/${string}`;
+export type AccountGroupPayloadId = `${AccountWalletPayloadId}/${string}`;
 
 /**
  * Parsed representation of an {@link AccountGroupPayloadId}.
