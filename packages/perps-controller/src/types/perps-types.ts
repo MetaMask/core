@@ -58,6 +58,16 @@ export type TriggerOrderType =
 export type StrategyOrderType = 'twap' | 'scale' | 'chase';
 
 /**
+ * Every `OrderType` that resolves to a single order the exchange can be handed
+ * directly — market, limit, and the four trigger placements.
+ *
+ * Derived with `Exclude` on purpose, the safe direction: it *shrinks* as
+ * `StrategyOrderType` grows, so a strategy added later is kept out of the
+ * single-order helpers automatically rather than silently falling through them.
+ */
+export type OrdinaryOrderType = Exclude<OrderType, StrategyOrderType>;
+
+/**
  * Whether a triggered order executes as a market or a limit order.
  */
 export type OrderExecution = 'market' | 'limit';

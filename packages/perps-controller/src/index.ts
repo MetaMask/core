@@ -159,6 +159,7 @@ export type {
   OrderType,
   TriggerOrderType,
   StrategyOrderType,
+  OrdinaryOrderType,
   OrderExecution,
   TriggerDirection,
   TpslLinkage,

@@ -9,7 +9,7 @@ import {
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { SDKOrderParams } from '../types/hyperliquid-types.js';
 import type { PerpsDebugLogger } from '../types/index.js';
-import type { OrderType } from '../types/perps-types.js';
+import type { OrdinaryOrderType, OrderType } from '../types/perps-types.js';
 import {
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
@@ -80,7 +80,11 @@ export type CalculateFinalPositionSizeResult = {
 };
 
 export type CalculateOrderPriceAndSizeParams = {
-  orderType: OrderType;
+  // Strategy placements are excluded: each derives its own prices and sizes and
+  // never reaches this helper. Left in, `chase` would fall through as a
+  // limit-priced order it carries no price for, and `twap`/`scale` would be
+  // serialized as ordinary FrontendMarket orders.
+  orderType: OrdinaryOrderType;
   isBuy: boolean;
   finalPositionSize: number;
   currentPrice: number;
@@ -110,7 +114,8 @@ export type BuildOrdersArrayParams = {
   formattedPrice: string;
   formattedSize: string;
   reduceOnly: boolean;
-  orderType: OrderType;
+  // Strategy placements never reach here; see `CalculateOrderPriceAndSizeParams`.
+  orderType: OrdinaryOrderType;
   timeInForce?: 'GTC' | 'IOC' | 'ALO';
   clientOrderId?: string;
   // Trigger price for stop_*/take_profit_* placements (required for those types)

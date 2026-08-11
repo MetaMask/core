@@ -2792,4 +2792,189 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(order).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('Chase state when a post-cancel read fails', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('ends the session rather than rescheduling a chase with nothing resting', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: {
+          // The cancel succeeds, then the remainder lookup fails.
+          orderStatus: jest.fn().mockRejectedValue(new Error('network blip')),
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2990', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+
+      await jest.advanceTimersByTimeAsync(5000);
+
+      // The order was cancelled, so nothing rests. Recovery must not keep
+      // ticking a session that has no live order.
+      expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+      expect(order).toHaveBeenCalledTimes(1);
+
+      // And the handle releases cleanly instead of reporting an incomplete
+      // cancel against an order that is already gone.
+      const result = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
+    });
+  });
+
+  describe('Chase concurrency cap under concurrent placement', () => {
+    it('does not exceed the cap when placements overlap', async () => {
+      const order = jest.fn().mockImplementation(async () => {
+        // Every placement is in flight at once: the cap is checked before this
+        // resolves, so a check that does not reserve its slot lets them all in.
+        await Promise.resolve();
+        return {
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        };
+      });
+      const { exchangeClient } = useStrategyClients({ exchange: { order } });
+
+      const attempts = CHASE_ORDER_CONFIG.MaxActiveSessions + 3;
+      const results = await Promise.all(
+        Array.from({ length: attempts }, async () =>
+          provider.placeOrder({
+            ...baseOrder,
+            orderType: 'chase',
+          } as OrderParams),
+        ),
+      );
+
+      const accepted = results.filter((result) => result.success);
+      expect(accepted).toHaveLength(CHASE_ORDER_CONFIG.MaxActiveSessions);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(
+        CHASE_ORDER_CONFIG.MaxActiveSessions,
+      );
+      results
+        .filter((result) => !result.success)
+        .forEach((result) => {
+          expect(result.error).toBe(
+            PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED,
+          );
+        });
+    });
+  });
+
+  describe('Chase netting uses the live resting size', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('sees external liquidity sharing its level after a partial fill', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+      });
+
+      // The chase placed 1 ETH at 2999.1 and 0.8 of it has since filled, so
+      // only 0.2 is its own. The level shows 0.5 — the other 0.3 is external,
+      // and it is still the best bid.
+      const orderStatus = jest.fn().mockResolvedValue({
+        status: 'order',
+        order: {
+          status: 'open',
+          order: {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '2999.1',
+            sz: '0.2',
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+          },
+        },
+      });
+
+      useStrategyClients({
+        exchange: { order },
+        info: {
+          orderStatus,
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [
+                  { px: '2999.1', sz: '0.5', n: 2 },
+                  { px: '2900', sz: '10', n: 1 },
+                ],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+        },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+
+      await jest.advanceTimersByTimeAsync(1000);
+
+      // Netting the live 0.2 leaves 0.3 of external size at 2999.1, so that is
+      // still the best external bid and the chase improves on it by a tick.
+      // Netting the stale 1 ETH would wipe the level out entirely and quote off
+      // the 2900 level below — 99 dollars away from the real touch.
+      expect(orderStatus).toHaveBeenCalled();
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(order.mock.calls[1][0].orders[0].p).toBe('2999.2');
+    });
+  });
 });
