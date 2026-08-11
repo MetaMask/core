@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0]
+
 ### Added
 
 - Export `ClaimsControllerOptions` and `ClaimsServiceConfig` types ([#9588](https://github.com/MetaMask/core/pull/9588))
@@ -160,7 +162,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
   - `verifyClaimSignature`: verify claim signature produced by user.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.6.0...HEAD
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.4...@metamask/claims-controller@0.6.0
 [0.5.4]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.3...@metamask/claims-controller@0.5.4
 [0.5.3]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.2...@metamask/claims-controller@0.5.3
 [0.5.2]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.1...@metamask/claims-controller@0.5.2

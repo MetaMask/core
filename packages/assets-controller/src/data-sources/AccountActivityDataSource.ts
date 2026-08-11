@@ -17,6 +17,7 @@ import type {
   DataRequest,
   DataResponse,
 } from '../types.js';
+import { safeNormalizeAssetId } from '../utils/index.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
 import type { DataSourceState } from './AbstractDataSource.js';
 
@@ -66,7 +67,11 @@ function processAccountActivityBalanceUpdates(
       continue;
     }
 
-    const assetId = asset.type as Caip19AssetId;
+    // The websocket sends lower-case ERC-20 addresses, while state and the
+    // rest of the pipeline key assets by their checksummed ID. Normalizing
+    // here keeps middleware comparisons (detection, custom-asset graduation,
+    // occurrence filtering) from treating an existing holding as brand new.
+    const assetId = safeNormalizeAssetId(asset.type as Caip19AssetId);
 
     if (asset.decimals === undefined) {
       continue;
