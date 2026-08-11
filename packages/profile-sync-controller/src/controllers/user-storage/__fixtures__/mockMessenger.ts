@@ -163,20 +163,22 @@ export function mockUserStorageMessenger(
     ],
   });
 
-  const mockWithKeyringV2Unsafe = jest.fn().mockImplementation(
-    async (
-      _selector: { id: string },
-      operation: (context: {
-        keyring: { type: string; seed?: Uint8Array };
-        metadata: { id: string; name: string };
-      }) => Promise<unknown>,
-    ) => {
-      return operation({
-        keyring: { type: 'hd', seed: MOCK_HD_SEED },
-        metadata: { id: 'mock', name: '' },
-      });
-    },
-  );
+  const mockWithKeyringV2Unsafe = jest
+    .fn()
+    .mockImplementation(
+      async (
+        _selector: { id: string },
+        operation: (context: {
+          keyring: { type: string; seed?: Uint8Array };
+          metadata: { id: string; name: string };
+        }) => Promise<unknown>,
+      ) => {
+        return operation({
+          keyring: { type: 'hd', seed: MOCK_HD_SEED },
+          metadata: { id: 'mock', name: '' },
+        });
+      },
+    );
 
   const mockAccountsListAccounts = jest.fn();
 
