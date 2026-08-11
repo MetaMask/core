@@ -128,6 +128,31 @@ function findLocalWalletPrivateKey(
 }
 
 /**
+ * Returns `true` if the given payload group is already present in the local simple-keyring wallet.
+ *
+ * @param localWallet - The local simple-keyring wallet, or `undefined` if none exists yet.
+ * @param group - The payload group entry to check.
+ * @returns Whether the group's account is already tracked locally.
+ */
+function hasLocalPrivateKeyGroup(
+  localWallet: AccountWalletKeyringObject | undefined,
+  group: AccountWalletPrivateKeyGroupEntry,
+): boolean {
+  const address = parsePayloadGroupId(group.id).subId;
+
+  const localWalletId = toAccountWalletId(
+    AccountWalletType.Keyring,
+    KeyringTypes.simple,
+  );
+  const localGroupId = toAccountGroupId(localWalletId, address);
+  const localGroup = localWallet?.groups[localGroupId];
+
+  const accountId = getUUIDFromAddressOfNormalAccount(address);
+
+  return localGroup?.accounts.some((id) => id === accountId) ?? false;
+}
+
+/**
  * Applies name, pinned, and hidden metadata from a payload group entry to a local group.
  *
  * @param context - Import context providing the metadata setters.
@@ -290,14 +315,10 @@ async function importPrivateKeyWallet(
 
     supportedGroups.push(group);
 
-    const address = parsePayloadGroupId(group.id).subId;
-    const accountId = getUUIDFromAddressOfNormalAccount(address);
-    const localGroupId = toAccountGroupId(localWalletId, address);
-    const localGroup = localWallet?.groups[localGroupId];
-    const hasAccount =
-      localGroup?.accounts.some((id) => id === accountId) ?? false;
-
-    if (!hasAccount && group.value !== undefined) {
+    if (
+      !hasLocalPrivateKeyGroup(localWallet, group) &&
+      group.value !== undefined
+    ) {
       missingGroups.push(group);
     }
   }
