@@ -1,4 +1,6 @@
-import { deepFreeze } from './utils.js';
+import { object, string, StructError } from '@metamask/superstruct';
+
+import { deepFreeze, formatValidationErrorMessages } from './utils.js';
 
 describe('deepFreeze', () => {
   it('returns primitives unchanged', () => {
@@ -48,5 +50,52 @@ describe('deepFreeze', () => {
     expect(() => {
       (obj.a as { b: number }).b = 99;
     }).toThrow(TypeError);
+  });
+});
+
+describe('formatValidationErrorMessages', () => {
+  function makeStructError(value: unknown): StructError {
+    const schema = object({ name: string() });
+    let caught: StructError | undefined;
+    try {
+      schema.assert(value);
+    } catch (error) {
+      if (error instanceof StructError) {
+        caught = error;
+      }
+    }
+    if (!caught) {
+      throw new Error('Expected a StructError');
+    }
+    return caught;
+  }
+
+  it('formats a single root-level failure', () => {
+    const error = makeStructError(null);
+    const result = formatValidationErrorMessages(error);
+    expect(result).toContain('<root>');
+    expect(result).toContain('expected:');
+  });
+
+  it('formats a nested field failure with a dotted path', () => {
+    const error = makeStructError({ name: 42 });
+    const result = formatValidationErrorMessages(error);
+    expect(result).toContain('[name]');
+    expect(result).toContain('expected: string');
+  });
+
+  it('joins multiple failures with a comma', () => {
+    const schema = object({ a: string(), b: string() });
+    let caught: StructError | undefined;
+    try {
+      schema.assert({ a: 1, b: 2 });
+    } catch (error) {
+      if (error instanceof StructError) {
+        caught = error;
+      }
+    }
+    expect(caught).toBeDefined();
+    const result = formatValidationErrorMessages(caught as StructError);
+    expect(result.split(', ').length).toBeGreaterThan(1);
   });
 });

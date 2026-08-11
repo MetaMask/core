@@ -1,3 +1,5 @@
+import { StructError } from '@metamask/superstruct';
+
 /**
  * Recursively readonly view of `Value` used by snapshot filtering predicate types.
  *
@@ -27,4 +29,20 @@ export function deepFreeze<Value>(value: Value): Value {
   }
 
   return value;
+}
+
+/**
+ * Formats Superstruct validation failures into a single error message string.
+ *
+ * @param error - The StructError thrown during validation.
+ * @returns A comma-separated list of `[path] expected: <type>` entries.
+ */
+export function formatValidationErrorMessages(error: StructError): string {
+  return error
+    .failures()
+    .map(({ path, type, refinement }) => {
+      const location = path.length > 0 ? path.join('.') : '<root>';
+      return `[${location}] expected: ${refinement ?? type}`;
+    })
+    .join(', ');
 }

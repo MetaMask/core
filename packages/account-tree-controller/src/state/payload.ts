@@ -19,6 +19,7 @@ import {
 import type { Infer } from '@metamask/superstruct';
 
 import type { DeepReadonly } from './utils.js';
+import { formatValidationErrorMessages } from './utils.js';
 
 /** Stable cross-device wallet identifier. Format: `wallet:<entropySourceId>`. */
 export type AccountWalletPayloadId = `wallet:${string}`;
@@ -320,23 +321,6 @@ export const AccountTreePayloadStruct = object({
 export type AccountTreePayloadStructType = Infer<
   typeof AccountTreePayloadStruct
 >;
-
-/**
- * Formats Superstruct validation failures into a single error message string.
- *
- * @param error - The StructError thrown during payload validation.
- * @returns A comma-separated list of `[path] message` entries.
- */
-const formatValidationErrorMessages = (error: StructError): string =>
-  error
-    .failures()
-    .map(({ path, type, refinement }) => {
-      // Use type/refinement (static strings) instead of message so no payload
-      // values ever appear in the output.
-      const location = path.length > 0 ? path.join('.') : '<root>';
-      return `[${location}] expected: ${refinement ?? type}`;
-    })
-    .join(', ');
 
 /**
  * Asserts that `value` conforms to the v1 {@link AccountTreePayload} schema.
