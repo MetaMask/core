@@ -23,6 +23,7 @@ import type {
   AccountWalletPrivateKeyPayload,
   ExportStateOptions,
 } from './payload.js';
+import { toWalletPayloadId, toGroupPayloadId } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
 
 /**
@@ -107,7 +108,7 @@ async function exportMnemonicWalletObject(
   // ensure that the exported snapshot is stable across different installations and sessions.
   const wallet: AccountWalletMnemonicPayload = {
     type: 'mnemonic',
-    id: `wallet:${entropySourceId}`,
+    id: toWalletPayloadId(entropySourceId),
     metadata: { name: walletObj.metadata.name },
     groups: [],
   };
@@ -118,7 +119,7 @@ async function exportMnemonicWalletObject(
     const { groupIndex } = groupObj.metadata.entropy;
 
     const group: AccountWalletMnemonicGroupEntry = {
-      id: `${wallet.id}/${groupIndex}`,
+      id: toGroupPayloadId(wallet.id, groupIndex),
       groupIndex,
       metadata: {
         name: groupObj.metadata.name,
@@ -167,7 +168,7 @@ async function exportPrivateKeyWalletObject(
   // We use a singleton wallet ID for private keys.
   const wallet: AccountWalletPrivateKeyPayload = {
     type: 'private-key',
-    id: `wallet:private-key`,
+    id: toWalletPayloadId('private-key'),
     metadata: { name: walletObj.metadata.name },
     groups: [],
   };
@@ -212,7 +213,7 @@ async function exportPrivateKeyWalletObject(
     }
 
     const group: AccountWalletPrivateKeyGroupEntry = {
-      id: `${wallet.id}/${address}`,
+      id: toGroupPayloadId(wallet.id, address),
       metadata: {
         name: groupObj.metadata.name,
         pinned: groupObj.metadata.pinned,

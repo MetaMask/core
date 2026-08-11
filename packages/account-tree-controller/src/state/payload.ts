@@ -180,6 +180,20 @@ export function toWalletPayloadId(
   return `wallet:${entropySourceId}`;
 }
 
+/**
+ * Constructs an {@link AccountGroupPayloadId} from a wallet payload ID and a sub-ID.
+ *
+ * @param walletId - The wallet payload ID this group belongs to.
+ * @param subId - The group-specific sub-ID (e.g. group index for mnemonic wallets, address for private-key wallets).
+ * @returns The portable group payload ID.
+ */
+export function toGroupPayloadId(
+  walletId: AccountWalletPayloadId,
+  subId: string | number,
+): AccountGroupPayloadId {
+  return `${walletId}/${subId}`;
+}
+
 /** Options accepted by {@link AccountTreeController.exportState}. */
 export type ExportStateOptions = {
   /** When `true`, secrets (mnemonic / private keys) are included. Requires the vault to be unlocked. */
