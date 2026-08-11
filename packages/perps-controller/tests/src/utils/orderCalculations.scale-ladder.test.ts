@@ -1,6 +1,8 @@
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {
+  computeChaseQuotePrice,
   computeScalePriceLadder,
+  getPriceTick,
   splitScaleSizes,
 } from '../../../src/utils/orderCalculations.js';
 
@@ -99,6 +101,68 @@ describe('orderCalculations - scale ladder', () => {
       expect(() =>
         splitScaleSizes({ totalSize: 1, count, szDecimals: 4 }),
       ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
+    });
+  });
+
+  describe('computeChaseQuotePrice', () => {
+    // The venue's definition: one tick above the best bid for a buy, one tick
+    // below the best ask for a sell, or the touch itself when the spread is a
+    // single tick. ETH-like precision (szDecimals 4) gives a 0.1 tick at ~3000.
+    it('rests one tick above the best bid for a buy', () => {
+      expect(
+        computeChaseQuotePrice({
+          bestBid: 2999,
+          bestAsk: 3001,
+          isBuy: true,
+          szDecimals: 4,
+        }),
+      ).toBe('2999.1');
+    });
+
+    it('rests one tick below the best ask for a sell', () => {
+      expect(
+        computeChaseQuotePrice({
+          bestBid: 2999,
+          bestAsk: 3001,
+          isBuy: false,
+          szDecimals: 4,
+        }),
+      ).toBe('3000.9');
+    });
+
+    it.each([true, false])(
+      'joins the touch on a single-tick spread (isBuy=%s)',
+      (isBuy) => {
+        expect(
+          computeChaseQuotePrice({
+            bestBid: 2999.9,
+            bestAsk: 3000,
+            isBuy,
+            szDecimals: 4,
+          }),
+        ).toBe(isBuy ? '2999.9' : '3000');
+      },
+    );
+
+    it('widens the tick with the price, as the venue does', () => {
+      // At 50000 the five-significant-figure cap makes the tick 1, not 0.01.
+      expect(
+        computeChaseQuotePrice({
+          bestBid: 50000,
+          bestAsk: 50100,
+          isBuy: true,
+          szDecimals: 3,
+        }),
+      ).toBe('50001');
+    });
+  });
+
+  describe('getPriceTick', () => {
+    it.each([
+      ['decimal-bound at a low price', 12, 4, 0.01],
+      ['significant-figure-bound at a high price', 50000, 3, 1],
+    ])('is %s', (_label, price, szDecimals, expected) => {
+      expect(getPriceTick({ price, szDecimals })).toBeCloseTo(expected, 10);
     });
   });
 });

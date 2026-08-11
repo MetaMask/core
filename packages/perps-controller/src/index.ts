@@ -495,6 +495,8 @@ export {
   buildTriggerOrderType,
   buildPositionTriggerOrderFromOrder,
   computeScalePriceLadder,
+  computeChaseQuotePrice,
+  getPriceTick,
   splitScaleSizes,
 } from './utils/index.js';
 export {

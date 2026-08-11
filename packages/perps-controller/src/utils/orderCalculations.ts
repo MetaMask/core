@@ -2,6 +2,7 @@ import type { Hex } from '@metamask/utils';
 
 import { BASIS_POINTS_DIVISOR } from '../constants/hyperLiquidConfig.js';
 import {
+  DECIMAL_PRECISION_CONFIG,
   MAX_ORDER_MARGIN_BUFFER,
   ORDER_SLIPPAGE_CONFIG,
 } from '../constants/perpsConfig.js';
@@ -306,6 +307,79 @@ export function floorToSizeDecimals(size: number, szDecimals: number): number {
   }
 
   return units / multiplier;
+}
+
+/**
+ * The smallest price increment the venue will represent at a given price.
+ *
+ * HyperLiquid bounds a perp price two ways at once — a decimal-place cap that
+ * depends on the asset's size precision, and a significant-figure cap — so the
+ * tick widens as the price grows. Whichever bound is coarser at this price is
+ * the tick.
+ *
+ * @param params - Tick parameters.
+ * @param params.price - Price to measure the increment at.
+ * @param params.szDecimals - The asset's size decimal precision.
+ * @returns The tick size at that price.
+ */
+export function getPriceTick(params: {
+  price: number;
+  szDecimals: number;
+}): number {
+  const { price, szDecimals } = params;
+
+  const byDecimals = Math.pow(
+    10,
+    -(DECIMAL_PRECISION_CONFIG.MaxPriceDecimals - szDecimals),
+  );
+  const bySignificantFigures = Math.pow(
+    10,
+    Math.floor(Math.log10(Math.abs(price))) -
+      (DECIMAL_PRECISION_CONFIG.MaxSignificantFigures - 1),
+  );
+
+  return Math.max(byDecimals, bySignificantFigures);
+}
+
+/**
+ * Price a chase order against the book it is chasing.
+ *
+ * The venue's own definition: a chase rests one tick *inside* the spread —
+ * above the best bid for a buy, below the best ask for a sell — except when the
+ * spread is already a single tick, where there is no room to improve and the
+ * order joins the touch instead.
+ *
+ * Rests inside rather than at the touch because a chase is post-only: sitting
+ * one tick ahead of the rest of the queue is the whole point, and joining the
+ * touch would leave it behind every order already resting there.
+ *
+ * @param params - Quote parameters.
+ * @param params.bestBid - Best bid, excluding the chase's own resting order.
+ * @param params.bestAsk - Best ask, excluding the chase's own resting order.
+ * @param params.isBuy - Which side the chase rests on.
+ * @param params.szDecimals - The asset's size decimal precision.
+ * @returns The formatted price the chase should rest at.
+ */
+export function computeChaseQuotePrice(params: {
+  bestBid: number;
+  bestAsk: number;
+  isBuy: boolean;
+  szDecimals: number;
+}): string {
+  const { bestBid, bestAsk, isBuy, szDecimals } = params;
+
+  const reference = isBuy ? bestBid : bestAsk;
+  const tick = getPriceTick({ price: reference, szDecimals });
+  const improved = isBuy ? bestBid + tick : bestAsk - tick;
+
+  // A single-tick spread leaves nowhere to improve to: the improved price would
+  // cross, which a post-only order cannot do. Join the touch instead.
+  const crosses = isBuy ? improved >= bestAsk : improved <= bestBid;
+
+  return formatHyperLiquidPrice({
+    price: crosses ? reference : improved,
+    szDecimals,
+  });
 }
 
 /**

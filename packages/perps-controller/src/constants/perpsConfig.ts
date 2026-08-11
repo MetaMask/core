@@ -116,12 +116,12 @@ export const ORDER_SLIPPAGE_CONFIG = {
 /**
  * Defaults and bounds for the emulated `chase` placement.
  *
- * No supported venue exposes a native chase action, so the strategy is run
- * client-side: a post-only order rests at the near touch and is cancelled and
- * re-placed as the touch moves. Both the poll floor and the repricing cap exist
- * to keep a chase from turning into a cancel/replace loop against a venue's
- * rate limits. Protocol-agnostic — a provider that gains a native chase ignores
- * these entirely.
+ * No supported venue exposes a chase as an API action — HyperLiquid documents it
+ * as running client-side — so the strategy is run here: a post-only order rests
+ * one tick inside the spread and is cancelled and re-placed as the touch moves.
+ * The poll floor and the repricing cap exist to keep a chase from turning into a
+ * cancel/replace loop against a venue's rate limits. Protocol-agnostic — a
+ * provider that gains a native chase ignores these entirely.
  */
 export const CHASE_ORDER_CONFIG = {
   /** How often the touch is re-read when the caller does not say. */
@@ -132,6 +132,15 @@ export const CHASE_ORDER_CONFIG = {
   DefaultMaxDurationMs: 60_000,
   /** How many cancel/replace cycles a single chase may perform. */
   DefaultMaxRepricings: 20,
+  /**
+   * How many chases may run at once.
+   *
+   * HyperLiquid documents a cap of five simultaneously active chase orders. It
+   * is a venue rule rather than controller policy, but it is spelled here
+   * alongside the rest of the chase configuration because an emulated chase is
+   * the only thing that can enforce it.
+   */
+  MaxActiveSessions: 5,
 } as const;
 
 /**

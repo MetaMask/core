@@ -1,4 +1,7 @@
-import { HYPERLIQUID_TWAP_LIMITS } from '../../../src/constants/perpsConfig.js';
+import {
+  CHASE_ORDER_CONFIG,
+  HYPERLIQUID_TWAP_LIMITS,
+} from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
@@ -962,8 +965,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       const submitted = exchangeClient.order.mock.calls[0][0];
       expect(submitted.orders).toHaveLength(1);
-      // Best bid, not the mid: a post-only buy has to sit on the bid side.
-      expect(submitted.orders[0].p).toBe('2999');
+      // One tick above the best bid, which is how the venue defines a chase: a
+      // post-only buy that improves the bid rather than joining the queue at it.
+      // ETH's tick at ~3000 is 0.1.
+      expect(submitted.orders[0].p).toBe('2999.1');
       expect(submitted.orders[0].t).toStrictEqual({ limit: { tif: 'Alo' } });
     });
 
@@ -979,7 +984,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } as OrderParams);
 
       const submitted = exchangeClient.order.mock.calls[0][0];
-      expect(submitted.orders[0].p).toBe('3001');
+      // One tick below the best ask, mirroring the buy side.
+      expect(submitted.orders[0].p).toBe('3000.9');
     });
 
     it('returns a session handle carrying the live order', async () => {
@@ -1243,7 +1249,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         cancels: [{ a: 1, o: 55 }],
       });
       expect(order).toHaveBeenCalledTimes(2);
-      expect(order.mock.calls[1][0].orders[0].p).toBe('2998');
+      expect(order.mock.calls[1][0].orders[0].p).toBe('2998.1');
       expect(order.mock.calls[1][0].orders[0].t).toStrictEqual({
         limit: { tif: 'Alo' },
       });
@@ -2516,6 +2522,274 @@ describe('HyperLiquidProvider - strategy order types', () => {
         PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL,
       );
       expect(exchangeClient.twapOrder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Chase pricing against the book', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    /**
+     * A book with the given bid levels and a fixed ask.
+     *
+     * @param bids - Bid levels, best first.
+     * @returns The l2Book payload.
+     */
+    const bookWithBids = (
+      bids: { px: string; sz: string }[],
+    ): Record<string, unknown> => ({
+      coin: 'ETH',
+      levels: [
+        bids.map((level) => ({ ...level, n: 1 })),
+        [{ px: '3005', sz: '10', n: 1 }],
+      ],
+    });
+
+    it('joins the touch when the spread is a single tick', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+      });
+      useStrategyClients({
+        exchange: { order },
+        info: {
+          l2Book: jest.fn().mockResolvedValue({
+            coin: 'ETH',
+            levels: [
+              [{ px: '2999.9', sz: '10', n: 1 }],
+              [{ px: '3000', sz: '10', n: 1 }],
+            ],
+          }),
+        },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      // Improving would cross, which a post-only order cannot do, so it joins
+      // the bid instead of resting a tick above it.
+      expect(order.mock.calls[0][0].orders[0].p).toBe('2999.9');
+    });
+
+    it('re-prices when the external touch moves behind its own order', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        })
+        .mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 66 } }] } },
+        });
+
+      // Tick 1: the chase's own 1 ETH at 2999.1 tops the book, with a real
+      // external bid of 2999 beneath it. Tick 2: that external bid drops to
+      // 2990 and only the chase's own order is left at the top.
+      const l2Book = jest
+        .fn()
+        .mockResolvedValueOnce(bookWithBids([{ px: '2999', sz: '10' }]))
+        .mockResolvedValue(
+          bookWithBids([
+            { px: '2999.1', sz: '1' },
+            { px: '2990', sz: '10' },
+          ]),
+        );
+
+      useStrategyClients({
+        exchange: { order },
+        info: { l2Book },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      expect(order.mock.calls[0][0].orders[0].p).toBe('2999.1');
+
+      await jest.advanceTimersByTimeAsync(1000);
+
+      // Reading the raw book would see its own 2999.1 as the best bid, conclude
+      // nothing had moved, and sit there while the market walked away. Netting
+      // its own size out of that level exposes the real 2990 touch.
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(order.mock.calls[1][0].orders[0].p).toBe('2990.1');
+    });
+  });
+
+  describe('Chase concurrency cap', () => {
+    it("refuses a chase beyond the venue's simultaneous limit", async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+          }),
+        },
+      });
+
+      for (
+        let placed = 0;
+        placed < CHASE_ORDER_CONFIG.MaxActiveSessions;
+        placed++
+      ) {
+        const result = await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'chase',
+        } as OrderParams);
+        expect(result.success).toBe(true);
+      }
+
+      const overflow = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      expect(overflow.success).toBe(false);
+      expect(overflow.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(
+        CHASE_ORDER_CONFIG.MaxActiveSessions,
+      );
+    });
+
+    it('frees a slot when a chase is cancelled', async () => {
+      useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+          }),
+        },
+      });
+
+      const placed = [];
+      for (
+        let index = 0;
+        index < CHASE_ORDER_CONFIG.MaxActiveSessions;
+        index++
+      ) {
+        placed.push(
+          await provider.placeOrder({
+            ...baseOrder,
+            orderType: 'chase',
+          } as OrderParams),
+        );
+      }
+
+      await provider.cancelOrder({
+        orderId: placed[0].orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+
+      const replacement = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+      expect(replacement.success).toBe(true);
+    });
+  });
+
+  describe('Chase cancel racing the post-cancel remainder read', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('rests nothing when a cancel lands during the remainder read', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        })
+        .mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 66 } }] } },
+        });
+
+      let sessionId = '';
+      let callerCancel: Promise<CancelOrderResult> | undefined;
+      const orderStatus = jest.fn().mockImplementation(async () => {
+        // The old order is already cancelled and the replacement has not gone
+        // up. A caller cancelling here finds nothing to cancel, reports success
+        // and drops the handle — so the tick must not rest anything after it.
+        callerCancel = provider.cancelOrder({
+          orderId: sessionId,
+          symbol: 'ETH',
+          orderType: 'chase',
+        });
+        await Promise.resolve();
+        return {
+          status: 'order',
+          order: {
+            status: 'canceled',
+            order: {
+              coin: 'ETH',
+              side: 'B',
+              limitPx: '2999.1',
+              sz: '1',
+              origSz: '1',
+              oid: 55,
+              timestamp: 1_700_000_000_000,
+              isTrigger: false,
+              triggerCondition: 'N/A',
+              triggerPx: '0',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: false,
+              orderType: 'Limit',
+            },
+          },
+        };
+      });
+
+      useStrategyClients({
+        exchange: { order },
+        info: {
+          orderStatus,
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2990', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      sessionId = placed.orderId as string;
+
+      await jest.advanceTimersByTimeAsync(1000);
+      await callerCancel;
+
+      // Only the original placement: no unreachable replacement was left live.
+      expect(order).toHaveBeenCalledTimes(1);
     });
   });
 });
