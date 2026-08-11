@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `resolveSourceAmount` constructor option to `TransactionPayController`, allowing clients to supply an exact atomic source amount for a required token that bypasses the default fiat-derived source calculation ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add optional `resolveSourceAmount` constructor option to `TransactionPayController`, allowing clients to supply an exact atomic source amount for a required token that bypasses the default fiat-derived source calculation ([#9817](https://github.com/MetaMask/core/pull/9817))
 
 ### Changed
 
