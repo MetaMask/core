@@ -12,7 +12,7 @@ import {
 import { AccountTreeSnapshot } from './snapshot.js';
 
 const MOCK_MNEMONIC_PAYLOAD_ID = toWalletPayloadId('entropy-source-1');
-const MOCK_PK_PAYLOAD_ID = toWalletPayloadId(
+const MOCK_PRIVATE_KEY_PAYLOAD_ID = toWalletPayloadId(
   AccountWalletPayloadType.PrivateKey,
 );
 
@@ -35,12 +35,12 @@ const MOCK_MNEMONIC_WALLET: AccountWalletMnemonicPayload = {
 };
 
 const MOCK_PRIVATE_KEY_WALLET: AccountWalletPrivateKeyPayload = {
-  id: MOCK_PK_PAYLOAD_ID,
+  id: MOCK_PRIVATE_KEY_PAYLOAD_ID,
   type: AccountWalletPayloadType.PrivateKey,
   metadata: { name: 'Imported Accounts' },
   groups: [
     {
-      id: toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xdeadbeef'),
+      id: toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xdeadbeef'),
       metadata: { name: 'Imported 1', pinned: false, hidden: true },
     },
   ],
@@ -51,10 +51,10 @@ function buildIdMap(): IdMap {
   map.add('entropy:wallet-1', MOCK_MNEMONIC_PAYLOAD_ID);
   map.add('entropy:wallet-1/0', toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0));
   map.add('entropy:wallet-1/1', toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 1));
-  map.add('keyring:simple', MOCK_PK_PAYLOAD_ID);
+  map.add('keyring:simple', MOCK_PRIVATE_KEY_PAYLOAD_ID);
   map.add(
     'keyring:simple/0xdeadbeef',
-    toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xdeadbeef'),
+    toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xdeadbeef'),
   );
   return map;
 }
@@ -116,9 +116,13 @@ describe('AccountTreeSnapshot', () => {
       expect(
         filtered.toLocalId(toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0)),
       ).toBe('entropy:wallet-1/0');
-      expect(filtered.toLocalId(MOCK_PK_PAYLOAD_ID)).toBe('keyring:simple');
+      expect(filtered.toLocalId(MOCK_PRIVATE_KEY_PAYLOAD_ID)).toBe(
+        'keyring:simple',
+      );
       expect(
-        filtered.toLocalId(toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xdeadbeef')),
+        filtered.toLocalId(
+          toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xdeadbeef'),
+        ),
       ).toBe('keyring:simple/0xdeadbeef');
     });
 
@@ -135,7 +139,7 @@ describe('AccountTreeSnapshot', () => {
       expect(filtered.toLocalId(MOCK_MNEMONIC_PAYLOAD_ID)).toBe(
         'entropy:wallet-1',
       );
-      expect(filtered.toLocalId(MOCK_PK_PAYLOAD_ID)).toBeUndefined();
+      expect(filtered.toLocalId(MOCK_PRIVATE_KEY_PAYLOAD_ID)).toBeUndefined();
     });
   });
 
@@ -184,11 +188,16 @@ describe('AccountTreeSnapshot', () => {
         map,
       );
 
-      const filtered = snapshot.filterGroups(MOCK_PK_PAYLOAD_ID, () => true);
+      const filtered = snapshot.filterGroups(
+        MOCK_PRIVATE_KEY_PAYLOAD_ID,
+        () => true,
+      );
 
       expect(filtered.serialize().wallets).toHaveLength(2);
       expect(
-        filtered.toLocalId(toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xdeadbeef')),
+        filtered.toLocalId(
+          toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xdeadbeef'),
+        ),
       ).toBe('keyring:simple/0xdeadbeef');
     });
 
@@ -268,7 +277,9 @@ describe('AccountTreeSnapshot', () => {
       expect(
         filtered.toLocalId(toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0)),
       ).toBe('entropy:wallet-1/0');
-      expect(filtered.toLocalId(MOCK_PK_PAYLOAD_ID)).toBe('keyring:simple');
+      expect(filtered.toLocalId(MOCK_PRIVATE_KEY_PAYLOAD_ID)).toBe(
+        'keyring:simple',
+      );
     });
   });
 

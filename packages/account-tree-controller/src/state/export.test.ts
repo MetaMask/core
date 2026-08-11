@@ -1,10 +1,12 @@
 import {
   AccountWalletType,
   toAccountGroupId,
+  toMultichainAccountGroupId,
   toAccountWalletId,
 } from '@metamask/account-api';
 import { AccountGroupType } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import { SnapId } from '@metamask/snaps-sdk';
 
 import type {
   AccountTreeControllerMessenger,
@@ -17,13 +19,14 @@ import {
   isPrivateKeyWalletObject,
 } from './export.js';
 import {
+  AccountWalletMnemonicGroupEntry,
   AccountWalletPayloadType,
   AccountWalletPrivateKeyEncoding,
   toGroupPayloadId,
   toWalletPayloadId,
 } from './payload.js';
 
-const MOCK_PK_PAYLOAD_ID = toWalletPayloadId(
+const MOCK_PRIVATE_KEY_PAYLOAD_ID = toWalletPayloadId(
   AccountWalletPayloadType.PrivateKey,
 );
 
@@ -31,12 +34,15 @@ const MOCK_HD_WALLET_ID = toAccountWalletId(
   AccountWalletType.Entropy,
   'mock-entropy-id',
 );
-const MOCK_HD_GROUP_ID = toAccountGroupId(MOCK_HD_WALLET_ID, '0');
-const MOCK_PK_WALLET_ID = toAccountWalletId(
+const MOCK_HD_GROUP_ID = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 0);
+const MOCK_PRIVATE_KEY_WALLET_ID = toAccountWalletId(
   AccountWalletType.Keyring,
   KeyringTypes.simple,
 );
-const MOCK_PK_GROUP_ID = toAccountGroupId(MOCK_PK_WALLET_ID, '0xabc');
+const MOCK_PRIVATE_KEY_GROUP_ID = toAccountGroupId(
+  MOCK_PRIVATE_KEY_WALLET_ID,
+  '0xabc',
+);
 
 const MOCK_HD_WALLET_STATE: AccountTreeControllerState['accountTree']['wallets'] =
   {
@@ -65,15 +71,15 @@ const MOCK_HD_WALLET_STATE: AccountTreeControllerState['accountTree']['wallets']
     },
   };
 
-const MOCK_PK_WALLET_STATE: AccountTreeControllerState['accountTree']['wallets'] =
+const MOCK_PRIVATE_KEY_WALLET_STATE: AccountTreeControllerState['accountTree']['wallets'] =
   {
-    [MOCK_PK_WALLET_ID]: {
-      id: MOCK_PK_WALLET_ID,
+    [MOCK_PRIVATE_KEY_WALLET_ID]: {
+      id: MOCK_PRIVATE_KEY_WALLET_ID,
       type: AccountWalletType.Keyring,
       status: 'ready',
       groups: {
-        [MOCK_PK_GROUP_ID]: {
-          id: MOCK_PK_GROUP_ID,
+        [MOCK_PRIVATE_KEY_GROUP_ID]: {
+          id: MOCK_PRIVATE_KEY_GROUP_ID,
           type: AccountGroupType.SingleAccount,
           accounts: ['account-pk-1'],
           metadata: {
@@ -212,7 +218,9 @@ describe('isMnemonicWalletObject', () => {
 
   it('returns false for a keyring wallet', () => {
     expect(
-      isMnemonicWalletObject(MOCK_PK_WALLET_STATE[MOCK_PK_WALLET_ID]),
+      isMnemonicWalletObject(
+        MOCK_PRIVATE_KEY_WALLET_STATE[MOCK_PRIVATE_KEY_WALLET_ID],
+      ),
     ).toBe(false);
   });
 });
@@ -220,7 +228,9 @@ describe('isMnemonicWalletObject', () => {
 describe('isPrivateKeyWalletObject', () => {
   it('returns true for a simple-keyring wallet', () => {
     expect(
-      isPrivateKeyWalletObject(MOCK_PK_WALLET_STATE[MOCK_PK_WALLET_ID]),
+      isPrivateKeyWalletObject(
+        MOCK_PRIVATE_KEY_WALLET_STATE[MOCK_PRIVATE_KEY_WALLET_ID],
+      ),
     ).toBe(true);
   });
 
@@ -354,9 +364,9 @@ describe('exportState', () => {
     });
 
     it('exports groups sorted by groupIndex regardless of insertion order', async () => {
-      const group0Id = toAccountGroupId(MOCK_HD_WALLET_ID, '0');
-      const group1Id = toAccountGroupId(MOCK_HD_WALLET_ID, '1');
-      const group2Id = toAccountGroupId(MOCK_HD_WALLET_ID, '2');
+      const group0Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 0);
+      const group1Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 1);
+      const group2Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 2);
 
       // Insert groups in reverse order so Object.values() returns them as [2, 1, 0].
       const walletsWithReversedGroups: AccountTreeControllerState['accountTree']['wallets'] =
@@ -412,9 +422,10 @@ describe('exportState', () => {
         makeHdKeyringHandler('stable-entropy-id');
 
       const snapshot = await exportState(context);
-      const groups = snapshot.serialize().wallets[0]?.groups;
+      const groups = snapshot.serialize().wallets[0]
+        ?.groups as AccountWalletMnemonicGroupEntry[];
 
-      expect(groups?.map((g) => g.groupIndex)).toStrictEqual([0, 1, 2]);
+      expect(groups?.map((group) => group.groupIndex)).toStrictEqual([0, 1, 2]);
     });
 
     it('skips snap and hardware wallets', async () => {
@@ -448,7 +459,10 @@ describe('exportState', () => {
                 },
               },
             },
-            metadata: { name: 'Snap Wallet', snap: { id: 'local:mock-snap' } },
+            metadata: {
+              name: 'Snap Wallet',
+              snap: { id: 'local:mock-snap' as SnapId },
+            },
           },
           [ledgerWalletId]: {
             id: ledgerWalletId,
@@ -482,7 +496,9 @@ describe('exportState', () => {
 
   describe('with a private-key wallet', () => {
     it('exports the wallet without secrets', async () => {
-      const { context, mocks } = setup({ wallets: MOCK_PK_WALLET_STATE });
+      const { context, mocks } = setup({
+        wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
+      });
       mocks.AccountsController.getAccount.mockReturnValue({
         id: 'account-pk-1',
         address: '0xabc',
@@ -493,17 +509,19 @@ describe('exportState', () => {
 
       expect(payload.wallets).toHaveLength(1);
       const wallet = payload.wallets[0];
-      expect(wallet?.id).toBe(MOCK_PK_PAYLOAD_ID);
+      expect(wallet?.id).toBe(MOCK_PRIVATE_KEY_PAYLOAD_ID);
       expect(wallet?.type).toBe(AccountWalletPayloadType.PrivateKey);
       expect(wallet?.groups).toHaveLength(1);
       expect(wallet?.groups[0]?.id).toBe(
-        toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xabc'),
+        toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xabc'),
       );
       expect((wallet?.groups[0] as { value?: unknown })?.value).toBeUndefined();
     });
 
     it('exports the wallet with secrets when includeSecrets is true', async () => {
-      const { context, mocks } = setup({ wallets: MOCK_PK_WALLET_STATE });
+      const { context, mocks } = setup({
+        wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
+      });
       mocks.AccountsController.getAccount.mockReturnValue({
         id: 'account-pk-1',
         address: '0xabc',
@@ -526,7 +544,9 @@ describe('exportState', () => {
     });
 
     it('throws when includeSecrets is true but keyring does not support exportAccount', async () => {
-      const { context, mocks } = setup({ wallets: MOCK_PK_WALLET_STATE });
+      const { context, mocks } = setup({
+        wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
+      });
       mocks.AccountsController.getAccount.mockReturnValue({
         id: 'account-pk-1',
         address: '0xabc',
@@ -544,7 +564,9 @@ describe('exportState', () => {
     });
 
     it('throws when includeSecrets is true but the exported value is absent', async () => {
-      const { context, mocks } = setup({ wallets: MOCK_PK_WALLET_STATE });
+      const { context, mocks } = setup({
+        wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
+      });
       mocks.AccountsController.getAccount.mockReturnValue({
         id: 'account-pk-1',
         address: '0xabc',
@@ -558,7 +580,9 @@ describe('exportState', () => {
     });
 
     it('skips groups whose first account cannot be found', async () => {
-      const { context, mocks } = setup({ wallets: MOCK_PK_WALLET_STATE });
+      const { context, mocks } = setup({
+        wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
+      });
       mocks.AccountsController.getAccount.mockReturnValue(undefined);
 
       const snapshot = await exportState(context);
@@ -603,7 +627,9 @@ describe('exportState', () => {
     });
 
     it('populates the idMap with private-key wallet and group pairs', async () => {
-      const { context, mocks } = setup({ wallets: MOCK_PK_WALLET_STATE });
+      const { context, mocks } = setup({
+        wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
+      });
       mocks.AccountsController.getAccount.mockReturnValue({
         id: 'account-pk-1',
         address: '0xabc',
@@ -611,19 +637,23 @@ describe('exportState', () => {
 
       const snapshot = await exportState(context);
 
-      expect(snapshot.toLocalId(MOCK_PK_PAYLOAD_ID)).toBe(MOCK_PK_WALLET_ID);
+      expect(snapshot.toLocalId(MOCK_PRIVATE_KEY_PAYLOAD_ID)).toBe(
+        MOCK_PRIVATE_KEY_WALLET_ID,
+      );
       expect(
-        snapshot.toLocalId(toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xabc')),
-      ).toBe(MOCK_PK_GROUP_ID);
+        snapshot.toLocalId(
+          toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xabc'),
+        ),
+      ).toBe(MOCK_PRIVATE_KEY_GROUP_ID);
     });
 
     it('merges multiple simple-keyring wallets into one private-key payload entry', async () => {
       const secondPkWalletId =
-        'keyring:simple:legacy' as typeof MOCK_PK_WALLET_ID;
+        'keyring:simple:legacy' as typeof MOCK_PRIVATE_KEY_WALLET_ID;
       const secondPkGroupId = toAccountGroupId(secondPkWalletId, '0xdef');
 
       const wallets: AccountTreeControllerState['accountTree']['wallets'] = {
-        ...MOCK_PK_WALLET_STATE,
+        ...MOCK_PRIVATE_KEY_WALLET_STATE,
         [secondPkWalletId]: {
           id: secondPkWalletId,
           type: AccountWalletType.Keyring,
@@ -669,8 +699,8 @@ describe('exportState', () => {
       expect(payload.wallets[0]?.groups).toHaveLength(2);
       expect(payload.wallets[0]?.groups.map((group) => group.id)).toStrictEqual(
         [
-          toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xabc'),
-          toGroupPayloadId(MOCK_PK_PAYLOAD_ID, '0xdef'),
+          toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xabc'),
+          toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xdef'),
         ],
       );
     });
