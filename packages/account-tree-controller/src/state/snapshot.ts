@@ -13,26 +13,8 @@ import {
   assertValidAccountTreePayload,
   ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
 } from './payload.js';
+import { deepFreeze } from './utils.js';
 
-/**
- * Recursively freezes a value and its nested properties.
- *
- * @param value - Value to freeze.
- * @returns The frozen value.
- */
-function deepFreeze<Value>(value: Value): Value {
-  if (value === null || typeof value !== 'object') {
-    return value;
-  }
-
-  Object.freeze(value);
-
-  for (const nested of Object.values(value)) {
-    deepFreeze(nested);
-  }
-
-  return value;
-}
 
 /**
  * Immutable value object returned by {@link AccountTreeController.exportState}.

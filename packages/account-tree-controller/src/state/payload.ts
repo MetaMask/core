@@ -17,6 +17,8 @@ import {
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 
+import type { DeepReadonly } from './utils.js';
+
 /** Stable cross-device wallet identifier. Format: `wallet:<entropySourceId>`. */
 export type AccountWalletPayloadId = `wallet:${string}`;
 
@@ -129,17 +131,6 @@ export type AccountTreePayload = {
   version: number;
   wallets: AccountTreeWalletEntry[];
 };
-
-/**
- * Recursively readonly view of `Value` used by snapshot filtering predicate types.
- *
- * @typeParam T - The mutable source type to expose as deeply read-only.
- */
-export type DeepReadonly<Value> = Value extends readonly (infer Item)[]
-  ? readonly DeepReadonly<Item>[]
-  : Value extends object
-    ? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> }
-    : Value;
 
 /**
  * Deeply read-only wallet view passed to {@link AccountTreeSnapshot.filterWallets}
