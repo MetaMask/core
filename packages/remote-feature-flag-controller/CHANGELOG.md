@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `defaultFeatureFlags` constructor option to `RemoteFeatureFlagController` for client-side defaults as the lowest-precedence layer under processed remote flags and local overrides ([#9747](https://github.com/MetaMask/core/pull/9747))
+- Add optional `processedRemoteFeatureFlags` field to `RemoteFeatureFlagControllerState`, holding remote feature flags after version and threshold processing but before client defaults and local overrides are applied ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - `remoteFeatureFlags` remains the effective set of flags that consumers read, now derived by merging `defaultFeatureFlags`, `processedRemoteFeatureFlags`, and `localOverrides` in that precedence order.
 
 ## [5.0.0]
 
