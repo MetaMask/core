@@ -66,6 +66,8 @@ export type {
 } from './state/payload.js';
 
 export {
+  AccountWalletPayloadType,
+  AccountWalletPrivateKeyEncoding,
   AccountTreePayloadStruct,
   assertValidAccountTreePayload,
 } from './state/payload.js';

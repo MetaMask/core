@@ -57,6 +57,20 @@ export function parsePayloadGroupId(
   };
 }
 
+/**
+ * Wallet type discriminants used in serialized {@link AccountTreePayload} entries.
+ *
+ * Use these constants instead of raw string literals so callers get autocomplete
+ * and a single source of truth for the discriminant values.
+ */
+export const AccountWalletPayloadType = {
+  Mnemonic: 'mnemonic',
+  PrivateKey: 'private-key',
+} as const;
+
+export type AccountWalletPayloadType =
+  (typeof AccountWalletPayloadType)[keyof typeof AccountWalletPayloadType];
+
 /** Wallet-level metadata carried in every payload wallet entry. */
 export type AccountWalletPayloadMetadata = { name: string };
 
@@ -76,6 +90,18 @@ export type AccountWalletMnemonicGroupEntry = {
   metadata: AccountWalletGroupPayloadMetadata;
 };
 
+/**
+ * Encoding formats for exported private key material.
+ */
+export const AccountWalletPrivateKeyEncoding = {
+  Hexadecimal: 'hexadecimal',
+  Base58: 'base58',
+  Base32: 'base32',
+} as const;
+
+export type AccountWalletPrivateKeyEncoding =
+  (typeof AccountWalletPrivateKeyEncoding)[keyof typeof AccountWalletPrivateKeyEncoding];
+
 /** A single group entry inside an {@link AccountWalletPrivateKeyPayload}. */
 export type AccountWalletPrivateKeyGroupEntry = {
   /** Stable group payload ID. Format: `wallet:private-key/<address>`. */
@@ -87,7 +113,7 @@ export type AccountWalletPrivateKeyGroupEntry = {
    */
   value?: {
     privateKey: string;
-    encoding: 'hexadecimal' | 'base58' | 'base32';
+    encoding: AccountWalletPrivateKeyEncoding;
     /**
      * Account type from `KeyringAccountType` (e.g. `'eip155:eoa'`, `'bip122:p2wpkh'`).
      * Absent for EVM accounts -- import via `SimpleKeyring`.
@@ -101,7 +127,7 @@ export type AccountWalletPrivateKeyGroupEntry = {
 /** Payload entry for an HD (entropy) wallet and its derived account groups. */
 export type AccountWalletMnemonicPayload = {
   id: AccountWalletPayloadId;
-  type: 'mnemonic';
+  type: typeof AccountWalletPayloadType.Mnemonic;
   /** BIP-39 mnemonic phrase. Absent in metadata-only exports. */
   value?: string;
   metadata: AccountWalletPayloadMetadata;
@@ -116,7 +142,7 @@ export type AccountWalletMnemonicPayload = {
  */
 export type AccountWalletPrivateKeyPayload = {
   id: AccountWalletPayloadId;
-  type: 'private-key';
+  type: typeof AccountWalletPayloadType.PrivateKey;
   metadata: AccountWalletPayloadMetadata;
   groups: AccountWalletPrivateKeyGroupEntry[];
 };
@@ -219,7 +245,7 @@ const AccountWalletGroupPayloadMetadataStruct = object({
 
 const AccountWalletPrivateKeyValueStruct = object({
   privateKey: sensitive(string()),
-  encoding: enums(['hexadecimal', 'base58', 'base32']),
+  encoding: enums(Object.values(AccountWalletPrivateKeyEncoding)),
   type: exactOptional(KeyringAccountTypeStruct),
 });
 
@@ -237,7 +263,7 @@ const AccountWalletPrivateKeyGroupEntryStruct = object({
 
 const AccountWalletMnemonicPayloadStruct = object({
   id: AccountWalletPayloadIdStruct,
-  type: literal('mnemonic'),
+  type: literal(AccountWalletPayloadType.Mnemonic),
   value: exactOptional(sensitive(string())),
   metadata: AccountWalletPayloadMetadataStruct,
   groups: array(AccountWalletMnemonicGroupEntryStruct),
@@ -245,7 +271,7 @@ const AccountWalletMnemonicPayloadStruct = object({
 
 const AccountWalletPrivateKeyPayloadStruct = object({
   id: AccountWalletPayloadIdStruct,
-  type: literal('private-key'),
+  type: literal(AccountWalletPayloadType.PrivateKey),
   metadata: AccountWalletPayloadMetadataStruct,
   groups: array(AccountWalletPrivateKeyGroupEntryStruct),
 });

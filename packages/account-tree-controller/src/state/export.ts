@@ -23,7 +23,12 @@ import type {
   AccountWalletPrivateKeyPayload,
   ExportStateOptions,
 } from './payload.js';
-import { toWalletPayloadId, toGroupPayloadId } from './payload.js';
+import {
+  AccountWalletPayloadType,
+  AccountWalletPrivateKeyEncoding,
+  toWalletPayloadId,
+  toGroupPayloadId,
+} from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
 
 /**
@@ -107,7 +112,7 @@ async function exportMnemonicWalletObject(
   // We use the stable entropy source ID as the payload wallet ID, rather than the local wallet ID, to
   // ensure that the exported snapshot is stable across different installations and sessions.
   const wallet: AccountWalletMnemonicPayload = {
-    type: 'mnemonic',
+    type: AccountWalletPayloadType.Mnemonic,
     id: toWalletPayloadId(entropySourceId),
     metadata: { name: walletObj.metadata.name },
     groups: [],
@@ -167,8 +172,8 @@ async function exportPrivateKeyWalletObject(
 ): Promise<AccountWalletPrivateKeyPayload> {
   // We use a singleton wallet ID for private keys.
   const wallet: AccountWalletPrivateKeyPayload = {
-    type: 'private-key',
-    id: toWalletPayloadId('private-key'),
+    type: AccountWalletPayloadType.PrivateKey,
+    id: toWalletPayloadId(AccountWalletPayloadType.PrivateKey),
     metadata: { name: walletObj.metadata.name },
     groups: [],
   };
@@ -204,7 +209,7 @@ async function exportPrivateKeyWalletObject(
 
           return keyring.exportAccount(accountId, {
             type: 'private-key',
-            encoding: 'hexadecimal',
+            encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
           });
         },
       );

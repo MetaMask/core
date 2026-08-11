@@ -26,7 +26,11 @@ import type {
   AccountWalletPayloadId,
   AccountWalletPrivateKeyGroupEntry,
 } from './payload.js';
-import { parsePayloadGroupId, toWalletPayloadId } from './payload.js';
+import {
+  AccountWalletPayloadType,
+  parsePayloadGroupId,
+  toWalletPayloadId,
+} from './payload.js';
 import type { AccountTreeSnapshot } from './snapshot.js';
 
 /** Context required by {@link importState}. */
@@ -395,7 +399,7 @@ export async function importState(
   const payload = snapshot.serialize();
 
   for (const wallet of payload.wallets) {
-    if (wallet.type === 'mnemonic') {
+    if (wallet.type === AccountWalletPayloadType.Mnemonic) {
       await importMnemonicWallet(context, wallet);
     } else {
       await importPrivateKeyWallet(context, wallet.groups);

@@ -10,6 +10,7 @@ import type {
   AccountWalletPrivateKeyGroupEntry,
 } from './payload.js';
 import {
+  AccountWalletPayloadType,
   assertValidAccountTreePayload,
   ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
 } from './payload.js';
@@ -101,7 +102,7 @@ export class AccountTreeSnapshot {
     const filteredEntries = [...this.#entries];
     if (filteredGroups.length === 0) {
       filteredEntries.splice(walletIndex, 1);
-    } else if (wallet.type === 'mnemonic') {
+    } else if (wallet.type === AccountWalletPayloadType.Mnemonic) {
       filteredEntries[walletIndex] = {
         ...wallet,
         groups: filteredGroups as AccountWalletMnemonicGroupEntry[],
@@ -145,7 +146,7 @@ export class AccountTreeSnapshot {
         continue;
       }
 
-      if (wallet.type === 'mnemonic') {
+      if (wallet.type === AccountWalletPayloadType.Mnemonic) {
         filteredEntries.push({
           ...wallet,
           groups: filteredGroups as AccountWalletMnemonicGroupEntry[],
