@@ -456,6 +456,19 @@ type StrategyPlacementContext = {
   szDecimals: number;
   finalPositionSize: number;
   formattedSize: string;
+  /** The validated ladder a scale placement submits; absent for other types. */
+  ladder?: ScaleLadder;
+};
+
+/**
+ * A scale placement's rungs, exactly as they will be submitted.
+ *
+ * Built and checked before anything is signed, so the sizes and prices the
+ * venue sees are the ones the minimums were applied to.
+ */
+type ScaleLadder = {
+  prices: string[];
+  sizes: string[];
 };
 
 /**
@@ -494,6 +507,15 @@ type ChaseSession = {
   /** Price the resting order sits at. */
   restingPrice: string;
   intervalMs: number;
+  /**
+   * Builder fee this chase was quoted at, in tenths of a basis point.
+   *
+   * Captured when the session starts because the rewards discount it reflects
+   * is set around the caller's `placeOrder` and cleared as soon as that returns.
+   * A chase returns immediately, so every replacement runs after the clear and
+   * would otherwise be re-quoted at the undiscounted maximum.
+   */
+  builderFee: number;
   /** Absolute deadline, as a `Date.now()` stamp. */
   deadline: number;
   maxRepricings: number;
@@ -4177,10 +4199,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       currentPrice: effectivePrice,
     });
 
-    // Kept after validation so an invalid strategy order never triggers the
-    // signature prompts in trading setup — same ordering as `placeOrder`.
-    await this.#ensureReadyForTrading();
-
     const normalizedMaxSlippageBps =
       params.maxSlippageBps ??
       (typeof params.slippage === 'number'
@@ -4197,6 +4215,23 @@ export class HyperLiquidProvider implements PerpsProvider {
       leverage: params.leverage,
       reduceOnly: params.reduceOnly,
     });
+
+    // The ladder is built and checked here, before anything is signed: it needs
+    // `szDecimals`, which only arrives with the asset info above, and its
+    // rejections are caller mistakes that must not cost a leverage change or a
+    // signing prompt first.
+    const ladder =
+      params.orderType === 'scale'
+        ? this.#buildScaleLadder({
+            params,
+            szDecimals: assetInfo.szDecimals,
+            finalPositionSize,
+          })
+        : undefined;
+
+    // Kept after validation so an invalid strategy order never triggers the
+    // signature prompts in trading setup — same ordering as `placeOrder`.
+    await this.#ensureReadyForTrading();
 
     const assetId = await this.#getAssetIdWithRepair({
       symbol: params.symbol,
@@ -4218,7 +4253,70 @@ export class HyperLiquidProvider implements PerpsProvider {
         size: finalPositionSize,
         szDecimals: assetInfo.szDecimals,
       }),
+      ladder,
     };
+  }
+
+  /**
+   * Build a scale placement's rungs and check them as the venue will see them.
+   *
+   * Three things can only be decided once the asset's precision is known, and
+   * all of them are decided here rather than after the order is on its way:
+   *
+   * - **Prices collapse.** Two distinct rung prices can round onto the same
+   *   venue-formatted price, which would submit several orders at one price
+   *   instead of a ladder spanning the requested range.
+   * - **Slices are not the average.** `splitScaleSizes` floors onto the size
+   *   grid and puts the remainder on the first rung, so no rung carries the
+   *   average slice the pre-network check in `validateOrder` approximates with.
+   * - **The cheapest rung decides.** Each rung is an independent order, so the
+   *   venue applies its per-order minimum to the smallest slice at the lowest
+   *   price, not to the ladder's total.
+   *
+   * @param options - Ladder inputs.
+   * @param options.params - Order parameters.
+   * @param options.szDecimals - The asset's size and price precision.
+   * @param options.finalPositionSize - Total size to spread across the rungs.
+   * @returns The rungs, exactly as they will be submitted.
+   */
+  #buildScaleLadder(options: {
+    params: OrderParams;
+    szDecimals: number;
+    finalPositionSize: number;
+  }): ScaleLadder {
+    const { params, szDecimals, finalPositionSize } = options;
+    const count = params.scaleNumOrders as number;
+
+    const prices = computeScalePriceLadder({
+      minPrice: parseFloat(params.scaleMinPrice as string),
+      maxPrice: parseFloat(params.scaleMaxPrice as string),
+      count,
+    }).map((price) => formatHyperLiquidPrice({ price, szDecimals }));
+
+    if (new Set(prices).size !== prices.length) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+    }
+
+    // Throws ORDER_SCALE_SIZE_TOO_SMALL when a rung would round to nothing.
+    const sizes = splitScaleSizes({
+      totalSize: finalPositionSize,
+      count,
+      szDecimals,
+    });
+
+    const minimumOrderSize = this.#clientService.isTestnetMode()
+      ? TRADING_DEFAULTS.amount.testnet
+      : TRADING_DEFAULTS.amount.mainnet;
+    const cheapestRungNotional = Math.min(
+      ...sizes.map(
+        (size, index) => parseFloat(size) * parseFloat(prices[index]),
+      ),
+    );
+    if (cheapestRungNotional < minimumOrderSize) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL);
+    }
+
+    return { prices, sizes };
   }
 
   /**
@@ -4299,24 +4397,17 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: OrderParams,
     context: StrategyPlacementContext,
   ): Promise<OrderResult> {
-    const { assetId, szDecimals, finalPositionSize, formattedSize } = context;
-    const count = params.scaleNumOrders as number;
+    const { assetId, szDecimals, formattedSize, ladder } = context;
+    // Built and validated in `#prepareStrategyPlacement`, before anything was
+    // signed, so what is submitted here is exactly what the minimums were
+    // applied to.
+    const { prices, sizes } = ladder as ScaleLadder;
+    const count = prices.length;
 
-    const ladder = computeScalePriceLadder({
-      minPrice: parseFloat(params.scaleMinPrice as string),
-      maxPrice: parseFloat(params.scaleMaxPrice as string),
-      count,
-    });
-    const sizes = splitScaleSizes({
-      totalSize: finalPositionSize,
-      count,
-      szDecimals,
-    });
-
-    const orders: SDKOrderParams[] = ladder.map((price, index) => ({
+    const orders: SDKOrderParams[] = prices.map((price, index) => ({
       a: assetId,
       b: params.isBuy,
-      p: formatHyperLiquidPrice({ price, szDecimals }),
+      p: price,
       s: sizes[index],
       r: params.reduceOnly ?? false,
       t: { limit: { tif: 'Gtc' as const } },
@@ -4422,12 +4513,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       szDecimals,
     });
 
+    // Read once, while the caller's discount context is still set.
+    const builderFee = this.#getDiscountedBuilderFee();
+
     const orderId = await this.#restChaseOrder({
       assetId,
       isBuy: params.isBuy,
       price: touchPrice,
       size: formattedSize,
       reduceOnly: params.reduceOnly ?? false,
+      builderFee,
     });
 
     const intervalMs =
@@ -4444,6 +4539,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       pendingReplacement: null,
       restingPrice: touchPrice,
       intervalMs,
+      builderFee,
       deadline:
         Date.now() +
         (params.chaseMaxDurationMs ?? CHASE_ORDER_CONFIG.DefaultMaxDurationMs),
@@ -4517,6 +4613,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.price - Formatted limit price.
    * @param params.size - Formatted size.
    * @param params.reduceOnly - Whether the order may only reduce a position.
+   * @param params.builderFee - Builder fee, in tenths of a basis point, captured
+   * when the session started so replacements keep the rate they were quoted at.
    * @returns The resting order's exchange ID.
    */
   async #restChaseOrder(params: {
@@ -4525,6 +4623,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     price: string;
     size: string;
     reduceOnly: boolean;
+    builderFee: number;
   }): Promise<string> {
     const exchangeClient = this.#clientService.getExchangeClient();
 
@@ -4544,7 +4643,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       grouping: 'na',
       builder: {
         b: this.#getBuilderAddress(this.#clientService.isTestnetMode()),
-        f: this.#getDiscountedBuilderFee(),
+        f: params.builderFee,
       },
     });
 
@@ -4720,6 +4819,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             price: touchPrice,
             size: session.size,
             reduceOnly: session.reduceOnly,
+            builderFee: session.builderFee,
           });
         } finally {
           // Cleared before the waiters wake, so they see the settled session.

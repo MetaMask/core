@@ -305,11 +305,18 @@ export type OrderResult = {
   // real submitted size rather than the caller's pre-normalization params.size.
   submittedSize?: string;
   averagePrice?: string; // Average execution price
-  // Exchange IDs of the individual orders a strategy placement expanded into
-  // (scale ladder children, the chase session's live order). `orderId` carries
-  // the strategy handle instead, so these are what a caller needs to cancel the
-  // children directly — e.g. after a restart, when the session-scoped handle is
-  // gone. Absent for every non-strategy placement.
+  // Exchange IDs of the individual orders a strategy placement expanded into.
+  // `orderId` carries the strategy handle instead, so these are what a caller
+  // needs to cancel the children directly.
+  //
+  // For a `scale` ladder they stay valid: the rungs are placed once and are not
+  // replaced, so they remain cancellable even after the session-scoped handle is
+  // gone. For a `chase` this is only the order resting at placement time — the
+  // strategy cancels and re-places as the touch moves, and each replacement has
+  // a new ID that is held in the session rather than reported here, so the value
+  // goes stale on the first re-price. Cancel a live chase by its handle.
+  //
+  // Absent for every non-strategy placement.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
 };

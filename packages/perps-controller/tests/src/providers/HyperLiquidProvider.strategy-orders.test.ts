@@ -9,6 +9,7 @@ import type {
   CancelOrderResult,
   PerpsPlatformDependencies,
   OrderParams,
+  OrderResult,
 } from '../../../src/types/index.js';
 import type { OrderType } from '../../../src/types/perps-types.js';
 import {
@@ -2099,5 +2100,179 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(exchangeClient.modify).not.toHaveBeenCalled();
       },
     );
+  });
+
+  describe('Scale ladder is validated before anything is signed', () => {
+    /**
+     * Place a scale order and report what the exchange client saw.
+     *
+     * @param order - Scale-specific order params.
+     * @returns The placement result and the mock exchange client.
+     */
+    const placeLadder = async (
+      order: Record<string, unknown>,
+    ): Promise<{ result: OrderResult; exchangeClient: MockClient }> => {
+      const { exchangeClient } = useStrategyClients();
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        ...order,
+      } as OrderParams);
+
+      return { result, exchangeClient };
+    };
+
+    it('rejects a range whose rungs collapse onto the same venue price', async () => {
+      // ETH has 4 size decimals, so prices carry two. 3000.001 and 3000.002
+      // both format to 3000, which would stack the ladder at one price instead
+      // of spreading it.
+      const { result, exchangeClient } = await placeLadder({
+        scaleMinPrice: '3000.001',
+        scaleMaxPrice: '3000.002',
+        scaleNumOrders: 2,
+      });
+
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+      // No leverage change and no order: an invalid ladder must not cost a
+      // signing prompt or a venue side effect first.
+      expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('rejects a total that cannot give every rung a whole size unit', async () => {
+      // BTC has 3 size decimals, so one size unit is 0.001 BTC — about $50
+      // here. A 0.019 BTC total is nineteen units to spread over twenty rungs:
+      // every rung is worth far more than the $10 minimum, so this is reached
+      // only by the grid check, not by the notional one.
+      const { result, exchangeClient } = await placeLadder({
+        symbol: 'BTC',
+        currentPrice: 50000,
+        size: '0.019',
+        usdAmount: '950',
+        scaleMinPrice: '40000',
+        scaleMaxPrice: '60000',
+        scaleNumOrders: 20,
+      });
+
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
+      expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('rejects on the real grid slice, not the average one', async () => {
+      // 0.0039 ETH over 20 rungs averages 1.95 size units, but the grid split
+      // floors that to 1 unit on nineteen of them and puts the remainder on the
+      // first. At the 60000 rung the average slice is worth $11.70 — over the
+      // $10 minimum — while the slice actually submitted is worth $6. Only a
+      // check against the real grid sizes catches this.
+      const { result, exchangeClient } = await placeLadder({
+        size: '0.0039',
+        usdAmount: '11.70',
+        scaleMinPrice: '60000',
+        scaleMaxPrice: '70000',
+        scaleNumOrders: 20,
+      });
+
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
+      );
+      expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('submits exactly the ladder it validated', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: {
+          data: {
+            statuses: [
+              { resting: { oid: 11 } },
+              { resting: { oid: 22 } },
+              { resting: { oid: 33 } },
+            ],
+          },
+        },
+      });
+      const { exchangeClient } = useStrategyClients({ exchange: { order } });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } as OrderParams);
+
+      const submitted = exchangeClient.order.mock.calls[0][0];
+      expect(
+        submitted.orders.map((entry: { p: string }) => entry.p),
+      ).toStrictEqual(['2000', '2500', '3000']);
+      expect(
+        submitted.orders.map((entry: { s: string }) => entry.s),
+      ).toStrictEqual(['0.3334', '0.3333', '0.3333']);
+    });
+  });
+
+  describe('Chase replacements keep the fee they were quoted at', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('reuses the placement-time builder fee after the discount is cleared', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        })
+        .mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 66 } }] } },
+        });
+
+      useStrategyClients({
+        exchange: { order },
+        info: {
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2998', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+        },
+      });
+
+      // The rewards discount is live only around the caller's placeOrder.
+      provider.setUserFeeDiscount(5000);
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      const quotedFee = order.mock.calls[0][0].builder.f;
+
+      // TradingService clears it as soon as placeOrder returns, which for a
+      // chase is long before the re-pricing loop runs.
+      provider.setUserFeeDiscount(undefined);
+      await jest.advanceTimersByTimeAsync(1000);
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(order.mock.calls[1][0].builder.f).toBe(quotedFee);
+    });
   });
 });
