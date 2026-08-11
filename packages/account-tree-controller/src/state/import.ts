@@ -7,7 +7,7 @@ import {
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
-import { EthAccountType, KeyringAccount } from '@metamask/keyring-api';
+import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { decodeMnemonicWords } from '@metamask/keyring-sdk';
 
@@ -269,80 +269,87 @@ async function importPrivateKeyWallet(
   context: ImportContext,
   payloadGroups: AccountWalletPrivateKeyGroupEntry[],
 ): Promise<void> {
-  for (const payloadGroup of payloadGroups) {
-    // Only EVM EOA accounts are supported for now. Non-EVM private keys require
-    // Snap-based import routing (ADR-0007), which is not yet implemented. Skip the
-    // entire entry so payloads from future clients are accepted without crashing.
-    const privateKeyType = payloadGroup.value?.type;
-    if (privateKeyType !== undefined && privateKeyType !== EthAccountType.Eoa) {
+  const localWalletId = toAccountWalletId(
+    AccountWalletType.Keyring,
+    KeyringTypes.simple,
+  );
+
+  // Only EVM EOA accounts are supported for now. Non-EVM private keys require
+  // Snap-based import routing (ADR-0007), which is not yet implemented. Skip the
+  // entire entry so payloads from future clients are accepted without crashing.
+  // In the same pass, collect groups whose key is not yet present locally.
+  const localWallet = findLocalWalletPrivateKey(context);
+  const supportedGroups: AccountWalletPrivateKeyGroupEntry[] = [];
+  const missingGroups: AccountWalletPrivateKeyGroupEntry[] = [];
+
+  for (const group of payloadGroups) {
+    const type = group.value?.type;
+    if (type !== undefined && type !== EthAccountType.Eoa) {
       continue;
     }
 
-    // Payload group ID format: "wallet:private-key/<address>"
-    const payloadAccountAddress = parsePayloadGroupId(payloadGroup.id).subId;
-    const payloadAccountId = getUUIDFromAddressOfNormalAccount(
-      payloadAccountAddress,
-    );
+    supportedGroups.push(group);
 
-    const localWalletId = toAccountWalletId(
-      AccountWalletType.Keyring,
-      KeyringTypes.simple,
-    );
-    const localGroupId = toAccountGroupId(localWalletId, payloadAccountAddress);
-
-    // EVM accounts have deterministic IDs, so we can re-use this to find the local group if it exists.
-    let localWallet = findLocalWalletPrivateKey(context);
-    let localGroup = localWallet?.groups[localGroupId];
+    const address = parsePayloadGroupId(group.id).subId;
+    const accountId = getUUIDFromAddressOfNormalAccount(address);
+    const localGroupId = toAccountGroupId(localWalletId, address);
+    const localGroup = localWallet?.groups[localGroupId];
     const hasAccount =
-      localGroup?.accounts.some((id) => id === payloadAccountId) ?? false;
+      localGroup?.accounts.some((id) => id === accountId) ?? false;
 
-    // If it doesn't exist, we need to import the private key.
-    if (!hasAccount) {
-      if (!payloadGroup.value) {
-        // No importable secret -- skip this account.
-        continue;
-      }
+    if (!hasAccount && group.value !== undefined) {
+      missingGroups.push(group);
+    }
+  }
 
-      const { privateKey, encoding } = payloadGroup.value;
-      const accounts = await context.messenger.call(
-        'KeyringController:withController',
-        async (controller) => {
-          // Find the existing simple keyring or create one if this is the
-          // first private-key import (e.g. during onboarding).
-          const existing = controller.keyrings.find(
-            ({ keyring }) => keyring.type === KeyringTypes.simple,
-          );
-          const { keyringV2 } =
-            existing ?? (await controller.addNewKeyring(KeyringTypes.simple));
+  // Import all missing keys in a single :withController call to avoid
+  // triggering multiple `KeyringController:stateChanged` events.
+  if (missingGroups.length > 0) {
+    await context.messenger.call(
+      'KeyringController:withController',
+      async (controller) => {
+        // Find the existing simple keyring or create one if this is the
+        // first private-key import (e.g. during onboarding).
+        const existing = controller.keyrings.find(
+          ({ keyring }) => keyring.type === KeyringTypes.simple,
+        );
+        const { keyringV2 } =
+          existing ?? (await controller.addNewKeyring(KeyringTypes.simple));
 
-          if (!keyringV2) {
-            throw new Error('Simple keyring has no v2 interface');
-          }
+        if (!keyringV2) {
+          throw new Error('Simple keyring has no v2 interface');
+        }
 
-          return keyringV2.createAccounts({
+        for (const group of missingGroups) {
+          // Safe to assert `group.value` is present because we filtered out groups
+          // without a `value` above.
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const { privateKey, encoding } = group.value!;
+          const [account] = await keyringV2.createAccounts({
             type: 'private-key:import',
             accountType: EthAccountType.Eoa,
             privateKey,
             encoding,
           });
-        },
-      );
 
-      // There should only be 1 account in the keyring after import.
-      const [account] = accounts as KeyringAccount[];
-      if (!account) {
-        throw new Error('Failed to import private key for account');
-      }
-    }
+          if (!account) {
+            throw new Error('Failed to import private key for account');
+          }
+        }
+      },
+    );
+  }
 
-    // Re-read wallet and group from state to get fresh data after the import.
-    localWallet = findLocalWalletPrivateKey(context);
-    localGroup = localWallet?.groups[localGroupId];
+  // Re-read state once after all imports, then apply metadata to every group
+  // that now exists locally.
+  for (const group of supportedGroups) {
+    const address = parsePayloadGroupId(group.id).subId;
+    const localGroupId = toAccountGroupId(localWalletId, address);
+    const localGroup = findLocalWalletPrivateKey(context)?.groups[localGroupId];
     if (!localGroup) {
       continue;
     }
-
-    setGroupMetadata(context, localGroup.id, payloadGroup.metadata);
+    setGroupMetadata(context, localGroup.id, group.metadata);
   }
 }
 
