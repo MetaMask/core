@@ -48,11 +48,14 @@ const ChainConfigSchema = type({
   isFeatured: boolean(),
   isDeprecated: boolean(),
   isDeletable: boolean(),
+  isSwapsEnabled: optional(boolean()),
+  isBridgeEnabled: optional(boolean()),
   priority: number(),
 });
 
 const NetworkContractsSchema = type({
   multicall3: optional(StrictHexStruct),
+  swapRouters: optional(array(StrictHexStruct)),
 });
 
 /**
