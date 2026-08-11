@@ -123,7 +123,7 @@ function findLocalWalletPrivateKey(
   );
   const localWallet = context.getState().accountTree.wallets[localWalletId];
   return localWallet?.type === AccountWalletType.Keyring
-    ? (localWallet as AccountWalletKeyringObject)
+    ? localWallet
     : undefined;
 }
 
