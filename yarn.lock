@@ -8608,6 +8608,7 @@ __metadata:
     "@metamask/address-book-controller": "npm:^7.1.2"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
+    "@metamask/eth-hd-keyring": "npm:^15.0.0"
     "@metamask/key-tree": "npm:^10.1.1"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^27.1.1"

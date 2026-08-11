@@ -742,13 +742,12 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<string> {
     assertMessageStartsWithMetamask(message);
+    this.#assertIsUnlocked('#signMessage');
 
     const cacheKey = this.#scopedCacheKey(message, entropySourceId);
     if (this.#_signMessageCache[cacheKey]) {
       return this.#_signMessageCache[cacheKey];
     }
-
-    this.#assertIsUnlocked('#signMessage');
 
     const seed = await this.#getHdKeyringSeed(entropySourceId);
     const result = await signMessageWithMessageSigningKey(message, seed);
