@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump accounts deps ([#9754](https://github.com/MetaMask/core/pull/9754))
+
 ### Changed
 
 - Resolve HD entropy source IDs from `KeyringController` instead of the message-signing snap (`getBearerToken` primary ID, `performSignIn` SRP enumeration) ([#9794](https://github.com/MetaMask/core/pull/9794))
