@@ -18,6 +18,7 @@ import type {
 } from '../types/index.js';
 import type { OrderType, TpslLinkage } from '../types/perps-types.js';
 import {
+  getTriggerExecution,
   isLimitExecutionOrderType,
   isStrategyOrderType,
   isTriggerOrderType,
@@ -466,8 +467,9 @@ export function getSupportedPaths(
  * Based on HyperLiquid contract specifications.
  *
  * @param maxLeverage - The maximum leverage for the market
- * @param orderType - The order type; trigger types follow the limit/market
- * multiplier of their execution mode (e.g. `stop_limit` is treated as a limit order)
+ * @param orderType - The order type; every type follows the limit/market
+ * multiplier of its execution mode, so `stop_limit`, `scale` and `chase` are all
+ * treated as limit orders and `twap` as a market order
  * @returns Maximum order value in USD
  */
 export function getMaxOrderValue(
@@ -486,7 +488,11 @@ export function getMaxOrderValue(
     marketLimit = HYPERLIQUID_ORDER_LIMITS.MarketOrderLimits.LowLeverage;
   }
 
-  return isLimitExecutionOrderType(orderType)
+  // The higher cap follows how the order executes, not whose price it uses: a
+  // scale ladder and a chase rest limit orders on the book, so holding them to
+  // the tighter market-order cap would bound them by how they were requested
+  // rather than by what they do.
+  return getTriggerExecution(orderType) === 'limit'
     ? marketLimit * HYPERLIQUID_ORDER_LIMITS.LimitOrderMultiplier
     : marketLimit;
 }

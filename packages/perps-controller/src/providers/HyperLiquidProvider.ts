@@ -30,6 +30,7 @@ import {
 } from '../constants/hyperLiquidConfig.js';
 import {
   CHASE_ORDER_CONFIG,
+  HYPERLIQUID_TWAP_LIMITS,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
@@ -229,6 +230,61 @@ const pickStrategyParams = (
   chaseMaxDurationMs: params.chaseMaxDurationMs,
   chaseMaxRepricings: params.chaseMaxRepricings,
 });
+
+/**
+ * Check a strategy placement's notional against the minimum the venue will
+ * actually apply to it.
+ *
+ * The per-order minimum is charged against each order the venue receives, and a
+ * strategy placement does not send one order:
+ *
+ * - a `scale` ladder sends `scaleNumOrders` independent limit orders, so every
+ *   rung has to clear the per-order minimum on its own — a $50 ladder over 20
+ *   rungs is twenty $2.50 orders, every one of them rejected;
+ * - a `twap` is a single instruction the venue slices itself, so it is bounded
+ *   by the venue's own documented minimum for a TWAP rather than by the
+ *   per-order minimum;
+ * - a `chase` rests one order at a time, so the per-order minimum the caller has
+ *   already been checked against is the right bound.
+ *
+ * Checked here rather than left to come back as an opaque exchange rejection —
+ * the same reason the strategy types are excluded from the $10-minimum retry.
+ *
+ * @param params - Notional parameters.
+ * @param params.orderType - The order placement type.
+ * @param params.orderValueUSD - Total notional of the placement, in USD.
+ * @param params.scaleNumOrders - Number of rungs, for a scale placement.
+ * @param params.minimumOrderSize - The venue's per-order minimum, in USD.
+ * @returns Validation result with isValid flag and optional error message.
+ */
+const validateStrategyNotional = (params: {
+  orderType?: OrderType;
+  orderValueUSD: number;
+  scaleNumOrders?: number;
+  minimumOrderSize: number;
+}): { isValid: boolean; error?: string } => {
+  const { orderType, orderValueUSD, scaleNumOrders, minimumOrderSize } = params;
+
+  if (orderType === 'twap') {
+    return orderValueUSD < HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd
+      ? {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL,
+        }
+      : { isValid: true };
+  }
+
+  if (orderType === 'scale' && scaleNumOrders) {
+    return orderValueUSD / scaleNumOrders < minimumOrderSize
+      ? {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
+        }
+      : { isValid: true };
+  }
+
+  return { isValid: true };
+};
 
 // Helper method parameter interfaces (module-level for class-dependent methods only)
 type GetAssetInfoParams = {
@@ -4148,9 +4204,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Fan a scale placement out into one batch of resting limit orders.
    *
-   * The whole ladder goes in a single `order` action so it either rests
-   * together or fails together; placing the rungs one at a time would leave a
-   * half-built ladder behind on any mid-flight failure.
+   * The whole ladder goes in a single `order` action, which is one round trip
+   * and one signature rather than one per rung. It is **not** atomic: an `na`
+   * grouping evaluates each entry independently, so the response can report
+   * some rungs resting and others rejected. A partial ladder is reported as
+   * such — `submittedSize` covers only the rungs that actually rested — rather
+   * than as a full submission.
    *
    * @param params - Order parameters.
    * @param context - Prepared asset and sizing context.
@@ -4206,26 +4265,56 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     const statuses = result.response?.data?.statuses ?? [];
-    const childOrderIds = statuses
-      .map((status) => this.#readOrderIdFromStatus(status))
-      .filter((orderId): orderId is string => orderId !== undefined);
+    // Which rung each ID came from matters: `submittedSize` has to add up the
+    // slices that actually rested, not the total that was asked for.
+    const restedRungs = statuses
+      .map((status, index) => ({
+        orderId: this.#readOrderIdFromStatus(status),
+        size: sizes[index],
+      }))
+      .filter(
+        (rung): rung is { orderId: string; size: string } =>
+          rung.orderId !== undefined,
+      );
 
     // A ladder that came back with no IDs at all rested nothing; reporting it
     // as a success would hand the caller a handle that cancels nothing.
-    if (childOrderIds.length === 0) {
+    if (restedRungs.length === 0) {
       throw new Error(
         `Scale order rejected: ${JSON.stringify(result.response?.data)}`,
       );
     }
 
+    const childOrderIds = restedRungs.map((rung) => rung.orderId);
     const groupId = generatePerpsId('scale');
     this.#scaleOrderGroups.set(groupId, { assetId, orderIds: childOrderIds });
+
+    // The batch is not atomic, so a ladder can come back part-rested. Reporting
+    // the requested total as submitted would tell the caller they are exposed
+    // for more than they are.
+    const isPartial = restedRungs.length < count;
+    if (isPartial) {
+      this.#deps.debugLogger.log('Scale ladder only partly rested', {
+        groupId,
+        rested: restedRungs.length,
+        requested: count,
+        statuses,
+      });
+    }
 
     return {
       success: true,
       orderId: groupId,
       childOrderIds,
-      submittedSize: formattedSize,
+      submittedSize: isPartial
+        ? formatHyperLiquidSize({
+            size: restedRungs.reduce(
+              (total, rung) => total + parseFloat(rung.size),
+              0,
+            ),
+            szDecimals,
+          })
+        : formattedSize,
     };
   }
 
@@ -4459,6 +4548,17 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     if (touchPrice !== session.restingPrice && session.orderId) {
       const cancelled = await this.#cancelChaseChild(session);
+
+      // The cancel is a second round trip, and this is the window where a
+      // caller's `cancelOrder` does the most damage: it would cancel the order
+      // this tick has already cancelled, report the cancel incomplete, and then
+      // this tick would rest a replacement the caller has no idea exists.
+      // Stopping here leaves nothing on the book.
+      if (!session.active) {
+        session.orderId = null;
+        return;
+      }
+
       if (cancelled) {
         session.orderId = await this.#restChaseOrder({
           assetId: session.assetId,
@@ -8453,6 +8553,18 @@ export class HyperLiquidProvider implements PerpsProvider {
             error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
           };
         }
+
+        // A strategy placement's total clearing the per-order minimum does not
+        // mean the orders it expands into will.
+        const strategyMinimum = validateStrategyNotional({
+          orderType: params.orderType,
+          orderValueUSD,
+          scaleNumOrders: params.scaleNumOrders,
+          minimumOrderSize,
+        });
+        if (!strategyMinimum.isValid) {
+          return strategyMinimum;
+        }
       }
 
       // Asset-specific leverage validation
@@ -9392,13 +9504,20 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<FeeCalculationResult> {
     const { orderType, isMaker = false, amount, symbol } = params;
 
-    // Trigger placements are charged as their execution kind: a stop_market fills
-    // as a market order (taker), a stop_limit as a limit order.
+    // Every placement is charged as its execution kind: a stop_market fills as a
+    // market order (taker), a stop_limit as a limit order, a scale ladder as the
+    // resting limit orders it fans out into, and a TWAP as the marketable
+    // suborders it crosses the book with.
     const isMarketExecution = getTriggerExecution(orderType) === 'market';
 
+    // A chase is post-only by construction, so it can only ever fill as a maker.
+    // Quoting it at the taker rate would overstate the fee whatever the caller
+    // passes for `isMaker`.
+    const chargesMakerRate =
+      orderType === 'chase' || (!isMarketExecution && isMaker);
+
     // Start with base rates from config
-    let feeRate =
-      isMarketExecution || !isMaker ? FEE_RATES.taker : FEE_RATES.maker;
+    let feeRate = chargesMakerRate ? FEE_RATES.maker : FEE_RATES.taker;
 
     // Parse symbol to detect HIP-3 DEX (e.g., "xyz:TSLA" → dex="xyz", parsedSymbol="TSLA")
     const { dex, symbol: parsedSymbol } = parseAssetName(symbol);

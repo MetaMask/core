@@ -274,23 +274,29 @@ export const TP_SL_CONFIG = {
 } as const;
 
 /**
- * HyperLiquid order limits based on leverage
- * From: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications
- */
-/**
- * HyperLiquid's own bounds on a TWAP window, in whole minutes.
+ * HyperLiquid's own bounds on a TWAP placement.
  *
  * The venue validates the TWAP duration as a safe integer in `[5, 1440]` before
  * the request is signed, so a duration outside this range is rejected locally
- * rather than turned into an opaque SDK error. Carries the venue prefix, like
- * `HYPERLIQUID_ORDER_LIMITS`, because these are protocol constants rather than
- * controller policy.
+ * rather than turned into an opaque SDK error. `MinNotionalUsd` is the venue's
+ * documented minimum *total* order size for a TWAP, which is what it enforces
+ * instead of the per-order minimum — its suborders are its own business.
+ *
+ * Carries the venue prefix, like `HYPERLIQUID_ORDER_LIMITS`, because these are
+ * protocol constants rather than controller policy.
+ *
+ * From: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/order-types
  */
 export const HYPERLIQUID_TWAP_LIMITS = {
   MinDurationMinutes: 5,
   MaxDurationMinutes: 1440,
+  MinNotionalUsd: 100,
 } as const;
 
+/**
+ * HyperLiquid order limits based on leverage
+ * From: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications
+ */
 export const HYPERLIQUID_ORDER_LIMITS = {
   // Market orders
   MarketOrderLimits: {

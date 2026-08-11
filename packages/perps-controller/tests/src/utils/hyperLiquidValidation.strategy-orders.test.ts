@@ -1,5 +1,6 @@
 import {
   CHASE_ORDER_CONFIG,
+  HYPERLIQUID_ORDER_LIMITS,
   HYPERLIQUID_TWAP_LIMITS,
 } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
@@ -7,8 +8,12 @@ import type {
   OrderType,
   StrategyOrderType,
 } from '../../../src/types/perps-types.js';
-import { validateOrderParams } from '../../../src/utils/hyperLiquidValidation.js';
 import {
+  getMaxOrderValue,
+  validateOrderParams,
+} from '../../../src/utils/hyperLiquidValidation.js';
+import {
+  getTriggerExecution,
   isStrategyOrderType,
   isTriggerOrderType,
   STRATEGY_ORDER_TYPES,
@@ -383,6 +388,37 @@ describe('hyperLiquidValidation - strategy order types', () => {
         isValid: false,
         error: PERPS_ERROR_CODES.ORDER_COIN_REQUIRED,
       });
+    });
+  });
+
+  describe('execution classification', () => {
+    // A scale ladder rests GTC limits and a chase rests an ALO post-only limit,
+    // so both execute as limit orders even though neither carries an
+    // OrderParams.price. A TWAP's suborders cross the book.
+    it.each([
+      ['scale', 'limit'],
+      ['chase', 'limit'],
+      ['twap', 'market'],
+    ] as [OrderType, 'limit' | 'market'][])(
+      'classifies %s execution as %s',
+      (orderType, execution) => {
+        expect(getTriggerExecution(orderType)).toBe(execution);
+      },
+    );
+
+    it.each(['scale', 'chase'] as OrderType[])(
+      'gives %s the limit-order max value, not the tighter market cap',
+      (orderType) => {
+        const marketCap = getMaxOrderValue(50, 'market');
+
+        expect(getMaxOrderValue(50, orderType)).toBe(
+          marketCap * HYPERLIQUID_ORDER_LIMITS.LimitOrderMultiplier,
+        );
+      },
+    );
+
+    it('leaves twap on the market-order max value', () => {
+      expect(getMaxOrderValue(50, 'twap')).toBe(getMaxOrderValue(50, 'market'));
     });
   });
 });

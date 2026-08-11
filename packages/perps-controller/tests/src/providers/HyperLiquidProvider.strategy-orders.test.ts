@@ -1,3 +1,4 @@
+import { HYPERLIQUID_TWAP_LIMITS } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
@@ -1329,6 +1330,308 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // Disconnecting stops the loop; it does not cancel what is already resting.
       expect(order).toHaveBeenCalledTimes(1);
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Scale ladder is not atomic', () => {
+    // grouping 'na' evaluates each entry independently, so the venue can rest
+    // some rungs and reject others in the same response.
+    const partlyRested = {
+      status: 'ok',
+      response: {
+        data: {
+          statuses: [
+            { resting: { oid: 11 } },
+            { error: 'Insufficient margin' },
+            { resting: { oid: 33 } },
+          ],
+        },
+      },
+    };
+
+    it('reports only the rungs that actually rested', async () => {
+      useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(partlyRested) },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } as OrderParams);
+
+      expect(result.success).toBe(true);
+      expect(result.childOrderIds).toStrictEqual(['11', '33']);
+      // Two of three rungs rested: 0.3334 + 0.3333, not the requested 1.
+      expect(result.submittedSize).toBe('0.6667');
+    });
+
+    it('cancels only the rungs it actually holds', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(partlyRested) },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } as OrderParams);
+
+      await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [
+          { a: 1, o: 11 },
+          { a: 1, o: 33 },
+        ],
+      });
+    });
+  });
+
+  describe('Chase cancel racing a re-pricing tick', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('rests nothing when a cancel lands between the tick cancelling and re-placing', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        })
+        .mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 66 } }] } },
+        });
+
+      let sessionId = '';
+      let callerCancel: Promise<unknown> | undefined;
+      let cancelCalls = 0;
+      const cancel = jest.fn().mockImplementation(async () => {
+        cancelCalls += 1;
+        // Call 1 is the tick's own cancel: the old order is gone and its
+        // replacement has not been rested yet. That is precisely the window the
+        // guard closes, so the caller's cancel is fired from inside it.
+        // `cancelOrder` stops the session synchronously, before its first await.
+        if (cancelCalls === 1) {
+          callerCancel = provider.cancelOrder({
+            orderId: sessionId,
+            symbol: 'ETH',
+            orderType: 'chase',
+          });
+        }
+        return {
+          status: 'ok',
+          response: { data: { statuses: ['success'] } },
+        };
+      });
+
+      useStrategyClients({
+        exchange: { order, cancel },
+        info: {
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2998', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      sessionId = placed.orderId as string;
+
+      await jest.advanceTimersByTimeAsync(1000);
+      await callerCancel;
+
+      // Only the original placement. Without the guard the tick would rest a
+      // replacement the caller has no handle for and no idea exists.
+      expect(order).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Fee quoting for strategy placements', () => {
+    it('quotes a chase at the maker rate even when isMaker is false', async () => {
+      useStrategyClients();
+
+      const chase = await provider.calculateFees({
+        orderType: 'chase',
+        isMaker: false,
+        amount: '1000',
+        symbol: 'ETH',
+      });
+      const market = await provider.calculateFees({
+        orderType: 'market',
+        isMaker: false,
+        amount: '1000',
+        symbol: 'ETH',
+      });
+
+      // A chase is post-only, so it can only ever fill as a maker.
+      expect(chase.feeRate).toBeLessThan(market.feeRate);
+    });
+
+    it('quotes a resting scale ladder at the maker rate', async () => {
+      useStrategyClients();
+
+      const scale = await provider.calculateFees({
+        orderType: 'scale',
+        isMaker: true,
+        amount: '1000',
+        symbol: 'ETH',
+      });
+      const limit = await provider.calculateFees({
+        orderType: 'limit',
+        isMaker: true,
+        amount: '1000',
+        symbol: 'ETH',
+      });
+
+      expect(scale.feeRate).toBe(limit.feeRate);
+    });
+
+    it('quotes a TWAP at the taker rate, because its suborders cross', async () => {
+      useStrategyClients();
+
+      const twap = await provider.calculateFees({
+        orderType: 'twap',
+        isMaker: true,
+        amount: '1000',
+        symbol: 'ETH',
+      });
+      const market = await provider.calculateFees({
+        orderType: 'market',
+        isMaker: false,
+        amount: '1000',
+        symbol: 'ETH',
+      });
+
+      expect(twap.feeRate).toBe(market.feeRate);
+    });
+  });
+
+  describe('Strategy notional minimums', () => {
+    // validateOrder runs the real minimum checks; the mocked param validator
+    // only covers the sync shape rules.
+    it('rejects a ladder whose rungs fall below the per-order minimum', async () => {
+      useStrategyClients();
+
+      // $50 over 20 rungs is twenty $2.50 orders; the venue rejects every one.
+      const result = await provider.validateOrder({
+        ...baseOrder,
+        usdAmount: '50',
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 20,
+      } as OrderParams);
+
+      expect(result).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
+      });
+    });
+
+    it('accepts a ladder whose rungs each clear the minimum', async () => {
+      useStrategyClients();
+
+      const result = await provider.validateOrder({
+        ...baseOrder,
+        usdAmount: '400',
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 20,
+      } as OrderParams);
+
+      expect(result).toStrictEqual({ isValid: true });
+    });
+
+    it("rejects a TWAP below the venue's minimum total", async () => {
+      useStrategyClients();
+
+      const result = await provider.validateOrder({
+        ...baseOrder,
+        usdAmount: String(HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd - 1),
+        orderType: 'twap',
+        twapDuration: 30,
+      } as OrderParams);
+
+      expect(result).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL,
+      });
+    });
+
+    it("accepts a TWAP at the venue's minimum total", async () => {
+      useStrategyClients();
+
+      const result = await provider.validateOrder({
+        ...baseOrder,
+        usdAmount: String(HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd),
+        orderType: 'twap',
+        twapDuration: 30,
+      } as OrderParams);
+
+      expect(result).toStrictEqual({ isValid: true });
+    });
+
+    it('never reaches the exchange for an under-funded ladder', async () => {
+      const { exchangeClient } = useStrategyClients();
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        usdAmount: '50',
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 20,
+      } as OrderParams);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
+      );
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('leaves a chase on the ordinary per-order minimum', async () => {
+      useStrategyClients();
+
+      const result = await provider.validateOrder({
+        ...baseOrder,
+        usdAmount: '20',
+        orderType: 'chase',
+      } as OrderParams);
+
+      expect(result).toStrictEqual({ isValid: true });
     });
   });
 });

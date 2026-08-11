@@ -49,6 +49,24 @@ const LIMIT_EXECUTION_ORDER_TYPES = [
 ] as const satisfies readonly OrderType[];
 
 /**
+ * Order types that rest limit orders on the book, whatever decides their price.
+ *
+ * A superset of `LIMIT_EXECUTION_ORDER_TYPES`: a scale ladder and a chase both
+ * rest limit orders, but they derive their own prices rather than taking one
+ * from `OrderParams.price`, so they are limit *execution* without being
+ * limit-*priced*. A TWAP is absent because its suborders cross the book.
+ *
+ * The distinction matters wherever execution is what is being charged or
+ * bounded — fee tier, max order value — as opposed to where the caller's price
+ * field is being read.
+ */
+const LIMIT_RESTING_ORDER_TYPES = [
+  ...LIMIT_EXECUTION_ORDER_TYPES,
+  'scale',
+  'chase',
+] as const satisfies readonly OrderType[];
+
+/**
  * Check whether an order type is a trigger placement (stop / take profit).
  *
  * @param orderType - Order type to check.
@@ -92,13 +110,19 @@ export function isLimitExecutionOrderType(orderType: OrderType): boolean {
  * Get how an order executes, ignoring whether it is trigger-gated.
  *
  * This is also the coarse execution type that consumers predating trigger orders
- * understand (fee tiers, max order value, analytics).
+ * understand (fee tiers, max order value, analytics). It answers "does this rest
+ * on the book or cross it", which is not the same question as
+ * `isLimitExecutionOrderType` — a scale ladder and a chase rest limit orders
+ * without carrying an `OrderParams.price`.
  *
  * @param orderType - Order type to inspect.
- * @returns `'limit'` for limit and `*_limit` types, `'market'` otherwise.
+ * @returns `'limit'` for limit, `*_limit`, `scale` and `chase`; `'market'`
+ * otherwise, including `twap`, whose suborders cross the book.
  */
 export function getTriggerExecution(orderType: OrderType): OrderExecution {
-  return isLimitExecutionOrderType(orderType) ? 'limit' : 'market';
+  return (LIMIT_RESTING_ORDER_TYPES as readonly OrderType[]).includes(orderType)
+    ? 'limit'
+    : 'market';
 }
 
 /**

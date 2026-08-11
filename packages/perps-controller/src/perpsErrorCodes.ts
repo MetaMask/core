@@ -68,6 +68,8 @@ export const PERPS_ERROR_CODES = {
   ORDER_SCALE_RANGE_INVALID: 'ORDER_SCALE_RANGE_INVALID', // Scale ladder bounds non-positive or inverted
   ORDER_SCALE_COUNT_INVALID: 'ORDER_SCALE_COUNT_INVALID', // scaleNumOrders missing, non-integer, or outside the supported ladder size
   ORDER_SCALE_SIZE_TOO_SMALL: 'ORDER_SCALE_SIZE_TOO_SMALL', // Total size cannot give every ladder rung a non-zero slice
+  ORDER_SCALE_NOTIONAL_TOO_SMALL: 'ORDER_SCALE_NOTIONAL_TOO_SMALL', // Ladder notional split across the rungs leaves each below the venue's per-order minimum
+  ORDER_TWAP_NOTIONAL_TOO_SMALL: 'ORDER_TWAP_NOTIONAL_TOO_SMALL', // TWAP total below the venue's documented minimum TWAP order size
   ORDER_CHASE_INTERVAL_INVALID: 'ORDER_CHASE_INTERVAL_INVALID', // chaseIntervalMs below the minimum poll interval
   ORDER_CHASE_DURATION_INVALID: 'ORDER_CHASE_DURATION_INVALID', // chaseMaxDurationMs shorter than one poll interval, or chaseMaxRepricings non-positive
   ORDER_CHASE_TOUCH_UNAVAILABLE: 'ORDER_CHASE_TOUCH_UNAVAILABLE', // The order book returned no price on the side the chase must rest at
