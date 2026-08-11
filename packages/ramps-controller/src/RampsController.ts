@@ -706,8 +706,8 @@ export type RampsControllerOptions = {
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
   /**
-   * Optional callback for order-sync parse/fetch/merge failures (e.g. Sentry).
-   * Context never includes full order JSON.
+   * Optional callback for order-sync failures (full sync parse/fetch/merge and
+   * incremental remote push/delete). Context never includes full order JSON.
    */
   onOrderSyncErroneousSituation?: (
     errorMessage: string,
@@ -2505,8 +2505,7 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const incomingLastUpdatedAt = (order as { lastUpdatedAt?: number })
-      .lastUpdatedAt;
+    const incomingLastUpdatedAt = order.lastUpdatedAt;
     // Local edits always bump lastUpdatedAt so full-sync LWW can prefer them
     // over stale remote copies when an incremental push was skipped/failed.
     // During full sync, preserve remote `lu` / `createdAt` (never invent "now"
@@ -2536,12 +2535,26 @@ export class RampsController extends BaseController<
       }
     });
 
-    if (!this.#isOrderSyncingInProgress) {
-      updateOrderInRemoteStorage(healedOrder, {
-        getRampsControllerInstance: () => this,
-        getMessenger: () => this.messenger,
-      }).catch((error) => {
+    if (this.#isOrderSyncingInProgress) {
+      // Incremental push is suppressed during full sync; queue another full
+      // sync pass so mutations during the upload await are not dropped.
+      this.#orderSyncQueued = true;
+    } else {
+      updateOrderInRemoteStorage(
+        healedOrder,
+        {
+          getRampsControllerInstance: () => this,
+          getMessenger: () => this.messenger,
+        },
+        {
+          onOrderSyncErroneousSituation: this.#onOrderSyncErroneousSituation,
+        },
+      ).catch((error) => {
         console.error('Error updating ramps order in remote storage:', error);
+        this.#onOrderSyncErroneousSituation?.(
+          'Error updating ramps order in remote storage',
+          { error },
+        );
       });
     }
   }
@@ -2581,18 +2594,30 @@ export class RampsController extends BaseController<
       const deleteKey = getInternalOrderCode(orderToRemove);
       if (this.#isOrderSyncingInProgress) {
         // Incremental remote deletes are gated off during full sync; queue a
-        // tombstone write for the end of the sync instead.
+        // tombstone write and another full sync pass so deletes during the
+        // upload await are not dropped.
+        this.#orderSyncQueued = true;
         if (deleteKey) {
           this.#pendingRemoteDeletes.set(deleteKey, orderToRemove);
         }
       } else {
-        deleteOrderInRemoteStorage(orderToRemove, {
-          getRampsControllerInstance: () => this,
-          getMessenger: () => this.messenger,
-        }).catch((error) => {
+        deleteOrderInRemoteStorage(
+          orderToRemove,
+          {
+            getRampsControllerInstance: () => this,
+            getMessenger: () => this.messenger,
+          },
+          {
+            onOrderSyncErroneousSituation: this.#onOrderSyncErroneousSituation,
+          },
+        ).catch((error) => {
           console.error(
             'Error deleting ramps order from remote storage:',
             error,
+          );
+          this.#onOrderSyncErroneousSituation?.(
+            'Error deleting ramps order from remote storage',
+            { error },
           );
         });
       }

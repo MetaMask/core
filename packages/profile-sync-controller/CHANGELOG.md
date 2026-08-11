@@ -10,10 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController.isRampsSyncingEnabled` ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Defaults to enabled (`true`); hosts can toggle Buy & sell order sync independently of account/contact sync
+  - Disabling ramps syncing alone does not disable main Backup & Sync
 
 ### Changed
 
 - **BREAKING:** `UserStorageControllerState` now includes `isRampsSyncingEnabled`. Consumers that construct full state objects must include this field. ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Prefer `isRampsSyncingEnabled ?? true` in selectors so wallets upgraded before this field existed keep ramps syncing on by default
 - Resolve HD entropy source IDs from `KeyringController` instead of the message-signing snap (`getBearerToken` primary ID, `performSignIn` SRP enumeration) ([#9794](https://github.com/MetaMask/core/pull/9794))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
