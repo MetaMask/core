@@ -2537,12 +2537,15 @@ export class RampsController extends BaseController<
     const incomingLastUpdatedAt = order.lastUpdatedAt;
     // Local edits always bump lastUpdatedAt so full-sync LWW can prefer them
     // over stale remote copies when an incremental push was skipped/failed.
-    // During full sync, preserve remote `lu` / `createdAt` (never invent "now"
-    // for missing `lu`, or stale remotes win later LWW comparisons).
+    // This includes external edits mid-sync (e.g. polling via `getOrder`),
+    // which the queued follow-up sync must not lose under LWW.
+    // Only when sync applies its own imported orders do we preserve the remote
+    // `lu` / `createdAt` (never invent "now" for missing `lu`, or stale remotes
+    // win later LWW comparisons).
     const healedOrder: SyncRampsOrder = {
       ...order,
       providerOrderId: internalOrderCode,
-      lastUpdatedAt: this.#isOrderSyncingInProgress
+      lastUpdatedAt: this.#isApplyingOrderSyncChanges
         ? (incomingLastUpdatedAt ?? order.createdAt ?? 0)
         : Date.now(),
     };

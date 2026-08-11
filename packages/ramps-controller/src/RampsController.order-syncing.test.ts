@@ -477,6 +477,7 @@ describe('RampsController order syncing', () => {
     const { controller } = setupControllerWithOrderSyncingMocks();
 
     controller.setIsOrderSyncingInProgress(true);
+    controller.setIsApplyingOrderSyncChanges(true);
     controller.addOrder({
       ...createMockOrder({
         providerOrderId: 'no-lu',
@@ -493,10 +494,33 @@ describe('RampsController order syncing', () => {
     );
   });
 
+  it('bumps lastUpdatedAt for external edits made while a sync is in progress', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_222);
+    const { controller } = setupControllerWithOrderSyncingMocks();
+
+    controller.setIsOrderSyncingInProgress(true);
+    controller.addOrder(
+      createMockOrder({
+        providerOrderId: 'mid-sync-edit',
+        id: '/providers/transak/orders/mid-sync-edit',
+        createdAt: 1_111,
+        lastUpdatedAt: 10,
+      }),
+    );
+
+    expect(controller.state.orders[0]).toStrictEqual(
+      expect.objectContaining({
+        providerOrderId: 'mid-sync-edit',
+        lastUpdatedAt: 1_700_000_000_222,
+      }),
+    );
+  });
+
   it('uses 0 lastUpdatedAt when syncing remotes without lu or createdAt', () => {
     const { controller } = setupControllerWithOrderSyncingMocks();
 
     controller.setIsOrderSyncingInProgress(true);
+    controller.setIsApplyingOrderSyncChanges(true);
     controller.addOrder({
       providerOrderId: 'no-timestamps',
       id: '/providers/transak/orders/no-timestamps',
