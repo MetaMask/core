@@ -15,7 +15,6 @@ import {
 } from './payload.js';
 import { deepFreeze } from './utils.js';
 
-
 /**
  * Immutable value object returned by {@link AccountTreeController.exportState}.
  *
