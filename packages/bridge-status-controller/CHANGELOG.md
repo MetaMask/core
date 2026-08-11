@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.5.0` to ^69.5.2 ([#9798](https://github.com/MetaMask/core/pull/9798, [#RELEASE_PR](https://github.com/MetaMask/core/pull/RELEASE_PR)))
+- Bump `@metamask/transaction-controller` from `^69.5.0` to ^69.5.2 ([#9798](https://github.com/MetaMask/core/pull/9798, [#9823](https://github.com/MetaMask/core/pull/9823)))
 - Bump `@metamask/bridge-controller` from `^79.0.0` to `^79.0.1` ([#9788](https://github.com/MetaMask/core/pull/9788))
 - Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
