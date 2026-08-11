@@ -36,13 +36,20 @@ describe('IdMap', () => {
       );
     });
 
-    it('overwrites an existing entry for the same local ID', () => {
+    it('throws if the same local ID is registered twice', () => {
       const map = new IdMap();
       map.add('entropy:wallet-1', 'wallet:entropy-source-1');
-      map.add('entropy:wallet-1', 'wallet:entropy-source-2');
-      expect(map.getPayloadId('entropy:wallet-1')).toBe(
-        'wallet:entropy-source-2',
-      );
+      expect(() =>
+        map.add('entropy:wallet-1', 'wallet:entropy-source-2'),
+      ).toThrow('Local ID already registered: entropy:wallet-1');
+    });
+
+    it('throws if the same payload ID is registered twice', () => {
+      const map = new IdMap();
+      map.add('entropy:wallet-1', 'wallet:entropy-source-1');
+      expect(() =>
+        map.add('entropy:wallet-2', 'wallet:entropy-source-1'),
+      ).toThrow('Payload ID already registered: wallet:entropy-source-1');
     });
 
     it('handles wallet and group IDs in the same map', () => {

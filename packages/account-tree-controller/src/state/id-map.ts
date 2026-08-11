@@ -1,4 +1,5 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
+import { assert } from '@metamask/utils';
 
 import type {
   AccountGroupPayloadId,
@@ -36,6 +37,17 @@ export class IdMap {
    * @param payloadId - Corresponding portable payload ID.
    */
   add(localId: LocalId, payloadId: PayloadId): void {
+    // Each local ID maps to exactly one payload ID and vice versa: wallet and
+    // group IDs are unique by construction, so a duplicate signals a bug in the
+    // caller (e.g. exportState visiting the same node twice).
+    assert(
+      !this.#localToPayload.has(localId),
+      `Local ID already registered: ${localId}`,
+    );
+    assert(
+      !this.#payloadToLocal.has(payloadId),
+      `Payload ID already registered: ${payloadId}`,
+    );
     this.#localToPayload.set(localId, payloadId);
     this.#payloadToLocal.set(payloadId, localId);
   }
