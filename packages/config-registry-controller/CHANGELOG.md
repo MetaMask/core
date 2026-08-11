@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `contracts.swapRouters` property to `RegistryNetworkConfig` ([#0000](https://github.com/MetaMask/core/pull/0000))
-- Add optional `config.isSwapsEnabled` and `config.isBridgeEnabled` properties to `RegistryNetworkConfig` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add optional `contracts.swapRouters` property to `RegistryNetworkConfig` ([#9818](https://github.com/MetaMask/core/pull/9818))
+- Add optional `config.isSwapsEnabled` and `config.isBridgeEnabled` properties to `RegistryNetworkConfig` ([#9818](https://github.com/MetaMask/core/pull/9818))
 
 ### Changed
 
